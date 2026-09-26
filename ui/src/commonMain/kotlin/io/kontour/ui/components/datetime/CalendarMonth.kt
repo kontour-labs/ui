@@ -354,7 +354,7 @@ fun CalendarMonth(
                     val halfCell = minOf(cell, rowHeight) / 2f
                     val first = leadingBlanks
                     val last = leadingBlanks + daysInMonth - 1
-                    for (edgeDay in listOf(DwellEdge.Previous, DwellEdge.Next)) {
+                    for (edgeDay in DwellEdge.entries) {
                         val index = if (edgeDay == DwellEdge.Previous) first else last
                         val column = index % Columns + 0.5f
                         val row = index / Columns + 0.5f

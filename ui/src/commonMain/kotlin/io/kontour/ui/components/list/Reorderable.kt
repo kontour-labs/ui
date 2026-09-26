@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -322,7 +323,10 @@ fun LazyItemScope.ReorderableItem(
     )
     val shadowShape = shape ?: morphed
     val modality = LocalInputModality.current
-    val dragging = state.draggingIndex == index
+    // Derived, so a crossing recomposes the two rows it changes — the one that
+    // stopped being dragged and the one that started — rather than every row on
+    // screen, all of which read the index.
+    val dragging by remember(state, index) { derivedStateOf { state.draggingIndex == index } }
 
     // Read in composition because a theme colour has to be; painted in the draw
     // phase above. `surface` rather than the list's own ground: a row that has

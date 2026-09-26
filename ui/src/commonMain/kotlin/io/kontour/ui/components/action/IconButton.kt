@@ -24,7 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -390,13 +390,22 @@ private fun IconButtonSurface(
         animationSpec = motion.tweenFast(),
         label = "iconButtonContent",
     )
-    val animatedRotation by animateFloatAsState(
+    val animatedRotation = animateFloatAsState(
         targetValue = rotation,
         // Bouncy: a chevron that overshoots a few degrees and settles reads as
         // a physical flip rather than a value being assigned.
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "iconButtonRotation",
     )
+    // Turned in the layer, as `chevronTurn` turns a chevron: read through
+    // `Modifier.rotate` the angle was a composition read, and every frame of a
+    // turn recomposed the button to move a layer. Only for a button that has
+    // been asked to turn at all — the rest keep no layer, as `rotate(0f)` kept
+    // none — and that one keeps its layer from then on, so the turn home has
+    // somewhere to be drawn.
+    val turned = remember { booleanArrayOf(false) }
+    if (rotation != 0f) turned[0] = true
+    val turn = if (turned[0]) Modifier.graphicsLayer { rotationZ = animatedRotation.value } else Modifier
     val borderColour = colours.border(enabled)
     // The control height, not the icon plus a padding of its own.
     //
@@ -452,7 +461,7 @@ private fun IconButtonSurface(
                             imageVector = glyph,
                             contentDescription = contentDescription,
                             modifier = Modifier
-                                .rotate(animatedRotation)
+                                .then(turn)
                                 .slash(strike, contentColour, container),
                             size = metrics.iconSize,
                         )
@@ -462,7 +471,7 @@ private fun IconButtonSurface(
                         imageVector = icon,
                         contentDescription = contentDescription,
                         modifier = Modifier
-                            .rotate(animatedRotation)
+                            .then(turn)
                             .slash(strike, contentColour, container),
                         size = metrics.iconSize,
                     )

@@ -1,10 +1,9 @@
 package io.kontour.ui.components.display
 
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
@@ -20,8 +19,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -106,13 +108,29 @@ fun ChatBubble(
     val sideways = Theme.spacing.sm
     val metaColour = contentColour.copy(alpha = contentColour.alpha * MetaAlpha)
 
-    BoxWithConstraints(
+    val share = maxWidthFraction.coerceIn(0f, 1f)
+    Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Surface(
             modifier = Modifier
-                .widthIn(max = maxWidth * maxWidthFraction.coerceIn(0f, 1f))
+                // The share of the row, taken in the bubble's own measure rather
+                // than through a `BoxWithConstraints` — a subcomposition per
+                // message, in a list of hundreds of them, to read one number the
+                // measure pass already has. The arithmetic is `widthIn`'s, down
+                // to the rounding: the row's width in dp, scaled, back to pixels.
+                .layout { measurable, constraints ->
+                    val cap = if (constraints.hasBoundedWidth) {
+                        (constraints.maxWidth.toDp() * share).roundToPx().coerceAtLeast(0)
+                    } else {
+                        Constraints.Infinity
+                    }
+                    val placeable = measurable.measure(
+                        constraints.constrain(Constraints(maxWidth = cap)),
+                    )
+                    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+                }
                 .semantics(mergeDescendants = true) {},
             shape = bubble,
             colour = colour,

@@ -203,7 +203,7 @@ fun Modifier.coachmarkStep(
 
     CoachmarkSpotlight(
         visible = enabled && tour.isShowing(id),
-        anchor = bounds,
+        anchor = { bounds },
         title = title,
         text = text,
         icon = icon,
@@ -227,7 +227,7 @@ fun Modifier.coachmarkStep(
 @Composable
 private fun CoachmarkSpotlight(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     title: String,
     text: String,
     icon: ImageVector?,
@@ -241,13 +241,15 @@ private fun CoachmarkSpotlight(
     val colours = Theme.colours
     val key = remember { Any() }
     val dismissLabel = Theme.strings.gotIt
-    val latestAnchor by rememberUpdatedState(anchor)
+    // Read here rather than by the caller — see `TooltipOverlay`.
+    val anchorNow = anchor()
+    val latestAnchor by rememberUpdatedState(anchorNow)
     val latestTour by rememberUpdatedState(tour)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, title, text, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, title, text, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }

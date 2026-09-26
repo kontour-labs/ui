@@ -262,8 +262,11 @@ private class AndroidHaptics(
      */
     private inline fun vibrateAround(millis: Int, play: () -> Unit) {
         if (!touchFeedbackOn()) return
-        val continuous = rumbles.filter { it.continuous && it.isActive }
-        continuous.forEach { it.stepAside(millis + StepAsideMargin) }
+        // Almost always none, and a filter over none is still a list a tick.
+        if (rumbles.isNotEmpty()) {
+            val continuous = rumbles.filter { it.continuous && it.isActive }
+            continuous.forEach { it.stepAside(millis + StepAsideMargin) }
+        }
         play()
     }
 
@@ -277,7 +280,7 @@ private class AndroidHaptics(
         val v = vibrator ?: return
         try {
             if (sdk >= 33) {
-                v.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
+                v.vibrate(effect, TouchVibration.attributes)
             } else {
                 vibrateLegacy(v, effect)
             }
@@ -451,6 +454,15 @@ private class AndroidHaptics(
             .addControlPoint(0f, sharpness, 10)
             .build()
         return VibrationEffect.createRepeatingEffect(loop)
+    }
+
+    /**
+     * Touch feedback's attributes, made once. An object of its own so the class
+     * is only loaded on a release that has it — every caller is behind the same
+     * Android 13 check — and so every tick stops building an identical one.
+     */
+    private object TouchVibration {
+        val attributes: VibrationAttributes = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
     }
 
     private companion object {

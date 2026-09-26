@@ -71,6 +71,9 @@ internal val ColourFormat.label: String
         ColourFormat.Hsl -> "HSL"
     }
 
+/** The switch's labels, built once — see `ModeLabels` in `ColourPicker`. */
+private val FormatLabels: List<String> = ColourFormat.entries.map { it.label }
+
 /**
  * The colour written out, and typeable.
  *
@@ -100,7 +103,7 @@ internal fun ColourFields(
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         if (onFormatChange != null) {
             SegmentedControl(
-                options = ColourFormat.entries.map { it.label },
+                options = FormatLabels,
                 selected = ColourFormat.entries.indexOf(format),
                 onSelectedChange = { onFormatChange(ColourFormat.entries[it]) },
                 enabled = enabled,

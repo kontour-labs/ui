@@ -5,6 +5,7 @@ import androidx.compose.animation.core.snap as snapSpec
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -221,7 +222,11 @@ fun Slider(
         if (active) motion.springBouncy else motion.springSnappy
     )
 
-    val thumbScale by animateFloatAsState(
+    // This and every animation below are held as states and read in the draw
+    // pass, their only reader. Read here through `by`, each of their frames
+    // recomposed the whole slider to repaint it — the 300ms settle after every
+    // release among them.
+    val thumbScale = animateFloatAsState(
         targetValue = if (active && !motion.reduceMotion) 1.25f else 1f,
         animationSpec = thumbReturn,
         label = "sliderThumb",
@@ -230,7 +235,7 @@ fun Slider(
     // A circle at rest that lengthens into a capsule while it is held. Shares
     // `active` and the spring with the scale above, so the thumb grows and
     // stretches as one gesture rather than two overlapping ones.
-    val thumbAspect by animateFloatAsState(
+    val thumbAspect = animateFloatAsState(
         targetValue = if (active && !motion.reduceMotion) SliderDefaults.ThumbAspect else 1f,
         animationSpec = thumbReturn,
         label = "sliderThumbAspect",
@@ -243,7 +248,7 @@ fun Slider(
     // pass. See `sliderValueLabel`.
     val labelMeasurer = rememberTextMeasurer()
     val labelStyle = Theme.typography.labelMedium.copy(color = colours.onSurfaceInverse)
-    val labelProgress by animateFloatAsState(
+    val labelProgress = animateFloatAsState(
         targetValue = if (valueLabel != null && active) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "sliderValueLabel",
@@ -374,7 +379,7 @@ fun Slider(
         fraction
     }
 
-    val settled by animateFloatAsState(
+    val settled = animateFloatAsState(
         targetValue = thumbTarget,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "sliderDetent",
@@ -394,17 +399,18 @@ fun Slider(
      * only kept in step so that letting go does not hand the thumb back to a
      * stale animation — the mistake stage 1 found in the detents.
      */
-    val tapEased by animateFloatAsState(
+    val tapEased = animateFloatAsState(
         targetValue = fraction,
         animationSpec = if (carrying) snapSpec() else motion.springOrTween(motion.springSnappy),
         label = "sliderTap",
     )
 
     // Coerced because `springSnappy` is underdamped and a thumb that overshoots
-    // the end of its own track reads as a bug rather than as bounce.
-    val drawnFraction = when {
-        detented -> settled.coerceIn(0f, 1f)
-        !carrying -> tapEased.coerceIn(0f, 1f)
+    // the end of its own track reads as a bug rather than as bounce. A function,
+    // called from the draw pass — see `thumbScale`.
+    fun drawnFraction(): Float = when {
+        detented -> settled.value.coerceIn(0f, 1f)
+        !carrying -> tapEased.value.coerceIn(0f, 1f)
         else -> fraction
     }
 
@@ -422,8 +428,8 @@ fun Slider(
      * A continuous drag has the two coincident and stays round, which is right:
      * a thumb pinned to the finger is not straining against anything.
      */
-    val thumbReach =
-        if (carrying) dragFraction - drawnFraction else thumbTarget - drawnFraction
+    fun thumbReach(drawn: Float): Float =
+        if (carrying) dragFraction - drawn else thumbTarget - drawn
 
     /**
      * The value, snapped, with a detent tick if a drag just crossed one.
@@ -511,7 +517,9 @@ fun Slider(
         val insetPx = with(density) { SliderThumbReach.toPx() }
         val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
 
-        BoxWithConstraints(
+        // A plain `Box`: nothing in here reads its constraints, and a
+        // `BoxWithConstraints` is a subcomposition to set up for nothing.
+        Box(
             Modifier
                 .fillMaxWidth()
                 // The gesture box is taller than the control draws.
@@ -643,7 +651,8 @@ fun Slider(
                         // always was. The drawing was not: a right-to-left slider
                         // took a touch at its right-hand end as its minimum and
                         // then drew the thumb at its left.
-                        val along = if (rtl) 1f - drawnFraction else drawnFraction
+                        val drawn = drawnFraction()
+                        val along = if (rtl) 1f - drawn else drawn
                         val thumbX = trackLeft + trackWidth * along
                         // The physical direction the value grows in, for the two
                         // signals below that are measured along the value.
@@ -683,9 +692,9 @@ fun Slider(
                             centreX = thumbX,
                             centreY = centreY,
                             radiusPx = thumbRadiusPx,
-                            scale = thumbScale,
-                            aspect = thumbAspect,
-                            reachPx = thumbReach * trackWidth * sense,
+                            scale = thumbScale.value,
+                            aspect = thumbAspect.value,
+                            reachPx = thumbReach(drawn) * trackWidth * sense,
                             // The end stop, in its own channel. It used to be
                             // summed into the reach above, which made a thumb
                             // pushed into the end of the track grow backwards
@@ -699,12 +708,13 @@ fun Slider(
                             capsule = pill,
                         )
 
-                        if (valueLabel != null && labelProgress > 0f) {
+                        val labelShown = labelProgress.value
+                        if (valueLabel != null && labelShown > 0f) {
                             sliderValueLabel(
                                 text = labelMeasurer.measure(valueLabel(value), labelStyle),
                                 centreX = thumbX,
-                                thumbTop = centreY - thumbRadiusPx * thumbScale,
-                                progress = labelProgress,
+                                thumbTop = centreY - thumbRadiusPx * thumbScale.value,
+                                progress = labelShown,
                                 scaleIn = !motion.reduceMotion,
                                 container = colours.surfaceInverse,
                                 paddingHorizontal = labelPaddingH,

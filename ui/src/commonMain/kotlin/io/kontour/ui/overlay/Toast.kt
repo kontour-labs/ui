@@ -801,11 +801,16 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // dragged node's, which exists only while its card is at `depth == 0`.
     val stackScope = rememberCoroutineScope()
     val pull = remember { mutableStateOf(Offset.Zero) }
-    val swipe = toastTravel(
-        pull = pull.value,
-        limit = frontHeightPx * ToastDefaults.RubberBand,
-        towardEdge = towardEdge,
-    )
+    // A lambda, read in each card's layer: the pull changes on every pointer
+    // event, and read here it recomposed the stack and every card in it for
+    // each of them, to move a layer.
+    val swipe = {
+        toastTravel(
+            pull = pull.value,
+            limit = frontHeightPx * ToastDefaults.RubberBand,
+            towardEdge = towardEdge,
+        )
+    }
 
     // Back to nothing whenever the card in front changes.
     //
@@ -1000,7 +1005,7 @@ private fun ToastCard(
      * card in front of them moved: a stack is one object, and half of it staying
      * behind while the other half follows a finger says it is not.
      */
-    swipe: Offset,
+    swipe: () -> Offset,
     /**
      * The same drag before the rubber band is applied — see `rubberBand`.
      *
@@ -1304,8 +1309,9 @@ private fun ToastCard(
                     // four, and swiping one away leaves the others where the eye
                     // already had them.
                     val lean = if (depth == 0) 1f else PillLean
-                    translationX = swipe.x * lean
-                    translationY = depthOffset.toPx() + swipe.y * lean
+                    val swiped = swipe()
+                    translationX = swiped.x * lean
+                    translationY = depthOffset.toPx() + swiped.y * lean
                     scaleX = depthScale
                     scaleY = depthScale
                     // No alpha. Fading the ones behind made them *translucent*

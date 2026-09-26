@@ -123,7 +123,16 @@ internal class DesktopHaptics(private val actuator: TrackpadActuator?, private v
                 perform(actuator, pattern)
             } else {
                 val future = scheduler?.schedule({ perform(actuator, pattern) }, offset.toLong(), TimeUnit.MILLISECONDS)
-                if (future != null) synchronized(pending) { pending += future }
+                // The ones already played are dropped as each new one is added.
+                // Nothing else took them out — only `cancel` emptied the set — so
+                // every pattern with a second pulse left a finished future behind
+                // for the life of the app.
+                if (future != null) {
+                    synchronized(pending) {
+                        pending.removeAll { it.isDone }
+                        pending += future
+                    }
+                }
             }
         }
     }

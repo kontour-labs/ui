@@ -46,7 +46,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.foundation.SelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
@@ -223,7 +223,9 @@ fun SegmentedControl(
     // it and quietly broke the promise in `Sizing`'s KDoc that a row of mixed
     // controls lines up. Invisible on desktop, where the minimum is 24dp.
     val height = maxOf(Theme.sizing.controlHeightMedium, Theme.sizing.minTouchTarget)
-    val indicator = rememberSelectionIndicatorState()
+    // The one reader of the indicator's travelling rect — the thumb leans from
+    // it — so the one group that asks for it to be published.
+    val indicator = remember { SelectionIndicatorState().apply { publishesDrawn = true } }
 
     var trackLength by remember { mutableFloatStateOf(0f) }
     val currentSelected by rememberUpdatedState(selected)

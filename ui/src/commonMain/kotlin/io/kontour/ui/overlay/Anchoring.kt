@@ -412,6 +412,20 @@ fun Modifier.anchorBounds(onBounds: (Rect?) -> Unit): Modifier =
     onGloballyPositioned { onBounds(if (it.isAttached) it.boundsInRoot() else null) }
 
 /**
+ * Reads [bounds] in a scope of its own and hands the result to [content].
+ *
+ * An anchor's bounds change on every frame its trigger scrolls, and the
+ * composable that owns the trigger is the wrong place to read them: it
+ * recomposes, every frame, for the sake of a menu that is usually closed. Read
+ * here, only this and the overlay it wraps do — in the same pass, the same
+ * frame, with the same value.
+ */
+@Composable
+internal fun WithAnchor(bounds: () -> Rect?, content: @Composable (Rect?) -> Unit) {
+    content(bounds())
+}
+
+/**
  * Captures the bounds of this composable's *parent*, in root coordinates.
  *
  * Lets a dropdown be declared next to the control it belongs to and still know

@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -361,18 +362,24 @@ fun Modifier.shimmer(
         label = "shimmerProgress",
     )
 
-    return drawBehind {
-        drawRect(colour)
+    return drawWithCache {
         // Travels one and a half widths, so the highlight is fully off screen
         // between passes rather than wrapping visibly at the edge.
         val travel = size.width * 1.5f
-        val start = -size.width * 0.5f + travel * progress
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, highlight, Color.Transparent),
-                startX = start,
-                endX = start + size.width * 0.5f,
-            )
+        val start = -size.width * 0.5f
+        // Built once, where the pass starts, and moved each frame rather than
+        // rebuilt there — see `Skeleton`, which does the same.
+        val band = Brush.horizontalGradient(
+            colors = listOf(Color.Transparent, highlight, Color.Transparent),
+            startX = start,
+            endX = start + size.width * 0.5f,
         )
+        onDrawBehind {
+            drawRect(colour)
+            val along = travel * progress
+            translate(along, 0f) {
+                drawRect(brush = band, topLeft = Offset(-along, 0f), size = size)
+            }
+        }
     }
 }

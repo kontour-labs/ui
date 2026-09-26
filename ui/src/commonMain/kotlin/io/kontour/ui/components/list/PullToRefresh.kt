@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -36,6 +37,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -317,7 +319,11 @@ fun PullToRefresh(
      */
     val pullDrag = rememberDraggableState { delta -> state.drag(delta) }
 
-    val indicatorOffset by animateFloatAsState(
+    // Held as the state and read where it is used — the content's offset, the
+    // indicator's placement and its layer — rather than in composition, where
+    // every frame of the spring home after a release recomposed the whole
+    // container, list and all, to move it.
+    val indicatorOffset = animateFloatAsState(
         targetValue = when {
             refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
             else -> state.offset
@@ -325,6 +331,10 @@ fun PullToRefresh(
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "pullToRefresh",
     )
+    val indicatorShown by remember(indicatorOffset) { derivedStateOf { indicatorOffset.value > 0.5f } }
+    // Read in composition, not in the semantics block below, so the label
+    // changes when the latch does: the block is only re-run when it is rebuilt.
+    val releaseToRefresh = state.willRefresh
 
     Box(
         modifier
@@ -354,11 +364,11 @@ fun PullToRefresh(
         // your finger is actually on — and it is what iOS does.
         //
         // In a layer, so the list is not re-laid-out on every frame of a drag.
-        Box(Modifier.offsetY(indicatorOffset)) {
+        Box(Modifier.offsetY { indicatorOffset.value }) {
             content()
         }
 
-        if (indicatorOffset > 0.5f || refreshing) {
+        if (indicatorShown || refreshing) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -375,21 +385,21 @@ fun PullToRefresh(
                     // circle. So the circle is *sized* to the gap instead, in
                     // `RefreshIndicator`'s own layer, and this expression stays the
                     // one honest thing it always was — the middle of the space.
-                    .offsetY((indicatorOffset - with(density) { IndicatorSize.toPx() }) / 2f)
+                    .offsetY { (indicatorOffset.value - IndicatorSize.toPx()) / 2f }
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = when {
                             refreshing -> refreshingLabel
-                            state.willRefresh -> releaseLabel
+                            releaseToRefresh -> releaseLabel
                             else -> pullLabel
                         }
                     },
             ) {
                 RefreshIndicator(
-                    progress = state.progress,
+                    progress = { state.progress },
                     refreshing = refreshing,
                     reduceMotion = motion.reduceMotion,
-                    gap = indicatorOffset,
+                    gap = { indicatorOffset.value },
                 )
             }
         }
@@ -421,12 +431,13 @@ private val IndicatorSize = 40.dp
  */
 @Composable
 private fun RefreshIndicator(
-    progress: Float,
+    /** Read in the layer and the arc's drawing, never in composition. */
+    progress: () -> Float,
     refreshing: Boolean,
     reduceMotion: Boolean,
-    gap: Float,
+    /** The drawn gap, read in the layer. */
+    gap: () -> Float,
 ) {
-    val pull = progress.coerceIn(0f, 1f)
 
     // The fade needs room around the circle, or it cuts the circle's own shadow
     // into a square.
@@ -465,6 +476,7 @@ private fun RefreshIndicator(
                 // The growth is still there — a stray one-pixel drag must not
                 // flash a control — it just finishes early, leaving the rest of
                 // the gesture to the arc alone.
+                val pull = progress().coerceIn(0f, 1f)
                 val grown = (pull / PullToRefreshDefaults.GrowthShare).coerceAtMost(1f)
                 val appearing = if (refreshing) 1f else grown
 
@@ -506,7 +518,7 @@ private fun RefreshIndicator(
                 // pulling". So it fits the gap less a clearance at each end — it is
                 // smaller while the gap is short, and the same 40dp once there is
                 // room — and it is never touching the list it came out from under.
-                val fits = ((gap - 2f * clearance.toPx()) / IndicatorSize.toPx()).coerceIn(0f, 1f)
+                val fits = ((gap() - 2f * clearance.toPx()) / IndicatorSize.toPx()).coerceIn(0f, 1f)
                 val scale = minOf(appearing, fits)
 
                 scaleX = scale
@@ -566,6 +578,7 @@ private fun RefreshIndicator(
                 // — matching `OpeningSweep` there would have handed a 190°
                 // arc over to a 90° one.
                 val full = if (reduceMotion) SpinnerDefaults.RestingSweep else PullSweep
+                val pull = progress().coerceIn(0f, 1f)
                 val sweep = pull * full
                 val head = PullHead + if (reduceMotion) 0f else pull * PullTurn
                 drawArc(
@@ -603,8 +616,8 @@ private const val PullTurn = 300f
  */
 private const val PullSweep = 270f
 
-private fun Modifier.offsetY(y: Float): Modifier =
-    offset { IntOffset(0, y.roundToInt()) }
+private fun Modifier.offsetY(y: Density.() -> Float): Modifier =
+    offset { IntOffset(0, y().roundToInt()) }
 
 /**
  * The row at the end of a list that loads the next page.

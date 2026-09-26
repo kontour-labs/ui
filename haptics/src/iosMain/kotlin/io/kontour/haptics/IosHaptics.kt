@@ -243,6 +243,7 @@ private class IosRumble(timeout: Duration, private val onStopped: (IosRumble) ->
     private var sentAt = 0.0
     private var trailing = false
     private var leaseEnds = 0.0
+    private var leaseWatched = false
 
     override var isActive: Boolean = false
         private set
@@ -332,9 +333,29 @@ private class IosRumble(timeout: Duration, private val onStopped: (IosRumble) ->
         sentAt = now()
     }
 
+    /**
+     * Pushes the end of the lease back, with one check waiting for it at a time.
+     *
+     * It used to schedule a check per renewal, and a renewal comes with every
+     * update — sixty a second through a drag, each leaving a block on the main
+     * queue to wake up a timeout later and find the lease already renewed. Now
+     * the one check that is waiting, on waking early, waits out the rest of
+     * the lease and looks again; the rumble still stops the moment it lapses.
+     */
     private fun renewLease() {
         leaseEnds = now() + leaseSeconds
-        after(leaseSeconds) { if (isActive && now() >= leaseEnds) stop() }
+        if (!leaseWatched) watchLease(leaseSeconds)
+    }
+
+    private fun watchLease(seconds: Double) {
+        leaseWatched = true
+        after(seconds) {
+            leaseWatched = false
+            if (isActive) {
+                val left = leaseEnds - now()
+                if (left <= 0.0) stop() else watchLease(left)
+            }
+        }
     }
 
     private companion object {

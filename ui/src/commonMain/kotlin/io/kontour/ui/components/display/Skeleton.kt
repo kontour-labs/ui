@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -158,27 +159,36 @@ internal fun Modifier.skeletonFill(
                         val bandWidth = span * BandShare
                         val travel = span + bandWidth
                         val centre = Offset(size.width / 2f, size.height / 2f)
+                        // Measured from the centre outwards, so the band enters
+                        // one edge and leaves the other whatever the angle. At 0°
+                        // this is `-bandWidth + travel * sweep` offset from the
+                        // left edge, which is what it was.
+                        //
+                        // Built once, where the sweep starts, and moved along its
+                        // axis each frame rather than rebuilt there: a new
+                        // gradient is a new shader, and a loading screen is a
+                        // dozen of these animating at once.
+                        val head = -span / 2f - bandWidth
+                        val band = Brush.linearGradient(
+                            colorStops = arrayOf(
+                                0f to base,
+                                0.5f to highlight,
+                                1f to base,
+                            ),
+                            start = centre + Offset(dx * head, dy * head),
+                            end = centre + Offset(
+                                dx * (head + bandWidth),
+                                dy * (head + bandWidth),
+                            ),
+                        )
 
                         onDrawBehind {
-                            // Measured from the centre outwards, so the band
-                            // enters one edge and leaves the other whatever the
-                            // angle. At 0° this is `-bandWidth + travel * sweep`
-                            // offset from the left edge, which is what it was.
-                            val head = -span / 2f - bandWidth + travel * (sweep?.value ?: 0f)
-                            drawRect(
-                                brush = Brush.linearGradient(
-                                    colorStops = arrayOf(
-                                        0f to base,
-                                        0.5f to highlight,
-                                        1f to base,
-                                    ),
-                                    start = centre + Offset(dx * head, dy * head),
-                                    end = centre + Offset(
-                                        dx * (head + bandWidth),
-                                        dy * (head + bandWidth),
-                                    ),
-                                ),
-                            )
+                            val along = travel * (sweep?.value ?: 0f)
+                            val x = dx * along
+                            val y = dy * along
+                            translate(x, y) {
+                                drawRect(brush = band, topLeft = Offset(-x, -y), size = size)
+                            }
                         }
                     }
                 }

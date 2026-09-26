@@ -40,6 +40,7 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
@@ -476,13 +477,15 @@ private fun SelectFrame(
         }
     }
 
-    AnchoredDropdownMenu(
-        visible = expanded,
-        anchor = anchor,
-        onDismissRequest = { setExpanded(false) },
-        alignment = OverlayAlignment.Start,
-        matchAnchorWidth = true,
-    ) {
-        content { setExpanded(false) }
+    WithAnchor({ anchor }) { bounds ->
+        AnchoredDropdownMenu(
+            visible = expanded,
+            anchor = bounds,
+            onDismissRequest = { setExpanded(false) },
+            alignment = OverlayAlignment.Start,
+            matchAnchorWidth = true,
+        ) {
+            content { setExpanded(false) }
+        }
     }
 }

@@ -86,7 +86,31 @@ class NavExpansion(
     val expanded: Boolean,
     val progress: Float,
     val onSurface: Boolean,
-)
+) {
+    // Compared by value, because [LocalNavExpansion] is: a surface that provides
+    // the same room on its next composition must not look like new room to
+    // every slot reading it. Without these, every provide was a change.
+    override fun equals(other: Any?): Boolean =
+        other is NavExpansion &&
+            expanded == other.expanded &&
+            progress == other.progress &&
+            onSurface == other.onSurface
+
+    override fun hashCode(): Int {
+        var result = expanded.hashCode()
+        result = 31 * result + progress.hashCode()
+        result = 31 * result + onSurface.hashCode()
+        return result
+    }
+
+    internal companion object {
+        /** A bar's: no room for labels, and nothing behind the slot. */
+        val Bar = NavExpansion(expanded = false, progress = 1f, onSurface = false)
+
+        /** A drawer's: all the room there is, on a panel. */
+        val Drawer = NavExpansion(expanded = true, progress = 1f, onSurface = true)
+    }
+}
 
 /**
  * The room available to the slot being composed.

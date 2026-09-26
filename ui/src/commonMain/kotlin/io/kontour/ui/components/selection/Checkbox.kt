@@ -130,7 +130,10 @@ fun TriStateCheckbox(
     // checkbox beside it toggled.
     val toggled = rememberToggleFeedback()
     val press = if (pressed && enabled) SelectionPressPreview else 0f
-    val filled by animateFloatAsState(
+    // Every animation here is held as a state and read in the `Canvas` below,
+    // its only reader: read through `by`, each frame of a tick drawing itself
+    // recomposed the box to repaint it.
+    val filled = animateFloatAsState(
         targetValue = if (selected) 1f - press else press,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "checkboxFill",
@@ -139,13 +142,12 @@ fun TriStateCheckbox(
     // The ground the tick is drawn on. Its *colour* animates for enabled and
     // disabled; how much of it there is comes from `filled`, so the box fills
     // and empties with the mark rather than a frame behind it.
-    val containerBase by animateColorAsState(
+    val containerBase = animateColorAsState(
         targetValue = if (enabled) colours.primary else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",
     )
-    val container = containerBase.copy(alpha = containerBase.alpha * filled)
-    val border by animateColorAsState(
+    val border = animateColorAsState(
         targetValue = when {
             !enabled -> colours.contentDisabled
             selected -> colours.primary
@@ -155,22 +157,21 @@ fun TriStateCheckbox(
         label = "checkboxBorder",
     )
     // The mark strokes on: 0 to 1 is the fraction of the tick path drawn, and
-    // that is exactly how full the box is.
-    val markProgress = filled
+    // that is exactly how full the box is — so it is `filled`, read in the draw.
     // How flat the mark is: 0 a tick, 1 the indeterminate bar.
     //
     // A second fraction rather than a second shape, because the two marks are
     // the *same three points* at different heights, and animating between them
     // is what makes a tick flatten into a bar instead of one being rubbed out
     // and the other snapping in.
-    val flatness by animateFloatAsState(
+    val flatness = animateFloatAsState(
         targetValue = if (state == ToggleableState.Indeterminate) 1f else 0f,
         animationSpec = motion.tweenFast(),
         label = "checkboxFlatness",
     )
     // The box itself springs up to meet the tick — the bounce lands on the way
     // *in*, which is the one place an overshoot on arrival is right.
-    val boxScale by animateFloatAsState(
+    val boxScale = animateFloatAsState(
         targetValue = 0.92f + 0.08f * (if (selected) 1f - press else press),
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "checkboxScale",
@@ -213,20 +214,22 @@ fun TriStateCheckbox(
             )
             .size(CheckboxSize)
     ) {
-        scale(boxScale) {
+        val markProgress = filled.value
+        scale(boxScale.value) {
             val outline = shape.createOutline(size, layoutDirection, this)
             val strokeWidth = stroke.toPx()
+            val base = containerBase.value
 
-            drawOutline(outline = outline, color = container)
+            drawOutline(outline = outline, color = base.copy(alpha = base.alpha * markProgress))
             drawOutline(
                 outline = outline,
-                color = border,
+                color = border.value,
                 style = Stroke(width = strokeWidth),
             )
 
             if (markProgress > 0f) {
                 drawCheckMark(
-                    flatness = flatness,
+                    flatness = flatness.value,
                     progress = markProgress,
                     colour = if (enabled) colours.onPrimary else colours.surface,
                     strokeWidth = strokeWidth,

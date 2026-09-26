@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -128,7 +129,12 @@ private fun IconBox(
     drawSize: DpSize,
 ) {
     val resolvedTint = if (tint == Color.Unspecified) Theme.colours.content else tint
-    val tintFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    // Remembered: a tint filter is a native object, built afresh on every
+    // composition of every icon — which, under an animated content colour, is
+    // every frame of every icon in a button, tab or chip changing state.
+    val tintFilter = remember(tint, resolvedTint) {
+        if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    }
 
     val semantics = if (contentDescription != null) {
         Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }

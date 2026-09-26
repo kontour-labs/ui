@@ -444,45 +444,56 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
     val scaling = style.scales && insetPx > 0f
     if (!blurring && !scaling) return this
 
+    // Every blur the ramp can reach, built once — step 0 none at all.
+    //
+    // Grown with the fraction rather than switched on, so the screen
+    // softens as the panel arrives instead of going out of focus a frame
+    // before it appears.
+    //
+    // Quantised to the same [RampSteps] the corner ramp uses, and for
+    // the same reason: a `BlurEffect` is an object, and a radius read
+    // straight off `f` is a new one every frame — which is a new render
+    // effect on the layer every frame, which is the layer's cached
+    // rasterisation thrown away every frame. Twelve steps over a blur
+    // radius is under a pixel a step.
+    //
+    // Step for step what [blurFraction] measures, which `backdropGround`'s
+    // ring reads too. They are the same measurement and getting them out of
+    // step leaks the page behind straight through the content's edge. Kept as
+    // an array now rather than built per frame: an equal effect was already
+    // left alone by the layer, but it was still an object a frame.
+    //
+    // `TileMode.Clamp`, and it is the other half of the reported white
+    // flash. A blur samples beyond what it is blurring, and left to
+    // itself it treats everything outside as *transparent* — so the
+    // layer's own edge fades out over the blur radius, and this layer's
+    // edge is the whole screen. Inset by `Inset`, that fade
+    // lands exactly where the reporter saw it: a soft halo hugging the
+    // receding content, showing whatever the app is sitting on. Clamping
+    // extends the edge pixels instead, so the content stays opaque to
+    // its own boundary.
+    val blurs = remember(radiusPx) {
+        Array(RampSteps + 1) { step ->
+            if (step == 0) {
+                null
+            } else {
+                val radius = radiusPx * (step.toFloat() / RampSteps)
+                BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
+            }
+        }
+    }
+
     return graphicsLayer {
         val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
 
-        // **[blurFraction], not `f`.** A step that has rounded down to zero must
+        // **The step, not `f`.** A step that has rounded down to zero must
         // leave the layer with *no render effect at all*, rather than one of
         // radius zero — the edge fade this backdrop's ring exists to cover is a
         // property of the offscreen an effect forces, not of how wide the blur
         // is, so a zero-radius `BlurEffect` produces the identical see-through
         // rim with nothing behind it. Which is what it did, on exactly the
         // frames where the round goes to zero.
-        renderEffect = if (blurring && blurFraction(f) > 0f) {
-            // Grown with the fraction rather than switched on, so the screen
-            // softens as the panel arrives instead of going out of focus a frame
-            // before it appears.
-            //
-            // Quantised to the same [RampSteps] the corner ramp uses, and for
-            // the same reason: a `BlurEffect` is an object, and a radius read
-            // straight off `f` is a new one every frame — which is a new render
-            // effect on the layer every frame, which is the layer's cached
-            // rasterisation thrown away every frame. Twelve steps over a blur
-            // radius is under a pixel a step.
-            //
-            // Through [blurFraction], which `backdropGround`'s ring reads too.
-            // They are the same measurement and getting them out of step leaks
-            // the page behind straight through the content's edge.
-            val radius = radiusPx * blurFraction(f)
-            // `TileMode.Clamp`, and it is the other half of the reported white
-            // flash. A blur samples beyond what it is blurring, and left to
-            // itself it treats everything outside as *transparent* — so the
-            // layer's own edge fades out over the blur radius, and this layer's
-            // edge is the whole screen. Inset by `Inset`, that fade
-            // lands exactly where the reporter saw it: a soft halo hugging the
-            // receding content, showing whatever the app is sitting on. Clamping
-            // extends the edge pixels instead, so the content stays opaque to
-            // its own boundary.
-            BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
-        } else {
-            null
-        }
+        renderEffect = if (blurring) blurs[rampStep(f)] else null
 
         if (scaling) {
             val fit = backdropFit(size.width, size.height, insetPx, opaqueBottomPx)

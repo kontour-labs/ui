@@ -853,7 +853,6 @@ private fun PageDots(
     // one the layout just produced.
     val dotWidth = remember(count) { FloatArray(count) }
     val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
-    val position = if (travels) state.pagePosition else 0f
     // The gesture below outlives the composition that installed it, so the
     // handler has to be read at tap time rather than captured.
     val select = rememberUpdatedState(onPageSelect)
@@ -922,7 +921,10 @@ private fun PageDots(
                 if (travels && count > 0) {
                     Modifier.drawWithContent {
                         drawContent()
-                        val at = position.coerceIn(0f, (count - 1).toFloat())
+                        // Read here, its only use: the pill follows every frame
+                        // of a swipe, and read in composition that recomposed
+                        // the whole row of dots for each of them.
+                        val at = state.pagePosition.coerceIn(0f, (count - 1).toFloat())
                         val from = at.toInt().coerceIn(0, count - 1)
                         val to = (from + 1).coerceAtMost(count - 1)
                         val fraction = at - from

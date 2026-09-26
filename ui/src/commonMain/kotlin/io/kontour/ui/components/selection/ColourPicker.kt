@@ -185,7 +185,7 @@ fun ColourPicker(
     ) {
         if (onModeChange != null) {
             SegmentedControl(
-                options = ColourPickerMode.entries.map { it.label },
+                options = ModeLabels,
                 selected = ColourPickerMode.entries.indexOf(mode),
                 onSelectedChange = { onModeChange(ColourPickerMode.entries[it]) },
                 enabled = enabled,
@@ -272,6 +272,13 @@ private val ColourPickerMode.label: String
     }
 
 /**
+ * The switch's labels, built once. A list made in composition is a new list
+ * every time, and a new list is a changed parameter — so the switch recomposed
+ * on every drag event of the picker around it.
+ */
+private val ModeLabels: List<String> = ColourPickerMode.entries.map { it.label }
+
+/**
  * Saturation across, value down, at one hue.
  *
  * Two gradients over one flat colour, which is the whole of it: white to the
@@ -293,6 +300,9 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     var at by remember { mutableStateOf(Offset.Zero) }
     val strings = Theme.strings
     val pure = remember(hsv.hue) { Hsv(hsv.hue, 1f, 1f).toColour() }
+    // White to the hue, kept until the hue moves — a drag across the square
+    // changes saturation and value on every event and this not at all.
+    val across = remember(pure) { Brush.horizontalGradient(listOf(Color.White, pure)) }
 
     // **The square feels like the tracks beside it.** It was silent while the hue
     // and opacity tracks under it had a slider's texture and end stops — reported
@@ -383,8 +393,8 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
-        drawRect(Brush.horizontalGradient(listOf(Color.White, pure)))
-        drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+        drawRect(across)
+        drawRect(ValueShade)
         cursor(
             Offset(
                 hsv.saturation.coerceIn(0f, 1f) * size.width,
@@ -533,7 +543,7 @@ private fun HueTrack(hue: Float, onHueChange: (Float) -> Unit, enabled: Boolean)
         // Seven stops and not six: red is both ends, and a gradient that stopped
         // at magenta would run the last sixth of the wheel backwards through
         // every colour it had already passed.
-        background = { Brush.horizontalGradient(HueStops) },
+        background = { HueBrush },
     )
 }
 
@@ -552,13 +562,15 @@ private fun AlphaTrack(
     enabled: Boolean,
 ) {
     val strings = Theme.strings
+    // Kept until the colour changes, which a drag along this track never does.
+    val fade = remember(opaque) { Brush.horizontalGradient(listOf(opaque.copy(alpha = 0f), opaque)) }
     Track(
         fraction = alpha.coerceIn(0f, 1f),
         onFractionChange = onAlphaChange,
         enabled = enabled,
         label = strings.colourOpacity,
         behind = { chequerboard() },
-        background = { Brush.horizontalGradient(listOf(opaque.copy(alpha = 0f), opaque)) },
+        background = { fade },
     )
 }
 
@@ -705,6 +717,13 @@ internal fun DrawScope.chequerboard() {
     }
 }
 
+/**
+ * The two gradients that never change, built once. A brush keeps the shader it
+ * made for the last size it was drawn at, so one kept is one shader; one built
+ * in the draw was a new shader on every frame of a drag.
+ */
+private val ValueShade = Brush.verticalGradient(listOf(Color.Transparent, Color.Black))
+
 /** Half the wheel's stops plus the wrap. See [HueTrack]. */
 private val HueStops = listOf(
     Color(0xFFFF0000),
@@ -715,6 +734,8 @@ private val HueStops = listOf(
     Color(0xFFFF00FF),
     Color(0xFFFF0000),
 )
+
+private val HueBrush = Brush.horizontalGradient(HueStops)
 
 /** Wider than tall, so the value axis is the short one. A colour area is read across. */
 private const val AreaAspect = 1.6f

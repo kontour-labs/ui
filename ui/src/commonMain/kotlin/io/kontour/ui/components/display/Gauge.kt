@@ -161,13 +161,17 @@ fun Gauge(
         val thicknessPx = with(density) { thickness.toPx() }
         val tickGapPx = with(density) { GaugeTickGap.toPx() }
         val majorPx = if (majorTicks >= 2) with(density) { GaugeMajorTick.toPx() } else 0f
-        val labels = if (majorTicks >= 2 && tickLabel != null) {
-            List(majorTicks) { index ->
-                val at = valueRange.start + (valueRange.endInclusive - valueRange.start) * index / (majorTicks - 1)
-                measurer.measure(tickLabel(at), labelStyle)
+        // Remembered: a new value changes none of them, and a new list each time
+        // was also a new draw cache below, arc brush and all, for every reading.
+        val labels = remember(majorTicks, tickLabel, valueRange, labelStyle, measurer) {
+            if (majorTicks >= 2 && tickLabel != null) {
+                List(majorTicks) { index ->
+                    val at = valueRange.start + (valueRange.endInclusive - valueRange.start) * index / (majorTicks - 1)
+                    measurer.measure(tickLabel(at), labelStyle)
+                }
+            } else {
+                emptyList()
             }
-        } else {
-            emptyList()
         }
         val labelExtent = labels.maxOfOrNull { max(it.size.width, it.size.height) }?.toFloat() ?: 0f
         val outside = tickPlacement == GaugeTickPlacement.Outside

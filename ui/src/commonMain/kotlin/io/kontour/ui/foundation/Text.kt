@@ -4,6 +4,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,10 +101,7 @@ fun Text(
             textAlign = textAlign,
             lineHeight = lineHeight,
         ),
-        onTextLayout = {
-            redaction.onLayout(it)
-            onTextLayout?.invoke(it)
-        },
+        onTextLayout = redaction.layoutCallback(onTextLayout),
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
@@ -156,10 +154,7 @@ fun Text(
             textAlign = textAlign,
             lineHeight = lineHeight,
         ),
-        onTextLayout = {
-            redaction.onLayout(it)
-            onTextLayout?.invoke(it)
-        },
+        onTextLayout = redaction.layoutCallback(onTextLayout),
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
@@ -356,8 +351,17 @@ private fun rememberTextRedaction(): TextRedaction {
         else -> Modifier.drawWithContent { }
     }
 
+    // Out of redaction there is no layout callback to empty the bars (see
+    // [TextRedaction.layoutCallback]), so they are emptied here — for the next
+    // time the text is redacted, which must start from nothing drawn rather than
+    // from the bars of whatever string was there before.
+    if (!redacted && boxes.isNotEmpty()) {
+        SideEffect { bars.value = emptyList() }
+    }
+
     return TextRedaction(
         modifier = if (redacted) Modifier.clearAndSetSemantics { }.then(fill) else fill,
+        redacted = redacted,
         onLayout = onLayout,
     )
 }
@@ -366,8 +370,35 @@ private fun rememberTextRedaction(): TextRedaction {
 @Immutable
 private class TextRedaction(
     val modifier: Modifier,
+    val redacted: Boolean,
     val onLayout: (TextLayoutResult) -> Unit,
-)
+) {
+    /**
+     * The callback to hand `BasicText`: the same instance from one composition
+     * to the next wherever it can be.
+     *
+     * `BasicText` compares its `onTextLayout` by identity, and a new one throws
+     * away the paragraph it had shaped and lays the text out again. A lambda
+     * written inline here captured this wrapper, which is new every composition
+     * — so every `Text` under an animated colour, every frame, re-shaped its
+     * string for nothing. [onLayout] is remembered; this passes it through as it
+     * is.
+     *
+     * Plain text with nobody listening gets no callback at all, which is what
+     * lets `BasicText` take its string fast path. The only thing the callback
+     * did there was empty the bars once redaction ended — and [rememberTextRedaction]
+     * does that itself now.
+     */
+    @Composable
+    fun layoutCallback(caller: ((TextLayoutResult) -> Unit)?): ((TextLayoutResult) -> Unit)? {
+        val own = onLayout
+        return when {
+            caller == null && !redacted -> null
+            caller == null -> own
+            else -> remember(own, caller) { { result -> own(result); caller(result) } }
+        }
+    }
+}
 
 /**
  * How far a bar is inset from its line box, top and bottom.

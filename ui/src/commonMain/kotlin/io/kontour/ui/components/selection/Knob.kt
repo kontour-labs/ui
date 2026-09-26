@@ -213,6 +213,10 @@ fun Knob(
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "knobDetent",
     )
+    // Read by the drawing through a state rather than captured by it. Captured,
+    // every new value was a new draw-cache lambda, and every one of those rebuilt
+    // the arc's gradient — once per drag event, for a brush that never changes.
+    val drawnValue = rememberUpdatedState(value)
 
     // The control's semantics, keys and focus on the node the caller's `modifier`
     // lands on, as `Slider` puts its semantics: one node that is the knob, which a
@@ -345,7 +349,7 @@ fun Knob(
                     onDrawBehind {
                         // Coerced: `springSnappy` overshoots, and a notch past the end
                         // of its own scale reads as a fault rather than a bounce.
-                        val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(value)
+                        val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(drawnValue.value)
                         dialArcs(geometry, thicknessPx, StrokeCap.Round, colours.track, fill, 0f, at)
                         if (steps > 0) {
                             dialTicks(

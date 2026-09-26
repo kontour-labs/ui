@@ -175,13 +175,16 @@ fun Meter(
         return if (span <= 0f) 0f else ((v - range.start) / span).coerceIn(0f, 1f)
     }
 
-    val labels = if (majorTicks >= 2 && tickLabel != null) {
-        List(majorTicks) { index ->
-            val at = range.start + (range.endInclusive - range.start) * index / (majorTicks - 1)
-            measurer.measure(tickLabel(at), labelStyle)
+    // Remembered, as a gauge's are: a new reading changes none of them.
+    val labels = remember(majorTicks, tickLabel, range, labelStyle, measurer) {
+        if (majorTicks >= 2 && tickLabel != null) {
+            List(majorTicks) { index ->
+                val at = range.start + (range.endInclusive - range.start) * index / (majorTicks - 1)
+                measurer.measure(tickLabel(at), labelStyle)
+            }
+        } else {
+            emptyList()
         }
-    } else {
-        emptyList()
     }
 
     // **The scale's cross-section**, worked out once: how far the track, thumb and

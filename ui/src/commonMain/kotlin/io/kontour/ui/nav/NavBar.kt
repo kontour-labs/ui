@@ -679,8 +679,7 @@ fun NavBarItem(
 @Composable
 private fun BarSlot(content: @Composable () -> Unit) {
     CompositionLocalProvider(
-        LocalNavExpansion provides
-            NavExpansion(expanded = false, progress = 1f, onSurface = false),
+        LocalNavExpansion provides NavExpansion.Bar,
         content = content,
     )
 }

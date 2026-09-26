@@ -14,7 +14,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -202,37 +201,37 @@ private fun CentredBetween(
  * to scroll — and the sideways ones are consumed, so a scrolling container round
  * the calendar does not move as well. Right to left, the months run the other way
  * and so does the scroll.
+ *
+ * A plain `pointerInput` rather than `composed`, which the library used nowhere
+ * else: a composed modifier is composed again wherever it is applied, and all
+ * this one needed from composition was the direction, which the caller has.
  */
-private fun Modifier.sidewaysScrollPages(navigation: CalendarNavigationState): Modifier =
-    composed {
-        val current by rememberUpdatedState(navigation)
-        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-        pointerInput(rtl) {
-            var gathered = 0f
-            var last = 0L
-            var spent = false
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent()
-                    if (event.type != PointerEventType.Scroll) continue
-                    val delta = event.changes.fold(Offset.Zero) { sum, change -> sum + change.scrollDelta }
-                    if (abs(delta.x) <= abs(delta.y)) continue
-                    val now = event.changes.first().uptimeMillis
-                    if (now - last > ScrollQuietMillis) {
-                        gathered = 0f
-                        spent = false
-                    }
-                    last = now
-                    event.changes.forEach { it.consume() }
-                    if (spent) continue
-                    gathered += delta.x
-                    if (abs(gathered) >= ScrollPage) {
-                        // Scrolling right shows what is to the right: the next
-                        // month, or right to left the one before.
-                        val later = gathered > 0f
-                        current.step(if (later != rtl) 1 else -1)
-                        spent = true
-                    }
+private fun Modifier.sidewaysScrollPages(navigation: CalendarNavigationState, rtl: Boolean): Modifier =
+    pointerInput(navigation, rtl) {
+        var gathered = 0f
+        var last = 0L
+        var spent = false
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                if (event.type != PointerEventType.Scroll) continue
+                val delta = event.changes.fold(Offset.Zero) { sum, change -> sum + change.scrollDelta }
+                if (abs(delta.x) <= abs(delta.y)) continue
+                val now = event.changes.first().uptimeMillis
+                if (now - last > ScrollQuietMillis) {
+                    gathered = 0f
+                    spent = false
+                }
+                last = now
+                event.changes.forEach { it.consume() }
+                if (spent) continue
+                gathered += delta.x
+                if (abs(gathered) >= ScrollPage) {
+                    // Scrolling right shows what is to the right: the next
+                    // month, or right to left the one before.
+                    val later = gathered > 0f
+                    navigation.step(if (later != rtl) 1 else -1)
+                    spent = true
                 }
             }
         }
@@ -887,7 +886,7 @@ private fun CalendarFrame(
         Box(
             Modifier
                 .fillMaxWidth()
-                .sidewaysScrollPages(navigation)
+                .sidewaysScrollPages(navigation, rtl = LocalLayoutDirection.current == LayoutDirection.Rtl)
                 .then(if (drag != null) Modifier.calendarDragInput(drag) else Modifier)
         ) {
         CompositionLocalProvider(

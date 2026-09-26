@@ -18,9 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -221,8 +221,16 @@ class SelectionIndicatorState internal constructor() {
      *
      * Written from a `SideEffect`, so it lands before the frame is drawn and
      * nothing reads a value it wrote itself during composition.
+     *
+     * Only kept up to date where [publishesDrawn] asks for it. Publishing it
+     * means reading the travelling rect in composition, which recomposes the
+     * whole group on every frame of every slide — a cost a tab bar or a nav
+     * rail was paying for a number nothing in it reads.
      */
     internal var drawn: Rect by mutableStateOf(Rect.Zero)
+
+    /** Whether [drawn] is published. Set once, by the one control that reads it. */
+    internal var publishesDrawn: Boolean = false
 
     internal fun report(key: Any, bounds: Rect) {
         targetKey = key
@@ -477,22 +485,38 @@ fun SelectionIndicatorBox(
      *  - **the item already drawn** — a resize, and the only case that can take
      *    the short road.
      */
-    val rect = when {
-        bounds.isRunning -> bounds.value
-        state.targetKey == settledKey -> resolved ?: bounds.value
-        else -> bounds.value
-    }
     val visible = measured
 
     // See `SelectionIndicatorState.drawn`. Not assigned inline: writing a state
     // during composition that another composable in the same frame reads is how
     // a recomposition loop starts.
-    SideEffect { state.drawn = rect }
+    if (state.publishesDrawn) {
+        val rect = when {
+            bounds.isRunning -> bounds.value
+            state.targetKey == settledKey -> resolved ?: bounds.value
+            else -> bounds.value
+        }
+        SideEffect { state.drawn = rect }
+    }
 
     CompositionLocalProvider(LocalSelectionIndicator provides state) {
         Layout(
             contents = listOf(
-                { Box(Modifier.alpha(alpha.value).clearAndSetSemantics {}) { indicator() } },
+                {
+                    // In the layer rather than through `Modifier.alpha`, which
+                    // reads the fade in composition and recomposed the group on
+                    // every frame of it. The same layer `alpha` would add —
+                    // clipped, and only while it is not fully opaque.
+                    Box(
+                        Modifier
+                            .graphicsLayer {
+                                val faded = alpha.value
+                                this.alpha = faded
+                                clip = faded != 1f
+                            }
+                            .clearAndSetSemantics {}
+                    ) { indicator() }
+                },
                 { Box(content = content) },
             ),
             modifier = modifier.onGloballyPositioned { state.anchor = it },

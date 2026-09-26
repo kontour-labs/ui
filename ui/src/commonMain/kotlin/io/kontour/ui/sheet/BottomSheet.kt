@@ -631,6 +631,11 @@ fun BottomSheet(
     // In pixels here, because `SheetState` works in pixels throughout and the
     // nested-scroll callbacks have no density of their own.
     val flickVelocity = with(density) { SheetFlickVelocity.toPx() }
+    // Remembered: a new connection on every composition was a nested-scroll node
+    // updated on every composition, for an object that says the same thing.
+    val scrollConnection = remember(state, settleSpec, flickVelocity) {
+        state.nestedScrollConnection(settleSpec, flickVelocity)
+    }
 
     val fling = AnchoredDraggableDefaults.flingBehavior(
         state = state.anchoredState,
@@ -721,9 +726,7 @@ fun BottomSheet(
                 .then(
                     if (draggable) {
                         Modifier
-                            .nestedScroll(
-                                state.nestedScrollConnection(settleSpec, flickVelocity)
-                            )
+                            .nestedScroll(scrollConnection)
                             .anchoredDraggable(
                                 state = state.anchoredState,
                                 orientation = SheetOrientation,

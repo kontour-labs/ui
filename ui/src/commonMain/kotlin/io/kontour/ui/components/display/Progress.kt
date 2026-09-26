@@ -332,8 +332,11 @@ fun StepProgress(
                 progressBarRangeInfo = if (indeterminate) {
                     ProgressBarRangeInfo.Indeterminate
                 } else {
+                    // The step it is on, as `LinearProgress` reports its value —
+                    // not the fill on its way there, which re-ran these semantics
+                    // on every frame of the spring for a number between steps.
                     ProgressBarRangeInfo(
-                        current = animated,
+                        current = current.coerceIn(0, total).toFloat(),
                         range = 0f..total.toFloat(),
                         steps = total - 1,
                     )

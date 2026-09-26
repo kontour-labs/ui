@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -168,8 +169,14 @@ fun Scrollbar(
     // the grip had been lost.
     val active = hovered || dragged
 
-    val geometry = scrollbarGeometry(state)
-    if (!geometry.isUseful) return
+    // Everything but the position, which changes on every frame of a scroll and
+    // is read where it is used — in the thumb's placement. Composition only
+    // needs what decides the thumb's size, and that holds still while a list of
+    // even rows scrolls, so the bar no longer recomposes once a frame for it.
+    val extent by remember(state) {
+        derivedStateOf { scrollbarGeometry(state).copy(position = 0f) }
+    }
+    if (!extent.isUseful) return
 
     val width by animateFloatAsState(
         targetValue = if (active) hoveredThickness.value else thickness.value,
@@ -186,16 +193,15 @@ fun Scrollbar(
     val minThumbPx = with(LocalDensity.current) {
         minThumbLength.toPx()
     }
-    val thumbLength = (trackLength * geometry.fraction).coerceAtLeast(minThumbPx)
+    val thumbLength = (trackLength * extent.fraction).coerceAtLeast(minThumbPx)
     val travel = (trackLength - thumbLength).coerceAtLeast(0f)
-    val thumbOffset = travel * geometry.position
 
     // A pixel along the track is `scrollable / travel` pixels of content: the
     // thumb crosses its whole travel exactly as the list crosses all of its.
     // Read live rather than captured — `rememberDraggableState` keeps the
     // current lambda, and both numbers change as the list is scrolled.
     val drag = rememberDraggableState { delta ->
-        if (travel > 0f) state.dispatchRawDelta(delta * geometry.scrollable / travel)
+        if (travel > 0f) state.dispatchRawDelta(delta * extent.scrollable / travel)
     }
 
     Box(
@@ -247,6 +253,7 @@ fun Scrollbar(
         Box(
             Modifier
                 .offset {
+                    val thumbOffset = travel * scrollbarGeometry(state).position
                     if (orientation == Orientation.Vertical) {
                         IntOffset(0, thumbOffset.roundToInt())
                     } else {

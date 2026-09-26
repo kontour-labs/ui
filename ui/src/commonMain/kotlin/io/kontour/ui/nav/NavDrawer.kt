@@ -144,8 +144,7 @@ fun NavDrawer(
     // slots get the same answer a fully expanded rail's do — content written for
     // one works in the other without knowing which it is in.
     CompositionLocalProvider(
-        LocalNavExpansion provides
-            NavExpansion(expanded = true, progress = 1f, onSurface = true)
+        LocalNavExpansion provides NavExpansion.Drawer
     ) {
     Surface(
         modifier = modifier

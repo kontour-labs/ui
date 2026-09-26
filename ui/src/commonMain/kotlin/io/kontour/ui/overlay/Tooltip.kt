@@ -130,7 +130,7 @@ fun Modifier.tooltip(
 
     TooltipOverlay(
         visible = showing,
-        anchor = bounds,
+        anchor = { bounds },
         content = { +text },
         // Nothing to pass: this entry point is a modifier on the *trigger*, and
         // the bubble it shows is not addressable from the call site. Use the
@@ -208,7 +208,7 @@ fun Tooltip(
 
     TooltipOverlay(
         visible = visible,
-        anchor = bounds,
+        anchor = { bounds },
         content = content,
         modifier = modifier,
         side = side,
@@ -225,7 +225,7 @@ fun Tooltip(
 @Composable
 internal fun TooltipOverlay(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     content: @Composable ContentScope.() -> Unit,
     modifier: Modifier,
     side: OverlaySide,
@@ -237,9 +237,14 @@ internal fun TooltipOverlay(
     val modality = LocalInputModality.current
     val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
+    // Read here rather than by the caller. The bounds change on every frame the
+    // trigger scrolls, and read by the caller — `Modifier.tooltip` is part of
+    // whatever composable it is written in — that recomposed the whole screen
+    // around a tooltip that was not even showing. Read here, only this does.
+    val anchorNow = anchor()
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchor)
+    val latestAnchor by rememberUpdatedState(anchorNow)
     val latestModifier by rememberUpdatedState(modifier)
     // Same reason as the anchor: the bubble's content is read when the overlay
     // composes, not captured when the entry was built. It also keeps the slot
@@ -250,8 +255,8 @@ internal fun TooltipOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -394,7 +399,7 @@ fun Modifier.coachMark(
 
     CoachMarkOverlay(
         visible = queue.current?.id == id,
-        anchor = bounds,
+        anchor = { bounds },
         title = title,
         text = text,
         icon = icon,
@@ -410,7 +415,7 @@ fun Modifier.coachMark(
 @Composable
 private fun CoachMarkOverlay(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     title: String,
     text: String,
     icon: ImageVector?,
@@ -423,14 +428,16 @@ private fun CoachMarkOverlay(
     val colours = Theme.colours
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
+    // Read here rather than by the caller — see [TooltipOverlay].
+    val anchorNow = anchor()
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchor)
+    val latestAnchor by rememberUpdatedState(anchorNow)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, title, text, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, title, text, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }

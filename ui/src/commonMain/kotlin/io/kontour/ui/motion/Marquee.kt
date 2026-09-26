@@ -3,9 +3,9 @@ package io.kontour.ui.motion
 import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
@@ -87,7 +87,9 @@ fun Modifier.marquee(
         iterations = iterations,
         repeatDelayMillis = pauseMillis,
         initialDelayMillis = pauseMillis,
-        spacing = MarqueeSpacing(gap),
+        // Remembered: a spacing has no equality, so a new one each composition
+        // is a changed parameter and the marquee measures again for it.
+        spacing = remember(gap) { MarqueeSpacing(gap) },
         velocity = velocity,
     )
 }

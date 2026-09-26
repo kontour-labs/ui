@@ -229,7 +229,7 @@ fun RangeSlider(
     // `activeThumb` goes back to `None` the moment the finger lifts.
     val labelled = remember { LabelledThumb() }
     if (activeThumb != Thumb.None) labelled.thumb = activeThumb
-    val labelProgress by animateFloatAsState(
+    val labelProgress = animateFloatAsState(
         targetValue = if (valueLabel != null && active && activeThumb != Thumb.None) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "rangeSliderValueLabel",
@@ -287,12 +287,12 @@ fun RangeSlider(
         if (held(thumb)) motion.springBouncy else motion.springSnappy
     )
 
-    val startScale by animateFloatAsState(
+    val startScale = animateFloatAsState(
         targetValue = if (held(Thumb.Start)) 1.25f else 1f,
         animationSpec = thumbReturn(Thumb.Start),
         label = "rangeSliderStartThumb",
     )
-    val endScale by animateFloatAsState(
+    val endScale = animateFloatAsState(
         targetValue = if (held(Thumb.End)) 1.25f else 1f,
         animationSpec = thumbReturn(Thumb.End),
         label = "rangeSliderEndThumb",
@@ -302,12 +302,12 @@ fun RangeSlider(
     // the spring with the scale above, so a thumb grows and stretches as one
     // gesture rather than two overlapping ones — and comes home on the same
     // spring as the squash, which is what `thumbReturn` is for.
-    val startAspect by animateFloatAsState(
+    val startAspect = animateFloatAsState(
         targetValue = if (held(Thumb.Start)) SliderDefaults.ThumbAspect else 1f,
         animationSpec = thumbReturn(Thumb.Start),
         label = "rangeSliderStartAspect",
     )
-    val endAspect by animateFloatAsState(
+    val endAspect = animateFloatAsState(
         targetValue = if (held(Thumb.End)) SliderDefaults.ThumbAspect else 1f,
         animationSpec = thumbReturn(Thumb.End),
         label = "rangeSliderEndAspect",
@@ -502,12 +502,12 @@ fun RangeSlider(
             base
         }
 
-    val startSettled by animateFloatAsState(
+    val startSettled = animateFloatAsState(
         targetValue = targetFor(Thumb.Start, startFraction),
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "rangeStartDetent",
     )
-    val endSettled by animateFloatAsState(
+    val endSettled = animateFloatAsState(
         targetValue = targetFor(Thumb.End, endFraction),
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "rangeEndDetent",
@@ -530,12 +530,12 @@ fun RangeSlider(
             motion.springOrTween<Float>(motion.springSnappy)
         }
 
-    val startTapEased by animateFloatAsState(
+    val startTapEased = animateFloatAsState(
         targetValue = startFraction,
         animationSpec = tapSpec(Thumb.Start),
         label = "rangeStartTap",
     )
-    val endTapEased by animateFloatAsState(
+    val endTapEased = animateFloatAsState(
         targetValue = endFraction,
         animationSpec = tapSpec(Thumb.End),
         label = "rangeEndTap",
@@ -549,8 +549,6 @@ fun RangeSlider(
         else -> tapEased.coerceIn(0f, 1f)
     }
 
-    val easedStart = drawn(Thumb.Start, startFraction, startSettled, startTapEased)
-    val easedEnd = drawn(Thumb.End, endFraction, endSettled, endTapEased)
 
     /**
      * The two, drawn in contact.
@@ -593,79 +591,94 @@ fun RangeSlider(
         endFraction - startFraction <= gapFraction + ContactTolerance
 
     /**
-     * The two, drawn as one body while they are in contact.
+     * Where each thumb is drawn this frame, and how it is deformed.
      *
-     * This used to be a `minOf` against the pushed thumb's own spring, which
-     * kept them from merging but left the drawn position switching between two
-     * curves with different dynamics: the spring while it lagged, the contact
-     * clamp while it did not. Every time the finger paused, the spring caught
-     * up, overshot past the clamp and took over — so the thumb being pushed
-     * broke contact, rang, and was recaptured. That is the jumping around.
-     *
-     * A shoved thumb has no dynamics of its own. While it is in contact it is
-     * welded to the one doing the shoving and drawn a gap away from it, and it
-     * goes back to its own spring the moment the range opens again.
-     *
-     * **The weld holds it away and never pulls it back**, which is the second
-     * half and was missing. Written as an assignment, the pushed thumb sat at
-     * exactly `dragged ± gap` — and `easedStart` follows the finger continuously
-     * through `DetentPull`, in *both* directions. So reversing the drag dragged
-     * the pushed thumb home with it, sub-step, until the snapped value finally
-     * crossed a whole notch and let go. Reported as the two being glued together
-     * until the dragged one got a tick clear, which is exactly what it was.
-     *
-     * A `minOf` was tried once before and reverted because the pushed thumb's
-     * spring could overshoot past the clamp and take the drawing back, so it
-     * broke contact and rang. What makes it hold this time is the line above:
-     * `pushing` is a question about the values, and it now asks it without an
-     * epsilon, so the weld engages and releases on the same frame the values do
-     * rather than a per-cent of the track early and late.
+     * A function, called from the draw pass. Every input that changes frame by
+     * frame — the springs, the band — is a state read here, so a settling or
+     * springing thumb repaints without recomposing the slider; read in the body
+     * as they used to be, every frame of every spring recomposed all of it.
      */
-    val drawnStart = if (activeThumb == Thumb.End && pushing) {
-        minOf(easedStart, easedEnd - gapFraction).coerceIn(0f, 1f)
-    } else {
-        easedStart
+    fun drawnNow(): RangeDrawn {
+        val easedStart = drawn(Thumb.Start, startFraction, startSettled.value, startTapEased.value)
+        val easedEnd = drawn(Thumb.End, endFraction, endSettled.value, endTapEased.value)
+
+        /**
+         * The two, drawn as one body while they are in contact.
+         *
+         * This used to be a `minOf` against the pushed thumb's own spring, which
+         * kept them from merging but left the drawn position switching between two
+         * curves with different dynamics: the spring while it lagged, the contact
+         * clamp while it did not. Every time the finger paused, the spring caught
+         * up, overshot past the clamp and took over — so the thumb being pushed
+         * broke contact, rang, and was recaptured. That is the jumping around.
+         *
+         * A shoved thumb has no dynamics of its own. While it is in contact it is
+         * welded to the one doing the shoving and drawn a gap away from it, and it
+         * goes back to its own spring the moment the range opens again.
+         *
+         * **The weld holds it away and never pulls it back**, which is the second
+         * half and was missing. Written as an assignment, the pushed thumb sat at
+         * exactly `dragged ± gap` — and `easedStart` follows the finger continuously
+         * through `DetentPull`, in *both* directions. So reversing the drag dragged
+         * the pushed thumb home with it, sub-step, until the snapped value finally
+         * crossed a whole notch and let go. Reported as the two being glued together
+         * until the dragged one got a tick clear, which is exactly what it was.
+         *
+         * A `minOf` was tried once before and reverted because the pushed thumb's
+         * spring could overshoot past the clamp and take the drawing back, so it
+         * broke contact and rang. What makes it hold this time is the line above:
+         * `pushing` is a question about the values, and it now asks it without an
+         * epsilon, so the weld engages and releases on the same frame the values do
+         * rather than a per-cent of the track early and late.
+         */
+        val drawnStart = if (activeThumb == Thumb.End && pushing) {
+            minOf(easedStart, easedEnd - gapFraction).coerceIn(0f, 1f)
+        } else {
+            easedStart
+        }
+        val drawnEnd = if (activeThumb == Thumb.Start && pushing) {
+            maxOf(easedEnd, easedStart + gapFraction).coerceIn(0f, 1f)
+        } else {
+            easedEnd
+        }
+
+        /**
+         * How far a thumb is from where it is being taken. See `sliderThumb`.
+         *
+         * The **finger** for the thumb under it — the detent strain, which holds for
+         * as long as the finger is held between two notches — and the animation's
+         * target for the other one, which is the distance it still has to travel
+         * while it is being pushed. Two sources, one quantity, and neither case has
+         * to know about the other.
+         */
+        fun reach(thumb: Thumb, base: Float, drawnAt: Float): Float = when {
+            carrying && activeThumb == thumb -> dragFraction - drawnAt
+            detented -> targetFor(thumb, base) - drawnAt
+            else -> base - drawnAt
+        }
+
+        // Against the spring, not against the contact-clamped position above: the
+        // lag is exactly the signal, and clamping it away would leave nothing to
+        // stretch by at the moment there is most to stretch about.
+        val ownReachStart = reach(Thumb.Start, startFraction, easedStart)
+        val ownReachEnd = reach(Thumb.End, endFraction, easedEnd)
+
+        // Welded thumbs deform alike. A shoved thumb drawn rigidly against its
+        // neighbour but stretching on its own spring is the same two-dynamics
+        // problem one level down — the position stopped ringing and the shape
+        // carried on. It takes the strain of the thumb pushing it instead.
+        val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
+        val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
+
+        // The end stop's squash belongs to the thumb that ran into the wall, and to
+        // that one only — the other has not hit anything. [bandThumb] rather than
+        // `activeThumb`: the band outlives the gesture by exactly the length of its
+        // own spring home, and gating on the gesture threw that away.
+        val squashStart = if (bandThumb == Thumb.Start) band.offset else 0f
+        val squashEnd = if (bandThumb == Thumb.End) band.offset else 0f
+
+        return RangeDrawn(drawnStart, drawnEnd, reachStart, reachEnd, squashStart, squashEnd)
     }
-    val drawnEnd = if (activeThumb == Thumb.Start && pushing) {
-        maxOf(easedEnd, easedStart + gapFraction).coerceIn(0f, 1f)
-    } else {
-        easedEnd
-    }
-
-    /**
-     * How far a thumb is from where it is being taken. See `sliderThumb`.
-     *
-     * The **finger** for the thumb under it — the detent strain, which holds for
-     * as long as the finger is held between two notches — and the animation's
-     * target for the other one, which is the distance it still has to travel
-     * while it is being pushed. Two sources, one quantity, and neither case has
-     * to know about the other.
-     */
-    fun reach(thumb: Thumb, base: Float, drawnAt: Float): Float = when {
-        carrying && activeThumb == thumb -> dragFraction - drawnAt
-        detented -> targetFor(thumb, base) - drawnAt
-        else -> base - drawnAt
-    }
-
-    // Against the spring, not against the contact-clamped position above: the
-    // lag is exactly the signal, and clamping it away would leave nothing to
-    // stretch by at the moment there is most to stretch about.
-    val ownReachStart = reach(Thumb.Start, startFraction, easedStart)
-    val ownReachEnd = reach(Thumb.End, endFraction, easedEnd)
-
-    // Welded thumbs deform alike. A shoved thumb drawn rigidly against its
-    // neighbour but stretching on its own spring is the same two-dynamics
-    // problem one level down — the position stopped ringing and the shape
-    // carried on. It takes the strain of the thumb pushing it instead.
-    val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
-    val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
-
-    // The end stop's squash belongs to the thumb that ran into the wall, and to
-    // that one only — the other has not hit anything. [bandThumb] rather than
-    // `activeThumb`: the band outlives the gesture by exactly the length of its
-    // own spring home, and gating on the gesture threw that away.
-    val squashStart = if (bandThumb == Thumb.Start) band.offset else 0f
-    val squashEnd = if (bandThumb == Thumb.End) band.offset else 0f
 
     Box(
         modifier = modifier
@@ -925,8 +938,9 @@ fun RangeSlider(
                             val trackWidth = (size.width - thumbReachPx * 2f).coerceAtLeast(0f)
                             // Mirrored right to left, as the pointer maths
                             // always was — see `Slider`.
-                            val startX = trackLeft + trackWidth * (if (rtl) 1f - drawnStart else drawnStart)
-                            val endX = trackLeft + trackWidth * (if (rtl) 1f - drawnEnd else drawnEnd)
+                            val now = drawnNow()
+                            val startX = trackLeft + trackWidth * (if (rtl) 1f - now.start else now.start)
+                            val endX = trackLeft + trackWidth * (if (rtl) 1f - now.end else now.end)
                             val bandLeft = minOf(startX, endX)
                             val bandRight = maxOf(startX, endX)
                             val sense = if (rtl) -1f else 1f
@@ -970,18 +984,18 @@ fun RangeSlider(
                             val startThumb =
                                 DrawnThumb(
                                     startX,
-                                    reachStart * trackWidth * sense,
-                                    squashStart * sense,
-                                    startScale,
-                                    startAspect,
+                                    now.reachStart * trackWidth * sense,
+                                    now.squashStart * sense,
+                                    startScale.value,
+                                    startAspect.value,
                                 )
                             val endThumb =
                                 DrawnThumb(
                                     endX,
-                                    reachEnd * trackWidth * sense,
-                                    squashEnd * sense,
-                                    endScale,
-                                    endAspect,
+                                    now.reachEnd * trackWidth * sense,
+                                    now.squashEnd * sense,
+                                    endScale.value,
+                                    endAspect.value,
                                 )
 
                             // Painter order is the whole of "which one can I
@@ -1001,14 +1015,9 @@ fun RangeSlider(
                             // showing either side of it.
                             //
                             // `Thumb.None` at rest, so the resting order is
-                            // unchanged and no render moves.
-                            val order = if (activeThumb == Thumb.Start) {
-                                listOf(endThumb, startThumb)
-                            } else {
-                                listOf(startThumb, endThumb)
-                            }
-
-                            for (drawn in order) {
+                            // unchanged and no render moves. Two calls rather
+                            // than a list of the two, which was a list a frame.
+                            fun paint(drawn: DrawnThumb) {
                                 sliderThumb(
                                     centreX = drawn.x,
                                     centreY = centreY,
@@ -1023,13 +1032,21 @@ fun RangeSlider(
                                     capsule = pill,
                                 )
                             }
+                            if (activeThumb == Thumb.Start) {
+                                paint(endThumb)
+                                paint(startThumb)
+                            } else {
+                                paint(startThumb)
+                                paint(endThumb)
+                            }
 
                             val held = when (labelled.thumb) {
                                 Thumb.Start -> startThumb
                                 Thumb.End -> endThumb
                                 Thumb.None -> null
                             }
-                            if (valueLabel != null && labelProgress > 0f && held != null) {
+                            val labelShown = labelProgress.value
+                            if (valueLabel != null && labelShown > 0f && held != null) {
                                 sliderValueLabel(
                                     text = labelMeasurer.measure(
                                         valueLabel(if (held === startThumb) value.start else value.endInclusive),
@@ -1037,7 +1054,7 @@ fun RangeSlider(
                                     ),
                                     centreX = held.x,
                                     thumbTop = centreY - thumbRadiusPx * held.scale,
-                                    progress = labelProgress,
+                                    progress = labelShown,
                                     scaleIn = !motion.reduceMotion,
                                     container = colours.surfaceInverse,
                                     paddingHorizontal = labelPaddingH,
@@ -1053,7 +1070,8 @@ fun RangeSlider(
             // Two adjustable nodes, one per thumb. They draw nothing — the
             // canvas above has already drawn both — and exist so assistive tech
             // has two things to adjust rather than one control with two values
-            // it cannot name.
+            // it cannot name. One description of the range, said by both.
+            val announcement = stateDescription?.invoke(value)
             ThumbSemantics(
                 contentDescription = startContentDescription,
                 current = value.start,
@@ -1064,7 +1082,7 @@ fun RangeSlider(
                     .coerceAtLeast(valueRange.start),
                 steps = steps,
                 enabled = enabled,
-                announcement = stateDescription?.invoke(value),
+                announcement = announcement,
                 onSet = { emit(Thumb.Start, fractionOf(it)) },
             )
             ThumbSemantics(
@@ -1074,7 +1092,7 @@ fun RangeSlider(
                     .coerceAtMost(valueRange.endInclusive)..valueRange.endInclusive,
                 steps = steps,
                 enabled = enabled,
-                announcement = stateDescription?.invoke(value),
+                announcement = announcement,
                 onSet = { emit(Thumb.End, fractionOf(it)) },
             )
         }
@@ -1141,6 +1159,16 @@ private class DrawnThumb(
     val squash: Float,
     val scale: Float,
     val aspect: Float,
+)
+
+/** Both thumbs' drawn positions, as fractions, and their deformation. See `drawnNow`. */
+private class RangeDrawn(
+    val start: Float,
+    val end: Float,
+    val reachStart: Float,
+    val reachEnd: Float,
+    val squashStart: Float,
+    val squashEnd: Float,
 )
 
 private enum class Thumb { Start, End, None }

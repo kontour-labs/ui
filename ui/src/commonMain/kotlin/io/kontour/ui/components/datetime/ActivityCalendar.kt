@@ -346,7 +346,10 @@ fun ActivityCalendar(
             }
         }
     }
-    val painters = HashMap<ImageVector, VectorPainter>()
+    // Remembered, so the grid's draw cache below — which captures it — is the
+    // same lambda from one composition to the next and is not rebuilt, month
+    // labels re-shaped and all, whenever anything else here recomposes.
+    val painters = remember { HashMap<ImageVector, VectorPainter>() }
     marks?.mapNotNullTo(LinkedHashSet()) { it?.icon }?.forEach { icon ->
         key(icon) { painters[icon] = rememberVectorPainter(icon) }
     }
@@ -357,7 +360,10 @@ fun ActivityCalendar(
     }
 
     val labelStyle = Theme.typography.labelSmall
-    val measurer = rememberTextMeasurer()
+    // Room for every label the grid draws — twelve months, three weekdays and
+    // the marks — so rebuilding the draw cache finds them already shaped. The
+    // default of eight evicted the months on every rebuild.
+    val measurer = rememberTextMeasurer(cacheSize = 32)
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val rtl = layoutDirection == LayoutDirection.Rtl
@@ -386,17 +392,6 @@ fun ActivityCalendar(
     val longPressed = rememberLongPressFeedback()
     val currentSelected by rememberUpdatedState(selected)
     val pick by rememberUpdatedState(if (interactive) onDayClick else null)
-    // A pointer has to rest before the first tooltip, as everywhere else; moving
-    // from one cell to the next with one already showing moves it straight away.
-    LaunchedEffect(hoverDay == null) {
-        if (hoverDay == null) {
-            hoverShown = false
-        } else {
-            delay(TooltipDefaults.HoverDelayMillis)
-            hoverShown = true
-        }
-    }
-
     BoxWithConstraints(modifier) {
         val weekdayWidth = if (weekdayLabels) {
             with(density) {
@@ -716,30 +711,54 @@ fun ActivityCalendar(
             }
         }
 
-        // The day a tooltip is about: a long press's, a resting pointer's, or
-        // the keyboard's cursor. None while the grid is scrolling under it.
-        val tip = when {
-            scroll.isScrollInProgress -> null
-            pressDay != null -> pressDay
-            hoverShown -> hoverDay
-            ringVisible -> focusedDay
-            else -> null
-        }
-        if (tip != null) {
-            val anchor = cellRect(tip)?.let { rect ->
-                coordinates[0]?.takeIf { it.isAttached }?.let { Rect(it.localToRoot(rect.topLeft), rect.size) }
+        // The pointer and the press are read in here and nowhere else in
+        // composition. They change on every cell a pointer crosses, and read out
+        // there they recomposed the whole calendar — label measures, layout and
+        // all — for a ring the grid draws on its own.
+        OwnScope {
+            // A pointer has to rest before the first tooltip, as everywhere else;
+            // moving from one cell to the next with one already showing moves it
+            // straight away.
+            LaunchedEffect(hoverDay == null) {
+                if (hoverDay == null) {
+                    hoverShown = false
+                } else {
+                    delay(TooltipDefaults.HoverDelayMillis)
+                    hoverShown = true
+                }
             }
-            TooltipOverlay(
-                visible = true,
-                anchor = anchor,
-                content = { +say(tip, activity[tip] ?: 0) },
-                modifier = Modifier,
-                side = OverlaySide.Top,
-                alignment = OverlayAlignment.Center,
-                onDismissRequest = { pressDay = null },
-            )
+
+            // The day a tooltip is about: a long press's, a resting pointer's, or
+            // the keyboard's cursor. None while the grid is scrolling under it.
+            val tip = when {
+                scroll.isScrollInProgress -> null
+                pressDay != null -> pressDay
+                hoverShown -> hoverDay
+                ringVisible -> focusedDay
+                else -> null
+            }
+            if (tip != null) {
+                val anchor = cellRect(tip)?.let { rect ->
+                    coordinates[0]?.takeIf { it.isAttached }?.let { Rect(it.localToRoot(rect.topLeft), rect.size) }
+                }
+                TooltipOverlay(
+                    visible = true,
+                    anchor = { anchor },
+                    content = { +say(tip, activity[tip] ?: 0) },
+                    modifier = Modifier,
+                    side = OverlaySide.Top,
+                    alignment = OverlayAlignment.Center,
+                    onDismissRequest = { pressDay = null },
+                )
+            }
         }
     }
+}
+
+/** Composes [content] in a restart scope of its own, so what it reads recomposes only it. */
+@Composable
+private fun OwnScope(content: @Composable () -> Unit) {
+    content()
 }
 
 /** Mon, Wed and Fri, level with their rows, down the calendar's start side. */
