@@ -44,6 +44,7 @@ import com.composables.icons.tabler.outline.Menu2
 import com.composables.icons.tabler.outline.Palette
 import com.composables.icons.tabler.outline.SquareRoundedLetterT
 import com.composables.icons.tabler.outline.Stack2
+import com.composables.icons.tabler.outline.Swipe
 import com.composables.icons.tabler.outline.Typography
 import com.composables.icons.tabler.outline.Windmill
 import io.kontour.ui.adaptive.LocalWindowSizeClass
@@ -79,7 +80,7 @@ internal class Page(
 )
 
 /**
- * Every page, in order: four written by hand and eleven generated.
+ * Every page, in order: five written by hand and eleven generated.
  *
  * **The generated eleven are the point.** They used to be hand-written too — a
  * fixed list of thirteen, last changed structurally in August, while the library
@@ -91,10 +92,10 @@ internal class Page(
  * The fix is not a check that notices the drift. It is the removal of the second
  * list: a demo can only be added to `demoFamilies`, and these pages are that.
  *
- * Four survive by hand because they are not component demos and never could be:
+ * Five survive by hand because they are not component demos and never could be:
  * `About` is what the gallery is, `Tokens` is the palette, the type scale and
  * the shape ladder — the one page where a *theme* can be judged rather than a
- * component — and `Frames` and `Haptics` are instruments. `Frames` has the
+ * component — and `Frames`, `Haptics` and `Back` are instruments. `Frames` has the
  * sharpest reason: a full-screen generic-path clip sat under every sheet
  * in the library for three rounds of profiling because the JVM suite prices a
  * mask as pixel work and a GPU prices it as an architectural penalty. The
@@ -118,6 +119,9 @@ internal val pages: List<Page> = listOf(
     // Also scrolls itself, and also an instrument: the one place a haptic can be
     // judged is a hand holding the phone. See [HapticsLab].
     Page("Haptics", Tabler.Outline.DeviceMobileVibration) { HapticsLab(it) },
+    // An instrument too: back is judged by driving it, with a real gesture on
+    // a phone and the simulator elsewhere. See [BackPage].
+    Page("Back", Tabler.Outline.Swipe) { BackPage(it) },
 ) + demoFamilies.map { family ->
     Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
 }

@@ -51,6 +51,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":ui"))
+            // The Back page drives real Navigation 3 stacks, and a simulated
+            // gesture through the same dispatcher a real one arrives by.
+            implementation(project(":ui-nav3"))
+            implementation(libs.navigationevent.compose)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
