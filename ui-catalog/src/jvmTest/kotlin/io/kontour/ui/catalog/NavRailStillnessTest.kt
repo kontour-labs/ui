@@ -183,14 +183,16 @@ class NavRailStillnessTest {
     /**
      * Whether this pixel is the accent the selected destination is drawn in.
      *
-     * Blue, and decisively so. The magenta page is as blue as it is red and
-     * every other glyph on the rail is a grey, so nothing else here comes close.
+     * Violet, and decisively so: blue well over red, and both well over green.
+     * The magenta page is as red as it is blue, and every other glyph on the
+     * rail is a grey, so nothing else here comes close. The selected icon is
+     * `accent.onContainer`, `#542482` in light.
      */
     private fun isAccent(rgb: Int): Boolean {
         val r = (rgb shr 16) and 0xFF
         val g = (rgb shr 8) and 0xFF
         val b = rgb and 0xFF
-        return b > 120 && b - r > 60 && b - g > 60
+        return b > 100 && b - r > 30 && b - g > 60
     }
 
     private companion object {

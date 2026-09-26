@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
@@ -134,20 +135,20 @@ private fun ColourRamp() {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
-            // In the built-in schemes this is identical to `accent`, and that is
-            // the point: they have no product in them, so `brand` resolves to
-            // the accent until an app sets one, and the label says so rather
-            // than letting the swatch read as a duplicate.
+            // Where `brand` and `accent` are the same colour — the dark scheme,
+            // whose accent is Kontour Labs' violet itself — the label says so
+            // rather than letting the swatch read as a duplicate. In light they
+            // differ, because `#BB86FC` cannot carry the white label an accent
+            // has to; GTurbo's logo red, one step off its fill red, is the other
+            // case a second theme exists to show.
             //
-            // It used to say "unset" unconditionally, which was true while the
-            // default scheme was the only one anybody drew this under. A theme
-            // that sets a real brand — GTurbo's logo red, one step off its fill
-            // red — made the label wrong, which is the sort of thing a second
-            // theme exists to find.
+            // The label on it is picked for the swatch, not borrowed from the
+            // accent: a brand is allowed to be too light for white text, and
+            // the light default is.
             Swatch(
-                if (c.brand == c.accent.solid) "brand — unset" else "brand",
+                if (c.brand == c.accent.solid) "brand = accent" else "brand",
                 c.brand,
-                c.accent.onSolid,
+                contentColourFor(c.brand),
             )
         }
         FlowRow(

@@ -132,7 +132,7 @@ are in the gauge's own units** — revolutions, degrees — and the gauge places
 its `valueRange` when it draws, so the scale is said once, on the gauge, and the
 bands never repeat it. They can be given in any order.
 
-**Whatever no band covers is the gauge's own colour** — the theme's accent, as an
+**Whatever no band covers is the gauge's own colour** — the theme's `primary`, as an
 unbanded gauge is. That is the scale before the first band starts, if it starts
 after the scale does, and the gap after a band given an `until`: `band(from = 20f,
 until = 24f, colour = green)` is a comfort zone with the plain scale either side of

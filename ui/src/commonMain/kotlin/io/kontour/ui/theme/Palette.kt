@@ -9,15 +9,16 @@ import androidx.compose.ui.graphics.Color
  * every component, every layout — reads semantic tokens off [ColourScheme], so
  * that swapping a theme swaps meaning rather than hex codes.
  *
- * **Monochrome, plus one blue.** The default scheme has no product in it: ink
- * and grey for everything structural, blue for the one role that has to say
- * "interactive", and the four conventional status hues. A library that shipped
- * somebody's brand would make every app that used it look like that somebody,
- * and the app that owned the brand would be the only one not fighting it.
+ * **Monochrome, plus Kontour Labs' violet.** Ink and grey for everything
+ * structural, the violet for the one role that has to say "interactive", and
+ * the four conventional status hues. The violet is `#BB86FC` — [VioletLight],
+ * the dark scheme's accent and every scheme's `brand` — and a deeper tone of
+ * the same hue, [VioletReadable], wherever it has to carry text on white,
+ * which `#BB86FC` cannot: it is 2.65:1 there.
  *
- * Kontour's own purple used to live here and does not any more. It is in
- * `anyways`, as `KontourBrandTheme` — which is the shape every product using
- * this library should copy, and is documented in `ui-docs/content/theming.md`.
+ * It is one hue, 303° in OKLCH, and every value in the ramp below sits on it.
+ * An app that wants its own colour replaces `accent`, `brand` and `focusRing`
+ * and nothing else; see `ui-docs/content/theming.md`.
  *
  * What remains comes from two places:
  *
@@ -86,14 +87,14 @@ object Palette {
     /**
      * Lightest grey that still clears 3:1 on every fill it has to bound.
      *
-     * Not the `#8A8A8A` it was: the binding fill is [BlueTintLight], not the
-     * well. A selected chip is that tint, this is its border, and at `#8A8A8A`
-     * the pair reads 2.68:1. The well going back to [Grey50] does not release
-     * this one.
+     * Not the `#8A8A8A` it was: the binding fill is the accent tint,
+     * [VioletTintLight], not the well. A selected chip is that tint, this is its
+     * border, and it reads 3.23:1 against it. The well going back to [Grey50]
+     * does not release this one.
      */
     val Grey500 = Color(0xFF818181)
 
-    /** Lightest grey that still clears 4.5:1 on white, [Grey50] and [BlueTintLight]. */
+    /** Lightest grey that still clears 4.5:1 on white, [Grey50] and [VioletTintLight]. */
     val Grey600 = Color(0xFF646464)
 
     /** Uber gray500, and close to `home --text-muted`. */
@@ -103,64 +104,79 @@ object Palette {
     /** `home --background` / `--text-main`. The near-black everything sits on. */
     val Ink = Color(0xFF121212)
 
-    // --- Blue -------------------------------------------------------------
+    // --- Violet ------------------------------------------------------------
     //
-    // The accent, and the one hue in an otherwise monochrome default. Blue
-    // because it is the least opinionated colour a library can pick: it says
-    // "interactive" in every convention the reader has met, and it is the one
-    // an app is most likely to replace without the replacement looking strange.
+    // The accent, and the one hue in an otherwise monochrome default: Kontour
+    // Labs' own, `#BB86FC`, at 303° in OKLCH. Every value here is that hue at
+    // another lightness, so a tint, a solid and the text on either read as one
+    // colour rather than a family of near-misses.
     //
     // The ramp mirrors what a status colour needs — a solid that carries white
     // text, a deep tone for text on a tint, the tint itself, and light-on-dark
     // versions of all three. Every pairing is asserted by
     // `ColourSchemeContrastTest`; the ratios are not eyeballed.
 
-    /** Carries white text and clears non-text contrast on white. 6.7:1. */
-    val BlueReadable = Color(0xFF1D4ED8)
+    /**
+     * Carries white text and clears non-text contrast on white. 6.67:1.
+     *
+     * The light scheme's accent. [VioletLight] itself cannot be: 2.65:1 on white
+     * fails both text and the 3:1 a control boundary needs.
+     */
+    val VioletReadable = Color(0xFF7C37BE)
 
-    /** Text on [BlueTintLight]. */
-    val BlueDeep = Color(0xFF1E3A8A)
+    /** Text on [VioletTintLight], 8.9:1, and the light scheme's code keyword. */
+    val VioletDeep = Color(0xFF542482)
 
-    /** The high-contrast tier's text on a tint. 14.7:1 on white. */
-    val BlueDeeper = Color(0xFF172554)
+    /** The high-contrast tier's text on a tint. 11.7:1 on its tint. */
+    val VioletDeeper = Color(0xFF3D0D65)
 
-    /** The high-contrast tier's solid. */
-    val BlueStrong = Color(0xFF1E3A8A)
+    /** The high-contrast tier's solid. 9.3:1 on white. */
+    val VioletStrong = Color(0xFF62259B)
 
     /**
-     * The accent container, and a tint you can actually see.
+     * The accent container.
      *
-     * 1.29:1 on white, from 1.09. A selected chip used to differ from the page
-     * by a hundredth of a step; the number that bounds it from the other side is
-     * [Grey500], which clears 3.02:1 against this — and the two converge, so
-     * this is very nearly as dark as an accent tint can be before its own
-     * boundary stops bounding it.
+     * Bounded on both sides: 1.21:1 against white, over the 1.15 a selected
+     * fill needs to separate from the page, and [Grey500] still clears 3.23:1
+     * against it, because a selected chip is this tint and that is its border.
      */
-    val BlueTintLight = Color(0xFFD5E4F9)
-    val BlueTintLightHc = Color(0xFFCEDFF7)
-    val BlueTintDark = Color(0xFF1E2C42)
-    val BlueTintDarkHc = Color(0xFF24314D)
+    val VioletTintLight = Color(0xFFF1E5FF)
+    val VioletTintLightHc = Color(0xFFEEE1FF)
 
-    /** The dark tier's solid — light enough to read against ink. */
-    val BlueLight = Color(0xFF93C5FD)
-    val BlueLightHc = Color(0xFFB3D3FF)
+    /**
+     * The dark accent container.
+     *
+     * Dark has a narrow window here: at least 1.15:1 against `surface`, and dark
+     * enough that `outlineStrong` keeps 3:1 against it. This is 1.17 and 3.11.
+     */
+    val VioletTintDark = Color(0xFF332742)
+    val VioletTintDarkHc = Color(0xFF392B4C)
 
-    /** What sits *on* [BlueLight]: near-black with a blue cast. */
-    val BlueOnLight = Color(0xFF0D1B2E)
-    val BlueHcOnLight = Color(0xFF0A1220)
+    /**
+     * Kontour Labs' violet, `#BB86FC`.
+     *
+     * The dark scheme's accent — 7.07:1 on ink, and 4.16:1 on the lightest
+     * surface a focus ring meets — and `brand` in every scheme.
+     */
+    val VioletLight = Color(0xFFBB86FC)
+    val VioletLightHc = Color(0xFFD4B1FF)
 
-    /** Text on [BlueTintDark]. */
-    val BluePale = Color(0xFFBFDBFE)
-    val BluePaleHc = Color(0xFFD6E6FF)
+    /** What sits *on* [VioletLight]: near-black with a violet cast. 6.93:1. */
+    val VioletOnLight = Color(0xFF1C0D2C)
+    val VioletHcOnLight = Color(0xFF12071E)
+
+    /** Text on [VioletTintDark]. */
+    val VioletPale = Color(0xFFE2CBFF)
+    val VioletPaleHc = Color(0xFFECDCFF)
 
     // --- Sky, for `info` -----------------------------------------------
     //
-    // A separate hue from [BlueReadable], and it has to be. `accent` says
+    // A separate hue from [VioletReadable], and it has to be. `accent` says
     // "press this" and `info` says "here is something you should know"; drawn in
-    // the same blue, an info banner and an accent banner are the same object
+    // the same colour, an info banner and an accent banner are the same object
     // wearing two names. The other three status tones each have their own hue
-    // for exactly this reason, and info was the odd one out — it used to be a
-    // straight copy of the purple accent.
+    // for exactly this reason, and info was once the odd one out — a straight
+    // copy of an earlier purple accent.
 
     /** 5.9:1 on white, and unmistakably cooler than the accent. */
     val SkySolid = Color(0xFF0369A1)
@@ -181,8 +197,8 @@ object Palette {
     val SkyHcDarkTint = Color(0xFF12354A)
     val SkyHcPale = Color(0xFFC8ECFF)
 
-    val BlueBorderLight = Color(0xFFC7DCFD)
-    val BlueBorderDark = Color(0xFF2C3E5C)
+    val VioletBorderLight = Color(0xFFDAC7F8)
+    val VioletBorderDark = Color(0xFF4A3961)
     // There were `…Hc` siblings here and nothing read them. Every high-contrast
     // tone — the accent and all four status tones, in both tiers — uses its own
     // `solid` as its `border`, which is a real difference from the standard

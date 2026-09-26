@@ -66,7 +66,7 @@ tick mark outside the track. Zero turns smoothly.
 a `ScaleColours` — one colour, a gradient along the scale, or bands at values in
 the knob's own units, `ScaleColours.bands { band(from = 0f, colour = green);
 band(from = 0.9f, colour = red) }`, hard-edged unless given a `smoothing`, with the
-theme's accent wherever no band reaches. See
+theme's `primary` wherever no band reaches. See
 [`Gauge`](gauge.md#colour-bands).
 
 **Stepped, it has the slider's detents.** Dragged between two steps, the notch and

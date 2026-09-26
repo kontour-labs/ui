@@ -4,17 +4,23 @@
 
 How to change what the system looks like without touching a component.
 
-## The default has no product in it
+## The default is monochrome, plus one violet
 
-Monochrome — ink, white and a grey ramp — plus **one blue** for the accent, and
-the four conventional status hues. That is the whole palette, and it is
-deliberate: a library that shipped somebody's brand would make every app using
-it look like that somebody, and the app that owned the brand would be the only
-one not fighting the defaults.
+Ink, white and a grey ramp for everything structural; **Kontour Labs' violet**,
+`#BB86FC`, for the one role that has to say "interactive"; and the four
+conventional status hues. That is the whole palette. Switches, sliders,
+checkboxes, progress and the floating action button are drawn in `primary`,
+which stays ink, so the violet appears where something is selected, focused,
+linked or chosen — not on every control on the screen.
 
-So the default scheme is not a design; it is a *starting point that offends
-nobody*. `brand` resolves to the accent until you set one, which is the library
-saying it has no opinion rather than pretending to have none.
+`#BB86FC` is 2.65:1 on white, which is fine for a mark and no good for words, so
+it is not the light scheme's accent. The light accent is `#7C37BE`, the same hue
+(303° in OKLCH) at a lightness that carries white text; `#BB86FC` is the light
+`brand`, and in dark, where it is 7.07:1 on ink, it is the accent as well. Every
+tint and text colour in the family sits on that one hue.
+
+An app with its own colour replaces three tokens — `accent`, `brand` and
+`focusRing` — and nothing else changes.
 
 **The worked example is in this repository.** `GTurbo`, in
 `ui-catalog/src/commonMain/kotlin/io/kontour/ui/demo/theme/GTurbo.kt`, is a

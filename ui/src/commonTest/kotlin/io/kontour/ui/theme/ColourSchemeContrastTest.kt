@@ -2,6 +2,7 @@ package io.kontour.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.a11y.ContrastThreshold
+import io.kontour.ui.a11y.brandIsSafeForText
 import io.kontour.ui.a11y.contrastFailures
 import io.kontour.ui.a11y.contrastRatio
 import kotlin.test.Test
@@ -136,27 +137,34 @@ class ColourSchemeContrastTest {
 class BrandIsDecorativeOnlyTest {
 
     /**
-     * A brand colour an app supplies is allowed to fail contrast — that is the
-     * whole reason [ColourScheme.brand] is not [ColourScheme.accent] — but only
-     * where nothing has to be read on it.
+     * A brand colour is allowed to fail contrast — that is the whole reason
+     * [ColourScheme.brand] is not [ColourScheme.accent] — but only where nothing
+     * has to be read on it.
      *
-     * This used to assert the opposite: that brand *must* fail, because brand
-     * was the literal Kontour purple and 2.1:1 on white. The library has no
-     * product colour now, so there is nothing to assert about the default. What
-     * is worth keeping is the check itself, as something an app can run against
-     * its own scheme — which is what [brandIsSafeForText] is for, and what the
-     * GTurbo demo theme's logo red would answer `false` to.
+     * The default is Kontour Labs' violet, `#BB86FC`, in both schemes. In dark it
+     * is the accent as well: 7.07:1 on ink carries text and labels. In light it
+     * is a mark only — 2.65:1 on white — and the accent is the deeper violet of
+     * the same hue beside it. That split is the contract this pins: if the light
+     * brand ever became safe for text, the two tokens would have converged and
+     * one of them would be wrong.
      */
     @Test
-    fun theDefaultBrandIsTheAccentUntilAnAppSetsOne() {
-        for ((name, colours) in listOf("light" to lightColourScheme(), "dark" to darkColourScheme())) {
-            if (colours.brand != colours.accent.solid) {
-                fail(
-                    "the default $name scheme's brand ($name) has drifted from its accent. " +
-                        "A library with no product in it should have nothing to say about " +
-                        "brand — if that changed on purpose, say so here."
-                )
+    fun theDefaultBrandIsKontourLabsViolet() {
+        val light = lightColourScheme()
+        val dark = darkColourScheme()
+        for ((name, colours) in listOf("light" to light, "dark" to dark)) {
+            if (colours.brand != Color(0xFFBB86FC)) {
+                fail("the default $name scheme's brand is ${colours.brand}, not Kontour Labs' #BB86FC")
             }
+        }
+        if (brandIsSafeForText(light)) {
+            fail("the light brand now carries text, so it and the light accent have converged")
+        }
+        if (light.brand == light.accent.solid) {
+            fail("the light accent is the brand again, and the brand cannot carry a white label")
+        }
+        if (dark.brand != dark.accent.solid) {
+            fail("the dark accent has drifted from the brand it is meant to be")
         }
     }
 

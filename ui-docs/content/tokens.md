@@ -73,7 +73,7 @@ measured 1.15:1.
 
 | Token | Light | Dark | For |
 |---|---|---|---|
-| `content` | `#121212` | `#F4F1F8` | Anything the user reads to understand the screen |
+| `content` | `#121212` | `#E8E4EE` | Anything the user reads to understand the screen |
 | `contentMuted` | `#545454` | `#A79FB0` | Captions, timestamps, secondary labels |
 | `contentSubtle` | `#646464` | `#9A93A2` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
 | `contentDisabled` | `#A3A3A3` | `#5C5566` | Genuinely disabled controls only (WCAG-exempt) |
@@ -96,8 +96,8 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
 | `accent` | a `StatusColours`, below | | The brand, as a tone |
-| `brand` | `#1D4ED8` | `#93C5FD` | The literal brand colour, decoration first |
-| `focusRing` | `#1D4ED8` | `#93C5FD` | The keyboard focus indicator |
+| `brand` | `#BB86FC` | `#BB86FC` | The literal brand colour, decoration first |
+| `focusRing` | `#7C37BE` | `#BB86FC` | The keyboard focus indicator |
 
 **Three roles carry a product's colour and `primary` is not one of them.** It is
 *structural* — near-black on light, near-white on dark, in every scheme the
@@ -115,11 +115,11 @@ like `success` and the rest, so there is one tone type and six tones:
 
 | Member | Light | Dark | Was |
 |---|---|---|---|
-| `accent.solid` | `#1D4ED8` | `#93C5FD` | `accent` |
-| `accent.onSolid` | `#FFFFFF` | `#0D1B2E` | `onAccent` |
-| `accent.container` | `#D5E4F9` | `#1E2C42` | `accentContainer` |
-| `accent.onContainer` | `#1E3A8A` | `#BFDBFE` | `onAccentContainer` |
-| `accent.border` | `#C7DCFD` | `#2C3E5C` | *new* |
+| `accent.solid` | `#7C37BE` | `#BB86FC` | `accent` |
+| `accent.onSolid` | `#FFFFFF` | `#1C0D2C` | `onAccent` |
+| `accent.container` | `#F1E5FF` | `#332742` | `accentContainer` |
+| `accent.onContainer` | `#542482` | `#E2CBFF` | `onAccentContainer` |
+| `accent.border` | `#DAC7F8` | `#4A3961` | *new* |
 
 The point is not tidiness. A component that takes a tone can now take *this*
 one, which is what `ButtonVariant.Accent`, `Tone.Accent` and
@@ -128,8 +128,8 @@ had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one
 colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
-left `accentContainer` at the default, so a green accent came with a blue
-selected-state and the signature said nothing about it.
+left `accentContainer` at the default, so a green accent came with the default's
+selected-state tint and the signature said nothing about it.
 
 **On `brand` versus `accent`.** They are separate roles because a brand colour is
 chosen to be recognised and an accent has to be *read*, and nothing guarantees
@@ -137,12 +137,15 @@ one colour can do both. `brand` is the literal mark — a logo, a decorative rul
 a splash — and is the one role the contrast suite does not walk; `accent.solid`
 is the tone components are built from, and every pairing of it is checked.
 
-Today's default happens to satisfy both: `#1D4ED8` is 6.7:1 on white and
-`#93C5FD` is 10.39:1 on `#121212`, so the shipped `brand` would carry text
-perfectly well. That is a fact about this palette and not about the role. A brand
-that hands over a colour which cannot — GTurbo's `#E11F26` is 4.17:1 on its own
-near-black ground and unreadable on anything lighter — puts it in `brand`,
-supplies a readable tone in `accent`, and the split does its job. Because the
+**The default is the worked example.** Kontour Labs' violet, `#BB86FC`, is the
+`brand` in both schemes. On `#121212` it is 7.07:1, so in dark it is the accent
+too. On white it is 2.65:1 — a mark, not something to read — so the light
+`accent` is `#7C37BE`, the same hue (303° in OKLCH) at a lightness that carries
+white text at 6.67:1, and the light `brand` stays the colour people recognise.
+Every other violet in the scheme — the tints, the text on them, the focus ring,
+the code keyword — sits on that one hue. A brand that hands over a colour which
+cannot carry text either — GTurbo's `#E11F26` is 4.17:1 on its own near-black
+ground — does the same: `brand` for the mark, a readable tone in `accent`. Because the
 suite skips `brand`, that is also the one place a scheme can put a colour it has
 decided nobody has to read.
 
@@ -162,7 +165,7 @@ fields, matching how the web properties already use them:
 | `success` | `#2E7D32` | `#7BE08A` |
 | `warning` | `#B45309` | `#FDBA74` |
 | `danger` | `#B91C1C` | `#FCA5A5` |
-| `info` | `#6D28D9` | `#C4B5FD` |
+| `info` | `#0369A1` | `#7DD3FC` |
 
 ### Overlays
 
@@ -185,7 +188,7 @@ draws them — a fenced block on any page is coloured from these.
 
 | Field | Light | Dark |
 |---|---|---|
-| `keyword` | `#1E3A8A` | `#93C5FD` |
+| `keyword` | `#542482` | `#BB86FC` |
 | `literal` | `#1B5E20` | `#7BE08A` |
 
 `plain` and `comment` follow `content` and `contentMuted` unless a theme moves

@@ -94,9 +94,10 @@ data class StatusColours(
  *   nothing has to be legible on top — a splash, a marketing surface, an
  *   illustration.
  *
- *   It is a **role**, not a hue. The default schemes have no product in them, so
- *   it resolves to the same blue as [accent]; an app that sets one separates the
- *   two. The reason it is a separate token at all is that a brand colour is
+ *   It is a **role**, not a hue. In the default schemes it is Kontour Labs'
+ *   violet, `#BB86FC`: the dark scheme's [accent] too, and in the light scheme a
+ *   mark only, beside the deeper violet that [accent] has to be there. An app
+ *   that sets its own brand sets this. The reason it is a separate token at all is that a brand colour is
  *   under no obligation to pass a contrast checker and [accent] is under every
  *   obligation, so one token could not be both. The GTurbo demo theme is the
  *   worked example: its logo red `#E11F26` is 4.17:1 on its own near-black
@@ -259,7 +260,7 @@ data class ColourScheme(
 )
 
 /**
- * The default light scheme: white and near-black structure, blue as accent.
+ * The default light scheme: white and near-black structure, violet as accent.
  *
  * Every parameter is defaulted, so a product theme overrides only what it needs:
  * ```
@@ -284,14 +285,17 @@ fun lightColourScheme(
     primary: Color = Palette.Ink,
     onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueReadable,
+        solid = Palette.VioletReadable,
         onSolid = Palette.White,
-        container = Palette.BlueTintLight,
-        onContainer = Palette.BlueDeep,
-        border = Palette.BlueBorderLight,
+        container = Palette.VioletTintLight,
+        onContainer = Palette.VioletDeep,
+        border = Palette.VioletBorderLight,
     ),
-    brand: Color = Palette.BlueReadable,
-    focusRing: Color = Palette.BlueReadable,
+    // Kontour Labs' violet itself, which is decorative here: 2.65:1 on white
+    // carries neither text nor a control boundary, so `accent` and
+    // `focusRing` take the deeper tone of the same hue.
+    brand: Color = Palette.VioletLight,
+    focusRing: Color = Palette.VioletReadable,
     success: StatusColours = StatusColours(
         solid = Palette.GreenSolid,
         onSolid = Palette.White,
@@ -324,12 +328,12 @@ fun lightColourScheme(
     overlayHover: Color = Color(0x0F121212),
     overlayPressed: Color = Color(0x1F121212),
     overlayDragged: Color = Color(0x29121212),
-    // Blue and green off the ramps above rather than colours of their own —
+    // Violet and green off the ramps above rather than colours of their own —
     // they already clear 4.5:1 on `surfaceSunken`, which is the only ground
     // code is ever drawn on, and `ColourSchemeContrastTest` now says so.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueDeep,
+        keyword = Palette.VioletDeep,
         literal = Palette.GreenDeep,
         comment = contentMuted,
     ),
@@ -384,14 +388,14 @@ fun darkColourScheme(
     primary: Color = Palette.Paper,
     onPrimary: Color = Palette.Ink,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLight,
-        onSolid = Palette.BlueOnLight,
-        container = Palette.BlueTintDark,
-        onContainer = Palette.BluePale,
-        border = Palette.BlueBorderDark,
+        solid = Palette.VioletLight,
+        onSolid = Palette.VioletOnLight,
+        container = Palette.VioletTintDark,
+        onContainer = Palette.VioletPale,
+        border = Palette.VioletBorderDark,
     ),
-    brand: Color = Palette.BlueLight,
-    focusRing: Color = Palette.BlueLight,
+    brand: Color = Palette.VioletLight,
+    focusRing: Color = Palette.VioletLight,
     success: StatusColours = StatusColours(
         solid = Palette.GreenLight,
         onSolid = Palette.GreenOnLight,
@@ -426,7 +430,7 @@ fun darkColourScheme(
     overlayDragged: Color = Color(0x33FFFFFF),
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueLight,
+        keyword = Palette.VioletLight,
         literal = Palette.GreenLight,
         comment = contentMuted,
     ),
@@ -502,8 +506,9 @@ fun darkColourScheme(
  *
  * [brand] and [focusRing] default to `accent.solid` rather than to a constant,
  * so supplying an accent moves all three. The standard [lightColourScheme] uses
- * constants that merely happen to agree at the default; the difference only shows
- * when a caller passes something.
+ * constants — its `brand` is `#BB86FC` beside a deeper accent, so the two do not
+ * even agree at the default; the difference shows when a caller passes an accent
+ * and keeps the violet brand.
  *
  * [code]'s `plain` and `comment` follow [content] and [contentMuted], the way
  * they do in [lightColourScheme] — so a brand that darkens its text gets code
@@ -537,11 +542,11 @@ fun highContrastLightColourScheme(
     primary: Color = Palette.Black,
     onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueStrong,
+        solid = Palette.VioletStrong,
         onSolid = Palette.White,
-        container = Palette.BlueTintLightHc,
-        onContainer = Palette.BlueDeeper,
-        border = Palette.BlueStrong,
+        container = Palette.VioletTintLightHc,
+        onContainer = Palette.VioletDeeper,
+        border = Palette.VioletStrong,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -599,7 +604,7 @@ fun highContrastLightColourScheme(
     // borrowed here for its depth, not the `GreenHcDeep` its name suggests.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueDeeper,
+        keyword = Palette.VioletDeeper,
         literal = Palette.GreenOnLight,
         comment = contentMuted,
     ),
@@ -665,16 +670,14 @@ fun highContrastDarkColourScheme(
     primary: Color = Palette.White,
     onPrimary: Color = Palette.Black,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLightHc,
-        onSolid = Palette.BlueHcOnLight,
-        container = Palette.BlueTintDarkHc,
-        onContainer = Palette.BluePaleHc,
+        solid = Palette.VioletLightHc,
+        onSolid = Palette.VioletHcOnLight,
+        container = Palette.VioletTintDarkHc,
+        onContainer = Palette.VioletPaleHc,
         // The accent's border is its own solid here, as it is for all four
         // status tones in both high-contrast tiers — unlike the standard tiers,
-        // where borders are separate softer values. `Palette.BlueBorderDarkHc`
-        // exists and is read by nothing; it looks like the value that belongs
-        // here and is not.
-        border = Palette.BlueLightHc,
+        // where borders are separate softer values.
+        border = Palette.VioletLightHc,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -716,7 +719,7 @@ fun highContrastDarkColourScheme(
     // and it is the shipped value.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueLightHc,
+        keyword = Palette.VioletLightHc,
         literal = Palette.GreenPale,
         comment = contentMuted,
     ),

@@ -65,10 +65,10 @@ class HighContrastWideningTest {
      *
      * `brand` and `focusRing` default to `accent.solid` in this pair rather than
      * to a constant — unlike the standard pair, where both are `Palette` symbols
-     * that merely *happen* to equal the default accent's solid. So rewriting the
+     * (and light's `brand` is not even its accent). So rewriting the
      * high-contrast factories "to match the standard pair" silently changes
      * behaviour for anyone who passes an accent: they used to get their own tone
-     * as the brand and the focus ring, and would start getting the library's blue.
+     * as the brand and the focus ring, and would start getting the library's violet.
      *
      * A no-argument comparison cannot see that, because at the default the two
      * formulations agree. This is the arm that can, and it is the reason the
@@ -93,7 +93,7 @@ class HighContrastWideningTest {
                 Probe.solid, scheme.brand,
                 "$tier: brand stopped following accent.solid. It must not become a " +
                     "constant — brand is the one token the contrast walk exempts, so " +
-                    "a caller who set an accent and silently got the library's blue " +
+                    "a caller who set an accent and silently got the library's violet " +
                     "has nothing that would tell them.",
             )
             assertEquals(
@@ -304,11 +304,11 @@ class HighContrastWideningTest {
 
 private fun legacyHighContrastLight(
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueStrong,
+        solid = Palette.VioletStrong,
         onSolid = Palette.White,
-        container = Palette.BlueTintLightHc,
-        onContainer = Palette.BlueDeeper,
-        border = Palette.BlueStrong,
+        container = Palette.VioletTintLightHc,
+        onContainer = Palette.VioletDeeper,
+        border = Palette.VioletStrong,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -327,7 +327,7 @@ private fun legacyHighContrastLight(
     // which is what stops high contrast collapsing into one colour.
     code = CodeColours(
         plain = Palette.Black,
-        keyword = Palette.BlueDeeper,
+        keyword = Palette.VioletDeeper,
         literal = Palette.GreenOnLight,
         comment = Palette.GreyHcMuted,
     ),
@@ -376,11 +376,11 @@ private fun legacyHighContrastLight(
 
 private fun legacyHighContrastDark(
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLightHc,
-        onSolid = Palette.BlueHcOnLight,
-        container = Palette.BlueTintDarkHc,
-        onContainer = Palette.BluePaleHc,
-        border = Palette.BlueLightHc,
+        solid = Palette.VioletLightHc,
+        onSolid = Palette.VioletHcOnLight,
+        container = Palette.VioletTintDarkHc,
+        onContainer = Palette.VioletPaleHc,
+        border = Palette.VioletLightHc,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -403,7 +403,7 @@ private fun legacyHighContrastDark(
     overlayDragged = Color(0x54FFFFFF),
     code = CodeColours(
         plain = Palette.White,
-        keyword = Palette.BlueLightHc,
+        keyword = Palette.VioletLightHc,
         literal = Palette.GreenPale,
         comment = Palette.SlateHcMuted,
     ),

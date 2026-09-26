@@ -3400,22 +3400,6 @@ public final class io/kontour/ui/theme/Palette {
 	public final fun getAmberSolid-0d7_KjU ()J
 	public final fun getAmberTint-0d7_KjU ()J
 	public final fun getBlack-0d7_KjU ()J
-	public final fun getBlueBorderDark-0d7_KjU ()J
-	public final fun getBlueBorderLight-0d7_KjU ()J
-	public final fun getBlueDeep-0d7_KjU ()J
-	public final fun getBlueDeeper-0d7_KjU ()J
-	public final fun getBlueHcOnLight-0d7_KjU ()J
-	public final fun getBlueLight-0d7_KjU ()J
-	public final fun getBlueLightHc-0d7_KjU ()J
-	public final fun getBlueOnLight-0d7_KjU ()J
-	public final fun getBluePale-0d7_KjU ()J
-	public final fun getBluePaleHc-0d7_KjU ()J
-	public final fun getBlueReadable-0d7_KjU ()J
-	public final fun getBlueStrong-0d7_KjU ()J
-	public final fun getBlueTintDark-0d7_KjU ()J
-	public final fun getBlueTintDarkHc-0d7_KjU ()J
-	public final fun getBlueTintLight-0d7_KjU ()J
-	public final fun getBlueTintLightHc-0d7_KjU ()J
 	public final fun getGreenDarkTint-0d7_KjU ()J
 	public final fun getGreenDeep-0d7_KjU ()J
 	public final fun getGreenHcDarkTint-0d7_KjU ()J
@@ -3496,6 +3480,22 @@ public final class io/kontour/ui/theme/Palette {
 	public final fun getSlateHcOutlineSubtle-0d7_KjU ()J
 	public final fun getSlateHcSubtle-0d7_KjU ()J
 	public final fun getSlateIndicator-0d7_KjU ()J
+	public final fun getVioletBorderDark-0d7_KjU ()J
+	public final fun getVioletBorderLight-0d7_KjU ()J
+	public final fun getVioletDeep-0d7_KjU ()J
+	public final fun getVioletDeeper-0d7_KjU ()J
+	public final fun getVioletHcOnLight-0d7_KjU ()J
+	public final fun getVioletLight-0d7_KjU ()J
+	public final fun getVioletLightHc-0d7_KjU ()J
+	public final fun getVioletOnLight-0d7_KjU ()J
+	public final fun getVioletPale-0d7_KjU ()J
+	public final fun getVioletPaleHc-0d7_KjU ()J
+	public final fun getVioletReadable-0d7_KjU ()J
+	public final fun getVioletStrong-0d7_KjU ()J
+	public final fun getVioletTintDark-0d7_KjU ()J
+	public final fun getVioletTintDarkHc-0d7_KjU ()J
+	public final fun getVioletTintLight-0d7_KjU ()J
+	public final fun getVioletTintLightHc-0d7_KjU ()J
 	public final fun getWhite-0d7_KjU ()J
 }
 

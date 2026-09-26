@@ -109,6 +109,27 @@ ink of a mark — `Text`, a divider, a spinner.
 
 ---
 
+## The default accent is violet
+
+The default schemes' accent moved from blue to Kontour Labs' violet, `#BB86FC`,
+and the `Palette` ramp behind it was renamed with it. A scheme that sets its own
+`accent`, `brand` and `focusRing` looks exactly as it did; one that relied on the
+defaults is violet now wherever it was blue — selection, links, focus, the
+accent button. `primary` is unchanged, so controls stay ink.
+
+| Before | After |
+|---|---|
+| `Palette.BlueReadable`, `BlueDeep`, `BlueDeeper`, `BlueStrong` | `Palette.VioletReadable`, `VioletDeep`, `VioletDeeper`, `VioletStrong` |
+| `Palette.BlueTintLight`, `BlueTintLightHc`, `BlueTintDark`, `BlueTintDarkHc` | `Palette.VioletTintLight`, `VioletTintLightHc`, `VioletTintDark`, `VioletTintDarkHc` |
+| `Palette.BlueLight`, `BlueLightHc`, `BlueOnLight`, `BlueHcOnLight` | `Palette.VioletLight` (`#BB86FC`), `VioletLightHc`, `VioletOnLight`, `VioletHcOnLight` |
+| `Palette.BluePale`, `BluePaleHc`, `BlueBorderLight`, `BlueBorderDark` | `Palette.VioletPale`, `VioletPaleHc`, `VioletBorderLight`, `VioletBorderDark` |
+
+In the light scheme `brand` is `#BB86FC` and `accent.solid` is `#7C37BE`, the
+same hue at a lightness that carries white text; the two are no longer the same
+colour there. See [tokens.md](tokens.md#actions).
+
+---
+
 ## Switches are `show<Part>`
 
 | Before | After |

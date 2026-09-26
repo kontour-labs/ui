@@ -75,7 +75,7 @@ list that is out of order.
 
 ## Colour
 
-Lanes take the colours of `colours.lanes` in turn as they open: the accent
+Lanes take the colours of `colours.lanes` in turn as they open: `primary`
 first, then the status colours, from `BranchTimelineDefaults.palette()`. A
 commit's `connectorColour` gives its own lines a colour of their own. Give every
 commit on a release branch the same one to keep that branch green however many

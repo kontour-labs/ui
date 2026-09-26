@@ -323,10 +323,11 @@ class NavSearchTest {
      * nothing about the layout having changed.
      *
      * What it does now is ask the scheme for the colour the field is actually
-     * filled with. Measured on a real render: the expanded field is 684–714
-     * pixels of flat `#D5E4F9` across an 800px row, and the page around it is a
-     * flat `#979797` — white under the scrim — so the two are 42 apart on the
-     * widest channel and nothing else in the frame is close.
+     * filled with, so the tint can change — it was that blue, it is violet now —
+     * without the finder going blind again. The expanded field is a flat run of
+     * `accent.container` across most of an 800px row, and the page around it is
+     * `#979797` — white under the scrim — far enough from any accent tint on its
+     * widest channel that nothing else in the frame is close.
      */
     private fun BufferedImage.fieldBand(): Int {
         val fill = lightColourScheme().accent.container.toArgb()

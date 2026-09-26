@@ -52,7 +52,7 @@ import io.kontour.ui.theme.cornerReaches
  * }
  * ```
  *
- * Outgoing messages sit at the end of the line in the accent colour, incoming ones
+ * Outgoing messages sit at the end of the line in the theme's `primary`, incoming ones
  * at the start on a quiet ground — the arrangement every messaging app has taught
  * its users, and mirrored right to left, where the sender's side is the left.
  *
@@ -164,13 +164,13 @@ enum class BubbleSide {
     /** Someone else's: at the start of the line, on a quiet ground. */
     Incoming,
 
-    /** The user's own: at the end of the line, in the accent colour. */
+    /** The user's own: at the end of the line, in the theme's `primary`. */
     Outgoing,
 }
 
 /** What a [ChatBubble] takes by default. */
 object ChatBubbleDefaults {
-    /** The accent for the user's own messages, a quiet ground for everyone else's. */
+    /** `primary` for the user's own messages, a quiet ground for everyone else's. */
     @Composable
     @ReadOnlyComposable
     fun containerColour(side: BubbleSide): Color = when (side) {

@@ -127,12 +127,11 @@ private fun Theming() {
             style = Theme.typography.bodyMedium,
         )
         Text(
-            "The default palette is monochrome with one blue accent, and that is " +
-                "deliberate: a library that shipped somebody's brand would make " +
-                "every app using it look like that somebody. Every token group is " +
-                "a parameter, so a product overrides accent, brand and focus ring " +
-                "and inherits the rest. Kontour's own theme is about a hundred " +
-                "lines, most of them colour values.",
+            "The default palette is monochrome with one accent, Kontour Labs' " +
+                "violet, and the controls stay ink: the violet marks what is " +
+                "selected, focused or linked rather than every control on the " +
+                "screen. Every token group is a parameter, so a product overrides " +
+                "accent, brand and focus ring and inherits the rest.",
             style = Theme.typography.bodyMedium,
             colour = Theme.colours.contentMuted,
         )

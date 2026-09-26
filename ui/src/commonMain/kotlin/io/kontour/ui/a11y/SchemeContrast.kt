@@ -93,6 +93,11 @@ fun contrastFailures(scheme: ColourScheme, tier: ContrastLevel): List<ContrastFa
         check("contentSubtle", scheme.contentSubtle, groundName, ground, bodyText)
         check("outlineStrong", scheme.outlineStrong, groundName, ground, nonText)
         check("focusRing", scheme.focusRing, groundName, ground, nonText)
+        // `accent.solid` is text as often as it is a fill: a link, a
+        // `TextButton`, a focused field's label. It was only ever held to 3:1
+        // against the background, as a fill, and nothing asked whether those
+        // words could be read.
+        check("accent", scheme.accent.solid, groundName, ground, bodyText)
     }
 
     // A segmented control's selected label, on the thumb it sits on.

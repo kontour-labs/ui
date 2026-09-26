@@ -21,7 +21,7 @@ Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
 ```
 
 One message in a conversation. `BubbleSide.Outgoing` sits at the end of the line in
-the accent colour, `Incoming` at the start on a quiet ground — the arrangement every
+the theme's `primary`, `Incoming` at the start on a quiet ground — the arrangement every
 messaging app has taught its users, mirrored right to left.
 
 **A run reads as one.** Consecutive messages from one sender are a run, and
@@ -52,4 +52,4 @@ bubble's `contentDescription` through a `Modifier.semantics` of your own, or in 
 visible label above the run, in a group chat especially.
 
 Colour is not the only thing that separates the two sides — their position does —
-but check the accent against its text colour if you pass your own.
+but check the fill against its text colour if you pass your own.
