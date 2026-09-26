@@ -770,7 +770,9 @@ private fun DayCell(
                     enabled = enabled,
                     role = Role.Button,
                     onClick = {
-                        tap()
+                        // A day already chosen, pressed again, is a radio pressed
+                        // on its own choice: nothing happened to report.
+                        if (!selected) tap()
                         onSelectedChange(date)
                     },
                 ),

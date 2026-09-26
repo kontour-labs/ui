@@ -15,7 +15,7 @@ import io.kontour.haptics.NotificationType
  * this one.
  *
  * Public for the same reason [feel] is: a dispatcher of your own that wants to
- * change one row should not have to re-derive the other eleven.
+ * change one row should not have to re-derive the rest.
  *
  * Every strength here is a starting point, set by feel on phones and to be tuned
  * the same way — the catalog's haptics page plays each one.

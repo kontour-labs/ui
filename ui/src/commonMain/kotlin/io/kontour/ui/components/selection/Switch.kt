@@ -373,7 +373,16 @@ fun Switch(
                                 )
                             }
 
-                            val side = dragAccumulator >= 0.5f
+                            // The midpoint, with slack: once over, the thumb has
+                            // to come back past it by [SwitchMidpointSlack]
+                            // before it counts as over again. A finger resting
+                            // on the middle used to flip the value — and the
+                            // unfloored threshold report — every frame.
+                            val side = if (committed) {
+                                dragAccumulator >= 0.5f - SwitchMidpointSlack
+                            } else {
+                                dragAccumulator >= 0.5f + SwitchMidpointSlack
+                            }
                             val crossed = side != committed
                             if (crossed) {
                                 committed = side
@@ -385,8 +394,8 @@ fun Switch(
                                 // Through the ticker rather than performed
                                 // directly, because a midpoint is a two-sided
                                 // threshold — the same guard, doing the same
-                                // job, and it shares the rate floor with every
-                                // other light haptic instead of keeping its own.
+                                // job. An outcome, so the rate floor never drops
+                                // it, and holds back the light haptics behind it.
                                 crossing.at(if (side) 1f else 0f)
                                 dragTarget(side)
                             }
@@ -607,3 +616,9 @@ fun Switch(
         )
     }
 }
+
+/**
+ * How far past the middle, as a share of the thumb's travel, a drag has to go to
+ * change sides: a tenth, so a finger resting on the midpoint does not flip it.
+ */
+private const val SwitchMidpointSlack = 0.1f

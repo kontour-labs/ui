@@ -162,12 +162,10 @@ fun <T> WheelPicker(
     // library short of a destructive warning — on the argument that a drum is
     // turned without being looked at, so the end of the list is the one wall the
     // eye is genuinely not getting. The argument survives and the report does
-    // not: it was one of a set, every other member of which was reporting
-    // something plainly visible, and a rule that holds everywhere except for one
-    // component is how the last haptic sweep got to fifty-seven call sites. The
-    // drum still stretches and springs back at its ends, and the per-row ticks
-    // above are untouched — a hand turning a wheel is being told about every row
-    // it crosses, so the row it stops on is not news.
+    // not. End stops are for a range run into mid-drag — a slider's, a knob's,
+    // a colour track's, where the value stops changing and nothing else says so.
+    // A drum is told about every row it crosses already, so the row it stops on
+    // is not news, and the drum still stretches and springs back at its ends.
     val currentOnSelect by rememberUpdatedState(onSelectedChange)
 
     /**

@@ -42,6 +42,7 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberToggleFeedback
 
 /**
  * Whether a [Select], [MultiSelect] or [Combobox] has its menu open.
@@ -201,6 +202,8 @@ fun <T> MultiSelect(
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // Checkboxes, so they toggle — as `FilterChip`, their alternative, does.
+    val toggled = rememberToggleFeedback()
     SelectFrame(
         valueLabel = summary(value).takeIf { it.isNotEmpty() },
         placeholder = placeholder,
@@ -218,6 +221,7 @@ fun <T> MultiSelect(
         for (option in options) {
             MenuItem(
                 onClick = {
+                    toggled(option !in value)
                     onValueChange(
                         if (option in value) value - option else value + option
                     )

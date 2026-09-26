@@ -43,8 +43,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -106,7 +105,7 @@ fun Modifier.tooltip(
     val hovered by interactions.collectIsHoveredAsState()
     val focused by interactions.collectIsFocusedAsState()
     val modality = LocalInputModality.current
-    val feedback = LocalFeedback.current
+    val longPressed = rememberLongPressFeedback()
 
     var bounds by remember { mutableStateOf<Rect?>(null) }
     var showing by remember { mutableStateOf(false) }
@@ -149,7 +148,7 @@ fun Modifier.tooltip(
             if (!enabled || !modality.needsLargeTargets) return@pointerInput
             detectTapGestures(
                 onLongPress = {
-                    feedback.perform(FeedbackIntent.LongPress)
+                    longPressed()
                     showing = true
                 },
             )

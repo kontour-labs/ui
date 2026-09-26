@@ -1,5 +1,8 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -343,8 +346,28 @@ fun Carousel(
     }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     LaunchedEffect(state) {
+        // The fling a release starts is still the hand's gesture, as a wheel's and
+        // a knob's spin are: a short flick onto the next card — the commonest
+        // thing anyone does to a carousel — used to say nothing, because the
+        // finger was already up when the page changed. So a release waits for the
+        // settle to finish and reports where it landed, if that is a page it had
+        // not already reported. A page changed in code arms nothing and is silent.
+        var settle: Job? = null
         snapshotFlow { dragging to state.currentPage }.collect { (byHand, page) ->
-            if (byHand) ticker.at(page) else ticker.reset()
+            if (byHand) {
+                settle?.cancel()
+                settle = null
+                ticker.at(page)
+            } else if (settle == null) {
+                settle = launch {
+                    // A frame for the fling to begin, then the end of it.
+                    withFrameNanos { }
+                    snapshotFlow { state.listState.isScrollInProgress }.first { !it }
+                    ticker.at(state.currentPage)
+                    ticker.reset()
+                    settle = null
+                }
+            }
         }
     }
 
@@ -353,8 +376,8 @@ fun Carousel(
     // There was a whole `NestedScrollConnection` here for one report — the part
     // of a drag the list declined, which is the only signal that separates "the
     // finger asked for more page and got none" from "page one is merely
-    // showing". It went with the rest of the library's end stops, and so did the
-    // connection, which existed for nothing else: a strip that will not move
+    // showing". It went, and so did the connection, which existed for nothing
+    // else — end stops are for a range's ends, and a strip that will not move
     // under a finger has already said so by not moving. The per-page tick above
     // stays — a card snapping to the next one while the eye is on the card is
     // exactly what a detent is.

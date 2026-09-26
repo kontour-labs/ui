@@ -43,6 +43,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberToggleFeedback
 
 /**
  * A button whose whole label is an icon.
@@ -218,6 +219,9 @@ fun IconToggleButton(
     // a password field is the case that showed it — and says the same thing
     // twice, the second time louder than the control deserves.
     val struck = strikethrough && checkedIcon == null
+    // A toggle, and it answers like one: on and off feel different, as a
+    // checkbox's do. It was the one checkbox-role control that said nothing.
+    val toggled = rememberToggleFeedback()
     val strike by animateFloatAsState(
         targetValue = if (struck && checked) 1f else 0f,
         animationSpec = Theme.motion.tweenDefault(),
@@ -272,6 +276,7 @@ fun IconToggleButton(
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = {
+                    toggled(it)
                     onCheckedChange(it)
                 },
             )

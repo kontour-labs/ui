@@ -457,6 +457,17 @@ fun SwipeActions(
     // between the swipe finishing and the tick starting. So the release starts
     // the drawing — see `settle` — and the icon leaves while the row is still
     // travelling; what waits for the settle is only the *action*.
+    val feedback = LocalFeedback.current
+
+    /**
+     * A full swipe let go of, done: as the drawn tick completes, or — with the
+     * tick off — as the action runs. Only for a release; a row sent to the edge
+     * in code has nobody holding it. One call for both, and [releasedToCommit]
+     * is what says a release sent it.
+     */
+    fun confirmed() = feedback.perform(FeedbackIntent.Confirm)
+    var releasedToCommit by remember { mutableStateOf(false) }
+
     LaunchedEffect(state) {
         snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
             val action = when (settledAt) {
@@ -477,7 +488,13 @@ fun SwipeActions(
                 // Held on the frame clock, like the drawing before it, so the
                 // pause is part of the animation rather than a timer beside it.
                 Animatable(0f).animateTo(1f, tween(SwipeConfirmHoldMillis))
+            } else if (releasedToCommit) {
+                // Nothing drawn to finish on, so the hand hears it as the action
+                // runs: a committed swipe with the tick off — a `SwipeToDismiss`
+                // set up that way — used to report the threshold and no outcome.
+                confirmed()
             }
+            releasedToCommit = false
             onFull(action)
             state.reset()
             confirmation.snapTo(0f)
@@ -500,7 +517,6 @@ fun SwipeActions(
      * since that has a consequence too. The ticker is what makes it once each way.
      */
     val pointOfNoReturn = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
-    val feedback = LocalFeedback.current
 
     /**
      * A soft tick as each action reaches its full size under the finger: "a soft
@@ -572,9 +588,10 @@ fun SwipeActions(
             if (committed && confirm) {
                 confirmDraw.job = launch {
                     drawConfirmation()
-                    feedback.perform(FeedbackIntent.Confirm)
+                    confirmed()
                 }
             }
+            if (committed && !confirm) releasedToCommit = true
             state.anchoredState.anchoredDrag(target) { _, _ ->
                 animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
             }

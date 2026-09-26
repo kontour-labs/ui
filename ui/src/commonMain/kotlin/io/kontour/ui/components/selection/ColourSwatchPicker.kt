@@ -176,7 +176,8 @@ private fun Swatch(
                 enabled = enabled,
                 role = Role.RadioButton,
                 onClick = {
-                    tap()
+                    // A radio: pressing the swatch already chosen changes nothing.
+                    if (!selected) tap()
                     onSelectedChange()
                 },
             ),

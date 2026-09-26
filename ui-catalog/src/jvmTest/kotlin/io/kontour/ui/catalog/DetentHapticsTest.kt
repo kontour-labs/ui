@@ -1,5 +1,16 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
+import io.kontour.ui.sheet.rememberSheetState
+import io.kontour.ui.sheet.SheetDetent
+import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.components.display.AnimatedCounter
+import io.kontour.ui.components.action.IconToggleButton
+import androidx.compose.ui.state.ToggleableState
+import io.kontour.ui.components.selection.TriStateCheckbox
+import io.kontour.ui.components.selection.ColourPickerMode
+import io.kontour.ui.components.selection.ColourPicker
 import androidx.compose.ui.Alignment
 import io.kontour.ui.components.selection.Knob
 import androidx.compose.foundation.background
@@ -237,12 +248,13 @@ class DetentHapticsTest {
      * control you set with your thumb and feel nothing from is a control you
      * check by looking, which is the thing the haptic was for.
      *
-     * So the count is what matters rather than the silence. `Tap` per star, not
-     * per frame, which is the shared rate floor doing its job across a drag that
-     * recomposes forty times.
+     * So the count is what matters rather than the silence — and the weight. A
+     * `Tap` per star was a click per mark, reported as heavy against every other
+     * drag in the set; the marks a drag crosses are detents now, a `Tick` each,
+     * and only the press that sets the score taps.
      */
     @Test
-    fun aRatingDragTapsPerStarAndNotPerFrame() {
+    fun aRatingDragTicksPerStarAfterThePressTaps() {
         val felt = mutableListOf<FeedbackIntent>()
         var score by mutableStateOf(0f)
         var bounds = Rect.Zero
@@ -277,18 +289,21 @@ class DetentHapticsTest {
         }
 
         assertTrue(score > 0f, "the drag never reached the rating")
+        assertEquals(
+            FeedbackIntent.Tap, felt.firstOrNull(),
+            "the press that set the first score should tap: ${felt.summary()}",
+        )
+        val ticks = felt.drop(1)
         assertTrue(
-            felt.isNotEmpty() && felt.all { it == FeedbackIntent.Tap },
-            "dragging across a rating fired ${felt.summary()}. Each star the " +
-                "finger passes is a value taken, which is a `Tap` — and nothing " +
-                "heavier, because there is no detent here to snap to.",
+            ticks.isNotEmpty() && ticks.all { it == FeedbackIntent.Tick },
+            "dragging across a rating fired ${felt.summary()} after the press. Each " +
+                "star the finger passes is a detent's tick, not another press.",
         )
         assertTrue(
-            felt.size in 3..5,
-            "a drag across five marks fired ${felt.size} taps (${felt.summary()}). " +
-                "Five values are taken across this sweep, so five is the answer; " +
-                "anything near thirty is one per frame and one is the rate floor " +
-                "having swallowed the gesture.",
+            ticks.size in 3..4,
+            "a drag across the other four marks fired ${ticks.size} ticks " +
+                "(${felt.summary()}). Four are crossed, so four is the answer; " +
+                "anything near thirty is one per frame.",
         )
     }
 
@@ -1810,6 +1825,307 @@ class DetentHapticsTest {
         CompositionLocalProvider(
             LocalFeedback provides FeedbackDispatcher { into += it },
             content = content,
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // The consistency audit: the same kind of interaction, the same answer
+    // -----------------------------------------------------------------------
+
+    /**
+     * The colour square feels like the tracks under it: a texture as the cursor
+     * moves, and a knock for each wall it runs into. It was silent — reported as
+     * "no dragging haptics when dragging the colour picker even though there are
+     * haptics in the hue slider".
+     */
+    @Test
+    fun theColourSquareHasATextureAndAKnockPerWall() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var colour by mutableStateOf(Color(0.5f, 0.3f, 0.3f))
+        Scene(width = 704, height = 900) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    ColourPicker(
+                        colour = colour,
+                        onColourChange = { colour = it },
+                        modifier = Modifier.padding(16.dp).width(320.dp),
+                        swatches = emptyList(),
+                        valueField = false,
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // The square is the first thing in the picker: 320dp wide, 16dp in,
+            // at this scene's density of 2 — see `ColourPickerTest`.
+            val centre = Offset((16 + 160) * 2f, (16 + 90) * 2f)
+            scene.press(centre)
+            // Out past the right-hand wall, then down past the bottom one,
+            // paced so the grains are not the rate floor being measured.
+            for (step in 1..16) {
+                scene.move(centre + Offset(step * 30f, 0f))
+                scene.frame()
+                Thread.sleep(25)
+            }
+            val corner = centre + Offset(16 * 30f, 0f)
+            for (step in 1..16) {
+                scene.move(corner + Offset(0f, step * 30f))
+                scene.frame()
+                Thread.sleep(25)
+            }
+            scene.release(corner + Offset(0f, 16 * 30f))
+            scene.frames(4)
+        }
+        assertTrue(felt.count { it == FeedbackIntent.Scrub } >= 3, "no texture across the square: ${felt.summary()}")
+        assertEquals(
+            2, felt.count { it == FeedbackIntent.Limit },
+            "into the right-hand wall and then the bottom one fired ${felt.summary()}",
+        )
+    }
+
+    /** A palette cell pressed answers like a swatch: a tap on a change, and nothing on a repeat. */
+    @Test
+    fun aPaletteCellTapsOnAChangeAndNotOnItsOwnValue() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var colour by mutableStateOf(Color(0.2f, 0.4f, 0.8f))
+        Scene(width = 704, height = 900) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    ColourPicker(
+                        colour = colour,
+                        onColourChange = { colour = it },
+                        modifier = Modifier.padding(16.dp).width(320.dp),
+                        mode = ColourPickerMode.Palette,
+                        swatches = emptyList(),
+                        valueField = false,
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val cell = Offset((16 + 40) * 2f, (16 + 40) * 2f)
+            scene.tap(cell)
+            scene.frames(2)
+            Thread.sleep(DetentTicker.MinimumTickInterval.inWholeMilliseconds + 40)
+            scene.tap(cell)
+            scene.frames(2)
+        }
+        assertEquals(listOf(FeedbackIntent.Tap), felt, "a cell pressed, and pressed again, fired ${felt.summary()}")
+    }
+
+    /** A segment pressed on the choice already made has nothing to answer. */
+    @Test
+    fun aSegmentPressedOnItsOwnChoiceSaysNothing() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var selected by mutableStateOf(0)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    SegmentedControl(
+                        options = listOf("Day", "Week", "Month"),
+                        selected = selected,
+                        onSelectedChange = { selected = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.tap(bounds.alongX(1f / 6f))
+            scene.frames(4)
+            Thread.sleep(DetentTicker.MinimumTickInterval.inWholeMilliseconds + 40)
+            scene.tap(bounds.alongX(0.5f))
+            scene.frames(4)
+        }
+        assertEquals(1, selected, "the second press never moved the selection")
+        assertEquals(listOf(FeedbackIntent.Tap), felt, "the current segment, then another, fired ${felt.summary()}")
+    }
+
+    /**
+     * Every checkbox-role control toggles: a tri-state box (a table's select-all)
+     * and an icon toggle were silent beside a checkbox that was not.
+     */
+    @Test
+    fun aTriStateBoxAndAnIconToggleToggle() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var all by mutableStateOf(ToggleableState.Indeterminate)
+        var starred by mutableStateOf(true)
+        var box = Rect.Zero
+        var icon = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Row(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    TriStateCheckbox(
+                        state = all,
+                        onClick = { all = if (all == ToggleableState.On) ToggleableState.Off else ToggleableState.On },
+                        modifier = Modifier.reportBounds { box = it },
+                    )
+                    IconToggleButton(
+                        icon = Tabler.Outline.Trash,
+                        contentDescription = "Starred",
+                        checked = starred,
+                        onCheckedChange = { starred = it },
+                        modifier = Modifier.reportBounds { icon = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.tap(box.center)
+            scene.frames(4)
+            Thread.sleep(DetentTicker.MinimumTickInterval.inWholeMilliseconds + 40)
+            scene.tap(icon.center)
+            scene.frames(4)
+        }
+        assertEquals(
+            listOf(FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOff), felt,
+            "a mixed select-all pressed (selects everything) and a starred toggle " +
+                "pressed (unstars) fired ${felt.summary()}",
+        )
+    }
+
+    /**
+     * A counter is not a control, and taps on a fall only where it was asked to
+     * warn of one: a countdown used to buzz every second.
+     */
+    @Test
+    fun aCounterTapsOnAFallOnlyWhereItWarns() {
+        fun fell(warnBefore: kotlin.time.Duration): List<FeedbackIntent> {
+            val felt = mutableListOf<FeedbackIntent>()
+            var value by mutableStateOf(10)
+            Scene(width = 300, height = 200) {
+                Recording(felt) {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        AnimatedCounter(value = value, warnBefore = warnBefore)
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                value = 9
+                scene.frames(10)
+            }
+            return felt
+        }
+        assertEquals(emptyList(), fell(kotlin.time.Duration.ZERO), "a plain counter falling buzzed")
+        assertEquals(listOf(FeedbackIntent.Tap), fell(kotlin.time.Duration.parse("1s")), "a warning counter falling did not")
+    }
+
+    /** A row picked up and put straight back landed nowhere new: its long press, and nothing else. */
+    @Test
+    fun aReorderPutStraightBackIsOnlyItsLongPress() {
+        val felt = mutableListOf<FeedbackIntent>()
+        val rows = mutableStateListOf("Perth", "Daglish", "Subiaco")
+        var bounds = Rect.Zero
+        Scene(width = 500, height = 500) {
+            Recording(felt) {
+                val listState = rememberLazyListState()
+                val reorder = rememberReorderableState(listState) { from, to ->
+                    rows.add(to, rows.removeAt(from))
+                }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().background(Color.White)) {
+                    itemsIndexed(rows) { index, name ->
+                        ReorderableItem(state = reorder, index = index, itemCount = rows.size) {
+                            ListItem(
+                                modifier = if (index == 0) Modifier.reportBounds { bounds = it } else Modifier,
+                            ) { +name }
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.press(bounds.center)
+            scene.renderUntil(timeoutMillis = 900L) { false }
+            scene.release(bounds.center)
+            scene.frames(4)
+        }
+        assertEquals(listOf("Perth", "Daglish", "Subiaco"), rows.toList(), "the row moved")
+        assertEquals(listOf(FeedbackIntent.LongPress), felt, "a pick-up put straight back fired ${felt.summary()}")
+    }
+
+    /**
+     * A short flick onto the next card — the commonest thing done to a carousel —
+     * reports the page it lands on. The finger lifts before the page changes, so
+     * it used to say nothing at all.
+     */
+    @Test
+    fun aCarouselFlickReportsThePageItLandsOn() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var bounds = Rect.Zero
+        lateinit var state: CarouselState
+        Scene(width = 400, height = 300) {
+            Recording(felt) {
+                state = rememberCarouselState(pageCount = { 5 })
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Carousel(
+                        state = state,
+                        contentDescription = "Stop photos",
+                        modifier = Modifier.fillMaxWidth().height(200.dp).reportBounds { bounds = it },
+                    ) { page ->
+                        Box(Modifier.fillMaxWidth().height(200.dp).background(Color.Gray)) {
+                            io.kontour.ui.foundation.Text("Page $page")
+                        }
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // Past the carousel's quarter but short of the page's middle, so the
+            // page changes only as the release's settle carries it.
+            scene.drag(bounds.alongX(0.75f), bounds.alongX(0.4f), steps = 4)
+            scene.frames(60)
+        }
+        assertEquals(1, state.currentPage, "the flick did not land on the next card")
+        assertEquals(listOf(FeedbackIntent.Snap), felt, "a flick onto the next card fired ${felt.summary()}")
+    }
+
+    /**
+     * A sheet dragged to where letting go dismisses it is a threshold, as a toast
+     * swiped to its dismiss point is: in, and softer, back out.
+     */
+    @Test
+    fun aSheetDraggedTowardsHiddenIsAThreshold() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var visible by mutableStateOf(true)
+        Scene(width = 600, height = 900) {
+            Recording(felt) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().background(Color.White))
+                    val sheet = rememberSheetState(
+                        detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                        initialDetent = SheetDetent.Expanded,
+                    )
+                    ModalBottomSheet(
+                        visible = visible,
+                        onDismissRequest = { visible = false },
+                        state = sheet,
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(300.dp).background(Color.LightGray))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(80)
+            val from = Offset(300f, 700f)
+            scene.press(from)
+            for (step in 1..20) {
+                scene.move(Offset(from.x, from.y + step * 25f))
+                scene.frame()
+                Thread.sleep(12)
+            }
+            for (step in 19 downTo 0) {
+                scene.move(Offset(from.x, from.y + step * 25f))
+                scene.frame()
+                Thread.sleep(12)
+            }
+            scene.release(from)
+            scene.frames(40)
+        }
+        assertTrue(visible, "the sheet closed; this was a drag to the line and back")
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack), felt,
+            "a sheet dragged towards hidden and back fired ${felt.summary()}",
         )
     }
 

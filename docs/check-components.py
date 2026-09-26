@@ -648,7 +648,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 11
+MAX_HAPTIC_SITES = 9
 
 
 # A perform, or a sustain — a hold's rumble is feedback too, and the one place
@@ -686,6 +686,11 @@ def haptic_sites() -> list[str]:
     no ticker can, so it is a call site — one, in `Detents.kt`, shared by every
     continuous slider, range slider, knob and colour track rather than one each.
 
+    It went 11 to 9 with the consistency audit: a long-press helper took the
+    three direct `LongPress` performs (`Menu`, `Tooltip`, `ReorderableItem`)
+    and a fourth that needed one (`ActivityCalendar`'s scrub), and a swipe's
+    `Confirm` became one call for its two routes.
+
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
     following it one component at a time, with nobody in a position to see the
@@ -721,13 +726,20 @@ HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 # A component that fires, either directly or through the shared ticker.
 PERFORMS = re.compile(
     r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
-    r"|\brememberDragTexture\(|\brememberEndStopLatch\("
+    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\("
 )
 
 # Two files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
 # `Dialog.kt` but belongs to `AlertDialog`.
-HAPTIC_FILE_NAMES = {"Reorderable": "ReorderableItem", "Dialog": "AlertDialog"}
+HAPTIC_FILE_NAMES = {
+    "Reorderable": "ReorderableItem",
+    "Dialog": "AlertDialog",
+    "IconButton": "IconToggleButton",
+    "NavDrawer": "NavDrawerGroup",
+    "Select": "MultiSelect",
+    "TableRows": "Table",
+}
 
 # The mechanism rather than a component: one defines the dispatcher, the other
 # is the shared detent ticker every snapping component calls.

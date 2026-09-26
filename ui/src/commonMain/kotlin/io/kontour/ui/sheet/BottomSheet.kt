@@ -1,5 +1,7 @@
 package io.kontour.ui.sheet
 
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
@@ -588,14 +590,41 @@ fun BottomSheet(
     // the ceiling counts direct `perform` calls and the ticker is one of them
     // for the whole library.
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
+    // Hidden is not a resting place but a dismissal, and a sheet dragged to where
+    // letting go closes it reports what a toast swiped to its dismiss point does:
+    // the threshold on the way in, and softer, on the way back.
+    val dismiss = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     LaunchedEffect(state) {
+        fun report(detent: SheetDetent) {
+            val hidden = detent == SheetDetent.Hidden
+            dismiss.at(if (hidden) 1 else 0)
+            // The index in the sheet's *own* list, which is reassignable — a
+            // sheet whose detents depend on what is in it changes them mid-life,
+            // and an index out of a stale copy would tick for a move that did
+            // not happen.
+            if (!hidden) ticker.at(state.detents.indexOf(detent))
+        }
+        // A flick is the hand's gesture too: the settle a release starts is
+        // waited out, and the detent it lands on reported if it is new — so a
+        // sheet flicked open from its peek says so, where it used to be silent
+        // because the finger had lifted first. Opened in code, it arms nothing.
+        var settle: Job? = null
         snapshotFlow { state.draggedByHand to state.targetDetent }
             .collect { (dragging, detent) ->
-                // The index in the sheet's *own* list, which is reassignable —
-                // a sheet whose detents depend on what is in it changes them
-                // mid-life, and an index out of a stale copy would tick for a
-                // move that did not happen.
-                if (dragging) ticker.at(state.detents.indexOf(detent)) else ticker.reset()
+                if (dragging) {
+                    settle?.cancel()
+                    settle = null
+                    report(detent)
+                } else if (settle == null) {
+                    settle = launch {
+                        withFrameNanos { }
+                        snapshotFlow { state.isMoving }.first { !it }
+                        report(state.currentDetent)
+                        ticker.reset()
+                        dismiss.reset()
+                        settle = null
+                    }
+                }
             }
     }
 

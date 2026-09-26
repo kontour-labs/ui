@@ -89,6 +89,8 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.rememberFocusRingVisible
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberLongPressFeedback
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.TooltipDefaults
@@ -378,6 +380,11 @@ fun ActivityCalendar(
     var pressDay by remember { mutableStateOf<LocalDate?>(null) }
     var hoverShown by remember { mutableStateOf(false) }
     val ticker = rememberDetentTicker()
+    // A day tapped answers like a calendar's day does — a tap, if it is a change —
+    // and the scrub's long press announces itself as every long press does.
+    val tap = rememberTapFeedback()
+    val longPressed = rememberLongPressFeedback()
+    val currentSelected by rememberUpdatedState(selected)
     val pick by rememberUpdatedState(if (interactive) onDayClick else null)
     // A pointer has to rest before the first tooltip, as everywhere else; moving
     // from one cell to the next with one already showing moves it straight away.
@@ -519,6 +526,7 @@ fun ActivityCalendar(
                                         val day = hit(at) ?: return@detectTapGestures
                                         pressDay = null
                                         pick?.let {
+                                            if (day != currentSelected) tap()
                                             cursor = day
                                             it(day)
                                         }
@@ -539,6 +547,10 @@ fun ActivityCalendar(
                                 }
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { at ->
+                                        // Whether or not a day can be picked:
+                                        // the bubble is a touch tooltip, and a
+                                        // tooltip's long press reports itself.
+                                        longPressed()
                                         ticker.reset()
                                         scrubTo(at)
                                     },

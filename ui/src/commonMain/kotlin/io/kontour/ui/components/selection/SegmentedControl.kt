@@ -754,7 +754,7 @@ fun SegmentedControl(
                         selected = index == selected,
                         enabled = enabled,
                         shape = innerShape,
-                        onClick = { tap(); onSelectedChange(index) },
+                        onClick = { if (index != selected) tap(); onSelectedChange(index) },
                     )
                 }
             }
@@ -767,7 +767,7 @@ fun SegmentedControl(
                         selected = index == selected,
                         enabled = enabled,
                         shape = innerShape,
-                        onClick = { tap(); onSelectedChange(index) },
+                        onClick = { if (index != selected) tap(); onSelectedChange(index) },
                     )
                 }
             }

@@ -20,7 +20,12 @@ import io.kontour.haptics.scaled
  * `LongPress` because that was the constant everyone knew about.
  */
 enum class FeedbackIntent {
-    /** A value changed: a toggle flipped, a radio selected, a chip filtered. */
+    /**
+     * A value was chosen. Nothing in the library performs it: a toggle reports
+     * [ToggleOn] or [ToggleOff], a radio, a segment or a swatch a [Tap], and a row
+     * that changes place a [Snap]. Kept for a dispatcher or a component of your
+     * own that has a choice to report and no better word for it.
+     */
     Selection,
 
     /**
@@ -210,7 +215,7 @@ enum class FeedbackIntent {
  */
 enum class FeedbackFeel {
     /**
-     * A texture going past: a detent crossed, a row of a drum, a page snapping.
+     * A texture going past: a detent crossed, a row of a drum, a slider's grain.
      *
      * The tier that did not exist. It arrives in *streams* — a flung wheel
      * crosses a row every 8ms — which is why it is also the tier the shared rate
@@ -246,9 +251,10 @@ enum class FeedbackFeel {
  *   consequential moment in a gesture, but a switch's midpoint can be crossed
  *   back and forth under one finger and the heaviest tier would be too much for
  *   that.
- * - [FeedbackIntent.Selection] is a press. A reorderable row visibly changing
- *   place is a change, not a texture — which is also what keeps the drop
- *   ([FeedbackIntent.Tick]) lighter than the reorders it follows.
+ * - [FeedbackIntent.Snap] is a press. A resting place passed — a row visibly
+ *   changing place, a card, a sheet's detent — is a change, not a texture, which
+ *   is also what keeps the drop ([FeedbackIntent.GestureEnd]) lighter than the
+ *   reorders it follows.
  * - [FeedbackIntent.Warn] and [FeedbackIntent.Reject] share [FeedbackFeel.Danger],
  *   which is the sharing the two have always had, stated once instead of as two
  *   coincidental branches. They remain two intents so a consumer can pull them
@@ -259,13 +265,14 @@ val FeedbackIntent.feel: FeedbackFeel
         FeedbackIntent.Tick -> FeedbackFeel.Light
         FeedbackIntent.Scrub -> FeedbackFeel.Light
         FeedbackIntent.Bump -> FeedbackFeel.Light
-        // Neither is performed anywhere in the library. Assigned anyway, because
-        // an intent without a feel is an intent a replacement dispatcher cannot
-        // place — and because the `when` is exhaustive, which is what stops the
-        // next intent being added without this decision being made.
+        // A dragged row's landing: softer than the reorders it follows.
         FeedbackIntent.GestureEnd -> FeedbackFeel.Light
         // A rumble is a stream of the faintest pulse the platform has.
         FeedbackIntent.Hold -> FeedbackFeel.Light
+        // Performed by nothing in the library. Assigned anyway, because an intent
+        // without a feel is one a replacement dispatcher cannot place — and the
+        // `when` is exhaustive, which is what stops the next intent being added
+        // without this decision being made.
         FeedbackIntent.KeyPress -> FeedbackFeel.Light
 
         FeedbackIntent.ToggleOff -> FeedbackFeel.Light
@@ -526,6 +533,20 @@ fun rememberToggleFeedback(): (Boolean) -> Unit {
             if (floor.claim(intent)) feedback.perform(intent)
         }
     }
+}
+
+/**
+ * A press held to its long-press threshold, ready to call from a gesture
+ * handler: [FeedbackIntent.LongPress], which no level short of `Off` drops.
+ *
+ * One helper for the four places that report one — a context menu, a touch
+ * tooltip, a row picked up to reorder, a calendar scrubbed — for the reason the
+ * tap helper gives: one call site, rather than one each.
+ */
+@Composable
+internal fun rememberLongPressFeedback(): () -> Unit {
+    val feedback = LocalFeedback.current
+    return remember(feedback) { { feedback.perform(FeedbackIntent.LongPress) } }
 }
 
 /**

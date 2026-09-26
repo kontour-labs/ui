@@ -58,6 +58,7 @@ import io.kontour.ui.motion.SlotGap
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberDetentTicker
 import androidx.compose.animation.core.Animatable
 import io.kontour.ui.theme.Theme
@@ -281,6 +282,7 @@ fun LazyItemScope.ReorderableItem(
     content: @Composable () -> Unit,
 ) {
     val feedback = LocalFeedback.current
+    val longPressed = rememberLongPressFeedback()
     val motion = Theme.motion
 
     // The shadow's shape, derived from where the row sits rather than passed in.
@@ -361,6 +363,7 @@ fun LazyItemScope.ReorderableItem(
         immediate = { pointerImmediate },
         currentIndex = { currentIndex },
         feedback = feedback,
+        longPressed = longPressed,
     )
 
     val handleDrags = Modifier.reorderDrag(
@@ -369,6 +372,7 @@ fun LazyItemScope.ReorderableItem(
         immediate = { true },
         currentIndex = { currentIndex },
         feedback = feedback,
+        longPressed = longPressed,
     )
 
     Box(
@@ -621,6 +625,7 @@ private fun Modifier.reorderDrag(
     immediate: () -> Boolean,
     currentIndex: () -> Int,
     feedback: FeedbackDispatcher,
+    longPressed: () -> Unit,
 ): Modifier = if (!enabled) {
     this
 } else {
@@ -655,6 +660,9 @@ private fun Modifier.reorderDrag(
         // Without the second half a node that never started would still call
         // `stop()` on the drag that did.
         var owned = false
+        // Whether the row passed another. A pick-up let go of where it was
+        // landed nowhere new, and says so by saying nothing.
+        var crossed = false
 
         val onStart: (Offset) -> Unit = {
             if (state.draggingIndex == null) {
@@ -664,14 +672,17 @@ private fun Modifier.reorderDrag(
                 // yours to move — on the [immediate] path there is no threshold
                 // to announce, and firing it there was a haptic for a
                 // mouse-down on a grip.
-                if (!immediate()) feedback.perform(FeedbackIntent.LongPress)
+                if (!immediate()) longPressed()
+                crossed = false
                 state.start(currentIndex())
             }
         }
         val onDrag: (PointerInputChange, Offset) -> Unit = { change, amount ->
             if (owned) {
                 change.consume()
+                val before = state.draggingIndex
                 state.drag(amount.y)
+                if (state.draggingIndex != before) crossed = true
             }
         }
         val onEnd: () -> Unit = {
@@ -681,8 +692,9 @@ private fun Modifier.reorderDrag(
                 // has landed; the news already happened, once per gap crossed.
                 // `GestureEnd` — a soft impact now, where it was a thud when
                 // this moved off it — and not rate-limited, so the landing is
-                // never the report a floor drops.
-                feedback.perform(FeedbackIntent.GestureEnd)
+                // never the report a floor drops. Only after a move: a row
+                // picked up and put straight back has not landed anywhere.
+                if (crossed) feedback.perform(FeedbackIntent.GestureEnd)
                 state.stop()
             }
         }

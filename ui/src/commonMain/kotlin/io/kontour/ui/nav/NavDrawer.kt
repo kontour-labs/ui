@@ -68,6 +68,7 @@ import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberTapFeedback
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -495,6 +496,8 @@ fun NavDrawerGroup(
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
+    // Disclosure, which taps both ways the way an `Accordion` does.
+    val tap = rememberTapFeedback()
 
     Column(modifier.fillMaxWidth()) {
         Row(
@@ -514,6 +517,7 @@ fun NavDrawerGroup(
                     // reader user has to act on to discover.
                     role = Role.Button,
                     onClick = {
+                        tap()
                         onExpandedChange(!expanded)
                     },
                 )

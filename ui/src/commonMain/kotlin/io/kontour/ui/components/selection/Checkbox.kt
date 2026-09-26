@@ -76,10 +76,9 @@ fun Checkbox(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val toggled = rememberToggleFeedback()
     TriStateCheckbox(
         state = ToggleableState(checked),
-        onClick = onCheckedChange?.let { { toggled(!checked); it(!checked) } },
+        onClick = onCheckedChange?.let { { it(!checked) } },
         modifier = modifier,
         enabled = enabled,
         interactionSource = interactionSource,
@@ -125,6 +124,11 @@ fun TriStateCheckbox(
      */
     val pressed by pressSourceFor(interactions, interactionSource, onClick != null)
         .collectIsPressedAsState()
+    // On or off by where a press takes it: an indeterminate box, pressed, selects
+    // everything — the answer the note above calls right — so it reports on. It
+    // was silent, and so was a Table's select-all built on it, while the
+    // checkbox beside it toggled.
+    val toggled = rememberToggleFeedback()
     val press = if (pressed && enabled) SelectionPressPreview else 0f
     val filled by animateFloatAsState(
         targetValue = if (selected) 1f - press else press,
@@ -178,9 +182,13 @@ fun TriStateCheckbox(
             .focusRing(interactions, shape)
             .then(
                 if (onClick != null) {
+                    val toggle = onClick
                     Modifier.triStateToggleable(
                         state = state,
-                        onClick = onClick,
+                        onClick = {
+                            toggled(state != ToggleableState.On)
+                            toggle()
+                        },
                         enabled = enabled,
                         role = Role.Checkbox,
                         interactionSource = interactions,

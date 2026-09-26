@@ -101,8 +101,16 @@ class PullToRefreshState internal constructor(
     /** How far through the gesture the user is, 0 to 1 and beyond. */
     val progress: Float get() = if (thresholdPx <= 0f) 0f else offset / thresholdPx
 
-    /** True once a release would trigger a refresh. */
-    val willRefresh: Boolean get() = progress >= 1f
+    /**
+     * True once a release would trigger a refresh.
+     *
+     * Latched with a little slack on the way back — a tenth of the threshold — so a finger resting on the line does not flip it, and its
+     * haptic with it, every frame. It was `progress >= 1f`, and the threshold
+     * report is not rate-limited. The release reads the same latch, so what the
+     * hand was told is what letting go does.
+     */
+    var willRefresh: Boolean by mutableStateOf(false)
+        private set
 
     /**
      * Pulls the indicator down by [delta] pixels, returning what it consumed.
@@ -127,6 +135,9 @@ class PullToRefreshState internal constructor(
             delta
         }
         offset = (offset + resisted).coerceAtLeast(0f)
+        val line = if (willRefresh) 1f - PullSlack else 1f
+        val past = progress >= line
+        if (past != willRefresh) willRefresh = past
         return offset - previous
     }
 
@@ -134,6 +145,7 @@ class PullToRefreshState internal constructor(
     fun release(): Boolean {
         val triggered = willRefresh
         offset = 0f
+        willRefresh = false
         return triggered
     }
 }
@@ -689,3 +701,11 @@ enum class LoadMoreState {
     /** Nothing left to load. */
     End,
 }
+
+/**
+ * How far back under the threshold, as a share of it, a pull that has passed it
+ * must come before letting go stops refreshing: 8dp at the default. A finger held
+ * on the line trembles, and without the slack the threshold's report chattered
+ * with it.
+ */
+private const val PullSlack = 0.1f

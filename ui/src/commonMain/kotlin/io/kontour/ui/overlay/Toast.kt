@@ -1036,6 +1036,10 @@ private fun ToastCard(
 
     /** This card's own measured height, for the swipe threshold and the band. */
     var height by remember { mutableFloatStateOf(0f) }
+    // Whether the swipe has passed its dismiss point, latched — see
+    // `dismissesOnRelease`. Read and written in the gesture only.
+    val pastLine = remember { mutableStateOf(false) }
+    val hysteresisPx = with(LocalDensity.current) { ToastSwipeHysteresis.toPx() }
 
     /**
      * Whether letting go now would send the card away.
@@ -1048,11 +1052,18 @@ private fun ToastCard(
      * Read live rather than captured — `pull` and `height` both move during the
      * gesture, and `freeDragOwning` reads its handlers at call time for exactly
      * this reason.
+     *
+     * Latched, with [ToastSwipeHysteresis] of slack on the way back: once past,
+     * the card stays past until the finger has come properly back, so a finger
+     * resting on the line does not flip the threshold's report every frame. The
+     * release reads the same latch, so it still decides what the hand was told.
      */
     fun dismissesOnRelease(): Boolean {
         val travelled = pull.value
-        return !refusesToLeave(travelled, towardEdge) &&
-            travelled.getDistance() >= height * ToastDefaults.SwipeAway
+        val line = height * ToastDefaults.SwipeAway
+        pastLine.value = !refusesToLeave(travelled, towardEdge) &&
+            travelled.getDistance() >= if (pastLine.value) line - hysteresisPx else line
+        return pastLine.value
     }
 
     // One report, at the one moment in a swipe that has a consequence. Through
@@ -1192,10 +1203,11 @@ private fun ToastCard(
                                 // "past here, letting go deletes it".
                                 //
                                 // Through the ticker rather than a `perform`, so
-                                // the once-per-crossing guard and the rate limit
-                                // are the library's one copy of each — and so
-                                // dragging back inside the threshold reports the
-                                // change of mind too, which is the same news.
+                                // the once-per-crossing guard is the library's
+                                // one copy — and so dragging back inside the
+                                // threshold reports the change of mind too, which
+                                // is the same news. An outcome: the rate floor
+                                // never drops it.
                                 threshold.at(if (dismissesOnRelease()) 1 else 0)
                             },
                             onEnd = {
@@ -1216,7 +1228,9 @@ private fun ToastCard(
                                 // release goes — a dismissed card takes its own
                                 // toast with it and the rest carry on.
                                 held.value = false
-                                if (dismissesOnRelease()) {
+                                val dismissing = dismissesOnRelease()
+                                pastLine.value = false
+                                if (dismissing) {
                                     state.dismiss(toast.id)
                                 } else {
                                     // Sprung, not snapped. Letting go below the
@@ -1510,3 +1524,9 @@ private fun ToastSurface(
  * four is gone within a second of the first leaving.
  */
 private const val ToastStagger = 250L
+
+/**
+ * How far back inside the dismiss point a swipe has to come, once past it, before
+ * letting go would keep the toast: enough to take a finger's tremble on the line.
+ */
+private val ToastSwipeHysteresis = 8.dp

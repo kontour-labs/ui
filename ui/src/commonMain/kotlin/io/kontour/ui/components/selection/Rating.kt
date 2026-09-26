@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -67,8 +68,9 @@ import kotlin.math.ceil
  * **Press and drag across the marks to set it.** A row of stars is the most
  * obviously swipeable control there is, and until now every one of them was five
  * separate tap targets. The score follows the finger from the moment it lands —
- * there is no slop to cross first — and each value crossed ticks, so a score can
- * be set without looking.
+ * there is no slop to cross first. The press answers with a tap when it changes
+ * the score, and each mark a drag then crosses ticks like a slider's detent, so a
+ * score can be set without looking and a fast drag is not a run of presses.
  *
  * The row owns the pointer for the whole gesture, the way [Slider] does and for
  * the same reason: it is an absolute control, mapping a position to a value, so
@@ -115,6 +117,10 @@ fun Rating(
     interactionSource: MutableInteractionSource? = null,
 ) {
     val tap = rememberTapFeedback()
+    // Marks crossed by a drag are detents, not presses: the lightest tick, and the
+    // shared rate floor. It used to tap for each one — a click per star, twice
+    // with halves — which was felt as heavy against every other drag in the set.
+    val ticker = rememberDetentTicker()
     val empty = icon ?: SystemIcons.Star
     val full = filledIcon ?: SystemIcons.StarFilled
     val clamped = value.coerceIn(0f, count.toFloat())
@@ -165,7 +171,7 @@ fun Rating(
     val currentChange by rememberUpdatedState(onValueChange)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    fun setFromX(x: Float) {
+    fun setFromX(x: Float, press: Boolean) {
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
@@ -178,13 +184,20 @@ fun Rating(
             (if (isRtl) 1f - within else within) < 0.5f -> index + 0.5f
             else -> (index + 1).toFloat()
         }
-        if (next == currentValue) return
-        // Once per value taken, which under a drag is once per mark the finger
-        // passes. The guard above is what makes that true: this runs on every
-        // moved frame and returns on all but the few that change anything, so
-        // the tap is per star and not per frame, and the shared rate floor is
-        // the backstop rather than the mechanism.
-        tap()
+        // Indexed in half marks, so a half is its own detent where there are halves.
+        val detent = next * 2f
+        if (press) {
+            // The press arms the ticker on the value it lands on — a drag that
+            // starts there has crossed nothing yet — and answers with a tap if it
+            // changed the score.
+            ticker.reset()
+            ticker.at(detent)
+            if (next == currentValue) return
+            tap()
+        } else {
+            ticker.at(detent)
+            if (next == currentValue) return
+        }
         currentChange(next)
     }
 
@@ -218,7 +231,7 @@ fun Rating(
                                 pass = PointerEventPass.Initial,
                             )
                             down.consume()
-                            setFromX(down.position.x)
+                            setFromX(down.position.x, press = true)
 
                             while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -230,8 +243,9 @@ fun Rating(
                                 val travelled = change.positionChange() != Offset.Zero
                                 change.consume()
                                 if (!change.pressed) break
-                                if (travelled) setFromX(change.position.x)
+                                if (travelled) setFromX(change.position.x, press = false)
                             }
+                            ticker.reset()
                         }
                     }
                 } else {
@@ -267,9 +281,13 @@ fun Rating(
                         // The keyboard and assistive-tech path, and the only one
                         // that reaches here — the row consumes the pointer on the
                         // initial pass, so this and `setFromX` never both answer
-                        // the same input. Both acknowledge, because a checkbox
-                        // activated from the keyboard does.
-                        onClick = { tap(); onValueChange(markValue.toFloat()) },
+                        // the same input. Both acknowledge a change, because a
+                        // checkbox activated from the keyboard does — and neither
+                        // answers the score it already has, as a radio does not.
+                        onClick = {
+                            if (markValue.toFloat() != currentValue) tap()
+                            onValueChange(markValue.toFloat())
+                        },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
                         interactionSource = interactions,

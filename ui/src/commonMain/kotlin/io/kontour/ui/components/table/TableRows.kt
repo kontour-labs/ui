@@ -67,6 +67,8 @@ import io.kontour.ui.input.rememberFocusRingVisible
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.interaction.rememberToggleFeedback
 
 /** Everything a row needs to know about the table it is in. */
 internal data class TableEnv<T>(
@@ -274,6 +276,11 @@ private fun <T> BodyRow(env: TableEnv<T>, index: Int, item: T) {
         else -> colours.content
     }
     val indication = kontourIndication(RectangleShape, pressScale = 1f)
+    // A row that selects answers as its control would: a toggle for a checkbox
+    // column, a tap on a change for a single choice. Both were silent, while the
+    // same column's checkbox toggled audibly beside a row that opened.
+    val toggled = rememberToggleFeedback()
+    val tap = rememberTapFeedback()
     val toggle = { onSelectedChange?.invoke(if (isSelected) env.selected - key else env.selected + key) }
     // A row that does nothing has no click modifier at all; one that does keeps
     // its modifier while disabled, so it still announces as disabled.
@@ -285,6 +292,7 @@ private fun <T> BodyRow(env: TableEnv<T>, index: Int, item: T) {
             enabled = env.enabled,
             role = null,
         ) {
+            if (!isSelected && onSelectedChange != null) tap()
             onSelectedChange?.invoke(setOf(key))
             onRowClick?.invoke(item)
         }
@@ -296,7 +304,10 @@ private fun <T> BodyRow(env: TableEnv<T>, index: Int, item: T) {
                 indication = indication,
                 enabled = env.enabled,
                 role = Role.Checkbox,
-            ) { toggle() }
+            ) {
+                if (onSelectedChange != null) toggled(!isSelected)
+                toggle()
+            }
         onRowClick != null -> Modifier.pointerCursor(enabled = env.enabled).clickable(
             interactionSource = interactions,
             indication = indication,

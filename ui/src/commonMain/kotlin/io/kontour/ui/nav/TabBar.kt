@@ -552,24 +552,22 @@ fun Modifier.tabSwipe(
 
                 // Dragging left goes forward, the way a page does.
                 //
-                // `Tick` rather than `Selection` on each step. They are two
-                // different things and this was firing the wrong one: a tick is
-                // a detent crossed, which is what a step through a row of tabs
-                // is, and a selection is a value being chosen — which on this
-                // gesture happens once, when the finger lifts. Firing the heavier
-                // one per step made a three-tab drag feel like three decisions.
+                // A `Snap` for the tabs passed, once per event however many that
+                // is: the ticker reports a jump of several as one crossing, and
+                // calling it per tab inside one event used to fire a snap each,
+                // unfloored, in the same instant.
+                val before = index
                 while (travelled <= -threshold && index < count - 1) {
                     travelled += threshold
                     index += 1
-                    ticker.at(index)
                     currentChange(index)
                 }
                 while (travelled >= threshold && index > 0) {
                     travelled -= threshold
                     index -= 1
-                    ticker.at(index)
                     currentChange(index)
                 }
+                if (index != before) ticker.at(index)
                 // Pinned at the ends, so a drag past the last tab does not bank
                 // travel that then has to be undone before the first step back.
                 //
@@ -589,8 +587,6 @@ fun Modifier.tabSwipe(
             onDragStopped = {
                 travelled = 0f
                 ticker.reset()
-                // Once, at the end — the thing a `Selection` was being spent on
-                // per step now marks the gesture actually finishing.
             },
         )
 }

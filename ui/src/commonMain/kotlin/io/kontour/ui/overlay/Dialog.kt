@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -249,9 +252,19 @@ fun AlertDialog(
     dismissible: Boolean = true,
     content: StateScope.() -> Unit,
 ) {
+    // Once per question: not again when the screen is recreated with the same
+    // question up, and again for a second question asked in the same dialog —
+    // it used to be keyed on `visible` alone, which did both of those wrong.
     val feedback = Feedback
-    LaunchedEffect(visible) {
-        if (visible && destructive && hapticWarning) feedback.perform(FeedbackIntent.Warn)
+    val question = LocalAlertQuestion.current
+    var warned by rememberSaveable(question) { mutableStateOf(false) }
+    LaunchedEffect(visible, question) {
+        if (!visible) {
+            warned = false
+        } else if (destructive && hapticWarning && !warned) {
+            warned = true
+            feedback.perform(FeedbackIntent.Warn)
+        }
     }
 
     // Reuses the state block's regions: a title, a body under it, and an action
@@ -431,15 +444,26 @@ fun rememberConfirmationController(): ConfirmationController = remember { Confir
 fun ConfirmHost(controller: ConfirmationController) {
     val pending = controller.pending
 
-    AlertDialog(
-        visible = pending != null,
-        confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
-        cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
-        destructive = pending?.destructive == true,
-        onConfirm = { controller.answer(true) },
-        onDismissRequest = { controller.answer(false) },
-    ) {
-        +pending?.title.orEmpty()
-        pending?.message?.let { message -> supporting { +message } }
+    // Each question its own, so a destructive one asked straight after another
+    // — in a dialog that never closed between them — still warns.
+    CompositionLocalProvider(LocalAlertQuestion provides pending) {
+        AlertDialog(
+            visible = pending != null,
+            confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
+            cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
+            destructive = pending?.destructive == true,
+            onConfirm = { controller.answer(true) },
+            onDismissRequest = { controller.answer(false) },
+        ) {
+            +pending?.title.orEmpty()
+            pending?.message?.let { message -> supporting { +message } }
+        }
     }
 }
+
+/**
+ * Which question an [AlertDialog] is asking, for a host that asks one after
+ * another without closing it: a new one is a new destructive warning. Null — one
+ * question for the dialog's life — everywhere else.
+ */
+private val LocalAlertQuestion = staticCompositionLocalOf<Any?> { null }

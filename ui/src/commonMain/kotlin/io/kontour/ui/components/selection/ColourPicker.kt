@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.Hsv
 import io.kontour.ui.foundation.toColour
 import io.kontour.ui.foundation.toHex
@@ -292,14 +294,18 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     val strings = Theme.strings
     val pure = remember(hsv.hue) { Hsv(hsv.hue, 1f, 1f).toColour() }
 
-    // **Running out of spectrum reports nothing.**
-    //
-    // There was a ticker here, packing four walls into one index. It went with
-    // the rest of the library's end stops: a finger that has run into the side of
-    // the square can see the cursor sitting against it, so a buzz there reports
-    // the most visible thing on screen. The palette grid below keeps its tick —
-    // a cell crossed under a fingertip is a value changing where the finger is,
-    // which is the case a haptic is actually for.
+    // **The square feels like the tracks beside it.** It was silent while the hue
+    // and opacity tracks under it had a slider's texture and end stops — reported
+    // as "no dragging haptics when dragging the colour picker even though there
+    // are haptics in the hue slider". It has both now: the texture over the
+    // distance the cursor travels, since a texture wants one number and a square
+    // has two, and a knock for each wall it runs into, once, per axis. A press
+    // that lands the cursor is silent, as a slider's is.
+    val texture = rememberDragTexture()
+    val sides = rememberEndStopLatch()
+    val ends = rememberEndStopLatch()
+    var travelled by remember { mutableFloatStateOf(0f) }
+    var last by remember { mutableStateOf(Offset.Unspecified) }
 
     /**
      * The hue this handler reports against, read live rather than captured.
@@ -330,6 +336,14 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
         at = position
         val across = position.x / box.width
         val down = position.y / box.height
+        // The cursor's own path, clamped: pushing into a wall moves nothing, so it
+        // grains nothing, and the wall has its own report.
+        val cursor = Offset(position.x.coerceIn(0f, box.width), position.y.coerceIn(0f, box.height))
+        if (last.isSpecified) travelled += (cursor - last).getDistance() / box.width
+        last = cursor
+        texture.at(travelled)
+        sides.at(across)
+        ends.at(down)
         onHsvChange(
             liveHsv.copy(
                 saturation = across.coerceIn(0f, 1f),
@@ -353,11 +367,19 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Press,
-                onStart = { report(it) },
+                onStart = {
+                    travelled = 0f
+                    last = Offset.Unspecified
+                    sides.arm()
+                    ends.arm()
+                    report(it)
+                },
                 onDelta = { report(at + it) },
-                // Nothing to unwind: the cursor is wherever it was left and the
-                // walls report nothing to latch. It used to reset the edge ticker.
-                onEnd = {},
+                onEnd = {
+                    texture.reset()
+                    sides.reset()
+                    ends.reset()
+                },
             )
             .semantics { contentDescription = strings.colourArea }
     ) {
@@ -400,10 +422,17 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
      */
     val cells = rememberDetentTicker()
 
+    /**
+     * A press on a cell answers like a swatch's does: a tap, if it changed the
+     * colour. It was silent — the one press in the picker that was, directly
+     * above a row of swatches that tap.
+     */
+    val tap = rememberTapFeedback()
+
     /** Live, for the reason `SaturationValueArea` gives at length. */
     val liveHsv by rememberUpdatedState(hsv)
 
-    fun report(position: Offset) {
+    fun report(position: Offset, press: Boolean = false) {
         if (box.width <= 0f || box.height <= 0f) return
         at = position
         val column = ((position.x / box.width) * PaletteColumns)
@@ -411,12 +440,12 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
         val row = ((position.y / box.height) * PaletteRows)
             .toInt().coerceIn(0, PaletteRows - 1)
         cells.at(row * PaletteColumns + column)
-        onHsvChange(
-            liveHsv.copy(
-                saturation = (column + 1).toFloat() / PaletteColumns,
-                value = 1f - row.toFloat() / PaletteRows,
-            )
+        val next = liveHsv.copy(
+            saturation = (column + 1).toFloat() / PaletteColumns,
+            value = 1f - row.toFloat() / PaletteRows,
         )
+        if (press && next != liveHsv) tap()
+        onHsvChange(next)
     }
 
     Canvas(
@@ -430,7 +459,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Press,
-                onStart = { report(it) },
+                onStart = { report(it, press = true) },
                 onDelta = { report(at + it) },
                 onEnd = { cells.reset() },
             )

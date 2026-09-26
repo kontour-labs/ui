@@ -77,8 +77,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
@@ -663,7 +662,7 @@ fun ContextMenuArea(
     var coordinates by remember {
         mutableStateOf<LayoutCoordinates?>(null)
     }
-    val feedback = LocalFeedback.current
+    val longPressed = rememberLongPressFeedback()
     val modality = LocalInputModality.current
 
     fun openAt(local: Offset) {
@@ -696,7 +695,7 @@ fun ContextMenuArea(
                 if (!enabled || !modality.needsLargeTargets) return@pointerInput
                 detectTapGestures(
                     onLongPress = { position ->
-                        feedback.perform(FeedbackIntent.LongPress)
+                        longPressed()
                         openAt(position)
                     },
                 )

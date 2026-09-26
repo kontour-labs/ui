@@ -15,7 +15,9 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * Fires one [FeedbackIntent.Tick] each time a drag crosses a detent.
+ * Reports each detent a drag crosses, once: a [FeedbackIntent.Tick] by default,
+ * or whichever intent it was made with — a [FeedbackIntent.Snap] for a resting
+ * place, a two-sided [FeedbackIntent.DragThreshold] for a threshold.
  *
  * Six components had a hand-rolled version of this and they had drifted: the
  * slider guarded on a step index, the wheel picker on the item under the
@@ -454,6 +456,15 @@ internal class EndStopLatch(
         ticker.at(hits)
     }
 
+    /**
+     * The drag has come clear of whatever stop it was against, by a measure the
+     * caller keeps — for a stop whose position only the caller knows. The next
+     * meeting counts.
+     */
+    fun clear() {
+        against = 0
+    }
+
     /** The gesture is over. */
     fun reset() {
         ticker.reset()
@@ -520,12 +531,21 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
     /**
      * True if [intent] may fire now, recording the firing when it does.
      *
-     * Anything that does not arrive in a stream passes straight through and does
-     * not reset the clock either — an outcome is not part of the stream the floor
-     * is thinning.
+     * Anything that does not arrive in a stream always passes — an outcome is
+     * never the report dropped — **and is recorded**, so the stream behind it
+     * waits its usual gap. It used to pass without touching the clock, on the
+     * argument that an outcome is not part of the stream the floor thins. That
+     * was right about dropping and wrong about what follows: a phone restarts
+     * its motor for each new vibration, so a detent's tick landing a frame after
+     * an end stop's knock cut the knock short — the knob's last step behind its
+     * wall, a date range's day behind the month it paged, a range slider's step
+     * behind the thumbs meeting. The outcome is the one felt now.
      */
     fun claim(intent: FeedbackIntent): Boolean {
-        if (!intent.arrivesInStreams) return true
+        if (!intent.arrivesInStreams) {
+            lastFired = clock.markNow()
+            return true
+        }
         val since = lastFired
         if (since != null && since.elapsedNow() < intent.minimumGap) return false
         lastFired = clock.markNow()
@@ -537,10 +557,9 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
  * Whether [FeedbackFloor] may drop this intent.
  *
  * The ones that arrive in streams, which is not the same set as the lightest
- * feels — see the note on [FeedbackFloor]. [FeedbackIntent.Selection] is
- * deliberately absent: it fires once per reorder, which is once per gap a row
- * crossed, and a reorder the hand does not feel is a reorder the eye has to go
- * looking for.
+ * feels — see the note on [FeedbackFloor]. [FeedbackIntent.Snap] is deliberately
+ * absent: a reorder fires one per gap a row crossed, and a reorder the hand does
+ * not feel is a reorder the eye has to go looking for.
  */
 internal val FeedbackIntent.arrivesInStreams: Boolean
     get() = this == FeedbackIntent.Tap ||

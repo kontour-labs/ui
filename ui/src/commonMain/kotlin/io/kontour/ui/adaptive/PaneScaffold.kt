@@ -1,5 +1,7 @@
 package io.kontour.ui.adaptive
 
+import kotlin.math.abs
+import io.kontour.ui.interaction.rememberEndStopLatch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -344,7 +346,7 @@ private fun TwoPane(
         if (resizable) {
             ResizeHandle(
                 onDelta = { delta ->
-                    if (totalWidth <= 0f) return@ResizeHandle
+                    if (totalWidth <= 0f) return@ResizeHandle false
                     // Half at most, so the clamp cannot invert. Two panes each
                     // wanting a 360dp minimum in a 700dp window ask for more
                     // than there is, and `coerceIn` *throws* on an inverted
@@ -352,8 +354,10 @@ private fun TwoPane(
                     // Pinned to the middle is the honest answer: neither pane
                     // can have its minimum, so neither gets preference.
                     val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
-                    weight = (weight + delta / totalWidth)
-                        .coerceIn(minWeight, 1f - minWeight)
+                    val asked = weight + delta / totalWidth
+                    weight = asked.coerceIn(minWeight, 1f - minWeight)
+                    // Whether the drag ran into a pane's minimum.
+                    asked != weight
                 },
                 fraction = weight,
             )
@@ -373,9 +377,12 @@ private fun TwoPane(
  * screen reader can perform, so the handle reports its position as a progress
  * range and accepts `setProgress`, which is how a keyboard or switch user
  * resizes a pane at all.
+ *
+ * @param onDelta Moves the divider by that many pixels, and says whether it ran
+ *   into a pane's minimum.
  */
 @Composable
-private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
+private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
     val colours = Theme.colours
     val motion = Theme.motion
     // 12dp is plenty for a mouse and a miss for a thumb, and this is the control
@@ -390,6 +397,14 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
         animationSpec = motion.tweenFast(),
         label = "resizeHandle",
     )
+
+    // The divider stops where a pane would go under its minimum, and a drag that
+    // runs into that says so once, as a slider's end does. It has a touch target,
+    // and a Mac's trackpad feels it too, so it is not the mouse-only control it
+    // was written off as. The caller knows when it clamped; the stop re-arms once
+    // the drag has come a little way clear.
+    val stop = rememberEndStopLatch()
+    val releasePx = with(LocalDensity.current) { PaneStopRelease.toPx() }
 
     Box(
         modifier = Modifier
@@ -407,10 +422,20 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
                 }
             }
             .pointerInput(Unit) {
+                var clear = 0f
                 detectDragGestures(
+                    onDragStart = { stop.arm(); clear = 0f },
+                    onDragEnd = { stop.reset() },
+                    onDragCancel = { stop.reset() },
                 ) { change, amount ->
                     change.consume()
-                    onDelta(amount.x)
+                    if (onDelta(amount.x)) {
+                        stop.reached(if (amount.x > 0f) 1 else -1)
+                        clear = 0f
+                    } else {
+                        clear += abs(amount.x)
+                        if (clear >= releasePx) stop.clear()
+                    }
                 }
             },
         contentAlignment = Alignment.Center,
@@ -423,3 +448,6 @@ private fun ResizeHandle(onDelta: (Float) -> Unit, fraction: Float) {
         )
     }
 }
+
+/** How far a divider drag has to come clear of a pane's minimum before meeting it again counts. */
+private val PaneStopRelease = 12.dp

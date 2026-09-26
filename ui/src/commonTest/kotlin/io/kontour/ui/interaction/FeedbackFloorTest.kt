@@ -117,20 +117,27 @@ class FeedbackFloorTest {
         )
     }
 
+    /**
+     * The converse, reversed on purpose: an outcome holds back the stream that
+     * follows it.
+     *
+     * It used to leave the clock alone, so a tick a frame after a wall's knock
+     * fired — and a phone restarts its motor for each new vibration, so the
+     * tick cut the knock short. The knob's last step behind its end stop, a
+     * date range's day behind the month it had just paged: the outcome was the
+     * report lost. Now the stream waits its usual gap after one.
+     */
     @Test
-    fun anOutcomeDoesNotResetTheFloorEither() {
-        // The converse, and the easy mistake: letting a heavy intent through but
-        // marking the clock anyway would make every threshold silence the tick
-        // that follows it.
+    fun anOutcomeHoldsBackTheStreamBehindIt() {
         val clock = TestTimeSource()
         val floor = FeedbackFloor(clock)
 
-        assertTrue(floor.claim(FeedbackIntent.Warn), "a warning was refused outright")
-        assertTrue(
-            floor.claim(FeedbackIntent.Tap),
-            "a tap immediately after a warning was dropped. The warning is not in " +
-                "the stream, so it has nothing to say about what follows it.",
-        )
+        assertTrue(floor.claim(FeedbackIntent.Limit), "a wall was refused outright")
+        clock += 10.milliseconds
+        assertTrue(!floor.claim(FeedbackIntent.Tick), "a tick 10ms after a wall cut its knock short")
+        assertTrue(floor.claim(FeedbackIntent.DragThreshold), "an outcome is never held back, even by another")
+        clock += DetentTicker.MinimumTickInterval
+        assertTrue(floor.claim(FeedbackIntent.Tick), "the stream resumes its gap after the last outcome")
     }
 
     /**

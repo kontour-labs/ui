@@ -169,16 +169,20 @@ fun AnimatedCounter(
     var shown by remember { mutableIntStateOf(value) }
     var warning by remember { mutableStateOf(false) }
 
-    // Down is the one direction worth reporting, and the report is the whole
-    // reason the warning exists at all: a number that rises is good news the
-    // reader can take at their leisure, and a number that falls is a seat count
-    // or a time remaining that they may be about to act on. Once per drop,
-    // whether or not there is a `warnBefore` to hold it, and whether or not
-    // motion is reduced — a reader who has asked for less movement is exactly
-    // the one the drop is quietest for.
+    // Down is the one direction worth reporting, and only on a counter that
+    // warns: a number that falls there is a seat count or a time remaining the
+    // reader may be about to act on, which is what `warnBefore` says. Once per
+    // drop, and whether or not motion is reduced — a reader who has asked for
+    // less movement is exactly the one the drop is quietest for.
+    //
+    // It used to report every fall on every counter, from any source: a
+    // seconds countdown buzzed once a second for as long as it was on screen,
+    // and a `Stepper`'s own counter answered its minus button a second time.
+    // A counter that does not warn is a number, and a number changing where the
+    // reader is looking says nothing a haptic needs to.
     val heard = remember { PreviousValue(value) }
     LaunchedEffect(value) {
-        if (value < heard.value) tap()
+        if (value < heard.value && warnBefore > Duration.ZERO) tap()
         heard.value = value
     }
 
