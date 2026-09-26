@@ -33,22 +33,26 @@ import kotlin.test.assertTrue
  * trackpad arrives as a *pan*, which the row did not listen for at all.
  *
  * Two 88dp actions at this scene's density of 2 reveal at 352px, and settle open
- * once let go of past half of that.
+ * once let go of with the first of them out in full, at 176px.
  */
 class SwipeScrollTest {
 
+    /**
+     * Four clicks bring the first of two actions out in full — 96dp against its 88 —
+     * which is where a released row opens.
+     */
     @Test
     fun aFewNotchesOfSidewaysScrollOpenTheActions() {
         val (state, settled) = row { scene, at, _ ->
-            repeat(3) {
+            repeat(4) {
                 scene.scroll(at, Offset(1f, 0f))
                 scene.frame()
             }
         }
-        assertTrue(abs(state.offset) > 0f || settled == SwipeValue.End, "three notches did not move the row")
+        assertTrue(abs(state.offset) > 0f || settled == SwipeValue.End, "four notches did not move the row")
         assertEquals(
             SwipeValue.End, settled,
-            "three clicks of a sideways wheel left the row at $settled. A notch is a " +
+            "four clicks of a sideways wheel left the row at $settled. A notch is a " +
                 "unit, not a pixel; at three pixels a notch this took dozens of clicks.",
         )
     }

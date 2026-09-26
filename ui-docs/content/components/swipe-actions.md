@@ -61,9 +61,10 @@ line. Back off it by 16dp and the takeover undoes itself with a second buzz, sin
 backing off has a consequence too.
 
 **Short of it, a flick opens or closes the actions** by the way it was thrown —
-400dp/s and at least 12dp of travel — and a slow release opens them a third of the
-way in (`swipePositionalThreshold`, 0.35) and closes them a third of the way out. A
-flick never commits on its own. It used to: judged by where the throw was aimed,
+400dp/s and at least 12dp of travel. A slow release opens several actions once
+the first is out in full — where its soft tick plays — and a single action a third
+of the way in (`swipePositionalThreshold`, 0.35); it closes an open row a third of
+the way out. A flick never commits on its own. It used to: judged by where the throw was aimed,
 a flick meant for the actions and thrown a little hard ran the action. That was
 *"on android, the swiping is still too fiddly"*.
 
@@ -107,8 +108,9 @@ goes, it opens.
 
 On a desktop a sideways scroll moves the row as a drag would. A trackpad's
 two-finger push follows the fingers — on a Mac it arrives as a pan, in pixels — and
-settles when they lift; a mouse's sideways wheel moves the row 24dp a notch, so two
-clicks open an action, and settles shortly after the last. Either one is the
+settles when they lift; a mouse's sideways wheel moves the row 24dp a notch — two
+clicks open a single action, four the first of several — and settles shortly after
+the last. Either one is the
 row's only if it begins mostly sideways, and a vertical scroll with a little drift
 in it stays the list's. It never commits.
 

@@ -177,11 +177,6 @@ private fun RowScope.HexField(
         label = ColourFormat.Hex.label,
         keyboardType = KeyboardType.Text,
         enabled = enabled,
-        // A form field's own side padding. The tight channel padding below is for
-        // four boxes sharing a picker's width; the hex field has the row to itself,
-        // and at 4dp its text sat against the edge of the fill — reported as the
-        // value box having no padding at all.
-        horizontalPadding = Theme.spacing.sm,
         modifier = Modifier.weight(1f),
     )
 }
@@ -249,7 +244,6 @@ private fun RowScope.Channel(
         label = label,
         keyboardType = KeyboardType.Number,
         enabled = enabled,
-        horizontalPadding = Theme.spacing.xxs,
         modifier = Modifier.weight(1f),
     )
 }
@@ -269,7 +263,6 @@ private fun <T> SyncedField(
     label: String,
     keyboardType: KeyboardType,
     enabled: Boolean,
-    horizontalPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
     val state: TextFieldState = rememberTextFieldState(canonical)
@@ -299,18 +292,21 @@ private fun <T> SyncedField(
         variant = TextFieldVariant.Filled,
         keyboardType = keyboardType,
         // Shorter than a form's field, so the fields sit as one row with the
-        // preview swatch. The side padding is the caller's: a channel field is
-        // tighter than a form's, because four of them have to share a picker's
-        // width. At the standard padding a channel field is 74dp wide holding
-        // 22dp of text, and 255 renders as "25" with the last digit cut off —
-        // measured, in a 320dp picker, which is the width this is for.
+        // preview swatch — and a form field's side padding, on every one.
+        //
+        // The channels used to be tighter than the hex field, at 4dp a side, on
+        // a measurement that 255 was cut to "25" at the standard padding in a
+        // 320dp picker. Their text then sat against the edge of the fill, which
+        // is what the hex field had been reported for, and they were asked to
+        // match it. Four channels in a 320dp picker are about 69dp each, so the
+        // standard 12dp a side leaves 45dp for three digits — and
+        // `ColourPickerTest` holds that the last digit is still there.
         //
         // The label above is what keeps that legible rather than cramped: the
         // letter says which channel, so the box only ever holds up to three
         // digits and never needs room for a word.
         metrics = TextFieldDefaults.metrics().copy(
             minHeight = Theme.sizing.controlHeightMedium,
-            horizontalPadding = horizontalPadding,
             verticalPadding = Theme.spacing.xxs,
             gap = Theme.spacing.xxs,
         ),

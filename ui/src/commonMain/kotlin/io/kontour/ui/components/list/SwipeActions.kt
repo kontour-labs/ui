@@ -237,8 +237,10 @@ object SwipeActionsDefaults {
      * fractions of one — and this used to be three *pixels* a notch, on the
      * belief that it was pixels already: an 88dp action took dozens of clicks.
      * Compose's own lists move 10dp a notch on a Mac; a swipe is a coarser
-     * gesture than a scroll, so a row moves further, and two clicks open one
-     * action. A trackpad on a Mac pans instead, and follows the fingers.
+     * gesture than a scroll, so a row moves further: two clicks open a single
+     * action, and four bring the first of several out in full, which is where a
+     * released row opens. A trackpad on a Mac pans instead, and follows the
+     * fingers.
      */
     val ScrollStep: Dp = 24.dp
 
@@ -296,10 +298,12 @@ object SwipeActionsDefaults {
  * - **Past the point of no return, letting go commits**, at any speed. The point
  *   is a little way past the actions and at least half the row, and a buzz marks
  *   it — once on the way out, once more if the finger backs off it.
- * - **Short of it, a flick opens or closes** the actions by the way it was thrown,
- *   and a slow release does so a third of the way in. A flick never commits on its
- *   own: aimed at a reveal and thrown a little hard, it used to run the action —
- *   the Android half of the report.
+ * - **Short of it, a flick opens or closes** the actions by the way it was thrown.
+ *   A slow release opens them once the first action is out in full — the moment
+ *   its soft tick plays — or, for a single action, a third of the way in; it
+ *   closes an open row a third of the way out. A flick never commits on its own:
+ *   aimed at a reveal and thrown a little hard, it used to run the action — the
+ *   Android half of the report.
  * - **A tap on a row showing its actions closes it**, and does not also reach the
  *   row's own click. A tap on one of the buttons runs that action and closes it.
  *
@@ -539,6 +543,8 @@ fun SwipeActions(
             startedAt = state.anchoredState.settledValue,
             startReveal = if (start.isNotEmpty()) startTravel else Float.NaN,
             endReveal = if (end.isNotEmpty()) endTravel else Float.NaN,
+            startCount = start.size,
+            endCount = end.size,
             committing = committing,
             flickVelocity = flickVelocityPx,
             flickTravel = flickTravelPx,
@@ -844,6 +850,8 @@ fun SwipeActions(
  * @param startedAt Where the row rested when the gesture began.
  * @param startReveal Where the start actions are revealed, or `NaN` for none.
  * @param endReveal Where the end actions are revealed (negative), or `NaN`.
+ * @param startCount How many actions the start side has.
+ * @param endCount How many actions the end side has.
  * @param committing Whether the drag was past the point of no return when it ended.
  */
 internal fun swipeTarget(
@@ -852,6 +860,8 @@ internal fun swipeTarget(
     startedAt: SwipeValue,
     startReveal: Float,
     endReveal: Float,
+    startCount: Int,
+    endCount: Int,
     committing: Boolean,
     flickVelocity: Float,
     flickTravel: Float,
@@ -878,7 +888,14 @@ internal fun swipeTarget(
     return if (wasOpen) {
         if (abs(offset) <= span * (1f - revealShare)) SwipeValue.Resting else revealed
     } else {
-        if (abs(offset) >= span * revealShare) revealed else SwipeValue.Resting
+        // With several actions, once the first is out in full: they are dealt out
+        // one after the other, and a release at 35% of three used to open all of
+        // them with the first still growing — and with two, before it had
+        // finished. "The threshold for making them all appear when you let go is
+        // once the first one has appeared." One action keeps the positional share.
+        val count = if (onStart) startCount else endCount
+        val opensAt = if (count >= 2) span / count else span * revealShare
+        if (abs(offset) >= opensAt) revealed else SwipeValue.Resting
     }
 }
 

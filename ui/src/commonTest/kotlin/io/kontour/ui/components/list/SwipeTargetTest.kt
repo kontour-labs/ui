@@ -7,7 +7,8 @@ import kotlin.test.assertEquals
  * Where a released swipe goes, rule by rule. See `SwipeActions`' "How it decides".
  *
  * The numbers are a row with two end actions of 88px each: the end reveal at -176,
- * a flick at 400px/s and 12px, and a slow release opening at 0.35 of the reveal.
+ * a flick at 400px/s and 12px, and a slow release opening once the first action is
+ * out in full, at -88. A single action opens at 0.35 of its reveal.
  */
 class SwipeTargetTest {
 
@@ -16,12 +17,15 @@ class SwipeTargetTest {
         velocity: Float = 0f,
         startedAt: SwipeValue = SwipeValue.Resting,
         committing: Boolean = false,
+        endCount: Int = 2,
     ) = swipeTarget(
         offset = offset,
         velocity = velocity,
         startedAt = startedAt,
         startReveal = Float.NaN,
-        endReveal = -176f,
+        endReveal = -88f * endCount,
+        startCount = 0,
+        endCount = endCount,
         committing = committing,
         flickVelocity = 400f,
         flickTravel = 12f,
@@ -52,12 +56,29 @@ class SwipeTargetTest {
         assertEquals(SwipeValue.Resting, target(-6f, velocity = -900f))
     }
 
+    /**
+     * Several actions open once the first is out in full, which is where its soft
+     * tick plays: at 35% of two, the first was still growing and letting go opened
+     * both. Closing an open row is unchanged — a third of the way out.
+     */
     @Test
-    fun aSlowReleaseOpensAThirdOfTheWayInAndClosesAThirdOfTheWayOut() {
-        assertEquals(SwipeValue.Resting, target(-50f))
-        assertEquals(SwipeValue.End, target(-70f))
+    fun aSlowReleaseOpensSeveralActionsOnceTheFirstIsOutAndClosesAThirdOfTheWayOut() {
+        assertEquals(SwipeValue.Resting, target(-70f), "the first action is still growing at 70 of 88")
+        assertEquals(SwipeValue.Resting, target(-87f))
+        assertEquals(SwipeValue.End, target(-88f))
+        assertEquals(SwipeValue.End, target(-100f, endCount = 3), "three actions open at the first's 88 too")
+        assertEquals(SwipeValue.Resting, target(-80f, endCount = 3))
         assertEquals(SwipeValue.End, target(-130f, startedAt = SwipeValue.End))
         assertEquals(SwipeValue.Resting, target(-100f, startedAt = SwipeValue.End))
+    }
+
+    /** One action keeps the positional share: a third of the way in. */
+    @Test
+    fun aSingleActionStillOpensAThirdOfTheWayIn() {
+        assertEquals(SwipeValue.Resting, target(-29f, endCount = 1))
+        assertEquals(SwipeValue.End, target(-32f, endCount = 1))
+        assertEquals(SwipeValue.Resting, target(-55f, startedAt = SwipeValue.End, endCount = 1))
+        assertEquals(SwipeValue.End, target(-60f, startedAt = SwipeValue.End, endCount = 1))
     }
 
     @Test
