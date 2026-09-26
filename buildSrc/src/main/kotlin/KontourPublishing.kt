@@ -44,8 +44,15 @@ import org.gradle.kotlin.dsl.withType
  *
  * @param displayName The POM's `name`.
  * @param summary The POM's `description`.
+ * @param licenceNote The licence's `comments`. The default names the fonts `:ui`
+ *   bundles; a module that bundles none says so rather than inheriting it.
  */
-fun Project.kontourPublishing(displayName: String, summary: String) {
+fun Project.kontourPublishing(
+    displayName: String,
+    summary: String,
+    licenceNote: String = "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
+        "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt.",
+) {
     group = "io.kontour"
     version = providers.gradleProperty("kontour.version")
         .orElse(
@@ -104,10 +111,7 @@ fun Project.kontourPublishing(displayName: String, summary: String) {
                 licenses {
                     license {
                         name.set("Proprietary")
-                        comments.set(
-                            "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
-                                "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt."
-                        )
+                        comments.set(licenceNote)
                     }
                 }
                 scm {

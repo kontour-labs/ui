@@ -34,6 +34,10 @@ plugins {
 // The library. Product-agnostic, and published.
 include(":ui")
 
+// Platform haptics, with no Compose in it. `:ui` depends on this, not the other
+// way round, which is why it is not one of the `ui-*` modules.
+include(":haptics")
+
 // Navigation 3 scene strategies over the library's pane scaffolds. Published
 // beside it, and separate so that `:ui` takes no navigation dependency at all.
 include(":ui-nav3")

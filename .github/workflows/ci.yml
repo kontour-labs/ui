@@ -182,6 +182,8 @@ jobs:
             :ui-samples:checkDocSamples \
             :ui-nav3:jvmTest \
             :ui-nav3:checkNoMaterial \
+            :haptics:jvmTest \
+            :haptics:checkNoCompose \
             :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
 
       # A real window under a real pointer: the one cursor check that reaches the
@@ -279,6 +281,11 @@ jobs:
             :ui-nav3:compileKotlinWasmJs \
             :ui-nav3:compileKotlinIosArm64 \
             :ui-nav3:compileKotlinIosSimulatorArm64 \
+            :haptics:compileKotlinJs \
+            :haptics:compileKotlinWasmJs \
+            :haptics:compileKotlinIosArm64 \
+            :haptics:compileKotlinIosSimulatorArm64 \
+            :haptics:assemble \
             :showcase:android:assembleDebug \
             :ui:assemble
 
@@ -401,7 +408,7 @@ jobs:
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
       - name: Build the API reference
-        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml
+        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 
       # Only here, and only in this order: it compares the paths the site
       # derived when it was built against the pages the reference published a
@@ -493,7 +500,7 @@ jobs:
         run: |
           ./gradlew --no-daemon --quiet \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            :ui:coordinate :ui-nav3:coordinate
+            :ui:coordinate :ui-nav3:coordinate :haptics:coordinate
 
       # On a tag this takes no version argument and so cannot disagree with the
       # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual
