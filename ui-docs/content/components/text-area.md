@@ -1,8 +1,8 @@
 # `TextArea`
 
-Grows between `minLines` and `maxLines`, then scrolls internally. Growing rather
-than scrolling from the first line is what lets a two-line note stay visible
-while a long one stays contained.
+Grows between the bounds in its `lineLimits`, three lines to eight by default,
+then scrolls internally. Growing rather than scrolling from the first line is
+what lets a two-line note stay visible while a long one stays contained.
 
 <!--sample:TextAreaBasics-->
 ```kotlin
@@ -25,8 +25,8 @@ TextArea(
 Everything on [`TextField`](text-field.md) applies — the label as the accessible
 name, `errorMessage` as `error` semantics, `enabled = false` as a disabled node.
 
-`minLines`/`maxLines` is the accessibility-relevant pair: the field grows between
-them and then scrolls, so it neither starts enormous nor moves the rest of the
+`lineLimits` is the accessibility-relevant setting: the field grows between its
+two bounds and then scrolls, so it neither starts enormous nor moves the rest of the
 form a line at a time as the user types. Content that moves under a magnifier is
 content that has to be found again.
 
