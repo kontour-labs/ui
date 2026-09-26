@@ -3,7 +3,6 @@ package io.kontour.ui.components.datetime
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,7 +18,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
@@ -43,6 +41,8 @@ import kotlinx.datetime.LocalTime
  * platform setting rather than being a parameter every call site has to
  * remember to pass.
  *
+ * @param enabled Whether the wheels can be turned. Disabled, the time is shown
+ *   in the disabled content colour and answers nothing.
  * @param minuteStep Coarsens the minute wheel. A planner rarely wants
  *   minute-level precision, and 5 turns 60 rows into 12.
  */
@@ -51,6 +51,7 @@ fun TimePicker(
     value: LocalTime,
     onValueChange: (LocalTime) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     minuteStep: Int = 1,
     formats: DateTimeFormats = LocalDateTimeFormats.current,
 ) {
@@ -87,25 +88,31 @@ fun TimePicker(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(72.dp).semantics { contentDescription = strings.hour }) {
-                WheelPicker(
-                    items = hours,
-                    selectedIndex = hourIndex,
-                    onSelectedIndexChange = { emit(hourValue = hours[it]) },
-                    itemLabel = { if (is24) it.toString().padStart(2, '0') else it.toString() },
-                )
-            }
+            WheelPicker(
+                items = hours,
+                selectedIndex = hourIndex,
+                onSelectedIndexChange = { emit(hourValue = hours[it]) },
+                itemLabel = { if (is24) it.toString().padStart(2, '0') else it.toString() },
+                modifier = Modifier.width(72.dp),
+                enabled = enabled,
+                contentDescription = strings.hour,
+            )
 
-            Text(":", style = Theme.typography.headlineSmall, colour = Theme.colours.contentMuted)
+            Text(
+                ":",
+                style = Theme.typography.headlineSmall,
+                colour = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
+            )
 
-            Box(Modifier.width(72.dp).semantics { contentDescription = strings.minute }) {
-                WheelPicker(
-                    items = minutes,
-                    selectedIndex = minuteIndex,
-                    onSelectedIndexChange = { emit(minute = minutes[it]) },
-                    itemLabel = { it.toString().padStart(2, '0') },
-                )
-            }
+            WheelPicker(
+                items = minutes,
+                selectedIndex = minuteIndex,
+                onSelectedIndexChange = { emit(minute = minutes[it]) },
+                itemLabel = { it.toString().padStart(2, '0') },
+                modifier = Modifier.width(72.dp),
+                enabled = enabled,
+                contentDescription = strings.minute,
+            )
 
             // A third wheel, not a segmented control below.
             //
@@ -118,20 +125,16 @@ fun TimePicker(
             // Two items on a five-row wheel is mostly empty space, so this one
             // shows three rows.
             if (!is24) {
-                Box(
-                    Modifier
-                        .padding(start = Theme.spacing.sm)
-                        .width(64.dp)
-                        .semantics { contentDescription = strings.dayPeriod }
-                ) {
-                    WheelPicker(
-                        items = periods,
-                        selectedIndex = if (isPm) 1 else 0,
-                        onSelectedIndexChange = { emit(pm = it == 1) },
-                        itemLabel = { it },
-                        visibleItems = 3,
-                    )
-                }
+                WheelPicker(
+                    items = periods,
+                    selectedIndex = if (isPm) 1 else 0,
+                    onSelectedIndexChange = { emit(pm = it == 1) },
+                    itemLabel = { it },
+                    modifier = Modifier.padding(start = Theme.spacing.sm).width(64.dp),
+                    enabled = enabled,
+                    contentDescription = strings.dayPeriod,
+                    visibleItems = 3,
+                )
             }
         }
     }

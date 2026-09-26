@@ -41,6 +41,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
@@ -101,6 +103,17 @@ fun <T> WheelPicker(
     onSelectedIndexChange: (Int) -> Unit,
     itemLabel: (T) -> String,
     modifier: Modifier = Modifier,
+    /**
+     * Whether the drum can be turned. Disabled, it shows its value in the
+     * disabled content colour and answers no drag, tap or wheel.
+     */
+    enabled: Boolean = true,
+    /**
+     * What the drum is a choice of — "Hour", "Departure time" — for a screen
+     * reader, which otherwise hears only the value. A drum under a visible label
+     * that says it may leave this null.
+     */
+    contentDescription: String? = null,
     visibleItems: Int = WheelPickerDefaults.VisibleItems,
     itemHeight: Dp = WheelPickerDefaults.ItemHeight,
     infinite: Boolean = false,
@@ -127,6 +140,8 @@ fun <T> WheelPicker(
             onSelectedChange = onSelectedIndexChange,
             label = itemLabel,
             modifier = modifier,
+            enabled = enabled,
+            contentDescription = contentDescription,
             visibleItems = visibleItems,
             itemHeight = itemHeight,
         )
@@ -407,7 +422,8 @@ fun <T> WheelPicker(
      * back door. Keyed on everything a row is made of, so nothing here can go
      * stale.
      */
-    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance) {
+    val rowColour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
+    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour) {
         {
             items(items.size) { index ->
                 Box(
@@ -417,7 +433,7 @@ fun <T> WheelPicker(
                     Text(
                         text = itemLabel(items[index]),
                         style = Theme.typography.titleLarge,
-                        colour = Theme.colours.content,
+                        colour = rowColour,
                         modifier = Modifier.graphicsLayer {
                             val distance = drumDistance(index)
                             val shrink = wheelShrink(distance)
@@ -486,7 +502,8 @@ fun <T> WheelPicker(
              * pass and sees only a press the list declined — which a tap is,
              * since the list claims a gesture once it travels.
              */
-            .pointerInput(items.size, itemPx) {
+            .pointerInput(items.size, itemPx, enabled) {
+                if (!enabled) return@pointerInput
                 detectTapGestures { at ->
                     val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
                     val target = (centredIndex + rows).coerceIn(0, items.lastIndex)
@@ -520,6 +537,7 @@ fun <T> WheelPicker(
                     if (leftOver != 0f) band.pull(leftOver, bandLimit)
                 },
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // The list's own fling snaps; a raw drag has to be given back
                 // to the nearest row itself, or the drum is left between two.
                 onDragStopped = {
@@ -544,6 +562,7 @@ fun <T> WheelPicker(
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,
+            userScrollEnabled = enabled,
             contentPadding = PaddingValues(vertical = itemHeight * edgeItems),
             // Purely visual: the band moves the drawn drum and no index, no
             // settled value and nothing the caller sees knows it happened, so
@@ -562,6 +581,8 @@ fun <T> WheelPicker(
                 .matchParentSize()
                 .semantics {
                     stateDescription = itemLabel(items[centredIndex])
+                    if (contentDescription != null) this.contentDescription = contentDescription
+                    if (!enabled) disabled()
                 }
         )
     }
@@ -594,6 +615,8 @@ private fun <T> InfiniteWheel(
     onSelectedChange: (Int) -> Unit,
     label: (T) -> String,
     modifier: Modifier,
+    enabled: Boolean,
+    contentDescription: String?,
     visibleItems: Int,
     itemHeight: Dp,
 ) {
@@ -759,6 +782,7 @@ private fun <T> InfiniteWheel(
                     scope.launch { offset.snapTo(offset.value - delta) }
                 },
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // `scrollable` settles through `isScrollInProgress`, which a
                 // drag here never touches — so this settles itself, onto the
                 // same nearest row and with the same spring.
@@ -772,6 +796,7 @@ private fun <T> InfiniteWheel(
             .scrollable(
                 state = scrollState,
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // Reversed: dragging up turns the drum forwards, the way it does
                 // on every wheel in the library and on the platform's own.
                 reverseDirection = true,
@@ -779,7 +804,8 @@ private fun <T> InfiniteWheel(
             // Last in the chain and therefore outermost, so it runs after the
             // scroll and the drag have both declined the press — see `tapToTurn`
             // for why this is a pointer node and not a row of `selectable`s.
-            .pointerInput(items.size, itemPx) {
+            .pointerInput(items.size, itemPx, enabled) {
+                if (!enabled) return@pointerInput
                 detectTapGestures { at -> tapToTurn(at, size.height.toFloat()) }
             },
         contentAlignment = Alignment.TopStart,
@@ -847,7 +873,7 @@ private fun <T> InfiniteWheel(
                     Text(
                         text = label(items[index]),
                         style = Theme.typography.titleLarge,
-                        colour = Theme.colours.content,
+                        colour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled,
                         // The row's *index* is a composition read and its
                         // distance from the band is not — see `drumDistance` on
                         // the finite wheel, which this now matches. The comment
@@ -872,7 +898,11 @@ private fun <T> InfiniteWheel(
         Box(
             Modifier
                 .matchParentSize()
-                .semantics { stateDescription = label(items[centredIndex]) }
+                .semantics {
+                    stateDescription = label(items[centredIndex])
+                    if (contentDescription != null) this.contentDescription = contentDescription
+                    if (!enabled) disabled()
+                }
         )
     }
 }

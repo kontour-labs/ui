@@ -123,6 +123,8 @@ object CalendarMonthDefaults {
  * to know which one it is in.
  *
  * @param month Any date within the month to show; only its year and month matter.
+ * @param enabled Whether any day can be chosen. Disabled, every day is shown
+ *   the way an unselectable one is, and a drag selects nothing.
  * @param isDateSelectable Days for which this returns false are shown but not
  *   selectable — greyed rather than hidden, so the calendar keeps its shape and
  *   the user can see *why* a date is unavailable.
@@ -138,6 +140,7 @@ fun CalendarMonth(
     isSelected: (LocalDate) -> Boolean,
     onSelectedChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     /**
      * A range being dragged out, reported as (where the finger went down, where
@@ -192,6 +195,9 @@ fun CalendarMonth(
     // The drag this month draws from. A date picker holds one over its pager, so
     // that a drag outlives the month it started in — see `CalendarDragState`. A
     // month on its own, handed `onDragSelect`, holds its own.
+    // A disabled month is one whose every day is unselectable, which is already
+    // drawn and already refused — so `enabled` goes through that and nothing new.
+    val selectable: (LocalDate) -> Boolean = if (enabled) isDateSelectable else NoDateSelectable
     val host = LocalCalendarDrag.current
     val own = if (host == null && onDragSelect != null) rememberCalendarDrag() else null
     val drag = host ?: own
@@ -199,7 +205,7 @@ fun CalendarMonth(
     if (own != null) {
         SideEffect {
             own.onSelect = onDragSelect
-            own.isSelectable = isDateSelectable
+            own.isSelectable = selectable
             own.geometry = {
                 GridGeometry.of(firstOfMonth, weekFormats, Offset.Zero, own.width / Columns, own.rowHeight, rtl)
             }
@@ -394,7 +400,7 @@ fun CalendarMonth(
                             date = date,
                             modifier = Modifier.weight(1f),
                             selected = isSelected(date),
-                            enabled = isDateSelectable(date),
+                            enabled = selectable(date),
                             isToday = date == today,
                             marker = markerFor?.invoke(date),
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
@@ -852,3 +858,6 @@ internal fun TextStyle.grownFor(cellSize: Dp): TextStyle {
         lineHeight = if (lineHeight.isSpecified) lineHeight * growth else lineHeight,
     )
 }
+
+/** What a disabled month asks of each day. One instance, so it compares equal. */
+private val NoDateSelectable: (LocalDate) -> Boolean = { false }

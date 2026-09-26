@@ -298,7 +298,10 @@ fun TextArea(
     errorMessage: String? = null,
     lineLimits: TextFieldLineLimits.MultiLine = TextAreaDefaults.LineLimits,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     inputTransformation: InputTransformation? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -311,9 +314,12 @@ fun TextArea(
         supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
+        shape = shape,
         imeAction = ImeAction.Default,
         inputTransformation = inputTransformation,
         lineLimits = lineLimits,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
     )
 }

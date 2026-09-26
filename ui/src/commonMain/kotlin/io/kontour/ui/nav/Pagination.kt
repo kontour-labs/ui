@@ -84,6 +84,8 @@ fun Pagination(
     pageCount: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** Whether any page can be chosen. Disabled, the row shows where it is and answers nothing. */
+    enabled: Boolean = true,
     window: Int = 1,
     previousLabel: String = Theme.strings.previousPage,
     nextLabel: String = Theme.strings.nextPage,
@@ -139,7 +141,7 @@ fun Pagination(
                 icon = SystemIcons.ChevronBack,
                 contentDescription = previousLabel,
                 onClick = { onValueChange(value - 1) },
-                enabled = value > 0,
+                enabled = enabled && value > 0,
             )
 
             // Which gap has its box open, by position in the row. A single
@@ -151,10 +153,11 @@ fun Pagination(
                     is PaginationSlot.Page -> PageButton(
                         number = slot.index,
                         selected = slot.index == value,
+                        enabled = enabled,
                         onClick = { onValueChange(slot.index) },
                     )
 
-                    PaginationSlot.Gap -> if (allowJump) {
+                    PaginationSlot.Gap -> if (allowJump && enabled) {
                         gapOrdinal++
                         // Into a `val` before the callback closes over it.
                         //
@@ -195,7 +198,7 @@ fun Pagination(
                 icon = SystemIcons.ChevronForward,
                 contentDescription = nextLabel,
                 onClick = { onValueChange(value + 1) },
-                enabled = value < pageCount - 1,
+                enabled = enabled && value < pageCount - 1,
             )
         }
     }
@@ -315,7 +318,7 @@ private fun widestWindowThatFits(
 }
 
 @Composable
-private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
+private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colours = Theme.colours
     val label = Theme.strings.pageNumber(number)
     val interactions = remember { MutableInteractionSource() }
@@ -334,9 +337,10 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
-            .pointerCursor()
+            .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
+                enabled = enabled,
                 interactionSource = interactions,
                 // A page number is a small button and nothing else answers the tap.
                 indication = kontourIndication(
@@ -351,7 +355,11 @@ private fun PageButton(number: Int, selected: Boolean, onClick: () -> Unit) {
         Text(
             text = "${number + 1}",
             style = Theme.typography.bodyMedium,
-            colour = if (selected) colours.accent.onContainer else colours.contentMuted,
+            colour = when {
+                !enabled -> colours.contentDisabled
+                selected -> colours.accent.onContainer
+                else -> colours.contentMuted
+            },
         )
     }
 }

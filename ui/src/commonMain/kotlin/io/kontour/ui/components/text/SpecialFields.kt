@@ -27,6 +27,7 @@ import io.kontour.ui.components.action.RevealToggleButton
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Shape
 
 /**
  * A password field, with a reveal toggle.
@@ -82,7 +83,10 @@ fun PasswordField(
     revealLastTyped: Boolean = true,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     imeChain: ImeChainStep? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
@@ -133,6 +137,7 @@ fun PasswordField(
         supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
+        shape = shape,
         keyboardType = if (revealed) KeyboardType.Text else KeyboardType.Password,
         // The thing that actually hides the password.
         //
@@ -143,6 +148,8 @@ fun PasswordField(
         outputTransformation = if (revealed) null else mask,
         imeAction = imeAction,
         imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
         trailing = if (revealIcon != null) {
             {
@@ -249,7 +256,10 @@ fun NumberField(
     leadingIcon: ImageVector? = null,
     imeAction: ImeAction = ImeAction.Done,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     imeChain: ImeChainStep? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     val transformation = remember(allowDecimal, allowNegative, maxLength) {
@@ -285,10 +295,13 @@ fun NumberField(
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
         variant = variant,
+        shape = shape,
         keyboardType = if (allowDecimal) KeyboardType.Decimal else KeyboardType.Number,
         imeAction = imeAction,
         inputTransformation = transformation,
         imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
     )
 }
@@ -308,8 +321,12 @@ fun PhoneField(
     placeholder: String? = null,
     supporting: String? = null,
     errorMessage: String? = null,
+    imeAction: ImeAction = ImeAction.Default,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     imeChain: ImeChainStep? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -321,12 +338,16 @@ fun PhoneField(
         supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
+        shape = shape,
         keyboardType = KeyboardType.Phone,
         inputTransformation = remember {
             InputTransformation.digitsOnly().then(InputTransformation.limit(10))
         },
         outputTransformation = remember { phoneMask() },
+        imeAction = imeAction,
         imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
     )
 }
@@ -349,7 +370,10 @@ fun EmailField(
     errorMessage: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     imeChain: ImeChainStep? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -361,9 +385,12 @@ fun EmailField(
         supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
+        shape = shape,
         keyboardType = KeyboardType.Email,
         imeAction = imeAction,
         imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
     )
 }

@@ -1,6 +1,7 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.layout.Box
@@ -239,6 +240,12 @@ fun FabMenu(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
+    key: Any = remember { Any() },
     size: FabSize = FabSize.Medium,
     itemSize: FabSize = FabSize.Small,
     layout: FabMenuLayout = FabMenuLayout.Vertical,
@@ -252,7 +259,8 @@ fun FabMenu(
     itemContentColour: Color = Theme.colours.content,
     itemBorder: BorderStroke? = FabMenuDefaults.itemBorder(),
     scrim: ScrimStyle = ScrimStyle.Transparent,
-    key: Any = remember { Any() },
+    /** The main button's interactions. */
+    interactionSource: MutableInteractionSource? = null,
     content: FabMenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -386,6 +394,7 @@ fun FabMenu(
         shape = shape,
         containerColour = containerColour,
         contentColour = contentColour,
+        interactionSource = interactionSource,
     ) {
         Icon(
             imageVector = if (showingClose) expandedIcon else icon,

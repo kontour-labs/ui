@@ -72,6 +72,7 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import io.kontour.ui.foundation.LocalContentColour
 
 object NavDrawerDefaults {
     val Width: Dp
@@ -473,8 +474,8 @@ fun NavDrawerItem(
  * }
  * ```
  *
- * The shape the admin panel's sidebar needs, and the reason [NavDrawer] takes a
- * slot rather than a list.
+ * The shape a web app's sidebar needs, and the reason [NavDrawer] takes a slot
+ * rather than a list.
  *
  * Expansion is hoisted, so the app decides whether a group opens because the
  * user asked or because the current destination is inside it. Auto-expanding the
@@ -487,13 +488,16 @@ fun NavDrawerGroup(
     onExpandedChange: (Boolean) -> Unit,
     header: @Composable ContentScope.() -> Unit,
     modifier: Modifier = Modifier,
+    /** Whether the header opens and closes the group. The rows inside have their own. */
+    enabled: Boolean = true,
     icon: ImageVector? = null,
     nestLevel: Int = 0,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable NavDrawerScope.() -> Unit,
 ) {
     val colours = Theme.colours
     val motion = Theme.motion
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
     // Disclosure, which taps both ways the way an `Accordion` does.
     val tap = rememberTapFeedback()
@@ -506,9 +510,10 @@ fun NavDrawerGroup(
                 .minimumTouchTarget()
                 .focusRing(interactions, shape)
                 .clip(shape)
-                .pointerCursor()
+                .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = expanded,
+                    enabled = enabled,
                     interactionSource = interactions,
                     indication = kontourIndication(shape, pressScale = 1f),
                     // Not a Tab: expanding a group does not navigate anywhere,
@@ -529,12 +534,14 @@ fun NavDrawerGroup(
                     imageVector = icon,
                     contentDescription = null,
                     size = Theme.sizing.iconLarge,
-                    tint = colours.contentMuted,
+                    tint = if (enabled) colours.contentMuted else colours.contentDisabled,
                 )
             }
             Box(Modifier.weight(1f)) {
-                ProvideTextStyle(Theme.typography.bodyMedium) {
-                    ContentSlot(maxLines = 1, content = header)
+                ProvideContentColour(if (enabled) LocalContentColour.current else colours.contentDisabled) {
+                    ProvideTextStyle(Theme.typography.bodyMedium) {
+                        ContentSlot(maxLines = 1, content = header)
+                    }
                 }
             }
             Icon(
@@ -542,7 +549,7 @@ fun NavDrawerGroup(
                 contentDescription = null,
                 modifier = Modifier.chevronTurn(expanded, label = "drawerGroupChevron"),
                 size = Theme.sizing.iconMedium,
-                tint = colours.contentMuted,
+                tint = if (enabled) colours.contentMuted else colours.contentDisabled,
             )
         }
 

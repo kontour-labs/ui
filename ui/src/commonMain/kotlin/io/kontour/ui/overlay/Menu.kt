@@ -186,11 +186,16 @@ fun AnchoredDropdownMenu(
     anchor: Rect?,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
+    key: Any = remember { Any() },
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Start,
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
-    key: Any = remember { Any() },
     content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -540,12 +545,13 @@ fun SubMenu(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     var openedByHover by remember { mutableStateOf(false) }
     var bounds by remember { mutableStateOf<Rect?>(null) }
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val panelInteractions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
     val panelHovered by panelInteractions.collectIsHoveredAsState()

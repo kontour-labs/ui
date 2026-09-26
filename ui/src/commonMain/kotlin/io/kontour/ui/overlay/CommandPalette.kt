@@ -114,6 +114,11 @@ fun CommandPalette(
     onDismissRequest: () -> Unit,
     commands: List<Command>,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
     key: Any = remember { Any() },
     query: TextFieldState = rememberTextFieldState(),
     placeholder: String = Theme.strings.commandPalettePlaceholder,

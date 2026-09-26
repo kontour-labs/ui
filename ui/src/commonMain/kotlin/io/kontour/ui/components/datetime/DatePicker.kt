@@ -337,6 +337,11 @@ fun DatePicker(
     value: LocalDate?,
     onValueChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Whether a day can be chosen. Disabled, every day is drawn the way an
+     * unselectable one is; the months still page, so the calendar can be read.
+     */
+    enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
@@ -405,6 +410,7 @@ fun DatePicker(
             month = month,
             isSelected = { it == value },
             onSelectedChange = onValueChange,
+            enabled = enabled,
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
@@ -436,8 +442,15 @@ fun DateRangePicker(
     end: LocalDate?,
     onRangeChange: (start: LocalDate, end: LocalDate?) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Whether a range can be chosen, by tap or by drag. Disabled, every day is
+     * drawn the way an unselectable one is; the months still page.
+     */
+    enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
+    /** Draws a dot under a day, as a [DatePicker]'s does. */
+    markerFor: ((LocalDate) -> Color?)? = null,
     previousIcon: ImageVector? = null,
     nextIcon: ImageVector? = null,
     /** See [DatePicker]. */
@@ -494,7 +507,7 @@ fun DateRangePicker(
         drag.onSelect = { from, to ->
             if (to < from) onRangeChange(to, from) else onRangeChange(from, to)
         }
-        drag.isSelectable = isDateSelectable
+        drag.isSelectable = if (enabled) isDateSelectable else { _ -> false }
         drag.onStep = { currentNavigation.step(it) }
         drag.geometry = {
             GridGeometry.of(
@@ -528,8 +541,10 @@ fun DateRangePicker(
                     else -> onRangeChange(start, tapped)
                 }
             },
+            enabled = enabled,
             isDateSelectable = isDateSelectable,
             today = today,
+            markerFor = markerFor,
             rangePositionOf = { date -> rangePosition(date, start, end) },
             // Dragged out in one gesture, in either direction, by the drag held
             // above — which every month in the pager draws from.

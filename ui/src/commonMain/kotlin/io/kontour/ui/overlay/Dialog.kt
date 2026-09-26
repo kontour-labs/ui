@@ -76,6 +76,11 @@ fun Dialog(
     visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
     key: Any = remember { Any() },
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.dismiss,

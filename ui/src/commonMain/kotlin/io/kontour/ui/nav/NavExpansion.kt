@@ -276,7 +276,7 @@ private fun CollapsedControl(
     enabled: Boolean,
     containerColour: Color,
     contentColour: Color,
-    shadow: io.kontour.ui.theme.Shadow,
+    shadow: Shadow,
     content: @Composable RowScope.() -> Unit,
 ) {
     val interactions = remember { MutableInteractionSource() }

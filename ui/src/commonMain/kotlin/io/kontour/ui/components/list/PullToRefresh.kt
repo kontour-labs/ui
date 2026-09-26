@@ -643,6 +643,12 @@ fun LoadMore(
     status: LoadMoreStatus,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Whether coming into view asks for more, and whether the retry answers.
+     * Off for a list that cannot load right now — offline, say — where the foot
+     * should still say where it is.
+     */
+    enabled: Boolean = true,
     onRetry: () -> Unit = onLoadMore,
     loadingLabel: String = Theme.strings.loadingMore,
     errorMessage: String = Theme.strings.loadMoreFailed,
@@ -651,8 +657,8 @@ fun LoadMore(
 ) {
     val load by rememberUpdatedState(onLoadMore)
 
-    LaunchedEffect(status) {
-        if (status == LoadMoreStatus.Idle) load()
+    LaunchedEffect(status, enabled) {
+        if (enabled && status == LoadMoreStatus.Idle) load()
     }
 
     Box(
@@ -687,7 +693,7 @@ fun LoadMore(
                     style = Theme.typography.bodySmall,
                     colour = Theme.colours.contentMuted,
                 )
-                Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
+                Button(onClick = onRetry, enabled = enabled, variant = ButtonVariant.Ghost) { +retryLabel }
             }
 
             LoadMoreStatus.End -> if (endLabel != null) {

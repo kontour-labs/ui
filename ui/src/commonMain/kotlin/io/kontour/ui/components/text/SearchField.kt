@@ -69,6 +69,8 @@ fun SearchField(
     onSearch: ((String) -> Unit)? = null,
     variant: TextFieldVariant = TextFieldVariant.Filled,
     shape: Shape = Theme.shapes.field,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     val currentOnQuery by rememberUpdatedState(onQuery)
@@ -93,6 +95,8 @@ fun SearchField(
         leadingIcon = searchIcon,
         variant = variant,
         shape = shape,
+        colours = colours,
+        metrics = metrics,
         imeAction = ImeAction.Search,
         onKeyboardAction = { currentOnSearch?.invoke(state.text.toString()) },
         interactionSource = interactionSource,
