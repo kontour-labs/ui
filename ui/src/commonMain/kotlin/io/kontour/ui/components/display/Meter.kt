@@ -447,7 +447,11 @@ object MeterDefaults {
      */
     val Length: Dp get() = MeterLength
 
-    /** A needle a little taller than the track is thick. */
+    /**
+     * A needle a little over half as tall as the track is thick: a caret, not a
+     * flag. It was one and a quarter, and on a thick track the triangle stood
+     * taller than the thing it was pointing at.
+     */
     val NeedleLength: Float get() = MeterNeedleShare
 
     /**
@@ -478,7 +482,7 @@ object MeterDefaults {
 
 private val MeterThickness: Dp = 8.dp
 private val MeterLength: Dp = 160.dp
-private const val MeterNeedleShare: Float = 1.25f
+private const val MeterNeedleShare: Float = 0.6f
 
 /** The needle's base against its height: a little wider than tall. */
 private const val NeedleBaseShare: Float = 1.2f
@@ -487,7 +491,7 @@ private const val NeedleBaseShare: Float = 1.2f
 private val NeedleGap: Dp = 2.dp
 
 /** However thin the track, a needle you can see. */
-private val NeedleMinimum: Dp = 6.dp
+private val NeedleMinimum: Dp = 5.dp
 
 /** How much the needle's corners are softened. */
 private val NeedleRounding: Dp = 1.5.dp

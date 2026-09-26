@@ -59,7 +59,8 @@ wherever they can:
   the track pointing at the reading, like a caret on a ruler — from the side the
   ticks are not on, so it never sits among their labels; with a thumb, it points
   at the thumb. `needleLength` is how tall the triangle stands off the track, in
-  track thicknesses: 1.25 by default. `needleMatchesFill` paints it in the colour
+  track thicknesses: 0.6 by default, and never less than 5dp, so it reads as a
+  caret rather than a flag. `needleMatchesFill` paints it in the colour
   of the band the reading is in.
 - **Ticks** — `majorTicks` counts both ends, `minorTicks` sit between each pair,
   `tickLabel` writes the major ones. `tickPlacement` says which side of the track

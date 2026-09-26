@@ -109,18 +109,18 @@ class MeterDrawingTest {
      * beside the track — points at it from the side the ticks are not on.
      *
      * With both, the ends are inset by the thumb's 34px radius, so 0.5 is still the
-     * middle, at 200px. The needle is 1.25 tracks tall, 50px, its tip 4px clear of
-     * the thumb: so from the top, the needle runs 0 to 50px, the gap to 54px, and
-     * the track's centre line is at 88px.
+     * middle, at 200px. The needle is 0.6 of the track tall, 24px, its tip 4px clear
+     * of the thumb: so from the top, the needle runs 0 to 24px, the gap to 28px,
+     * and the track's centre line is at 62px.
      */
     @Test
     fun theThumbAndTheNeedleMarkTheReading() {
         val image = across(value = 0.5f, indicator = GaugeIndicator.NeedleAndThumb)
-        assertColour(green, image, 200, 88, "the thumb's face at the reading")
-        assertColour(Color.Black, image, 200, 25, "the needle, halfway up its triangle, over the reading")
-        assertColour(Color.White, image, 170, 10, "just past the side of the needle's base")
-        assertColour(Color.White, image, 200, 88 + 40, "below the thumb, where a stripe across the track used to reach")
-        assertColour(grey, image, 300, 88, "the track past the reading")
+        assertColour(green, image, 200, 62, "the thumb's face at the reading")
+        assertColour(Color.Black, image, 200, 12, "the needle, halfway up its triangle, over the reading")
+        assertColour(Color.White, image, 180, 3, "just past the side of the needle's base")
+        assertColour(Color.White, image, 200, 62 + 40, "below the thumb, where a stripe across the track used to reach")
+        assertColour(grey, image, 300, 62, "the track past the reading")
     }
 
     /** At the reading, the content is centred on it; at an end, it stops at the edge. */

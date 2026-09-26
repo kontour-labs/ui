@@ -186,9 +186,12 @@ private fun Modifier.sidewaysScrollPages(navigation: CalendarNavigationState): M
  */
 internal val LocalTodayFlash = staticCompositionLocalOf<(() -> Float)?> { null }
 
-/** The flash coming in, and going out: in quickly, out slowly, so the eye finds it and then lets it go. */
-private const val TodayFlashInMillis: Int = 180
-private const val TodayFlashOutMillis: Int = 700
+/** Each pulse of the flash coming in, and going out: in quickly, out a little slower. */
+private const val TodayFlashInMillis: Int = 160
+private const val TodayFlashOutMillis: Int = 340
+
+/** How many times today pulses: a single one was easy to miss. */
+private const val TodayFlashPulses: Int = 2
 
 /** A scroll quiet for this long has ended, and the next one is a new swipe. */
 private const val ScrollQuietMillis: Long = 250L
@@ -681,7 +684,7 @@ private fun CalendarFrame(
      * the grounds that on today's own month it did nothing. It is always there
      * now — reported as wanted — and so it always does something: it brings the
      * calendar to today's month if it is not there, and then it points at the day,
-     * fading a colour from the theme in and out of it. Which is also the answer to
+     * pulsing a colour from the theme in and out of it twice. Which is also the answer to
      * "where is today" on a month where the day is easy to miss. Read by the
      * today cell in its draw pass; see `LocalTodayFlash`.
      */
@@ -760,8 +763,11 @@ private fun CalendarFrame(
                                     // Once the month has slid in, if it had to.
                                     if (paging) delay(motion.default.toLong())
                                     todayFlash.snapTo(0f)
-                                    todayFlash.animateTo(1f, tween(TodayFlashInMillis))
-                                    todayFlash.animateTo(0f, tween(TodayFlashOutMillis))
+                                    // Twice: once to catch the eye, once to hold it there.
+                                    repeat(TodayFlashPulses) {
+                                        todayFlash.animateTo(1f, tween(TodayFlashInMillis))
+                                        todayFlash.animateTo(0f, tween(TodayFlashOutMillis))
+                                    }
                                 }
                             },
                             size = ButtonSize.Small,

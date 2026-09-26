@@ -62,7 +62,7 @@ refusing to go there would.
 **A small calendar is the way back to today.** Whenever `today` is known, the
 header has a button with a calendar glyph. Pressing it brings the calendar to
 today's month if it is somewhere else and then **flashes today's date** — a colour
-from the theme fading in and out of the day — so it always does something, and it
+from the theme pulsing in and out of the day, twice — so it always does something, and it
 answers "where is today" on a month where the day is easy to miss. The library
 draws that one glyph itself, so the button is there with nothing supplied;
 `todayIcon` swaps in an app's own to match its icon set, and `todayIcon = null`

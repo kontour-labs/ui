@@ -20,7 +20,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
+import kotlin.math.abs
 
 /**
  * Every date picker has a way back to today's month, with a glyph of its own and
@@ -66,23 +66,28 @@ class CalendarTodayButtonTest {
         onNodeWithContentDescription("Return to today").assertDoesNotExist()
     }
 
-    /** On today's own month it is still there, and pressing it flashes the day. */
+    /** On today's own month it is still there, and pressing it flashes the day — twice. */
     @Test
-    fun onTodaysOwnMonthItFlashesTheDay() = runComposeUiTest {
+    fun onTodaysOwnMonthItFlashesTheDayTwice() = runComposeUiTest {
         datePicker(showing = LocalDate(2026, 6, 1))
         val day = onNodeWithText("12").fetchSemanticsNode().boundsInRoot
         // Inside the day's circle, below its number.
         val probe = Offset(day.center.x, day.center.y + day.height * 0.3f)
         fun shade(): Color = onRoot().captureToImage().toPixelMap()[probe.x.toInt(), probe.y.toInt()]
+        fun away(from: Color, to: Color) =
+            abs(from.red - to.red) + abs(from.green - to.green) + abs(from.blue - to.blue)
         val before = shade()
         mainClock.autoAdvance = false
         onNodeWithContentDescription("Return to today").performClick()
-        mainClock.advanceTimeBy(200L)
-        val flashing = shade()
-        mainClock.advanceTimeBy(1_500L)
-        val after = shade()
-        assertNotEquals(before, flashing, "pressing the today button on today's month did not flash the day")
-        assertEquals(before, after, "the flash did not fade back out")
+        // How far from the resting shade the day is, every 40ms for a second and a half.
+        val strength = List(38) {
+            mainClock.advanceTimeBy(40L)
+            away(before, shade())
+        }
+        val lit = strength.map { it > 0.05f }
+        val pulses = lit.zipWithNext().count { (was, now) -> !was && now } + (if (lit.first()) 1 else 0)
+        assertEquals(2, pulses, "the day should pulse twice; its distance from resting was $strength")
+        assertEquals(before, shade(), "the flash did not fade back out")
     }
 
     private fun ComposeUiTest.datePicker(
