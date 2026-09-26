@@ -17,12 +17,13 @@ python3 docs/check-components.py
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
+| [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
 | [`EverythingRespondsTest`](#everythingrespondstest) | Does every control in the catalog do something? |
 | [Screenshot goldens](#screenshot-goldens) | Did anything change how it looks? |
 | [`:ui-samples`](#the-examples-compile) | Do the documentation's examples still compile? |
 | [`checkDocSamples`](#the-examples-compile) | Is the copy on the page the code that was compiled? |
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
-| [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
+| [`checkKdocSamples`](#the-examples-compile) | Does a KDoc or page snippet name parameters and scope calls that exist? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
 | [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry, a demo and an example? |
 | [`SiteRenderTest`](#the-site-is-drawn-and-looked-at) | Does every page of the site draw, at every window width? |
@@ -166,7 +167,32 @@ everything that is not a slot — where a **builder** counts as a slot, because
 in even though it carries no `@Composable`.
 
 It also refuses four parameter names outright, each with the reason:
-`supportingText`, `headline`, `isEnabled`, `onDismiss`.
+`supportingText`, `headline`, `isEnabled`, `onDismiss` — and the rest of the
+seventeen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
+no English in a default or an announcement, no default a caller cannot write,
+time as a `Duration`, `show<Part>` for a switch, `initial<What>` for a starting
+value, no two KDoc blocks in a row, and a KDoc on everything a caller holds or
+starts from.
+
+## `checkKotlinAbi`
+
+```sh
+./gradlew :ui:checkKotlinAbi :ui-nav3:checkKotlinAbi :haptics:checkKotlinAbi
+```
+
+Compares each library's public API — the JVM class files and the klibs for iOS,
+JS and Wasm — with the dump checked in under the module's `api/` directory, and
+fails on any difference. `updateKotlinAbi` rewrites the dump.
+
+The Kotlin plugin's own validator, with one filter: the Compose compiler's
+`ComposableSingletons` holders are left out, because they are public in the
+bytecode and named by a hash of each lambda, so any edit to a default slot would
+otherwise fail the check without the API having moved.
+
+The point is the diff. A rename that reaches a consumer shows up as a pair of
+lines a reviewer reads, rather than as a build that breaks after a release —
+and a deliberate one comes with its line in
+[`migrating.md`](../../ui-docs/content/migrating.md).
 
 ## `EverythingRespondsTest`
 
@@ -1253,10 +1279,14 @@ these pages are not examples: a signature under discussion, a fragment with an
 ellipsis, a shell command. Requiring every one to compile would mean inventing a
 context for each, and the useful examples would drown in the scaffolding.
 
-`:ui:checkKdocSamples` still covers the snippets inside KDoc, which the compiler
-cannot see. It parses rather than compiles, so it only catches a wrong or
-missing argument name — the weaker check, kept for the place the strong one
-cannot reach.
+`:ui:checkKdocSamples` covers what the compiler cannot see: the snippets
+inside KDoc, and the unmarked `kotlin` fences in these pages. It parses rather
+than compiles, so it catches three things only — a wrong or missing argument
+name on a component or a `Modifier` extension, and a builder lambda calling
+another scope's member (`supporting { }` inside a `Banner`, whose scope says
+`message`). The weaker check, kept for the places the strong one cannot reach;
+it is what found `DatePicker(selected = …)` still on the date picker page after
+the rename.
 
 ### The API reference is a gate
 

@@ -101,6 +101,6 @@ moving across the days. Where the range matters as a whole, put it in the prose
 beside the picker: "18 to 22 June" as `Text` is more use than a fourteenth
 announcement inside the grid.
 
-`onRangeSelected` fires with a null end on the first tap. Show the half-picked
+`onRangeChange` fires with a null end on the first tap. Show the half-picked
 range rather than waiting for both, or a screen reader user gets no confirmation
 that the first tap did anything.

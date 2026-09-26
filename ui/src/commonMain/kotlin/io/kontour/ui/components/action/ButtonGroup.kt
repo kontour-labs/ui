@@ -277,6 +277,7 @@ class ButtonGroupScope internal constructor() {
 internal fun buttonGroupActions(content: ButtonGroupScope.() -> Unit): List<ButtonGroupAction> =
     ButtonGroupScope().apply(content).actions
 
+/** What a [ButtonGroup] takes by default. */
 object ButtonGroupDefaults {
     /**
      * The gap between two joined buttons.

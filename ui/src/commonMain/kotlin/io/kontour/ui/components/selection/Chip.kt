@@ -68,7 +68,7 @@ private val ChipIconGap = 6.dp
  *
  * ```
  * // Filter — toggles a facet on and off
- * FilterChip(selected = showBuses, onClick = ::toggleBuses) { +"Buses" }
+ * FilterChip(selected = showBuses, onSelectedChange = { showBuses = it }) { +"Buses" }
  *
  * // Assist — performs an action
  * Chip(onClick = ::shareTrip) {

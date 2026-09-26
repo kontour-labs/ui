@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -49,6 +50,16 @@ dokka {
 }
 
 kotlin {
+    // The public API, checked in under `api/`. See `:ui` for why.
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation {
+        filters {
+            exclude {
+                byNames.add("**.ComposableSingletons**")
+            }
+        }
+    }
+
     // Main compilations only, for the reason `:ui` gives.
     targets.configureEach {
         compilations.configureEach {

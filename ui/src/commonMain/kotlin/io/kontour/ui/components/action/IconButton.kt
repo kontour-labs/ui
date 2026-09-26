@@ -50,10 +50,10 @@ import io.kontour.ui.interaction.rememberToggleFeedback
  *
  * ```
  * IconButton(
- icon = *     icon = Icons.Close,
- contentDescription = *     contentDescription = "Close",
- onClick = *     onClick = ::dismiss,
- modifier = * )
+ *     onClick = ::dismiss,
+ *     icon = Icons.Close,
+ *     contentDescription = "Close",
+ * )
  * ```
  *
  * The visual bounds stay small — the icon plus a little padding — while the
@@ -137,11 +137,11 @@ fun IconButton(
  *
  * ```
  * IconToggleButton(
- icon = *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
- contentDescription = *     contentDescription = "Favourite",
- checked = *     checked = favourite,
- onCheckedChange = *     onCheckedChange = viewModel::setFavourite,
- modifier = * )
+ *     checked = favourite,
+ *     onCheckedChange = viewModel::setFavourite,
+ *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
+ *     contentDescription = "Favourite",
+ * )
  * ```
  *
  * Announces itself as a toggle with its current state, so a screen reader says

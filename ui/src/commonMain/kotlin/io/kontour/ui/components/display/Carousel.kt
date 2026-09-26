@@ -80,6 +80,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
+/** What a [Carousel] takes by default. */
 object CarouselDefaults {
     /**
      * How far into the next page a drag has to reach before letting go commits.
@@ -197,6 +198,10 @@ class CarouselState internal constructor(
     }
 }
 
+/**
+ * Remembers a [CarouselState]. [pageCount] is read whenever it is needed, so a
+ * carousel whose pages load in keeps its count current without a new state.
+ */
 @Composable
 fun rememberCarouselState(pageCount: () -> Int): CarouselState {
     val listState = rememberLazyListState()
@@ -758,9 +763,9 @@ fun PageIndicator(
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
      *
-     * Both optional and independent, like every other icon in the library: the
-     * design system ships no icon set, so a component that draws one has chosen
-     * for you.
+     * Both optional and independent, like every decorative icon in the library:
+     * the design system ships no icon set beyond the few glyphs its controls
+     * cannot do without, so a component that draws one has chosen for you.
      *
      * They need [onPageClick] — it is the only way this has of moving the
      * carousel — and they disable themselves at the ends rather than wrapping
@@ -1110,6 +1115,7 @@ enum class PageIndicatorStyle {
     Pill,
 }
 
+/** What a [PageIndicator] takes by default. */
 object PageIndicatorDefaults {
     val DotSize: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorDotSize

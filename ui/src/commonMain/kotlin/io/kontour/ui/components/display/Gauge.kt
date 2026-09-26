@@ -375,6 +375,7 @@ data class DialColours(
     val contentBackground: Color = Color.Unspecified,
 )
 
+/** What a [Gauge] takes by default. */
 object GaugeDefaults {
     /** How opaque the capsule behind a dial's content is: enough to read over a needle. */
     const val ContentBackgroundAlpha: Float = 0.85f

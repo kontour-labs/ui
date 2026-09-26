@@ -83,20 +83,27 @@ module's 391 declarations. The 130 indented ones it could not see are every
 method on every builder scope, so the gate reported no problems for as long as
 the drift stayed inside a shorthand.
 
-Nine rules, and each one is there because it caught something real:
+Seventeen rules, and each one is there because it caught something real:
 
 | | |
 |---|---|
 | Banned parameter names | the table below |
 | `modifier` first among the optionals, `enabled` straight after | |
 | Everything between `modifier` and the trailing slots is defaulted | a required parameter further down means naming every default before it to reach it |
-| `interactionSource` after every non-slot | |
-| `on<X>Change` has an `<x>` or an `is<X>` beside it | a callback named for a change is half of a pair; a notification borrowing the shape promises state that is not there |
+| `interactionSource` after every non-slot | a shorthand's trailing action counts as its slot |
+| `on<X>Change` has an `<x>` or an `is<X>` beside it | a callback named for a change is half of a pair; a notification borrowing the shape promises state that is not there. A range held as `start` and `end` pairs with `onRangeChange` |
 | `expanded` never pairs with `onDismissRequest` | an overlay the caller owns is `visible` |
 | No English literal in a default | it belongs in `Theme.strings` |
+| No English literal as a `contentDescription` or `stateDescription` in a body | the words a component announces on its own are the ones nobody can pass in |
 | No `internal` type in a public default | a default you can read and cannot write |
+| No private or internal helper in a public default | the same, one call further in — publish it on the Defaults object |
 | Every `*Scope` carries `@LayoutScopeMarker` and `@Stable` | without the marker an inner block reaches the outer scope's members |
-| No fully-qualified `androidx.*` in a signature | it is what the API reference prints |
+| No fully-qualified `androidx.*` or `io.kontour.*` in a signature | it is what the API reference prints |
+| No `…Millis: Long` or `Int` | time is a `Duration` |
+| A Boolean that switches a part is `show<Part>` | `legend = false` reads as passing the legend |
+| No two KDoc blocks in a row | the first documents nothing, and a component's own page goes blank |
+| A starting value is `initial<What>` | a bare `initial` says it is a starting value and not of what |
+| Every state holder, `remember*`, `*Defaults` and `*Colours` has a KDoc | 51 of them reached the reference as a bare name |
 
 `enabled` sits directly after `modifier` with no exceptions. An earlier draft let
 it follow an optional `onClick` instead — which reads better on the three
@@ -126,12 +133,45 @@ first.
 | `onDismiss` | The *host* owns visibility; it has already gone and is telling you | |
 | `onClose` / `onDismissSupporting` | A close *control* was pressed. What it closes is something else — `SheetHeader`'s button closes the sheet, not the header — and `null` means "no button", not "not dismissible" | |
 | `enabled` | This component's own state | `isEnabled` |
-| `windowInsets` | What this component keeps its content clear of | |
+| `windowInsets` | What this component keeps its content clear of | `contentWindowInsets` |
+| `containerColour` / `contentColour` | A surface's fill, and what is drawn on it | `colour` on a surface, `backgroundColour` |
+| `colour` | The one ink of a mark — `Text`, a divider, a spinner | |
+| `show<Part>` | A switch that draws a part or leaves it out | the bare part, `has<Part>` |
+| `initial<X>` | A remembered state's starting value | `initially<X>`, a bare `initial` |
+| `on<Item>Click` | A press on one of several items — a page dot, a day | `on<Item>Select` |
+| `selectedIndex` / `value` | Which one is picked, by position or by value | `selected` for either |
+| `Tone` | What a status surface is saying — `Banner`, `Tag`, a toast | a tone enum per component |
 
 A predicate is named for what it decides, never `isEnabled` — `DatePicker` takes
 `isDateSelectable`, because `enabled` already means "is the whole picker usable".
 
 The banned column is enforced by `checkApiConventions` too.
+
+### Shapes that recur
+
+**A state holder** is a `@Stable` class with an `internal` constructor, made by
+`rememberXState(initialX = …)`. What it exposes is read-only — `private set` on
+anything a caller could otherwise assign behind the component's back — and it
+changes through verbs: `expand()`, `snapTo()`, `animateTo()`. Where a move can
+be instant or animated, both exist and the animated one says so:
+`CarouselState.scrollToPage` and `animateScrollToPage`, as `LazyListState` has.
+A state the caller must hold is the first parameter (`BottomSheet(state)`); one
+they may hold defaults to its `rememberXState()`.
+
+**`Variant` or `Style`.** A `Variant` is another treatment of the same thing —
+`ButtonVariant`, `CardVariant`, `TextFieldVariant` change colour, weight and
+edge. A `Style` is another arrangement — `TopBarStyle`, `CarouselStyle`,
+`TimelineListStyle` change what goes where. If switching it moves things, it is
+a style.
+
+**Time is a `Duration`**, for a parameter and for a Defaults member alike:
+`debounce = 250.milliseconds`, `ToastDefaults.DisplayDuration`.
+
+**Colours come in a class** once a component has more than two of them —
+`SliderColours`, `RatingColours`, `DialColours` — made by
+`XDefaults.colours(…)` with every field defaulted from the theme. Where a
+component has variants, the factory takes the variant first and any field to
+replace, `Color.Unspecified` meaning the variant's own.
 
 ### Which row scope a slot gets
 
@@ -264,10 +304,17 @@ For haptics, ask for an *intent*, not a constant — through the helper for its
 kind, which carries the rate limit and the guard a stream needs:
 
 ```kotlin
-val tap = rememberTapFeedback()          // a press answered
+val tap = rememberTapFeedback()          // a press that changes something
 val toggled = rememberToggleFeedback()   // on, or off
-val ticker = rememberDetentTicker()      // anything continuous: ticker.at(index)
+val ticker = rememberDetentTicker()      // a detent crossed: ticker.at(index)
+val hold = rememberHoldFeedback()        // a press held to a threshold
 ```
+
+Inside the library there are three more, for the continuous kinds: a drag
+texture for a control without steps, an end-stop latch that knocks once per
+wall entered, and the long-press report. The policy for which kind of gesture
+gets which — and why a drag across a rating ticks rather than taps — is in
+[`theming.md`](../../ui-docs/content/theming.md).
 
 A one-shot that is none of those is `feedback.perform(intent)` on
 `LocalFeedback.current`, and the build counts those calls.
@@ -356,6 +403,11 @@ was recorded.
   the rest.
 - If the component introduces a concept — a new state holder, a new overlay
   layer — it gets a section explaining the concept, not just the API.
+- **The API dump.** `./gradlew :ui:updateKotlinAbi` (and `:ui-nav3`, `:haptics`)
+  rewrites the dump under the module's `api/` directory, and CI's
+  `checkKotlinAbi` fails on any difference from it. Adding to the API is a new
+  line in the dump; changing or removing something is a break, and goes in
+  `ui-docs/content/migrating.md` in the same commit.
 
 ---
 
@@ -368,7 +420,7 @@ was recorded.
 [ ] Modifier.minimumTouchTarget() on the interactive area
 [ ] tokens only — no literal colours, radii or durations
 [ ] kontourIndication for press/hover; focusRing before clip
-[ ] defaults in a <Component>Defaults object
+[ ] defaults in a <Component>Defaults object, none of them calling private code
 [ ] registered in the contract suite
 [ ] behaviour tests for what the contract suite cannot know
 [ ] catalog entry covering every state
@@ -377,5 +429,6 @@ was recorded.
 [ ] KDoc with a usage snippet and a "when to use this" paragraph
 [ ] documented in ui-docs/content/
 [ ] a compiled example in ui-samples/, marked into the page
+[ ] updateKotlinAbi run, and the dump diff read
 [ ] checked at 200% font scale and in RTL
 ```

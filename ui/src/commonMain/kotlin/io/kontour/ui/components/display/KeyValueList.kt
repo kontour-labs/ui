@@ -222,6 +222,7 @@ class KeyValueScope internal constructor() {
 internal fun keyValueRows(content: KeyValueScope.() -> Unit): List<KeyValueRow> =
     KeyValueScope().apply(content).rows
 
+/** What a [KeyValueList] takes by default. */
 object KeyValueListDefaults {
     /**
      * The label column's floor.

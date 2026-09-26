@@ -37,8 +37,8 @@ which is thirty-odd taps in one direction and no way to know when to stop.
 
 ```kotlin
 DatePicker(
-    selected = birthday,
-    onSelectedChange = { birthday = it },
+    value = birthday,
+    onValueChange = { birthday = it },
     today = today,
     chooserIcon = Tabler.Outline.ChevronDown,
 )
@@ -47,7 +47,7 @@ DatePicker(
 **`chooserIcon` is the switch**, not just the glyph. Pass one and the header
 becomes a `Role.Button` with a focus ring and a press state; leave it out and the
 header is the title it always was. That is the same bargain the paging arrows
-make — the library ships no icon set — with a second reason behind it: a popover
+make — the glyph is the app's to choose — with a second reason behind it: a popover
 needs an `OverlayHost` and throws without one, and a calendar turns up in tests,
 previews and pages that have none. An affordance you did not ask for must not be
 why your picker will not render.

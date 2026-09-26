@@ -198,6 +198,7 @@ class SheetEdgeMorph(
     }
 }
 
+/** What [BottomSheet] and [ModalBottomSheet] take by default. */
 object BottomSheetDefaults {
     /** The default set of detents: closed, half, or all of it. */
     val Detents: List<SheetDetent> = listOf(

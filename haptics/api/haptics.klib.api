@@ -1,0 +1,475 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, js, wasmJs]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.kontour:haptics>
+open annotation class io.kontour.haptics/HapticPatternDsl : kotlin/Annotation { // io.kontour.haptics/HapticPatternDsl|null[0]
+    constructor <init>() // io.kontour.haptics/HapticPatternDsl.<init>|<init>(){}[0]
+}
+
+final enum class io.kontour.haptics/ImpactStyle : kotlin/Enum<io.kontour.haptics/ImpactStyle> { // io.kontour.haptics/ImpactStyle|null[0]
+    enum entry Heavy // io.kontour.haptics/ImpactStyle.Heavy|null[0]
+    enum entry Light // io.kontour.haptics/ImpactStyle.Light|null[0]
+    enum entry Medium // io.kontour.haptics/ImpactStyle.Medium|null[0]
+    enum entry Rigid // io.kontour.haptics/ImpactStyle.Rigid|null[0]
+    enum entry Soft // io.kontour.haptics/ImpactStyle.Soft|null[0]
+
+    final val entries // io.kontour.haptics/ImpactStyle.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.haptics/ImpactStyle> // io.kontour.haptics/ImpactStyle.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.kontour.haptics/ImpactStyle // io.kontour.haptics/ImpactStyle.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.kontour.haptics/ImpactStyle> // io.kontour.haptics/ImpactStyle.values|values#static(){}[0]
+}
+
+final enum class io.kontour.haptics/NotificationType : kotlin/Enum<io.kontour.haptics/NotificationType> { // io.kontour.haptics/NotificationType|null[0]
+    enum entry Error // io.kontour.haptics/NotificationType.Error|null[0]
+    enum entry Success // io.kontour.haptics/NotificationType.Success|null[0]
+    enum entry Warning // io.kontour.haptics/NotificationType.Warning|null[0]
+
+    final val entries // io.kontour.haptics/NotificationType.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.haptics/NotificationType> // io.kontour.haptics/NotificationType.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.kontour.haptics/NotificationType // io.kontour.haptics/NotificationType.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.kontour.haptics/NotificationType> // io.kontour.haptics/NotificationType.values|values#static(){}[0]
+}
+
+abstract interface io.kontour.haptics/Haptics : kotlin/AutoCloseable { // io.kontour.haptics/Haptics|null[0]
+    abstract val capability // io.kontour.haptics/Haptics.capability|{}capability[0]
+        abstract fun <get-capability>(): io.kontour.haptics/HapticCapability // io.kontour.haptics/Haptics.capability.<get-capability>|<get-capability>(){}[0]
+
+    abstract fun cancel() // io.kontour.haptics/Haptics.cancel|cancel(){}[0]
+    abstract fun close() // io.kontour.haptics/Haptics.close|close(){}[0]
+    abstract fun play(io.kontour.haptics/HapticEffect) // io.kontour.haptics/Haptics.play|play(io.kontour.haptics.HapticEffect){}[0]
+    abstract fun play(io.kontour.haptics/HapticPattern) // io.kontour.haptics/Haptics.play|play(io.kontour.haptics.HapticPattern){}[0]
+    abstract fun startRumble(kotlin/Float = ..., kotlin/Float = ..., kotlin.time/Duration = ...): io.kontour.haptics/Rumble // io.kontour.haptics/Haptics.startRumble|startRumble(kotlin.Float;kotlin.Float;kotlin.time.Duration){}[0]
+
+    final object Companion { // io.kontour.haptics/Haptics.Companion|null[0]
+        final val None // io.kontour.haptics/Haptics.Companion.None|{}None[0]
+            final fun <get-None>(): io.kontour.haptics/Haptics // io.kontour.haptics/Haptics.Companion.None.<get-None>|<get-None>(){}[0]
+    }
+}
+
+abstract interface io.kontour.haptics/Rumble : kotlin/AutoCloseable { // io.kontour.haptics/Rumble|null[0]
+    abstract val isActive // io.kontour.haptics/Rumble.isActive|{}isActive[0]
+        abstract fun <get-isActive>(): kotlin/Boolean // io.kontour.haptics/Rumble.isActive.<get-isActive>|<get-isActive>(){}[0]
+
+    abstract fun stop() // io.kontour.haptics/Rumble.stop|stop(){}[0]
+    abstract fun update(kotlin/Float, kotlin/Float) // io.kontour.haptics/Rumble.update|update(kotlin.Float;kotlin.Float){}[0]
+    open fun close() // io.kontour.haptics/Rumble.close|close(){}[0]
+}
+
+sealed interface io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect|null[0]
+    abstract val strength // io.kontour.haptics/HapticEffect.strength|{}strength[0]
+        abstract fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.strength.<get-strength>|<get-strength>(){}[0]
+
+    sealed interface Primitive : io.kontour.haptics/HapticEffect // io.kontour.haptics/HapticEffect.Primitive|null[0]
+
+    final class Click : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.Click|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Click.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Click.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Click.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.Click.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.Click // io.kontour.haptics/HapticEffect.Click.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Click.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Click.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Click.toString|toString(){}[0]
+    }
+
+    final class Impact : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.Impact|null[0]
+        constructor <init>(io.kontour.haptics/ImpactStyle = ..., kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Impact.<init>|<init>(io.kontour.haptics.ImpactStyle;kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Impact.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Impact.strength.<get-strength>|<get-strength>(){}[0]
+        final val style // io.kontour.haptics/HapticEffect.Impact.style|{}style[0]
+            final fun <get-style>(): io.kontour.haptics/ImpactStyle // io.kontour.haptics/HapticEffect.Impact.style.<get-style>|<get-style>(){}[0]
+
+        final fun component1(): io.kontour.haptics/ImpactStyle // io.kontour.haptics/HapticEffect.Impact.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticEffect.Impact.component2|component2(){}[0]
+        final fun copy(io.kontour.haptics/ImpactStyle = ..., kotlin/Float = ...): io.kontour.haptics/HapticEffect.Impact // io.kontour.haptics/HapticEffect.Impact.copy|copy(io.kontour.haptics.ImpactStyle;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Impact.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Impact.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Impact.toString|toString(){}[0]
+    }
+
+    final class KeyPress : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.KeyPress|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.KeyPress.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.KeyPress.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.KeyPress.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.KeyPress.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.KeyPress // io.kontour.haptics/HapticEffect.KeyPress.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.KeyPress.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.KeyPress.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.KeyPress.toString|toString(){}[0]
+    }
+
+    final class LongPress : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.LongPress|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.LongPress.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.LongPress.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.LongPress.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.LongPress.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.LongPress // io.kontour.haptics/HapticEffect.LongPress.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.LongPress.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.LongPress.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.LongPress.toString|toString(){}[0]
+    }
+
+    final class LowTick : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.LowTick|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.LowTick.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.LowTick.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.LowTick.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.LowTick.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.LowTick // io.kontour.haptics/HapticEffect.LowTick.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.LowTick.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.LowTick.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.LowTick.toString|toString(){}[0]
+    }
+
+    final class Notification : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.Notification|null[0]
+        constructor <init>(io.kontour.haptics/NotificationType, kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Notification.<init>|<init>(io.kontour.haptics.NotificationType;kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Notification.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Notification.strength.<get-strength>|<get-strength>(){}[0]
+        final val type // io.kontour.haptics/HapticEffect.Notification.type|{}type[0]
+            final fun <get-type>(): io.kontour.haptics/NotificationType // io.kontour.haptics/HapticEffect.Notification.type.<get-type>|<get-type>(){}[0]
+
+        final fun component1(): io.kontour.haptics/NotificationType // io.kontour.haptics/HapticEffect.Notification.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticEffect.Notification.component2|component2(){}[0]
+        final fun copy(io.kontour.haptics/NotificationType = ..., kotlin/Float = ...): io.kontour.haptics/HapticEffect.Notification // io.kontour.haptics/HapticEffect.Notification.copy|copy(io.kontour.haptics.NotificationType;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Notification.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Notification.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Notification.toString|toString(){}[0]
+    }
+
+    final class QuickFall : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.QuickFall|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.QuickFall.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.QuickFall.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.QuickFall.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.QuickFall.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.QuickFall // io.kontour.haptics/HapticEffect.QuickFall.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.QuickFall.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.QuickFall.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.QuickFall.toString|toString(){}[0]
+    }
+
+    final class QuickRise : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.QuickRise|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.QuickRise.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.QuickRise.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.QuickRise.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.QuickRise.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.QuickRise // io.kontour.haptics/HapticEffect.QuickRise.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.QuickRise.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.QuickRise.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.QuickRise.toString|toString(){}[0]
+    }
+
+    final class Selection : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.Selection|null[0]
+        constructor <init>(kotlin/Boolean = ..., kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Selection.<init>|<init>(kotlin.Boolean;kotlin.Float){}[0]
+
+        final val fine // io.kontour.haptics/HapticEffect.Selection.fine|{}fine[0]
+            final fun <get-fine>(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Selection.fine.<get-fine>|<get-fine>(){}[0]
+        final val strength // io.kontour.haptics/HapticEffect.Selection.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Selection.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Selection.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticEffect.Selection.component2|component2(){}[0]
+        final fun copy(kotlin/Boolean = ..., kotlin/Float = ...): io.kontour.haptics/HapticEffect.Selection // io.kontour.haptics/HapticEffect.Selection.copy|copy(kotlin.Boolean;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Selection.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Selection.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Selection.toString|toString(){}[0]
+    }
+
+    final class SlowRise : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.SlowRise|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.SlowRise.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.SlowRise.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.SlowRise.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.SlowRise.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.SlowRise // io.kontour.haptics/HapticEffect.SlowRise.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.SlowRise.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.SlowRise.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.SlowRise.toString|toString(){}[0]
+    }
+
+    final class Spin : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.Spin|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Spin.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Spin.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Spin.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.Spin.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.Spin // io.kontour.haptics/HapticEffect.Spin.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Spin.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Spin.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Spin.toString|toString(){}[0]
+    }
+
+    final class Threshold : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.Threshold|null[0]
+        constructor <init>(kotlin/Boolean, kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Threshold.<init>|<init>(kotlin.Boolean;kotlin.Float){}[0]
+
+        final val activate // io.kontour.haptics/HapticEffect.Threshold.activate|{}activate[0]
+            final fun <get-activate>(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Threshold.activate.<get-activate>|<get-activate>(){}[0]
+        final val strength // io.kontour.haptics/HapticEffect.Threshold.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Threshold.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Threshold.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticEffect.Threshold.component2|component2(){}[0]
+        final fun copy(kotlin/Boolean = ..., kotlin/Float = ...): io.kontour.haptics/HapticEffect.Threshold // io.kontour.haptics/HapticEffect.Threshold.copy|copy(kotlin.Boolean;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Threshold.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Threshold.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Threshold.toString|toString(){}[0]
+    }
+
+    final class Thud : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.Thud|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Thud.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Thud.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Thud.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.Thud.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.Thud // io.kontour.haptics/HapticEffect.Thud.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Thud.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Thud.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Thud.toString|toString(){}[0]
+    }
+
+    final class Tick : io.kontour.haptics/HapticEffect.Primitive { // io.kontour.haptics/HapticEffect.Tick|null[0]
+        constructor <init>(kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Tick.<init>|<init>(kotlin.Float){}[0]
+
+        final val strength // io.kontour.haptics/HapticEffect.Tick.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Tick.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Float // io.kontour.haptics/HapticEffect.Tick.component1|component1(){}[0]
+        final fun copy(kotlin/Float = ...): io.kontour.haptics/HapticEffect.Tick // io.kontour.haptics/HapticEffect.Tick.copy|copy(kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Tick.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Tick.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Tick.toString|toString(){}[0]
+    }
+
+    final class Toggle : io.kontour.haptics/HapticEffect { // io.kontour.haptics/HapticEffect.Toggle|null[0]
+        constructor <init>(kotlin/Boolean, kotlin/Float = ...) // io.kontour.haptics/HapticEffect.Toggle.<init>|<init>(kotlin.Boolean;kotlin.Float){}[0]
+
+        final val on // io.kontour.haptics/HapticEffect.Toggle.on|{}on[0]
+            final fun <get-on>(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Toggle.on.<get-on>|<get-on>(){}[0]
+        final val strength // io.kontour.haptics/HapticEffect.Toggle.strength|{}strength[0]
+            final fun <get-strength>(): kotlin/Float // io.kontour.haptics/HapticEffect.Toggle.strength.<get-strength>|<get-strength>(){}[0]
+
+        final fun component1(): kotlin/Boolean // io.kontour.haptics/HapticEffect.Toggle.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticEffect.Toggle.component2|component2(){}[0]
+        final fun copy(kotlin/Boolean = ..., kotlin/Float = ...): io.kontour.haptics/HapticEffect.Toggle // io.kontour.haptics/HapticEffect.Toggle.copy|copy(kotlin.Boolean;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticEffect.Toggle.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticEffect.Toggle.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticEffect.Toggle.toString|toString(){}[0]
+    }
+}
+
+sealed interface io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord|null[0]
+    final class PatternPlayed : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.PatternPlayed|null[0]
+        constructor <init>(io.kontour.haptics/HapticPattern) // io.kontour.haptics/HapticRecord.PatternPlayed.<init>|<init>(io.kontour.haptics.HapticPattern){}[0]
+
+        final val pattern // io.kontour.haptics/HapticRecord.PatternPlayed.pattern|{}pattern[0]
+            final fun <get-pattern>(): io.kontour.haptics/HapticPattern // io.kontour.haptics/HapticRecord.PatternPlayed.pattern.<get-pattern>|<get-pattern>(){}[0]
+
+        final fun component1(): io.kontour.haptics/HapticPattern // io.kontour.haptics/HapticRecord.PatternPlayed.component1|component1(){}[0]
+        final fun copy(io.kontour.haptics/HapticPattern = ...): io.kontour.haptics/HapticRecord.PatternPlayed // io.kontour.haptics/HapticRecord.PatternPlayed.copy|copy(io.kontour.haptics.HapticPattern){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.PatternPlayed.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.PatternPlayed.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.PatternPlayed.toString|toString(){}[0]
+    }
+
+    final class Played : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.Played|null[0]
+        constructor <init>(io.kontour.haptics/HapticEffect) // io.kontour.haptics/HapticRecord.Played.<init>|<init>(io.kontour.haptics.HapticEffect){}[0]
+
+        final val effect // io.kontour.haptics/HapticRecord.Played.effect|{}effect[0]
+            final fun <get-effect>(): io.kontour.haptics/HapticEffect // io.kontour.haptics/HapticRecord.Played.effect.<get-effect>|<get-effect>(){}[0]
+
+        final fun component1(): io.kontour.haptics/HapticEffect // io.kontour.haptics/HapticRecord.Played.component1|component1(){}[0]
+        final fun copy(io.kontour.haptics/HapticEffect = ...): io.kontour.haptics/HapticRecord.Played // io.kontour.haptics/HapticRecord.Played.copy|copy(io.kontour.haptics.HapticEffect){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.Played.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.Played.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.Played.toString|toString(){}[0]
+    }
+
+    final class RumbleStarted : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.RumbleStarted|null[0]
+        constructor <init>(kotlin/Int, kotlin/Float, kotlin/Float) // io.kontour.haptics/HapticRecord.RumbleStarted.<init>|<init>(kotlin.Int;kotlin.Float;kotlin.Float){}[0]
+
+        final val id // io.kontour.haptics/HapticRecord.RumbleStarted.id|{}id[0]
+            final fun <get-id>(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStarted.id.<get-id>|<get-id>(){}[0]
+        final val intensity // io.kontour.haptics/HapticRecord.RumbleStarted.intensity|{}intensity[0]
+            final fun <get-intensity>(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleStarted.intensity.<get-intensity>|<get-intensity>(){}[0]
+        final val sharpness // io.kontour.haptics/HapticRecord.RumbleStarted.sharpness|{}sharpness[0]
+            final fun <get-sharpness>(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleStarted.sharpness.<get-sharpness>|<get-sharpness>(){}[0]
+
+        final fun component1(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStarted.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleStarted.component2|component2(){}[0]
+        final fun component3(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleStarted.component3|component3(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Float = ..., kotlin/Float = ...): io.kontour.haptics/HapticRecord.RumbleStarted // io.kontour.haptics/HapticRecord.RumbleStarted.copy|copy(kotlin.Int;kotlin.Float;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.RumbleStarted.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStarted.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.RumbleStarted.toString|toString(){}[0]
+    }
+
+    final class RumbleStopped : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.RumbleStopped|null[0]
+        constructor <init>(kotlin/Int) // io.kontour.haptics/HapticRecord.RumbleStopped.<init>|<init>(kotlin.Int){}[0]
+
+        final val id // io.kontour.haptics/HapticRecord.RumbleStopped.id|{}id[0]
+            final fun <get-id>(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStopped.id.<get-id>|<get-id>(){}[0]
+
+        final fun component1(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStopped.component1|component1(){}[0]
+        final fun copy(kotlin/Int = ...): io.kontour.haptics/HapticRecord.RumbleStopped // io.kontour.haptics/HapticRecord.RumbleStopped.copy|copy(kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.RumbleStopped.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleStopped.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.RumbleStopped.toString|toString(){}[0]
+    }
+
+    final class RumbleUpdated : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.RumbleUpdated|null[0]
+        constructor <init>(kotlin/Int, kotlin/Float, kotlin/Float) // io.kontour.haptics/HapticRecord.RumbleUpdated.<init>|<init>(kotlin.Int;kotlin.Float;kotlin.Float){}[0]
+
+        final val id // io.kontour.haptics/HapticRecord.RumbleUpdated.id|{}id[0]
+            final fun <get-id>(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleUpdated.id.<get-id>|<get-id>(){}[0]
+        final val intensity // io.kontour.haptics/HapticRecord.RumbleUpdated.intensity|{}intensity[0]
+            final fun <get-intensity>(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleUpdated.intensity.<get-intensity>|<get-intensity>(){}[0]
+        final val sharpness // io.kontour.haptics/HapticRecord.RumbleUpdated.sharpness|{}sharpness[0]
+            final fun <get-sharpness>(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleUpdated.sharpness.<get-sharpness>|<get-sharpness>(){}[0]
+
+        final fun component1(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleUpdated.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleUpdated.component2|component2(){}[0]
+        final fun component3(): kotlin/Float // io.kontour.haptics/HapticRecord.RumbleUpdated.component3|component3(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Float = ..., kotlin/Float = ...): io.kontour.haptics/HapticRecord.RumbleUpdated // io.kontour.haptics/HapticRecord.RumbleUpdated.copy|copy(kotlin.Int;kotlin.Float;kotlin.Float){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.RumbleUpdated.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.RumbleUpdated.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.RumbleUpdated.toString|toString(){}[0]
+    }
+
+    final object Cancelled : io.kontour.haptics/HapticRecord { // io.kontour.haptics/HapticRecord.Cancelled|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticRecord.Cancelled.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticRecord.Cancelled.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticRecord.Cancelled.toString|toString(){}[0]
+    }
+}
+
+final class io.kontour.haptics/HapticCapability { // io.kontour.haptics/HapticCapability|null[0]
+    constructor <init>(io.kontour.haptics/HapticCapability.Richness, kotlin/Boolean, io.kontour.haptics/HapticCapability.RumbleSupport, kotlin.collections/List<kotlin/String> = ...) // io.kontour.haptics/HapticCapability.<init>|<init>(io.kontour.haptics.HapticCapability.Richness;kotlin.Boolean;io.kontour.haptics.HapticCapability.RumbleSupport;kotlin.collections.List<kotlin.String>){}[0]
+
+    final val details // io.kontour.haptics/HapticCapability.details|{}details[0]
+        final fun <get-details>(): kotlin.collections/List<kotlin/String> // io.kontour.haptics/HapticCapability.details.<get-details>|<get-details>(){}[0]
+    final val honoursStrength // io.kontour.haptics/HapticCapability.honoursStrength|{}honoursStrength[0]
+        final fun <get-honoursStrength>(): kotlin/Boolean // io.kontour.haptics/HapticCapability.honoursStrength.<get-honoursStrength>|<get-honoursStrength>(){}[0]
+    final val richness // io.kontour.haptics/HapticCapability.richness|{}richness[0]
+        final fun <get-richness>(): io.kontour.haptics/HapticCapability.Richness // io.kontour.haptics/HapticCapability.richness.<get-richness>|<get-richness>(){}[0]
+    final val rumble // io.kontour.haptics/HapticCapability.rumble|{}rumble[0]
+        final fun <get-rumble>(): io.kontour.haptics/HapticCapability.RumbleSupport // io.kontour.haptics/HapticCapability.rumble.<get-rumble>|<get-rumble>(){}[0]
+
+    final fun component1(): io.kontour.haptics/HapticCapability.Richness // io.kontour.haptics/HapticCapability.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // io.kontour.haptics/HapticCapability.component2|component2(){}[0]
+    final fun component3(): io.kontour.haptics/HapticCapability.RumbleSupport // io.kontour.haptics/HapticCapability.component3|component3(){}[0]
+    final fun component4(): kotlin.collections/List<kotlin/String> // io.kontour.haptics/HapticCapability.component4|component4(){}[0]
+    final fun copy(io.kontour.haptics/HapticCapability.Richness = ..., kotlin/Boolean = ..., io.kontour.haptics/HapticCapability.RumbleSupport = ..., kotlin.collections/List<kotlin/String> = ...): io.kontour.haptics/HapticCapability // io.kontour.haptics/HapticCapability.copy|copy(io.kontour.haptics.HapticCapability.Richness;kotlin.Boolean;io.kontour.haptics.HapticCapability.RumbleSupport;kotlin.collections.List<kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticCapability.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticCapability.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.kontour.haptics/HapticCapability.toString|toString(){}[0]
+
+    final enum class Richness : kotlin/Enum<io.kontour.haptics/HapticCapability.Richness> { // io.kontour.haptics/HapticCapability.Richness|null[0]
+        enum entry Basic // io.kontour.haptics/HapticCapability.Richness.Basic|null[0]
+        enum entry None // io.kontour.haptics/HapticCapability.Richness.None|null[0]
+        enum entry Rich // io.kontour.haptics/HapticCapability.Richness.Rich|null[0]
+
+        final val entries // io.kontour.haptics/HapticCapability.Richness.entries|#static{}entries[0]
+            final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.haptics/HapticCapability.Richness> // io.kontour.haptics/HapticCapability.Richness.entries.<get-entries>|<get-entries>#static(){}[0]
+
+        final fun valueOf(kotlin/String): io.kontour.haptics/HapticCapability.Richness // io.kontour.haptics/HapticCapability.Richness.valueOf|valueOf#static(kotlin.String){}[0]
+        final fun values(): kotlin/Array<io.kontour.haptics/HapticCapability.Richness> // io.kontour.haptics/HapticCapability.Richness.values|values#static(){}[0]
+    }
+
+    final enum class RumbleSupport : kotlin/Enum<io.kontour.haptics/HapticCapability.RumbleSupport> { // io.kontour.haptics/HapticCapability.RumbleSupport|null[0]
+        enum entry Continuous // io.kontour.haptics/HapticCapability.RumbleSupport.Continuous|null[0]
+        enum entry None // io.kontour.haptics/HapticCapability.RumbleSupport.None|null[0]
+        enum entry Pulsed // io.kontour.haptics/HapticCapability.RumbleSupport.Pulsed|null[0]
+
+        final val entries // io.kontour.haptics/HapticCapability.RumbleSupport.entries|#static{}entries[0]
+            final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.haptics/HapticCapability.RumbleSupport> // io.kontour.haptics/HapticCapability.RumbleSupport.entries.<get-entries>|<get-entries>#static(){}[0]
+
+        final fun valueOf(kotlin/String): io.kontour.haptics/HapticCapability.RumbleSupport // io.kontour.haptics/HapticCapability.RumbleSupport.valueOf|valueOf#static(kotlin.String){}[0]
+        final fun values(): kotlin/Array<io.kontour.haptics/HapticCapability.RumbleSupport> // io.kontour.haptics/HapticCapability.RumbleSupport.values|values#static(){}[0]
+    }
+
+    final object Companion { // io.kontour.haptics/HapticCapability.Companion|null[0]
+        final val None // io.kontour.haptics/HapticCapability.Companion.None|{}None[0]
+            final fun <get-None>(): io.kontour.haptics/HapticCapability // io.kontour.haptics/HapticCapability.Companion.None.<get-None>|<get-None>(){}[0]
+    }
+}
+
+final class io.kontour.haptics/HapticPattern { // io.kontour.haptics/HapticPattern|null[0]
+    final val duration // io.kontour.haptics/HapticPattern.duration|{}duration[0]
+        final fun <get-duration>(): kotlin.time/Duration // io.kontour.haptics/HapticPattern.duration.<get-duration>|<get-duration>(){}[0]
+    final val events // io.kontour.haptics/HapticPattern.events|{}events[0]
+        final fun <get-events>(): kotlin.collections/List<io.kontour.haptics/HapticPattern.Event> // io.kontour.haptics/HapticPattern.events.<get-events>|<get-events>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticPattern.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticPattern.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.kontour.haptics/HapticPattern.toString|toString(){}[0]
+
+    final class Event { // io.kontour.haptics/HapticPattern.Event|null[0]
+        constructor <init>(kotlin.time/Duration, io.kontour.haptics/HapticEffect.Primitive) // io.kontour.haptics/HapticPattern.Event.<init>|<init>(kotlin.time.Duration;io.kontour.haptics.HapticEffect.Primitive){}[0]
+
+        final val at // io.kontour.haptics/HapticPattern.Event.at|{}at[0]
+            final fun <get-at>(): kotlin.time/Duration // io.kontour.haptics/HapticPattern.Event.at.<get-at>|<get-at>(){}[0]
+        final val primitive // io.kontour.haptics/HapticPattern.Event.primitive|{}primitive[0]
+            final fun <get-primitive>(): io.kontour.haptics/HapticEffect.Primitive // io.kontour.haptics/HapticPattern.Event.primitive.<get-primitive>|<get-primitive>(){}[0]
+
+        final fun component1(): kotlin.time/Duration // io.kontour.haptics/HapticPattern.Event.component1|component1(){}[0]
+        final fun component2(): io.kontour.haptics/HapticEffect.Primitive // io.kontour.haptics/HapticPattern.Event.component2|component2(){}[0]
+        final fun copy(kotlin.time/Duration = ..., io.kontour.haptics/HapticEffect.Primitive = ...): io.kontour.haptics/HapticPattern.Event // io.kontour.haptics/HapticPattern.Event.copy|copy(kotlin.time.Duration;io.kontour.haptics.HapticEffect.Primitive){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.haptics/HapticPattern.Event.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.kontour.haptics/HapticPattern.Event.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.kontour.haptics/HapticPattern.Event.toString|toString(){}[0]
+    }
+
+    final object Companion { // io.kontour.haptics/HapticPattern.Companion|null[0]
+        final const val MaxEvents // io.kontour.haptics/HapticPattern.Companion.MaxEvents|{}MaxEvents[0]
+            final fun <get-MaxEvents>(): kotlin/Int // io.kontour.haptics/HapticPattern.Companion.MaxEvents.<get-MaxEvents>|<get-MaxEvents>(){}[0]
+
+        final val MaxDuration // io.kontour.haptics/HapticPattern.Companion.MaxDuration|{}MaxDuration[0]
+            final fun <get-MaxDuration>(): kotlin.time/Duration // io.kontour.haptics/HapticPattern.Companion.MaxDuration.<get-MaxDuration>|<get-MaxDuration>(){}[0]
+    }
+}
+
+final class io.kontour.haptics/HapticPatternScope { // io.kontour.haptics/HapticPatternScope|null[0]
+    final fun after(kotlin.time/Duration, io.kontour.haptics/HapticEffect.Primitive) // io.kontour.haptics/HapticPatternScope.after|after(kotlin.time.Duration;io.kontour.haptics.HapticEffect.Primitive){}[0]
+    final fun at(kotlin.time/Duration, io.kontour.haptics/HapticEffect.Primitive) // io.kontour.haptics/HapticPatternScope.at|at(kotlin.time.Duration;io.kontour.haptics.HapticEffect.Primitive){}[0]
+}
+
+final class io.kontour.haptics/RecordingHaptics : io.kontour.haptics/Haptics { // io.kontour.haptics/RecordingHaptics|null[0]
+    constructor <init>(io.kontour.haptics/HapticCapability = ...) // io.kontour.haptics/RecordingHaptics.<init>|<init>(io.kontour.haptics.HapticCapability){}[0]
+
+    final val capability // io.kontour.haptics/RecordingHaptics.capability|{}capability[0]
+        final fun <get-capability>(): io.kontour.haptics/HapticCapability // io.kontour.haptics/RecordingHaptics.capability.<get-capability>|<get-capability>(){}[0]
+    final val records // io.kontour.haptics/RecordingHaptics.records|{}records[0]
+        final fun <get-records>(): kotlin.collections/List<io.kontour.haptics/HapticRecord> // io.kontour.haptics/RecordingHaptics.records.<get-records>|<get-records>(){}[0]
+
+    final fun cancel() // io.kontour.haptics/RecordingHaptics.cancel|cancel(){}[0]
+    final fun clear() // io.kontour.haptics/RecordingHaptics.clear|clear(){}[0]
+    final fun close() // io.kontour.haptics/RecordingHaptics.close|close(){}[0]
+    final fun play(io.kontour.haptics/HapticEffect) // io.kontour.haptics/RecordingHaptics.play|play(io.kontour.haptics.HapticEffect){}[0]
+    final fun play(io.kontour.haptics/HapticPattern) // io.kontour.haptics/RecordingHaptics.play|play(io.kontour.haptics.HapticPattern){}[0]
+    final fun startRumble(kotlin/Float, kotlin/Float, kotlin.time/Duration): io.kontour.haptics/Rumble // io.kontour.haptics/RecordingHaptics.startRumble|startRumble(kotlin.Float;kotlin.Float;kotlin.time.Duration){}[0]
+}
+
+final fun (io.kontour.haptics/HapticEffect).io.kontour.haptics/scaled(kotlin/Float): io.kontour.haptics/HapticEffect // io.kontour.haptics/scaled|scaled@io.kontour.haptics.HapticEffect(kotlin.Float){}[0]
+final fun io.kontour.haptics/Haptics(): io.kontour.haptics/Haptics // io.kontour.haptics/Haptics|Haptics(){}[0]
+final fun io.kontour.haptics/hapticPattern(kotlin/Function1<io.kontour.haptics/HapticPatternScope, kotlin/Unit>): io.kontour.haptics/HapticPattern // io.kontour.haptics/hapticPattern|hapticPattern(kotlin.Function1<io.kontour.haptics.HapticPatternScope,kotlin.Unit>){}[0]

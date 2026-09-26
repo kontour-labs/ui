@@ -46,6 +46,7 @@ data class BranchTimelineColours(
     val muted: Color,
 )
 
+/** What a [BranchTimeline] takes by default. */
 object BranchTimelineDefaults {
     /**
      * The lanes' colours, taken in turn as branches open: the accent for the

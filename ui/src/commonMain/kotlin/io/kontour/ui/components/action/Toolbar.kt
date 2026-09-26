@@ -225,6 +225,7 @@ fun ToolbarDivider(modifier: Modifier = Modifier) {
     }
 }
 
+/** What a [Toolbar] takes by default. */
 object ToolbarDefaults {
     /**
      * The ring of space between the surface's edge and its first control.

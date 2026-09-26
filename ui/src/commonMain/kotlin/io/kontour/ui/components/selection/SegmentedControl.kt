@@ -63,6 +63,7 @@ import io.kontour.ui.theme.inset
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
+/** What a [SegmentedControl] takes by default. */
 object SegmentedControlDefaults {
     /**
      * The inset between the track and its thumb.
@@ -172,8 +173,8 @@ private const val SegmentSquash = 0.16f
  * ```
  * SegmentedControl(
  *     options = listOf("Depart", "Arrive"),
- *     selected = mode,
- *     onSelectedChange = viewModel::setMode,
+ *     selectedIndex = mode,
+ *     onSelectedIndexChange = viewModel::setMode,
  * )
  * ```
  *

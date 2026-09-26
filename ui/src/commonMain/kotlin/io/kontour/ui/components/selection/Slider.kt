@@ -765,6 +765,7 @@ data class SliderColours(
     internal fun thumb(enabled: Boolean): Color = if (enabled) thumb else thumbDisabled
 }
 
+/** What [Slider] and [RangeSlider] take by default. */
 object SliderDefaults {
     /** The theme's colours for a slider: the primary colour on an outline track. */
     @Composable

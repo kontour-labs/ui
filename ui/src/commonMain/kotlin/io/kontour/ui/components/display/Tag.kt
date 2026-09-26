@@ -244,6 +244,7 @@ fun BadgedBox(
     }
 }
 
+/** What a [Badge] takes by default. */
 object BadgeDefaults {
     /**
      * How much of the badge hangs past the corner, as a fraction of itself.

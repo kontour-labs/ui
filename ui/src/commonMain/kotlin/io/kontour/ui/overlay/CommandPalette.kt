@@ -392,6 +392,7 @@ fun commandMatches(command: Command, query: String): Boolean {
     return command.keywords.any { it.lowercase().contains(needle) }
 }
 
+/** What a [CommandPalette] takes by default. */
 object CommandPaletteDefaults {
     /** Wide enough for a command and its shortcut, narrow enough to read. */
     val Width: Dp

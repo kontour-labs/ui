@@ -62,6 +62,7 @@ enum class TopBarStyle {
     Large,
 }
 
+/** What a [TopBar] takes by default. */
 object TopBarDefaults {
     val Height: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeight

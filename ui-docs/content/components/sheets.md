@@ -37,7 +37,7 @@ Box(Modifier.fillMaxSize()) {
     Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
 
     BottomSheet(sheet) {
-        SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+        SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
         LazyColumn { … }
     }
 }
@@ -119,7 +119,7 @@ both change again at 200% type.
 
 ```kotlin
 BottomSheet(sheet) {
-    SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+    SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
     LazyColumn { … }
 }
 ```

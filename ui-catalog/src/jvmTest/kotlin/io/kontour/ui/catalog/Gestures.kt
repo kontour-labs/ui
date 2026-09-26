@@ -154,7 +154,7 @@ class Scene(
      * 3.6 seconds on one machine and under 1.5 on another.
      *
      * `ToastStackTest` was written believing 95 frames was two seconds, waiting
-     * for a toast whose `durationMillis` is 1,500. It passed on the machine it
+     * for a toast whose `duration` is 1.5 seconds. It passed on the machine it
      * was written on and began failing on CI the day `:ui-catalog` grew enough
      * other tests to change what it was sharing a runner with.
      *

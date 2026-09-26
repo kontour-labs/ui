@@ -211,6 +211,7 @@ internal fun spinnerSweep(phase: Float): Float {
         (SpinnerDefaults.MaxSweep - SpinnerDefaults.MinSweep) * breathe
 }
 
+/** What a [Spinner] takes by default. */
 object SpinnerDefaults {
     /** One turn of the head. */
     val RotationDuration: Duration = 1000.milliseconds

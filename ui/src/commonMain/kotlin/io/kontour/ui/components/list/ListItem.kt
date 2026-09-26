@@ -48,6 +48,7 @@ import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
+/** What a [ListItem] takes by default. */
 object ListItemDefaults {
     /** Corner radius on a group's outside edges. */
     val Shape: CornerBasedShape @Composable @ReadOnlyComposable get() = Theme.shapes.container

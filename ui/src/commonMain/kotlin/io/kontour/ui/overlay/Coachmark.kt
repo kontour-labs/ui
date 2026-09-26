@@ -69,16 +69,16 @@ object CoachmarkDefaults {
  * val tour = rememberCoachmarkTour("plan", "save", "alerts")
  *
  * IconButton(
- icon = *     icon = Tabler.Outline.Bookmark,
- contentDescription = *     contentDescription = "Save this trip",
- onClick = *     onClick = ::save,
- modifier = *     modifier = Modifier.coachmarkStep(
+ *     onClick = ::save,
+ *     icon = Tabler.Outline.Bookmark,
+ *     contentDescription = "Save this trip",
+ *     modifier = Modifier.coachmarkStep(
  *         tour = tour,
  *         id = "save",
  *         title = "Save this trip",
  *         message = "Saved trips show up on the home screen.",
  *     ),
- enabled = * )
+ * )
  * ```
  *
  * The tour holds only the **order**; each step's words live at the control they

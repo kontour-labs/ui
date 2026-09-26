@@ -1,0 +1,434 @@
+public final class io/kontour/haptics/DesktopHapticsKt {
+	public static final fun Haptics ()Lio/kontour/haptics/Haptics;
+}
+
+public final class io/kontour/haptics/HapticCapability {
+	public static final field Companion Lio/kontour/haptics/HapticCapability$Companion;
+	public fun <init> (Lio/kontour/haptics/HapticCapability$Richness;ZLio/kontour/haptics/HapticCapability$RumbleSupport;Ljava/util/List;)V
+	public synthetic fun <init> (Lio/kontour/haptics/HapticCapability$Richness;ZLio/kontour/haptics/HapticCapability$RumbleSupport;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/kontour/haptics/HapticCapability$Richness;
+	public final fun component2 ()Z
+	public final fun component3 ()Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Lio/kontour/haptics/HapticCapability$Richness;ZLio/kontour/haptics/HapticCapability$RumbleSupport;Ljava/util/List;)Lio/kontour/haptics/HapticCapability;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticCapability;Lio/kontour/haptics/HapticCapability$Richness;ZLio/kontour/haptics/HapticCapability$RumbleSupport;Ljava/util/List;ILjava/lang/Object;)Lio/kontour/haptics/HapticCapability;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDetails ()Ljava/util/List;
+	public final fun getHonoursStrength ()Z
+	public final fun getRichness ()Lio/kontour/haptics/HapticCapability$Richness;
+	public final fun getRumble ()Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticCapability$Companion {
+	public final fun getNone ()Lio/kontour/haptics/HapticCapability;
+}
+
+public final class io/kontour/haptics/HapticCapability$Richness : java/lang/Enum {
+	public static final field Basic Lio/kontour/haptics/HapticCapability$Richness;
+	public static final field None Lio/kontour/haptics/HapticCapability$Richness;
+	public static final field Rich Lio/kontour/haptics/HapticCapability$Richness;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/haptics/HapticCapability$Richness;
+	public static fun values ()[Lio/kontour/haptics/HapticCapability$Richness;
+}
+
+public final class io/kontour/haptics/HapticCapability$RumbleSupport : java/lang/Enum {
+	public static final field Continuous Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public static final field None Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public static final field Pulsed Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/haptics/HapticCapability$RumbleSupport;
+	public static fun values ()[Lio/kontour/haptics/HapticCapability$RumbleSupport;
+}
+
+public abstract interface class io/kontour/haptics/HapticEffect {
+	public abstract fun getStrength ()F
+}
+
+public final class io/kontour/haptics/HapticEffect$Click : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$Click;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Click;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Click;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Impact : io/kontour/haptics/HapticEffect {
+	public fun <init> ()V
+	public fun <init> (Lio/kontour/haptics/ImpactStyle;F)V
+	public synthetic fun <init> (Lio/kontour/haptics/ImpactStyle;FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/kontour/haptics/ImpactStyle;
+	public final fun component2 ()F
+	public final fun copy (Lio/kontour/haptics/ImpactStyle;F)Lio/kontour/haptics/HapticEffect$Impact;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Impact;Lio/kontour/haptics/ImpactStyle;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Impact;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public final fun getStyle ()Lio/kontour/haptics/ImpactStyle;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$KeyPress : io/kontour/haptics/HapticEffect {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$KeyPress;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$KeyPress;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$KeyPress;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$LongPress : io/kontour/haptics/HapticEffect {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$LongPress;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$LongPress;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$LongPress;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$LowTick : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$LowTick;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$LowTick;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$LowTick;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Notification : io/kontour/haptics/HapticEffect {
+	public fun <init> (Lio/kontour/haptics/NotificationType;F)V
+	public synthetic fun <init> (Lio/kontour/haptics/NotificationType;FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/kontour/haptics/NotificationType;
+	public final fun component2 ()F
+	public final fun copy (Lio/kontour/haptics/NotificationType;F)Lio/kontour/haptics/HapticEffect$Notification;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Notification;Lio/kontour/haptics/NotificationType;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Notification;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public final fun getType ()Lio/kontour/haptics/NotificationType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/kontour/haptics/HapticEffect$Primitive : io/kontour/haptics/HapticEffect {
+}
+
+public final class io/kontour/haptics/HapticEffect$QuickFall : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$QuickFall;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$QuickFall;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$QuickFall;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$QuickRise : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$QuickRise;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$QuickRise;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$QuickRise;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Selection : io/kontour/haptics/HapticEffect {
+	public fun <init> ()V
+	public fun <init> (ZF)V
+	public synthetic fun <init> (ZFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()F
+	public final fun copy (ZF)Lio/kontour/haptics/HapticEffect$Selection;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Selection;ZFILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Selection;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFine ()Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$SlowRise : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$SlowRise;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$SlowRise;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$SlowRise;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Spin : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$Spin;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Spin;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Spin;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Threshold : io/kontour/haptics/HapticEffect {
+	public fun <init> (ZF)V
+	public synthetic fun <init> (ZFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()F
+	public final fun copy (ZF)Lio/kontour/haptics/HapticEffect$Threshold;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Threshold;ZFILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Threshold;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActivate ()Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Thud : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$Thud;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Thud;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Thud;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Tick : io/kontour/haptics/HapticEffect$Primitive {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lio/kontour/haptics/HapticEffect$Tick;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Tick;FILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Tick;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffect$Toggle : io/kontour/haptics/HapticEffect {
+	public fun <init> (ZF)V
+	public synthetic fun <init> (ZFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()F
+	public final fun copy (ZF)Lio/kontour/haptics/HapticEffect$Toggle;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticEffect$Toggle;ZFILjava/lang/Object;)Lio/kontour/haptics/HapticEffect$Toggle;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOn ()Z
+	public fun getStrength ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticEffectKt {
+	public static final fun scaled (Lio/kontour/haptics/HapticEffect;F)Lio/kontour/haptics/HapticEffect;
+}
+
+public final class io/kontour/haptics/HapticPattern {
+	public static final field Companion Lio/kontour/haptics/HapticPattern$Companion;
+	public static final field MaxEvents I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDuration-UwyO8pc ()J
+	public final fun getEvents ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticPattern$Companion {
+	public final fun getMaxDuration-UwyO8pc ()J
+}
+
+public final class io/kontour/haptics/HapticPattern$Event {
+	public synthetic fun <init> (JLio/kontour/haptics/HapticEffect$Primitive;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-UwyO8pc ()J
+	public final fun component2 ()Lio/kontour/haptics/HapticEffect$Primitive;
+	public final fun copy-VtjQ1oo (JLio/kontour/haptics/HapticEffect$Primitive;)Lio/kontour/haptics/HapticPattern$Event;
+	public static synthetic fun copy-VtjQ1oo$default (Lio/kontour/haptics/HapticPattern$Event;JLio/kontour/haptics/HapticEffect$Primitive;ILjava/lang/Object;)Lio/kontour/haptics/HapticPattern$Event;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAt-UwyO8pc ()J
+	public final fun getPrimitive ()Lio/kontour/haptics/HapticEffect$Primitive;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface annotation class io/kontour/haptics/HapticPatternDsl : java/lang/annotation/Annotation {
+}
+
+public final class io/kontour/haptics/HapticPatternKt {
+	public static final fun hapticPattern (Lkotlin/jvm/functions/Function1;)Lio/kontour/haptics/HapticPattern;
+}
+
+public final class io/kontour/haptics/HapticPatternScope {
+	public final fun after-VtjQ1oo (JLio/kontour/haptics/HapticEffect$Primitive;)V
+	public final fun at-VtjQ1oo (JLio/kontour/haptics/HapticEffect$Primitive;)V
+}
+
+public abstract interface class io/kontour/haptics/HapticRecord {
+}
+
+public final class io/kontour/haptics/HapticRecord$Cancelled : io/kontour/haptics/HapticRecord {
+	public static final field INSTANCE Lio/kontour/haptics/HapticRecord$Cancelled;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticRecord$PatternPlayed : io/kontour/haptics/HapticRecord {
+	public fun <init> (Lio/kontour/haptics/HapticPattern;)V
+	public final fun component1 ()Lio/kontour/haptics/HapticPattern;
+	public final fun copy (Lio/kontour/haptics/HapticPattern;)Lio/kontour/haptics/HapticRecord$PatternPlayed;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticRecord$PatternPlayed;Lio/kontour/haptics/HapticPattern;ILjava/lang/Object;)Lio/kontour/haptics/HapticRecord$PatternPlayed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPattern ()Lio/kontour/haptics/HapticPattern;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticRecord$Played : io/kontour/haptics/HapticRecord {
+	public fun <init> (Lio/kontour/haptics/HapticEffect;)V
+	public final fun component1 ()Lio/kontour/haptics/HapticEffect;
+	public final fun copy (Lio/kontour/haptics/HapticEffect;)Lio/kontour/haptics/HapticRecord$Played;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticRecord$Played;Lio/kontour/haptics/HapticEffect;ILjava/lang/Object;)Lio/kontour/haptics/HapticRecord$Played;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEffect ()Lio/kontour/haptics/HapticEffect;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticRecord$RumbleStarted : io/kontour/haptics/HapticRecord {
+	public fun <init> (IFF)V
+	public final fun component1 ()I
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun copy (IFF)Lio/kontour/haptics/HapticRecord$RumbleStarted;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticRecord$RumbleStarted;IFFILjava/lang/Object;)Lio/kontour/haptics/HapticRecord$RumbleStarted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()I
+	public final fun getIntensity ()F
+	public final fun getSharpness ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticRecord$RumbleStopped : io/kontour/haptics/HapticRecord {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/kontour/haptics/HapticRecord$RumbleStopped;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticRecord$RumbleStopped;IILjava/lang/Object;)Lio/kontour/haptics/HapticRecord$RumbleStopped;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/haptics/HapticRecord$RumbleUpdated : io/kontour/haptics/HapticRecord {
+	public fun <init> (IFF)V
+	public final fun component1 ()I
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun copy (IFF)Lio/kontour/haptics/HapticRecord$RumbleUpdated;
+	public static synthetic fun copy$default (Lio/kontour/haptics/HapticRecord$RumbleUpdated;IFFILjava/lang/Object;)Lio/kontour/haptics/HapticRecord$RumbleUpdated;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()I
+	public final fun getIntensity ()F
+	public final fun getSharpness ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/kontour/haptics/Haptics : java/lang/AutoCloseable {
+	public static final field Companion Lio/kontour/haptics/Haptics$Companion;
+	public abstract fun cancel ()V
+	public abstract fun close ()V
+	public abstract fun getCapability ()Lio/kontour/haptics/HapticCapability;
+	public abstract fun play (Lio/kontour/haptics/HapticEffect;)V
+	public abstract fun play (Lio/kontour/haptics/HapticPattern;)V
+	public abstract fun startRumble-SxA4cEA (FFJ)Lio/kontour/haptics/Rumble;
+	public static synthetic fun startRumble-SxA4cEA$default (Lio/kontour/haptics/Haptics;FFJILjava/lang/Object;)Lio/kontour/haptics/Rumble;
+}
+
+public final class io/kontour/haptics/Haptics$Companion {
+	public final fun getNone ()Lio/kontour/haptics/Haptics;
+}
+
+public final class io/kontour/haptics/Haptics$DefaultImpls {
+	public static synthetic fun startRumble-SxA4cEA$default (Lio/kontour/haptics/Haptics;FFJILjava/lang/Object;)Lio/kontour/haptics/Rumble;
+}
+
+public final class io/kontour/haptics/ImpactStyle : java/lang/Enum {
+	public static final field Heavy Lio/kontour/haptics/ImpactStyle;
+	public static final field Light Lio/kontour/haptics/ImpactStyle;
+	public static final field Medium Lio/kontour/haptics/ImpactStyle;
+	public static final field Rigid Lio/kontour/haptics/ImpactStyle;
+	public static final field Soft Lio/kontour/haptics/ImpactStyle;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/haptics/ImpactStyle;
+	public static fun values ()[Lio/kontour/haptics/ImpactStyle;
+}
+
+public final class io/kontour/haptics/NotificationType : java/lang/Enum {
+	public static final field Error Lio/kontour/haptics/NotificationType;
+	public static final field Success Lio/kontour/haptics/NotificationType;
+	public static final field Warning Lio/kontour/haptics/NotificationType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/haptics/NotificationType;
+	public static fun values ()[Lio/kontour/haptics/NotificationType;
+}
+
+public final class io/kontour/haptics/RecordingHaptics : io/kontour/haptics/Haptics {
+	public fun <init> ()V
+	public fun <init> (Lio/kontour/haptics/HapticCapability;)V
+	public synthetic fun <init> (Lio/kontour/haptics/HapticCapability;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun cancel ()V
+	public final fun clear ()V
+	public fun close ()V
+	public fun getCapability ()Lio/kontour/haptics/HapticCapability;
+	public final fun getRecords ()Ljava/util/List;
+	public fun play (Lio/kontour/haptics/HapticEffect;)V
+	public fun play (Lio/kontour/haptics/HapticPattern;)V
+	public fun startRumble-SxA4cEA (FFJ)Lio/kontour/haptics/Rumble;
+}
+
+public abstract interface class io/kontour/haptics/Rumble : java/lang/AutoCloseable {
+	public fun close ()V
+	public abstract fun isActive ()Z
+	public abstract fun stop ()V
+	public abstract fun update (FF)V
+}
+
+public final class io/kontour/haptics/Rumble$DefaultImpls {
+	public static fun close (Lio/kontour/haptics/Rumble;)V
+}
+

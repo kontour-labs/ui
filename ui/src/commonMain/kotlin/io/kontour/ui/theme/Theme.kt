@@ -427,7 +427,7 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  *
  * ```
  * KontourTheme(strings = german) {
- *     KontourTheme(darkTheme = true) { … }   // ← all 47 strings are English again
+ *     KontourTheme(darkTheme = true) { … }   // ← every string is English again
  * }
  * ```
  *

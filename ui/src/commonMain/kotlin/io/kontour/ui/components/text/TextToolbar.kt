@@ -69,6 +69,7 @@ data class TextToolbarLabels(
     val more: String,
 )
 
+/** What the text toolbar takes by default. */
 object TextToolbarDefaults {
     /** [TextToolbarLabels] taking the theme's words, any of which can be replaced. */
     @Composable

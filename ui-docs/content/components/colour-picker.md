@@ -20,8 +20,8 @@ Turning a part off removes it rather than disabling it.
 | | Off by | Why you would |
 |---|---|---|
 | Swatches | `swatches = emptyList()` | Nothing worth suggesting |
-| Opacity | `alphaSlider = false`, the default | Most colours are opaque |
-| The field | `valueField = false` | Nobody here is going to type a hex |
+| Opacity | `showAlphaSlider = false`, the default | Most colours are opaque |
+| The field | `showValueField = false` | Nobody here is going to type a hex |
 | The notation switch | `onFormatChange = null`, the default | One notation is enough |
 | The mode switch | `onModeChange = null`, the default | See below |
 

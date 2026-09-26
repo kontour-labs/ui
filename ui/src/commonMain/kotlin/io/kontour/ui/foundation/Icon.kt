@@ -23,9 +23,11 @@ import io.kontour.ui.theme.Theme
  * Draws an icon, tinted to the surrounding content colour, at its true
  * proportions.
  *
- * The design system ships **no icon set**. Components take an [ImageVector] or
- * a [Painter], so the choice of icon library stays an application decision and
- * `:ui` does not drag a few hundred kilobytes of glyphs into every consumer.
+ * The design system ships **no icon set** — only the handful of glyphs its own
+ * controls draw when nobody passes one, in `SystemIcons`. Components take an
+ * [ImageVector] or a [Painter], so the choice of icon library stays an
+ * application decision and `:ui` does not drag a few hundred kilobytes of
+ * glyphs into every consumer.
  *
  * ```
  * Icon(FontAwesome.Solid.Search, contentDescription = "Search")

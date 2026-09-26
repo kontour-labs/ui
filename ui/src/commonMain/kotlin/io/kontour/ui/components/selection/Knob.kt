@@ -385,6 +385,7 @@ fun Knob(
 internal fun knobDragTurn(delta: Offset, travel: Float): Float =
     if (travel <= 0f) 0f else (delta.x - delta.y) / travel
 
+/** What a [Knob] takes by default. */
 object KnobDefaults {
     /** The knob's width and height. */
     val Size: Dp get() = KnobSize

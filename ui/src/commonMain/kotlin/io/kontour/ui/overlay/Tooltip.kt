@@ -49,6 +49,7 @@ import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+/** The timing [Modifier.tooltip] takes by default. */
 object TooltipDefaults {
     /** How long a pointer must rest before a tooltip appears. */
     val HoverDelay: Duration = 500.milliseconds
@@ -65,11 +66,11 @@ object TooltipDefaults {
  *
  * ```
  * IconButton(
- icon = *     icon = Tabler.Outline.Filter,
- contentDescription = *     contentDescription = "Filter routes",
- onClick = *     onClick = ::openFilters,
- modifier = *     modifier = Modifier.tooltip("Filter routes"),
- enabled = * )
+ *     onClick = ::openFilters,
+ *     icon = Tabler.Outline.Filter,
+ *     contentDescription = "Filter routes",
+ *     modifier = Modifier.tooltip("Filter routes"),
+ * )
  * ```
  *
  * "Asks" means something different for each input, and the difference is the
@@ -335,17 +336,17 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *
  * ```
  * IconButton(
- icon = *     icon = Tabler.Outline.Bookmark,
- contentDescription = *     contentDescription = "Save this trip",
- onClick = *     onClick = ::save,
- modifier = *     modifier = Modifier.coachmark(
+ *     onClick = ::save,
+ *     icon = Tabler.Outline.Bookmark,
+ *     contentDescription = "Save this trip",
+ *     modifier = Modifier.coachmark(
  *         id = "save-trip",
  *         title = "Save this trip",
  *         message = "Trips you save show up on the home screen.",
  *         priority = 40,
  *         minSessions = 3,
  *     ),
- enabled = * )
+ * )
  * ```
  *
  * Unlike [tooltip], nothing the user does triggers it — the app decides, which

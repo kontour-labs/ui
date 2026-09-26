@@ -162,6 +162,7 @@ fun GlassSurface(
     }
 }
 
+/** What a [GlassSurface] takes by default. */
 object GlassSurfaceDefaults {
 
     /** How strongly the pane's hairline edge shows, over its tint. */

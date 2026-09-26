@@ -661,9 +661,9 @@ internal fun DrawScope.drawLiveBand(
  * circling the whole number … just circle the arrow"* — so the day keeps its own
  * look, cap and all, and the ring is plainly the arrow's.
  *
- * Drawn rather than an icon, because the library ships no icon set and this is
- * not a control anyone taps: the header's arrows are the way to page for
- * everything but a finger already busy with a drag.
+ * Drawn rather than an icon, because it is a mark on a day rather than a glyph
+ * from anyone's set, and not a control anyone taps: the header's arrows are the
+ * way to page for everything but a finger already busy with a drag.
  *
  * @param day The middle of the edge day's cell.
  * @param halfCell Half the cell, in pixels: the chevron sits against its inner edge.

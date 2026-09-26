@@ -55,6 +55,7 @@ import io.kontour.ui.theme.Theme
 /** Which pane a single-pane window is showing. */
 enum class PaneFocus { List, Detail }
 
+/** What [ListDetailPaneScaffold] and [SupportingPaneScaffold] take by default. */
 object PaneScaffoldDefaults {
     /** How much of a two-pane window the list takes. */
     const val ListWeight: Float = 0.38f

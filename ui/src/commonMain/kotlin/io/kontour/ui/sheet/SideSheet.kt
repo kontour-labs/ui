@@ -291,6 +291,7 @@ fun SideSheet(
     )
 }
 
+/** What [SideSheet] and [ModalSideSheet] take by default. */
 object SideSheetDefaults {
     /** Wide enough for a column of content with padding on both sides. */
     val Width: Dp

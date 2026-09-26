@@ -178,6 +178,11 @@ class ReorderableState internal constructor(
     }
 }
 
+/**
+ * Remembers a [ReorderableState] for the list in [listState]. [onMove] is
+ * called each time the lifted row passes another, with where it was and where
+ * it now is.
+ */
 @Composable
 fun rememberReorderableState(
     listState: LazyListState,

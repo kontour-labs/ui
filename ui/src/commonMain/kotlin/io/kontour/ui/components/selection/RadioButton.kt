@@ -168,8 +168,8 @@ fun RadioButton(
  * ```
  * RadioGroup(
  *     options = listOf(Depart.Now, Depart.At, Depart.ArriveBy),
- *     selected = departMode,
- *     onSelectedChange = viewModel::setDepartMode,
+ *     value = departMode,
+ *     onValueChange = viewModel::setDepartMode,
  * ) { mode ->
  *     +mode.label
  *     leading { +mode.icon }

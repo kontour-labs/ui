@@ -42,6 +42,7 @@ import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.theme.Theme
 
+/** What a [NavBar] takes by default. */
 object NavBarDefaults {
     /** How far the row sits in from the window's edges. */
     val Inset: Dp = 16.dp

@@ -174,6 +174,7 @@ data class ActivityMark(
     val description: String? = null,
 )
 
+/** What an [ActivityCalendar] takes by default. */
 object ActivityCalendarDefaults {
     /** Shades past empty: four, as a contribution graph has. */
     const val LevelCount: Int = 4

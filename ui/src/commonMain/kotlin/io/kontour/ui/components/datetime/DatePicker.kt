@@ -81,7 +81,16 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 
+/** What [DatePicker] and [DateRangePicker] take by default. */
 object DatePickerDefaults {
+    /**
+     * Today, in the device's own time zone: the month a picker opens on when
+     * neither a value nor `today` says otherwise. It was a fixed 1 January 2026,
+     * which was this month once and then quietly became a calendar opening on
+     * the past.
+     */
+    fun currentDate(): LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
     /**
      * The glyph on the way back to today's month: a small calendar page with the
      * day marked. Drawn by the library, so a picker has the button without an
@@ -258,13 +267,6 @@ private const val TodayFlashOutMillis: Int = 170
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2
 
-/**
- * Today where the device is — the month a calendar opens on when it was given
- * neither a selection nor a `today`. It was a fixed 1 January 2026, which was
- * this month once and then quietly became a calendar opening on the past.
- */
-internal fun systemToday(): LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-
 /** A scroll quiet for this long has ended, and the next one is a new swipe. */
 private const val ScrollQuietMillis: Long = 250L
 
@@ -279,8 +281,8 @@ private const val ScrollPage: Float = 1f
  * the reason for.
  */
 @Stable
-class CalendarNavigationState internal constructor(initial: LocalDate) {
-    var visibleMonth: LocalDate by mutableStateOf(LocalDate(initial.year, initial.month, 1))
+class CalendarNavigationState internal constructor(initialDate: LocalDate) {
+    var visibleMonth: LocalDate by mutableStateOf(LocalDate(initialDate.year, initialDate.month, 1))
         internal set
 
     /** Steps forward or back by whole months. */
@@ -297,6 +299,10 @@ class CalendarNavigationState internal constructor(initial: LocalDate) {
     }
 }
 
+/**
+ * Remembers a [CalendarNavigationState] opening on the month of [initialDate],
+ * kept across configuration change.
+ */
 @Composable
 fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationState {
     val epochDay = rememberSaveable(initialDate) { initialDate.toEpochDays() }
@@ -308,8 +314,8 @@ fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationS
  *
  * ```
  * DatePicker(
- *     selected = departureDate,
- *     onSelectedChange = viewModel::setDepartureDate,
+ *     value = departureDate,
+ *     onValueChange = viewModel::setDepartureDate,
  *     today = today,
  *     isDateSelectable = { it >= today },
  *     previousIcon = Tabler.Outline.ChevronLeft,
@@ -352,8 +358,9 @@ fun DatePicker(
      *
      * **There by default**, as a small calendar the library draws itself — reported
      * as wanted in every calendar, and asked for as an icon rather than the word.
-     * The paging arrows are the caller's because the library ships no icon set;
-     * this is one glyph, drawn here, so that the way back needs nothing supplied.
+     * The paging arrows are the caller's because they belong to the app's icon
+     * set; this is one glyph, drawn here, so that the way back needs nothing
+     * supplied.
      * Pass an app's own to match its set, or null to leave the button out.
      *
      * Shown only while the calendar is somewhere else, and only when [today] is
@@ -365,8 +372,8 @@ fun DatePicker(
      * this glyph beside it.
      *
      * The same bargain the paging icons make, and for two reasons rather than
-     * one. The library ships no icon set, so a component that draws one has
-     * picked for you; and on a touch screen there is no hover to discover a
+     * one. A glyph beside a title is the app's icon set's to supply, so a
+     * component that draws one has picked for you; and on a touch screen there is no hover to discover a
      * control with, so a title that is also a button and does not say so is a
      * title nobody presses.
      *
@@ -378,7 +385,7 @@ fun DatePicker(
      */
     chooserIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
-        value ?: today ?: remember { systemToday() }
+        value ?: today ?: remember { DatePickerDefaults.currentDate() }
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     /**
@@ -460,8 +467,8 @@ fun DateRangePicker(
      * this glyph beside it.
      *
      * The same bargain the paging icons make, and for two reasons rather than
-     * one. The library ships no icon set, so a component that draws one has
-     * picked for you; and on a touch screen there is no hover to discover a
+     * one. A glyph beside a title is the app's icon set's to supply, so a
+     * component that draws one has picked for you; and on a touch screen there is no hover to discover a
      * control with, so a title that is also a button and does not say so is a
      * title nobody presses.
      *
@@ -473,7 +480,7 @@ fun DateRangePicker(
      */
     chooserIcon: ImageVector? = null,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
-        start ?: today ?: remember { systemToday() }
+        start ?: today ?: remember { DatePickerDefaults.currentDate() }
     ),
     formats: DateTimeFormats = LocalDateTimeFormats.current,
     /**

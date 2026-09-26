@@ -42,6 +42,7 @@ import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
 
+/** What a [NavRail] takes by default. */
 object NavRailDefaults {
     val CollapsedWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navRailCollapsedWidth

@@ -73,8 +73,8 @@ import kotlinx.coroutines.launch
  * ```
  * WheelPicker(
  *     items = (0..23).toList(),
- *     selected = hour,
- *     onSelectedChange = { hour = it },
+ *     selectedIndex = hour,
+ *     onSelectedIndexChange = { hour = it },
  *     itemLabel = { it.toString().padStart(2, '0') },
  * )
  * ```

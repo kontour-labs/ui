@@ -71,15 +71,21 @@ val LocalInputModality = compositionLocalOf { InputModality.Touch }
 
 /** Mutable holder behind [LocalInputModality]. Created by [rememberInputModalityState]. */
 @Stable
-class InputModalityState internal constructor(initial: InputModality) {
-    var current: InputModality by mutableStateOf(initial)
+class InputModalityState internal constructor(initialModality: InputModality) {
+    var current: InputModality by mutableStateOf(initialModality)
         internal set
 }
 
+/**
+ * Remembers an [InputModalityState] starting at [initialModality].
+ *
+ * `KontourTheme` keeps the app's own; one made here is for a subtree that
+ * tracks its own modality with [trackInputModality].
+ */
 @Composable
 fun rememberInputModalityState(
-    initial: InputModality = InputModality.Touch,
-): InputModalityState = remember { InputModalityState(initial) }
+    initialModality: InputModality = InputModality.Touch,
+): InputModalityState = remember { InputModalityState(initialModality) }
 
 /**
  * Watches pointer and key events and keeps [state] up to date.

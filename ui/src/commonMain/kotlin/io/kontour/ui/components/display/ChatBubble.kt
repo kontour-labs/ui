@@ -168,6 +168,7 @@ enum class BubbleSide {
     Outgoing,
 }
 
+/** What a [ChatBubble] takes by default. */
 object ChatBubbleDefaults {
     /** The accent for the user's own messages, a quiet ground for everyone else's. */
     @Composable

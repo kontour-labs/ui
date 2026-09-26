@@ -21,6 +21,7 @@ import io.kontour.ui.theme.Theme
 /** Which corner a [Scaffold]'s floating action button sits in. */
 enum class FabPosition { Start, Centre, End }
 
+/** What a [Scaffold] takes by default. */
 object ScaffoldDefaults {
     /** Gap between the FAB and the edges, or the bottom bar. */
     val FabMargin: Dp = 16.dp

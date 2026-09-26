@@ -164,6 +164,11 @@ jobs:
       # `checkDocSamples` whether the copy on the page is still the code that was
       # compiled — but nothing about that needs its own process.
       #
+      # `checkKotlinAbi` holds each library's public API to the dump checked in
+      # under its `api/` directory. A change it catches is either a mistake or a
+      # deliberate break, and a deliberate one is `updateKotlinAbi` and a line in
+      # `ui-docs/content/migrating.md` in the same commit.
+      #
       # Naming tasks rather than running `check` is why `checkScreenshotAssertions`
       # has to be listed: `:ui-catalog:check` never runs here. Its sibling
       # `checkGoldenOrphans` does not, because it is a finalizer of
@@ -174,6 +179,9 @@ jobs:
             :ui:jvmTest \
             :ui:checkNoMaterial \
             :ui:checkApiConventions \
+            :ui:checkKotlinAbi \
+            :ui-nav3:checkKotlinAbi \
+            :haptics:checkKotlinAbi \
             :ui:checkKdocSamples \
             :ui-catalog:jvmTest \
             :ui-catalog:checkScreenshotAssertions \

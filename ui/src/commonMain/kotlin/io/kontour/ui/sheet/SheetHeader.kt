@@ -161,6 +161,7 @@ fun DragHandle(
     }
 }
 
+/** What a [DragHandle] takes by default. */
 object DragHandleDefaults {
     /**
      * How tall the pressable area around the 4dp bar is.

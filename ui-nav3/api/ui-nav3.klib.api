@@ -1,0 +1,14 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, js, wasmJs]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.kontour:ui-nav3>
+final fun <#A: kotlin/Any> io.kontour.ui.nav3/rememberListDetailSceneStrategy(kotlin/Boolean, kotlin/Float, kotlin/Boolean, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.navigation3.scene/SceneStrategy<#A> // io.kontour.ui.nav3/rememberListDetailSceneStrategy|rememberListDetailSceneStrategy(kotlin.Boolean;kotlin.Float;kotlin.Boolean;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){0§<kotlin.Any>}[0]
+final fun <#A: kotlin/Any> io.kontour.ui.nav3/rememberSupportingPaneSceneStrategy(kotlin/Boolean, kotlin/Float, kotlin/Boolean, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.navigation3.scene/SceneStrategy<#A> // io.kontour.ui.nav3/rememberSupportingPaneSceneStrategy|rememberSupportingPaneSceneStrategy(kotlin.Boolean;kotlin.Float;kotlin.Boolean;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){0§<kotlin.Any>}[0]
+final fun io.kontour.ui.nav3/detailPane(): kotlin.collections/Map<kotlin/String, kotlin/Any> // io.kontour.ui.nav3/detailPane|detailPane(){}[0]
+final fun io.kontour.ui.nav3/listPane(kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>? = ...): kotlin.collections/Map<kotlin/String, kotlin/Any> // io.kontour.ui.nav3/listPane|listPane(kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>?){}[0]
+final fun io.kontour.ui.nav3/mainPane(): kotlin.collections/Map<kotlin/String, kotlin/Any> // io.kontour.ui.nav3/mainPane|mainPane(){}[0]
+final fun io.kontour.ui.nav3/supportingPane(): kotlin.collections/Map<kotlin/String, kotlin/Any> // io.kontour.ui.nav3/supportingPane|supportingPane(){}[0]

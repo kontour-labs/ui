@@ -34,7 +34,7 @@ import io.kontour.ui.theme.Theme
  * Stepper(
  *     value = adults,
  *     onValueChange = { adults = it },
- *     range = 1..9,
+ *     valueRange = 1..9,
  *     contentDescription = "Adults",
  * )
  * ```
@@ -212,6 +212,7 @@ fun Stepper(
     }
 }
 
+/** What a [Stepper] takes by default. */
 object StepperDefaults {
     /**
      * The floor for the number between the buttons.

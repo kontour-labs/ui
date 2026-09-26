@@ -53,10 +53,10 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  *
  * ```
  * FloatingActionButton(
- icon = *     icon = Icons.Plus,
- contentDescription = *     contentDescription = "Add favourite",
- onClick = *     onClick = ::addFavourite,
- modifier = * )
+ *     onClick = ::addFavourite,
+ *     icon = Icons.Plus,
+ *     contentDescription = "Add favourite",
+ * )
  * ```
  *
  * Floats above content, so it takes [io.kontour.ui.theme.Elevation.medium] and
@@ -200,11 +200,11 @@ fun FloatingActionButton(
  *
  * ```
  * ExtendedFloatingActionButton(
- icon = *     icon = Icons.Navigation,
- contentDescription = *     contentDescription = "Start trip",
- onClick = *     expanded = !listState.isScrollingDown,
- modifier = *     onClick = ::startTrip,
- enabled = * ) { +"Start trip" }
+ *     onClick = ::startTrip,
+ *     icon = Icons.Navigation,
+ *     contentDescription = "Start trip",
+ *     expanded = !listState.isScrollingDown,
+ * ) { +"Start trip" }
  * ```
  *
  * The collapse animates the *width* rather than cross-fading between two

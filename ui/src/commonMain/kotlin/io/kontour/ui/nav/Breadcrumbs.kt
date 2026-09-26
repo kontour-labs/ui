@@ -46,7 +46,7 @@ data class Crumb(
  * )
  * ```
  *
- * For a deep tree the user navigates around — the admin panel, chiefly. On a
+ * For a deep tree the user navigates around — a web app's settings, chiefly. On a
  * phone a back button says the same thing in far less room, which is why this
  * has no mobile counterpart in the app.
  *

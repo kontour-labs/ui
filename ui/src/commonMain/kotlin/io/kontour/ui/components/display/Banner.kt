@@ -417,6 +417,7 @@ private fun BannerBody(
 
 private enum class BannerSlot { Text, Action }
 
+/** What a [Banner] takes by default. */
 object BannerDefaults {
     /**
      * How much of the width the text keeps before the action is sent below it.

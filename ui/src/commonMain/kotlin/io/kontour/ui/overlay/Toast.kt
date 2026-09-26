@@ -258,6 +258,7 @@ class ToastHostState {
     }
 }
 
+/** Remembers a [ToastHostState], the queue a [ToastHost] shows. */
 @Composable
 fun rememberToastHostState(): ToastHostState = remember { ToastHostState() }
 
@@ -314,6 +315,7 @@ enum class ToastPosition {
     internal val towardEdge: Boolean get() = this == Bottom
 }
 
+/** What a [ToastHost], and each toast it shows, take by default. */
 object ToastDefaults {
     /**
      * How many toasts are on screen at once.

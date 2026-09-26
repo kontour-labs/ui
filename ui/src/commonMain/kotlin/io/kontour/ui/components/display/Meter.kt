@@ -441,6 +441,7 @@ enum class MeterContentPlacement {
     AtValue,
 }
 
+/** What a [Meter] takes by default. */
 object MeterDefaults {
     /** How opaque the capsule behind a meter's content is, as a gauge's. */
     const val ContentBackgroundAlpha: Float = GaugeDefaults.ContentBackgroundAlpha

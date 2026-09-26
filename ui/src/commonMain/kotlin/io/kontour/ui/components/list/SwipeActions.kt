@@ -134,6 +134,10 @@ enum class SwipeValue {
     EndCommitted,
 }
 
+/**
+ * Where a [SwipeActions] row is: the [SwipeValue] it has settled at, and how
+ * far it is dragged on the way. Made by [rememberSwipeActionsState].
+ */
 @Stable
 class SwipeActionsState internal constructor(
     internal val anchoredState: AnchoredDraggableState<SwipeValue>,
@@ -200,6 +204,7 @@ fun rememberSwipeActionsState(
     return remember { SwipeActionsState(anchored) }
 }
 
+/** What a [SwipeActions] takes by default. */
 object SwipeActionsDefaults {
     /** How wide one action's target is. Two side by side is 176dp of swipe. */
     val ActionWidth: Dp

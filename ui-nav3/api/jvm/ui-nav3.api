@@ -1,0 +1,13 @@
+public final class io/kontour/ui/nav3/ListDetailSceneStrategyKt {
+	public static final fun detailPane ()Ljava/util/Map;
+	public static final fun listPane (Lkotlin/jvm/functions/Function2;)Ljava/util/Map;
+	public static synthetic fun listPane$default (Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ljava/util/Map;
+	public static final fun rememberListDetailSceneStrategy (ZFZZLandroidx/compose/runtime/Composer;II)Landroidx/navigation3/scene/SceneStrategy;
+}
+
+public final class io/kontour/ui/nav3/SupportingPaneSceneStrategyKt {
+	public static final fun mainPane ()Ljava/util/Map;
+	public static final fun rememberSupportingPaneSceneStrategy (ZFZZLandroidx/compose/runtime/Composer;II)Landroidx/navigation3/scene/SceneStrategy;
+	public static final fun supportingPane ()Ljava/util/Map;
+}
+

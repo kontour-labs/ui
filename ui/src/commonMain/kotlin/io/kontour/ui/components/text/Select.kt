@@ -63,6 +63,7 @@ class SelectState internal constructor(initialExpanded: Boolean) {
     fun collapse() { expanded = false }
 }
 
+/** Remembers a [SelectState], with the menu open to begin with if [initialExpanded]. */
 @Composable
 fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
     remember { SelectState(initialExpanded) }

@@ -59,6 +59,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
+/** What a [PullToRefresh] takes by default. */
 object PullToRefreshDefaults {
     /** How far the user has to pull before letting go refreshes. */
     val Threshold: Dp = 80.dp
@@ -94,6 +95,10 @@ object PullToRefreshDefaults {
         @Composable @ReadOnlyComposable get() = Theme.spacing.xs
 }
 
+/**
+ * The pull behind a [PullToRefresh]: how far it has come, and whether letting
+ * go would refresh. Made by [rememberPullToRefreshState].
+ */
 @Stable
 class PullToRefreshState internal constructor(
     private val thresholdPx: Float,
@@ -153,6 +158,9 @@ class PullToRefreshState internal constructor(
     }
 }
 
+/**
+ * Remembers a [PullToRefreshState] that refreshes once pulled [threshold] down.
+ */
 @Composable
 fun rememberPullToRefreshState(
     threshold: Dp = PullToRefreshDefaults.Threshold,
@@ -626,7 +634,7 @@ private fun Modifier.offsetY(y: Density.() -> Float): Modifier =
  * ```kotlin
  * item {
  *     LoadMore(
- *         state = uiState.paging,
+ *         status = uiState.paging,
  *         onLoadMore = viewModel::loadNextPage,
  *         onRetry = viewModel::loadNextPage,
  *     )

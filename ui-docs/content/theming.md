@@ -79,7 +79,7 @@ ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 > A nested `KontourTheme` does **not** inherit. Every parameter it is not given
 > re-runs its *default*, and those defaults read the platform rather than the
 > theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
-> = true) { … } }` puts all 47 strings back into English, resets
+> = true) { … } }` puts every string back into English, resets
 > `HapticsLevel.Off` to `Standard`, and discards a custom `spacing`, `sizing` or
 > `motion` on the way. Nothing errors. Nothing looks wrong until somebody reads
 > the German build.

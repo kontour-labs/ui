@@ -478,6 +478,7 @@ internal val LocalOverlayLeaving = compositionLocalOf<() -> Boolean> { { false }
 internal fun topDimmedEntry(stack: List<OverlayEntry>): OverlayEntry? =
     stack.lastOrNull { it.scrim == ScrimStyle.Dimmed }
 
+/** Remembers an [OverlayHostState], the stack an [OverlayHost] draws. */
 @Composable
 fun rememberOverlayHostState(): OverlayHostState = remember { OverlayHostState() }
 

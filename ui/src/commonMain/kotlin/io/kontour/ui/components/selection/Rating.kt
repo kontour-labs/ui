@@ -413,6 +413,7 @@ data class RatingColours(
     val emptyDisabled: Color,
 )
 
+/** What a [Rating] takes by default. */
 object RatingDefaults {
     /** Five, which is what a rating means to almost everybody. */
     const val Count: Int = 5

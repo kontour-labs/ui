@@ -132,6 +132,7 @@ data class TableColours(
     val headerLine: Color,
 )
 
+/** What a [Table] takes by default. */
 object TableDefaults {
     /** Clear on the page, with the list rows' sunken ground for stripes and their accent for selection. */
     @Composable

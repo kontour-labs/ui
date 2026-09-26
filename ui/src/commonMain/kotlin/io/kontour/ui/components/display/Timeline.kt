@@ -111,6 +111,11 @@ data class TimelineColours(
     val progress: Color,
 )
 
+/**
+ * The geometry the timeline family shares — [Timeline], [HorizontalTimeline],
+ * [TimelineList] and [BranchTimeline] — so a rail drawn by one lines up with
+ * a rail drawn by another.
+ */
 object TimelineDefaults {
     /** The theme's accent for nodes and progress, a strong outline for the rail. */
     @Composable

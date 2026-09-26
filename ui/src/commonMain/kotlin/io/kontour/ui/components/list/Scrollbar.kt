@@ -63,6 +63,7 @@ internal data class ScrollbarGeometry(
     val isUseful: Boolean get() = fraction < 1f && fraction > 0f
 }
 
+/** What a [Scrollbar] takes by default. */
 object ScrollbarDefaults {
     val Thickness: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.scrollbarThickness

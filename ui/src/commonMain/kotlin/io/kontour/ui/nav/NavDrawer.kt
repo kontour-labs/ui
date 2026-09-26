@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import io.kontour.ui.foundation.LocalContentColour
 
+/** What a [NavDrawer] takes by default. */
 object NavDrawerDefaults {
     val Width: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navDrawerWidth
@@ -466,7 +467,7 @@ fun NavDrawerItem(
  * NavDrawerGroup(
  *     expanded = open,
  *     onExpandedChange = { open = it },
- *     label = { +"Content" },
+ *     header = { +"Content" },
  *     icon = Tabler.Outline.Folder,
  * ) {
  *     NavDrawerItem(here == Routes, ::goRoutes, key = Routes, nestLevel = 1) { +"Routes" }

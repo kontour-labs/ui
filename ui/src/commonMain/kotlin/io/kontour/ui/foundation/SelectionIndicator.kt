@@ -268,6 +268,7 @@ class SelectionIndicatorState internal constructor() {
  */
 internal val LocalSelectionIndicatorLeaving = compositionLocalOf { false }
 
+/** Remembers a [SelectionIndicatorState] for one group of selectable items. */
 @Composable
 fun rememberSelectionIndicatorState(): SelectionIndicatorState =
     remember { SelectionIndicatorState() }

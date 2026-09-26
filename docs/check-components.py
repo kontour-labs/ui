@@ -1008,7 +1008,13 @@ def ungated_transforms() -> list[str]:
 # the floor is not zero: `ScrollbarDefaults` returns a fallback `0.dp` from a
 # `remember` and `TextFieldDefaults` fades a container by `0.5f`, and neither is
 # a dial anybody wants.
-MAX_DEFAULTS_LITERALS = 77
+#
+# **99**, up from 77, and not because anything was added. The API pass moved the
+# numbers that were written straight into signatures — a wheel's five rows, a
+# popover's 320dp, a text area's three to eight lines, the durations that became
+# `Duration`s — into Defaults objects a caller can read them from, and this
+# count had never seen them where they were. The same numbers, now counted.
+MAX_DEFAULTS_LITERALS = 99
 
 # Every field on `ComponentDefaults` is read by something.
 #
