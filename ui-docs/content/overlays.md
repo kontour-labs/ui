@@ -528,7 +528,7 @@ a panel with a torn corner. Arrow-bearing panels lean on the shadow instead.
 | A list of actions, on secondary click or long press | `ContextMenuArea` |
 | Arbitrary content attached to a control | `Popover` |
 | A decision that must be made before anything else | `Dialog` / `AlertDialog` |
-| A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
+| A decision, awaited from a coroutine | `ConfirmHostState.confirm()` |
 | The name of a control the user is pointing at | `Modifier.tooltip` |
 | A feature the user has not discovered | `Modifier.coachmark` |
 | Confirmation of something the user just did | `Toast` |

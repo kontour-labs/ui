@@ -640,7 +640,7 @@ private fun Modifier.offsetY(y: Density.() -> Float): Modifier =
  */
 @Composable
 fun LoadMore(
-    state: LoadMoreState,
+    status: LoadMoreStatus,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     onRetry: () -> Unit = onLoadMore,
@@ -651,19 +651,19 @@ fun LoadMore(
 ) {
     val load by rememberUpdatedState(onLoadMore)
 
-    LaunchedEffect(state) {
-        if (state == LoadMoreState.Idle) load()
+    LaunchedEffect(status) {
+        if (status == LoadMoreStatus.Idle) load()
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // Polite, and for the state changes rather than for the spinner.
+            // Polite, and for the status changes rather than for the spinner.
             //
             // This is the foot of an infinite list: the user scrolls, something
             // loads, and either more rows arrive or it fails. Without a live
             // region none of that is announced — the failure in particular, which
-            // is the state a user on a train actually meets and the one where the
+            // is the status a user on a train actually meets and the one where the
             // retry button they need has appeared silently below them.
             //
             // `PullToRefresh` above has had one since it was written; this half
@@ -672,13 +672,13 @@ fun LoadMore(
             .padding(Theme.spacing.md),
         contentAlignment = Alignment.Center,
     ) {
-        when (state) {
-            LoadMoreState.Idle, LoadMoreState.Loading -> Spinner(
+        when (status) {
+            LoadMoreStatus.Idle, LoadMoreStatus.Loading -> Spinner(
                 size = Theme.sizing.iconLarge,
                 contentDescription = loadingLabel,
             )
 
-            LoadMoreState.Error -> Column(
+            LoadMoreStatus.Error -> Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             ) {
@@ -690,7 +690,7 @@ fun LoadMore(
                 Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
             }
 
-            LoadMoreState.End -> if (endLabel != null) {
+            LoadMoreStatus.End -> if (endLabel != null) {
                 Text(
                     text = endLabel,
                     style = Theme.typography.bodySmall,
@@ -702,7 +702,7 @@ fun LoadMore(
 }
 
 /** What [LoadMore] should be doing. */
-enum class LoadMoreState {
+enum class LoadMoreStatus {
     /** Not started. Coming into view triggers a load. */
     Idle,
 

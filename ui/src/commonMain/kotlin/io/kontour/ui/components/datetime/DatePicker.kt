@@ -298,8 +298,8 @@ class CalendarNavigationState internal constructor(initial: LocalDate) {
 }
 
 @Composable
-fun rememberCalendarNavigationState(initial: LocalDate): CalendarNavigationState {
-    val epochDay = rememberSaveable(initial) { initial.toEpochDays() }
+fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationState {
+    val epochDay = rememberSaveable(initialDate) { initialDate.toEpochDays() }
     return remember(epochDay) { CalendarNavigationState(LocalDate.fromEpochDays(epochDay)) }
 }
 

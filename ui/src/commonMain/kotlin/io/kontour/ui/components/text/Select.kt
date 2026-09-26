@@ -54,16 +54,18 @@ import io.kontour.ui.interaction.rememberToggleFeedback
  * parameter can be ignored.
  */
 @Stable
-class SelectState internal constructor(initiallyExpanded: Boolean) {
-    var expanded: Boolean by mutableStateOf(initiallyExpanded)
+class SelectState internal constructor(initialExpanded: Boolean) {
+    /** Whether the options are showing. Changed through [expand] and [collapse]. */
+    var expanded: Boolean by mutableStateOf(initialExpanded)
+        private set
 
     fun expand() { expanded = true }
     fun collapse() { expanded = false }
 }
 
 @Composable
-fun rememberSelectState(initiallyExpanded: Boolean = false): SelectState =
-    remember { SelectState(initiallyExpanded) }
+fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
+    remember { SelectState(initialExpanded) }
 
 /**
  * Picks one of a fixed set of options.
@@ -405,7 +407,7 @@ private fun SelectFrame(
 
     fun setExpanded(open: Boolean) {
         if (state.expanded == open) return
-        state.expanded = open
+        if (open) state.expand() else state.collapse()
         onOpenChange(open)
     }
 

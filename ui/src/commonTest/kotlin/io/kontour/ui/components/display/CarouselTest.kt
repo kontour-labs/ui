@@ -59,7 +59,7 @@ class CarouselTest {
                     state = carousel,
                     modifier = Modifier.testTag("dots"),
                     onPageClick = onPageClick?.let { select ->
-                        { page -> scope.launch { carousel.scrollToPage(page) }; select(page) }
+                        { page -> scope.launch { carousel.animateScrollToPage(page) }; select(page) }
                     },
                 )
             }

@@ -34,7 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
-import io.kontour.ui.components.list.LoadMoreState
+import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.fadingEdges
@@ -162,14 +162,14 @@ fun SettingRowBasics() {
 
 @Composable
 fun LoadMoreBasics() {
-    var state by remember { mutableStateOf(LoadMoreState.Idle) }
+    var status by remember { mutableStateOf(LoadMoreStatus.Idle) }
 
     // One component for all four states — idle, loading, failed and the end of
     // the list. The failure is the one that gets skipped when a screen rolls its
     // own, and it is the one a user on a train actually meets.
     LoadMore(
-        state = state,
-        onLoadMore = { state = LoadMoreState.Loading },
+        status = status,
+        onLoadMore = { status = LoadMoreStatus.Loading },
         errorMessage = "Couldn't load more departures",
         endLabel = "That's everything",
     )

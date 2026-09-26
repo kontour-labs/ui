@@ -6,14 +6,14 @@ exhausted. Four states rather than a spinner, because "there is no more" and
 
 <!--sample:LoadMoreBasics-->
 ```kotlin
-var state by remember { mutableStateOf(LoadMoreState.Idle) }
+var status by remember { mutableStateOf(LoadMoreStatus.Idle) }
 
 // One component for all four states — idle, loading, failed and the end of
 // the list. The failure is the one that gets skipped when a screen rolls its
 // own, and it is the one a user on a train actually meets.
 LoadMore(
-    state = state,
-    onLoadMore = { state = LoadMoreState.Loading },
+    status = status,
+    onLoadMore = { status = LoadMoreStatus.Loading },
     errorMessage = "Couldn't load more departures",
     endLabel = "That's everything",
 )

@@ -558,7 +558,7 @@ class CarouselHeroTest {
         Scene(width = Width, height = 160, density = 1f, reduceMotion = reduceMotion) {
             val carousel = rememberCarouselState { Pages.size }
             state = carousel
-            LaunchedEffect(target) { if (target >= 0) carousel.scrollToPage(target) }
+            LaunchedEffect(target) { if (target >= 0) carousel.animateScrollToPage(target) }
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 Carousel(
                     state = carousel,

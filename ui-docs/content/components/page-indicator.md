@@ -14,7 +14,7 @@ val scope = rememberCoroutineScope()
 // stays the width of its own ink rather than 48dp per page.
 PageIndicator(
     state = carousel,
-    onPageClick = { page -> scope.launch { carousel.scrollToPage(page) } },
+    onPageClick = { page -> scope.launch { carousel.animateScrollToPage(page) } },
 )
 ```
 

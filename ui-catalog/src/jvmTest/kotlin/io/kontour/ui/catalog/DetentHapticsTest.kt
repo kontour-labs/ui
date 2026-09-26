@@ -1399,7 +1399,7 @@ class DetentHapticsTest {
             Recording(inCode) {
                 val carousel = rememberCarouselState(pageCount = { 5 })
                 androidx.compose.runtime.LaunchedEffect(target) {
-                    carousel.scrollToPage(target)
+                    carousel.animateScrollToPage(target)
                 }
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     Carousel(

@@ -365,7 +365,7 @@ fun AlertDialog(
  * A confirmation you can `await`.
  *
  * ```
- * val confirmations = rememberConfirmationController()
+ * val confirmations = rememberConfirmHostState()
  * ConfirmHost(confirmations)
  *
  * // anywhere with a coroutine scope:
@@ -377,12 +377,14 @@ fun AlertDialog(
  * The imperative shape matters more than it looks. A caller that has to hoist a
  * `showingDialog` flag, render a dialog, and thread the result back through a
  * callback ends up scattering one decision across three places. Suspending until
- * the user answers keeps it in one expression — which is the ergonomics
- * `admin/src/lib/modal.svelte.ts` already provides on the web, where it returns
- * a promise.
+ * the user answers keeps it in one expression, the way a promise-returning
+ * confirm does on the web.
+ *
+ * Named as the other hosts' states are — `ToastHostState`, `OverlayHostState` —
+ * and dismissed the same way.
  */
 @Stable
-class ConfirmationController {
+class ConfirmHostState internal constructor() {
     internal var pending: PendingConfirmation? by mutableStateOf(null)
         private set
 
@@ -432,18 +434,27 @@ class ConfirmationController {
         }
     }
 
+    /**
+     * Answers whatever is being asked with "no", as the user would by cancelling.
+     * Nothing happens if nothing is being asked.
+     */
+    fun dismiss() {
+        answer(false)
+    }
+
     internal fun answer(value: Boolean) {
         pending?.result?.complete(value)
     }
 }
 
+/** Remembers a [ConfirmHostState], to hand to one [ConfirmHost] and to `confirm` on. */
 @Composable
-fun rememberConfirmationController(): ConfirmationController = remember { ConfirmationController() }
+fun rememberConfirmHostState(): ConfirmHostState = remember { ConfirmHostState() }
 
-/** Renders whatever [controller] is currently asking. Install once, near the root. */
+/** Renders whatever [state] is currently asking. Install once, near the root. */
 @Composable
-fun ConfirmHost(controller: ConfirmationController) {
-    val pending = controller.pending
+fun ConfirmHost(state: ConfirmHostState, modifier: Modifier = Modifier) {
+    val pending = state.pending
 
     // Each question its own, so a destructive one asked straight after another
     // — in a dialog that never closed between them — still warns.
@@ -453,8 +464,9 @@ fun ConfirmHost(controller: ConfirmationController) {
             confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
             cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
             destructive = pending?.destructive == true,
-            onConfirm = { controller.answer(true) },
-            onDismissRequest = { controller.answer(false) },
+            onConfirm = { state.answer(true) },
+            onDismissRequest = { state.answer(false) },
+            modifier = modifier,
         ) {
             +pending?.title.orEmpty()
             pending?.message?.let { text -> message { +text } }

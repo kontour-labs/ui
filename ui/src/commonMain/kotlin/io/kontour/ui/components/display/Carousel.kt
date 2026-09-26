@@ -131,7 +131,7 @@ object CarouselDefaults {
 @Stable
 class CarouselState internal constructor(
     val listState: LazyListState,
-    private val pageCount: () -> Int,
+    private val pageCountOf: () -> Int,
 ) {
     /**
      * The page currently settled, or the one a drag is closest to.
@@ -171,8 +171,9 @@ class CarouselState internal constructor(
         if (pitch <= 0f) first.index.toFloat() else first.index + (-first.offset) / pitch
     }
 
-    val count: Int
-        get() = pageCount().also {
+    /** How many pages there are, from the lambda [rememberCarouselState] was given. */
+    val pageCount: Int
+        get() = pageCountOf().also {
             // Checked here rather than at each reader, because both `Carousel`
             // and `PageIndicator` take the count from this one property and one
             // of them sizes a `FloatArray` with it — so a negative count reached
@@ -185,8 +186,14 @@ class CarouselState internal constructor(
             }
         }
 
+    /** Moves to [page] at once, clamped to the pages there are. */
     suspend fun scrollToPage(page: Int) {
-        listState.animateScrollToItem(page.coerceIn(0, (count - 1).coerceAtLeast(0)))
+        listState.scrollToItem(page.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
+    }
+
+    /** Slides to [page], clamped to the pages there are. What a dot or an arrow does. */
+    suspend fun animateScrollToPage(page: Int) {
+        listState.animateScrollToItem(page.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
     }
 }
 
@@ -205,7 +212,7 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * Carousel(carousel, contentDescription = "Stop photos") { page ->
  *     AspectRatioBox(16f / 9f) { Image(photos[page]) }
  * }
- * PageIndicator(carousel, onPageClick = { carousel.scrollToPage(it) })
+ * PageIndicator(carousel, onPageClick = { carousel.animateScrollToPage(it) })
  * ```
  *
  * ### The swipe is a shortcut, not the route
@@ -273,7 +280,7 @@ fun Carousel(
     content: @Composable (page: Int) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val count = state.count
+    val count = state.pageCount
     val current = state.currentPage
     val position = Theme.strings.itemOfCount(current, count)
     val direction = LocalLayoutDirection.current
@@ -408,7 +415,7 @@ fun Carousel(
                         // `currentPage` is the page nearest the viewport centre,
                         // so this settles on whichever one the drag left showing
                         // — the same answer the fling behaviour would give.
-                        onDragStopped = { scope.launch { state.scrollToPage(state.currentPage) } },
+                        onDragStopped = { scope.launch { state.animateScrollToPage(state.currentPage) } },
                     )
                 } else {
                     Modifier
@@ -421,7 +428,7 @@ fun Carousel(
                 customActions = listOf(
                     CustomAccessibilityAction(previousLabel) {
                         if (current > 0) {
-                            scope.launch { state.scrollToPage(current - 1) }
+                            scope.launch { state.animateScrollToPage(current - 1) }
                             true
                         } else {
                             false
@@ -429,7 +436,7 @@ fun Carousel(
                     },
                     CustomAccessibilityAction(nextLabel) {
                         if (current < count - 1) {
-                            scope.launch { state.scrollToPage(current + 1) }
+                            scope.launch { state.animateScrollToPage(current + 1) }
                             true
                         } else {
                             false
@@ -720,7 +727,7 @@ private fun Modifier.heroPage(
  * Which page of how many, as a row of dots.
  *
  * ```kotlin
- * PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
+ * PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
  * ```
  *
  * **Pass `onPageClick` unless something else can change the page.** Without it
@@ -774,7 +781,7 @@ fun PageIndicator(
         return
     }
 
-    val count = state.count
+    val count = state.pageCount
     val current = state.currentPage
 
     Row(
@@ -834,7 +841,7 @@ private fun PageDots(
     inactiveColour: Color,
     label: (Int, Int) -> String,
 ) {
-    val count = state.count
+    val count = state.pageCount
     val current = state.currentPage
     // Both of the styles that draw a pill *over* the dots rather than widening
     // one of them. What separates them is only how long that pill is at rest.

@@ -36,7 +36,7 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
-import io.kontour.ui.components.list.LoadMoreState
+import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderHandleSide
 import io.kontour.ui.components.list.ReorderableItem
@@ -368,24 +368,24 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
 // Pressing it walks Idle → Loading → Error, which is the sequence worth
 // feeling; the knob is how a reader reaches `Done` and the end label without
 // having to guess that a fourth state exists.
-private val loadMoreState = Knob.Choice("State", LoadMoreState.entries.toList())
+private val loadMoreState = Knob.Choice("Status", LoadMoreStatus.entries.toList())
 
 internal val LoadMoreDemo = ComponentDemo(
     slug = "load-more",
     knobs = listOf(loadMoreState),
 ) {
     val picked = this[loadMoreState]
-    var state by remember { mutableStateOf(picked) }
-    LaunchedEffect(picked) { state = picked }
-    LaunchedEffect(state) {
-        if (state == LoadMoreState.Loading) {
+    var status by remember { mutableStateOf(picked) }
+    LaunchedEffect(picked) { status = picked }
+    LaunchedEffect(status) {
+        if (status == LoadMoreStatus.Loading) {
             delay(1_200)
-            state = LoadMoreState.Error
+            status = LoadMoreStatus.Error
         }
     }
     LoadMore(
-        state = state,
-        onLoadMore = { state = LoadMoreState.Loading },
+        status = status,
+        onLoadMore = { status = LoadMoreStatus.Loading },
         errorMessage = "Couldn't load more departures",
         modifier = Modifier.fillMaxWidth(),
     )

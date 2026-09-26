@@ -286,7 +286,7 @@ fun CarouselWithIndicator(photos: List<String>) {
     Carousel(carousel, contentDescription = "Stop photos") { page ->
         Text(photos[page])
     }
-    PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
+    PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
 }
 
 @Composable
@@ -561,7 +561,7 @@ fun PageIndicatorBasics() {
     // stays the width of its own ink rather than 48dp per page.
     PageIndicator(
         state = carousel,
-        onPageClick = { page -> scope.launch { carousel.scrollToPage(page) } },
+        onPageClick = { page -> scope.launch { carousel.animateScrollToPage(page) } },
     )
 }
 

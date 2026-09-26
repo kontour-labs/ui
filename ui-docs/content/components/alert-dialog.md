@@ -33,7 +33,7 @@ The neutral answer takes a line of its own instead — see
 [the overlay guide](../overlays.md#alert-dialogs-with-three-answers).
 
 Awaiting an answer from a coroutine rather than hoisting a `visible` flag is what
-`ConfirmationController.confirm()` is for.
+`ConfirmHostState.confirm()` is for.
 
 ---
 

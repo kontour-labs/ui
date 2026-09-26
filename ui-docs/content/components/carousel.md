@@ -12,7 +12,7 @@ val carousel = rememberCarouselState { photos.size }
 Carousel(carousel, contentDescription = "Stop photos") { page ->
     Text(photos[page])
 }
-PageIndicator(carousel, onPageClick = { scope.launch { carousel.scrollToPage(it) } })
+PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
 ```
 
 It snaps. A carousel that stops between two pages is showing neither, and the

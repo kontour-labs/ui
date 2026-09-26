@@ -743,7 +743,7 @@ internal val CarouselDemo = ComponentDemo(
         // asking for frames, all four dots read as wired to nothing.
         onPageClick = { page ->
             echo("Page ${page + 1}")
-            scope.launch { carousel.scrollToPage(page) }
+            scope.launch { carousel.animateScrollToPage(page) }
         },
         )
     }
@@ -767,7 +767,7 @@ internal val PageIndicatorDemo = ComponentDemo(
         // asking for frames, all four dots read as wired to nothing.
         onPageClick = { page ->
             echo("Page ${page + 1}")
-            scope.launch { carousel.scrollToPage(page) }
+            scope.launch { carousel.animateScrollToPage(page) }
         },
     )
 }
