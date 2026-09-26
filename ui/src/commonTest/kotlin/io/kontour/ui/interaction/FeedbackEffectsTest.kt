@@ -22,6 +22,7 @@ class FeedbackEffectsTest {
                 FeedbackIntent.Selection to HapticEffect.Selection(fine = false),
                 FeedbackIntent.Tap to HapticEffect.Impact(ImpactStyle.Light),
                 FeedbackIntent.Tick to HapticEffect.Selection(fine = true),
+                FeedbackIntent.Scrub to HapticEffect.LowTick(strength = 0.6f),
                 FeedbackIntent.Snap to HapticEffect.Selection(fine = false),
                 FeedbackIntent.ToggleOn to HapticEffect.Toggle(on = true),
                 FeedbackIntent.ToggleOff to HapticEffect.Toggle(on = false),
@@ -32,6 +33,7 @@ class FeedbackEffectsTest {
                 FeedbackIntent.DragThreshold to HapticEffect.Threshold(activate = true),
                 FeedbackIntent.DragThresholdBack to HapticEffect.Threshold(activate = false),
                 FeedbackIntent.Limit to HapticEffect.Thud(strength = 0.6f),
+                FeedbackIntent.Bump to HapticEffect.Impact(ImpactStyle.Soft, strength = 0.7f),
                 FeedbackIntent.Hold to HapticEffect.Selection(fine = true, strength = 0.4f),
                 FeedbackIntent.GestureEnd to HapticEffect.Impact(ImpactStyle.Soft, strength = 0.6f),
                 FeedbackIntent.KeyPress to HapticEffect.KeyPress(),
@@ -48,6 +50,19 @@ class FeedbackEffectsTest {
     @Test
     fun aWarningIsNotARefusal() {
         assertTrue(FeedbackIntent.Warn.defaultEffect != FeedbackIntent.Reject.defaultEffect)
+    }
+
+    /**
+     * Two thumbs meeting is lighter than a wall, and a texture's grain at its
+     * firmest is lighter than both: the three can arrive in one drag.
+     */
+    @Test
+    fun aGrainIsUnderABumpAndABumpIsUnderAWall() {
+        val grain = FeedbackIntent.Scrub.defaultEffect.strength
+        val bump = FeedbackIntent.Bump.defaultEffect.strength
+        assertTrue(grain < bump, "a texture as loud as a collision hides it")
+        assertTrue(FeedbackIntent.Bump.defaultEffect is HapticEffect.Impact)
+        assertTrue(FeedbackIntent.Limit.defaultEffect is HapticEffect.Thud)
     }
 
     /** Only a hold has a rumble; it starts faint, builds, and never gets past a half. */

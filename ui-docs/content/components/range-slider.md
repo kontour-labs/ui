@@ -41,7 +41,9 @@ moment the user is asking for the narrowest range there is and breaks the one
 promise a drag makes — that the thing under your finger goes where your finger
 goes. The range still never *swaps*: a range that inverts under the finger is one
 the user has to drag twice to fix. The pushed thumb lags a little and stretches
-while it lags, so being shoved looks like being shoved.
+while it lags, so being shoved looks like being shoved — and the moment the two
+meet is felt, as a soft knock lighter than an end stop, once per meeting: shoving
+on is the same meeting, and parting and meeting again is another.
 
 **A shoved thumb stays shoved.** Reverse the drag and it holds its ground while
 the thumb that pushed it comes back — the two separate from the moment the finger

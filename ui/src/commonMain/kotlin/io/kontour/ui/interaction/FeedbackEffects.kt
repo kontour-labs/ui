@@ -25,6 +25,9 @@ val FeedbackIntent.defaultEffect: HapticEffect
         // The texture of a detent going past: the lightest selection tick, which
         // Android plays as its frequent-segment tick and iOS as its picker's.
         FeedbackIntent.Tick -> HapticEffect.Selection(fine = true)
+        // A continuous drag's grain: the deep, soft tick, at most at this and
+        // scaled down with the drag's speed as it is performed.
+        FeedbackIntent.Scrub -> HapticEffect.LowTick(strength = 0.6f)
         // A resting place passed: the coarse selection step, a notch firmer.
         FeedbackIntent.Snap -> HapticEffect.Selection(fine = false)
         // A control answering a press — a light impact, a step above a detent.
@@ -38,6 +41,8 @@ val FeedbackIntent.defaultEffect: HapticEffect
         FeedbackIntent.DragThresholdBack -> HapticEffect.Threshold(activate = false)
         // An end stop: a dull knock, not a click.
         FeedbackIntent.Limit -> HapticEffect.Thud(strength = 0.6f)
+        // Two thumbs meeting: a soft knock, a good deal lighter than a wall.
+        FeedbackIntent.Bump -> HapticEffect.Impact(ImpactStyle.Soft, strength = 0.7f)
         FeedbackIntent.LongPress -> HapticEffect.LongPress()
         FeedbackIntent.Confirm -> HapticEffect.Notification(NotificationType.Success)
         FeedbackIntent.Reject -> HapticEffect.Notification(NotificationType.Error)

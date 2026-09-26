@@ -175,9 +175,17 @@ private class AndroidHaptics(
                 val plan = androidPrimitivePlan(effect)
                 vibrateAround(estimateMillis(plan)) { composition(plan)?.let(::vibrate) }
             }
-            AndroidTier.ViewConstants -> perform(androidConstant(effect, sdk))
-            AndroidTier.Predefined -> vibrateAround(PredefinedMillis) { vibrate(predefined(androidConstant(effect, sdk))) }
+            AndroidTier.ViewConstants -> playConstants(effect) { perform(it) }
+            AndroidTier.Predefined -> playConstants(effect) { vibrateAround(PredefinedMillis) { vibrate(predefined(it)) } }
             AndroidTier.None -> Unit
+        }
+    }
+
+    /** [effect]'s constants: the first now, any after it on the main looper at their time. */
+    private inline fun playConstants(effect: HapticEffect, crossinline play: (AndroidConstant) -> Unit) {
+        val now = SystemClock.uptimeMillis()
+        androidConstantPlan(effect, sdk).forEach { (at, constant) ->
+            if (at == 0) play(constant) else handler.postAtTime({ play(constant) }, token, now + at)
         }
     }
 

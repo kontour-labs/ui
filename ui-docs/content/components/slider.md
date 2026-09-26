@@ -23,7 +23,8 @@ is round again the moment nothing is straining it, and a continuous drag keeps
 it round throughout, because a thumb pinned to the finger is not straining
 against anything. Each step crossed on a stepped slider fires a tick haptic, so a
 user changing a value without looking can feel the detents — which is most of the
-point of having steps.
+point of having steps. A continuous slider has a texture instead: faint grains as
+it moves, closer and firmer the faster it goes, and nothing while it is still.
 
 **The marks are opt-in.** `steps` no longer draws them; `showTicks` does. A row
 of marks turns a slider into a diagram of its own implementation, and on a short
@@ -107,7 +108,8 @@ sit beside a number that already says what they are set to. `RangeSlider` takes
 the same, over whichever thumb the finger has.
 
 **Running into either end of the range is reported once**, as a haptic, for as
-long as the finger stays against it; backing off and pushing again reports again.
+long as the finger stays against it — trembling there included; backing off
+properly and pushing again reports again.
 It is the one report a thumb under a finger cannot make for itself.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,

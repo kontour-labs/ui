@@ -280,6 +280,26 @@ class Scene(
         )
     }
 
+    /**
+     * A trackpad's two-finger pan at [at]: [PointerEventType.PanStart], a
+     * [PointerEventType.PanMove] by [offset] pixels, or [PointerEventType.PanEnd].
+     *
+     * What a Mac's trackpad arrives as in Compose, rather than a scroll — pixels
+     * that follow the fingers. The same opt-in as [touch], for the same reason.
+     */
+    @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
+    fun pan(type: PointerEventType, at: Offset, offset: Offset = Offset.Zero) {
+        nanos += FrameNanos
+        scene.sendPointerEvent(
+            eventType = type,
+            pointers = listOf(
+                ComposeScenePointer(id = PointerId(0), position = at, pressed = false, type = PointerType.Mouse),
+            ),
+            timeMillis = nanos / 1_000_000L,
+            panGestureOffset = offset,
+        )
+    }
+
     private fun send(type: PointerEventType, at: Offset, pointer: PointerType) {
         scene.sendPointerEvent(
             eventType = type,

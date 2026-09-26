@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import io.kontour.haptics.Haptics
+import io.kontour.haptics.scaled
 
 /**
  * What just happened, from the user's point of view.
@@ -58,6 +59,20 @@ enum class FeedbackIntent {
      * could not otherwise tell. The doc was the thing that was wrong.
      */
     Tick,
+
+    /**
+     * A control without steps is being dragged: a slider or a knob moving
+     * continuously under a finger.
+     *
+     * A texture rather than a detent — there is nothing to cross, so what it
+     * reports is the movement itself: faint grains a little way apart, closer and
+     * firmer the faster the value is moving, and nothing while it is still. Each
+     * grain is performed at a strength of its own
+     * ([FeedbackDispatcher.perform] with a strength), which is how the speed
+     * reaches the hand. Rate-limited with [Tick], and dropped under
+     * [HapticsLevel.Reduced], with the rest of the running commentary.
+     */
+    Scrub,
 
     /**
      * A drag passed a place the thing will come to rest: a sheet's detent, a
@@ -133,6 +148,18 @@ enum class FeedbackIntent {
      * is not a choice.
      */
     Limit,
+
+    /**
+     * Two parts of one control met: a range slider's thumb brought up against
+     * the other one.
+     *
+     * Lighter than a [Limit], because it is not a wall — the other thumb gives,
+     * and is shoved along — but a meeting the hand should feel happen, once, and
+     * not again until the two have come apart. Not rate-limited, so the step
+     * that brought them together cannot swallow it; dropped under
+     * [HapticsLevel.Reduced], where the shove on screen is the report.
+     */
+    Bump,
 
     /**
      * A hold is under way: keep holding and something will happen.
@@ -230,6 +257,8 @@ enum class FeedbackFeel {
 val FeedbackIntent.feel: FeedbackFeel
     get() = when (this) {
         FeedbackIntent.Tick -> FeedbackFeel.Light
+        FeedbackIntent.Scrub -> FeedbackFeel.Light
+        FeedbackIntent.Bump -> FeedbackFeel.Light
         // Neither is performed anywhere in the library. Assigned anyway, because
         // an intent without a feel is an intent a replacement dispatcher cannot
         // place — and because the `when` is exhaustive, which is what stops the
@@ -280,9 +309,10 @@ enum class HapticsLevel {
      * answered ([FeedbackIntent.Tap], [FeedbackIntent.ToggleOn],
      * [FeedbackIntent.ToggleOff]), a detent or a resting place going past
      * ([FeedbackIntent.Tick], [FeedbackIntent.Snap], [FeedbackIntent.Selection]),
-     * a key, a hold's rumble, a drop settling ([FeedbackIntent.GestureEnd]) — are
-     * dropped, so a drag still reports arriving somewhere without buzzing the
-     * whole way there.
+     * a slider's texture ([FeedbackIntent.Scrub]), two thumbs meeting
+     * ([FeedbackIntent.Bump]), a key, a hold's rumble, a drop settling
+     * ([FeedbackIntent.GestureEnd]) — are dropped, so a drag still reports
+     * arriving somewhere without buzzing the whole way there.
      *
      * This was called `Essential` and is the same set, less the new
      * [FeedbackIntent.Tap].
@@ -312,11 +342,13 @@ enum class HapticsLevel {
             FeedbackIntent.ToggleOn,
             FeedbackIntent.ToggleOff,
             FeedbackIntent.Tick,
+            FeedbackIntent.Scrub,
             FeedbackIntent.Snap,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
             FeedbackIntent.Hold,
             FeedbackIntent.GestureEnd,
+            FeedbackIntent.Bump,
             -> false
 
             else -> true
@@ -334,6 +366,16 @@ enum class HapticsLevel {
 fun interface FeedbackDispatcher {
     /** Plays [intent] once. */
     fun perform(intent: FeedbackIntent)
+
+    /**
+     * Plays [intent] once at [strength] times its usual strength, 0 to 1 — a
+     * [FeedbackIntent.Scrub] grain, firmer the faster the drag.
+     *
+     * The default ignores the strength and performs it as usual, so a dispatcher
+     * written before this existed, and every one-line test lambda, still hears
+     * each grain.
+     */
+    fun perform(intent: FeedbackIntent, strength: Float) = perform(intent)
 
     /**
      * Starts [intent] as feedback that lasts — a hold's rumble — and returns the
@@ -416,6 +458,10 @@ private class DefaultFeedbackDispatcher(
 
     override fun perform(intent: FeedbackIntent) {
         if (level.allows(intent)) player.play(intent.defaultEffect)
+    }
+
+    override fun perform(intent: FeedbackIntent, strength: Float) {
+        if (level.allows(intent)) player.play(intent.defaultEffect.scaled(strength.coerceIn(0f, 1f)))
     }
 
     override fun sustain(intent: FeedbackIntent): SustainedFeedback {

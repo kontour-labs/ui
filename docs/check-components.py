@@ -648,7 +648,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 10
+MAX_HAPTIC_SITES = 11
 
 
 # A perform, or a sustain — a hold's rumble is feedback too, and the one place
@@ -679,6 +679,12 @@ def haptic_sites() -> list[str]:
     and off feel different, and `SwipeActions` confirming a full swipe as its
     tick completes — and took two away, by moving `PullToRefresh` and a
     reorder's crossings onto the shared ticker. Ten, still.
+
+    It went 10 to 11 for a slider's texture, asked for from a phone: a slider or
+    knob without steps "should have some feedback, proportional to how fast it's
+    moving". `DragTexture` performs each grain at a strength of its own, which
+    no ticker can, so it is a call site — one, in `Detents.kt`, shared by every
+    continuous slider, range slider, knob and colour track rather than one each.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
@@ -715,6 +721,7 @@ HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 # A component that fires, either directly or through the shared ticker.
 PERFORMS = re.compile(
     r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
+    r"|\brememberDragTexture\(|\brememberEndStopLatch\("
 )
 
 # Two files whose component is not their filename. Written out rather than

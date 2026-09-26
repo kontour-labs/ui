@@ -78,8 +78,10 @@ its step rather than appearing there. It used to go from step to step in a frame
 *"can we add the detent-like behaviour that the slider has, so it animates in
 stepped mode?"*. Under reduced motion it sits on its step.
 
-**Felt as well as seen.** A tick per step passed, turned or spinning, and one
-report on running into either end — the same end stop every slider has.
+**Felt as well as seen.** A tick per step passed, turned or spinning — or,
+without steps, a slider's texture, firmer the faster it turns and fading as a spin
+slows — and one report on running into either end, the same end stop every slider
+has.
 
 The drag belongs to the round face and track. A finger landing in the square's
 corners is the page's, so a knob in a scrolling column does not stop it scrolling.

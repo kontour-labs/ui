@@ -237,4 +237,33 @@ class PlatformTablesTest {
         assertEquals(2, macPlan(HapticEffect.Notification(NotificationType.Success)).size, "success is two taps")
         assertTrue(macPulseMillis(1f) < macPulseMillis(0f))
     }
+
+    // --- a warning ---------------------------------------------------------------
+
+    /**
+     * Two knocks, the second one felt: reported from a phone as needing "a more
+     * distinct second click", when it was a tick at half strength 115ms after a
+     * click and the pair landed as one.
+     */
+    @Test
+    fun aWarningsSecondKnockIsAClickWellClearOfTheFirst() {
+        val warning = HapticEffect.Notification(NotificationType.Warning)
+        val primitives = androidPrimitivePlan(warning)
+        assertEquals(listOf(PrimitiveKind.Click, PrimitiveKind.Click), primitives.map { it.kind })
+        assertTrue(primitives[1].scale >= 0.7f, "the second knock is a ghost: $primitives")
+        assertEquals(WarningGapMillis, primitives[1].startMillis)
+
+        for (sdk in listOf(29, 30, 34)) {
+            val constants = androidConstantPlan(warning, sdk)
+            assertEquals(listOf(0, WarningGapMillis), constants.map { it.first }, "on $sdk")
+        }
+        assertEquals(listOf(0 to androidConstant(HapticEffect.Tick(), 34)), androidConstantPlan(HapticEffect.Tick(), 34))
+
+        val web = webPattern(warning)
+        assertEquals(3, web.size)
+        assertEquals(WarningGapMillis, web[0] + web[1])
+        assertTrue(web[2] >= 20, "the second vibration is too short to feel: ${web.toList()}")
+
+        assertEquals(listOf(0, WarningGapMillis), macPlan(warning).map { it.first })
+    }
 }

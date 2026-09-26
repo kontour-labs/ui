@@ -40,6 +40,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.theme.Theme
@@ -283,8 +284,14 @@ fun Slider(
     // against the wall already says so. That lost to use: asked for as "a haptic
     // in standard mode to all sliders that fires when you hit the end stop". The
     // thumb is under the finger that is pushing it. Latched on the wall — see
-    // `EndStopLatch` — so holding against it is one report, not a buzz.
+    // `EndStopLatch` — so holding against it is one report, not a buzz, and a
+    // finger trembling at the wall is not a second push.
     val endStop = rememberEndStopLatch()
+
+    // Without steps there is nothing to cross, and the drag was silent from one
+    // end to the other. The texture is the feel of it moving, closer and firmer
+    // the faster it goes — see `DragTexture`. A stepped slider has its detents.
+    val texture = rememberDragTexture()
 
     // Read here rather than inside `drawWithCache`, which is not a composable.
     val tickSize = Theme.componentDefaults.sliderTickSize
@@ -566,9 +573,10 @@ fun Slider(
                         // the track has to answer before anything is pulled, or
                         // the last pixel of the slider stops reporting.
                         emit(dragFraction)
+                        if (steps <= 0) texture.at(dragFraction)
                         // On the unclamped position, so it reports under reduced
                         // motion as well, where the band is switched off.
-                        endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
+                        endStop.at(raw)
                         if (!motion.reduceMotion) {
                             band.pull((raw - dragFraction) * widthPx, thumbSquashPx)
                         }
@@ -576,6 +584,7 @@ fun Slider(
                     onEnd = {
                         ticker.reset()
                         endStop.reset()
+                        texture.reset()
                         // **Slower than the stretch, and that is the whole
                         // fix.** The thumb's drawn width is
                         // `width·(1−pull) + 1.5r·pull`, so a squash that

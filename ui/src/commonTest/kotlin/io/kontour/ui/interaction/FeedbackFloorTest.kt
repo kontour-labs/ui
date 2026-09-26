@@ -148,5 +148,24 @@ class FeedbackFloorTest {
         assertTrue(floor.claim(FeedbackIntent.Snap), "a row's new slot was dropped")
         assertTrue(floor.claim(FeedbackIntent.DragThresholdBack), "a way back was dropped")
         assertTrue(floor.claim(FeedbackIntent.Limit), "an end stop was dropped")
+        assertTrue(floor.claim(FeedbackIntent.Bump), "two thumbs meeting was dropped")
+    }
+
+    /**
+     * A texture's grains may run closer than detents — that is how a fast drag
+     * feels fast — and are still thinned, and still thin what comes after them.
+     */
+    @Test
+    fun aGrainMayComeSoonerThanATickAndStillHoldsOneBack() {
+        val clock = TestTimeSource()
+        val floor = FeedbackFloor(clock)
+        assertTrue(floor.claim(FeedbackIntent.Scrub))
+        clock += 30.milliseconds
+        assertTrue(!floor.claim(FeedbackIntent.Scrub), "grains 30ms apart are a buzz")
+        clock += 25.milliseconds
+        assertTrue(floor.claim(FeedbackIntent.Scrub), "grains 55ms apart were held to a detent's gap")
+        clock += 55.milliseconds
+        assertTrue(!floor.claim(FeedbackIntent.Tick), "a tick 55ms after a grain is the same rattle")
+        assertTrue(floor.claim(FeedbackIntent.Bump))
     }
 }

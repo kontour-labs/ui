@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.foundation.Hsv
 import io.kontour.ui.foundation.toColour
@@ -553,14 +554,18 @@ private fun Track(
     var width by remember { mutableFloatStateOf(0f) }
     var at by remember { mutableFloatStateOf(0f) }
     // A track is a slider, and runs into its ends the way one does: once, as
-    // `Slider` reports it. See `EndStopLatch`.
+    // `Slider` reports it. See `EndStopLatch`. And it moves with a continuous
+    // slider's texture between them — see `DragTexture`.
     val endStop = rememberEndStopLatch()
+    val texture = rememberDragTexture()
 
     fun report(x: Float) {
         if (width <= 0f) return
         at = x
-        endStop.at(if (x > width) 1 else if (x < 0f) -1 else 0)
-        onFractionChange((x / width).coerceIn(0f, 1f))
+        endStop.at(x / width)
+        val fraction = (x / width).coerceIn(0f, 1f)
+        texture.at(fraction)
+        onFractionChange(fraction)
     }
 
     Canvas(
@@ -587,7 +592,10 @@ private fun Track(
                     report(it.x)
                 },
                 onDelta = { report(at + it) },
-                onEnd = { endStop.reset() },
+                onEnd = {
+                    endStop.reset()
+                    texture.reset()
+                },
             )
             .semantics {
                 contentDescription = label

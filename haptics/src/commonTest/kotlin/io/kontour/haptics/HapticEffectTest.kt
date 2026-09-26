@@ -28,6 +28,25 @@ class HapticEffectTest {
         assertTrue(HapticEffect.Click(0.002f).audible)
     }
 
+    /** Scaling changes the strength and nothing else, for every kind of effect. */
+    @Test
+    fun scalingKeepsTheEffectAndMultipliesItsStrength() {
+        val every = listOf(
+            HapticEffect.Tick(0.8f), HapticEffect.LowTick(0.8f), HapticEffect.Click(0.8f), HapticEffect.Thud(0.8f),
+            HapticEffect.Spin(0.8f), HapticEffect.QuickRise(0.8f), HapticEffect.SlowRise(0.8f), HapticEffect.QuickFall(0.8f),
+            HapticEffect.Selection(fine = true, strength = 0.8f), HapticEffect.Impact(ImpactStyle.Soft, 0.8f),
+            HapticEffect.Notification(NotificationType.Warning, 0.8f), HapticEffect.Toggle(on = false, strength = 0.8f),
+            HapticEffect.Threshold(activate = false, strength = 0.8f), HapticEffect.LongPress(0.8f), HapticEffect.KeyPress(0.8f),
+        )
+        for (effect in every) {
+            val half = effect.scaled(0.5f)
+            assertEquals(effect::class, half::class)
+            assertEquals(0.4f, half.strength, 1e-6f, "$effect")
+        }
+        assertEquals(HapticEffect.Selection(fine = true, strength = 0.4f), HapticEffect.Selection(fine = true, strength = 0.8f).scaled(0.5f))
+        assertEquals(1f, HapticEffect.Tick(1f).scaled(3f).level, "clamped when played, like any strength")
+    }
+
     @Test
     fun aPatternIsInTheOrderItsEventsStart() {
         val pattern = hapticPattern {

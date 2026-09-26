@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
 import io.kontour.haptics.HapticRecord
 import io.kontour.haptics.RecordingHaptics
+import io.kontour.haptics.scaled
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,6 +35,25 @@ class FeedbackWiringTest {
             records,
             "a wheel row and a switch answering a tap are supposed to arrive as " +
                 "different effects. Reported from a phone as everything feeling heavy.",
+        )
+    }
+
+    /**
+     * A grain of a slider's texture plays its effect at the strength of the
+     * moment, which is how the speed of the drag reaches the hand.
+     */
+    @Test
+    fun aStrengthScalesTheEffectItPlays() {
+        val records = played { feedback ->
+            feedback.perform(FeedbackIntent.Scrub, 0.5f)
+            feedback.perform(FeedbackIntent.Scrub, 1f)
+            feedback.perform(FeedbackIntent.Scrub, 7f)
+        }
+        val base = FeedbackIntent.Scrub.defaultEffect
+        assertEquals(
+            listOf(base.scaled(0.5f), base, base).map { HapticRecord.Played(it) },
+            records,
+            "a strength is 0 to 1 of the table's own, never more",
         )
     }
 

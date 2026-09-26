@@ -52,6 +52,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.Job
@@ -152,6 +153,9 @@ fun Knob(
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val ticker = rememberDetentTicker()
     val endStop = rememberEndStopLatch()
+    // A knob without steps turns with the slider's texture — see `DragTexture` —
+    // and so does its spin, which fades as it slows.
+    val texture = rememberDragTexture()
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
     // A band's gaps, and an unbanded scale, are the dial's own colour.
     val scaleDefault = Theme.colours.primary
@@ -174,6 +178,7 @@ fun Knob(
     fun emit(fraction: Float, fromHand: Boolean) {
         val landed = snapped(fraction.coerceIn(0f, 1f))
         if (steps > 0 && fromHand) ticker.at((landed * intervals).roundToInt())
+        if (steps == 0 && fromHand) texture.at(landed)
         currentOnValueChange(valueRange.start + span * landed)
     }
 
@@ -181,6 +186,7 @@ fun Knob(
         raw = Float.NaN
         ticker.reset()
         endStop.reset()
+        texture.reset()
         currentFinished?.invoke()
     }
 
@@ -295,7 +301,7 @@ fun Knob(
                     onDelta = { delta ->
                         val base = if (raw.isNaN()) fractionOf(value) else raw
                         raw = base + reader.move(delta)
-                        endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
+                        endStop.at(raw)
                         emit(raw, fromHand = true)
                     },
                     onRelease = { velocity ->
@@ -312,7 +318,7 @@ fun Knob(
                                     // The spin is the hand, for the lean.
                                     raw = at
                                     if (at >= 1f || at <= 0f) {
-                                        endStop.at(if (at >= 1f) 1 else -1)
+                                        endStop.reached(if (at >= 1f) 1 else -1)
                                         emit(at, fromHand = true)
                                         cancelAnimation()
                                     } else {

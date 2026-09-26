@@ -6,8 +6,11 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
 import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.time.ComparableTimeMark
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.DurationUnit
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -241,59 +244,242 @@ fun rememberHoldFeedback(intent: FeedbackIntent = FeedbackIntent.Hold): HoldFeed
 }
 
 /**
- * One report each time a drag runs into the end of a range, and none while it
- * stays there or backs off it.
+ * The feel of a control without steps moving under a finger: faint grains a
+ * little way apart, closer and firmer the faster it goes, and nothing while it
+ * is still.
+ *
+ * Asked for from a phone: dragging a slider or a knob "when it's not in step
+ * mode, it should have some feedback, proportional to how fast it's moving". A
+ * stepped control already has that — its detents go past faster the faster it
+ * moves — and a continuous one had nothing at all between its two ends.
+ *
+ * ### Proportional twice
+ *
+ * A grain is felt every [GrainSpacing] of the travel, so a drag twice as fast
+ * meets them twice as often, up to one every [MinimumGrainInterval]. Each grain
+ * is also performed at a strength that follows the speed, from [SlowestStrength]
+ * at a crawl to full at [FullSpeed] — so once the grains are as close as they
+ * may come, a faster drag is still a firmer one.
+ *
+ * The speed is the drag's own, measured here between calls and smoothed, so a
+ * caller hands over only where the control is. Hand it the *clamped* position:
+ * a drag pushing against an end is not moving, and the end stop has its own
+ * report.
+ *
+ * ```kotlin
+ * val texture = rememberDragTexture()
+ * // in the drag, for a control without steps:
+ * texture.at(fraction)
+ * // when the gesture ends:
+ * texture.reset()
+ * ```
+ */
+@Stable
+internal class DragTexture(
+    private val feedback: FeedbackDispatcher,
+    private val floor: FeedbackFloor,
+    private val clock: TimeSource.WithComparableMarks = TimeSource.Monotonic,
+) {
+    /** Where the last grain was felt; `NaN` between gestures. */
+    private var grain = Float.NaN
+    private var last = Float.NaN
+    private var lastAt: ComparableTimeMark? = null
+
+    /** Travel a second, smoothed. */
+    internal var speed = 0f
+        private set
+
+    /** Where the control is now, as a fraction of its travel. */
+    fun at(position: Float) {
+        val now = clock.markNow()
+        val then = lastAt
+        if (grain.isNaN() || then == null) {
+            grain = position
+            last = position
+            lastAt = now
+            speed = 0f
+            return
+        }
+        val seconds = (now - then).toDouble(DurationUnit.SECONDS).toFloat()
+        // Two events in one frame: keep the earlier mark, so the next measures
+        // both movements over the time they really took.
+        if (seconds >= MinimumSampleSeconds) {
+            val moving = abs(position - last) / seconds
+            val blend = 1f - exp(-seconds / SmoothingSeconds)
+            speed += (moving - speed) * blend
+            last = position
+            lastAt = now
+        }
+        if (abs(position - grain) < GrainSpacing) return
+        // `grain` moves only when one is felt: a grain the floor refused is
+        // owed, and comes on the next frame it may — which, at speed, is what
+        // keeps them as close as they are allowed to be.
+        if (!floor.claim(FeedbackIntent.Scrub)) return
+        grain = position
+        feedback.perform(FeedbackIntent.Scrub, strengthAt(speed))
+    }
+
+    /** Ends the gesture. The next [at] starts measuring afresh. */
+    fun reset() {
+        grain = Float.NaN
+        last = Float.NaN
+        lastAt = null
+        speed = 0f
+    }
+
+    companion object {
+        /** How far apart the grains are: 1/40 of the travel. */
+        const val GrainSpacing = 0.025f
+
+        /**
+         * The closest two grains come: 50ms, under the detents' 80. A texture is
+         * meant to run together at speed; see [minimumGap].
+         */
+        val MinimumGrainInterval: Duration = 50.milliseconds
+
+        /** The speed a grain is felt at full strength: the whole travel in half a second. */
+        const val FullSpeed = 2f
+
+        /** How faint a grain is at a crawl, as a share of full. */
+        const val SlowestStrength = 0.25f
+
+        /** How quickly the speed follows the finger. */
+        private const val SmoothingSeconds = 0.06f
+
+        /** Shorter than this between two events and they are one sample. */
+        private const val MinimumSampleSeconds = 0.004f
+
+        /** A grain's strength at [speed], [SlowestStrength] to 1. */
+        fun strengthAt(speed: Float): Float =
+            SlowestStrength + (1f - SlowestStrength) * (speed / FullSpeed).coerceIn(0f, 1f)
+    }
+}
+
+/** Remembers a [DragTexture] on the current feedback and its rate floor. */
+@Composable
+internal fun rememberDragTexture(): DragTexture {
+    val feedback = LocalFeedback.current
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, floor) { DragTexture(feedback, floor) }
+}
+
+/**
+ * One report each time a drag runs into a stop, and none while it stays there or
+ * backs off it.
  *
  * Asked for on every slider: "a haptic in standard mode … that fires when you hit
  * the end stop". A two-sided ticker would report leaving a wall as well as
  * reaching it, which is a threshold's shape and not a wall's — so the index
- * handed to it only ever goes *up*, once per wall entered. Holding the finger
- * against the stop is one report; backing off and pushing in again is a second.
+ * handed to it only ever goes *up*, once per stop met.
  *
- * [FeedbackIntent.Limit], a dull knock rather than a detent's tick. It used to be
- * `DragThreshold`, for the reason that still holds: a tick shares the rate floor
- * with the detents, and on a stepped slider the last detent's tick and the wall
- * arrive together, so the wall would be the one dropped. A limit is not floored.
+ * ### Met once, until it has been left
+ *
+ * **It used to re-arm the moment the drag was back inside the range**, and a
+ * finger held against the end of a slider is not still: a pixel back is inside,
+ * the next pixel out is a second wall, and the knock came "a few times
+ * sometimes" for one push. The rubber band made it likelier, because the way
+ * back pays the band first and moves nothing — so a drag could read as inside
+ * without having gone anywhere.
+ *
+ * So the stop re-arms only once the drag has come [release] clear of it: a
+ * finger's tremor is not a second push, and backing off properly and pushing in
+ * again still is.
+ *
+ * [FeedbackIntent.Limit] at the ends of a range, a dull knock rather than a
+ * detent's tick. It used to be `DragThreshold`, for the reason that still holds:
+ * a tick shares the rate floor with the detents, and on a stepped slider the last
+ * detent's tick and the wall arrive together, so the wall would be the one
+ * dropped. A limit is not floored. [FeedbackIntent.Bump] where the stop is
+ * another part of the control — a range slider's other thumb — through
+ * [touching].
  *
  * Fed the *unclamped* position, so it reports under reduced motion too, where the
  * rubber band that shows the wall is switched off and the report is the only sign.
  */
-internal class EndStopLatch(private val ticker: DetentTicker) {
-    private var wall = 0
+internal class EndStopLatch(
+    private val ticker: DetentTicker,
+    /** How far clear of a stop, in the same units as the position, re-arms it. */
+    private val release: Float = EndStopRelease,
+) {
+    /** The stop being rested against: `-1` the start, `1` the end, `0` neither. */
+    private var against = 0
     private var hits = 0
 
-    /** A gesture beginning. Arms the ticker without firing. */
-    fun arm() {
+    /**
+     * A gesture beginning. Arms the ticker without firing.
+     *
+     * @param resting The stop the gesture starts against, if it starts against
+     *   one it did not run into — two thumbs already together, say. Pushing on
+     *   into it is not meeting it; leaving it and coming back is.
+     */
+    fun arm(resting: Int = 0) {
         ticker.reset()
-        wall = 0
+        against = resting
         hits = 0
         ticker.at(hits)
     }
 
     /**
-     * Where the drag is: `-1` past the start, `1` past the end, `0` inside.
-     * Reports on the way into a wall and not on the way out.
+     * Where the drag is, unclamped: the stops are at [low] and [high], and a
+     * position past one has run into it.
      */
-    fun at(wallNow: Int) {
-        if (wallNow != 0 && wallNow != wall) {
-            hits++
-            ticker.at(hits)
+    fun at(position: Float, low: Float = 0f, high: Float = 1f) {
+        when {
+            position > high -> reached(1)
+            position < low -> reached(-1)
+            against == 1 && position <= high - release -> against = 0
+            against == -1 && position >= low + release -> against = 0
         }
-        wall = wallNow
+    }
+
+    /**
+     * How far short of a single stop the drag is: at or below 0 it has met it,
+     * [release] or more and it has left.
+     */
+    fun touching(clearance: Float) {
+        when {
+            clearance <= 0f -> reached(1)
+            clearance >= release -> against = 0
+        }
+    }
+
+    /**
+     * A stop met by something other than a finger, say a spin running out at
+     * one end: `1` the end, `-1` the start. Once, as a finger's would be.
+     */
+    fun reached(end: Int) {
+        if (against == end) return
+        against = end
+        hits++
+        ticker.at(hits)
     }
 
     /** The gesture is over. */
     fun reset() {
         ticker.reset()
-        wall = 0
+        against = 0
         hits = 0
+    }
+
+    companion object {
+        /**
+         * How far back from a stop a drag has to come before meeting it again
+         * counts: 4% of the travel. A finger's tremor is a pixel or two; this is
+         * a dozen on a phone-wide slider, which is a deliberate step back.
+         */
+        const val EndStopRelease = 0.04f
     }
 }
 
-/** Remembers an [EndStopLatch] on the current feedback. */
+/**
+ * Remembers an [EndStopLatch] on the current feedback.
+ *
+ * @param intent What meeting a stop performs: [FeedbackIntent.Limit] for the end
+ *   of a range, [FeedbackIntent.Bump] for another part of the same control.
+ */
 @Composable
-internal fun rememberEndStopLatch(): EndStopLatch {
-    val ticker = rememberDetentTicker(FeedbackIntent.Limit)
+internal fun rememberEndStopLatch(intent: FeedbackIntent = FeedbackIntent.Limit): EndStopLatch {
+    val ticker = rememberDetentTicker(intent)
     return remember(ticker) { EndStopLatch(ticker) }
 }
 
@@ -305,8 +491,10 @@ internal fun rememberEndStopLatch(): EndStopLatch {
  * component, and a hand does not feel components. A slider's ticks and a chip's
  * tap forty milliseconds later are one rattle to the person holding the phone.
  *
- * Gates the two intents that arrive in streams — [FeedbackIntent.Tap] and
- * [FeedbackIntent.Tick]. An outcome has to arrive when it happens, and outcomes do
+ * Gates the intents that arrive in streams — a press or a toggle answered
+ * ([FeedbackIntent.Tap], [FeedbackIntent.ToggleOn], [FeedbackIntent.ToggleOff]), a
+ * detent ([FeedbackIntent.Tick]) and a slider's texture ([FeedbackIntent.Scrub]),
+ * each no sooner than its [minimumGap] after the last. An outcome has to arrive when it happens, and outcomes do
  * not come in streams: a threshold swallowed because a slider ticked forty
  * milliseconds ago is a gesture that silently changed meaning. So [claim] takes the
  * intent and answers yes to anything else, which is also why the switch's midpoint
@@ -339,7 +527,7 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
     fun claim(intent: FeedbackIntent): Boolean {
         if (!intent.arrivesInStreams) return true
         val since = lastFired
-        if (since != null && since.elapsedNow() < DetentTicker.MinimumTickInterval) return false
+        if (since != null && since.elapsedNow() < intent.minimumGap) return false
         lastFired = clock.markNow()
         return true
     }
@@ -348,7 +536,7 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
 /**
  * Whether [FeedbackFloor] may drop this intent.
  *
- * The two that arrive in streams, which is not the same set as the two lightest
+ * The ones that arrive in streams, which is not the same set as the lightest
  * feels — see the note on [FeedbackFloor]. [FeedbackIntent.Selection] is
  * deliberately absent: it fires once per reorder, which is once per gap a row
  * crossed, and a reorder the hand does not feel is a reorder the eye has to go
@@ -357,10 +545,23 @@ internal class FeedbackFloor(private val clock: TimeSource = TimeSource.Monotoni
 internal val FeedbackIntent.arrivesInStreams: Boolean
     get() = this == FeedbackIntent.Tap ||
         this == FeedbackIntent.Tick ||
+        // A slider's texture is nothing but a stream.
+        this == FeedbackIntent.Scrub ||
         // A toggle is a press answered, and a column of checkboxes run down
         // with a thumb is the same rattle a chip row is.
         this == FeedbackIntent.ToggleOn ||
         this == FeedbackIntent.ToggleOff
+
+/**
+ * How soon after the last streamed haptic this one may land.
+ *
+ * [DetentTicker.MinimumTickInterval] for everything but a
+ * [FeedbackIntent.Scrub] grain, which may come at [DragTexture.MinimumGrainInterval]:
+ * a texture is meant to run together at speed — that is how a fast drag feels
+ * fast — where a detent that runs together is a detent lost.
+ */
+internal val FeedbackIntent.minimumGap: Duration
+    get() = if (this == FeedbackIntent.Scrub) DragTexture.MinimumGrainInterval else DetentTicker.MinimumTickInterval
 
 /**
  * The floor in force. A default instance so a component outside a theme still

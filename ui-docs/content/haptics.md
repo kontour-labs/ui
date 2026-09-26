@@ -36,6 +36,14 @@ a haptic a frame is a buzz on every platform, because each new one cuts off the
 last, and deciding which of a stream to drop is a question of what the stream
 is. `:ui`'s detents keep reports 80ms apart.
 
+**`effect.scaled(factor)`** is the same effect at that share of its strength —
+a texture that follows a finger's speed is one effect played at a strength of
+the moment:
+
+```kotlin
+haptics.play(HapticEffect.LowTick(0.6f).scaled(speed))
+```
+
 **`strength` is 0 to 1**, clamped when played: NaN and anything below 0 is 0,
 anything above 1 is 1, and 0.001 or less plays nothing. At 1 a system effect is
 the platform's own version; below it, softer, as far as the platform can say —
@@ -55,7 +63,7 @@ only effects a pattern can hold.
 |---|---|---|---|---|
 | `Selection(fine)` | `TICK` at a half, or 0.8 for a coarse step | `SEGMENT_FREQUENT_TICK` / `SEGMENT_TICK` from Android 14, the clock and context-click ticks before | the selection generator | 12–20ms |
 | `Impact(style)` | `CLICK`, `THUD`, `LOW_TICK` or `TICK` by style | `VIRTUAL_KEY`, `LONG_PRESS` or the ticks by style | the impact generator, that style, at that strength | 10–36ms by style |
-| `Notification(type)` | a rising pair, a falling pair, or three even knocks | `CONFIRM` / `LONG_PRESS` / `REJECT` | the notification generator | a short rhythm |
+| `Notification(type)` | a rising pair; two `CLICK`s 140ms apart, the second a step lighter; or three even knocks | `CONFIRM` / `LONG_PRESS` then `VIRTUAL_KEY` 140ms later / `REJECT` | the notification generator | a short rhythm |
 | `Toggle(on)` | `TICK` at a half on, `LOW_TICK` at 0.3 off | `TOGGLE_ON` / `TOGGLE_OFF` from Android 14 | a light impact on, a soft one off | 16–22ms / 10–14ms |
 | `Threshold(activate)` | `CLICK` in, a light `TICK` back | `GESTURE_THRESHOLD_ACTIVATE` / `…_DEACTIVATE` from Android 14 | a rigid impact in, a soft one back | 18–24ms / 10–14ms |
 | `LongPress`, `KeyPress` | `CLICK` | `LONG_PRESS`, `KEYBOARD_TAP` | a medium, a light impact | 26–32ms, 10–14ms |

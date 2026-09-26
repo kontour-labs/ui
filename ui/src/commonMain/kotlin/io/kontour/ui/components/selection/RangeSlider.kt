@@ -34,6 +34,8 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.rememberTextMeasurer
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
@@ -359,9 +361,18 @@ fun RangeSlider(
      */
     val band = rememberRubberBand()
 
-    // Once each time a thumb runs into the end of the track — see `Slider`'s. The
-    // other thumb is not a wall: running into it is a shove, and looks like one.
+    // Once each time a thumb runs into the end of the track — see `Slider`'s.
     val endStop = rememberEndStopLatch()
+
+    // And once, lighter, each time it runs into the other thumb. That is not a
+    // wall — the other one gives, and is shoved along, and the shove is drawn —
+    // but it was silent, and a meeting under a finger is one the hand should
+    // feel: "a light bit of feedback when the two heads collide". Latched like
+    // the wall, so shoving on is not a second meeting and parting is not one.
+    val bump = rememberEndStopLatch(FeedbackIntent.Bump)
+
+    // A range without steps drags with the slider's texture. See `Slider`'s.
+    val texture = rememberDragTexture()
 
     // The label over the held thumb. See `Slider`'s.
     val labelMeasurer = rememberTextMeasurer()
@@ -742,6 +753,9 @@ fun RangeSlider(
                             carrying = false
                             emitted = null
                             endStop.arm()
+                            // Already together is not a meeting: a drag that
+                            // starts in contact has to part them first.
+                            bump.arm(resting = if (endFraction - startFraction - gapFraction <= ContactTolerance) 1 else 0)
                         },
                         onDelta = { delta ->
                             val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
@@ -793,8 +807,8 @@ fun RangeSlider(
                                 dragFraction = raw.coerceIn(reach.first, reach.second)
                                 // Measured against the **track**, not against
                                 // `reach`: running into the other thumb is a
-                                // shove and already looks like one, and only
-                                // the ends of the range are a wall.
+                                // shove, reported as one below, and only the
+                                // ends of the range are a wall.
                                 //
                                 // One gap in that, noted rather than fixed: with
                                 // a `minDistance`, a thumb's own ceiling is
@@ -809,7 +823,7 @@ fun RangeSlider(
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
-                                endStop.at(if (raw > 1f) 1 else if (raw < 0f) -1 else 0)
+                                endStop.at(raw)
                                 if (past != 0f && !motion.reduceMotion) {
                                     // The band is this thumb's until it has
                                     // sprung all the way home. See [bandThumb].
@@ -817,6 +831,14 @@ fun RangeSlider(
                                     band.pull(past * widthPx, thumbSquashPx)
                                 }
                                 emit(activeThumb, dragFraction)
+                                if (steps <= 0) texture.at(dragFraction)
+                                // From the values just emitted, which are exact,
+                                // as `pushing` is: in contact while the pair is
+                                // no more than the gap apart.
+                                emitted?.let { now ->
+                                    val apart = fractionOf(now.endInclusive) - fractionOf(now.start)
+                                    bump.touching(apart - gapFraction - ContactTolerance)
+                                }
                             }
                         },
                         onEnd = {
@@ -875,6 +897,8 @@ fun RangeSlider(
                             }
                             ticker.reset()
                             endStop.reset()
+                            bump.reset()
+                            texture.reset()
                             dragFraction = Float.NaN
                             pressFraction = Float.NaN
                             carrying = false

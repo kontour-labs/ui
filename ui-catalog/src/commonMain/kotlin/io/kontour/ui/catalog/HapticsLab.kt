@@ -33,12 +33,14 @@ import io.kontour.haptics.ImpactStyle
 import io.kontour.haptics.NotificationType
 import io.kontour.haptics.Rumble
 import io.kontour.haptics.hapticPattern
+import io.kontour.haptics.scaled
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.FilterChip
+import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Switch
@@ -301,9 +303,17 @@ private fun Tuner(player: Haptics) {
     var kind by remember { mutableIntStateOf(0) }
     var strength by remember { mutableFloatStateOf(0.5f) }
     val tuned = remember(player) {
-        FeedbackDispatcher { asked ->
-            val override = overrides[asked]
-            player.play(if (override != null) EffectKinds[override.first].make(override.second) else asked.defaultEffect)
+        object : FeedbackDispatcher {
+            fun effectFor(asked: FeedbackIntent): HapticEffect {
+                val override = overrides[asked]
+                return if (override != null) EffectKinds[override.first].make(override.second) else asked.defaultEffect
+            }
+
+            override fun perform(intent: FeedbackIntent) = player.play(effectFor(intent))
+
+            // A texture's grain, at the strength its speed gave it.
+            override fun perform(intent: FeedbackIntent, strength: Float) =
+                player.play(effectFor(intent).scaled(strength.coerceIn(0f, 1f)))
         }
     }
 
@@ -332,10 +342,15 @@ private fun Tuner(player: Haptics) {
         Text("Playground", style = Theme.typography.labelMedium)
         CompositionLocalProvider(LocalFeedback provides tuned) {
             var value by remember { mutableFloatStateOf(0.5f) }
+            var smooth by remember { mutableFloatStateOf(0.5f) }
+            var range by remember { mutableStateOf(0.3f..0.6f) }
             var on by remember { mutableStateOf(false) }
             var ticked by remember { mutableStateOf(false) }
             var segment by remember { mutableIntStateOf(0) }
             Slider(value = value, onValueChange = { value = it }, steps = 9, modifier = Modifier.fillMaxWidth())
+            // Without steps: the texture, and a range's thumbs meeting.
+            Slider(value = smooth, onValueChange = { smooth = it }, modifier = Modifier.fillMaxWidth())
+            RangeSlider(value = range, onValueChange = { range = it }, modifier = Modifier.fillMaxWidth())
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
                 Switch(checked = on, onCheckedChange = { on = it })
                 Checkbox(checked = ticked, onCheckedChange = { ticked = it })

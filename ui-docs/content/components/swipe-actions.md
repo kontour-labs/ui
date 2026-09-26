@@ -71,10 +71,13 @@ a flick meant for the actions and thrown a little hard ran the action. That was
 the row's own click. A tap on one of the buttons runs that action and closes the
 row.
 
-**One buzz, at the one moment that has a consequence.** It used to be four — a
-tick per action width uncovered, the threshold, a confirmation when the action ran,
-and a settle when the row came back — and the report was a row that "goes way too
-crazy". A row opened or closed in code, with `animateTo`, is felt not at all.
+**One buzz at the one moment that has a consequence, and a soft tick as each
+action arrives.** It used to be four — a tick per action width uncovered, the
+threshold, a confirmation when the action ran, and a settle when the row came back
+— and the report was a row that "goes way too crazy". What is left is the
+threshold, and a soft tick as each action is dealt out to its full size: once per
+action, only while it grows, so a finger resting where one fills is one tick. A
+row opened or closed in code, with `animateTo`, is felt not at all.
 
 **Three actions a side, and the fourth is refused.** One target is 88dp, so three
 is 264dp of travel and already most of a phone's width; a fourth is a target
@@ -102,8 +105,12 @@ does not choose which action, because there is only one action a full swipe can
 mean. A side where nothing opted in has no point of no return: carried as far as it
 goes, it opens.
 
-On a desktop a sideways scroll — a trackpad's two-finger push — moves the row as a
-drag would, and settles it shortly after the last one. It never commits.
+On a desktop a sideways scroll moves the row as a drag would. A trackpad's
+two-finger push follows the fingers — on a Mac it arrives as a pan, in pixels — and
+settles when they lift; a mouse's sideways wheel moves the row 24dp a notch, so two
+clicks open an action, and settles shortly after the last. Either one is the
+row's only if it begins mostly sideways, and a vertical scroll with a little drift
+in it stays the list's. It never commits.
 
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the

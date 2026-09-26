@@ -428,14 +428,15 @@ class DetentHapticsTest {
      * floor right after the last detent's tick; once per wall entered, so holding
      * the finger against the stop is one report rather than a buzz.
      *
-     * A continuous slider, so no detent tick is in the record to be confused with it.
+     * A continuous slider, so no detent tick is in the record to be confused with
+     * it; its texture is, and is set aside — see the texture's own test.
      */
     @Test
     fun aSliderSaysSoOnceWhenItRunsIntoItsEnd() {
         val (felt, value) = slidAgainstTheEnd(passes = 1)
         assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
         assertEquals(
-            listOf(FeedbackIntent.Limit), felt,
+            listOf(FeedbackIntent.Limit), felt.withoutTexture(),
             "running a slider into the end of its range fired ${felt.summary()}, where it " +
                 "should report the wall once",
         )
@@ -446,12 +447,12 @@ class DetentHapticsTest {
     fun aSliderReportsEachTimeTheEndIsReachedAgain() {
         val (felt, _) = slidAgainstTheEnd(passes = 2)
         assertEquals(
-            listOf(FeedbackIntent.Limit, FeedbackIntent.Limit), felt,
+            listOf(FeedbackIntent.Limit, FeedbackIntent.Limit), felt.withoutTexture(),
             "into the end, back off it and into it again fired ${felt.summary()}",
         )
     }
 
-    /** The range slider's ends are walls too; the other thumb is not. */
+    /** The range slider's ends are walls too. */
     @Test
     fun aRangeSliderSaysSoAtTheEndOfItsTrack() {
         val felt = mutableListOf<FeedbackIntent>()
@@ -475,7 +476,7 @@ class DetentHapticsTest {
         }
         assertTrue(value.endInclusive >= 1f, "the drag never took the end thumb to the end")
         assertEquals(
-            listOf(FeedbackIntent.Limit), felt,
+            listOf(FeedbackIntent.Limit), felt.withoutTexture(),
             "running a range slider's thumb into the end fired ${felt.summary()}",
         )
     }
@@ -517,6 +518,205 @@ class DetentHapticsTest {
             scene.frames(4)
         }
         return felt to value
+    }
+
+    /**
+     * A finger held against the end is not still, and a tremble there is not a
+     * second push.
+     *
+     * Reported from a phone: the end stop "only triggers once" was meant to be
+     * true, and it fired "a few times sometimes". Each pixel back paid the rubber
+     * band and left the drag reading as inside the range, so the next pixel out was
+     * a new wall. Now the wall re-arms only once the drag is properly clear of it.
+     */
+    @Test
+    fun aFingerTremblingAgainstTheEndIsOneReport() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.5f)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    Slider(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val y = bounds.center.y
+            scene.press(bounds.alongX(0.5f))
+            for (step in 1..12) {
+                scene.move(Offset(bounds.left + bounds.width * (0.5f + 0.55f * step / 12f), y))
+                scene.frame()
+            }
+            // Pressed on past the end, trembling a few pixels either way.
+            val held = bounds.left + bounds.width * 1.05f
+            repeat(16) { i ->
+                scene.move(Offset(held + if (i % 2 == 0) -4f else 4f, y))
+                scene.frame()
+            }
+            scene.release(Offset(held, y))
+            scene.frames(4)
+        }
+        assertTrue(value >= 1f, "the drag never reached the end, so this proves nothing")
+        assertEquals(
+            listOf(FeedbackIntent.Limit), felt.withoutTexture(),
+            "a finger trembling against the end of a slider fired ${felt.summary()}",
+        )
+    }
+
+    /**
+     * A slider without steps has a texture: grains as it moves, and nothing else
+     * on the way; a stepped one has its detents instead, and no texture.
+     *
+     * Asked for from a phone: dragging "when it's not in step mode, it should have
+     * some feedback, proportional to how fast it's moving".
+     */
+    @Test
+    fun aContinuousSliderHasATextureAndASteppedOneDoesNot() {
+        fun dragged(steps: Int): List<FeedbackIntent> {
+            val felt = mutableListOf<FeedbackIntent>()
+            var value by mutableStateOf(0.1f)
+            var bounds = Rect.Zero
+            Scene(width = 600, height = 200) {
+                Recording(felt) {
+                    Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                        Slider(
+                            value = value,
+                            onValueChange = { value = it },
+                            steps = steps,
+                            modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                        )
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                // Paced, because the texture's floor is on a wall clock.
+                scene.drag(bounds.alongX(0.1f), bounds.alongX(0.8f), steps = 24, paceMillis = 30)
+                scene.frames(4)
+            }
+            return felt
+        }
+        val continuous = dragged(steps = 0)
+        assertTrue(
+            continuous.count { it == FeedbackIntent.Scrub } >= 5,
+            "dragging a continuous slider most of its length gave ${continuous.summary()}",
+        )
+        assertTrue(continuous.all { it == FeedbackIntent.Scrub }, "the drag fired more than its texture: ${continuous.summary()}")
+        val stepped = dragged(steps = 9)
+        assertTrue(FeedbackIntent.Scrub !in stepped, "a stepped slider has detents, not a texture: ${stepped.summary()}")
+    }
+
+    /** Faster is firmer: the speed of the drag reaches the hand as the grain's strength. */
+    @Test
+    fun aFasterDragIsAFirmerTexture() {
+        fun strengths(steps: Int, paceMillis: Long): List<Float> {
+            val grains = mutableListOf<Float>()
+            var value by mutableStateOf(0.1f)
+            var bounds = Rect.Zero
+            Scene(width = 600, height = 200) {
+                CompositionLocalProvider(
+                    LocalFeedback provides object : FeedbackDispatcher {
+                        override fun perform(intent: FeedbackIntent) = Unit
+                        override fun perform(intent: FeedbackIntent, strength: Float) {
+                            if (intent == FeedbackIntent.Scrub) grains += strength
+                        }
+                    },
+                ) {
+                    Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                        Slider(
+                            value = value,
+                            onValueChange = { value = it },
+                            modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                        )
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                scene.drag(bounds.alongX(0.1f), bounds.alongX(0.9f), steps = steps, paceMillis = paceMillis)
+                scene.frames(4)
+            }
+            return grains
+        }
+        // A tenth of the track a move, as fast as frames come; and a fiftieth a
+        // move with a pause after each — a crawl.
+        val fast = strengths(steps = 8, paceMillis = 0)
+        val slow = strengths(steps = 40, paceMillis = 60)
+        assertTrue(fast.isNotEmpty() && slow.isNotEmpty(), "no texture to compare: fast $fast, slow $slow")
+        assertTrue(
+            fast.average() > slow.average() + 0.15,
+            "a flung drag's grains averaged ${fast.average()} and a crawl's ${slow.average()}",
+        )
+    }
+
+    /**
+     * Two thumbs meeting is felt, once, and again only after they have parted.
+     *
+     * Asked for: "with the range slider, can we have a light bit of feedback when
+     * the two heads collide?" The thumb that is pushed along goes on being pushed,
+     * and that is one meeting, not a stream.
+     */
+    @Test
+    fun aRangeSlidersThumbsMeetingIsFeltOncePerMeeting() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.2f..0.6f)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    RangeSlider(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val y = bounds.center.y
+            fun to(fraction: Float) = Offset(bounds.left + bounds.width * fraction, y)
+            scene.press(bounds.alongX(0.2f))
+            // Into the end thumb and on, shoving it; back well clear; in again.
+            for (f in listOf(0.3f, 0.4f, 0.5f, 0.55f, 0.6f, 0.65f, 0.7f, 0.75f, 0.8f, 0.6f, 0.45f, 0.35f, 0.5f, 0.7f, 0.85f)) {
+                scene.move(to(f))
+                scene.frame()
+            }
+            scene.release(to(0.85f))
+            scene.frames(4)
+        }
+        assertTrue(value.endInclusive > 0.7f, "the start thumb never shoved the end one, so this proves nothing: $value")
+        assertEquals(
+            listOf(FeedbackIntent.Bump, FeedbackIntent.Bump), felt.withoutTexture(),
+            "two meetings, each shoving on, fired ${felt.summary()}",
+        )
+    }
+
+    /** A drag that starts with the thumbs together has not met anything. */
+    @Test
+    fun aRangeThatStartsClosedDoesNotBumpAsItOpens() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var value by mutableStateOf(0.5f..0.5f)
+        var bounds = Rect.Zero
+        Scene(width = 600, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    RangeSlider(
+                        value = value,
+                        onValueChange = { value = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.5f), bounds.alongX(0.8f), steps = 12)
+            scene.frames(4)
+        }
+        assertTrue(value.endInclusive > 0.6f, "the range never opened: $value")
+        assertEquals(emptyList(), felt.withoutTexture(), "opening a closed range fired ${felt.summary()}")
     }
 
     /**
@@ -818,8 +1018,17 @@ class DetentHapticsTest {
     // Thresholds, long presses and warnings
     // -----------------------------------------------------------------------
 
+    /**
+     * A soft tick as the action reaches its full size, and the point of no return.
+     *
+     * The tick is new, and asked for: "a soft tick to the swipe actions when each
+     * action grows to full size". It is not the tick per `actionWidth` taken out
+     * before — that fired as the row passed the width whether or not anything had
+     * changed there, and alongside a threshold, a `Confirm` and a settle. This one
+     * is the action arriving, which is visible and now felt.
+     */
     @Test
-    fun aSwipedRowFiresOnlyAtThePointOfNoReturn() {
+    fun aSwipedRowTicksAsItsActionArrivesAndAtThePointOfNoReturn() {
         val felt = mutableListOf<FeedbackIntent>()
         var bounds = Rect.Zero
 
@@ -850,13 +1059,60 @@ class DetentHapticsTest {
         }
 
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold), felt,
+            listOf(FeedbackIntent.Tick, FeedbackIntent.DragThreshold), felt,
             "a full swipe fired ${felt.summary()}. It used to fire four different " +
                 "things across one gesture — a tick per `actionWidth` uncovered, " +
                 "the threshold, a `Confirm` when the action ran and a settle when " +
                 "the row came back — and the report was that it goes way too " +
-                "crazy. `actionWidth` is not a detent: nothing snaps there. What " +
-                "is left is the one edge the user cannot see coming.",
+                "crazy. What is left is the action arriving, softly, and the one " +
+                "edge the user cannot see coming.",
+        )
+    }
+
+    /**
+     * Each action arriving is its own tick, once; shrinking back is silent, and
+     * dealing them out again ticks again.
+     */
+    @Test
+    fun eachActionReachingFullSizeTicksOnce() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var bounds = Rect.Zero
+        Scene(width = 700, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    SwipeActions(
+                        modifier = Modifier.fillMaxWidth().height(72.dp).reportBounds { bounds = it },
+                        end = listOf(
+                            SwipeAction("Archive", Tabler.Outline.Trash, {}, Color.Blue),
+                            SwipeAction("Delete", Tabler.Outline.Trash, {}, Color.Red),
+                        ),
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(72.dp).background(Color.White))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val y = bounds.center.y
+            fun to(fraction: Float) = Offset(bounds.left + bounds.width * fraction, y)
+            // Two 88dp actions at density 2 are full at 176px and 352px of a
+            // 700px row: out past both, back to the start, and out again —
+            // paced past the rate floor, which a tick shares.
+            val path = (0..16).map { 0.95f - 0.6f * it / 16f } +
+                (1..16).map { 0.35f + 0.6f * it / 16f } +
+                (1..16).map { 0.95f - 0.6f * it / 16f }
+            scene.press(to(path.first()))
+            for (f in path.drop(1)) {
+                scene.move(to(f))
+                scene.frame()
+                Thread.sleep(12)
+            }
+            scene.release(to(path.last()))
+            scene.frames(30)
+        }
+        assertEquals(
+            List(4) { FeedbackIntent.Tick }, felt,
+            "two actions dealt out, taken back and dealt out again fired ${felt.summary()}",
         )
     }
 
@@ -899,7 +1155,7 @@ class DetentHapticsTest {
             scene.frames(30)
         }
         assertEquals(
-            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack), backedOff,
+            listOf(FeedbackIntent.Tick, FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack), backedOff,
             "over the point of no return and back fired ${backedOff.summary()}. The " +
                 "crossing out is one report and the crossing back, which undoes it, is " +
                 "the other — softer, because the action being off again matters " +
@@ -1545,7 +1801,7 @@ class DetentHapticsTest {
             scene.drag(bounds.alongX(0.95f), bounds.alongX(0.02f), steps = 30)
             scene.frames(60)
         }
-        assertEquals(listOf(FeedbackIntent.DragThreshold, FeedbackIntent.Confirm), felt, "a full swipe let go of fired ${felt.summary()}")
+        assertEquals(listOf(FeedbackIntent.Tick, FeedbackIntent.DragThreshold, FeedbackIntent.Confirm), felt, "a full swipe let go of fired ${felt.summary()}")
     }
 
     /** Installs a dispatcher that writes down what it is asked to do. */
@@ -1556,6 +1812,9 @@ class DetentHapticsTest {
             content = content,
         )
     }
+
+    /** Everything but a slider's texture, for a test about something else. */
+    private fun List<FeedbackIntent>.withoutTexture(): List<FeedbackIntent> = filter { it != FeedbackIntent.Scrub }
 
     private fun List<FeedbackIntent>.summary(): String =
         if (isEmpty()) "nothing at all" else groupingBy { it }.eachCount().toString()

@@ -25,6 +25,15 @@ import kotlin.math.roundToInt
 // calls. Every number is a starting point, tuned by feel on a device — the
 // haptics page in the catalog is where — and not a measurement.
 
+/**
+ * How far apart a warning's two knocks start, everywhere it is two knocks.
+ *
+ * Far enough that the first has stopped ringing before the second lands — at
+ * 115ms, with a faint second, a phone played the pair as one — and still close
+ * enough to read as one event rather than two.
+ */
+internal const val WarningGapMillis = 140
+
 // ---------------------------------------------------------------------------
 // Android, tier 1: composition primitives at a scale
 // ---------------------------------------------------------------------------
@@ -47,16 +56,19 @@ internal fun androidPrimitivePlan(effect: HapticEffect): List<PlannedPrimitive> 
             ImpactStyle.Soft -> one(PrimitiveKind.LowTick, s)
             ImpactStyle.Rigid -> one(PrimitiveKind.Tick, s)
         }
-        // A rising pair for success, a falling one for a warning, three even
-        // knocks for an error — the shapes iOS's own three have.
+        // A rising pair for success, two knocks well apart for a warning, three
+        // even knocks for an error — the shapes iOS's own three have.
         is Notification -> when (effect.type) {
             NotificationType.Success -> listOf(
                 at(PrimitiveKind.Tick, 0.5f * s, 0),
                 at(PrimitiveKind.Click, 0.9f * s, 70),
             )
+            // The second is a click too. It was a tick at half, which on a phone
+            // is under the first knock's ring-down and was felt as one knock:
+            // "the warning needs a more distinct second click".
             NotificationType.Warning -> listOf(
                 at(PrimitiveKind.Click, 0.9f * s, 0),
-                at(PrimitiveKind.Tick, 0.5f * s, 115),
+                at(PrimitiveKind.Click, 0.75f * s, WarningGapMillis),
             )
             NotificationType.Error -> listOf(
                 at(PrimitiveKind.Click, 0.8f * s, 0),
@@ -236,6 +248,19 @@ internal fun androidConstant(effect: HapticEffect, sdk: Int): AndroidConstant {
         is KeyPress -> AndroidConstant.KeyboardTap
     }
 }
+
+/**
+ * [effect] as feedback constants on a timeline, in milliseconds from now: one
+ * constant, except for a warning. No constant is a warning, and one long press
+ * was felt as a single knock, so it is two, [WarningGapMillis] apart — the
+ * second a step lighter, as on every other platform.
+ */
+internal fun androidConstantPlan(effect: HapticEffect, sdk: Int): List<Pair<Int, AndroidConstant>> =
+    if (effect is Notification && effect.type == NotificationType.Warning) {
+        listOf(0 to AndroidConstant.LongPress, WarningGapMillis to AndroidConstant.VirtualKey)
+    } else {
+        listOf(0 to androidConstant(effect, sdk))
+    }
 
 /** `VibrationEffect.createPredefined`'s four, for a phone with a vibrator and no View to ask. */
 internal enum class AndroidPredefined { Tick, Click, HeavyClick, DoubleClick }
@@ -462,7 +487,8 @@ internal fun webPattern(effect: HapticEffect): IntArray {
         }
         is Notification -> when (effect.type) {
             NotificationType.Success -> scaled(18, 32, 36)
-            NotificationType.Warning -> scaled(30, 60, 18)
+            // On, off, on: the second starts [WarningGapMillis] after the first.
+            NotificationType.Warning -> scaled(30, WarningGapMillis - 30, 26)
             NotificationType.Error -> scaled(18, 28, 18, 28, 18)
         }
         is Toggle -> if (effect.on) on(16, 22) else on(10, 14)
@@ -551,7 +577,7 @@ internal fun macPlan(effect: HapticEffect): List<Pair<Int, MacPattern>> {
         is Click, is Thud, is Spin, is QuickRise, is SlowRise, is QuickFall, is LongPress -> now(MacPattern.Generic)
         is Impact -> now(if (effect.style == ImpactStyle.Soft) MacPattern.Alignment else MacPattern.Generic)
         is Notification -> when (effect.type) {
-            NotificationType.Warning -> now(MacPattern.Generic)
+            NotificationType.Warning -> listOf(0 to MacPattern.Generic, WarningGapMillis to MacPattern.Generic)
             NotificationType.Success, NotificationType.Error -> listOf(0 to MacPattern.Generic, 120 to MacPattern.Generic)
         }
         is Toggle -> now(if (effect.on) MacPattern.Generic else MacPattern.Alignment)

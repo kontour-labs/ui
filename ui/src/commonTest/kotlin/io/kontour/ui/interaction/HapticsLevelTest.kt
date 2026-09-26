@@ -37,10 +37,12 @@ class HapticsLevelTest {
         FeedbackIntent.ToggleOn,
         FeedbackIntent.ToggleOff,
         FeedbackIntent.Tick,
+        FeedbackIntent.Scrub,
         FeedbackIntent.Snap,
         FeedbackIntent.DragThreshold,
         FeedbackIntent.DragThresholdBack,
         FeedbackIntent.Limit,
+        FeedbackIntent.Bump,
         FeedbackIntent.Hold,
         FeedbackIntent.LongPress,
         FeedbackIntent.GestureEnd,
@@ -67,12 +69,16 @@ class HapticsLevelTest {
             FeedbackIntent.ToggleOn,
             FeedbackIntent.ToggleOff,
             FeedbackIntent.Tick,
+            // A slider's texture is commentary on a drag the reader is watching.
+            FeedbackIntent.Scrub,
             FeedbackIntent.Snap,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
             FeedbackIntent.Hold,
             // A dragged row landing: the snaps before it were the news.
             FeedbackIntent.GestureEnd,
+            // Two thumbs meeting: the shove on screen is the report.
+            FeedbackIntent.Bump,
         )
         for (intent in progress) {
             assertTrue(

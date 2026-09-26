@@ -92,6 +92,39 @@ sealed interface HapticEffect {
     data class KeyPress(override val strength: Float = 1f) : HapticEffect
 }
 
+/**
+ * The same effect at [factor] times its strength: a texture that follows how fast
+ * a finger moves, say, played as one effect at a strength of the moment.
+ *
+ * ```kotlin
+ * haptics.play(HapticEffect.LowTick(0.6f).scaled(speed))
+ * ```
+ *
+ * Clamped as any strength is, when played — a factor over 1 on a strength of 1
+ * is still 1. A [HapticEffect.Notification] on iOS is Apple's own at any
+ * strength, so scaling it there changes nothing.
+ */
+fun HapticEffect.scaled(factor: Float): HapticEffect {
+    val s = strength * factor
+    return when (this) {
+        is HapticEffect.Tick -> copy(strength = s)
+        is HapticEffect.LowTick -> copy(strength = s)
+        is HapticEffect.Click -> copy(strength = s)
+        is HapticEffect.Thud -> copy(strength = s)
+        is HapticEffect.Spin -> copy(strength = s)
+        is HapticEffect.QuickRise -> copy(strength = s)
+        is HapticEffect.SlowRise -> copy(strength = s)
+        is HapticEffect.QuickFall -> copy(strength = s)
+        is HapticEffect.Selection -> copy(strength = s)
+        is HapticEffect.Impact -> copy(strength = s)
+        is HapticEffect.Notification -> copy(strength = s)
+        is HapticEffect.Toggle -> copy(strength = s)
+        is HapticEffect.Threshold -> copy(strength = s)
+        is HapticEffect.LongPress -> copy(strength = s)
+        is HapticEffect.KeyPress -> copy(strength = s)
+    }
+}
+
 /** The weight of an [HapticEffect.Impact]. These are UIKit's five, by name. */
 enum class ImpactStyle {
     /** A small, light object. */

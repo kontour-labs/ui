@@ -39,8 +39,10 @@ class FeedbackFeelTest {
             mapOf(
                 FeedbackFeel.Light to listOf(
                     FeedbackIntent.Tick,
+                    FeedbackIntent.Scrub,
                     FeedbackIntent.ToggleOff,
                     FeedbackIntent.DragThresholdBack,
+                    FeedbackIntent.Bump,
                     FeedbackIntent.Hold,
                     FeedbackIntent.GestureEnd,
                     FeedbackIntent.KeyPress,
@@ -134,10 +136,11 @@ class FeedbackFeelTest {
     fun noOutcomeIsEverThinnedByTheRateFloor() {
         val thinned = FeedbackIntent.entries.filter { it.arrivesInStreams }
         assertEquals(
-            listOf(FeedbackIntent.Tap, FeedbackIntent.Tick, FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOff),
+            listOf(FeedbackIntent.Tap, FeedbackIntent.Tick, FeedbackIntent.Scrub, FeedbackIntent.ToggleOn, FeedbackIntent.ToggleOff),
             thinned,
-            "the presses and the fine detents arrive in streams; a resting place, a " +
-                "threshold either way and a wall do not, and must never be the report dropped",
+            "the presses, the fine detents and a slider's texture arrive in streams; a " +
+                "resting place, a threshold either way, a wall and two thumbs meeting do " +
+                "not, and must never be the report dropped",
         )
         for (intent in FeedbackIntent.entries) {
             if (intent.feel == FeedbackFeel.Heavy ||

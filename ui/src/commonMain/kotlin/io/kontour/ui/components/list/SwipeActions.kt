@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker1D
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -77,6 +78,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.DetentTicker
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
@@ -229,14 +231,16 @@ object SwipeActionsDefaults {
     const val MaxActionsPerSide: Int = 3
 
     /**
-     * How many pixels of row one pixel of sideways scroll moves.
+     * How far one notch of sideways scroll moves the row.
      *
-     * More than one: a trackpad reports fine deltas and a swipe is a coarse
-     * gesture, so at parity crossing a 176dp action strip is a long push. Three
-     * makes a flick of the fingers reach the actions and a deliberate push stop
-     * anywhere in between.
+     * A scroll's delta is in notches — a mouse's click is 1, a trackpad sends
+     * fractions of one — and this used to be three *pixels* a notch, on the
+     * belief that it was pixels already: an 88dp action took dozens of clicks.
+     * Compose's own lists move 10dp a notch on a Mac; a swipe is a coarser
+     * gesture than a scroll, so a row moves further, and two clicks open one
+     * action. A trackpad on a Mac pans instead, and follows the fingers.
      */
-    const val ScrollStep: Float = 3f
+    val ScrollStep: Dp = 24.dp
 
     /** How long after the last scroll event the row settles onto an anchor. */
     const val SettleAfterScroll: Long = 120L
@@ -494,6 +498,16 @@ fun SwipeActions(
     val pointOfNoReturn = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     val feedback = LocalFeedback.current
 
+    /**
+     * A soft tick as each action reaches its full size under the finger: "a soft
+     * tick to the swipe actions when each action grows to full size". The actions
+     * are dealt out one after the other, and each one arriving is a place the row
+     * could be let go with it showing. Growing only — an action shrinking back is
+     * the finger's own doing and says nothing new.
+     */
+    val dealtTicker = rememberDetentTicker()
+    val dealt = remember(dealtTicker) { ActionsDealt(dealtTicker) }
+
     fun commitAt(side: Float): Float {
         val reveal = if (side > 0f) startTravel else -endTravel
         return maxOf(reveal + commitMarginPx, width * SwipeFullShare)
@@ -676,14 +690,19 @@ fun SwipeActions(
                         settling?.cancel()
                         pointOfNoReturn.reset()
                         pointOfNoReturn.at(0)
+                        // What is already showing when the finger lands is not
+                        // news: a row that was open starts with its actions dealt.
+                        dealt.arm(state.anchoredState.offset, actionWidthPx, start.size, end.size, hysteresisPx)
                     },
                     onDelta = { delta ->
                         // Physical to logical, once, here.
                         state.anchoredState.dispatchRawDelta(if (isRtl) -delta else delta)
                         updateCommitting(state.anchoredState.offset)
+                        dealt.at(state.anchoredState.offset)
                     },
                     onRelease = { velocity -> settle(if (isRtl) -velocity else velocity) },
                     onEnd = {
+                        dealt.reset()
                         // A cancelled gesture has no release; land it anyway.
                         if (settling?.isActive != true) settle(0f)
                     },
@@ -693,32 +712,114 @@ fun SwipeActions(
                  *
                  * On a desktop there is no finger to drag the row with, and a
                  * trackpad's two-finger sideways push is the gesture that means
-                 * exactly this everywhere else on the platform. No end event exists
-                 * for a scroll, so the row settles on a short timer after the last
-                 * one. It never commits: a scroll has no point of no return to feel.
+                 * exactly this everywhere else on the platform. It never commits: a
+                 * scroll has no point of no return to feel.
+                 *
+                 * **It was far too hard to move**, reported as wanting it "more
+                 * sensitive to side scrolling" on a trackpad and a mouse, and for
+                 * two reasons. A trackpad on a Mac no longer arrives as a scroll at
+                 * all: Compose hands its two fingers over as a *pan*, in pixels that
+                 * follow the fingers, and nothing here listened for one. And a
+                 * scroll's delta is in notches, not pixels — a mouse's click is 1 —
+                 * so three pixels a notch moved an 88dp action three pixels. Now a
+                 * pan moves the row with the fingers, the way a finger's drag does,
+                 * and a notch moves it [SwipeActionsDefaults.ScrollStep].
+                 *
+                 * **Sideways, or not at all.** Each gesture — a pan from its start,
+                 * a burst of scroll from the first event after a quiet spell — is
+                 * the row's if it begins mostly sideways, and the list's otherwise,
+                 * for the whole of it. A vertical scroll with a little drift in it
+                 * used to move the row and swallow the scroll.
+                 *
+                 * A pan ends with an event of its own and settles then, flicked by
+                 * how it was moving; a scroll has no end, and settles once it has
+                 * been quiet for [SwipeActionsDefaults.SettleAfterScroll].
                  */
                 .then(
                     if (swipeable) {
-                        Modifier.pointerInput(state, scope) {
+                        // Keyed on the travel too: the settle and the dealing both
+                        // read the actions, and a row given new ones starts afresh.
+                        Modifier.pointerInput(state, scope, isRtl, startTravel, endTravel, actionWidthPx) {
+                            val stepPx = SwipeActionsDefaults.ScrollStep.toPx()
+                            val decidePx = viewConfiguration.touchSlop * SideScrollDecisionShare
                             var waiting: Job? = null
+                            // The gesture's direction: undecided, the row's, or the list's.
+                            var ours: Boolean? = null
+                            var gathered = Offset.Zero
+                            var lastScroll = 0L
+                            var panned = 0f
+                            val panVelocity = VelocityTracker1D(isDataDifferential = false)
+
+                            fun move(physical: Float) {
+                                settling?.cancel()
+                                waiting?.cancel()
+                                state.anchoredState.dispatchRawDelta(if (isRtl) -physical else physical)
+                                dealt.at(state.anchoredState.offset)
+                            }
+
+                            fun decide(delta: Offset, threshold: Float): Boolean? {
+                                if (ours == null) {
+                                    gathered += delta
+                                    if (gathered.getDistance() >= threshold) ours = abs(gathered.x) > abs(gathered.y)
+                                }
+                                return ours
+                            }
+
+                            fun begin() {
+                                ours = null
+                                gathered = Offset.Zero
+                                dealt.arm(state.anchoredState.offset, actionWidthPx, start.size, end.size, hysteresisPx)
+                            }
+
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
-                                    if (event.type != PointerEventType.Scroll) continue
-                                    val sideways = event.changes.sumOf {
-                                        it.scrollDelta.x.toDouble()
-                                    }.toFloat()
-                                    if (sideways == 0f) continue
-                                    event.changes.forEach { it.consume() }
-                                    settling?.cancel()
-                                    state.anchoredState.dispatchRawDelta(
-                                        -sideways * SwipeActionsDefaults.ScrollStep
-                                    )
-                                    waiting?.cancel()
-                                    waiting = scope.launch {
-                                        delay(SwipeActionsDefaults.SettleAfterScroll)
-                                        committing = false
-                                        settle(0f)
+                                    val changes = event.changes
+                                    when (event.type) {
+                                        PointerEventType.PanStart -> {
+                                            begin()
+                                            panned = 0f
+                                            panVelocity.resetTracking()
+                                        }
+                                        PointerEventType.PanMove -> {
+                                            val pan = changes.fold(Offset.Zero) { sum, it -> sum + it.panOffset }
+                                            if (decide(pan, decidePx) != true) continue
+                                            changes.forEach { it.consume() }
+                                            // Pixels that follow the fingers: the row
+                                            // goes with them, as it does with one.
+                                            move(pan.x)
+                                            panned += pan.x
+                                            panVelocity.addDataPoint(changes.first().uptimeMillis, panned)
+                                        }
+                                        PointerEventType.PanEnd -> {
+                                            if (ours == true) {
+                                                changes.forEach { it.consume() }
+                                                committing = false
+                                                val velocity = panVelocity.calculateVelocity()
+                                                settle(if (isRtl) -velocity else velocity)
+                                            }
+                                            dealt.reset()
+                                            ours = null
+                                        }
+                                        PointerEventType.Scroll -> {
+                                            val delta = changes.fold(Offset.Zero) { sum, it -> sum + it.scrollDelta }
+                                            // Says nothing about direction, so decides nothing.
+                                            if (delta == Offset.Zero) continue
+                                            val now = changes.first().uptimeMillis
+                                            if (now - lastScroll > SideScrollQuietMillis) begin()
+                                            lastScroll = now
+                                            // A notch is a whole decision on its own.
+                                            if (decide(delta, 0f) != true || delta.x == 0f) continue
+                                            changes.forEach { it.consume() }
+                                            move(-delta.x * stepPx)
+                                            waiting = scope.launch {
+                                                delay(SwipeActionsDefaults.SettleAfterScroll)
+                                                committing = false
+                                                dealt.reset()
+                                                settle(0f)
+                                            }
+                                        }
+                                        else -> Unit
                                     }
                                 }
                             }
@@ -863,6 +964,73 @@ private fun SwipeActionButtons(
                 if (widths[i] > 0f) along += widths[i] + if (i == 0) gap else gap * (1f - t)
             }
         }
+    }
+}
+
+/**
+ * How many actions a drag has brought to their full size, reported once each as
+ * it arrives: button `i` from the edge is full once the row has travelled
+ * `i + 1` action widths — see [grownWidth] — so the count is whole widths
+ * uncovered, up to the side's number of actions.
+ *
+ * Latched with [release] of slack on the way back, as an end stop is, so a
+ * finger resting on the moment one fills does not tick it again and again; and
+ * the index handed to the ticker only climbs, so shrinking says nothing.
+ */
+private class ActionsDealt(private val ticker: DetentTicker) {
+    private var each = 0f
+    private var startCount = 0
+    private var endCount = 0
+    private var release = 0f
+    private var side = 0
+    private var dealt = 0
+    private var hits = 0
+
+    fun arm(offset: Float, each: Float, startCount: Int, endCount: Int, release: Float) {
+        this.each = each
+        this.startCount = startCount
+        this.endCount = endCount
+        this.release = release
+        ticker.reset()
+        hits = 0
+        ticker.at(hits)
+        side = sideOf(offset)
+        dealt = reached(offset)
+    }
+
+    fun at(offset: Float) {
+        if (each <= 0f || offset.isNaN()) return
+        val now = sideOf(offset)
+        // Across the middle to the other side's actions: none of those is dealt.
+        if (now != side) {
+            side = now
+            dealt = 0
+        }
+        val reached = reached(offset)
+        when {
+            reached > dealt -> {
+                dealt = reached
+                hits++
+                ticker.at(hits)
+            }
+            reached < dealt && abs(offset) <= dealt * each - release -> dealt = reached
+        }
+    }
+
+    fun reset() {
+        ticker.reset()
+        each = 0f
+        dealt = 0
+        hits = 0
+    }
+
+    private fun sideOf(offset: Float) = if (offset > 0f) 1 else if (offset < 0f) -1 else 0
+
+    /** Whole action widths uncovered, give or take half a pixel, up to the side's actions. */
+    private fun reached(offset: Float): Int {
+        if (each <= 0f || offset.isNaN()) return 0
+        val count = if (offset > 0f) startCount else if (offset < 0f) endCount else 0
+        return ((abs(offset) + 0.5f) / each).toInt().coerceIn(0, count)
     }
 }
 
@@ -1149,3 +1317,12 @@ fun SwipeToDismiss(
 private class ConfirmDraw {
     var job: Job? = null
 }
+
+/**
+ * How much of the touch slop a trackpad's pan gathers before the row decides
+ * whether it is sideways — the share a finger's drag uses, for the same reason.
+ */
+private const val SideScrollDecisionShare = 0.4f
+
+/** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
+private const val SideScrollQuietMillis = 250L
