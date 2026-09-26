@@ -1925,18 +1925,6 @@ public final class io/kontour/ui/foundation/LinkDefaults {
 	public final fun styles-RGew2ao (JJJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/text/TextLinkStyles;
 }
 
-public final class io/kontour/ui/foundation/LinkedTextKt {
-	public static final fun linkedText (Landroidx/compose/ui/text/TextLinkStyles;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/text/AnnotatedString;
-}
-
-public final class io/kontour/ui/foundation/LinkedTextScope {
-	public static final field $stable I
-	public final fun link (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
-	public final fun link (Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
-	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
-	public final fun unaryPlus (Ljava/lang/String;)V
-}
-
 public final class io/kontour/ui/foundation/LocalContentKt {
 	public static final fun ProvideContentColour-Iv8Zu3U (JLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun ProvideTextStyle (Landroidx/compose/ui/text/TextStyle;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
@@ -1948,6 +1936,57 @@ public final class io/kontour/ui/foundation/RedactionKt {
 	public static final fun Redacted (ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun getLocalRedacted ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun redacted (Landroidx/compose/ui/Modifier;Landroidx/compose/ui/graphics/Shape;ZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class io/kontour/ui/foundation/RichTextDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/foundation/RichTextDefaults;
+	public final fun styles (Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/TextLinkStyles;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/foundation/RichTextStyles;
+}
+
+public final class io/kontour/ui/foundation/RichTextKt {
+	public static final fun markdownText (Ljava/lang/String;Lio/kontour/ui/foundation/RichTextStyles;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/text/AnnotatedString;
+	public static final fun richText (Lio/kontour/ui/foundation/RichTextStyles;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/text/AnnotatedString;
+}
+
+public final class io/kontour/ui/foundation/RichTextScope {
+	public static final field $stable I
+	public final fun bold (Ljava/lang/String;)V
+	public final fun bold (Lkotlin/jvm/functions/Function1;)V
+	public final fun code (Ljava/lang/String;)V
+	public final fun italic (Ljava/lang/String;)V
+	public final fun italic (Lkotlin/jvm/functions/Function1;)V
+	public final fun link (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun link (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public final fun link (Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
+	public final fun markdown (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun markdown$default (Lio/kontour/ui/foundation/RichTextScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun strikethrough (Ljava/lang/String;)V
+	public final fun strikethrough (Lkotlin/jvm/functions/Function1;)V
+	public final fun tone (Lio/kontour/ui/theme/Tone;Ljava/lang/String;)V
+	public final fun tone (Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function1;)V
+	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
+	public final fun unaryPlus (Ljava/lang/String;)V
+}
+
+public final class io/kontour/ui/foundation/RichTextStyles {
+	public static final field $stable I
+	public fun <init> (Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/TextLinkStyles;)V
+	public final fun component1 ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun component2 ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun component3 ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun component4 ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun component5 ()Landroidx/compose/ui/text/TextLinkStyles;
+	public final fun copy (Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/TextLinkStyles;)Lio/kontour/ui/foundation/RichTextStyles;
+	public static synthetic fun copy$default (Lio/kontour/ui/foundation/RichTextStyles;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/SpanStyle;Landroidx/compose/ui/text/TextLinkStyles;ILjava/lang/Object;)Lio/kontour/ui/foundation/RichTextStyles;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBold ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun getCode ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun getItalic ()Landroidx/compose/ui/text/SpanStyle;
+	public final fun getLinks ()Landroidx/compose/ui/text/TextLinkStyles;
+	public final fun getStrikethrough ()Landroidx/compose/ui/text/SpanStyle;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class io/kontour/ui/foundation/RowContentScope : androidx/compose/foundation/layout/RowScope, io/kontour/ui/foundation/ContentScope {
@@ -2003,8 +2042,8 @@ public final class io/kontour/ui/foundation/SystemIcons {
 }
 
 public final class io/kontour/ui/foundation/TextKt {
-	public static final fun Text--4IGK_g (Landroidx/compose/ui/text/AnnotatedString;Landroidx/compose/ui/Modifier;JJLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
 	public static final fun Text--4IGK_g (Ljava/lang/String;Landroidx/compose/ui/Modifier;JJLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Text-IbK3jfQ (Landroidx/compose/ui/text/AnnotatedString;Landroidx/compose/ui/Modifier;JJLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILjava/util/Map;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/input/Cursor : java/lang/Enum {
@@ -3990,6 +4029,7 @@ public final class io/kontour/ui/theme/TypographyKt {
 	public static final fun jetBrainsMonoFontFamily (Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/text/font/FontFamily;
 	public static final fun kontourTypography (Landroidx/compose/ui/text/font/FontFamily;Landroidx/compose/ui/text/font/FontFamily;)Lio/kontour/ui/theme/Typography;
 	public static synthetic fun kontourTypography$default (Landroidx/compose/ui/text/font/FontFamily;Landroidx/compose/ui/text/font/FontFamily;ILjava/lang/Object;)Lio/kontour/ui/theme/Typography;
+	public static final fun mono (Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/text/TextStyle;
 	public static final fun outfitFontFamily (Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/text/font/FontFamily;
 }
 

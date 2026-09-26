@@ -41,7 +41,7 @@ import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.foundation.linkedText
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Theme
 
@@ -243,7 +243,7 @@ fun TextIconButtonBasics() {
 @Composable
 fun InlineLink() {
     Text(
-        linkedText {
+        richText {
             +"Services are suspended between Perth and Midland. "
             link("See replacement buses") { replacements() }
         }

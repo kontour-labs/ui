@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Tone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -80,6 +81,78 @@ class RecompositionCostTest {
                 layouts,
                 "a colour fade laid the text out again ${layouts - settled} times",
             )
+        } finally {
+            scene.close()
+        }
+    }
+
+    /**
+     * Rich text rebuilt on every composition is laid out once.
+     *
+     * `richText` and `markdownText` build their string again whenever their
+     * caller recomposes — they have to, because the link handlers may close
+     * over anything — and what makes that free is that the string comes out
+     * *equal* to the last one, so `BasicText` keeps the paragraph it shaped. A
+     * link whose listener were a fresh lambda would break that, and every
+     * recomposition would re-shape the text; that is the trap both exist to
+     * close, and nothing tested it until now.
+     */
+    @Test
+    fun richTextRebuiltEveryCompositionIsLaidOutOnce() {
+        var richLayouts = 0
+        var markdownLayouts = 0
+        val richCounted: (TextLayoutResult) -> Unit = { richLayouts++ }
+        val markdownCounted: (TextLayoutResult) -> Unit = { markdownLayouts++ }
+        var tick by mutableStateOf(0)
+        var followed = -1
+        val scene = ImageComposeScene(width = 400, height = 300, density = Density(2f)) {
+            KontourTheme(darkTheme = false) {
+                // Read here so this scope recomposes every time it changes, and
+                // captured by the handlers so they are new lambdas every time.
+                val now = tick
+                Column {
+                    Text(
+                        richText {
+                            +"The "; bold("950"); +" leaves at "; code("12:04"); +". "
+                            tone(Tone.Warning, "Delayed"); +" — "
+                            link("replacement buses") { followed = now }
+                            +" or "; link("timetables", url = "https://transperth.wa.gov.au")
+                        },
+                        onTextLayout = richCounted,
+                    )
+                    Text(
+                        markdownText(
+                            "**Midland** line *suspended*. [Details](https://transperth.wa.gov.au)",
+                            onLinkClick = { followed = now },
+                        ),
+                        onTextLayout = markdownCounted,
+                    )
+                }
+            }
+        }
+        try {
+            var time = 0L
+            fun frames(count: Int) = repeat(count) {
+                scene.render(time)
+                time += 16_000_000L
+            }
+            frames(3)
+            val rich = richLayouts
+            val markdown = markdownLayouts
+            assertTrue(rich >= 1 && markdown >= 1, "the texts never reported a layout")
+
+            repeat(20) {
+                tick++
+                frames(1)
+            }
+
+            assertEquals(rich, richLayouts, "rich text was laid out again ${richLayouts - rich} times")
+            assertEquals(
+                markdown,
+                markdownLayouts,
+                "Markdown text was laid out again ${markdownLayouts - markdown} times",
+            )
+            assertEquals(-1, followed, "nothing was clicked, so no handler should have run")
         } finally {
             scene.close()
         }

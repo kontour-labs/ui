@@ -1,6 +1,6 @@
 # `TextButton`
 
-*Also on this page: `TextIconButton`, `linkedText`.*
+*Also on this page: `TextIconButton`.*
 
 A button that is only its label, at the size of the text around it.
 
@@ -57,18 +57,18 @@ thing saying what the button does.
 
 ---
 
-## `linkedText` — a link *inside* a sentence
+## A link *inside* a sentence
 
 A button cannot wrap with the words either side of it, cannot be read out in the
 order it is written, and is announced as a button in a list of buttons rather
 than as a link in the flow of the text. So a link in a paragraph is not a
 `TextButton` placed next to one — it is a real `LinkAnnotation`, and
-`linkedText` is how you build one.
+[`richText`](text.md#rich-text) is how you build one.
 
 <!--sample:InlineLink-->
 ```kotlin
 Text(
-    linkedText {
+    richText {
         +"Services are suspended between Perth and Midland. "
         link("See replacement buses") { replacements() }
     }
@@ -92,8 +92,10 @@ close over whatever they like. The string comes out value-equal to the one befor
 it, and no caller has to know any of this.
 
 `LinkDefaults.styles()` is accent-coloured and underlined, with the accent's own
-container tint behind the words on hover and press. Pass your own for a link that
-has to sit on a coloured ground.
+container tint behind the words on hover and press. Pass your own, through
+`RichTextDefaults.styles(links = …)`, for a link that has to sit on a coloured
+ground. `link(text, url)` opens an address with the platform's own handler and
+needs no lambda at all.
 
 ---
 
@@ -104,7 +106,7 @@ painting it, so a caption-sized affordance is still reachable by a thumb. The
 reserved slack overlaps its neighbours rather than pushing them apart, which is
 what lets one sit inside a line of text at all.
 
-`linkedText` produces link semantics rather than button semantics. That is the
+A `richText` link has link semantics rather than button semantics. That is the
 whole reason to prefer it in prose: a screen reader's link rotor is how a reader
 finds where a paragraph can take them, and a button is not in it.
 

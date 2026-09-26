@@ -16,9 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
@@ -30,10 +27,13 @@ import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.foundation.markdownText
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 
 // --- Foundation -----------------------------------------------------------
 
@@ -48,14 +48,30 @@ internal val TextDemo = ComponentDemo(slug = "text") {
             colour = Theme.colours.contentMuted,
         )
         // The AnnotatedString overload is the whole reason there are two: a
-        // route number in the accent colour inside a sentence, without a second
-        // component and without breaking the line box.
+        // route number in the accent's text colour inside a sentence, without a
+        // second component and without breaking the line box.
         Text(
-            buildAnnotatedString {
-                append("The ")
-                withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
-                append(" leaves in 4 minutes.")
+            richText {
+                +"The "
+                tone(Tone.Accent, "950")
+                +" leaves in 4 minutes."
             },
+            style = Theme.typography.bodyMedium,
+        )
+        // Every verb, and the same string read from Markdown, so a difference
+        // between the two paths shows up here side by side.
+        Text(
+            richText {
+                bold("Bold"); +", "; italic("italic"); +", "; code("code"); +", "
+                strikethrough("struck"); +" and "; link("a link") { echo("Link followed") }
+            },
+            style = Theme.typography.bodyMedium,
+        )
+        Text(
+            markdownText(
+                "**Bold**, *italic*, `code`, ~~struck~~ and [a link](https://kontour.io)",
+                onLinkClick = { echo("Link followed") },
+            ),
             style = Theme.typography.bodyMedium,
         )
     }

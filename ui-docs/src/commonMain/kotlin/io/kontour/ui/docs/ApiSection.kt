@@ -22,6 +22,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.mono
 
 /**
  * Every parameter of everything this page documents.
@@ -67,7 +68,7 @@ private fun EntryBlock(entry: ApiEntry) {
         ) {
             Text(
                 text = listOfNotNull(entry.owner, entry.name).joinToString("."),
-                style = Theme.typography.titleSmall.copy(fontFamily = Theme.typography.mono.fontFamily),
+                style = Theme.typography.titleSmall.mono(),
             )
             // A `Tag`, not accent-coloured text. It marks a *kind* of thing,
             // which is what a tag is for, and the page beside it documents
@@ -117,7 +118,7 @@ private fun EntryBlock(entry: ApiEntry) {
         entry.enums.mapNotNull { apiEnums[it] }.forEach { enum ->
             Text(
                 text = "${enum.name}: ${enum.values.joinToString(", ")}",
-                style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily),
+                style = Theme.typography.bodySmall.mono(),
                 colour = Theme.colours.contentMuted,
             )
         }
@@ -216,7 +217,7 @@ private fun StackedList(entry: ApiEntry) {
 private fun Mono(text: String, weight: FontWeight = FontWeight.Normal) {
     Text(
         text = text,
-        style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily, fontWeight = weight),
+        style = Theme.typography.bodySmall.mono().copy(fontWeight = weight),
         colour = Theme.colours.content,
     )
 }

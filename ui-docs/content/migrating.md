@@ -247,6 +247,7 @@ does: `Modifier.padding(bottom = it)` becomes `Modifier.padding(it)`.
 | `BranchTimelineDefaults.NodeSize`, `GutterWidth` | `TimelineDefaults.NodeSize`, `GutterWidth` |
 | `textToolbarLabels(…)` | `TextToolbarDefaults.labels(…)` |
 | `FabPosition.Center`, `OverlayAlignment.Center`, `TableAlign.Center` | `.Centre` |
+| `linkedText { }`, `LinkedTextScope` | `richText { }`, `RichTextScope` — the same builder, which now does bold, italic, code, tone and Markdown as well as links; `link(text) { }` is unchanged |
 
 Six types that nothing public could reach are `internal` now: `SlotGap`,
 `ArrowSpec`, `ScrollFade`, `ScrollbarGeometry`, `ConcentricContainer`, and the

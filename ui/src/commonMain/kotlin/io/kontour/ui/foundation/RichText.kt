@@ -2,6 +2,7 @@ package io.kontour.ui.foundation
 
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -12,21 +13,33 @@ import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
+import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 
 /**
- * Text with links in it, for [Text].
+ * Text with emphasis, code and links in it, for [Text].
  *
  * ```kotlin
  * Text(
- *     linkedText {
- *         +"Services are suspended between Perth and Midland. "
+ *     richText {
+ *         +"The "; bold("950"); +" leaves in "; tone(Tone.Accent, "4 minutes"); +". "
  *         link("See replacement buses") { navigate(Replacements) }
  *     }
  * )
  * ```
+ *
+ * Every verb draws from the theme — the bold weight the type scale has, the mono
+ * family on the sunken ground for [code][RichTextScope.code], a tone's own text
+ * colour — so a span looks like the rest of the library without the call site
+ * choosing a weight or a hex value. That is the mistake it deletes: a
+ * hand-built `SpanStyle(fontWeight = FontWeight.Bold)` is a weight the face may
+ * not have, and `FontFamily.Monospace` is not the theme's mono.
  *
  * **A link inside a sentence is not a
  * [TextButton][io.kontour.ui.components.action.TextButton] placed next to one.** A
@@ -53,33 +66,68 @@ import io.kontour.ui.theme.Theme
  * composition — they are free to close over whatever they like — and none of that
  * reaches the string's identity. The string comes out value-equal to the one
  * before it, so nothing re-shapes, and no caller has to know any of this.
+ * [RichTextScope.link] with a `url` needs no listener at all.
  *
- * @param styles How a link is drawn, and what it does under a pointer or a focus
- *   ring. [LinkDefaults.styles] is accent-coloured and underlined.
+ * @param styles How each verb is drawn. [RichTextDefaults.styles] takes them from
+ *   the theme.
  */
 @Composable
-fun linkedText(
-    styles: TextLinkStyles = LinkDefaults.styles(),
-    build: LinkedTextScope.() -> Unit,
+fun richText(
+    styles: RichTextStyles = RichTextDefaults.styles(),
+    build: RichTextScope.() -> Unit,
 ): AnnotatedString {
     val links = remember { LinkHandlers() }
+    val colours = Theme.colours
     // Cleared and refilled by `build` below, in the order the links appear, and
     // the tag is the index. Running during composition is safe here because it
     // is a plain object rather than snapshot state: an abandoned composition
     // leaves a list that the next one overwrites before anything reads it.
     links.begin()
     return buildAnnotatedString {
-        LinkedTextScope(this, links, styles).build()
+        RichTextScope(this, links, styles, colours).build()
     }
 }
 
-/** The receiver of [linkedText]. */
+/**
+ * [source] read as inline Markdown: `**bold**`, `*italic*`, `` `code` ``,
+ * `~~struck~~` and `[links](https://…)`.
+ *
+ * ```kotlin
+ * Text(markdownText(strings.delayNotice)) // "Services on the **Midland** line are delayed. [Details](https://…)"
+ * ```
+ *
+ * For strings an app already holds — above all translated ones, where the
+ * emphasis has to move with the words when another language reorders them. A
+ * bold span assembled around concatenated fragments cannot be translated; a
+ * Markdown string can. Only the inline half is read: a `#` or a `-` at the start
+ * of a line is left as written, because headings and lists are layout. See
+ * [RichTextScope.markdown] for the grammar and for mixing Markdown with the
+ * other verbs.
+ *
+ * The parse is remembered against [source], so a recomposition does not read the
+ * string again, and the result is value-equal between compositions.
+ *
+ * @param onLinkClick Called with the address when a link is followed. Null, the
+ *   default, opens it with the platform's `UriHandler`.
+ */
+@Composable
+fun markdownText(
+    source: String,
+    styles: RichTextStyles = RichTextDefaults.styles(),
+    onLinkClick: ((String) -> Unit)? = null,
+): AnnotatedString {
+    val spans = remember(source) { parseInlineMarkdown(source) }
+    return richText(styles) { appendSpans(spans, onLinkClick) }
+}
+
+/** The receiver of [richText]. */
 @LayoutScopeMarker
 @Stable
-class LinkedTextScope internal constructor(
+class RichTextScope internal constructor(
     private val builder: AnnotatedString.Builder,
     private val links: LinkHandlers,
-    private val styles: TextLinkStyles,
+    private val styles: RichTextStyles,
+    private val colours: ColourScheme,
 ) {
 
     /** Plain text, in whatever style the [Text] is drawn with. */
@@ -92,6 +140,45 @@ class LinkedTextScope internal constructor(
         builder.append(this)
     }
 
+    /** [text] in the theme's bold weight. */
+    fun bold(text: String) = bold { +text }
+
+    /** Whatever [content] appends, in the theme's bold weight. */
+    fun bold(content: RichTextScope.() -> Unit) = styled(styles.bold, content)
+
+    /** [text] in italic. */
+    fun italic(text: String) = italic { +text }
+
+    /** Whatever [content] appends, in italic. */
+    fun italic(content: RichTextScope.() -> Unit) = styled(styles.italic, content)
+
+    /** [text] struck through: a price that no longer applies, a cancelled stop. */
+    fun strikethrough(text: String) = strikethrough { +text }
+
+    /** Whatever [content] appends, struck through. */
+    fun strikethrough(content: RichTextScope.() -> Unit) = styled(styles.strikethrough, content)
+
+    /**
+     * [text] as code, in the theme's mono family on the sunken ground.
+     *
+     * No content form: code is a literal, and a bold word inside one is a
+     * different thing that the page should say in words.
+     */
+    fun code(text: String) {
+        builder.withStyle(styles.code) { append(text) }
+    }
+
+    /**
+     * [text] in [tone]'s own text colour — the one a [Tag][io.kontour.ui.components.display.Tag]
+     * of that tone is lettered in, which is held to 4.5:1 against its tint and
+     * the page.
+     */
+    fun tone(tone: Tone, text: String) = tone(tone) { +text }
+
+    /** Whatever [content] appends, in [tone]'s own text colour. */
+    fun tone(tone: Tone, content: RichTextScope.() -> Unit) =
+        styled(SpanStyle(color = colours.textFor(tone)), content)
+
     /**
      * A link reading [text], which calls [onClick] when it is followed.
      *
@@ -103,22 +190,139 @@ class LinkedTextScope internal constructor(
     }
 
     /**
+     * A link reading [text] that opens [url] with the platform's `UriHandler`.
+     *
+     * Only `http`, `https`, `mailto` and `tel` addresses become links; anything
+     * else is drawn as [text] alone. There is no lambda here at all, so there is
+     * nothing whose identity could change between compositions.
+     */
+    fun link(text: String, url: String) {
+        if (!isLinkableUrl(url)) {
+            builder.append(text)
+            return
+        }
+        builder.withLink(LinkAnnotation.Url(url, styles.links)) { append(text) }
+    }
+
+    /**
      * A link whose text is built rather than given.
      *
      * `onClick` is named because the trailing lambda is the *content*, which is
      * the order every other slot in the library uses.
      */
-    fun link(onClick: () -> Unit, content: LinkedTextScope.() -> Unit) {
+    fun link(onClick: () -> Unit, content: RichTextScope.() -> Unit) {
         builder.withLink(
             LinkAnnotation.Clickable(
                 tag = links.register(onClick),
-                styles = styles,
+                styles = styles.links,
                 linkInteractionListener = links,
             )
         ) {
-            LinkedTextScope(builder, links, styles).content()
+            content()
         }
     }
+
+    /**
+     * [source] read as inline Markdown, appended where this call is.
+     *
+     * | Written | Drawn |
+     * |---|---|
+     * | `**bold**`, `__bold__` | [bold] |
+     * | `*italic*`, `_italic_` | [italic] |
+     * | `` `code` `` | [code] |
+     * | `~~struck~~` | [strikethrough] |
+     * | `[label](https://…)` | a link, the label read the same way |
+     * | `\*` | a literal `*` — any punctuation can be escaped |
+     *
+     * A delimiter that does not close is text, so a stray asterisk shows as one;
+     * an underscore inside a word is a letter, so `snake_case` survives. Only the
+     * inline half is read — headings, lists and quotes are layout.
+     *
+     * @param onLinkClick Called with the address when a link is followed. Null
+     *   opens it with the platform's `UriHandler`.
+     */
+    fun markdown(source: String, onLinkClick: ((String) -> Unit)? = null) {
+        appendSpans(parseInlineMarkdown(source), onLinkClick)
+    }
+
+    internal fun appendSpans(spans: List<InlineSpan>, onLinkClick: ((String) -> Unit)?) {
+        for (span in spans) {
+            when (span) {
+                is InlineSpan.Plain -> builder.append(span.text)
+                is InlineSpan.Code -> code(span.text)
+                is InlineSpan.Bold -> bold { appendSpans(span.children, onLinkClick) }
+                is InlineSpan.Italic -> italic { appendSpans(span.children, onLinkClick) }
+                is InlineSpan.Strikethrough -> strikethrough { appendSpans(span.children, onLinkClick) }
+                is InlineSpan.Link -> {
+                    val annotation = if (onLinkClick == null) {
+                        LinkAnnotation.Url(span.url, styles.links)
+                    } else {
+                        val url = span.url
+                        LinkAnnotation.Clickable(
+                            tag = links.register { onLinkClick(url) },
+                            styles = styles.links,
+                            linkInteractionListener = links,
+                        )
+                    }
+                    builder.withLink(annotation) { appendSpans(span.children, onLinkClick) }
+                }
+            }
+        }
+    }
+
+    private fun styled(style: SpanStyle, content: RichTextScope.() -> Unit) {
+        builder.withStyle(style) { content() }
+    }
+}
+
+/**
+ * How each [RichTextScope] verb is drawn.
+ *
+ * @property bold [RichTextScope.bold]: a weight, and nothing else, so it merges
+ *   with whatever style the [Text] already has.
+ * @property code [RichTextScope.code]: a family and a ground.
+ * @property links Every link, hover, focus and press included.
+ */
+@Immutable
+data class RichTextStyles(
+    val bold: SpanStyle,
+    val italic: SpanStyle,
+    val strikethrough: SpanStyle,
+    val code: SpanStyle,
+    val links: TextLinkStyles,
+)
+
+/** What [richText] and [markdownText] draw with by default. */
+object RichTextDefaults {
+
+    /**
+     * The theme's own: SemiBold, which the brand face ships, rather than a Bold
+     * the renderer may have to synthesise; the mono family on `surfaceSunken`
+     * for code; and [LinkDefaults.styles] for links.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun styles(
+        bold: SpanStyle = SpanStyle(fontWeight = FontWeight.SemiBold),
+        italic: SpanStyle = SpanStyle(fontStyle = FontStyle.Italic),
+        strikethrough: SpanStyle = SpanStyle(textDecoration = TextDecoration.LineThrough),
+        code: SpanStyle = SpanStyle(
+            fontFamily = Theme.typography.mono.fontFamily,
+            fontFeatureSettings = Theme.typography.mono.fontFeatureSettings,
+            background = Theme.colours.surfaceSunken,
+        ),
+        links: TextLinkStyles = LinkDefaults.styles(),
+    ): RichTextStyles = RichTextStyles(bold, italic, strikethrough, code, links)
+}
+
+/** A tone's text colour: what a tag of that tone is lettered in. */
+private fun ColourScheme.textFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> contentMuted
+    Tone.Info -> info.onContainer
+    Tone.Accent -> accent.onContainer
+    Tone.Success -> success.onContainer
+    Tone.Warning -> warning.onContainer
+    Tone.Danger -> danger.onContainer
 }
 
 /** How a link inside a sentence is drawn. */
@@ -170,9 +374,9 @@ object LinkDefaults {
 }
 
 /**
- * One listener for every link in one [linkedText], dispatching by tag.
+ * One listener for every link in one [richText], dispatching by tag.
  *
- * See [linkedText] for why this is not a lambda per link.
+ * See [richText] for why this is not a lambda per link.
  */
 internal class LinkHandlers : LinkInteractionListener {
     private val handlers = mutableListOf<() -> Unit>()

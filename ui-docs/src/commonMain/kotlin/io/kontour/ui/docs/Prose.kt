@@ -40,6 +40,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.mono
 import io.kontour.ui.theme.Tone
 
 /**
@@ -157,7 +158,7 @@ private fun CodeBlock(block: Block.Code) {
         ) {
             Text(
                 text = highlighted(block),
-                style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily),
+                style = Theme.typography.bodySmall.mono(),
                 colour = Theme.colours.code.plain,
                 softWrap = false,
             )

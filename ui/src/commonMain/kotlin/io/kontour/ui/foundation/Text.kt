@@ -1,6 +1,7 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateOf
@@ -113,9 +114,15 @@ fun Text(
  * Draws styled text.
  *
  * The [AnnotatedString] overload, for text with mixed styling, inline content,
- * or clickable spans. Prefer building the string with `buildAnnotatedString` and
- * `LinkAnnotation` for links, so the platform gets real link semantics rather
- * than a tap handler a screen reader cannot see.
+ * or links. Build the string with [richText] — or [markdownText], for a string
+ * that already carries its emphasis — rather than `buildAnnotatedString` at the
+ * call site: the spans come from the theme, and a link's listener keeps the
+ * string equal to itself between compositions, which a lambda written inline
+ * does not, and an unequal string is laid out again every time.
+ *
+ * @param inlineContent What stands in for each `appendInlineContent` placeholder
+ *   in [text], by its id — an icon or a key cap that has to wrap with the words
+ *   around it.
  */
 @Composable
 fun Text(
@@ -134,6 +141,7 @@ fun Text(
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
     minLines: Int = 1,
+    inlineContent: Map<String, InlineTextContent> = emptyMap(),
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
@@ -159,6 +167,7 @@ fun Text(
         softWrap = softWrap,
         maxLines = maxLines,
         minLines = minLines,
+        inlineContent = inlineContent,
     )
 }
 

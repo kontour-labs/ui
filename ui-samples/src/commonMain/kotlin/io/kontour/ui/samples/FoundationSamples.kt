@@ -24,9 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Star
@@ -50,6 +47,8 @@ import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
+import io.kontour.ui.foundation.markdownText
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.input.pointerCursor
@@ -57,6 +56,7 @@ import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 
 @Composable
 fun TextBasics() {
@@ -69,14 +69,36 @@ fun TextBasics() {
     )
 
     // The `AnnotatedString` overload is why there are two: a route number in
-    // the accent colour inside a sentence, without a second component and
-    // without breaking the line box.
+    // the accent's text colour inside a sentence, without a second component
+    // and without breaking the line box.
     Text(
-        buildAnnotatedString {
-            append("The ")
-            withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
-            append(" leaves in 4 minutes.")
+        richText {
+            +"The "
+            tone(Tone.Accent, "950")
+            +" leaves in 4 minutes."
         },
+    )
+}
+
+@Composable
+fun RichTextBasics() {
+    // Each verb draws from the theme: the bold the type scale ships, the mono
+    // face on the sunken ground, a tone's own text colour.
+    Text(
+        richText {
+            +"The "; bold("950"); +" is running "; tone(Tone.Warning, "12 minutes late"); +". "
+            +"Scan at the "; code("SmartRider"); +" reader as usual. "
+            link("Replacement buses") { replacements() }
+        },
+    )
+
+    // A string that already carries its emphasis — a translated one, most of
+    // all, where another language puts the bold word somewhere else.
+    Text(
+        markdownText(
+            "Services on the **Midland** line are *suspended* until 6pm. " +
+                "[Timetables](https://transperth.wa.gov.au)",
+        ),
     )
 }
 

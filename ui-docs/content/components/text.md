@@ -1,6 +1,6 @@
 # `Text`
 
-*Also on this page: `ProvideTextStyle`.*
+*Also on this page: `ProvideTextStyle`, `richText`, `markdownText`.*
 
 The typographic primitive. Resolves its style and its colour from the theme
 rather than taking them, so a paragraph inside a `Card` on a dark scheme needs
@@ -17,13 +17,13 @@ Text(
 )
 
 // The `AnnotatedString` overload is why there are two: a route number in
-// the accent colour inside a sentence, without a second component and
-// without breaking the line box.
+// the accent's text colour inside a sentence, without a second component
+// and without breaking the line box.
 Text(
-    buildAnnotatedString {
-        append("The ")
-        withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
-        append(" leaves in 4 minutes.")
+    richText {
+        +"The "
+        tone(Tone.Accent, "950")
+        +" leaves in 4 minutes."
     },
 )
 ```
@@ -35,6 +35,57 @@ component or a second style.
 Colour comes from `LocalContentColour`, which [`Surface`](surface.md) sets. That
 chain is the reason a component can be dropped on a dark card and stay legible
 without every child being told where it is.
+
+## Rich text
+
+`richText { }` builds the `AnnotatedString`, and every verb in it draws from the
+theme:
+
+<!--sample:RichTextBasics-->
+```kotlin
+// Each verb draws from the theme: the bold the type scale ships, the mono
+// face on the sunken ground, a tone's own text colour.
+Text(
+    richText {
+        +"The "; bold("950"); +" is running "; tone(Tone.Warning, "12 minutes late"); +". "
+        +"Scan at the "; code("SmartRider"); +" reader as usual. "
+        link("Replacement buses") { replacements() }
+    },
+)
+
+// A string that already carries its emphasis — a translated one, most of
+// all, where another language puts the bold word somewhere else.
+Text(
+    markdownText(
+        "Services on the **Midland** line are *suspended* until 6pm. " +
+            "[Timetables](https://transperth.wa.gov.au)",
+    ),
+)
+```
+
+| Verb | Draws |
+|---|---|
+| `bold`, `italic`, `strikethrough` | the theme's bold weight — SemiBold, which the face ships — italic, a line through |
+| `code` | the theme's mono face on `surfaceSunken`, never `FontFamily.Monospace` |
+| `tone(Tone.X)` | the text colour a `Tag` of that tone is lettered in |
+| `link(text) { … }` | a link that calls you back |
+| `link(text, url)` | a link the platform opens; only `http`, `https`, `mailto` and `tel` |
+| `markdown(source)` | inline Markdown, into the same string |
+
+Each takes a `String` or a block, so `bold { +"950 "; italic("express") }` nests.
+The string comes out **equal to itself** between compositions — the link
+listener is remembered, the styles are values — so a recomposition does not lay
+the text out again. Hand-built strings with a lambda in a `LinkAnnotation` are
+the thing this replaces, because they are never equal and re-shape every frame.
+
+**`markdownText(source)` is for strings that already carry their emphasis**, and
+above all translated ones: another language puts the bold word somewhere else,
+and a bold span assembled around concatenated fragments cannot follow it. It
+reads the inline half of Markdown — `**bold**`, `*italic*`, `` `code` ``,
+`~~struck~~`, `[links](https://…)` and backslash escapes. A `#` or a `-` at the
+start of a line is left as written, because headings and lists are layout. A
+delimiter that never closes is shown as itself, and `snake_case` keeps its
+underscores. The parse is remembered against the string.
 
 ---
 

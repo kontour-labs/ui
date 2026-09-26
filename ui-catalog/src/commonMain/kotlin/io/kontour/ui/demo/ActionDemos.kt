@@ -47,7 +47,7 @@ import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.foundation.linkedText
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.theme.Theme
 
 // --- Button ---------------------------------------------------------------
@@ -115,7 +115,7 @@ private val textButtonEnabled = Knob.Flag("Enabled", initial = true)
  *
  * One demo rather than three because the point of every one of them is the size
  * it takes from the text beside it, and a specimen on its own shows a coloured
- * word with nothing to be the same size as. `linkedText` is here for a second
+ * word with nothing to be the same size as. `richText` is here for a second
  * reason: it is the only symbol on the page that is not a button, and putting it
  * under the two that are is what makes "a button cannot wrap with the words
  * either side of it" a thing a reader can see rather than read.
@@ -146,7 +146,7 @@ internal val TextButtonDemo = ComponentDemo(
         }
         HorizontalDivider()
         Text(
-            text = linkedText {
+            text = richText {
                 +"Services are suspended between Perth and Midland. "
                 if (enabled) {
                     link("See replacement buses") { echo("Replacements, inline") }

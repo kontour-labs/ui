@@ -52,7 +52,7 @@ import io.kontour.ui.theme.Theme
  * **In a sentence, this is the wrong tool.** A button cannot wrap with the words
  * either side of it, and a screen reader announces it as a button in a list of
  * buttons rather than as a link in the flow of the text. Use
- * [linkedText][io.kontour.ui.foundation.linkedText], which produces a real
+ * [richText][io.kontour.ui.foundation.richText], which produces a real
  * `LinkAnnotation` inside the paragraph. This one is for a label that stands on
  * its own — under a field, at the end of a card, beside a heading.
  *
