@@ -23,6 +23,13 @@ and give it less width if you want it narrower.
 
 ### The header is the way out of paging
 
+**The month and year sit in the middle of the calendar**, over the middle of
+the grid, not in the middle of whatever the buttons either side leave — the end
+has the today button as well as the next month's, so the two sides are not the
+same width. Where a narrow screen has no room to centre it, it moves toward the
+previous-month arrow just far enough to clear the buttons, and is never cut
+short.
+
 **Tapping the month and year opens two wheels** — the same drums
 [`TimePicker`](time-picker.md) is made of — and turning one jumps the calendar.
 Paging a month at a time is right for "next week" and hopeless for a birthday,
@@ -62,8 +69,10 @@ refusing to go there would.
 **A small calendar is the way back to today.** Whenever `today` is known, the
 header has a button with a calendar glyph. Pressing it brings the calendar to
 today's month if it is somewhere else and then **flashes today's date** — a colour
-from the theme pulsing in and out of the day, twice — so it always does something, and it
-answers "where is today" on a month where the day is easy to miss. The library
+from the theme pulsing in and out of the day's circle, twice — so it always does
+something, and it answers "where is today" on a month where the day is easy to
+miss. The flash stays inside the circle, so on a range picker it does not spill
+into the band when today is in the range. The library
 draws that one glyph itself, so the button is there with nothing supplied;
 `todayIcon` swaps in an app's own to match its icon set, and `todayIcon = null`
 leaves it out. The same goes for [`DateRangePicker`](date-range-picker.md). A

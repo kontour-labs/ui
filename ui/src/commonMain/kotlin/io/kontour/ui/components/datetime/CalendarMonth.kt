@@ -496,6 +496,9 @@ private fun DayCell(
     val continuesAfter = rangePosition == RangePosition.Middle ||
         rangePosition == RangePosition.Start
 
+    // Today's circle: its ring when it is not filled, and where its flash is drawn.
+    val todayRing: Shape = Theme.shapes.pill
+
     // A run of selected days reads as continuous because the middle keeps square
     // edges and only the ends are capped.
     //
@@ -709,7 +712,7 @@ private fun DayCell(
                         Modifier.border(
                             Theme.sizing.borderWidth,
                             colours.outlineStrong,
-                            Theme.shapes.pill,
+                            todayRing,
                         )
                     } else {
                         Modifier
@@ -720,6 +723,10 @@ private fun DayCell(
         if (flash != null) {
             // Over the day's fill and under its number: a colour from the theme
             // fading in and out, drawn from the flash in the draw pass alone.
+            //
+            // **Inside today's circle**, not the cell. The cell's own shape is a
+            // square in the middle of a range, and the flash filled the whole of
+            // it there, spilling into the band either side of the day.
             val flashColour = colours.accent.solid
             Box(
                 Modifier
@@ -728,7 +735,7 @@ private fun DayCell(
                         val amount = flash()
                         if (amount > 0f) {
                             drawOutline(
-                                shape.createOutline(size, layoutDirection, this),
+                                todayRing.createOutline(size, layoutDirection, this),
                                 flashColour,
                                 alpha = amount * TodayFlashAlpha,
                             )

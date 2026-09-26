@@ -17,6 +17,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -129,6 +131,63 @@ private val TodayGlyph: ImageVector by lazy {
             close()
         }
     }.build()
+}
+
+/**
+ * [start] at the start, [end] at the end, and [middle] centred on the whole row
+ * — not on the room left between them.
+ *
+ * Where centring would run it under the wider side, it moves toward the
+ * narrower one just far enough to clear it: on a phone, the month, the year and
+ * the chooser's chevron do not fit centred between a previous button on one side
+ * and the today and next buttons on the other, and the chevron was cut off.
+ * Only when even the whole gap is too small is the middle narrowed to it.
+ */
+@Composable
+private fun CentredBetween(
+    modifier: Modifier,
+    start: @Composable () -> Unit,
+    middle: @Composable () -> Unit,
+    end: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(start, middle, end), modifier = modifier) { (starts, middles, ends), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val atStart = starts.map { it.measure(loose) }
+        val atEnd = ends.map { it.measure(loose) }
+        val startWidth = atStart.sumOf { it.width }
+        val endWidth = atEnd.sumOf { it.width }
+        val gap = if (constraints.hasBoundedWidth) {
+            (constraints.maxWidth - startWidth - endWidth).coerceAtLeast(0)
+        } else {
+            Constraints.Infinity
+        }
+        val inMiddle = middles.map { it.measure(loose.copy(maxWidth = gap)) }
+        val middleWidth = inMiddle.sumOf { it.width }
+        val width = if (constraints.hasBoundedWidth) {
+            constraints.maxWidth
+        } else {
+            maxOf(startWidth, endWidth) * 2 + middleWidth
+        }
+        val all = atStart + inMiddle + atEnd
+        val height = (all.maxOfOrNull { it.height } ?: 0).coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(width, height) {
+            var x = 0
+            atStart.forEach {
+                it.placeRelative(x, (height - it.height) / 2)
+                x += it.width
+            }
+            x = ((width - middleWidth) / 2).coerceIn(startWidth, maxOf(startWidth, width - endWidth - middleWidth))
+            inMiddle.forEach {
+                it.placeRelative(x, (height - it.height) / 2)
+                x += it.width
+            }
+            x = width - endWidth
+            atEnd.forEach {
+                it.placeRelative(x, (height - it.height) / 2)
+                x += it.width
+            }
+        }
+    }
 }
 
 /**
@@ -720,36 +779,42 @@ private fun CalendarFrame(
         //
         // Two reasons, and the first is a layout bug the second would have
         // hidden. `Popover` reports its *parent's* bounds as the anchor, so
-        // declaring it beside the title puts a fourth child in a `SpaceBetween`
-        // row — zero-width, and still enough to take a share of the spacing and
-        // pull the title off centre. And jumping live changes the title, "May
+        // declaring it beside the title put a fourth child in what was then a
+        // `SpaceBetween` row — zero-width, and still enough to take a share of
+        // the spacing and pull the title off centre. And jumping live changes the title, "May
         // 2026" and "September 2026" are not the same width, so a popover
         // anchored to it would slide sideways while the drum turned. This box is
         // the full width of the frame and neither of those can reach it.
         Box(Modifier.fillMaxWidth()) {
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (previousIcon != null) {
-                    IconButton(
-                        icon = previousIcon,
-                        contentDescription = "Previous month",
-                        onClick = {
-                            navigation.step(-1)
-                        },
-                        size = ButtonSize.Small,
+            // **The month and year in the middle of the calendar**, not in the
+            // middle of what is left between the buttons. Spaced between, the
+            // title sat off centre as soon as the two sides were not the same
+            // width — and they are not: the end has the today button as well as
+            // the next month's. Reported as wanting the title centred at the top
+            // of every calendar.
+            CentredBetween(
+                modifier = Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xs),
+                start = {
+                    if (previousIcon != null) {
+                        IconButton(
+                            icon = previousIcon,
+                            contentDescription = "Previous month",
+                            onClick = {
+                                navigation.step(-1)
+                            },
+                            size = ButtonSize.Small,
+                        )
+                    }
+                },
+                middle = {
+                    MonthAndYearButton(
+                        navigation = navigation,
+                        formats = formats,
+                        chooserIcon = chooserIcon,
+                        onOpen = { chooserOpen = true },
                     )
-                }
-
-                MonthAndYearButton(
-                    navigation = navigation,
-                    formats = formats,
-                    chooserIcon = chooserIcon,
-                    onOpen = { chooserOpen = true },
-                )
-
+                },
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
