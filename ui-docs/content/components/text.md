@@ -71,12 +71,40 @@ Text(
 | `link(text) { … }` | a link that calls you back |
 | `link(text, url)` | a link the platform opens; only `http`, `https`, `mailto` and `tel` |
 | `markdown(source)` | inline Markdown, into the same string |
+| `+icon`, `icon(icon, description)` | an icon in the line, drawn by `Text` |
 
 Each takes a `String` or a block, so `bold { +"950 "; italic("express") }` nests.
 The string comes out **equal to itself** between compositions — the link
 listener is remembered, the styles are values — so a recomposition does not lay
 the text out again. Hand-built strings with a lambda in a `LinkAnnotation` are
 the thing this replaces, because they are never equal and re-shape every frame.
+
+### Icons in the line
+
+An icon inside a sentence wraps with it, which an `Icon` in a `Row` beside the
+text cannot do. Put it in the string, and `Text` draws it — no `inlineContent`
+map to write:
+
+<!--sample:RichTextIcons-->
+```kotlin
+// `+icon` for an icon the words beside it already explain: it wraps with
+// them, takes their size and colour, and a screen reader skips it.
+Text(richText { +Tabler.Outline.Clock; +" Every 15 minutes until 7pm" })
+
+// `icon(…)` for one that says something they do not. Its description is
+// read in its place in the sentence. Inside a tone, it takes the tone.
+Text(
+    richText {
+        +"Route 950 "
+        tone(Tone.Warning) { icon(Tabler.Outline.AlertTriangle, "disrupted"); +" 12 minutes late" }
+    },
+)
+```
+
+It is the text's height by default — `size = 1.em` — so it grows with the
+reader's font scale as the words do, and it is drawn in the colour of the words
+around it unless `tint` says otherwise. A caller's own `inlineContent` still
+works beside it, for a key cap or a badge.
 
 **`markdownText(source)` is for strings that already carry their emphasis**, and
 above all translated ones: another language puts the bold word somewhere else,

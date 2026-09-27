@@ -95,7 +95,9 @@ class RecompositionCostTest {
      * *equal* to the last one, so `BasicText` keeps the paragraph it shaped. A
      * link whose listener were a fresh lambda would break that, and every
      * recomposition would re-shape the text; that is the trap both exist to
-     * close, and nothing tested it until now.
+     * close, and nothing tested it until now. An inline icon is in it for the
+     * same reason: `Text` builds its content map from the string, and a new
+     * map would be new placeholders to lay out.
      */
     @Test
     fun richTextRebuiltEveryCompositionIsLaidOutOnce() {
@@ -114,6 +116,9 @@ class RecompositionCostTest {
                     Text(
                         richText {
                             +"The "; bold("950"); +" leaves at "; code("12:04"); +". "
+                            // An icon rides in the string as an id, and has to
+                            // come out the same id every time for this to hold.
+                            +SystemIcons.Check; icon(SystemIcons.Check, "on time")
                             tone(Tone.Warning, "Delayed"); +" — "
                             link("replacement buses") { followed = now }
                             +" or "; link("timetables", url = "https://transperth.wa.gov.au")

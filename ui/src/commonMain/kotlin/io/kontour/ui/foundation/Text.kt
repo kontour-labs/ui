@@ -7,6 +7,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -121,8 +122,9 @@ fun Text(
  * does not, and an unequal string is laid out again every time.
  *
  * @param inlineContent What stands in for each `appendInlineContent` placeholder
- *   in [text], by its id — an icon or a key cap that has to wrap with the words
- *   around it.
+ *   in [text], by its id — a key cap, a badge, anything that has to wrap with the
+ *   words around it. Icons put in with [RichTextScope.icon] need nothing here:
+ *   this draws them. An entry here with the same id wins.
  */
 @Composable
 fun Text(
@@ -146,28 +148,43 @@ fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val redaction = rememberTextRedaction()
+    val resolved = resolveTextStyle(
+        style = style,
+        colour = colour,
+        fontSize = fontSize,
+        fontStyle = fontStyle,
+        fontWeight = fontWeight,
+        fontFamily = fontFamily,
+        letterSpacing = letterSpacing,
+        textDecoration = textDecoration,
+        textAlign = textAlign,
+        lineHeight = lineHeight,
+    )
+
+    // The icons `richText` put in, drawn without the caller writing the map.
+    // Checked before anything is remembered, so a string without one — nearly
+    // every string — costs a scan of its annotations and nothing else. The
+    // colour goes in as state, read by each icon as it draws: a map rebuilt
+    // for a new colour would be new placeholders, and the text laid out again.
+    val content = if (text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)) {
+        val textColour = rememberUpdatedState(resolved.color)
+        remember(text, inlineContent) {
+            InlineIcons.contentFor(text, textColour).orEmpty() + inlineContent
+        }
+    } else {
+        inlineContent
+    }
 
     BasicText(
         text = text,
         modifier = modifier.then(redaction.modifier),
-        style = resolveTextStyle(
-            style = style,
-            colour = colour,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            fontWeight = fontWeight,
-            fontFamily = fontFamily,
-            letterSpacing = letterSpacing,
-            textDecoration = textDecoration,
-            textAlign = textAlign,
-            lineHeight = lineHeight,
-        ),
+        style = resolved,
         onTextLayout = redaction.layoutCallback(onTextLayout),
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
         minLines = minLines,
-        inlineContent = inlineContent,
+        inlineContent = content,
     )
 }
 

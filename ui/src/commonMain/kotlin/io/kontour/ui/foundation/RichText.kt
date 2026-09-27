@@ -1,12 +1,14 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
@@ -16,8 +18,11 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withAnnotation
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
@@ -33,6 +38,9 @@ import io.kontour.ui.theme.Tone
  *     }
  * )
  * ```
+ *
+ * An icon goes in the line the same way: `+Icons.Clock`, or
+ * [icon][RichTextScope.icon] with a description, and [Text] draws it.
  *
  * Every verb draws from the theme — the bold weight the type scale has, the mono
  * family on the sunken ground for [code][RichTextScope.code], a tone's own text
@@ -178,6 +186,58 @@ class RichTextScope internal constructor(
     /** Whatever [content] appends, in [tone]'s own text colour. */
     fun tone(tone: Tone, content: RichTextScope.() -> Unit) =
         styled(SpanStyle(color = colours.textFor(tone)), content)
+
+    /**
+     * [imageVector] in the line, wrapping with the words either side of it.
+     *
+     * ```kotlin
+     * Text(richText { +"Platform 3 "; icon(Icons.Accessible, "step-free access"); +" · 4 min" })
+     * ```
+     *
+     * No `inlineContent` map to write: [Text] draws it. It sits centred on the
+     * line at [size] — the text's own size, by default — so it grows with the
+     * reader's font scale as the words do.
+     *
+     * @param contentDescription What a screen reader says in its place, as part
+     *   of the sentence. Null for an icon that repeats what the words beside it
+     *   already say; `+icon` is the short form of that.
+     * @param tint `Color.Unspecified`, the default, draws it in the colour of the
+     *   words around it — a [tone] or a [link] it is inside, and otherwise the
+     *   [Text]'s own, following that colour when it changes.
+     * @param size Its width and height; in `em`, a multiple of the text's size.
+     */
+    fun icon(
+        imageVector: ImageVector,
+        contentDescription: String?,
+        tint: Color = Color.Unspecified,
+        size: TextUnit = 1.em,
+    ) {
+        val id = InlineIcons.id(imageVector, tint, size)
+        // Beside the placeholder's own annotation, so `Text` can tell this
+        // library's icons from a caller's placeholders without reading an id
+        // format that belongs to Compose.
+        builder.withAnnotation(InlineIcons.Tag, id) {
+            // Never empty — `appendInlineContent` refuses that — and for a
+            // decorative icon a zero-width space: nothing to read, and a place
+            // the line may break, as it may beside an image.
+            appendInlineContent(id, contentDescription ?: "\u200B")
+        }
+    }
+
+    /**
+     * This icon in the line, decorative and in the colour of the words around it.
+     *
+     * ```kotlin
+     * Text(richText { +Icons.Clock; +" Every 15 minutes" })
+     * Text(richText { tone(Tone.Warning) { +Icons.Alert; +" 12 minutes late" } })
+     * ```
+     *
+     * The form for an icon beside words that already say what it means. One
+     * that means something the words do not is [icon], with a description.
+     */
+    operator fun ImageVector.unaryPlus() {
+        icon(this, contentDescription = null)
+    }
 
     /**
      * A link reading [text], which calls [onClick] when it is followed.

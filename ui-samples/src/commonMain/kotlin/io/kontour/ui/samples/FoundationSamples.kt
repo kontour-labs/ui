@@ -26,6 +26,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
@@ -99,6 +101,22 @@ fun RichTextBasics() {
             "Services on the **Midland** line are *suspended* until 6pm. " +
                 "[Timetables](https://transperth.wa.gov.au)",
         ),
+    )
+}
+
+@Composable
+fun RichTextIcons() {
+    // `+icon` for an icon the words beside it already explain: it wraps with
+    // them, takes their size and colour, and a screen reader skips it.
+    Text(richText { +Tabler.Outline.Clock; +" Every 15 minutes until 7pm" })
+
+    // `icon(…)` for one that says something they do not. Its description is
+    // read in its place in the sentence. Inside a tone, it takes the tone.
+    Text(
+        richText {
+            +"Route 950 "
+            tone(Tone.Warning) { icon(Tabler.Outline.AlertTriangle, "disrupted"); +" 12 minutes late" }
+        },
     )
 }
 
