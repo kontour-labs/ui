@@ -372,7 +372,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 // One region for the tests
 // ---------------------------------------------------------------------------
 //
-// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// `LocaleFormats` resolves from the platform's locale now — that is the whole
 // of the "dates are backwards in the US" fix — which makes every calendar and
 // every clock in the suite a function of the machine it runs on. A golden
 // recorded in one region is not a golden, and an assertion about "9 Jun" is a

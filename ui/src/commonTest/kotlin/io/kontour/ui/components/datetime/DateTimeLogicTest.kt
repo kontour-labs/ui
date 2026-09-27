@@ -102,7 +102,7 @@ class RelativeTimeFormatTest {
     }
 }
 
-class DateTimeFormatsTest {
+class TimeConventionsTest {
 
     @Test
     fun twentyFourHourTimePadsTheHour() {
