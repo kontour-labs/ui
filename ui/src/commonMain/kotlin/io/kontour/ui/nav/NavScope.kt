@@ -166,6 +166,7 @@ sealed interface NavBarScope : NavScope {
 
 /** Collects a destination's label: `+"Stops"`. */
 @LayoutScopeMarker
+@Stable
 class NavLabelScope internal constructor() {
     internal var text: String? = null
         private set

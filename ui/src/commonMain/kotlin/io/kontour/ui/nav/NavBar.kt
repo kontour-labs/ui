@@ -201,7 +201,7 @@ internal fun NavBarLayout(
     }
 
     @Composable
-    fun Row(rowModifier: Modifier) {
+    fun Destinations(rowModifier: Modifier) {
         SelectionIndicatorBox(
             state = indicator,
             // The circle is the marker, sized to the glyph rather than the
@@ -247,7 +247,7 @@ internal fun NavBarLayout(
             colours = colours,
             shadow = Theme.elevation.low,
         ) {
-            Row(
+            Destinations(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(windowInsets)
@@ -272,7 +272,7 @@ internal fun NavBarLayout(
                 colours = colours,
                 shadow = Theme.elevation.high,
             ) {
-                Row(Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs))
+                Destinations(Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs))
             }
         }
     }

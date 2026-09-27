@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * ```kotlin
  * GlassSurface(shape = Theme.shapes.pill) {
- *     NavBar(items, selectedIndex = current)
+ *     Text("Arriving in 4 minutes", Modifier.padding(Theme.spacing.md))
  * }
  * ```
  *

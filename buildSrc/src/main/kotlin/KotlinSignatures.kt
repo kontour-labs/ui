@@ -53,6 +53,14 @@ object KotlinSignatures {
         val indent: Int,
         val line: Int,
         val parameters: List<Parameter>,
+        /**
+         * An `override`: the member it overrides is the API, and this is an
+         * implementation of it. It cannot restate that member's defaults, so
+         * read as a declaration of its own it has a `modifier` and no optional
+         * parameter — which crashed `checkApiConventions` on the first builder
+         * scope implemented by a private class, `NavScope`'s.
+         */
+        val isOverride: Boolean = false,
     ) {
         /** How to name this in a message — as close to how it is called as it gets. */
         val qualified: String
@@ -70,7 +78,7 @@ object KotlinSignatures {
          * `fittedWidth` inside `Table`'s layout became `TableScope.fittedWidth`
          * on the API page, linking to a reference page that does not exist.
          */
-        val isPublic: Boolean get() = visibility == "public" && !isLocal
+        val isPublic: Boolean get() = visibility == "public" && !isLocal && !isOverride
 
         /**
          * A component, as opposed to a state holder or a plain function.
@@ -282,6 +290,8 @@ object KotlinSignatures {
     /** ` < `, ` <= `, ` > `, ` >= ` — an operator, never a type argument. */
     private val comparisons = Regex("""(?<=\s)(<=|>=|<|>)(?=\s)""")
 
+    private val overrideModifier = Regex("""\boverride\s""")
+
     private val functionHeader = Regex(
         """^([ \t]*)(?:(public|internal|private)\s+)?""" +
             """(?:(?:override|suspend|inline|operator|infix|expect|actual|tailrec)\s+)*""" +
@@ -468,6 +478,7 @@ object KotlinSignatures {
                 indent = indent.length,
                 line = clean.substring(0, match.range.first).count { it == '\n' } + 1,
                 parameters = parameters(clean.substring(opening + 1, balanced(clean, opening))),
+                isOverride = kind == Kind.Function && overrideModifier.containsMatchIn(match.value),
             )
         }
 
