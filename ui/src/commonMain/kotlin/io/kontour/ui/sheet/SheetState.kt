@@ -1081,7 +1081,7 @@ class SheetState internal constructor(
         minVelocity: Float,
     ) {
         val aimed = detentAimedAt(velocity, minVelocity)
-        if (aimed == null) anchoredState.settle(spec) else anchoredState.animateTo(aimed)
+        if (aimed == null) anchoredState.settle(spec) else anchoredState.animateTo(aimed, spec)
     }
 
     /**

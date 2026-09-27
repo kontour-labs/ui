@@ -251,8 +251,11 @@ fun AvatarGroup(
                         .size(size.diameter)
                         .clip(circle)
                         .background(Theme.colours.surfaceSunken)
-                        .border(Theme.sizing.borderWidthStrong, Theme.colours.surface, circle)
-                        .optionalBorder(contrastEdge(), circle),
+                        // The edge first, so it draws over the page-coloured ring
+                        // rather than under it: a modifier earlier in the chain
+                        // draws after everything it wraps.
+                        .optionalBorder(contrastEdge(), circle)
+                        .border(Theme.sizing.borderWidthStrong, Theme.colours.surface, circle),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

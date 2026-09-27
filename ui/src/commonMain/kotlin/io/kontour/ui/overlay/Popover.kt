@@ -288,6 +288,8 @@ fun LoadingOverlay(
                             shape = Theme.shapes.container,
                             containerColour = Theme.colours.surfaceRaised,
                             shadow = Theme.elevation.overlay,
+                            // A raised panel on a dimmed page, edged as a dialog is.
+                            border = contrastEdge(),
                         ) {
                             Column(
                                 modifier = Modifier.padding(Theme.spacing.lg),

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.unit.Dp
+import io.kontour.ui.a11y.selectionEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -208,6 +210,10 @@ fun IconToggleButton(
     val accentColours = checkedColours.copy(
         container = Theme.colours.accent.container,
         content = Theme.colours.accent.onContainer,
+        // At the enhanced tier the tint is 1.25:1 from the page, so on and off
+        // would differ by little more than the glyph's colour; the accent edge
+        // is what every other selection takes there.
+        border = selectionEdge()?.let { Theme.colours.accent.solid } ?: checkedColours.border,
     )
 
     // A struck glyph carries its own state, so the container stays out of it.
@@ -444,6 +450,9 @@ private fun IconButtonSurface(
             .then(behaviour),
         contentAlignment = Alignment.Center,
     ) {
+        // A control's strong border, so the slash thickens with the tier as
+        // the border beside it does.
+        val strikeWidth = Theme.sizing.borderWidthStrong
         CompositionLocalProvider(LocalContentColour provides contentColour) {
             LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
                 if (crossFadeIcon) {
@@ -462,7 +471,7 @@ private fun IconButtonSurface(
                             contentDescription = contentDescription,
                             modifier = Modifier
                                 .then(turn)
-                                .slash(strike, contentColour, container),
+                                .slash(strike, contentColour, container, strikeWidth),
                             size = metrics.iconSize,
                         )
                     }
@@ -472,7 +481,7 @@ private fun IconButtonSurface(
                         contentDescription = contentDescription,
                         modifier = Modifier
                             .then(turn)
-                            .slash(strike, contentColour, container),
+                            .slash(strike, contentColour, container, strikeWidth),
                         size = metrics.iconSize,
                     )
                 }
@@ -492,6 +501,7 @@ private fun Modifier.slash(
     strike: (() -> Float)?,
     colour: Color,
     container: Color,
+    width: Dp,
 ): Modifier = if (strike == null) {
     this
 } else {
@@ -499,9 +509,6 @@ private fun Modifier.slash(
         progress = strike,
         colour = colour,
         halo = container,
-        width = StrikeWidth,
+        width = width,
     )
 }
-
-/** The slash's own thickness. The same weight as a control's strong border. */
-private val StrikeWidth = 2.dp

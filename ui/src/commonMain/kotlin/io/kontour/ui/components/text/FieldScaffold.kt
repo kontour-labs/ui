@@ -1,5 +1,7 @@
 package io.kontour.ui.components.text
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -307,8 +309,9 @@ internal fun FieldScaffold(
             visible = errorMessage != null || supporting != null,
             gap = FieldStackGap,
             orientation = Orientation.Vertical,
-            enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
-            exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
+            // Under reduced motion the line takes its room at once and fades.
+            enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+            exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
         ) {
             // Crossfaded, not swapped. The slot already animates open and
             // shut; what it did not do was change *between* two messages, so a

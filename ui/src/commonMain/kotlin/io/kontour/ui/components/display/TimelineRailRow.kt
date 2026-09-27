@@ -251,6 +251,12 @@ internal fun DrawScope.drawRail(
             bandRange(phase)?.let { overlay(it.start, it.endInclusive) }
         } else if (travel.passed > 0f) {
             overlay(0f, travel.passed)
+        } else if (travel.band) {
+            // Still — reduced motion — and nothing known of how far along: a
+            // stub the band's length at the leg's start, as a step bar shows one,
+            // so the leg still reads as the one being travelled rather than as
+            // one not yet reached.
+            overlay(0f, BandFraction)
         }
     }
 

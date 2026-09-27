@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
@@ -590,8 +592,9 @@ private class RailScope(
 
             AnimatedVisibility(
                 visible = showing,
-                enter = expandVertically(motion.tweenFast()),
-                exit = shrinkVertically(motion.tweenFast()),
+                // A group's children take their room at once under reduced motion.
+                enter = motion.enterOrFade(expandVertically(motion.tweenFast())),
+                exit = motion.exitOrFade(shrinkVertically(motion.tweenFast())),
             ) {
                 // Still composed while the exit runs, reporting smaller, higher rects
                 // every frame; the marker must not follow them up the rail.

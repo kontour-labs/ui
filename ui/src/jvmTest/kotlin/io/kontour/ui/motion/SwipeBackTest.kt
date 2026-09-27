@@ -273,7 +273,16 @@ class SwipeBackTest {
     @Test
     fun onAndroidASideSheetFollowsTheSameDrag() = runComposeUiTest { dragASideSheet(BackStyle.Predictive) }
 
-    private fun ComposeUiTest.dragASideSheet(style: BackStyle) {
+    /**
+     * Reduced motion fades a sheet in and out where it rests, but a drag is never
+     * touched: the panel still moves with the finger, and closes once.
+     */
+    @Test
+    fun underReducedMotionADragStillMovesTheSheet() = runComposeUiTest {
+        dragASideSheet(BackStyle.Swipe, reduceMotion = true)
+    }
+
+    private fun ComposeUiTest.dragASideSheet(style: BackStyle, reduceMotion: Boolean = false) {
         val platform = NavigationEventDispatcher()
         var visible by mutableStateOf(true)
         var dismissed = 0
@@ -282,7 +291,7 @@ class SwipeBackTest {
                 LocalNavigationEventDispatcherOwner provides owner(platform),
                 LocalBackStyle provides style,
             ) {
-                KontourTheme(darkTheme = false) {
+                KontourTheme(darkTheme = false, reduceMotion = reduceMotion) {
                     OverlayHost(Modifier.fillMaxSize()) {
                         Filters(SheetSide.End, visible) { dismissed++; visible = false }
                     }

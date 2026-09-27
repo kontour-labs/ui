@@ -1,5 +1,7 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -384,6 +386,18 @@ private fun SideSheetPanel(
         Modifier
     }
 
+    // A drag moves the panel at every setting: what follows a finger follows it.
+    // Once one has, the rest of that close — or the way back, if it was let go
+    // short — slides too, rather than jumping to rest and fading from there.
+    val dragged = remember { mutableStateOf(false) }
+    if (fadeInPlace && back != null) {
+        LaunchedEffect(back) {
+            snapshotFlow { back.following to progress() }.collect { (following, shown) ->
+                if (following) dragged.value = true else if (shown >= 1f) dragged.value = false
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -393,12 +407,13 @@ private fun SideSheetPanel(
                 // Read in placement, so opening and closing re-place the sheet
                 // without measuring or recomposing it.
                 .offset {
-                    val hidden = if (fadeInPlace) 0f else travel * (1f - progress().coerceIn(0f, 1f))
+                    val slides = !fadeInPlace || dragged.value
+                    val hidden = if (slides) travel * (1f - progress().coerceIn(0f, 1f)) else 0f
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
                 }
                 .then(
                     if (fadeInPlace) {
-                        Modifier.graphicsLayer { alpha = progress().coerceIn(0f, 1f) }
+                        Modifier.graphicsLayer { alpha = if (dragged.value) 1f else progress().coerceIn(0f, 1f) }
                     } else {
                         Modifier
                     }

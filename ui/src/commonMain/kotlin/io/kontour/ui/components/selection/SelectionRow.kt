@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.input.focusRing
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -160,6 +161,8 @@ fun SelectionRow(
             Row(
                 modifier = modifier
                     .fillMaxWidth()
+                    // The row is the control, so the row shows where the keyboard is.
+                    .focusRing(interactions, shape, enabled = enabled && onSelectedChange != null)
                     .clip(shape)
                     .then(selectionModifier)
                     .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),

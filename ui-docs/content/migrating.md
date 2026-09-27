@@ -407,13 +407,21 @@ breaks are few and named first.
 - **At the enhanced tier only:** edges on quiet containers, an accent edge
   round selections, a check or dash in a switch's thumb, hollow unreached
   stops, underlined crumbs, a trend's sentiment glyph, a ring round a badge,
-  and every ring, tick and rule as thick as the tier's lines. See
-  [the accessibility page](accessibility.md#what-high-actually-changes).
+  and every ring, tick and rule as thick as the tier's lines. Chips, page
+  numbers, the date picker's month title, the loading overlay's panel and the
+  command palette's panel take an edge; a checked icon toggle's edge is the
+  accent; and `Modifier.fadingEdges` does not fade, since text at that tier
+  does not. See [the accessibility page](accessibility.md#what-high-actually-changes).
 - **Under reduced motion,** nothing travels that no finger is moving: sheets,
   side sheets, the modal rail, toasts, a FAB menu's items and a calendar's month
   fade in place; a carousel page, a scroll into view and a swipe row opened by
   the app arrive at once; a rail and a supporting pane take their new width at
-  once. `CarouselState.animateScrollToPage` and `SwipeActionsState.animateTo`
+  once; an accordion, an expanding row, an animated banner, a field's message
+  line and a navigation group take their room at once and fade in, rather than
+  pushing what is below them; an extended FAB takes its width at once; a wheel
+  turned by a tap arrives at once. A drag still moves what it holds — a side
+  sheet dragged towards its edge follows the finger, as it does at every
+  setting. `CarouselState.animateScrollToPage` and `SwipeActionsState.animateTo`
   are the two public calls that now arrive rather than slide under the setting.
 
 **Added:** `selectionEdge()`; `Motion.enterOrFade`, `Motion.exitOrFade`,
@@ -468,6 +476,7 @@ times, lists, plurals — is written the reader's way. See
   scrollbar, a pane divider and a switch drag the way they point; the
   skeleton's shimmer runs from the start; the colour picker's hue and opacity
   tracks mirror.
+- **A selection row, and an input chip's remove button, show a focus ring.**
 - **A slider, and each of a range slider's thumbs, take arrow keys,** mirrored
   in right to left, as well as Page Up and Down, Home and End, and show a focus
   ring; the colour picker's square and tracks do too.

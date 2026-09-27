@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.a11y.highContrast
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableState
@@ -53,6 +54,10 @@ internal data class ScrollFade(val start: Float, val end: Float) {
  * Anything else falls back to `canScrollBackward`/`canScrollForward` — correct,
  * but with no gradual fade near the ends.
  *
+ * At high contrast there is no fade: nothing that is text fades at that tier,
+ * and a row half-erased at the edge is text a reader has asked to see whole. The
+ * list's own edge, and its scrollbar, still say there is more.
+ *
  * @param fadeLength Capped at 40% of the container, so a short list does not
  *   fade to nothing in the middle.
  */
@@ -62,6 +67,7 @@ fun Modifier.fadingEdges(
     orientation: Orientation = Orientation.Vertical,
     fadeLength: Dp = 24.dp,
 ): Modifier {
+    if (highContrast()) return this
     val density = LocalDensity.current
     val fadeLengthPx = remember(density, fadeLength) { with(density) { fadeLength.toPx() } }
 

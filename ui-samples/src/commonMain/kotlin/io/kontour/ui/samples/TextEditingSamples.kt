@@ -47,8 +47,8 @@ fun ImeChainForm() {
 fun TextFieldSlots() {
     val stop = rememberTextFieldState()
 
-    // `label` is a `String?` rather than a slot on purpose: a floating label is
-    // chrome, it animates between two positions, and `FieldScaffold` reads it to
+    // `label` is a `String?` rather than a slot on purpose: a field's label is
+    // chrome, drawn above the frame in the field's own style, and `FieldScaffold` reads it to
     // give the control its accessible name — none of which a composable can do.
     TextField(
         state = stop,

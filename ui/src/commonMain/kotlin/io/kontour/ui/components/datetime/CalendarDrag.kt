@@ -500,7 +500,10 @@ internal class CalendarDragState internal constructor(
                 else -> cap.snapTo(cap.value + from)
             }
             leaning = date
-            cap.animateTo(lean * SliderDefaults.DetentPull, motion.springOrTween(motion.springSnappy))
+            // The lean is the detent's pull, and a slider's turns off under
+            // reduced motion; so does this one.
+            val pull = if (motion.reduceMotion) 0f else SliderDefaults.DetentPull
+            cap.animateTo(lean * pull, motion.springOrTween(motion.springSnappy))
         }
     }
 

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -147,8 +149,9 @@ fun ExpandingListItem(
 
         AnimatedVisibility(
             visible = open,
-            enter = expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast()),
-            exit = shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast()),
+            // Under reduced motion the children take their room at once and fade.
+            enter = motion.enterOrFade(expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast())),
+            exit = motion.exitOrFade(shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast())),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
                 children.forEachIndexed { index, row ->

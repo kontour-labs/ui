@@ -220,11 +220,14 @@ def faded_inks() -> list[str]:
 # its name says what it is for. A gauge's arc thickness is a size, not a line,
 # and is not named like one.
 FIXED_STROKE = re.compile(
-    r"^\s*(?:private |internal )?(?:const )?val (\w*(?:Ring|Stroke|Hairline|HairlineWidth|TickWidth|LineWidth|RuleWidth|RingWidth))"
+    r"^\s*(?:private |internal )?(?:const )?val (\w*(?:Ring|Stroke|Strike|Hairline|HairlineWidth|TickWidth|LineWidth|RuleWidth|RingWidth|StrokeWidth|StrikeWidth))"
     r"\s*(?::\s*Dp)?\s*=\s*[0-9.]+\.dp",
     re.M,
 )
-STROKE_ALLOWED: dict[str, str] = {}
+STROKE_ALLOWED: dict[str, str] = {
+    "Progress.kt:CircularStrokeWidth": "the ring is the bar itself — a fill and its track, as a "
+    "linear bar's height is — not a line drawn round something",
+}
 MAX_FIXED_STROKES = 0
 
 
@@ -310,6 +313,9 @@ MOVEMENT = re.compile(
     r"|(?<![\w])\.?(?:scale|rotate)\((?!\s*\))"
     r"|\.offset\s*\{"
     r"|\b(?:slideIn\w*|slideOut\w*|scaleIn|scaleOut)\("
+    # A size that animates moves everything inside it and after it.
+    r"|\b(?:expandVertically|expandHorizontally|expandIn|shrinkVertically|shrinkHorizontally|shrinkOut)\("
+    r"|\bSizeTransform\("
     r"|\b(?:animateScrollTo\w*|animateScrollBy)\("
     r"|\banimateItem\("
     r"|\.animateTo\(\s*[^,()]+(?:\([^()]*\))?\s*\)"
@@ -355,8 +361,6 @@ MOVEMENT_ALLOWED = {
     "`rememberPageMotion`, which picks a fade under reduced motion",
     # A sheet's settling: the reader's drag, or the sheet's own programmatic move.
     "BottomSheet.kt:FollowBack": "calls `SheetState.animateTo`, which fades in place under reduced motion",
-    "SheetState.kt:settleWhereAimed": "settles where the reader's own drag aimed it; `springOrTween` "
-    "shortens the spec",
     # A still mirror for right to left, which the detector reads as a scale.
     "ColourPicker.kt:Track": "flips the track's gradient for right to left; nothing moves",
     "Mirroring.kt:mirrorInRtl": "flips a drawing for right to left; nothing moves",
@@ -615,8 +619,8 @@ def absolute_placement() -> list[str]:
 ACCESSIBILITY_SECTION = re.compile(r"^## Accessibility\s*$(.*?)(?=^## |\Z)", re.M | re.S)
 SAYS_CONTRAST = re.compile(r"high contrast|high-contrast|enhanced tier|contrastlevel\.high", re.I)
 SAYS_MOTION = re.compile(r"reduced motion|reducemotion|reduce motion", re.I)
-MAX_PAGES_SILENT_ON_CONTRAST = 117
-MAX_PAGES_SILENT_ON_MOTION = 114
+MAX_PAGES_SILENT_ON_CONTRAST = 0
+MAX_PAGES_SILENT_ON_MOTION = 0
 
 
 def pages_silent_on(pattern: re.Pattern) -> list[str]:

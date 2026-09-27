@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.motion.sizeSpec
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -121,6 +124,8 @@ fun Chip(
             .focusRing(interactions, shape)
             .clip(shape)
             .background(if (enabled) colours.surfaceSunken else Color.Transparent, shape)
+            // A sunken fill is barely apart from the page at the enhanced tier.
+            .optionalBorder(contrastEdge(), shape)
             .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
@@ -175,7 +180,8 @@ private fun RowContentScope.KeyedChipContent(
         targetState = key,
         transitionSpec = {
             (fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast()))
-                .using(SizeTransform(clip = false))
+                // The new label's width at once under reduced motion.
+                .using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() })
         },
         label = "chipContent",
     ) { _ ->
@@ -379,6 +385,7 @@ fun InputChip(
             .heightIn(min = ChipHeight)
             .clip(shape)
             .background(colours.surfaceSunken, shape)
+            .optionalBorder(contrastEdge(), shape)
             .then(
                 if (onClick != null) {
                     Modifier.pointerCursor(enabled = enabled).clickable(
@@ -407,15 +414,17 @@ fun InputChip(
                 )
             }
             if (removeIcon != null) {
+                val removeInteractions = remember { MutableInteractionSource() }
                 Row(
                     Modifier
+                        .focusRing(removeInteractions, Theme.shapes.control)
                         .clip(Theme.shapes.control)
                         .pointerCursor(enabled = enabled)
                         .clickable(
                             enabled = enabled,
                             role = Role.Button,
                             onClickLabel = removeLabel,
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = removeInteractions,
                             indication = kontourIndication(Theme.shapes.control),
                             onClick = {
                                 onRemove()

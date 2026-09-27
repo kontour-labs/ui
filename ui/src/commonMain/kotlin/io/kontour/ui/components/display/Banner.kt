@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -214,8 +216,9 @@ fun AnimatedBanner(
     val motion = Theme.motion
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenDefault()),
-        exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenDefault()),
+        // Under reduced motion the banner takes its room at once and fades.
+        enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenDefault())),
+        exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenDefault())),
     ) {
         Banner(
             modifier = modifier,

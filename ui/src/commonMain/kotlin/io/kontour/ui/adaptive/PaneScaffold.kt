@@ -490,8 +490,10 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
 
+    // A divider's weight, so it thickens with the tier as the dividers beside it do.
+    val line = Theme.sizing.dividerThickness.value
     val thickness by animateFloatAsState(
-        targetValue = if (hovered) 3f else 1f,
+        targetValue = if (hovered) line * 3f else line,
         animationSpec = motion.tweenFast(),
         label = "resizeHandle",
     )

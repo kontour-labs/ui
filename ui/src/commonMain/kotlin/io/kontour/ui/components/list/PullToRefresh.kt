@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.motion.scrollSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
@@ -338,7 +339,9 @@ fun PullToRefresh(
             refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
             else -> state.offset
         },
-        animationSpec = motion.springOrTween(motion.springDefault),
+        // The list's way home once the refresh is done is content travelling
+        // with no finger on it, so under reduced motion it is there at once.
+        animationSpec = motion.scrollSpec(),
         label = "pullToRefresh",
     )
     val indicatorShown by remember(indicatorOffset) { derivedStateOf { indicatorOffset.value > 0.5f } }

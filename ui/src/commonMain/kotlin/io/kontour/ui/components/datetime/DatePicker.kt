@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.locale.DateOrder
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateTimeConventions
@@ -628,6 +631,8 @@ private fun MonthAndYearButton(
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .clip(shape)
+            // A ghost button, and edged like one at the enhanced tier.
+            .optionalBorder(contrastEdge(), shape)
             .pointerCursor()
             .clickable(
                 interactionSource = interactions,
@@ -994,7 +999,8 @@ private fun CalendarFrame(
                         slideOutHorizontally(motion.tweenDefault()) { width -> -enterFrom * width / 3 } +
                             fadeOut(motion.tweenFast()),
                     ),
-                ) using SizeTransform(clip = false)
+                // Five weeks to six at once under reduced motion.
+                ) using SizeTransform(clip = false) { _, _ -> motion.sizeSpec() }
             },
             label = "calendarMonth",
         ) { month ->

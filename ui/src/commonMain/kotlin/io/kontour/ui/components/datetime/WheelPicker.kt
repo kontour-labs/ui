@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -515,7 +516,8 @@ fun <T> WheelPicker(
                     scope.launch {
                         driving = true
                         try {
-                            listState.animateScrollToItem(target)
+                            // A turn nobody's finger is making: at once under reduced motion.
+                            listState.scrollToItem(target, wheelMotion)
                         } finally {
                             driving = false
                         }
@@ -546,7 +548,7 @@ fun <T> WheelPicker(
                 // to the nearest row itself, or the drum is left between two.
                 onDragStopped = {
                     scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
-                    scope.launch { listState.animateScrollToItem(centredIndex) }
+                    scope.launch { listState.scrollToItem(centredIndex, wheelMotion) }
                 },
             ),
         contentAlignment = Alignment.Center,

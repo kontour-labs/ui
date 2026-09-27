@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.expandHorizontally
@@ -323,10 +324,10 @@ fun ExtendedFloatingActionButton(
             AnimatedSlot(
                 visible = expanded,
                 gap = Theme.spacing.xs,
-                enter = expandHorizontally(motion.springOrTween(motion.springDefault)) +
-                    fadeIn(motion.tweenFast()),
-                exit = shrinkHorizontally(motion.springOrTween(motion.springDefault)) +
-                    fadeOut(motion.tweenFast()),
+                // `sizeSpec`: the button takes its new width at once under reduced
+                // motion, and the label fades.
+                enter = expandHorizontally(motion.sizeSpec()) + fadeIn(motion.tweenFast()),
+                exit = shrinkHorizontally(motion.sizeSpec()) + fadeOut(motion.tweenFast()),
             ) {
                 ProvideTextStyle(Theme.typography.labelLarge) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

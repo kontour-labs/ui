@@ -1,5 +1,6 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -1444,8 +1445,9 @@ private fun ToastSurface(
                     // Unclipped, so the message is laid out at the size it is
                     // going to be rather than re-wrapped at every intermediate
                     // width on the way there. The same `SizeTransform` a text
-                    // field's error uses, for the same reason.
-                    .using(SizeTransform(clip = false))
+                    // field's error uses, for the same reason. The new size at
+                    // once under reduced motion.
+                    .using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() })
             },
             label = "toastPresentation",
         ) { front ->

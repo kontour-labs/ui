@@ -1,5 +1,6 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
@@ -319,6 +320,8 @@ private fun PaletteBody(
         shape = Theme.shapes.panel,
         containerColour = Theme.colours.surface,
         shadow = Theme.elevation.overlay,
+        // On the dimmed layer a dialog sits on, and edged as one is.
+        border = contrastEdge(),
     ) {
         // One gap, one derived corner. The field and the rows sat at their own
         // default radii inside the panel's — a 26dp capsule and a 22dp container

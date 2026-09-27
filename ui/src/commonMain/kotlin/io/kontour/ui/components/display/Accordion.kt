@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -164,8 +166,10 @@ fun Accordion(
 
         AnimatedVisibility(
             visible = expanded,
-            enter = expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast()),
-            exit = shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast()),
+            // Under reduced motion the body takes its room at once and fades in,
+            // rather than pushing everything below it down frame by frame.
+            enter = motion.enterOrFade(expandVertically(motion.tweenDefault()) + fadeIn(motion.tweenFast())),
+            exit = motion.exitOrFade(shrinkVertically(motion.tweenDefault()) + fadeOut(motion.tweenFast())),
         ) {
             Column(
                 Modifier.padding(

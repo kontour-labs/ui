@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.a11y.contrastEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -248,7 +249,7 @@ private fun JumpGap(
                 .focusRing(interactions, shape)
                 .clip(shape)
                 .pointerCursor()
-                .clickable(interactionSource = interactions, indication = null) {
+                .clickable(interactionSource = interactions, indication = kontourIndication(shape)) {
                     onOpenChange(!open)
                 }
                 .padding(horizontal = Theme.spacing.xxs),
@@ -342,7 +343,9 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
-            .optionalBorder(if (selected) selectionEdge() else null, shape)
+            // At the enhanced tier every page is a button you can see the edge
+            // of, as a ghost button is; the current one's edge is the accent.
+            .optionalBorder(if (selected) selectionEdge() else contrastEdge(), shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,
