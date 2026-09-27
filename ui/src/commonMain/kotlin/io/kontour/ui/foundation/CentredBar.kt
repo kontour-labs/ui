@@ -97,15 +97,15 @@ internal fun CentredBar(
         )
 
         layout(width, height) {
-            fun place(placeables: List<Placeable>, startAt: Int) {
+            fun placeRun(placeables: List<Placeable>, startAt: Int) {
                 var x = startAt
                 placeables.forEach { placeable ->
-                    placeable.place(x, Alignment.CenterVertically.align(placeable.height, height))
+                    placeable.placeRelative(x, Alignment.CenterVertically.align(placeable.height, height))
                     x += placeable.width
                 }
             }
-            place(lead, 0)
-            place(trail, width - trailWidth)
+            placeRun(lead, 0)
+            placeRun(trail, width - trailWidth)
 
             val titleX = if (useSymmetric) {
                 // The middle of the *bar*.
@@ -114,7 +114,7 @@ internal fun CentredBar(
                 // Everything between the controls, and never under one.
                 leadWidth
             }
-            titlePlaceable.place(
+            titlePlaceable.placeRelative(
                 x = titleX.coerceIn(leadWidth, max(leadWidth, width - trailWidth - titlePlaceable.width)),
                 y = Alignment.CenterVertically.align(titlePlaceable.height, height),
             )

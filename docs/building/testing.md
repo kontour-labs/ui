@@ -1419,7 +1419,7 @@ The three ceilings say quite different things, and the numbers are the point:
 
 | | Ceiling | Reads as |
 |---|---|---|
-| `MAX_WITHOUT_DEMO` | 1 | `DateTimeFormats` is a set of patterns; there is nothing to press |
+| `MAX_WITHOUT_DEMO` | 1 | `LocaleFormats` writes numbers and dates; there is nothing to press |
 | `MAX_WITHOUT_SAMPLE` | 0 | reached — every page shows compiled code |
 | `MAX_WITHOUT_ACCESSIBILITY` | 0 | reached, in the round the ceiling arrived at 102 |
 

@@ -55,7 +55,7 @@ fun Stat(
     content: StatScope.() -> Unit,
 ) {
     val slots = statSlots(content)
-    val spoken = slots.spoken()
+    val spoken = slots.spoken(Theme.strings.sentences)
 
     Column(
         modifier = modifier.semantics(mergeDescendants = true) {
@@ -237,14 +237,14 @@ class StatScope internal constructor() {
         override = spoken
     }
 
-    internal fun spoken(): String? {
+    internal fun spoken(sentences: (List<String>) -> String): String? {
         override?.let { return it }
         val parts = listOfNotNull(
             spokenLabel.toString().takeIf { it.isNotBlank() },
             spokenValue.toString().takeIf { it.isNotBlank() },
             spokenRest.toString().takeIf { it.isNotBlank() },
         )
-        return parts.joinToString(". ").takeIf { it.isNotBlank() }
+        return sentences(parts).takeIf { it.isNotBlank() }
     }
 }
 

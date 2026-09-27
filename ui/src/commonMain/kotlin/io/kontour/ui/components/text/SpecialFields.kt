@@ -214,8 +214,20 @@ private class PasswordMask(
 ) : OutputTransformation {
     override fun TextFieldBuffer.transformOutput() {
         val shown = unmasked()
-        for (index in 0 until length) {
-            if (index != shown) replace(index, index + 1, bullet)
+        val text = asCharSequence().toString()
+        var index = 0
+        while (index < length) {
+            // A character outside the Basic Multilingual Plane — an emoji, much
+            // of CJK Extension B — is two UTF-16 units and one character to the
+            // reader, so one bullet: the second unit is drawn as nothing, which
+            // keeps every offset where it was.
+            val pair = text[index].isHighSurrogate() && index + 1 < length && text[index + 1].isLowSurrogate()
+            val revealed = index == shown || (pair && index + 1 == shown)
+            if (!revealed) {
+                replace(index, index + 1, bullet)
+                if (pair) replace(index + 1, index + 2, WordJoiner)
+            }
+            index += if (pair) 2 else 1
         }
     }
 }
@@ -226,6 +238,9 @@ private val RevealLastTypedFor = 1500.milliseconds
 /** No character is being shown. */
 private const val NothingTyped = -1
 
+/** Draws nothing and breaks nothing: the second half of a masked character. */
+private const val WordJoiner = "\u2060"
+
 /**
  * A numeric field.
  *
@@ -233,8 +248,10 @@ private const val NothingTyped = -1
  * afterwards, so the field never shows an invalid value and never has to show
  * an error for one.
  *
- * @param allowDecimal Permits a single decimal point. Intermediate states like
- *   `1.` are allowed through — a user typing `1.5` passes through one.
+ * @param allowDecimal Permits a single decimal point — the reader's own, `,` in
+ *   German, or `.`. Intermediate states like `1.` are allowed through — a user
+ *   typing `1.5` passes through one. Read the value with
+ *   `Theme.formats.parseDecimal(state.text)`, which understands both.
  * @param allowNegative Permits a leading minus, with or without [allowDecimal].
  *
  * Turning either off — or lowering [maxLength] — while the field holds something
@@ -262,9 +279,10 @@ fun NumberField(
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    val transformation = remember(allowDecimal, allowNegative, maxLength) {
+    val point = Theme.formats.symbols.decimalSeparator.singleOrNull() ?: '.'
+    val transformation = remember(allowDecimal, allowNegative, maxLength, point) {
         val base = when {
-            allowDecimal -> InputTransformation.decimal(allowNegative)
+            allowDecimal -> InputTransformation.decimal(allowNegative, point)
             // It used to be `digitsOnly()` whenever decimals were off, so
             // `allowNegative` on its own did nothing at all.
             allowNegative -> InputTransformation.integer(allowNegative = true)
@@ -282,7 +300,7 @@ fun NumberField(
     // edited at all. A text the rules no longer admit is not a value, and an
     // empty field is one the reader can start again in.
     LaunchedEffect(allowDecimal, allowNegative, maxLength) {
-        if (!admitsNumber(state.text, allowDecimal, allowNegative, maxLength)) state.clearText()
+        if (!admitsNumber(state.text, allowDecimal, allowNegative, maxLength, point)) state.clearText()
     }
 
     TextField(
@@ -311,6 +329,11 @@ fun NumberField(
  *
  * The mask is display-only: the caller reads clean digits out of [state] and
  * never has to strip formatting back out.
+ *
+ * @param format How the digits are grouped and how many are taken. [PhoneFormat.None]
+ *   — no grouping, up to fifteen digits — unless the app knows its readers'
+ *   country: numbers are grouped differently everywhere, and a mask for the wrong
+ *   one is worse than none.
  */
 @Composable
 fun PhoneField(
@@ -328,6 +351,7 @@ fun PhoneField(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
+    format: PhoneFormat = PhoneFormat.None,
 ) {
     TextField(
         state = state,
@@ -340,10 +364,10 @@ fun PhoneField(
         variant = variant,
         shape = shape,
         keyboardType = KeyboardType.Phone,
-        inputTransformation = remember {
-            InputTransformation.digitsOnly().then(InputTransformation.limit(10))
+        inputTransformation = remember(format) {
+            InputTransformation.digitsOnly().then(InputTransformation.limit(format.maxDigits))
         },
-        outputTransformation = remember { phoneMask() },
+        outputTransformation = remember(format) { if (format.groups.isEmpty()) null else phoneMask(format) },
         imeAction = imeAction,
         imeChain = imeChain,
         colours = colours,

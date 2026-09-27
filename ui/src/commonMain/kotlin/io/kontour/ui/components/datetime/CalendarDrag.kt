@@ -1,5 +1,7 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.NameWidth
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.VectorConverter
@@ -167,7 +169,7 @@ internal class GridGeometry(
     internal companion object {
         fun of(
             month: LocalDate,
-            formats: DateTimeFormats,
+            formats: LocaleFormats,
             origin: Offset,
             cell: Float,
             rowHeight: Float,
@@ -175,7 +177,7 @@ internal class GridGeometry(
         ): GridGeometry {
             val first = LocalDate(month.year, month.month, 1)
             val days = first.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
-            val blanks = formats.columnOf(first.dayOfWeek)
+            val blanks = formats.conventions.columnOf(first.dayOfWeek)
             // Not laid out yet: square is the best guess, and nothing is under a
             // finger before the first layout anyway.
             val row = if (rowHeight > 0f) rowHeight else cell
@@ -580,9 +582,13 @@ internal fun Modifier.calendarDragInput(drag: CalendarDragState): Modifier =
             }
         }
 
-/** This week, starting on [first] instead, or itself if it already does. */
-internal fun DateTimeFormats.startingOn(first: DayOfWeek): DateTimeFormats =
-    if (first == firstDayOfWeek) this else copy(firstDayOfWeek = first)
+/** These formats with weeks starting on [first] instead, or themselves if they already do. */
+internal fun LocaleFormats.startingOn(first: DayOfWeek): LocaleFormats =
+    if (first == conventions.firstDayOfWeek) this else withConventions(conventions.copy(firstDayOfWeek = first))
+
+/** One-letter column headings, from the week's first day. */
+internal fun LocaleFormats.weekdayInitials(): List<String> =
+    conventions.weekdays().map { weekdayName(it, NameWidth.Narrow) }
 
 /**
  * The band between the anchor and the handle, drawn by the grid while a drag is live.

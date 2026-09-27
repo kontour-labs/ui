@@ -243,7 +243,7 @@ internal fun NavDestination(
                     // for the word. Hidden from a screen reader, which hears the
                     // whole label from the destination instead.
                     Text(
-                        text = label.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
+                        text = Theme.formats.let { it.uppercase(it.firstGrapheme(label.trim())) },
                         style = Theme.typography.titleMedium,
                         colour = content,
                         textAlign = TextAlign.Center,

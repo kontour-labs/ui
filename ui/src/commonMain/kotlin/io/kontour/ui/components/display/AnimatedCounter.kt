@@ -1,5 +1,9 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.rememberIntegerFormat
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.Animatable
@@ -103,7 +107,7 @@ import kotlinx.coroutines.flow.first
 fun AnimatedCounter(
     value: Int,
     modifier: Modifier = Modifier,
-    format: (Int) -> String = { it.toString() },
+    format: (Int) -> String = rememberIntegerFormat(),
     colour: Color = Color.Unspecified,
     style: TextStyle = LocalTextStyle.current,
     /**
@@ -240,7 +244,7 @@ fun AnimatedCounter(
     val figures = remember(style) {
         style.copy(
             fontFeatureSettings = listOfNotNull(style.fontFeatureSettings, TabularFigures)
-                .joinToString(", ")
+                .joinToString(FeatureSeparator)
         )
     }
 
@@ -339,6 +343,7 @@ fun AnimatedCounter(
     }
     val amplitude = with(LocalDensity.current) { WiggleAmplitude.toPx() }
 
+    CompositionLocalProvider(LocalLayoutDirection provides directionOf(text)) {
     Row(
         modifier = modifier
             .semantics {
@@ -359,8 +364,14 @@ fun AnimatedCounter(
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Bottom,
     ) {
-        text.forEachIndexed { index, character ->
-            if (character.isDigit()) {
+        // Digits one cell each, so each can roll; everything else in runs, so a
+        // word keeps its shaping — Arabic letters drawn one to a `Text` do not
+        // join. And the row in the text's own direction rather than the page's:
+        // a number reads left to right inside a right-to-left line, and a row
+        // of digit cells laid out right to left writes it backwards.
+        textRuns(text).forEach { (index, run) ->
+            val character = run.first()
+            if (run.length == 1 && character.isDigit()) {
                 AnimatedContent(
                     targetState = character,
                     transitionSpec = { rollSpec(goingUp, motion) },
@@ -407,7 +418,7 @@ fun AnimatedCounter(
                 }
             } else {
                 Text(
-                    text = character.toString(),
+                    text = run,
                     colour = colour,
                     style = style,
                     maxLines = 1,
@@ -416,6 +427,37 @@ fun AnimatedCounter(
             }
         }
     }
+    }
+}
+
+/**
+ * [text] as the cells a counter draws: each digit on its own, and each run of
+ * anything else together, with the index each starts at.
+ */
+internal fun textRuns(text: String): List<Pair<Int, String>> = buildList {
+    var start = -1
+    for ((index, char) in text.withIndex()) {
+        if (char.isDigit()) {
+            if (start >= 0) add(start to text.substring(start, index))
+            start = -1
+            add(index to char.toString())
+        } else if (start < 0) {
+            start = index
+        }
+    }
+    if (start >= 0) add(start to text.substring(start))
+}
+
+/** Right to left when the first letter in [text] is from a right-to-left script; digits decide nothing. */
+internal fun directionOf(text: String): LayoutDirection {
+    for (char in text) {
+        when (char.directionality) {
+            CharDirectionality.RIGHT_TO_LEFT, CharDirectionality.RIGHT_TO_LEFT_ARABIC -> return LayoutDirection.Rtl
+            CharDirectionality.LEFT_TO_RIGHT -> return LayoutDirection.Ltr
+            else -> Unit
+        }
+    }
+    return LayoutDirection.Ltr
 }
 
 /**
@@ -490,3 +532,6 @@ private const val WigglePeriodMillis: Int = 90
  */
 private fun wiggleCycles(warnBefore: Duration): Int =
     (warnBefore.inWholeMilliseconds / (2L * WigglePeriodMillis)).toInt().coerceAtLeast(1)
+
+/** Between two OpenType feature settings — CSS's syntax, not a word. */
+private const val FeatureSeparator = ", "

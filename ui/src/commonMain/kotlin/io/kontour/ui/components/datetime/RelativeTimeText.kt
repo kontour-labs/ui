@@ -18,6 +18,9 @@ import androidx.compose.ui.text.TextStyle
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.RelativeUnit
+import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -82,7 +85,7 @@ fun RelativeTimeText(
         }
     }
 
-    val parts = relativeParts(remaining, imminentThreshold)
+    val parts = relativeParts(remaining, imminentThreshold, Theme.formats)
     val spoken = parts.joined()
 
     val announced = if (announce) {
@@ -119,17 +122,20 @@ fun RelativeTimeText(
  * The phrase, split at the number.
  *
  * "in 4 min" is three things — a word, a count, and a unit — and only the middle
- * one counts. Splitting here rather than in the composable keeps the wording in
- * one place: [formatRelative] is this, joined up, so the animated and the plain
- * renderings cannot drift into saying different things.
+ * one counts. The phrase is the locale's, from [LocaleFormats.relativeTime], so
+ * where the number sits in it is found rather than assumed: `vor 4 Min.` puts a
+ * word before it, `4分後` nothing, and a phrase whose number cannot be found once,
+ * in digits [AnimatedCounter] can draw, is simply not split.
  */
 internal data class RelativeParts(
+    /** The whole phrase, as a screen reader and a plain rendering say it. */
+    val text: String,
     val prefix: String,
-    /** `null` when the phrase has no number in it — "now". */
+    /** `null` when the phrase has no number the counter can roll — "now", or digits it does not draw. */
     val amount: Int?,
     val suffix: String,
 ) {
-    fun joined(): String = if (amount == null) prefix else "$prefix$amount$suffix"
+    fun joined(): String = text
 }
 
 /**
@@ -138,13 +144,21 @@ internal data class RelativeParts(
  * Separate from the composable and internal so it can be tested directly —
  * the rounding rules are the part with actual behaviour in them.
  */
-internal fun formatRelative(remaining: Duration, imminentThreshold: Duration): String =
-    relativeParts(remaining, imminentThreshold).joined()
+internal fun formatRelative(
+    remaining: Duration,
+    imminentThreshold: Duration,
+    formats: LocaleFormats = LocaleFormats.english(),
+): String = relativeParts(remaining, imminentThreshold, formats).joined()
 
 /** See [RelativeParts]. The rounding rules live here. */
-internal fun relativeParts(remaining: Duration, imminentThreshold: Duration): RelativeParts {
+internal fun relativeParts(
+    remaining: Duration,
+    imminentThreshold: Duration,
+    formats: LocaleFormats = LocaleFormats.english(),
+): RelativeParts {
     if (remaining.absoluteValue < imminentThreshold) {
-        return RelativeParts(prefix = "now", amount = null, suffix = "")
+        val now = formats.relativeNow()
+        return RelativeParts(text = now, prefix = now, amount = null, suffix = "")
     }
 
     val past = remaining.isNegative()
@@ -155,25 +169,29 @@ internal fun relativeParts(remaining: Duration, imminentThreshold: Duration): Re
     // Rounds down, not to nearest: telling someone their bus is 2 minutes away
     // when it is 90 seconds away is the error that makes them miss it.
     val count: Int
-    val unit: String
+    val unit: RelativeUnit
     when {
         minutes < 60 -> {
             count = minutes.coerceAtLeast(1).toInt()
-            unit = "min"
+            unit = RelativeUnit.Minute
         }
         hours < 24 -> {
             count = hours.toInt()
-            unit = "hr"
+            unit = RelativeUnit.Hour
         }
         else -> {
             count = absolute.inWholeDays.toInt()
-            unit = "d"
+            unit = RelativeUnit.Day
         }
     }
 
-    return RelativeParts(
-        prefix = if (past) "" else "in ",
-        amount = count,
-        suffix = if (past) " $unit ago" else " $unit",
-    )
+    val text = formats.relativeTime(if (past) -count.toLong() else count.toLong(), unit)
+    val number = count.toString()
+    val at = text.indexOf(number)
+    val once = at >= 0 && text.indexOf(number, at + number.length) < 0
+    return if (once) {
+        RelativeParts(text, prefix = text.substring(0, at), amount = count, suffix = text.substring(at + number.length))
+    } else {
+        RelativeParts(text, prefix = text, amount = null, suffix = "")
+    }
 }

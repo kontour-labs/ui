@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -129,8 +130,10 @@ fun Rating(
     val empty = icon ?: SystemIcons.Star
     val full = filledIcon ?: SystemIcons.StarFilled
     val clamped = value.coerceIn(0f, count.toFloat())
-    val outOf = Theme.strings.outOf
-    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count, outOf)
+    val strings = Theme.strings
+    val formats = Theme.formats
+    val outOf: (String, Int) -> String = remember(strings, formats) { { value, of -> strings.outOf(value, formats.quantity(of)) } }
+    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count, outOf, formats)
 
     if (onValueChange == null) {
         // One node, and nothing to press. `clearAndSetSemantics` rather than a
@@ -303,7 +306,7 @@ fun Rating(
                         indication = null,
                     )
                     .semantics {
-                        this.contentDescription = outOf(markValue.toString(), count)
+                        this.contentDescription = outOf(formats.integer(markValue), count)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -380,7 +383,14 @@ private fun Mark(
                     // of the empty star underneath it. Clipping the drawing
                     // leaves the glyph exactly where it was laid out.
                     .drawWithContent {
-                        clipRect(right = this.size.width * shownFill) {
+                        // From the start of the line: a half star in Arabic is
+                        // lit on its right.
+                        val lit = this.size.width * shownFill
+                        val rtl = layoutDirection == LayoutDirection.Rtl
+                        clipRect(
+                            left = if (rtl) this.size.width - lit else 0f,
+                            right = if (rtl) this.size.width else lit,
+                        ) {
                             this@drawWithContent.drawContent()
                         }
                     },
@@ -396,9 +406,9 @@ private fun Mark(
  * [io.kontour.ui.theme.Strings.outOf], which one mark announces as well: "3 out
  * of 5", not "star 3".
  */
-private fun defaultRatingDescription(value: Float, count: Int, outOf: (String, Int) -> String): String {
+private fun defaultRatingDescription(value: Float, count: Int, outOf: (String, Int) -> String, formats: LocaleFormats): String {
     val whole = value.toInt()
-    val shown = if (value == whole.toFloat()) whole.toString() else value.toString()
+    val shown = if (value == whole.toFloat()) formats.integer(whole) else formats.decimal(value.toDouble(), 1)
     return outOf(shown, count)
 }
 

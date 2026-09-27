@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
@@ -234,7 +235,7 @@ class ActivityCalendarTest {
             showMonthLabels = false,
             showWeekdayLabels = false,
             showLegend = false,
-            formats = DateTimeFormats(dayFirst = true, firstDayOfWeek = DayOfWeek.MONDAY),
+            formats = LocaleFormats.english(),
         )
     }
 

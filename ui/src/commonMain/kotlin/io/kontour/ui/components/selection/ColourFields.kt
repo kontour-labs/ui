@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,17 +65,13 @@ enum class ColourFormat {
     Hsl,
 }
 
-/** What a notation is called on its switch. Enum names are not user-facing words. */
-internal val ColourFormat.label: String
-    get() = when (this) {
-        ColourFormat.Hex -> "Hex"
-        ColourFormat.Rgb -> "RGB"
-        ColourFormat.Hsv -> "HSV"
-        ColourFormat.Hsl -> "HSL"
-    }
-
-/** The switch's labels, built once: a list made in composition is a new parameter every time. */
-private val FormatLabels: List<String> = ColourFormat.entries.map { it.label }
+/**
+ * One of the numbers a colour is written as — what each field of [ColourFields]
+ * holds. Named, and worded through `Strings.colourChannel` and
+ * `Strings.colourChannelName`, because `R` is not a letter every language uses
+ * for red.
+ */
+enum class ColourChannel { Red, Green, Blue, Hue, Saturation, Value, Lightness, Alpha }
 
 /**
  * The colour written out, and typeable.
@@ -100,10 +99,14 @@ internal fun ColourFields(
     onFormatChange: ((ColourFormat) -> Unit)?,
     withAlpha: Boolean,
 ) {
+    // Built once per set of words: a list made in composition is a new
+    // parameter every time.
+    val strings = Theme.strings
+    val formatLabels = remember(strings) { ColourFormat.entries.map(strings.colourFormatName) }
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         if (onFormatChange != null) {
             SegmentedControl(
-                options = FormatLabels,
+                options = formatLabels,
                 selectedIndex = ColourFormat.entries.indexOf(format),
                 onSelectedIndexChange = { onFormatChange(ColourFormat.entries[it]) },
                 enabled = enabled,
@@ -137,7 +140,7 @@ internal fun ColourFields(
             }
             if (withAlpha && format != ColourFormat.Hex) {
                 Channel(
-                    label = "A",
+                    channel = ColourChannel.Alpha,
                     value = (colour.alpha * 100f).roundToInt(),
                     range = 0..100,
                     enabled = enabled,
@@ -177,7 +180,7 @@ private fun RowScope.HexField(
         canonical = colour.toHex(includeAlpha = withAlpha),
         parse = ::colourFromHex,
         onParsed = onColourChange,
-        label = ColourFormat.Hex.label,
+        label = Theme.strings.colourFormatName(ColourFormat.Hex),
         keyboardType = KeyboardType.Text,
         enabled = enabled,
         modifier = Modifier.weight(1f),
@@ -187,13 +190,13 @@ private fun RowScope.HexField(
 @Composable
 private fun RowScope.RgbFields(colour: Color, onColourChange: (Color) -> Unit, enabled: Boolean) {
     val alpha = colour.alpha
-    Channel("R", (colour.red * 255f).roundToInt(), 0..255, enabled) {
+    Channel(ColourChannel.Red, (colour.red * 255f).roundToInt(), 0..255, enabled) {
         onColourChange(Color(it / 255f, colour.green, colour.blue, alpha))
     }
-    Channel("G", (colour.green * 255f).roundToInt(), 0..255, enabled) {
+    Channel(ColourChannel.Green, (colour.green * 255f).roundToInt(), 0..255, enabled) {
         onColourChange(Color(colour.red, it / 255f, colour.blue, alpha))
     }
-    Channel("B", (colour.blue * 255f).roundToInt(), 0..255, enabled) {
+    Channel(ColourChannel.Blue, (colour.blue * 255f).roundToInt(), 0..255, enabled) {
         onColourChange(Color(colour.red, colour.green, it / 255f, alpha))
     }
 }
@@ -202,13 +205,13 @@ private fun RowScope.RgbFields(colour: Color, onColourChange: (Color) -> Unit, e
 private fun RowScope.HsvFields(colour: Color, onColourChange: (Color) -> Unit, enabled: Boolean) {
     val hsv = colour.toHsv()
     val alpha = colour.alpha
-    Channel("H", hsv.hue.roundToInt(), 0..360, enabled) {
+    Channel(ColourChannel.Hue, hsv.hue.roundToInt(), 0..360, enabled) {
         onColourChange(hsv.copy(hue = it.toFloat()).toColour(alpha))
     }
-    Channel("S", (hsv.saturation * 100f).roundToInt(), 0..100, enabled) {
+    Channel(ColourChannel.Saturation, (hsv.saturation * 100f).roundToInt(), 0..100, enabled) {
         onColourChange(hsv.copy(saturation = it / 100f).toColour(alpha))
     }
-    Channel("V", (hsv.value * 100f).roundToInt(), 0..100, enabled) {
+    Channel(ColourChannel.Value, (hsv.value * 100f).roundToInt(), 0..100, enabled) {
         onColourChange(hsv.copy(value = it / 100f).toColour(alpha))
     }
 }
@@ -217,13 +220,13 @@ private fun RowScope.HsvFields(colour: Color, onColourChange: (Color) -> Unit, e
 private fun RowScope.HslFields(colour: Color, onColourChange: (Color) -> Unit, enabled: Boolean) {
     val hsl = colour.toHsl()
     val alpha = colour.alpha
-    Channel("H", hsl.hue.roundToInt(), 0..360, enabled) {
+    Channel(ColourChannel.Hue, hsl.hue.roundToInt(), 0..360, enabled) {
         onColourChange(hsl.copy(hue = it.toFloat()).toColour(alpha))
     }
-    Channel("S", (hsl.saturation * 100f).roundToInt(), 0..100, enabled) {
+    Channel(ColourChannel.Saturation, (hsl.saturation * 100f).roundToInt(), 0..100, enabled) {
         onColourChange(hsl.copy(saturation = it / 100f).toColour(alpha))
     }
-    Channel("L", (hsl.lightness * 100f).roundToInt(), 0..100, enabled) {
+    Channel(ColourChannel.Lightness, (hsl.lightness * 100f).roundToInt(), 0..100, enabled) {
         onColourChange(hsl.copy(lightness = it / 100f).toColour(alpha))
     }
 }
@@ -231,7 +234,7 @@ private fun RowScope.HslFields(colour: Color, onColourChange: (Color) -> Unit, e
 /** One whole number between two bounds, in a field the width of its neighbours. */
 @Composable
 private fun RowScope.Channel(
-    label: String,
+    channel: ColourChannel,
     value: Int,
     range: IntRange,
     enabled: Boolean,
@@ -244,7 +247,8 @@ private fun RowScope.Channel(
         // which point the second digit they meant to type is gone.
         parse = { text -> text.trim().toIntOrNull()?.takeIf { it in range } },
         onParsed = onValueChange,
-        label = label,
+        label = Theme.strings.colourChannel(channel),
+        description = Theme.strings.colourChannelName(channel),
         keyboardType = KeyboardType.Number,
         enabled = enabled,
         modifier = Modifier.weight(1f),
@@ -267,6 +271,8 @@ private fun <T> SyncedField(
     keyboardType: KeyboardType,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    /** The channel's name, where [label] is its letter: a screen reader says "Red", not "R". */
+    description: String? = null,
 ) {
     val state: TextFieldState = rememberTextFieldState(canonical)
     val read by rememberUpdatedState(parse)
@@ -289,7 +295,7 @@ private fun <T> SyncedField(
 
     TextField(
         state = state,
-        modifier = modifier,
+        modifier = if (description != null) modifier.semantics { contentDescription = description } else modifier,
         enabled = enabled,
         label = label,
         variant = TextFieldVariant.Filled,

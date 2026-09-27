@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldBuffer
@@ -23,10 +24,18 @@ fun InputTransformation.Companion.digitsOnly(): InputTransformation =
  * Deliberately permissive about *intermediate* states: `-`, `1.` and `-0.` are
  * all allowed through, because a user typing `-0.5` passes through every one of
  * them. Rejecting them would make the field impossible to type into.
+ *
+ * [decimalSeparator] is the reader's own — `,` in German — and is accepted
+ * beside `.`, which a pasted number or a keyboard that only has a point still
+ * uses. Read the value back with `Theme.formats.parseDecimal`, which takes
+ * either.
  */
-fun InputTransformation.Companion.decimal(allowNegative: Boolean = false): InputTransformation =
+fun InputTransformation.Companion.decimal(
+    allowNegative: Boolean = false,
+    decimalSeparator: Char = '.',
+): InputTransformation =
     InputTransformation {
-        if (!admitsNumber(asCharSequence(), allowDecimal = true, allowNegative)) revertAllChanges()
+        if (!admitsNumber(asCharSequence(), allowDecimal = true, allowNegative, point = decimalSeparator)) revertAllChanges()
     }
 
 /**
@@ -51,10 +60,12 @@ internal fun admitsNumber(
     allowDecimal: Boolean,
     allowNegative: Boolean,
     maxLength: Int? = null,
+    point: Char = '.',
 ): Boolean {
     if (maxLength != null && text.length > maxLength) return false
     val body = if (allowNegative && text.startsWith("-")) text.drop(1) else text
-    return body.all { it.isDigit() || (allowDecimal && it == '.') } && body.count { it == '.' } <= 1
+    fun isPoint(char: Char) = char == '.' || char == point
+    return body.all { it.isDigit() || (allowDecimal && isPoint(it)) } && body.count(::isPoint) <= 1
 }
 
 /** Caps the field at [max] characters. */
@@ -103,11 +114,37 @@ class MaskTransformation(
     }
 }
 
-/** `0412 345 678` — an Australian mobile number. */
-fun phoneMask(): OutputTransformation = MaskTransformation(groups = listOf(4, 3, 3))
+/** A phone number shown in [format]'s groups — `0412 345 678` for an Australian mobile. */
+fun phoneMask(format: PhoneFormat = PhoneFormat.AustralianMobile): OutputTransformation =
+    MaskTransformation(groups = format.groups)
 
-/** `1234 5678 9012 3456` — a payment card number. */
-fun cardMask(): OutputTransformation = MaskTransformation(groups = listOf(4, 4, 4, 4))
+/**
+ * A payment card number in [groups]: `1234 5678 9012 3456` by default, and
+ * `listOf(4, 6, 5)` for an American Express card's `3782 822463 10005`.
+ */
+fun cardMask(groups: List<Int> = listOf(4, 4, 4, 4)): OutputTransformation = MaskTransformation(groups = groups)
+
+/**
+ * How a [PhoneField] groups the digits it is typed, and how many it takes.
+ *
+ * Numbers are written differently in every country and often within one, so the
+ * field does not guess: [None] takes up to fifteen digits — the most a number
+ * can have anywhere — and shows them as typed, and an app that knows its
+ * readers' country gives the grouping it uses.
+ *
+ * @property groups The size of each group, in order; empty for none.
+ * @property maxDigits The most digits the field accepts.
+ */
+@Immutable
+data class PhoneFormat(val groups: List<Int>, val maxDigits: Int = groups.sum()) {
+    companion object {
+        /** Up to fifteen digits, as typed. */
+        val None = PhoneFormat(emptyList(), maxDigits = 15)
+
+        /** `0412 345 678`. */
+        val AustralianMobile = PhoneFormat(listOf(4, 3, 3))
+    }
+}
 
 /** `12:34` — a 24-hour time typed as four digits. */
 fun timeMask(): OutputTransformation = MaskTransformation(groups = listOf(2, 2), separator = ':')

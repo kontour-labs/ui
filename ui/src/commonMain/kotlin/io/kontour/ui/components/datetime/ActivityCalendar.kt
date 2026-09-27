@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.NameWidth
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.DateStyle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
@@ -214,9 +217,9 @@ object ActivityCalendarDefaults {
      * date in full, from [io.kontour.ui.theme.Strings.activityOnDay].
      */
     @Composable
-    fun describe(formats: DateTimeFormats = LocalDateTimeFormats.current): (date: LocalDate, count: Int) -> String {
+    fun describe(formats: LocaleFormats = Theme.formats): (date: LocalDate, count: Int) -> String {
         val strings = Theme.strings
-        return remember(strings, formats) { { date, count -> strings.activityOnDay(count, formats.dateFull(date)) } }
+        return remember(strings, formats) { { date, count -> strings.activityOnDay(formats.quantity(count), formats.date(date, DateStyle.Full)) } }
     }
 }
 
@@ -323,8 +326,8 @@ fun ActivityCalendar(
     showMonthLabels: Boolean = true,
     showWeekdayLabels: Boolean = true,
     showLegend: Boolean = true,
-    formats: DateTimeFormats = LocalDateTimeFormats.current,
-    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
+    formats: LocaleFormats = Theme.formats,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
     describe: (date: LocalDate, count: Int) -> String = ActivityCalendarDefaults.describe(formats),
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -410,7 +413,7 @@ fun ActivityCalendar(
         val weekdayWidth = if (showWeekdayLabels) {
             with(density) {
                 listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)
-                    .maxOf { measurer.measure(it.shortName, labelStyle).size.width }
+                    .maxOf { measurer.measure(formats.weekdayName(it, NameWidth.Abbreviated), labelStyle).size.width }
                     .toDp() + labelSpace
             }
         } else {
@@ -424,7 +427,7 @@ fun ActivityCalendar(
             MaxCell
         }
         val monthBand = if (showMonthLabels) {
-            with(density) { measurer.measure("May", labelStyle).size.height.toDp() } + labelSpace
+            with(density) { measurer.measure(formats.monthName(Month.MAY, NameWidth.Abbreviated), labelStyle).size.height.toDp() } + labelSpace
         } else {
             0.dp
         }
@@ -513,6 +516,7 @@ fun ActivityCalendar(
                                     marks = marks,
                                     formats = formats,
                                     weekOf = strings.weekOf,
+                                    sentences = strings.sentences,
                                     describe = ::say,
                                     selected = selected,
                                     onDayClick = if (interactive) onDayClick else null,
@@ -615,7 +619,7 @@ fun ActivityCalendar(
                                 )
                                 val months = if (showMonthLabels) {
                                     val layouts = Month.entries.associateWith {
-                                        measurer.measure(it.shortName, labelStyle)
+                                        measurer.measure(formats.monthName(it, NameWidth.Abbreviated), labelStyle)
                                     }
                                     grid.monthLabels { month ->
                                         ceil((layouts.getValue(month).size.width + labelSpace.toPx()) / step).toInt()
@@ -789,10 +793,11 @@ private fun WeekdayLabels(
 ) {
     val measurer = rememberTextMeasurer()
     val style = Theme.typography.labelSmall
+    val formats = Theme.formats
     Canvas(modifier.clearAndSetSemantics {}) {
         val rtl = layoutDirection == LayoutDirection.Rtl
         for (day in listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)) {
-            val text = measurer.measure(day.shortName, style)
+            val text = measurer.measure(formats.weekdayName(day, NameWidth.Abbreviated), style)
             val centre = top.toPx() + grid.rowOf(day) * pitch.toPx() + cell.toPx() / 2f
             val x = if (rtl) size.width - text.size.width else 0f
             drawText(text, colour, topLeft = Offset(x, centre - text.size.height / 2f))
@@ -814,8 +819,9 @@ private fun WeekNode(
     grid: ActivityGrid,
     activity: Map<LocalDate, Int>,
     marks: Array<ActivityMark?>?,
-    formats: DateTimeFormats,
+    formats: LocaleFormats,
     weekOf: (String) -> String,
+    sentences: (List<String>) -> String,
     describe: (LocalDate, Int) -> String,
     selected: LocalDate?,
     onDayClick: ((LocalDate) -> Unit)?,
@@ -838,7 +844,7 @@ private fun WeekNode(
             } else {
                 busy.map { describe(it, activity[it] ?: 0) }
             }
-            contentDescription = (listOf(weekOf(formats.dateShort(days.first()))) + said).joinToString(". ")
+            contentDescription = sentences(listOf(weekOf(formats.date(days.first(), DateStyle.Medium))) + said)
             collectionItemInfo = CollectionItemInfo(rowIndex = 0, rowSpan = 1, columnIndex = week, columnSpan = 1)
             // In the order the weeks happened, whichever side the grid starts.
             traversalIndex = week.toFloat()

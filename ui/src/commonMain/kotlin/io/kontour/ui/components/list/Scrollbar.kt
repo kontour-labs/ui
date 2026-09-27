@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -225,6 +227,9 @@ fun Scrollbar(
             .draggable(
                 state = drag,
                 orientation = orientation,
+                // A horizontal list runs from the right in right to left, and so
+                // does its thumb: dragging it left is dragging it forward.
+                reverseDirection = orientation == Orientation.Horizontal && LocalLayoutDirection.current == LayoutDirection.Rtl,
                 interactionSource = interactions,
             )
             .then(

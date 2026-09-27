@@ -1,5 +1,7 @@
 package io.kontour.ui.motion
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
@@ -77,6 +79,8 @@ fun Modifier.revealOnScroll(
         label = "reveal",
     )
     val distancePx = with(androidx.compose.ui.platform.LocalDensity.current) { distance.toPx() }
+    // Start and end are the line's: in right to left, "from the start" is from the right.
+    val towardsEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
 
     return this
         .onGloballyPositioned { coordinates ->
@@ -101,8 +105,8 @@ fun Modifier.revealOnScroll(
                     scaleY = 0.96f + 0.04f * progress
                 }
 
-                RevealVariant.FadeStart -> translationX = -distancePx * remaining
-                RevealVariant.FadeEnd -> translationX = distancePx * remaining
+                RevealVariant.FadeStart -> translationX = -distancePx * remaining * towardsEnd
+                RevealVariant.FadeEnd -> translationX = distancePx * remaining * towardsEnd
             }
         }
 }

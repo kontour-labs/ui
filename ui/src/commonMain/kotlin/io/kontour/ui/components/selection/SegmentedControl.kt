@@ -203,7 +203,8 @@ fun SegmentedControl(
     // `Tab` do — and measured in capitals, so whether they fit is decided
     // about the words that are drawn.
     val uppercase = Theme.componentDefaults.uppercaseLabels
-    val labels = remember(options, uppercase) { if (uppercase) options.map { it.uppercase() } else options }
+    val formats = Theme.formats
+    val labels = remember(options, uppercase, formats) { if (uppercase) options.map(formats::uppercase) else options }
 
     // Only here to put `constraints` in scope for the fit decision below — the
     // control has to know how wide it is *before* it decides which way to run,

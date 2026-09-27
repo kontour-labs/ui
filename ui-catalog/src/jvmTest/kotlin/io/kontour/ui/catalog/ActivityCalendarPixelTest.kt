@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityCalendarColours
 import io.kontour.ui.components.datetime.ActivityMark
-import io.kontour.ui.components.datetime.DateTimeFormats
 import io.kontour.ui.foundation.SystemIcons
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
@@ -127,7 +127,7 @@ class ActivityCalendarPixelTest {
                         showMonthLabels = false,
                         showWeekdayLabels = false,
                         showLegend = false,
-                        formats = DateTimeFormats(firstDayOfWeek = DayOfWeek.MONDAY),
+                        formats = LocaleFormats.english(),
                     )
                 }
             }

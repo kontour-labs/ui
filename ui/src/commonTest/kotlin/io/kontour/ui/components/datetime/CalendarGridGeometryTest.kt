@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.ui.geometry.Offset
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -23,7 +24,7 @@ class CalendarGridGeometryTest {
     /** August 2026, Monday first: five blanks, six rows, the 31st alone on the last. */
     private val august = GridGeometry.of(
         month = LocalDate(2026, 8, 1),
-        formats = platformDateTimeFormats().startingOn(DayOfWeek.MONDAY),
+        formats = LocaleFormats.english().startingOn(DayOfWeek.MONDAY),
         origin = Offset.Zero,
         cell = Column,
         rowHeight = Row,

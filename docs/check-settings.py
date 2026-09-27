@@ -357,6 +357,9 @@ MOVEMENT_ALLOWED = {
     "BottomSheet.kt:FollowBack": "calls `SheetState.animateTo`, which fades in place under reduced motion",
     "SheetState.kt:settleWhereAimed": "settles where the reader's own drag aimed it; `springOrTween` "
     "shortens the spec",
+    # A still mirror for right to left, which the detector reads as a scale.
+    "ColourPicker.kt:Track": "flips the track's gradient for right to left; nothing moves",
+    "Mirroring.kt:mirrorInRtl": "flips a drawing for right to left; nothing moves",
 }
 MAX_UNGATED_MOVEMENT = 0
 
@@ -417,11 +420,12 @@ DEVELOPER_TEXT = re.compile(
 # By file, for the one file whose job is words; by literal for the rest.
 LITERAL_FILES_ALLOWED = {
     "Strings.kt": "where the words live",
+    "EnglishData.kt": "the built-in English, which is the words' other home",
 }
 LITERAL_ALLOWED = {
     "digit$index": "a test tag, not text",
 }
-MAX_LITERAL_PHRASES = 11
+MAX_LITERAL_PHRASES = 0
 
 
 def _strip_developer_text(text: str) -> str:
@@ -494,8 +498,10 @@ CASE_ALLOWED = {
     "InlineMarkdown.kt": "a URL scheme, which RFC 3986 says is ASCII",
     "DeviceCorner.kt": "a device model name, matched against a table",
     "DeviceCurves.kt": "a manufacturer and codename, matched against a table",
+    "LocaleTag.kt": "a BCP 47 tag's subtags, which the standard says are case-insensitive ASCII",
+    "PluralRules.kt": "a language subtag, looked up in CLDR's table",
 }
-MAX_CASE_CHANGES = 4
+MAX_CASE_CHANGES = 0
 
 
 def case_changes() -> list[str]:
@@ -521,8 +527,10 @@ NUMBER_TO_SINK = re.compile(
 )
 NUMBER_ALLOWED = {
     "CommandPalette.kt": "the query field's own text, handed back",
+    "AnimatedCounter.kt": "one character of a number already written by `format`",
+    "PatternLocaleFormats.kt": "the formatter itself, turning ASCII digits into the locale's",
 }
-MAX_UNFORMATTED_NUMBERS = 3
+MAX_UNFORMATTED_NUMBERS = 0
 
 
 def unformatted_numbers() -> list[str]:
@@ -545,12 +553,19 @@ CALENDAR_WORD = re.compile(
     r"|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
     r'|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)"'
 )
-MAX_CALENDAR_WORDS = 2
+MAX_CALENDAR_WORDS = 0
+
+
+CALENDAR_ALLOWED = {
+    "EnglishData.kt": "the built-in English calendar, which every English locale reads",
+}
 
 
 def calendar_words() -> list[str]:
     found = []
     for path in files(UI):
+        if path.name in CALENDAR_ALLOWED:
+            continue
         count = len(CALENDAR_WORD.findall(source(path)))
         if count:
             found.append(f"{path.name} ({count})")
@@ -572,7 +587,7 @@ READS_DIRECTION = re.compile(r"layoutDirection|LayoutDirection|LocalLayoutDirect
 PLACEMENT_ALLOWED = {
     "TouchTarget.kt": "centres the child in its enlarged box, which is symmetric",
 }
-MAX_ABSOLUTE_PLACEMENT = 2
+MAX_ABSOLUTE_PLACEMENT = 0
 
 
 def absolute_placement() -> list[str]:

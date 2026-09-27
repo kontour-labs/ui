@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -153,7 +154,8 @@ internal fun Modifier.skeletonFill(
                         // wrong and a diagonal wipe either stops short of the
                         // far corner or spends half its time off the edge.
                         val radians = angle * PI.toFloat() / 180f
-                        val dx = cos(radians)
+                        // Start to end: in right to left the band travels leftwards.
+                        val dx = cos(radians) * if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
                         val dy = sin(radians)
                         val span = abs(size.width * dx) + abs(size.height * dy)
                         val bandWidth = span * BandShare

@@ -490,10 +490,11 @@ private fun CoachMarkBubble(
     onDismiss: () -> Unit,
 ) {
     val colours = Theme.colours
+    val announced = Theme.strings.sentences(listOf(title, message))
     Surface(
         modifier = Modifier
             .widthIn(max = 320.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "$title. $message" },
+            .semantics(mergeDescendants = true) { contentDescription = announced },
         shape = Theme.shapes.container,
         containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,

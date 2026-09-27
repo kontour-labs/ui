@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.locale.rememberIntegerFormat
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -84,7 +85,7 @@ fun Stepper(
     step: Int = 1,
     size: ButtonSize = ButtonSize.Medium,
     valueWidth: Dp = StepperDefaults.ValueWidth,
-    format: (Int) -> String = { it.toString() },
+    format: (Int) -> String = rememberIntegerFormat(),
     decrementLabel: String = Theme.strings.decrease,
     incrementLabel: String = Theme.strings.increase,
     /**

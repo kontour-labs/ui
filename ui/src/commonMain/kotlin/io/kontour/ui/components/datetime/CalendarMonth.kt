@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.DateTimeConventions
+import io.kontour.ui.locale.DateStyle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -161,7 +164,7 @@ fun CalendarMonth(
     today: LocalDate? = null,
     markerFor: ((LocalDate) -> Color?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
-    formats: DateTimeFormats = LocalDateTimeFormats.current,
+    formats: LocaleFormats = Theme.formats,
     /**
      * Where the week starts.
      *
@@ -169,30 +172,24 @@ fun CalendarMonth(
      * North America starts on Sunday and a few calendars start on Saturday.
      *
      * A shortcut, not a second source of truth: it defaults from
-     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * [DateTimeConventions.firstDayOfWeek], which is where the answer has always
      * lived, and setting it derives a `formats` for the week arithmetic rather
      * than being consulted separately. So an app-wide choice is one field on the
      * token group and a one-off is one argument here — the same arrangement
      * `Theme.strings` and every component's own string parameter already use.
      */
-    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
 ) {
     // One object downstream, so nothing can read the week's start from two
     // places and disagree.
-    val weekFormats = remember(formats, firstDayOfWeek) {
-        if (firstDayOfWeek == formats.firstDayOfWeek) {
-            formats
-        } else {
-            formats.copy(firstDayOfWeek = firstDayOfWeek)
-        }
-    }
+    val weekFormats = remember(formats, firstDayOfWeek) { formats.startingOn(firstDayOfWeek) }
 
     val firstOfMonth = remember(month) { LocalDate(month.year, month.month, 1) }
     val daysInMonth = remember(firstOfMonth) {
         firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
     }
     val leadingBlanks = remember(firstOfMonth, weekFormats) {
-        weekFormats.columnOf(firstOfMonth.dayOfWeek)
+        weekFormats.conventions.columnOf(firstOfMonth.dayOfWeek)
     }
 
     // The drag this month draws from. A date picker holds one over its pager, so
@@ -478,7 +475,7 @@ private fun DayCell(
     isToday: Boolean,
     marker: Color?,
     rangePosition: RangePosition,
-    formats: DateTimeFormats,
+    formats: LocaleFormats,
     cellSize: Dp,
     /** A drag is live in this month: the band is the grid's, not the days'. */
     dragging: Boolean,
@@ -779,7 +776,7 @@ private fun DayCell(
                 // `selectable` rather than `clickable`: a day in a calendar is
                 // one of a set of choices, and this is the modifier that says so
                 // and carries the state with the action.
-                .semantics { stateDescription = formats.dateFull(date) }
+                .semantics { stateDescription = formats.date(date, DateStyle.Full) }
                 .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = filled,
@@ -801,7 +798,7 @@ private fun DayCell(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = date.day.toString(),
+                    text = formats.digits(date.day.toLong()),
                     style = dayStyle,
                     colour = label,
                 )

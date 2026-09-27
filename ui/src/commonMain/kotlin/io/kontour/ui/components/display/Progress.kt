@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.mirrorInRtl
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -90,6 +91,8 @@ fun LinearProgress(
         modifier
             .fillMaxWidth()
             .height(height)
+            // Fills from the start of the line, which is the right in right to left.
+            .mirrorInRtl()
             .semantics {
                 if (contentDescription != null) this.contentDescription = contentDescription
                 progressBarRangeInfo = if (progress != null) {
@@ -249,6 +252,7 @@ fun StepProgress(
     if (total <= 0) return
     val motion = Theme.motion
     val strings = Theme.strings
+    val formats = Theme.formats
     val indeterminate = current == null
 
     val animated by animateFloatAsState(
@@ -322,10 +326,11 @@ fun StepProgress(
         modifier
             .fillMaxWidth()
             .height(height)
+            .mirrorInRtl()
             .semantics {
                 this.contentDescription = contentDescription ?: when {
                     indeterminate -> strings.inProgress
-                    else -> strings.stepOfCount(current, total, working)
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
                 }
                 // `Indeterminate` rather than a made-up position: a screen reader
                 // saying "step 0 of 4" would be stating something the caller

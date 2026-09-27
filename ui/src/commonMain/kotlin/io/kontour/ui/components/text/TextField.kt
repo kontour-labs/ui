@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -246,6 +247,9 @@ fun TextField(
                         // wrong for a password halfway down a form. One rule
                         // beats a precedence table nobody can predict.
                         imeAction = imeChain?.imeAction ?: imeAction,
+                        // The reader's language, so a keyboard that can switch
+                        // offers theirs and its dictionary.
+                        hintLocales = LocaleList(Theme.locale),
                     ),
                     onKeyboardAction = onKeyboardAction ?: imeChain?.handler,
                     lineLimits = lineLimits,

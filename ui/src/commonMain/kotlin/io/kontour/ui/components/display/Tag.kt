@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.bidiIsolated
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -156,17 +157,20 @@ fun Badge(
     contentColour: Color = Theme.colours.danger.onSolid,
     contentDescription: String? = null,
 ) {
+    val strings = Theme.strings
+    val formats = Theme.formats
+    // Isolated, so `99+` stays `99+` inside a right-to-left line rather than
+    // reading `+99` — the plus is a neutral and would take the line's direction.
     val label = when {
         count == null -> null
-        count > max -> "$max+"
-        else -> count.toString()
+        count > max -> bidiIsolated(strings.cappedCount(formats.quantity(max)))
+        else -> formats.integer(count)
     }
 
-    val strings = Theme.strings
     val announcement = contentDescription ?: when {
         count == null -> strings.new
-        count > max -> strings.moreThan(max)
-        else -> "$count"
+        count > max -> strings.moreThan(formats.quantity(max))
+        else -> strings.newCount(formats.quantity(count))
     }
 
     // At the enhanced tier a ring of the page's colour round the badge, so a red

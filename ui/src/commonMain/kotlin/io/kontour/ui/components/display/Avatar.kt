@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.bidiIsolated
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -167,7 +169,7 @@ fun Avatar(
             // either — and they are `clearAndSetSemantics` because the name is
             // announced by the avatar itself.
             name != null -> Text(
-                text = name.initials(),
+                text = name.initials(Theme.formats, Theme.strings.unknownInitials),
                 style = Theme.typography.labelMedium.copy(
                     fontSize = with(density) { size.textSize.toSp() },
                     lineHeight = TextUnit.Unspecified,
@@ -207,6 +209,8 @@ fun AvatarGroup(
     if (names.isEmpty()) return
     val shown = names.take(max)
     val overflow = names.size - shown.size
+    val strings = Theme.strings
+    val formats = Theme.formats
     val overlap = size.diameter / 3
     val density = LocalDensity.current
 
@@ -221,7 +225,7 @@ fun AvatarGroup(
     Layout(
         modifier = modifier.semantics(mergeDescendants = true) {
             this.contentDescription = contentDescription
-                ?: if (names.size == 1) names.first() else "${names.size} people"
+                ?: if (names.size == 1) names.first() else strings.peopleCount(formats.quantity(names.size))
         },
         content = {
             shown.forEach { name ->
@@ -252,7 +256,7 @@ fun AvatarGroup(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "+$overflow",
+                        text = bidiIsolated(strings.moreCount(formats.quantity(overflow))),
                         // The same rule the initials follow, for the same reason —
                         // and this is the call site that made the first fix look
                         // half-done: a group of scaled initials with an unscaled
@@ -310,14 +314,19 @@ private fun avatarPalette(): List<Color> {
 private fun String.stableIndex(buckets: Int): Int =
     (fold(0) { acc, ch -> acc + ch.code }).absoluteValue % buckets
 
-/** First letter of the first two words — "Aaron Smith" becomes "AS". */
-private fun String.initials(): String =
+/**
+ * The first character of the first two words — "Aaron Smith" becomes "AS".
+ *
+ * A character as a reader counts one, not a UTF-16 unit: `Élodie` written with
+ * a combining accent keeps its accent, `क्षितिज` starts with its conjunct, and an
+ * emoji is not cut in half. Capitalised the way the name's language does it.
+ */
+private fun String.initials(formats: LocaleFormats, unknown: String): String =
     trim()
-        .split(' ', '\t')
+        .split(' ', '\t', '\u3000')
         .filter { it.isNotBlank() }
         .take(2)
-        .map { it.first().uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+        .joinToString("") { formats.uppercase(formats.firstGrapheme(it)) }
+        .ifEmpty { unknown }
 
 /** The ring that keeps overlapping avatars legible against one another. */

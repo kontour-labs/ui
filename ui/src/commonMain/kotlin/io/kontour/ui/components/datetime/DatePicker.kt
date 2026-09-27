@@ -1,5 +1,8 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.DateOrder
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.DateTimeConventions
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -389,7 +392,7 @@ fun DatePicker(
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
         value ?: today ?: remember { DatePickerDefaults.currentDate() }
     ),
-    formats: DateTimeFormats = LocalDateTimeFormats.current,
+    formats: LocaleFormats = Theme.formats,
     /**
      * Where the week starts.
      *
@@ -397,13 +400,13 @@ fun DatePicker(
      * North America starts on Sunday and a few calendars start on Saturday.
      *
      * A shortcut, not a second source of truth: it defaults from
-     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * [DateTimeConventions.firstDayOfWeek], which is where the answer has always
      * lived, and setting it derives a `formats` for the week arithmetic rather
      * than being consulted separately. So an app-wide choice is one field on the
      * token group and a one-off is one argument here — the same arrangement
      * `Theme.strings` and every component's own string parameter already use.
      */
-    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
 ) {
     CalendarFrame(
         modifier = modifier,
@@ -484,7 +487,7 @@ fun DateRangePicker(
     navigation: CalendarNavigationState = rememberCalendarNavigationState(
         start ?: today ?: remember { DatePickerDefaults.currentDate() }
     ),
-    formats: DateTimeFormats = LocalDateTimeFormats.current,
+    formats: LocaleFormats = Theme.formats,
     /**
      * Where the week starts.
      *
@@ -492,13 +495,13 @@ fun DateRangePicker(
      * North America starts on Sunday and a few calendars start on Saturday.
      *
      * A shortcut, not a second source of truth: it defaults from
-     * [DateTimeFormats.firstDayOfWeek], which is where the answer has always
+     * [DateTimeConventions.firstDayOfWeek], which is where the answer has always
      * lived, and setting it derives a `formats` for the week arithmetic rather
      * than being consulted separately. So an app-wide choice is one field on the
      * token group and a one-off is one argument here — the same arrangement
      * `Theme.strings` and every component's own string parameter already use.
      */
-    firstDayOfWeek: DayOfWeek = formats.firstDayOfWeek,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
 ) {
     // **The drag is held here, over the pager, not in the month.** A month grid
     // is one page of the pager and leaves with it, so a drag that lived in one
@@ -599,7 +602,7 @@ internal fun rangePosition(date: LocalDate, start: LocalDate?, end: LocalDate?):
 @Composable
 private fun MonthAndYearButton(
     navigation: CalendarNavigationState,
-    formats: DateTimeFormats,
+    formats: LocaleFormats,
     chooserIcon: ImageVector?,
     onOpen: () -> Unit,
 ) {
@@ -679,6 +682,7 @@ private fun MonthAndYearWheels(
     onPick: (LocalDate) -> Unit,
 ) {
     val months = remember { Month.entries }
+    val formats = Theme.formats
     val from = initial.year - YearsEitherSide
     val to = initial.year + YearsEitherSide
     val years = remember(from, to) { (from..to).toList() }
@@ -691,22 +695,34 @@ private fun MonthAndYearWheels(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Drum(
-            description = Theme.strings.month,
-            items = months,
-            row = { monthRow },
-            onRowChange = { monthRow = it; onPick(LocalDate(years[yearRow], months[it], 1)) },
-            label = { it.fullName },
-            modifier = Modifier.weight(1f),
-        )
-        Drum(
-            description = Theme.strings.year,
-            items = years,
-            row = { yearRow },
-            onRowChange = { yearRow = it; onPick(LocalDate(years[it], months[monthRow], 1)) },
-            label = { it.toString() },
-            modifier = Modifier.weight(1f),
-        )
+        val month = @Composable {
+            Drum(
+                description = Theme.strings.month,
+                items = months,
+                row = { monthRow },
+                onRowChange = { monthRow = it; onPick(LocalDate(years[yearRow], months[it], 1)) },
+                label = { formats.monthName(it) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        val year = @Composable {
+            Drum(
+                description = Theme.strings.year,
+                items = years,
+                row = { yearRow },
+                onRowChange = { yearRow = it; onPick(LocalDate(years[it], months[monthRow], 1)) },
+                label = { formats.digits(it.toLong()) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // In the order the reader writes a date: `June 2026`, but `2026年 6月`.
+        if (formats.conventions.dateOrder == DateOrder.YearMonthDay) {
+            year()
+            month()
+        } else {
+            month()
+            year()
+        }
     }
 }
 
@@ -752,7 +768,7 @@ private const val YearsEitherSide = 120
 private fun CalendarFrame(
     modifier: Modifier,
     navigation: CalendarNavigationState,
-    formats: DateTimeFormats,
+    formats: LocaleFormats,
     previousIcon: ImageVector?,
     nextIcon: ImageVector?,
     today: LocalDate?,

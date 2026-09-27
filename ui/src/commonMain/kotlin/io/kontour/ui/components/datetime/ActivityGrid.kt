@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.DateTimeConventions
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -26,11 +27,11 @@ internal class ActivityGrid(
     val start: LocalDate?,
     firstDayOfWeek: DayOfWeek,
 ) {
-    private val formats = DateTimeFormats(firstDayOfWeek = firstDayOfWeek)
+    private val week = DateTimeConventions(firstDayOfWeek = firstDayOfWeek)
 
     /** The first day of the first column, whether or not it is shown. */
     val firstDay: LocalDate =
-        end.minus(DatePeriod(days = formats.columnOf(end.dayOfWeek) + (weeks - 1) * 7))
+        end.minus(DatePeriod(days = week.columnOf(end.dayOfWeek) + (weeks - 1) * 7))
 
     /** The day at [column] and [row], or null for a cell outside the range. */
     fun dateAt(column: Int, row: Int): LocalDate? {
@@ -53,7 +54,7 @@ internal class ActivityGrid(
     val firstShown: LocalDate get() = if (start != null && start > firstDay) start else firstDay
 
     /** The row each weekday sits in. */
-    fun rowOf(day: DayOfWeek): Int = formats.columnOf(day)
+    fun rowOf(day: DayOfWeek): Int = week.columnOf(day)
 
     /**
      * Where the month labels go: over the first column whose first day is in a

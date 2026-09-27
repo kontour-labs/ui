@@ -1,5 +1,7 @@
 package io.kontour.ui.adaptive
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
@@ -501,6 +503,7 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
     // the drag has come a little way clear.
     val stop = rememberEndStopLatch()
     val releasePx = with(LocalDensity.current) { PaneStopRelease.toPx() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     Box(
         modifier = Modifier
@@ -517,7 +520,7 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
                     true
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(rtl) {
                 var clear = 0f
                 detectDragGestures(
                     onDragStart = { stop.arm(); clear = 0f },
@@ -525,11 +528,15 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
                     onDragCancel = { stop.reset() },
                 ) { change, amount ->
                     change.consume()
-                    if (onDelta(amount.x)) {
-                        stop.reached(if (amount.x > 0f) 1 else -1)
+                    // Towards the end of the line: in right to left the panes
+                    // are laid out from the right, so a drag left widens the
+                    // first of them.
+                    val along = if (rtl) -amount.x else amount.x
+                    if (onDelta(along)) {
+                        stop.reached(if (along > 0f) 1 else -1)
                         clear = 0f
                     } else {
-                        clear += abs(amount.x)
+                        clear += abs(along)
                         if (clear >= releasePx) stop.clear()
                     }
                 }

@@ -1,5 +1,11 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.foundation.focusable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap as snapSpec
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -501,6 +507,32 @@ fun Slider(
                     }
                 }
             }
+            // Arrows move the thumb the way they point, so Right lowers the value
+            // in right to left, where the track runs from the right; Up and Down
+            // are more and less; Page keys move a tenth; Home and End go to the
+            // ends. A step where there are steps, a hundredth where there are not.
+            .onKeyEvent { event ->
+                if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val span = valueRange.endInclusive - valueRange.start
+                val step = if (steps > 0) span / (steps + 1) else span / 100f
+                val page = maxOf(step, span / 10f)
+                val forward = if (layoutDirection == LayoutDirection.Rtl) -step else step
+                val next = when (event.key) {
+                    Key.DirectionRight -> value + forward
+                    Key.DirectionLeft -> value - forward
+                    Key.DirectionUp -> value + step
+                    Key.DirectionDown -> value - step
+                    Key.PageUp -> value + page
+                    Key.PageDown -> value - page
+                    Key.MoveHome -> valueRange.start
+                    Key.MoveEnd -> valueRange.endInclusive
+                    else -> return@onKeyEvent false
+                }
+                currentOnValueChange(next.coerceIn(valueRange))
+                currentFinished?.invoke()
+                true
+            }
+            .focusable(enabled, interactions)
             .minimumTouchTarget()
             .focusRing(interactions, Theme.shapes.small)
             .fillMaxWidth()

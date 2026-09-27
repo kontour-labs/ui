@@ -174,8 +174,8 @@ def page_symbols(path: Path) -> list[str]:
 
 # Only goes down. See rule 4.
 #
-# One, and it is `date-time-formats` — `DateTimeFormats` is a data class holding
-# a set of patterns, so there is nothing to press. That exemption wants deriving
+# One, and it is `locale-formats` — `LocaleFormats` is an interface for writing
+# numbers and dates, so there is nothing to press. That exemption wants deriving
 # rather than counting, from "this page's symbols include no public @Composable",
 # and it will be once the signature parser moves somewhere both this and the
 # build can read it. Until then a ceiling of one is honest and a list of one name
@@ -1206,7 +1206,7 @@ def public_declarations() -> set[str]:
 
     Coarser than `public_composables` on purpose: rule 8 asks whether a page's
     title names *something real*, and `WindowSizeClass` is a class,
-    `Modifier.marquee` a modifier and `DateTimeFormats` a data class. All three
+    `Modifier.marquee` a modifier and `LocaleFormats` an interface. All three
     are legitimate page subjects and none is a composable.
     """
     found: set[str] = set()

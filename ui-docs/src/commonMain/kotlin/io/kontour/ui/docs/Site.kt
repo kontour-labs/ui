@@ -643,7 +643,7 @@ internal val DocPage.textUrl: String get() = "md/$path.md"
  * the specimen *is* the picture, and it can be pressed.
  *
  * Nothing shows for a component the registry does not carry; several are
- * genuinely not specimens — `DateTimeFormats` is a set of formats.
+ * genuinely not specimens — `LocaleFormats` is a set of formats.
  */
 @Composable
 private fun Specimens(page: DocPage) {

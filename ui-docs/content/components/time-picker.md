@@ -12,8 +12,10 @@ var departAt by remember { mutableStateOf(LocalTime(8, 15)) }
 TimePicker(value = departAt, onValueChange = { departAt = it }, minuteStep = 5)
 ```
 
-AM/PM appears as a third wheel on a 12-hour clock, which is a
-[`DateTimeFormats`](date-time-formats.md) decision rather than a parameter.
+A day period appears as a third wheel on a 12-hour clock — before the time
+where the locale writes it there, as Korean and Japanese do — which is a
+[`LocaleFormats`](locale-formats.md) decision rather than a parameter. So is
+what sits between the hour and the minute (`.` in Finnish), and the digits.
 
 ---
 

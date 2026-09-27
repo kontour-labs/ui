@@ -1,5 +1,8 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.theme.ProvideTokens
+import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateOrder
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Plane
 import androidx.compose.runtime.Composable
@@ -13,8 +16,6 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
-import io.kontour.ui.components.datetime.DateTimeFormats
-import io.kontour.ui.components.datetime.LocalDateTimeFormats
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -140,15 +141,18 @@ fun RelativeTimeTextBasics() {
 }
 
 @Composable
-fun DateTimeFormatsBasics() {
-    // Provided once, near the root. Every date and time component below reads
-    // it, so 12-hour clocks and a Sunday week start are one decision rather
-    // than a parameter on nine call sites.
-    CompositionLocalProvider(
-        LocalDateTimeFormats provides DateTimeFormats(
-            is24Hour = false,
-            dayFirst = false,
-            firstDayOfWeek = DayOfWeek.SUNDAY,
+fun LocaleFormatsBasics() {
+    // Changed once, near the root. Every date and time component below reads
+    // `Theme.formats`, so a 12-hour clock and a Sunday week start are one
+    // decision rather than a parameter on nine call sites.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(
+                hourCycle = HourCycle.H12,
+                dateOrder = DateOrder.MonthDayYear,
+                firstDayOfWeek = DayOfWeek.SUNDAY,
+            ),
         ),
     ) {
         Screen()

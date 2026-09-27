@@ -1,5 +1,6 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -146,7 +147,7 @@ fun CommandPalette(
      * but a palette that is the only way through a required step is a real case.
      */
     dismissible: Boolean = true,
-    matches: (Command, String) -> Boolean = ::commandMatches,
+    matches: (Command, String) -> Boolean = rememberCommandMatch(),
 ) {
     val host = LocalOverlayHost.current
     val latestModifier by rememberUpdatedState(modifier)
@@ -389,12 +390,16 @@ private fun PaletteBody(
     }
 }
 
-/** Case-insensitive over the label and [Command.keywords]. */
-fun commandMatches(command: Command, query: String): Boolean {
-    val needle = query.trim().lowercase()
+/**
+ * Over the label and [Command.keywords], with case and accents folded the way
+ * [formats]' language folds them — `cafe` finds `Café`. English's folding when
+ * none are given.
+ */
+fun commandMatches(command: Command, query: String, formats: LocaleFormats = LocaleFormats.english()): Boolean {
+    val needle = formats.foldForSearch(query.trim())
     if (needle.isEmpty()) return true
-    if (command.label.lowercase().contains(needle)) return true
-    return command.keywords.any { it.lowercase().contains(needle) }
+    if (formats.foldForSearch(command.label).contains(needle)) return true
+    return command.keywords.any { formats.foldForSearch(it).contains(needle) }
 }
 
 /** What a [CommandPalette] takes by default. */
@@ -420,4 +425,11 @@ object CommandPaletteDefaults {
      */
     val TopInset: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteTopInset
+}
+
+/** [commandMatches] in this reader's language, remembered while the formats hold. */
+@Composable
+private fun rememberCommandMatch(): (Command, String) -> Boolean {
+    val formats = Theme.formats
+    return remember(formats) { { command, query -> commandMatches(command, query, formats) } }
 }

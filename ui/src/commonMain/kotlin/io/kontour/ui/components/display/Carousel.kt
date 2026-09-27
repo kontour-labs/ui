@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.withFrameNanos
 import io.kontour.ui.a11y.highContrast
 import kotlinx.coroutines.flow.first
@@ -299,7 +300,8 @@ fun Carousel(
     val scope = rememberCoroutineScope()
     val count = state.pageCount
     val current = state.currentPage
-    val position = Theme.strings.itemOfCount(current, count)
+    val formats = Theme.formats
+    val position = Theme.strings.itemOfCount(formats.quantity(current + 1), formats.quantity(count))
     val direction = LocalLayoutDirection.current
     val hero = style == CarouselStyle.Hero
     val density = LocalDensity.current
@@ -428,6 +430,9 @@ fun Carousel(
                             state.listState.dispatchRawDelta(-delta)
                         },
                         orientation = Orientation.Horizontal,
+                        // The row scrolls the other way in right to left, so a
+                        // drag towards the next page is a drag to the right.
+                        reverseDirection = direction == LayoutDirection.Rtl,
                         interactionSource = dragInteractions,
                         // `currentPage` is the page nearest the viewport centre,
                         // so this settles on whichever one the drag left showing
@@ -771,7 +776,7 @@ fun PageIndicator(
     style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
     inactiveColour: Color = Theme.colours.inactive,
-    pageDescription: (Int, Int) -> String = Theme.strings.pageOfCount,
+    pageDescription: (page: Int, count: Int) -> String = rememberPageDescription(),
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
      *
@@ -1236,3 +1241,14 @@ private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
     return remember(provider, decay, snap) { snapFlingBehavior(provider, decay, snap) }
 }
 
+
+/**
+ * `Strings.pageOfCount` for a page counted from zero, in this reader's digits —
+ * remembered, so the indicator is handed the same function every composition.
+ */
+@Composable
+private fun rememberPageDescription(): (Int, Int) -> String {
+    val strings = Theme.strings
+    val formats = Theme.formats
+    return remember(strings, formats) { { page, count -> strings.pageOfCount(formats.quantity(page + 1), formats.quantity(count)) } }
+}

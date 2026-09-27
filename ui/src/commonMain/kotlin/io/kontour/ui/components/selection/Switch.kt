@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -323,6 +326,7 @@ fun Switch(
         label = "switchThumbPress",
     )
 
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Canvas(
         modifier = modifier
             .minimumTouchTarget()
@@ -431,6 +435,9 @@ fun Switch(
                             scope.launch { fraction.snapTo(dragAccumulator) }
                         },
                         orientation = Orientation.Horizontal,
+                        // On is at the end of the line, so in right-to-left a
+                        // drag leftwards turns it on.
+                        reverseDirection = rtl,
                         interactionSource = interactions,
                         onDragStarted = {
                             // From where it *is*, not from where `checked` says
@@ -468,6 +475,10 @@ fun Switch(
                     Modifier
                 }
             )
+            // Drawn mirrored in right-to-left, where on is the thumb at the start
+            // of the line's end — the left. Everything below is written for left
+            // to right and stays that way.
+            .graphicsLayer { scaleX = if (rtl) -1f else 1f }
             .size(width = TrackWidth, height = TrackHeight)
     ) {
         val f = fraction.value.coerceIn(0f, 1f)

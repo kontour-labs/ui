@@ -123,7 +123,8 @@ internal open class ContentScopeImpl(
     @Composable
     override operator fun String.unaryPlus() =
         Text(
-            if (uppercase) this.uppercase() else this,
+            // In the reader's language's capitals: `i` is `İ` in Turkish.
+            if (uppercase) Theme.formats.uppercase(this) else this,
             maxLines = maxLines,
             overflow = overflow,
         )

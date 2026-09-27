@@ -1,5 +1,8 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.theme.ProvideTokens
+import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,8 +24,6 @@ import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
-import io.kontour.ui.components.datetime.DateTimeFormats
-import io.kontour.ui.components.datetime.LocalDateTimeFormats
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -100,10 +101,13 @@ internal val TimePickerDemo = ComponentDemo(
     knobs = listOf(twelveHour),
 ) {
     var at by remember { mutableStateOf(LocalTime(8, 15)) }
-    // The 12/24-hour choice is a *format* rather than a parameter, provided the
-    // way an app would provide it — one local, once, at the root.
-    CompositionLocalProvider(
-        LocalDateTimeFormats provides DateTimeFormats(is24Hour = !this[twelveHour]),
+    // The 12/24-hour choice is a *convention* rather than a parameter, provided
+    // the way an app would provide it — once, for everything below.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = if (this[twelveHour]) HourCycle.H12 else HourCycle.H23),
+        ),
     ) {
         TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5)
     }
@@ -220,7 +224,7 @@ internal val ActivityCalendarDemo = ComponentDemo(
     val end = LocalDate(2026, 6, 5)
     val activity = remember { demoActivity(end) }
     var picked by remember { mutableStateOf<LocalDate?>(null) }
-    val formats = LocalDateTimeFormats.current
+    val formats = Theme.formats
     val marks = this[activityMarks]
     val holidayColour = Theme.colours.warning.solid
     val tripColour = Theme.colours.info.solid
@@ -232,7 +236,7 @@ internal val ActivityCalendarDemo = ComponentDemo(
         selected = picked,
         onDayClick = {
             picked = it
-            echo("${activity[it] ?: 0} on ${formats.dateShort(it)}")
+            echo("${activity[it] ?: 0} on ${formats.date(it, DateStyle.Medium)}")
         },
         levels = if (this[activityLevels] == "Thresholds") {
             ActivityLevels.Thresholds(listOf(1, 3, 6, 9))

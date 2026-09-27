@@ -159,6 +159,7 @@ nodes both say it in words, so a reader who can't tell the shades apart still
 gets every number. The legend is hidden from screen readers for the same
 reason: it explains the colours, and the words don't need it.
 
-The month and weekday names come from `DateTimeFormats` and are English, like
-the rest of its names. "Less", "More", the day's count and "Week of" come from
-the theme's strings and can be translated.
+The month and weekday names come from `Theme.formats`, in the reader's
+language. "Less", "More", the day's count and "Week of" come from the theme's
+strings and can be translated; the count takes its plural form from the
+reader's language too.

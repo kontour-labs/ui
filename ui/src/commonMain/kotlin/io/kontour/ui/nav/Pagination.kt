@@ -229,9 +229,11 @@ private fun JumpGap(
     val typed = rememberTextFieldState()
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
+    val formats = Theme.formats
 
     fun commit() {
-        typed.text.toString().trim().toIntOrNull()?.let { page ->
+        // In the reader's digits or Western ones: `١٢` and `12` are both page twelve.
+        formats.parseDecimal(typed.text.toString())?.takeIf { it >= 1.0 && it % 1.0 == 0.0 }?.toInt()?.let { page ->
             onValueChange((page - 1).coerceIn(0, pageCount - 1))
         }
         typed.clearText()
@@ -322,7 +324,8 @@ private fun widestWindowThatFits(
 @Composable
 private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colours = Theme.colours
-    val label = Theme.strings.pageNumber(number)
+    val formats = Theme.formats
+    val label = Theme.strings.pageNumber(formats.quantity(number + 1))
     val interactions = remember { MutableInteractionSource() }
     val shape = Theme.shapes.control
 
@@ -356,7 +359,7 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "${number + 1}",
+            text = formats.integer(number + 1),
             style = Theme.typography.bodyMedium,
             colour = when {
                 !enabled -> colours.contentDisabled

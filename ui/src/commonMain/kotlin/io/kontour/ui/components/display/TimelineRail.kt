@@ -331,7 +331,7 @@ internal fun Modifier.timelineNodeLine(lineHeight: Float): Modifier = layout { m
         minOf(height, lineHeight) / 2f
     }
     layout(placeable.width, placeable.height, mapOf(TimelineNodeLine to centre.roundToInt())) {
-        placeable.place(0, 0)
+        placeable.placeRelative(0, 0)
     }
 }
 

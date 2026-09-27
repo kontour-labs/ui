@@ -5,9 +5,12 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.intl.Locale
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
@@ -20,6 +23,10 @@ import io.kontour.ui.interaction.FeedbackFloor
 import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.layoutDirection
+import io.kontour.ui.locale.platformLocale
+import io.kontour.ui.locale.rememberLocaleFormats
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.platform.platformReportAppearance
@@ -111,6 +118,21 @@ object Theme {
      */
     val strings: Strings
         @Composable @ReadOnlyComposable get() = LocalStrings.current
+
+    /**
+     * How this reader writes everything that is not words: numbers, dates,
+     * times, lists and plurals. See [LocaleFormats].
+     *
+     * Built for [locale] by `KontourTheme`, and what every component that puts
+     * a number or a date on screen reads — so a caller writing their own should
+     * read it too, and a German reader gets `1.234` from both.
+     */
+    val formats: LocaleFormats
+        @Composable @ReadOnlyComposable get() = LocalLocaleFormats.current
+
+    /** The locale [formats] is written for. */
+    val locale: Locale
+        @Composable @ReadOnlyComposable get() = LocalLocaleFormats.current.locale
 }
 
 /**
@@ -244,6 +266,22 @@ fun KontourTheme(
     componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
     strings: Strings = remember { Strings() },
     /**
+     * The reader's locale: the device's, followed live, at the root; the
+     * enclosing theme's in a nested one.
+     *
+     * Pass one to run the app in a language other than the device's — an
+     * in-app language setting — and [formats] follow it. A locale written in the
+     * other direction from the device's sets the layout direction too, so
+     * `Locale("ar")` on an English phone lays out right to left.
+     */
+    locale: Locale = inheritedLocale(),
+    /**
+     * How numbers, dates, times and lists are written. The platform's for
+     * [locale] by default; `LocaleFormats.english()` for pictures that must not
+     * change between machines; or an app's own, delegating to either.
+     */
+    formats: LocaleFormats = inheritedFormats(locale),
+    /**
      * How much physical feedback the app gives. See [HapticsLevel].
      *
      * Separate from [feedback], which decides what each intent *feels like*.
@@ -322,6 +360,7 @@ fun KontourTheme(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalLocaleFormats provides formats,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
         LocalContentColour provides resolvedColours.content,
@@ -335,17 +374,32 @@ fun KontourTheme(
         // not feel components.
         LocalFeedbackFloor provides feedbackFloor,
     ) {
-        if (alreadyTracking) {
-            content()
+        // Only where the app has chosen a locale written the other way from the
+        // device's: the platform already lays its own locale out, and an app
+        // that set the direction itself — a right-to-left preview, say — keeps it.
+        val direction = locale.layoutDirection
+        if (direction != platformLocale().layoutDirection && direction != LocalLayoutDirection.current) {
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                ThemeContent(alreadyTracking, content)
+            }
         } else {
-            val modality = rememberInputModalityState()
-            CompositionLocalProvider(
-                LocalInputModality provides modality.current,
-                LocalInputModalityInstalled provides true,
-            ) {
-                Box(Modifier.trackInputModality(modality)) {
-                    content()
-                }
+            ThemeContent(alreadyTracking, content)
+        }
+    }
+}
+
+@Composable
+private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Unit) {
+    if (alreadyTracking) {
+        content()
+    } else {
+        val modality = rememberInputModalityState()
+        CompositionLocalProvider(
+            LocalInputModality provides modality.current,
+            LocalInputModalityInstalled provides true,
+        ) {
+            Box(Modifier.trackInputModality(modality)) {
+                content()
             }
         }
     }
@@ -375,6 +429,26 @@ internal fun inheritedContrast(): ContrastLevel =
     } else {
         ContrastLevel.Standard
     }
+
+/**
+ * The enclosing theme's locale, or the device's at the root: a reader's
+ * language, like their contrast, is not something a screen forcing dark mode
+ * means to change.
+ */
+@Composable
+internal fun inheritedLocale(): Locale =
+    if (LocalInputModalityInstalled.current) LocalLocaleFormats.current.locale else platformLocale()
+
+/**
+ * The enclosing theme's formats when [locale] is the one they were built for —
+ * an app's own formats, or the fixed English a test pins, survive a nested
+ * theme — and the platform's for [locale] otherwise.
+ */
+@Composable
+internal fun inheritedFormats(locale: Locale): LocaleFormats {
+    val enclosing = if (LocalInputModalityInstalled.current) LocalLocaleFormats.current else null
+    return if (enclosing != null && enclosing.locale == locale) enclosing else rememberLocaleFormats(locale)
+}
 
 /** @see inheritedContrast — the same for reduced motion. */
 @Composable
@@ -460,6 +534,15 @@ val LocalComponentDefaults = staticCompositionLocalOf<ComponentDefaults> { error
 val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
 /**
+ * The formats in use; read through [Theme.formats].
+ *
+ * Tracking rather than static, unlike the token locals: a locale changes while
+ * an app runs — the reader changes their language, or their clock — and only the
+ * dates and numbers on screen need to be written again, not the whole tree.
+ */
+val LocalLocaleFormats = compositionLocalOf<LocaleFormats> { error(NOT_IN_THEME) }
+
+/**
  * Change some tokens for a subtree, and **inherit the rest**.
  *
  * ```
@@ -526,6 +609,7 @@ fun ProvideTokens(
     sizing: Sizing = LocalSizing.current,
     componentDefaults: ComponentDefaults = LocalComponentDefaults.current,
     strings: Strings = LocalStrings.current,
+    formats: LocaleFormats = LocalLocaleFormats.current,
     content: @Composable () -> Unit,
 ) {
     // What is actually in effect above, which mid-fade is not what the local
@@ -555,6 +639,7 @@ fun ProvideTokens(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalLocaleFormats provides formats,
         LocalContentColour provides
             if (contentColour == outgoingColours.content) {
                 incomingColours.content

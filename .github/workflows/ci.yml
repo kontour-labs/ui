@@ -177,6 +177,8 @@ jobs:
       # localisation one call site at a time, each with a named allow-list.
       - name: Check components honour the reader's settings
         run: python3 docs/check-settings.py
+      - name: Check every string has its English for translators
+        run: python3 docs/export-strings.py --check
 
       # The Markdown mirror agents read, without building the site: every page
       # mirrored, `llms.txt` listing each exactly once.

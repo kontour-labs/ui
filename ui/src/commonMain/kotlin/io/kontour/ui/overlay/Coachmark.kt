@@ -364,7 +364,7 @@ private fun CoachmarkBubble(
         modifier = Modifier
             .widthIn(max = BubbleMaxWidth)
             .semantics(mergeDescendants = true) {
-                contentDescription = "$title. $message"
+                contentDescription = strings.sentences(listOf(title, message))
             },
         shape = Theme.shapes.container,
         containerColour = colours.accent.solid,
@@ -397,7 +397,7 @@ private fun CoachmarkBubble(
                 // user cannot decide whether to sit through.
                 if (tour.count > 1) {
                     Text(
-                        text = "${tour.position} / ${tour.count}",
+                        text = strings.tourPosition(Theme.formats.quantity(tour.position), Theme.formats.quantity(tour.count)),
                         style = Theme.typography.labelSmall,
                         // Faded beside the message at the standard tier (5.4:1); ink at the
                         // enhanced one, which asks 7.

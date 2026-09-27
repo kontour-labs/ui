@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import io.kontour.ui.locale.ListStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -189,14 +190,7 @@ fun <T> MultiSelect(
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
     optionEnabled: (T) -> Boolean = { true },
-    summary: (Set<T>) -> String = { selected ->
-        val labels = options.filter { it in selected }.map(optionLabel)
-        when {
-            labels.isEmpty() -> ""
-            labels.size <= 3 -> labels.joinToString(", ")
-            else -> "${labels.size} selected"
-        }
-    },
+    summary: (Set<T>) -> String = selectionSummary(options, optionLabel),
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
@@ -278,9 +272,7 @@ fun <T> Combobox(
     placeholder: String = Theme.strings.select,
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
-    matches: (T, String) -> Boolean = { option, query ->
-        optionLabel(option).contains(query, ignoreCase = true)
-    },
+    matches: (T, String) -> Boolean = foldedMatch(optionLabel),
     emptyLabel: String = Theme.strings.noMatches,
     supporting: String? = null,
     errorMessage: String? = null,
@@ -491,4 +483,32 @@ private fun SelectFrame(
             content { setExpanded(false) }
         }
     }
+}
+
+/**
+ * Up to three labels, joined as this reader's language joins a list, and then a
+ * count — `Strings.selectedCount`, in the reader's digits.
+ */
+@Composable
+private fun <T> selectionSummary(options: List<T>, optionLabel: (T) -> String): (Set<T>) -> String {
+    val strings = Theme.strings
+    val formats = Theme.formats
+    return { selected ->
+        val labels = options.filter { it in selected }.map(optionLabel)
+        when {
+            labels.isEmpty() -> ""
+            labels.size <= 3 -> formats.list(labels, ListStyle.Unit)
+            else -> strings.selectedCount(formats.quantity(labels.size))
+        }
+    }
+}
+
+/**
+ * Whether an option's label contains the query, both folded for search — so
+ * `zurich` finds `Zürich`, and a Turkish reader's `İSTANBUL` finds `istanbul`.
+ */
+@Composable
+private fun <T> foldedMatch(optionLabel: (T) -> String): (T, String) -> Boolean {
+    val formats = Theme.formats
+    return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
 }

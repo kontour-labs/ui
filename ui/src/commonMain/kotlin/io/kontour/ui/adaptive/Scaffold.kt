@@ -141,7 +141,8 @@ fun Scaffold(
                     // there is not. A FAB behind the navigation bar is a FAB
                     // nobody can press.
                     val bottomClearance = maxOf(bottomHeight, insetBottom.roundToPx())
-                    placeable.place(x, height - placeable.height - bottomClearance - marginPx)
+                    // Relative: `End` is the end of the line, which is the left in right-to-left.
+                    placeable.placeRelative(x, height - placeable.height - bottomClearance - marginPx)
                 }
             }
         }
