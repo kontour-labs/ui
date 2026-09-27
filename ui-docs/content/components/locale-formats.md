@@ -1,5 +1,7 @@
 # `LocaleFormats`
 
+*Also on this page: `PseudoLocalised`.*
+
 How the reader writes everything that is not words — numbers, dates, times,
 lists and plurals — read through `Theme.formats`. Every component that puts a
 number or a date on screen goes through it, so a German reader gets `1.234` and
@@ -38,6 +40,17 @@ right-to-left.
 
 A locale tag's own keywords win over the platform: `en-AU-u-hc-h23` is a
 24-hour clock, `-u-fw-mon` a Monday week, `-u-nu-latn` Western digits.
+
+## Pseudo-locales
+
+`PseudoLocalised(mode) { … }` runs a screen in a language that does not exist,
+to find what a real one would break before a translator is involved:
+`Accented` makes every word longer and bracketed, `Bidi` lays it out right to
+left in Arabic-Indic digits, and `Tall` stacks marks above and below every
+letter. It changes the theme's strings and formats together, so a word or a
+number that stays plain English was written somewhere they do not reach. The
+catalog's settings have all three; [Localisation](../localisation.md#testing-without-a-translation)
+says what each one finds.
 
 ---
 
