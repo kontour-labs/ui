@@ -50,3 +50,11 @@ touch user nothing.
 
 `alwaysVisible` makes it permanent. That is a visual decision — it does not make
 anything reachable that was not.
+
+At high contrast an idle thumb is drawn at full strength instead of half-faded,
+so the thumb a reader has to find is never the faint one. Its width is the
+scrollbar's own and does not change with the tier.
+
+Reduced motion changes nothing here: the thumb follows the scroll or the drag
+the reader is making, which is never touched, and its widening under the pointer
+is the same short tween at every setting.

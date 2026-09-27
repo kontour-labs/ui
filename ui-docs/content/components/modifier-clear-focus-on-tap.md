@@ -52,3 +52,6 @@ untouched.
 Focus is only ever *released*, never moved somewhere else, so keyboard traversal
 order is unaffected: the next Tab starts from the top rather than from wherever
 a synthetic focus target happened to be.
+
+It draws nothing and moves nothing, so neither high contrast nor reduced motion
+changes what it does.

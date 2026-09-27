@@ -33,3 +33,11 @@ with nothing announced is a screen that has stopped responding.
 This is the reason the component should be rare. A [`Skeleton`](skeleton.md) or
 an inline [`Spinner`](spinner.md) leaves the rest of the page navigable while one
 part of it loads.
+
+At high contrast the panel and its label take the enhanced scheme's colours, and
+the panel takes an edge, as a [`Dialog`](dialog.md) does: a raised panel on a
+dimmed page is otherwise told apart only by its shadow.
+
+Under reduced motion the spinner keeps turning, because one that stopped would
+read as hung, but its arc stops breathing. The page behind still dims, as a
+short fade, and the panel appears in place at every setting.

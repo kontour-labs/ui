@@ -104,3 +104,15 @@ announcement inside the grid.
 `onRangeChange` fires with a null end on the first tap. Show the half-picked
 range rather than waiting for both, or a screen reader user gets no confirmation
 that the first tap did anything.
+
+At high contrast the range's two ends stay `primary` fills and the days between
+them take the enhanced scheme's tint and label colour; the band itself gains no
+edge. On a range's end, the ring round the arrow a drag shows at the month's edge
+is solid where the standard tier fades it, and that ring and today's thicken with
+the tier.
+
+Under reduced motion a new month fades in where the old one was rather than
+sliding a third of the way across, and a tapped end's fill arrives without its
+overshoot. A drag is left alone — the band and its moving end follow the finger
+at every setting — but the end no longer leans toward the finger between days,
+as a slider's detents stop pulling.

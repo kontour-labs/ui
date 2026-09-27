@@ -62,3 +62,7 @@ keyboard affordance — screen readers have their own ways to read and copy text
 On touch, a long press starts a selection and shows the platform's handles and
 toolbar; with a mouse, a drag selects and a double-click selects a word. Both
 work with the keyboard's copy shortcut once something is selected.
+
+At high contrast the highlight is the enhanced scheme's accent at the same 35%
+wash, with its handles in the solid accent; nothing else changes. The library
+adds no animation to a selection, so reduced motion changes nothing.

@@ -43,3 +43,9 @@ announced as "8 minutes".
 
 A stat is not a control. If it opens something, it needs a role — put it in a
 [`Card`](card.md) with `onClick`.
+
+At high contrast a positive or negative trend gets a tick or an alert before it,
+so good news and bad are not told apart by green and red alone. The mark is
+decorative: the trend's own words already say it.
+
+Nothing in a stat moves, so reduced motion changes nothing.

@@ -138,3 +138,10 @@ three.
 A tab bar changes what is below it. Where that content is a separate scrolling
 region, give it a heading so a user who has switched tabs can find where they
 have arrived.
+
+At high contrast the travelling pill takes an accent outline, `selectionEdge()`,
+round its tint. A scrolling bar's scrollbar stays at full ink when idle rather
+than half, and the focus ring and the rule `showDivider` draws are thicker.
+
+Under reduced motion the pill does not slide between tabs: it fades out and
+fades up on the tab chosen. A tab's press is a tonal wash at every setting.

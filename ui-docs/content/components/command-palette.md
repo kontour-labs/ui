@@ -36,3 +36,12 @@ Being keyboard-first is the point of the component, which makes the same warning
 as the context menu load-bearing: **a command reachable only from the palette is
 unreachable on a phone**, where there is no keyboard shortcut to open it. The
 palette is an accelerator over actions that already exist.
+
+At high contrast each result row and the search field take an outline, and the
+highlighted row takes an accent one as well: the `selectionEdge()` a selected
+[`ListItem`](list-item.md) has. The panel takes an edge too, as a
+[`Dialog`](dialog.md) on the same dimmed layer does.
+
+Under reduced motion the palette fades in where it rests instead of settling
+from a slightly larger scale, and arrowing past the last visible row brings the
+highlight into view at once rather than scrolling to it.

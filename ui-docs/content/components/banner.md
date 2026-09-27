@@ -49,3 +49,13 @@ nothing.
 The dismiss button carries `dismissLabel`. A banner with an action should keep
 that action available elsewhere too — a banner the user dismissed by accident
 should not take a capability with it.
+
+At high contrast the tone's ground, border and text come from the enhanced
+scheme, and the border is drawn at the tier's thicker line. The dismiss button is
+a ghost [`IconButton`](icon-button.md), so it gains a ring in the banner's text
+colour.
+
+A `Banner` does not move. `AnimatedBanner` fades in and opens its height to make
+room; under reduced motion it takes its full height at once and fades in, rather
+than pushing the page down. The dismiss button keeps its
+press wash and loses its shrink.

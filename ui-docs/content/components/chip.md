@@ -79,3 +79,14 @@ add and never take off.
 
 The selected tick is decorative and cleared; the state is announced by the role,
 not by the icon.
+
+At high contrast a `FilterChip`'s border is drawn thicker, and a selected one
+keeps an edge in the accent round its tint. `Chip` and `InputChip`, whose sunken
+fill is otherwise barely apart from the page at this tier, take an edge, and an
+input chip's remove button shows the focus ring of its own when the keyboard is
+on it.
+
+Under reduced motion no chip shrinks on a press. A filter chip's tick still grows
+in beside the label and pushes it across, but over a short tween without the
+overshoot; a keyed chip whose label changes takes its new width at once; colour
+changes are the same short fade at every setting.

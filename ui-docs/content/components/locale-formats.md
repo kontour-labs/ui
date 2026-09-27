@@ -68,3 +68,7 @@ another, which is worse than either.
 On Android the reader's own "Use 24-hour format" switch overrides the locale's
 clock, and is followed while the app runs; on iOS the 24-Hour Time switch does
 the same.
+
+Neither high contrast nor reduced motion changes it: it draws nothing and moves
+nothing. A pseudo-locale changes the strings, the formats and, for `Bidi`, the
+direction, and leaves both of those settings as they were.

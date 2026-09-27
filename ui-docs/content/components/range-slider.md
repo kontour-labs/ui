@@ -109,3 +109,12 @@ as one idea.
 
 Both thumbs are adjustable from a screen reader's increment and decrement
 actions, so the range is reachable without a drag.
+
+At high contrast the track outside the range becomes `inactive`, the not-yet half
+of a pair, a stepped slider's ticks are cut into it in the page's colour, and the
+rings round the thumbs and the focus ring thicken with the tier.
+
+Under reduced motion a held thumb does not grow, a stepped one moves from step to
+step instead of leaning after the finger, a push past either end no longer
+squashes it, and the value bubble fades in without growing. A tap still carries
+the nearer thumb to its new value, over a short tween with no overshoot.

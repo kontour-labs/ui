@@ -1,7 +1,8 @@
 # `SheetHeader`
 
-The title row a sheet needs: a label, optional supporting text, an actions slot,
-and the drag handle above them.
+The title row a sheet needs: a label, optional supporting text and an actions
+slot. The [`DragHandle`](drag-handle.md) above it is the sheet's, not the
+header's.
 
 <!--sample:SheetHeaderBasics-->
 ```kotlin
@@ -75,3 +76,11 @@ genuinely cannot be closed from inside, which should be paired with
 
 Actions in the `actions` slot are ordinary buttons and need their own
 `contentDescription` when they are icons.
+
+At high contrast the close button, a ghost, gains an outline in the colour of
+its glyph, and the title and supporting line take the enhanced scheme's colours.
+Nothing else about the header changes.
+
+Under reduced motion the close button keeps its tonal wash and loses its
+press-shrink. The default close hides the sheet by the sheet's own rule, which
+under reduced motion is a fade where it rests.

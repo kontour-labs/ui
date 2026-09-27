@@ -57,3 +57,10 @@ visible label above the run, in a group chat especially.
 
 Colour is not the only thing that separates the two sides — their position does —
 but check the fill against its text colour if you pass your own.
+
+At high contrast someone else's bubble, a well 1.13:1 from the page at that
+tier, takes an edge in `outline`, tail and all; your own, in `primary`, has
+none. The time and status under a message go to full ink rather than being
+faded.
+
+Under reduced motion nothing changes, because nothing about a bubble moves.

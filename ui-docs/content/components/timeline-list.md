@@ -107,3 +107,15 @@ drawn, not announced. The words have to carry the journey. Write "Departed
 08:12", "Next stop", or "Walk 4 min, in progress" in the rows themselves. A
 `loading` stop's spinner says nothing to a screen reader, so its row should say
 what is being waited for.
+
+At [high contrast](../accessibility.md#what-high-actually-changes), on a
+travelled list, the stops not yet reached are hollow and the halo round the
+current stop is a solid ring, so reached and not reached differ in shape as well
+as colour. The rail and the rings take their weight from `borderWidthStrong`,
+which is thicker at this tier; grouped rows take a list row's edge, and a
+selected stop an accent outline round its tint.
+
+Under reduced motion the pulse off the current stop and the band running along
+the leg ahead both stop, and the rail is drawn still, filled as far as
+`progress` says. A `loading` stop's spinner keeps turning, with its breathing
+stilled.

@@ -174,3 +174,13 @@ That is the whole reason a carousel can be used without a pointer.
 A carousel hides content by default. Anything essential inside one is essential
 content behind a gesture, so give it a [`PageIndicator`](page-indicator.md) with
 `onPageClick` — or reconsider the carousel.
+
+The carousel draws no edge or line of its own, so at high contrast only the
+pages' own content changes. A `PageIndicator` beside it takes the tier: the dots
+that are not current are `inactive`, and a `Worm` rests with the current dot
+widened.
+
+Under reduced motion a page reached by the previous and next actions, a dot or
+`animateScrollToPage` arrives at once rather than sliding the width of the
+carousel, and `parallax` is ignored. A swipe still follows the finger, and the
+settle onto the nearest page when it lets go has no overshoot.

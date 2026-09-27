@@ -41,3 +41,12 @@ That is why `containerColour` and `contentColour` travel together, and why passi
 in one theme and not the other. The token pairs are asserted for contrast by a
 test over every combination — see
 [accessibility](../accessibility.md).
+
+At high contrast a `Surface` takes the enhanced scheme's grounds and the content
+colours paired with them, and nothing else: it adds no edge of its own, and its
+shadow is the same at both tiers. A ground that sits close to the page —
+`surfaceRaised` measures 1.00:1 against it in the enhanced light scheme — needs
+`border = contrastEdge()`, which is how the library's own cards, sheets and
+dialogs get theirs.
+
+Nothing about a surface moves, so reduced motion changes nothing.

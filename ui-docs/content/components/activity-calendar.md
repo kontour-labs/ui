@@ -163,3 +163,13 @@ The month and weekday names come from `Theme.formats`, in the reader's
 language. "Less", "More", the day's count and "Week of" come from the theme's
 strings and can be translated; the count takes its plural form from the
 reader's language too.
+
+At high contrast every day's cell, and every swatch in the legend, takes the
+tier's edge, so an empty day and the lightest shade are still squares rather than
+gaps. The rings for today, the hovered day, the picked day, the keyboard's focus
+and a mark are all drawn from `Sizing`, and thicken with the tier, and the
+scrolling weeks do not fade at the edges.
+
+Under reduced motion the keyboard's cursor brings its day into view at once
+rather than scrolling to it, and the tooltip fades in over its day instead of
+growing out of it. A long press's scrub follows the finger at every setting.

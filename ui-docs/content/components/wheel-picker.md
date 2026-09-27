@@ -91,3 +91,13 @@ component drawing the wheel should give it a spoken form.
 
 A wheel is a scroll gesture with a lot of stops. Where the set is long, a
 [`Select`](select.md) is reachable in one gesture and a wheel is not.
+
+At high contrast the band behind the chosen row gains an edge, and the rows
+either side stay legible: the neighbours fade to 0.75 of the ink and those
+beyond to 0.6, where the standard tier goes to 0.45 and 0.2.
+
+Under reduced motion the drum still follows the finger, and its rows keep the
+curve that is how a wheel reads. What settles on its own does so over a short
+tween without overshoot — the give at the ends, and every turn of an `infinite`
+wheel — and a finite wheel's turn to a tapped row, and its settle after a mouse
+drag, arrive at once.

@@ -50,3 +50,9 @@ second channel, and it is on by default for that reason rather than for
 decoration. It is `contentDescription = null`, deliberately: the tone belongs in
 the words, and a reader is not helped by hearing "warning" read out before a
 sentence that already says so. If the severity matters, write it.
+
+At high contrast the tone's ground, border, text and icon come from the enhanced
+scheme, and the border is drawn at the tier's thicker line. Nothing else about it
+changes.
+
+Nothing about a callout moves, so reduced motion changes nothing.

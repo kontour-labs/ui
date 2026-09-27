@@ -114,3 +114,13 @@ is heard once.
 The menu is a set of buttons that appear on demand, so the same rule as a context
 menu applies: an action that lives only here is unreachable for anyone who does
 not find the trigger.
+
+At high contrast the hairline round each item and label is drawn thicker and in
+the near-ink `outline`, since `outlineSubtle` equals `outline` at this tier. The
+trigger is a solid button and gains an edge only while disabled, as every
+floating action button does.
+
+Under reduced motion the items appear where they rest and fade in together: no
+flight out of the button, no growth from half size and no stagger. Without an
+`expandedIcon`, the trigger's icon becomes a close glyph when the menu opens
+instead of turning, and no button here shrinks on a press.

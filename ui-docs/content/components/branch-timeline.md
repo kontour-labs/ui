@@ -121,3 +121,13 @@ into main", "Branched from Fix stop search", "Release 2.1". Colour is never the
 only thing that says which branch a commit is on, because a branch's name
 belongs in its commits' text, and a commit that is `loading` or reached should
 say so: "Building", "Deployed".
+
+At high contrast, with `progress`, the commits not yet reached are hollow and
+the halo round the reached one is a solid ring rather than a wash. Lines and
+rings default to `borderWidthStrong`, which thickens with the tier, and a
+selected row keeps an edge in the accent round its tint. The rows take no other
+edge, having no ground of their own.
+
+Under reduced motion the reached commit's halo holds still and no band sweeps
+the line up to `towards`; a still stub the band's length marks its start, so it
+reads as the line being travelled rather than one not yet reached. A `loading` commit's spinner keeps turning, with its breathing stilled.

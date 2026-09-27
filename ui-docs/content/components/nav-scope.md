@@ -101,3 +101,12 @@ A group is a `Role.Button`: as a disclosure it says whether it is expanded, and 
 a bar or a narrow rail it opens a menu. It is not a destination and does not claim
 to be one. A disclosure taps the haptics as an `Accordion` does; a destination and
 a menu opening are silent.
+
+At high contrast the marker behind the selected destination gains an edge in the
+accent round its tint, in a bar and in a rail, and a rail's section hairlines and
+dividers are drawn thicker.
+
+Under reduced motion the marker does not travel to a new destination: it goes
+at once and fades up where it lands. The selected icon's small grow and a
+group's chevron settle without overshoot, and a group's menu fades in place. A
+disclosure group's children take their room at once and fade in.

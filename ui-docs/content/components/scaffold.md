@@ -44,3 +44,9 @@ which is a real defect and not a cosmetic one.
 The bars are ordinary composables and carry their own semantics; `TopBar` marks
 its title as a heading. Nothing here traps or reorders focus, so traversal
 follows the layout: bar, content, bottom bar.
+
+At high contrast the frame paints the enhanced scheme's `background` and hands
+its `content` colour down. It draws no line of its own; the bars and the
+floating action button take the tier on their own pages.
+
+Nothing in the frame animates, so reduced motion changes nothing about it.

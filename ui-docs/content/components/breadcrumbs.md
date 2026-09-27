@@ -29,3 +29,10 @@ The separators are drawn and not announced.
 On a narrow window the trail is what tells a user where they are, and it is also
 the first thing to overflow. Where it does, keep the last two: the current page
 and its parent are the pair that answer "where am I and how do I get out".
+
+At high contrast a crumb you can follow is underlined. At the standard tier it
+is told from the current page by colour, `contentMuted` against `content`, and
+at this tier both are near-black. The focus ring is drawn thicker.
+
+Under reduced motion a pressed crumb keeps its tonal wash and does not shrink.
+Nothing else moves.

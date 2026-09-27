@@ -61,3 +61,11 @@ one is the control. That is the rule that runs through
 `label`, `supporting` and `overline` merge into one announcement in reading
 order. `leading` and `trailing` icons take `null` unless they carry meaning the
 text does not.
+
+At high contrast every row takes an edge in the scheme's `outline`, because its
+sunken ground is too close to the page to say where a row ends, and a selected
+row also takes an accent outline round its tint. The focus ring is thicker and a
+press's wash stronger.
+
+Reduced motion changes nothing here, because nothing moves: a row never shrinks
+when pressed, at any setting, and the tonal wash is the whole of its feedback.

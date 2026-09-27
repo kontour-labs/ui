@@ -71,7 +71,13 @@ driving.
 Without `onPageClick` it is a read-out and carries nothing, including the band:
 the [`Carousel`](carousel.md) it belongs to is what announces the page.
 
-The travelling styles change nothing about what is announced. Under reduced
-motion the *dot widening* stops animating, as everything else in the system does;
-the pill follows the page position, so it follows a finger for as long as there is
-one on the screen.
+The travelling styles change nothing about what is announced. Under reduced motion
+the *dot widening* is a short tween with no overshoot rather than a spring. The
+pill follows the page position, so it follows a finger for as long as there is one
+on the screen, and a page changed through `CarouselState.animateScrollToPage`
+arrives at once, with the pill already on it.
+
+At high contrast a `Worm` rests as `Pill` does, with the current dot widened,
+because a row of identical dots says where you are by colour alone. The dots
+that are not current are `inactive` by default, the tier's colour for the off
+half of a pair, and the step buttons, which are ghosts, gain an outline.

@@ -89,3 +89,11 @@ fingertip is a centimetre wide and rolls as it presses. The row allows a
 fingertip's worth of wander during the hold instead, which is well inside what
 any gesture that meant to scroll would have crossed by then. Reported from a
 phone browser, where frames are slower and holding still is a skill.
+
+High contrast changes nothing here: a lifted row is marked by its shadow and a
+2% lift at both tiers, and the row it wraps takes the tier as it would anywhere.
+
+Under [reduced motion](../tokens.md#motion) the rows a reorder displaces take
+their new places at once instead of sliding, including after a move made through
+the actions, and a grip turned on or off fades where it sits. The row under the
+finger follows it at every setting.

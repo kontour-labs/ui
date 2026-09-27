@@ -59,3 +59,9 @@ reach, whatever the reason for hiding it.
 The class describes the **container**, not the device. A pane 380dp wide inside a
 1400dp window is `Compact`, and a layout that asked the window would put a
 two-column grid into it — which at 200% text is a column of single words.
+
+At high contrast nothing changes: the class is a measurement and draws nothing.
+
+Under reduced motion nothing changes either, because nothing here moves. What a
+layout does when the class changes is that layout's to answer for; the class
+itself does not animate.

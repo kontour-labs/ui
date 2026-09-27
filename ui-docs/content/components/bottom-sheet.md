@@ -297,3 +297,12 @@ between the map and the sheet freely.
 The detents are reachable without the gesture: [`DragHandle`](drag-handle.md)
 exposes `expand` and `collapse` as semantic actions, so the sheet can be resized
 from a screen reader's rotor rather than only by dragging.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the sheet
+takes an edge in the scheme's `outline`, since its raised ground is otherwise
+barely distinct from the page; nothing else about it changes.
+
+Under [reduced motion](../tokens.md#motion) a sheet the app opens or closes —
+`show()`, `hide()`, `animateTo` — fades in at its detent and out where it rests
+instead of sliding, and a move between two open detents takes the new height at
+once. A drag is untouched: the sheet follows the finger at every setting.

@@ -43,3 +43,12 @@ flips it; under `Role.RadioButton` selection is one-way, because a radio is
 turned on by pressing it and off by pressing another.
 
 The label in the row is the accessible name. A row with only an icon has none.
+
+At high contrast the row gains no edge, because it has no ground or border of
+its own to outline, and a press's tonal wash is stronger. The control in it
+answers the tier as it does alone: a `Switch` adds a check or a dash to its
+thumb.
+
+Under reduced motion the row is unchanged, since it never shrinks when pressed
+at any setting; the control in it shows the row's press and answers the setting
+as it does alone.

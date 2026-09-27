@@ -145,3 +145,8 @@ the row is the target — a bare switch has no name.
 
 The thumb stretches while it moves and does not under reduced motion. Nothing
 about the announcement changes.
+
+At high contrast the thumb carries its state as a mark as well as a position: a
+check when on and a dash when off, each in the colour of its end of the track.
+The off track is `inactive`, 3:1 from the on track, and the focus ring is drawn
+thicker.

@@ -65,3 +65,9 @@ with no meaning of its own. The `−` and `+` remain real, separately reachable
 buttons carrying `decrementLabel` and `incrementLabel`.
 
 `format` is what gets announced as well as drawn — use it to say the unit.
+
+At high contrast the `−` and `+` buttons, which are tertiary, gain an edge round
+their sunken fill, disabled or not.
+
+Under reduced motion the buttons no longer shrink on a press, and with
+`animateValue` the digits change in place rather than rolling.

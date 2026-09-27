@@ -43,3 +43,9 @@ and there is one target rather than two.
 
 The touch target is the minimum regardless of the box's drawn size, which is why
 a checkbox in a dense list still meets it.
+
+The box's outline and its tick are drawn at `Sizing`'s border widths, so at
+high contrast both thicken with the tier. Nothing else about it changes.
+
+Under reduced motion the tick still draws itself on and the box still grows
+slightly to meet it, but over a short tween with no overshoot.

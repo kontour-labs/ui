@@ -76,3 +76,12 @@ without a swipe.
 `pullLabel`, `releaseLabel` and `refreshingLabel` are the three things that
 region says, and they default from `Theme.strings`. Override them where "refresh"
 is not the word — a timetable is *reloaded*, a trip is *replanned*.
+
+At high contrast the disc takes an edge, since a raised disc over the list is
+1.00:1 at that tier. The arc drawn while pulling is half a line heavier than a
+strong border, so it thickens with the tier.
+
+Under reduced motion the list still follows the finger, and the arc fills with
+the pull without turning. Once refreshing, the spinner keeps turning with its
+breathing stilled. The list's step to the refreshing position after you let go,
+and its return to rest, happen at once: no finger is moving it then.

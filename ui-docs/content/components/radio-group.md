@@ -53,3 +53,11 @@ there is exactly one of them.
 
 `supporting` is part of the option's announcement. Put the consequence of the
 choice there rather than in a footnote below the group.
+
+At high contrast each button's ring is drawn at `borderWidthStrong`, which
+thickens with the tier, in the enhanced scheme's colours. The rows draw no line
+of their own, so nothing else changes.
+
+Under reduced motion the dot still grows and shrinks, including the third of the
+way it moves while a press is held, but over a short tween without the spring's
+overshoot. The row never shrinks on a press, at any setting.

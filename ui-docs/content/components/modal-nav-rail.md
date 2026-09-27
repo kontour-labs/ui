@@ -39,3 +39,15 @@ It sets `paneTitle` (`Theme.strings.navigation` by default), so a screen reader
 says what just appeared, and the scrim carries a labelled dismiss action.
 Destinations are `Role.Tab` in a `selectableGroup()`; a group is a disclosure that
 says whether it is open.
+
+At high contrast the panel gains the edge both sheets take at this tier, and
+with `glass` the pane turns near-opaque and takes the same edge. The marker
+behind the current destination keeps an edge in the accent round its tint, and
+dividers and the focus ring are drawn thicker.
+
+Under reduced motion the rail fades in where it rests instead of sliding from
+its edge, and the page behind it dims without receding. The marker goes to a new
+destination at once and fades up there, and a group's chevron turns without its
+overshoot; a group's destinations take their room at once and fade in. A drag
+towards the rail's edge moves the panel with the finger, as at every setting, and
+the rest of that close — or the way back — slides too.

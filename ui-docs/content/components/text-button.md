@@ -114,3 +114,10 @@ A `TextButton` whose label is the only thing naming it needs that label to say
 where it goes — "See replacement buses", not "See more". This is the control
 most likely to be read out of context, because it is the one most likely to be
 one of several on a screen.
+
+At high contrast it gains no edge, unlike a ghost [`Button`](button.md): the
+label is the whole control, in the enhanced scheme's colours, and the tint
+behind it on a press or a hover stays a tint. The focus ring is thicker.
+
+Nothing moves, so reduced motion changes nothing: a press is a tint behind the
+label, never a shrink, at every setting.

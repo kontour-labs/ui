@@ -36,3 +36,11 @@ enough to notice, put a live region beside it, or use a
 Being shaped like the content is the accessibility feature: nothing moves when
 the real thing arrives, so a magnified or slowly-read page does not shift under
 the reader.
+
+At high contrast a skeleton takes no edge. It stays the enhanced scheme's
+`surfaceSunken`, faint against the page on purpose, since it stands in for
+content rather than being any. In a dark scheme the shimmer's band is `outline`,
+which the tier lightens, so the sweep shows more there.
+
+Under reduced motion the shimmer stops and the block holds a flat tone; the
+sweep's animation is not started at all.

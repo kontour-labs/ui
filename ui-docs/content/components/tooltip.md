@@ -55,3 +55,10 @@ what makes it appear on keyboard focus, which a hover-only tooltip does not.
 The coach-mark form merges its title and body into one description
 (`"$title. $text"`) so it is announced as a sentence rather than as two
 unrelated nodes, and its dismiss button carries a real label.
+
+At high contrast the bubble is the enhanced scheme's inverse surface and ink,
+which already stand apart from the page, so it takes no edge. A coach mark's
+dismiss button is a ghost button and gains the edge those take at this tier.
+
+Under reduced motion a tooltip and a coach mark fade in where they will sit
+rather than scaling up into place, and arrive without overshoot.

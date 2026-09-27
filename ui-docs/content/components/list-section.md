@@ -39,3 +39,9 @@ looks like a group and is not one.
 `footer` is announced after the rows, in reading order. Put the caveat there
 rather than in the last row's `supporting`, where it reads as being about that
 row.
+
+At high contrast the title, supporting line and footer take the enhanced
+scheme's muted colours. The section draws no line of its own; each
+[`ListItem`](list-item.md) in it takes the edge a row takes at this tier.
+
+Nothing in a section moves, so reduced motion changes nothing about it.

@@ -63,3 +63,13 @@ everything.
 `side` is `SheetSide.Start` / `End`, not left and right, so the sheet follows the
 layout direction. A sheet pinned to the left is a sheet that slides in from the
 wrong edge in Arabic.
+
+At high contrast the panel takes an edge in `outline`, where otherwise its
+shadow is its only boundary, and the back button, a ghost, gains an outline of
+its own.
+
+Under reduced motion the sheet fades in and out where it rests instead of
+sliding its own width across the window, and the page behind it does not recede.
+A gesture is the exception, because a drag is never touched: a drag towards the
+sheet's own edge, or a back swipe, carries the panel with the finger, and the
+rest of that close, or the way back, slides with it.

@@ -132,10 +132,21 @@ On a phone, passing no actions is the accessible default and it is the default:
 the system's own toolbar carries the user's assistive settings, their configured
 text replacements and the system actions a screen reader announces.
 
-The drawn toolbar is built from `Button`, so each item is a real focus target
-with a real touch target and the ring every other control in the library has,
-and the bar is one traversal group rather than a scatter of buttons.
+The drawn toolbar is built from `Button`, so each item is a named control with a
+real touch target, and the bar is one traversal group rather than a scatter of
+buttons. The items do not take keyboard focus: focus leaving the text field ends
+the selection, and the toolbar with it, so a keyboard user reaches the same verbs
+through their shortcuts.
 
 Keep the list short. It sits between the user and the text they just selected,
 and every item added is one more to read past — which is also why the fifth and
 beyond move into a menu rather than making the bar wider.
+
+At high contrast the drawn toolbar takes an edge, each item gains the outline a
+ghost button has at that tier, and the divider before the overflow button is
+thicker. Where the system's own toolbar is kept, the library draws nothing for
+the tier to change.
+
+Under reduced motion the drawn toolbar fades in over the selection instead of
+growing out of it, and so does its overflow menu. A text item's press is a tonal
+wash at every setting; the overflow button loses its press-shrink.

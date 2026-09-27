@@ -32,3 +32,12 @@ content that has to be found again.
 
 Put it last in an [`ImeChain`](ime-chain.md), or don't put it in one: a
 multi-line field needs its return key for returns.
+
+At high contrast the frame's border is drawn at the tier's thicker line, thicker
+still while the field is focused or in error, and a `Filled` area, which has no
+border at the standard tier, gains an `outline` one.
+
+Under reduced motion the message under the field takes its room at once and
+fades in. The growth between the two bounds is layout rather than animation — a
+line arrives with the text that needs it — and the border and the ground change
+over `fast` at every setting.

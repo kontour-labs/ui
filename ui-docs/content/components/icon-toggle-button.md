@@ -43,3 +43,14 @@ still.
 `contentDescription` names the control and must not change with the state: a
 button called "Mute" that becomes "Unmute" is two controls to anyone navigating
 by name.
+
+At high contrast it has an edge in both states, as a ghost
+[`IconButton`](icon-button.md) does: in the glyph's colour while unchecked or
+struck through, and in the accent round the accent ground while checked, as
+every selection is edged at this tier. That edge, the focus ring and a
+`strikethrough` slash — drawn at the strong border's weight — are all thicker.
+
+Under reduced motion a press does not shrink the button, and a `strikethrough`
+slash draws across at `fast`. The swap to `checkedIcon` is the same short
+cross-fade at every setting, the new glyph growing in from 70% inside the
+button's own box.

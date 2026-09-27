@@ -24,3 +24,12 @@ A FAB floats over the content, which means it can cover it. `Scaffold` accounts
 for that in the padding it hands out; a FAB positioned by hand over a scrolling
 list needs the same bottom padding on the list, or the last row is permanently
 under it.
+
+At high contrast a disabled FAB, which has no shadow and is a well 1.13:1 from
+the page, takes an edge. An enabled one takes its colours from the enhanced
+scheme and has no edge unless you pass `border`. The focus ring is drawn
+thicker.
+
+Under reduced motion a press keeps its tonal wash and loses the shrink.
+`ExtendedFloatingActionButton` takes its collapsed or expanded width at once, and
+its label fades.

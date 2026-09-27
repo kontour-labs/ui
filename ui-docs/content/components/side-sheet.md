@@ -37,8 +37,9 @@ Everywhere it is not, the page underneath gets every touch and every click.
 
 **The app owns `visible`.** There is no scrim to tap and no back gesture to catch,
 so nothing here asks to be closed — give the sheet's header an `onClose` that sets
-`visible` to false. It slides in and out on its own spring, a tween under reduced
-motion, and is not composed at all once it has slid away.
+`visible` to false. It slides in and out on its own spring — under reduced
+motion it fades where it rests instead — and is not composed at all once it has
+gone.
 
 `side` is `SheetSide.Start` or `SheetSide.End`, and start/end rather than
 left/right because the whole library lays out by direction: in a right-to-left
@@ -67,3 +68,8 @@ so its controls are read together rather than interleaved with the page's.
 Pass **`paneTitle`**, so a screen reader announces the region by name when focus
 enters it — the same reasoning as [`BottomSheet`](bottom-sheet.md), and the same
 default of none.
+
+At high contrast the panel takes an edge: its raised ground is barely apart from
+the page's at that tier, and its shadow does not change between tiers.
+
+Under reduced motion it does not slide. It fades in and out where it rests.

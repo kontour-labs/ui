@@ -35,3 +35,7 @@ and puts the state on the button instead, so nothing is announced twice.
 Under reduced motion the arc stops breathing and holds a constant length. It
 still turns — an indicator that stopped moving is an indicator that looks stuck,
 which is a worse answer than a calmer one.
+
+At high contrast the arc takes the enhanced scheme's content colour, or the
+`colour` passed. Its stroke comes from its size rather than from `Sizing`, so it
+is not drawn thicker, and nothing else changes.

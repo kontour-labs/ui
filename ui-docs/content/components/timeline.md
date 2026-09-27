@@ -163,3 +163,12 @@ to a screen reader, so a row that is only a spinner is a row with no state at
 all: write "Walking — 4 min" or "Finding a platform" in the item's own text.
 `progress` is drawn too, so say where the journey is in words as well: "Arrived",
 "Next stop: Elizabeth Quay".
+
+At high contrast, on a timeline with `progress`, the stops not yet reached are
+hollow and the halo round the current stop is a solid ring rather than a wash.
+Connectors and rings default to `borderWidthStrong`, so they thicken with the
+tier unless an item sets its own `connectorWidth`.
+
+Under reduced motion the halo holds still and no band travels; the leg the
+journey is on is coloured as far as it has got instead. A `loading` item's
+spinner keeps turning, with its breathing stilled.

@@ -70,3 +70,12 @@ unselected item is `Role.Button`.
 Items are collected by a builder rather than composed as children, which is why
 the menu can own the roles and the keyboard traversal instead of each caller
 rebuilding them.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the panel's
+border and the dividers go from the faint `outlineSubtle` to the near-ink
+`outline`, and both thicken with the tier, as does the focus ring. Where a long
+menu shows a scrollbar, it stays at full ink rather than fading when idle.
+
+Under reduced motion the menu, and any submenu, fades in where it opens instead
+of growing out of its anchor. A row never shrinks when pressed, at any setting:
+the tonal wash is its whole press.

@@ -116,3 +116,11 @@ gesture closes it.
 
 `dismissOnOutside = false` removes the scrim route. Where you use it, the content
 must offer its own way out.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the sheet
+takes the same edge a `BottomSheet` does, and the scrim behind it is darker.
+
+Under [reduced motion](../tokens.md#motion) it opens and closes as a
+`BottomSheet` does — fading in at its detent and out where it rests, with the
+scrim following — and the page behind stays where it is instead of receding. A
+drag still moves the sheet with the finger.

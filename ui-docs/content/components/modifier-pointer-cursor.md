@@ -133,3 +133,7 @@ refusal still needs to be said in words, not only shown as `NotAllowed`.
 
 The modifier returns its receiver unchanged when the input cannot hover, so it
 costs a touch user nothing.
+
+Neither setting reaches it. At high contrast the cursor is still the platform's
+own shape at the platform's own size, because the library draws nothing here;
+under reduced motion nothing changes, because the modifier animates nothing.

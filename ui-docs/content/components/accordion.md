@@ -29,3 +29,12 @@ labelling it "Details".
 
 Use it for content, not for a form: a required field the user cannot see is a
 required field they cannot fill in.
+
+At high contrast the header takes the enhanced scheme's colours and a thicker
+focus ring. It draws no border or divider of its own, so nothing else about it
+changes.
+
+Under reduced motion the body takes its room at once and fades in, and fades out
+before the room closes, rather than pushing what is below it down and back; the
+chevron turns without its overshoot.
+The header never shrinks on a press, at any setting.

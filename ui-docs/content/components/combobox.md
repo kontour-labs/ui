@@ -39,3 +39,12 @@ each character arrives is very hard to follow without sight.
 
 `emptyLabel` is what the menu says when nothing matches. It is announced, so make
 it say what to do next rather than "No matches".
+
+At high contrast the field's border is drawn thicker in the enhanced scheme's
+colours, and a `Filled` field gains one it has at no other tier. The menu's
+border becomes the near-ink `outline`, and both it and the tick beside the
+chosen option are drawn thicker.
+
+Under reduced motion the menu fades in beside the field rather than scaling out
+of it, and the chevron turns without its overshoot. The field's colour changes
+are the same short fade at every setting.

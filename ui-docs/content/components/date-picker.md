@@ -113,3 +113,13 @@ thing a user landed on said "18, button" and nothing about which date that was.
 
 `isDateSelectable` disables a day rather than hiding it, so the shape of the
 month stays readable and an unavailable date is announced as unavailable.
+
+At high contrast the previous, next and today buttons, and the month title when
+it opens the chooser, gain the edge every ghost button takes at this tier, and the grid draws today's ring and the focus ring
+thicker. The wheels take the tier as [`WheelPicker`](wheel-picker.md) does.
+
+Under reduced motion a new month fades in where the old one was rather than
+sliding a third of the calendar's width, the calendar takes its new height at
+once between a five-week and a six-week month, and the chooser fades in place
+rather than scaling up. The today button's flash pulses a colour in the day at
+every setting, which is not movement.

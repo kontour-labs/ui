@@ -129,3 +129,13 @@ what is on screen below them.
 Beyond four or five options the segments become unreadable slivers before they
 become inaccessible — but they become both. A [`Select`](select.md) is the answer
 for a long set.
+
+At high contrast the track takes an edge and the focus ring is drawn thicker.
+The thumb takes no edge at either tier;
+[A selection indicator, and what identifies it](../accessibility.md#a-selection-indicator-and-what-identifies-it)
+sets out that trade.
+
+Under reduced motion the thumb does not slide: it fades up on the segment
+chosen, and while a finger drags across the track it moves segment by segment
+the same way. It also stops leaning toward the finger and stretching past the
+ends.

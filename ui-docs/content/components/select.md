@@ -42,3 +42,12 @@ announcing "button" tells a screen reader user nothing about which is in force.
 
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.
+
+At high contrast the field's frame thickens with the tier, and a `Filled` field
+gains the edge it otherwise lacks. The menu is a
+[`DropdownMenu`](dropdown-menu.md)'s, so its border goes from the faint
+`outlineSubtle` to the near-ink `outline`.
+
+Under reduced motion the menu fades in where it opens instead of growing out of
+the field, and the chevron turns without overshooting. The field never shrinks
+when pressed, at any setting.

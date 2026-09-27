@@ -38,3 +38,11 @@ announcement settle.
 Where the field filters a list, the list's own count should be announced when it
 settles — the field cannot do it, because it does not know what is being
 filtered.
+
+At high contrast the default `Filled` field gains an edge round its sunken fill,
+its borders are drawn thicker, and the clear button gains the edge every ghost
+button takes at this tier.
+
+Under reduced motion the clear button still grows in from half its size, but
+over a short tween without the overshoot, and it does not shrink on a press. The
+field's colour changes are the same short fade at every setting.

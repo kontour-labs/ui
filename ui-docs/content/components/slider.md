@@ -76,9 +76,8 @@ to give up a third of itself to get there. A third is not a bit of deformation.
 
 The shape of the squash is [`Switch`](switch.md)'s to explain, because a switch's
 thumb rests as a circle and is the shape at its most visible: the end against the
-wall keeps that circle and only the free side eases in. A slider's thumb reaches
-it under reduced motion, where it never lengthens into a capsule in the first
-place. `Switch` gives the same fraction of itself by the same rule;
+wall keeps that circle and only the free side eases in. Under reduced motion a
+slider's thumb does not squash at all: it stops at the end as it is. `Switch` gives the same fraction of itself by the same rule;
 `SegmentedControl`'s thumb is a whole segment wide, can never approach a circle,
 and keeps its own smaller fraction for a reason [its own page](segmented-control.md)
 has.
@@ -167,3 +166,12 @@ always are: "Speed" is what it is, "62 km/h" is what it says.
 Increment and decrement come from `ProgressBarRangeInfo` and `setProgress`, so
 the slider is adjustable without a drag. `steps` makes those increments
 meaningful — a continuous slider moves by an arbitrary fraction.
+
+At high contrast the track under the fill becomes `inactive`, the not-yet half of
+a pair, a stepped slider's ticks are cut into it in the page's colour, and the
+ring round the thumb and the focus ring thicken with the tier.
+
+Under reduced motion the thumb does not grow while it is held, a stepped one
+moves from step to step instead of leaning after the finger, a push past either
+end no longer squashes it, and the value bubble fades in without growing. A tap
+still carries the thumb to its new value, over a short tween with no overshoot.

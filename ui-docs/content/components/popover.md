@@ -61,3 +61,12 @@ the overlay stack. If what you have is urgent enough to interrupt, that is a
 The scrim defaults to `ScrimStyle.Transparent`, which blocks input without
 dimming — and still carries the labelled dismiss action, so tapping away has an
 equivalent for someone who cannot.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) a popover
+with an arrow gains the border it otherwise leaves off, and the arrow is
+outlined with it. Every border is `outlineSubtle`, which at this tier is the
+near-ink `outline`, and is drawn thicker.
+
+Under [reduced motion](../tokens.md#motion) it fades in where it will rest
+instead of growing out of its anchor, and it arrives on a short tween rather
+than a spring.

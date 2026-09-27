@@ -137,3 +137,13 @@ window for someone reading at their own pace.
 
 `showDismiss` adds a close button with `dismissLabel` on it, which is worth turning
 on wherever a toast can carry an action.
+
+At high contrast the rims round the pills stacked behind the front toast are
+drawn thicker and in full ink rather than faded, and the action and close
+buttons, which are ghosts, gain an outline in the toast's text colour.
+
+Under reduced motion a toast arrives and leaves by fading where it rests, the
+front card and the pills behind it alike, and a swipe still follows the finger.
+When one leaves, the cards behind it still step forward into its place, over a
+short tween with no overshoot — a few pixels of the stack's resting depth — and
+a toast whose message changes takes its new size at once.

@@ -29,3 +29,12 @@ value rather than only that something scrolled.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.
+
+At high contrast the band behind each wheel's chosen row takes the tier's edge,
+and the rows either side stay legible: they fade to no less than 0.6 of the ink,
+where the standard tier takes them down to 0.2.
+
+Under reduced motion the wheels still turn under the finger and settle on the
+nearest row when it lets go, because a drag is never touched. A value set from
+code puts the drum straight on it at every setting, and a tap on a row above or
+below the band puts it there at once.

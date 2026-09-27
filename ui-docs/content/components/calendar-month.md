@@ -60,3 +60,14 @@ with no way to tell which month they are in.
 be chosen by dragging cannot be chosen at all by some users. Provide the two
 end dates as taps as well, which is what
 [`DateRangePicker`](date-range-picker.md) does.
+
+At high contrast today's ring and the focus ring are drawn thicker, and during a
+range drag the arrow rings at the month's edges are thicker too, and solid
+rather than faint where one sits on the range's cap. A range's middle days are
+marked by the accent tint and their label colour alone; they gain no edge at
+this tier.
+
+Under reduced motion a chosen day's fill grows in over a short tween without its
+bounce, and colours fade as they do at every setting. A cap dragged across the
+grid follows the finger at every setting. Changing the month is the host's job,
+and in [`DatePicker`](date-picker.md) it becomes a fade.

@@ -33,3 +33,11 @@ name has one whether or not anybody remembered `contentDescription`.
 
 `AvatarGroup`'s overflow count is part of its description rather than a separate
 node — "+3" read on its own tells a screen-reader user nothing.
+
+At high contrast an avatar with neither a name nor a picture, which is otherwise
+a faint well on the page, takes an edge, and so does a group's overflow count.
+The ring between a group's avatars is
+drawn at `borderWidthStrong`, so it thickens with the tier; everything else is
+the enhanced scheme's colours.
+
+Nothing in an avatar moves, so reduced motion changes nothing.

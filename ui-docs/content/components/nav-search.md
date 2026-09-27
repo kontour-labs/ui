@@ -67,3 +67,12 @@ bar and a field in a sidebar with no parameter at the call site.
 
 The pill is a `Role.Button` — pressing it opens something — and the field in the
 panel takes focus when it opens, so the keyboard is up without a second tap.
+
+At high contrast the pill, the field and the results panel each take the tier's
+edge, so a pill recessed into a bar is no longer a word floating in it, and the
+pill's focus ring thickens.
+
+Under reduced motion the pill keeps its press wash and loses its shrink, and
+nothing behind the open panel recedes. The panel has no entrance of its own to
+shorten: it is there on the first frame at every setting, with the scrim dimming
+behind it.

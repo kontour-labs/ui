@@ -105,3 +105,11 @@ Every item is an icon button and needs its own `contentDescription`.
 
 A floating toolbar sits over content. Where it is over something scrollable, that
 content needs padding to match, or the rows underneath it can never be read.
+
+At high contrast the toolbar takes an edge: its only boundary is otherwise its
+shadow, and a shadow does not change between tiers. `ToolbarDivider` thickens
+with the tier.
+
+The toolbar itself does not move, so reduced motion changes nothing about it.
+The buttons in it keep their tonal wash on a press and lose the shrink, as
+buttons do everywhere.

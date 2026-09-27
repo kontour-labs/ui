@@ -46,3 +46,8 @@ That means a shortcut shown with it is **not announced**. Where the shortcut is
 the only way to reach something, say so in the surrounding prose, and where it is
 attached to a menu item use `item(shortcut = …)`, which puts it in the item's own
 description rather than beside it.
+
+At high contrast its border is the near-ink `outline`, drawn at the tier's
+thicker `borderWidth`; nothing else about it changes.
+
+Nothing in it moves, so reduced motion changes nothing.

@@ -87,3 +87,13 @@ The surface changes with the window and the destinations do not, so what is
 announced is the same on a phone, a tablet and a desktop. Each surface groups its
 destinations, so a screen reader announces "2 of 4"; a search and an action sit
 outside that count.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the bar, the
+rail and the modal rail each take an edge in the scheme's `outline`, and the
+current destination's indicator takes an accent outline round its tint, as on
+[`NavBar`](nav-bar.md) and [`NavRail`](nav-rail.md).
+
+Under [reduced motion](../tokens.md#motion) the indicator fades up on the
+destination chosen instead of travelling to it, a rail growing into a sidebar
+takes its width at once, and the modal rail fades where it rests instead of
+sliding in from the edge.

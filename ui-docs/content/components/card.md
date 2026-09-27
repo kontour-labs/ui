@@ -37,3 +37,13 @@ container with its own buttons — not both.
 
 Elevation and border are `CardVariant`, which is visual. Nothing about the
 variant changes what is announced.
+
+At high contrast the Elevated and Filled variants take an edge in the scheme's
+`outline`, because neither a shadow nor a sunken well separates a card from the
+page at this tier, so all three variants have a border. The Outlined card's own
+border and the focus ring are thicker, and a clickable card's press wash is
+stronger.
+
+Reduced motion changes nothing here: a clickable card answers a press with the
+tonal wash alone at every setting, because a card is too large to shrink, and
+nothing else about it moves.

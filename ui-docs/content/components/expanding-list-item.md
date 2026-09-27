@@ -59,3 +59,13 @@ so do not give every row the parameter "for consistency".
 
 Collapsed content is not composed and is not in the tree. The same rule as
 [`Accordion`](accordion.md): nothing essential inside one.
+
+At high contrast the header, a [`ListItem`](list-item.md), takes the tier's
+edge, as the rows under it do when they are `ListItem`s too, and a selected one
+is outlined in the accent as well. Both are drawn at the tier's thicker line.
+
+Under reduced motion the rows take their room at once and fade in, and fade out
+before the room closes, rather than pushing what is below them; the header's
+corners change over `fast`.
+The chevron turns without its overshoot. A row has no press-shrink at either
+setting.

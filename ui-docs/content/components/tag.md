@@ -38,3 +38,10 @@ twice.
 `tone` is colour and nothing else. A status carried only by tone is a status some
 users cannot read, so the word has to say it too — which is why these have words
 in them.
+
+At high contrast a tag gains an edge in its `tone`'s border colour — `outline`
+for the neutral tone — so a tint that sits close to the page still has a
+boundary. A tag given its own `containerColour` takes the edge of its `tone`
+too.
+
+Nothing about a tag moves, so reduced motion changes nothing.

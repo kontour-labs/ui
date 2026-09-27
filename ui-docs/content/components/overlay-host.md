@@ -76,3 +76,13 @@ The scrim is not decoration. Where an overlay is dismissible it carries an
 overlay passes — so "tap outside to close" exists for someone who cannot tap
 outside. Where it is not, the scrim still consumes input, so taps cannot reach
 content the user can no longer see.
+
+At high contrast a dimmed scrim is darker, because what it separates from is
+higher contrast too. The host draws no edge of its own; each panel in it takes
+the tier on its own page.
+
+Under [reduced motion](../tokens.md#motion) the host brings an entry in on a
+short tween rather than a spring, and a dialog, menu, popover or tooltip fades in
+where it will sit rather than scaling into place. `Scale` and `BlurAndScale` stop
+insetting the page, while the dimming and the blur stay. A back gesture still
+drives an entry's exit with the finger.

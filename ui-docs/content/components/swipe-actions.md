@@ -147,3 +147,15 @@ an icon plus a separate description, a caller can write a background that says
 
 The buttons' icons are decorative and cleared; each button's click carries its
 action's `label`. The row's own content is unchanged by the swipe.
+
+At high contrast the action buttons keep the grounds you gave them, with their
+icon and label in whichever ink reads on each; the tick a full swipe draws and a
+button's focus ring thicken with every other line. The row is your content, and
+answers the tier itself.
+
+Under [reduced motion](../tokens.md#motion) a row the app opens or puts back
+arrives at once, the outermost action takes over the strip at once past the
+point of no return, and a full swipe's tick appears whole instead of drawing
+itself; icons and labels fade without growing. A drag is untouched — the row
+follows the finger at every setting — and it settles after the finger lifts on a
+short tween rather than a spring.

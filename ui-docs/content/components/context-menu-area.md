@@ -34,3 +34,11 @@ exist elsewhere rather than be the only place they live.
 
 The menu itself is a [`DropdownMenu`](dropdown-menu.md) and behaves as one once
 open: focus, arrow keys, typeahead, Escape.
+
+At high contrast the menu answers as a `DropdownMenu` does: its border and
+dividers go from the faint `outlineSubtle` to the near-ink `outline` and thicken
+with the tier. The area itself draws nothing, so the content it wraps is
+unchanged.
+
+Under reduced motion the menu fades in where it opens instead of growing out of
+the point that was pressed. Nothing about the gesture changes.

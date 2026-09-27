@@ -179,3 +179,10 @@ one — the reading is the value, not the scale.
 
 A gauge is not a control. If it opens something, put it in a
 [`Card`](card.md) with `onClick`.
+
+At high contrast the default track becomes `inactive`, so the part of the scale
+the fill has not reached is set apart from it, and the ticks and the thumb's
+ring are drawn from `Sizing` and thicken with the tier.
+
+Under reduced motion a new value is drawn where it lands rather than travelling
+there, whatever `animateValue` says.

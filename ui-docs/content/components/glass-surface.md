@@ -46,3 +46,6 @@ has no portable backdrop filter — for *this* case. A modal is different and
 does blur what is behind it, because there the backdrop is a single node; see
 [overlays](../overlays.md#the-backdrop). That is a cost worth knowing before reaching for
 it on a scrolling surface.
+
+Nothing about the pane moves — the frosting is a still blur, not an animation —
+so reduced motion changes nothing.

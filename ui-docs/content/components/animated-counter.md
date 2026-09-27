@@ -109,3 +109,11 @@ The description follows **what is drawn**, including while a fall is being held.
 Announcing the pending number instead would spare a screen reader the delay, and
 would mean a sighted user of one hears a number they cannot see. The delay is
 the cost of the warning and it is paid in every channel.
+
+At high contrast the digits take the enhanced scheme's ink, or the `colour`
+passed. The counter draws no line of its own, so nothing else changes.
+
+Under reduced motion a changed digit is replaced in place rather than rolling.
+`warnBefore` is ignored, so a fall is neither held nor shaken: the drawn number
+and its description follow the value at once. A counter that warns still gives
+its haptic tick on a fall.

@@ -143,7 +143,7 @@ preference covers, and half a morph is still a thing travelling a long way.
 ## Accessibility
 
 Under reduced motion the shared-element morph is skipped and the change is a
-crossfade. Nothing about what is announced changes, which is the property that
+fade through. Nothing about what is announced changes, which is the property that
 matters: a transition is a way of showing a change, not the change itself.
 
 A transition does not move focus. After navigating, focus stays where it was
@@ -152,3 +152,6 @@ focus to the new content's heading, or a screen-reader user is left reading a
 page that is no longer there.
 
 Give the incoming screen a heading. It is what makes the arrival findable.
+
+High contrast changes nothing here: the transition draws nothing of its own, and
+the pages it carries take the tier as they would anywhere.

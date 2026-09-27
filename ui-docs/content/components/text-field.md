@@ -6,8 +6,8 @@ Label, placeholder, supporting text, error, and leading/trailing slots.
 ```kotlin
 val stop = rememberTextFieldState()
 
-// `label` is a `String?` rather than a slot on purpose: a floating label is
-// chrome, it animates between two positions, and `FieldScaffold` reads it to
+// `label` is a `String?` rather than a slot on purpose: a field's label is
+// chrome, drawn above the frame in the field's own style, and `FieldScaffold` reads it to
 // give the control its accessible name — none of which a composable can do.
 TextField(
     state = stop,
@@ -27,14 +27,14 @@ TextField(
 )
 ```
 
-`label` really is a `String?` here, not a slot — a field's floating label is
-*chrome*, not content. It animates between two positions, is read by
-`FieldScaffold` to set the control's accessible name, and has nowhere to put a
-composable. That is the exception the [`+` vocabulary](../dsls.md) does not
+`label` really is a `String?` here, not a slot — a field's label is *chrome*, not
+content. It sits above the frame in the field's own style, changes colour with
+focus and error, is read by `FieldScaffold` to set the control's accessible name,
+and has nowhere to put a composable. That is the exception the [`+` vocabulary](../dsls.md) does not
 cover, and it is deliberate.
 
-Two variants from `TextFieldVariant`: `Outlined` and `Filled`. `Filled` takes a
-`contrastEdge()` at the high-contrast tier, since a filled field on a filled
+Two variants from `TextFieldVariant`: `Outlined` and `Filled`. `Filled` gains an
+`outline` border at the high-contrast tier, since a filled field on a filled
 surface is otherwise two tones with no boundary.
 
 ### The keyboard
@@ -82,3 +82,11 @@ stops accepting input without marking it, so a screen reader went on offering
 
 Helper and error share one slot and animate in place, so a form does not jump a
 line height every time validation flips.
+
+At high contrast the border is drawn thicker — 2dp at rest and 3dp focused or in
+error, against 1 and 2 — in the enhanced scheme's colours, and a `Filled` field
+gains an edge round its sunken fill that it has at no other tier.
+
+Under reduced motion the helper or error line takes its room at once and fades
+in, rather than growing open; the border, ground and label change colour over a
+150ms fade at every setting.

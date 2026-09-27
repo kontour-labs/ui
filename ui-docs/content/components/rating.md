@@ -53,3 +53,11 @@ each.
 `contentDescription` names the control and it matters here more than usual —
 "Your rating" and "Average rating" are the same five stars and completely
 different facts.
+
+At high contrast it takes the enhanced scheme's colours and each interactive
+mark's focus ring is thicker; nothing else about it changes. The default marks
+already differ in shape as well as colour: a filled star and an outlined one.
+
+Under reduced motion a mark fills over a short tween and settles at full size
+without the overshoot. A drag across the marks sets the score as the finger
+moves, at every setting.

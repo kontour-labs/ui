@@ -149,3 +149,14 @@ that reads in a direction.
 Every swatch carries its own hex as a content description, through
 [`ColourSwatchPicker`](colour-swatch-picker.md), and reports
 `Role.RadioButton` inside a selectable group.
+
+At high contrast the cursor — the same one on the area, the palette and both
+tracks — keeps its white inner ring and turns its outer one from a translucent
+shadow into solid black, and both are drawn at the tier's thicker strong border.
+The swatches' rings and the focus rings thicken with it, the value field gains an
+edge, and the mode and format switches take their track's edge.
+
+Under reduced motion a chosen swatch's tick grows in without overshooting, and
+the mode and format switches' thumb fades in at its new segment rather than
+sliding there. The cursor and the thumbs are drawn at the value, so a finger, a
+key or a typed value moves them at once at every setting.

@@ -120,3 +120,13 @@ The table scrolls across for a screen reader's scroll actions as well as for a
 drag, and rows take keyboard focus in turn, with a focus ring inside the row so
 the next row does not cover it. A disabled table keeps its rows' roles and says
 they are disabled, and it still scrolls.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) a selected row
+is outlined in the accent as well as tinted. The rules go from the faint
+`outlineSubtle` to the near-ink `outline` and thicken with the tier, and so does
+an `outlined` table's frame. An idle scrollbar, where there is one, stays at full
+ink.
+
+Under reduced motion a screen reader's scroll action moves the columns at once
+rather than gliding there. A row's press is the tonal wash alone at every
+setting, and a checkbox column animates as [`Checkbox`](checkbox.md) does.

@@ -71,3 +71,14 @@ a phone user who opened a detail and cannot get back to the list is stuck.
 
 Give each pane a heading at its top. Two panes side by side with no headings are
 one long run of content to anyone navigating by structure.
+
+At high contrast the rule between two panes takes the tier's thicker
+`dividerThickness`, and so does the resize handle's line, which is three times
+that under a pointer. On a compact window the supporting pane is a modal sheet,
+which takes the tier's edge.
+
+Under reduced motion the supporting pane takes its width at once and fades in,
+rather than sliding in while the main pane narrows to meet it, and it goes at once
+when it closes. On a compact window the list and the detail cross-fade rather
+than sliding, a back gesture seeks that fade instead of moving the page, and the
+supporting pane's sheet fades where it rests.

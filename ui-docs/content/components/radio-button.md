@@ -36,3 +36,9 @@ that gets this right.
 Under `Role.RadioButton` selection is one-way: a radio is turned on by pressing
 it and off by pressing another, so pressing the selected one does nothing rather
 than clearing it.
+
+The ring is drawn at `Sizing`'s border widths, so at high contrast it thickens
+with the tier. Nothing else about the button changes.
+
+Under reduced motion the dot still grows in and shrinks away, but over a short
+tween with no overshoot.

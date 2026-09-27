@@ -165,3 +165,10 @@ reading rather than as a separate stop.
 
 A meter is not a control. If it opens something, put it in a [`Card`](card.md) with
 `onClick`.
+
+At high contrast the track becomes `inactive`, the not-yet half of a pair, so the
+fill and the part it has not reached stay apart, and the ticks and the ring round
+the thumb thicken with the tier.
+
+Under reduced motion a new reading is drawn where it lands rather than travelling
+there, as it is with `animateValue = false`.

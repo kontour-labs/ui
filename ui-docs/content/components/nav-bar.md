@@ -80,3 +80,13 @@ the selected destination is inside it, the group's circle carries the marker.
 Destinations are `Role.Tab` inside a `selectableGroup()`. A slot is outside the
 count, so a search is not announced as "3 of 5" among four destinations. A group
 is a `Role.Button` that opens a menu.
+
+At high contrast the bar takes an edge, painted or glass, and a glass bar is
+nearly opaque. The travelling marker takes an accent outline, `selectionEdge()`,
+because a tint alone is too faint at that tier, and the focus ring is drawn
+thicker.
+
+Under reduced motion the marker does not travel: it fades out and fades up on
+the new destination. The selected icon's slight growth is a short tween with no
+overshoot, a press is a tonal wash at every setting, and a group's menu fades in
+rather than growing out of the bar.

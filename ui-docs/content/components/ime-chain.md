@@ -49,3 +49,11 @@ wrong the first time somebody reorders the form.
 A chain overrides both `imeAction` and a specialised field's own default:
 `PasswordField` defaults to Done, which is wrong for a password halfway down a
 form.
+
+The chain draws nothing, so high contrast changes nothing about it; the fields
+it joins answer to the tier themselves.
+
+Moving focus is not movement, so reduced motion changes nothing here either.
+When the next field is out of view, the scroll that brings it in is foundation's
+bring-into-view, which the library neither shortens nor stops: it animates under
+reduced motion too.

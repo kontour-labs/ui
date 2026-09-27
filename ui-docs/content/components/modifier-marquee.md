@@ -48,3 +48,7 @@ either way, so a screen reader gets all of it without waiting.
 
 `iterations = Int.MAX_VALUE` is for a single live status line. A dozen rows all
 scrolling at once is a screen nobody can read, with or without a preference set.
+
+Nothing about it changes at high contrast. The modifier moves what it is on and
+draws nothing of its own — no colour, no line, no fade at the edges — so the text
+keeps whatever colour its component gave it.

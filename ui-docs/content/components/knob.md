@@ -104,3 +104,10 @@ The focus ring is round, like the knob.
 
 Give it a `contentDescription` naming what it sets, and a `stateDescription` for a
 value that is not a percentage.
+
+At high contrast the track under the fill becomes `inactive`, the not-yet half of
+a pair, and the face's rim, the ticks and the focus ring thicken with the tier.
+
+Under reduced motion a thrown knob stops where it was let go, and a stepped one
+sits on its step: it neither leans toward the finger between steps nor springs
+onto one when it is let go.

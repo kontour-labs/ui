@@ -88,3 +88,13 @@ Destinations are `Role.Tab` inside a `selectableGroup()`. The toggle is a
 `Role.Button` with its own label and a `stateDescription` of expanded or
 collapsed. A group is a disclosure — a `Role.Button` that says whether it is open —
 or, narrow, a button that opens a menu. A section title is a heading.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the rail takes
+an edge against the page beside it, and the marker on the current destination is
+outlined in the accent as well as tinted. The hairlines that stand in for section
+titles thicken with the tier.
+
+Under reduced motion the rail takes its new width at once and its labels fade
+in, and the marker fades up on the new destination rather than travelling to it.
+A group's children take their room at once and fade in, and its chevron turns
+without overshooting.

@@ -36,3 +36,11 @@ it is the one a user on a train actually meets. `onRetry` defaults to
 
 `endLabel` is worth setting. "That's everything" is the answer to "have I reached
 the bottom", which is otherwise unanswerable without sight.
+
+At high contrast the retry button, a ghost, gains an outline in its label's
+colour, as every ghost button does at that tier. The message, the end label and
+the spinner take the enhanced scheme's colours.
+
+Under reduced motion the spinner keeps turning with its breathing stilled, and
+that is the only change. The states swap without a transition at every setting,
+and the retry button's press is a tonal wash, never a shrink.

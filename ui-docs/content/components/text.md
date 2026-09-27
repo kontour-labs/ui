@@ -136,3 +136,12 @@ rather than a tap handler that works out which range was hit.
 Never size type in `sp` computed from a `Dp`. `Theme.typography` scales with the
 user's text setting; a literal does not, and 200% is the setting the
 [accessibility page](../accessibility.md) promises to survive.
+
+At high contrast `Text` takes the enhanced scheme's colours through
+`LocalContentColour` and the theme, and nothing else about it changes; a colour
+passed by hand is drawn as given. Links are underlined at every tier, so a link
+is never told apart by colour alone.
+
+`Text` does not move, so reduced motion changes nothing about it. Inside
+[`Redacted`](redaction.md) its lines become a shimmering placeholder, and under
+reduced motion the shimmer stops and leaves a still block.

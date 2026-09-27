@@ -84,3 +84,10 @@ row of controls with no text in it. "Zoom out", "Recentre", "Zoom in" — not
 The group reserves `minTouchTarget` once — in height for a row, in width for a
 column — rather than each button reserving it and centring inside — which is what keeps the buttons flush against
 each other without any of them shrinking below the minimum.
+
+At high contrast each button takes the edge its variant takes at that tier —
+with the default `Tertiary`, every button is outlined — and the focus ring
+thickens.
+
+Under [reduced motion](../tokens.md#motion) a pressed button keeps its tonal
+wash and does not shrink. Nothing else in the group moves.

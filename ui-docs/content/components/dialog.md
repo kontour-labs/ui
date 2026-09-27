@@ -60,3 +60,11 @@ by its own exit, following the gesture; on iOS back never closes a dialog.
 
 `dismissLabel` is what the scrim announces. The default is `Theme.strings.dismiss`;
 override it when "dismiss" is ambiguous about what is being dismissed.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the panel
+takes an edge in the scheme's `outline`, since a raised panel is otherwise
+barely distinct from the page at this tier, and the scrim behind it is darker.
+
+Under [reduced motion](../tokens.md#motion) the dialog fades in where it will
+rest instead of settling down onto the screen from slightly larger, and it
+arrives on a short tween rather than a spring.

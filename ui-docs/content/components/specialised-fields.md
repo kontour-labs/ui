@@ -75,3 +75,14 @@ appears.
 
 All four take an `imeChain`, and a chain overrides their defaults —
 `PasswordField` defaults to Done, which is wrong halfway down a form.
+
+At high contrast each field answers as [`TextField`](text-field.md) does: the
+border is thicker, and a `Filled` field, which has none at the standard tier,
+gains an edge in the scheme's `outline`. `PasswordField`'s eye, when it has one,
+is a ghost button and gains an edge in its glyph's colour, as every ghost does
+at this tier.
+
+Reduced motion changes little here, because little moves: the frame's colour and
+weight and the helper line opening beneath it are short fades and tweens at
+every setting. `PasswordField`'s eye draws its slash at `fast` rather than
+`default`, and does not shrink when pressed.

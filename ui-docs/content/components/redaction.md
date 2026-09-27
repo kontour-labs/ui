@@ -80,3 +80,10 @@ would already have been arbitrated.
 
 That leaves the container to say what is happening. Put the loading
 announcement there; a dozen unlabelled bars is noise, and silence is worse.
+
+At high contrast the bars are drawn in the enhanced scheme's ink at the same
+faint strength as at every tier — a tenth of it, rising to under a fifth at the
+shimmer's crest — and take no edge.
+
+Under reduced motion the shimmer stops and every bar holds a flat tone; the
+sweep is not started at all.
