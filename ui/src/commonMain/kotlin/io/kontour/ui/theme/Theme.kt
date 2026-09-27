@@ -157,9 +157,17 @@ fun deviceInDarkTheme(): Boolean = platformSystemDark()
  * mid-session sees the change immediately. Pass an explicit value to let an
  * in-app setting win.
  *
+ * [contrast] and [reduceMotion] are the reader's, not the screen's, so a
+ * **nested** theme inherits them from the one around it rather than asking the
+ * platform again. A screen that forces dark with `KontourTheme(darkTheme = true)`
+ * keeps the in-app "Reduce motion" the reader turned on above it.
+ *
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
- * @param contrast Which contrast tier to render at. Follows the system by default.
- * @param reduceMotion Whether to damp animation. Follows the system by default.
+ * @param contrast Which contrast tier to render at. Follows the enclosing theme,
+ *   or the system at the root.
+ * @param reduceMotion Whether to damp animation. Follows the enclosing theme, or
+ *   the system at the root. It wins over a custom [motion]'s own
+ *   `reduceMotion`, which is set to match.
  * @param backdropBlur Whether a modal blurs the content behind it as well as
  *   dimming it. On by default. Turning it off costs the app a texture and
  *   nothing else — the shapes, the scrim, the motion and the layout are the same
@@ -182,8 +190,8 @@ fun deviceInDarkTheme(): Boolean = platformSystemDark()
 @Composable
 fun KontourTheme(
     darkTheme: Boolean = deviceInDarkTheme(),
-    contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
-    reduceMotion: Boolean = platformPrefersReducedMotion(),
+    contrast: ContrastLevel = inheritedContrast(),
+    reduceMotion: Boolean = inheritedReduceMotion(),
     backdropBlur: Boolean = true,
     /**
      * Whether a change of scheme cross-fades rather than cutting.
@@ -261,8 +269,16 @@ fun KontourTheme(
     // would have been less code to animate the scheme alone, which is what this
     // did: the shadows then cut to their dark-mode strength on the fade's first
     // frame and waited there for the surfaces to catch up.
+    // A custom motion scale is the app's *timing*; whether to damp it is the
+    // reader's, and the reader said so in `reduceMotion`. A `Motion` built with
+    // `kontourMotion(false)` and passed in beside `reduceMotion = true` used to
+    // animate at full amplitude, because every helper reads the scale's own flag.
+    val resolvedMotion = remember(motion, reduceMotion) {
+        if (motion.reduceMotion == reduceMotion) motion else motion.copy(reduceMotion = reduceMotion)
+    }
+
     val faded = if (animateThemeChanges) {
-        animatedTheme(colours, elevation, motion, contrast)
+        animatedTheme(colours, elevation, resolvedMotion, contrast)
     } else {
         null
     }
@@ -302,7 +318,7 @@ fun KontourTheme(
         LocalSpacing provides spacing,
         LocalElevation provides elevation,
         LocalThemeFade provides faded,
-        LocalMotion provides motion,
+        LocalMotion provides resolvedMotion,
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
@@ -337,9 +353,37 @@ fun KontourTheme(
 
 /**
  * Whether an ancestor [KontourTheme] has already installed the input-modality
- * tracker. Lets nested themes re-provide tokens without duplicating the tracker.
+ * tracker. Lets nested themes re-provide tokens without duplicating the tracker,
+ * and is how a nested theme knows there is a reader's choice above it to inherit.
  */
 internal val LocalInputModalityInstalled = staticCompositionLocalOf { false }
+
+/**
+ * The contrast tier the enclosing [KontourTheme] chose, or the platform's at
+ * the root.
+ *
+ * A nested theme used to read the platform again, so an app with an in-app
+ * "High contrast" switch lost it the moment one screen wrapped itself in a
+ * theme of its own to force dark.
+ */
+@Composable
+internal fun inheritedContrast(): ContrastLevel =
+    if (LocalInputModalityInstalled.current) {
+        LocalContrastLevel.current
+    } else if (platformPrefersHighContrast()) {
+        ContrastLevel.High
+    } else {
+        ContrastLevel.Standard
+    }
+
+/** @see inheritedContrast — the same for reduced motion. */
+@Composable
+internal fun inheritedReduceMotion(): Boolean =
+    if (LocalInputModalityInstalled.current) {
+        LocalMotion.current.reduceMotion
+    } else {
+        platformPrefersReducedMotion()
+    }
 
 private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +
@@ -426,8 +470,9 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  *
  * ### Why this is not `KontourTheme` nested inside itself
  *
- * A nested [KontourTheme] does not inherit. Every parameter it is not given
- * re-runs its *default*, and those defaults read the platform rather than the
+ * A nested [KontourTheme] inherits only the reader's two settings, `contrast`
+ * and `reduceMotion`. Every other parameter it is not given re-runs its
+ * *default*, and those defaults build fresh tokens rather than reading the
  * enclosing theme — so
  *
  * ```

@@ -82,9 +82,10 @@ ProvideTokens(colours = kontourColourScheme(dark = true)) { MapScreen() }
 
 > **Call `KontourTheme` once, at the root, and `ProvideTokens` after it.**
 >
-> A nested `KontourTheme` does **not** inherit. Every parameter it is not given
-> re-runs its *default*, and those defaults read the platform rather than the
-> theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
+> A nested `KontourTheme` does **not** inherit, with two exceptions: the
+> reader's `contrast` and `reduceMotion`, which it takes from the theme around
+> it. Every other parameter it is not given re-runs its *default*, and those
+> defaults build fresh tokens rather than reading the theme around them — so `KontourTheme(strings = german) { KontourTheme(darkTheme
 > = true) { … } }` puts every string back into English, resets
 > `HapticsLevel.Off` to `Standard`, and discards a custom `spacing`, `sizing` or
 > `motion` on the way. Nothing errors. Nothing looks wrong until somebody reads
