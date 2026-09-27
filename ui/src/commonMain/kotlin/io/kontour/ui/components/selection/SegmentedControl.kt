@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Shape
@@ -844,12 +845,14 @@ private fun SegmentedOption(
             // gives: a word cut mid-stroke reads as a different word rather than
             // a shortened one, and "Keyboard" arriving as "Keyboar" is a label
             // that lies rather than one that is short.
-            Text(
-                text = option,
-                colour = labelColour,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            DisableSelection {
+                Text(
+                    text = option,
+                    colour = labelColour,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

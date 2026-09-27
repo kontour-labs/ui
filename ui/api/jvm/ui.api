@@ -2010,6 +2010,10 @@ public final class io/kontour/ui/foundation/ScrimKt {
 	public static final fun Scrim-FHprtrg (Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/String;JLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/foundation/SelectableTextKt {
+	public static final fun SelectableText (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/foundation/SelectionIndicatorKt {
 	public static final fun SelectionIndicatorBox (Lio/kontour/ui/foundation/SelectionIndicatorState;Lio/kontour/ui/foundation/IndicatorSizing;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberSelectionIndicatorState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/foundation/SelectionIndicatorState;

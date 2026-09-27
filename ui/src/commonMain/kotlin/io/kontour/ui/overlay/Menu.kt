@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -398,83 +399,85 @@ fun MenuItem(
         else -> colours.content
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                role = when {
-                    multiple -> Role.Checkbox
-                    selected -> Role.RadioButton
-                    else -> Role.Button
+    DisableSelection {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    role = when {
+                        multiple -> Role.Checkbox
+                        selected -> Role.RadioButton
+                        else -> Role.Button
+                    }
+                    if (selected) this.selected = true
                 }
-                if (selected) this.selected = true
-            }
-            // `fill`, so the row that lights up is the row the finger gets.
-            //
-            // No horizontal inset of its own either. The panel already pads by
-            // `xxs` on all four sides, and this used to add a second `xxs`
-            // across — so a row's highlight sat 8dp inside the panel at the
-            // sides and 4dp at the top and bottom. Removing that inset was only
-            // half the fix and made the other half visible: a reserved target
-            // *centres* its content, so on a phone the highlight was a 36dp row
-            // in a 48dp slot and the margins read 4dp at the sides against 10dp
-            // top and bottom — the same complaint, the other way round. Filling
-            // the target puts all four at 4dp and makes the row 48dp tall,
-            // which is what it was always claiming to be.
-            //
-            // It also fixes the corner: `inset(xxs)` is the concentric radius
-            // for a 4dp inset, and now every side really is at 4.
-            .minimumTouchTarget(fill = true)
-            .clip(rowShape)
-            .pointerCursor(enabled = enabled)
-            .clickable(
-                interactionSource = interactions,
-                // A menu row is a big target; scaling it makes the whole menu
-                // look like it is wobbling.
-                indication = kontourIndication(rowShape, pressScale = 1f),
-                enabled = enabled,
-                onClick = onClick,
-            )
-            .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val muted = if (enabled) colours.contentMuted else colours.contentDisabled
+                // `fill`, so the row that lights up is the row the finger gets.
+                //
+                // No horizontal inset of its own either. The panel already pads by
+                // `xxs` on all four sides, and this used to add a second `xxs`
+                // across — so a row's highlight sat 8dp inside the panel at the
+                // sides and 4dp at the top and bottom. Removing that inset was only
+                // half the fix and made the other half visible: a reserved target
+                // *centres* its content, so on a phone the highlight was a 36dp row
+                // in a 48dp slot and the margins read 4dp at the sides against 10dp
+                // top and bottom — the same complaint, the other way round. Filling
+                // the target puts all four at 4dp and makes the row 48dp tall,
+                // which is what it was always claiming to be.
+                //
+                // It also fixes the corner: `inset(xxs)` is the concentric radius
+                // for a 4dp inset, and now every side really is at 4.
+                .minimumTouchTarget(fill = true)
+                .clip(rowShape)
+                .pointerCursor(enabled = enabled)
+                .clickable(
+                    interactionSource = interactions,
+                    // A menu row is a big target; scaling it makes the whole menu
+                    // look like it is wobbling.
+                    indication = kontourIndication(rowShape, pressScale = 1f),
+                    enabled = enabled,
+                    onClick = onClick,
+                )
+                .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-        slots.leading?.let { leading ->
-            ProvideContentColour(contentColour) {
-                ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
-            }
-        }
-
-        Box(Modifier.weight(1f)) {
-            slots.label?.let { label ->
+            slots.leading?.let { leading ->
                 ProvideContentColour(contentColour) {
-                    ProvideTextStyle(Theme.typography.bodyMedium) {
-                        ContentSlot(maxLines = 1, content = label)
+                    ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
+                }
+            }
+
+            Box(Modifier.weight(1f)) {
+                slots.label?.let { label ->
+                    ProvideContentColour(contentColour) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            ContentSlot(maxLines = 1, content = label)
+                        }
                     }
                 }
             }
-        }
 
-        slots.trailing?.let { trailing ->
-            ProvideContentColour(muted) {
-                ProvideTextStyle(Theme.typography.labelSmall) {
-                    ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+            slots.trailing?.let { trailing ->
+                ProvideContentColour(muted) {
+                    ProvideTextStyle(Theme.typography.labelSmall) {
+                        ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+                    }
                 }
             }
-        }
-        // Reserved for the whole life of a multi-select menu, which stays open
-        // while its ticks come and go: a mark that takes space only when it is
-        // there makes every label in the menu step sideways as the user works
-        // down it. A single-select menu closes on the choice, so the slot is
-        // only worth reserving on the row that has one.
-        if (multiple || selected) {
-            AnimatedCheckMark(
-                checked = selected,
-                colour = if (enabled) colours.accent.solid else colours.contentDisabled,
-                size = Theme.sizing.iconSmall,
-            )
+            // Reserved for the whole life of a multi-select menu, which stays open
+            // while its ticks come and go: a mark that takes space only when it is
+            // there makes every label in the menu step sideways as the user works
+            // down it. A single-select menu closes on the choice, so the slot is
+            // only worth reserving on the row that has one.
+            if (multiple || selected) {
+                AnimatedCheckMark(
+                    checked = selected,
+                    colour = if (enabled) colours.accent.solid else colours.contentDisabled,
+                    size = Theme.sizing.iconSmall,
+                )
+            }
         }
     }
 }

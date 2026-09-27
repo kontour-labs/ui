@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -274,40 +275,42 @@ internal fun NavDestination(
         }
     }
 
-    when (layout) {
-        NavLayout.Stacked -> Column(
-            // Air under the label and none above the glyph, so the marker sized
-            // to the glyph lands on it.
-            modifier = interaction.padding(bottom = if (showLabel) Theme.spacing.xxs else 0.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(labelGap),
-        ) {
-            glyph()
-            labelText()
-        }
+    DisableSelection {
+        when (layout) {
+            NavLayout.Stacked -> Column(
+                // Air under the label and none above the glyph, so the marker sized
+                // to the glyph lands on it.
+                modifier = interaction.padding(bottom = if (showLabel) Theme.spacing.xxs else 0.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(labelGap),
+            ) {
+                glyph()
+                labelText()
+            }
 
-        NavLayout.Inline -> Row(
-            // Two paddings, split so this node is the marker's rect in between:
-            // the pill is inset `xxs` from the row and exactly as tall, and the
-            // press wash has to be that box.
-            modifier = interaction
-                .padding(horizontal = Theme.spacing.xxs)
-                .indication(interactions, kontourIndication(Theme.shapes.capsule, pressScale = 1f))
-                .padding(
-                    horizontal = Theme.spacing.sm - Theme.spacing.xxs,
-                    vertical = if (hasGlyph) Theme.spacing.xxs else Theme.spacing.sm,
-                ),
-            // `lg`, and it is arithmetic: a collapsed rail has to end before its
-            // labels begin, and the label starts one padding of each past the
-            // glyph box.
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (hasGlyph) glyph()
-            Box(Modifier.weight(1f)) { labelText() }
-            // A text row has no glyph to hang its badge on, so it goes at the end.
-            if (!hasGlyph && badge != null) badge()
-            if (showLabel && trailing != null) trailing()
+            NavLayout.Inline -> Row(
+                // Two paddings, split so this node is the marker's rect in between:
+                // the pill is inset `xxs` from the row and exactly as tall, and the
+                // press wash has to be that box.
+                modifier = interaction
+                    .padding(horizontal = Theme.spacing.xxs)
+                    .indication(interactions, kontourIndication(Theme.shapes.capsule, pressScale = 1f))
+                    .padding(
+                        horizontal = Theme.spacing.sm - Theme.spacing.xxs,
+                        vertical = if (hasGlyph) Theme.spacing.xxs else Theme.spacing.sm,
+                    ),
+                // `lg`, and it is arithmetic: a collapsed rail has to end before its
+                // labels begin, and the label starts one padding of each past the
+                // glyph box.
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (hasGlyph) glyph()
+                Box(Modifier.weight(1f)) { labelText() }
+                // A text row has no glyph to hang its badge on, so it goes at the end.
+                if (!hasGlyph && badge != null) badge()
+                if (showLabel && trailing != null) trailing()
+            }
         }
     }
 }

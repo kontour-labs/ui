@@ -36,6 +36,7 @@ import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ExcludeFromSelection
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
@@ -261,84 +262,89 @@ internal fun ListItemImpl(
     // a trailing slot has no callback of its own and would otherwise never see
     // the tap that the row just handled.
     CompositionLocalProvider(LocalRowInteractionSource provides interactions) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .semantics(mergeDescendants = true) {}
-                .defaultMinSize(minHeight = resolvedMinHeight)
-                // Keyed on being a control at all, not on being enabled — a row that
-                // changed height when it greyed out would jump the list around it.
-                .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
-                .focusRing(interactions, shape, enabled = interactive)
-                .clip(shape)
-                .background(container, shape)
-                // `surfaceSunken` on `background` is **1.06:1** at the dark
-                // enhanced tier and **1.14** at light's — a group of rows reads as
-                // loose text rather than as one object with rows in it, which is
-                // the exact thing the sunken ground exists to prevent. A well is
-                // deliberately quiet, so at the tier that asks for more it is the
-                // edge rather than the fill that has to say where a row ends.
-                .then(if (edged) contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier else Modifier)
-                .then(clickModifier)
-                // `xs`, not `sm`. The 12dp version put 24dp of air around a
-                // single line of text inside a row whose minimum is already 56dp,
-                // so the padding was never what set the height — it only pushed a
-                // two-line row taller than it needed to be. `MinHeight` holds the
-                // floor for the one-line case, which is what it is for.
-                .padding(start = startPadding, end = Theme.spacing.md)
-                .padding(vertical = Theme.spacing.xs),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
+        // A row with an `onClick` is a control, and its text is chrome; one
+        // without is content — a stop's address, a fare — and stays selectable
+        // inside a `SelectableText`.
+        ExcludeFromSelection(excluded = onClick != null) {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {}
+                    .defaultMinSize(minHeight = resolvedMinHeight)
+                    // Keyed on being a control at all, not on being enabled — a row that
+                    // changed height when it greyed out would jump the list around it.
+                    .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
+                    .focusRing(interactions, shape, enabled = interactive)
+                    .clip(shape)
+                    .background(container, shape)
+                    // `surfaceSunken` on `background` is **1.06:1** at the dark
+                    // enhanced tier and **1.14** at light's — a group of rows reads as
+                    // loose text rather than as one object with rows in it, which is
+                    // the exact thing the sunken ground exists to prevent. A well is
+                    // deliberately quiet, so at the tier that asks for more it is the
+                    // edge rather than the fill that has to say where a row ends.
+                    .then(if (edged) contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier else Modifier)
+                    .then(clickModifier)
+                    // `xs`, not `sm`. The 12dp version put 24dp of air around a
+                    // single line of text inside a row whose minimum is already 56dp,
+                    // so the padding was never what set the height — it only pushed a
+                    // two-line row taller than it needed to be. `MinHeight` holds the
+                    // floor for the one-line case, which is what it is for.
+                    .padding(start = startPadding, end = Theme.spacing.md)
+                    .padding(vertical = Theme.spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-            slots.leading?.let { leading ->
-                Box(contentAlignment = Alignment.Center) {
-                    // Muted and `iconLarge`, which is what the old `leadingIcon`
-                    // parameter did. Anything that is not a bare glyph — an avatar, a
-                    // checkbox — sets its own colours and is unaffected.
-                    ProvideContentColour(muted) {
-                        ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
-                    }
-                }
-            }
-
-            Column(Modifier.weight(1f)) {
-                slots.overline?.let { overline ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.labelSmall) {
-                            ContentSlot(maxLines = 1, content = overline)
+                slots.leading?.let { leading ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // Muted and `iconLarge`, which is what the old `leadingIcon`
+                        // parameter did. Anything that is not a bare glyph — an avatar, a
+                        // checkbox — sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
                         }
                     }
                 }
-                slots.label?.let { label ->
-                    ProvideContentColour(content) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            if (labelModifier == Modifier) {
-                                ContentSlot(maxLines = 2, content = label)
-                            } else {
-                                Box(labelModifier) { ContentSlot(maxLines = 2, content = label) }
+
+                Column(Modifier.weight(1f)) {
+                    slots.overline?.let { overline ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.labelSmall) {
+                                ContentSlot(maxLines = 1, content = overline)
+                            }
+                        }
+                    }
+                    slots.label?.let { label ->
+                        ProvideContentColour(content) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                if (labelModifier == Modifier) {
+                                    ContentSlot(maxLines = 2, content = label)
+                                } else {
+                                    Box(labelModifier) { ContentSlot(maxLines = 2, content = label) }
+                                }
+                            }
+                        }
+                    }
+                    slots.supporting?.let { supporting ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(maxLines = 2, content = supporting)
                             }
                         }
                     }
                 }
-                slots.supporting?.let { supporting ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodySmall) {
-                            ContentSlot(maxLines = 2, content = supporting)
-                        }
-                    }
-                }
-            }
 
-            slots.trailing?.let { trailing ->
-                Box(contentAlignment = Alignment.Center) {
-                    // A value — "4 min", "Kilometres" — in the row's muted
-                    // body style, dimming with the row. A control in the slot
-                    // sets its own colours and is unaffected.
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 1, content = trailing)
+                slots.trailing?.let { trailing ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // A value — "4 min", "Kilometres" — in the row's muted
+                        // body style, dimming with the row. A control in the slot
+                        // sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 1, content = trailing)
+                            }
                         }
                     }
                 }

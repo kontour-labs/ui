@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -91,71 +92,73 @@ fun Accordion(
     val shape = Theme.shapes.container
 
     Column(modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics(mergeDescendants = true) {
-                    role = Role.Button
-                    stateDescription = if (expanded) expandedLabel else collapsedLabel
-                }
-                // `fill`, for the reason `MenuItem` gives: a header is a row,
-                // and a row's highlight should be the row you press. One line
-                // of `titleSmall` inside 12dp of padding is 44dp, so on Android
-                // it sat 2dp short of its target at the top and bottom while
-                // reaching the full width. Less visible than a menu's 6dp and
-                // the same defect.
-                .minimumTouchTarget(fill = true)
-                .focusRing(interactions, shape)
-                .clip(shape)
-                .pointerCursor(enabled = enabled)
-                .clickable(
-                    interactionSource = interactions,
-                    // A header spanning the screen should not shrink on press.
-                    indication = kontourIndication(shape, pressScale = 1f),
-                    enabled = enabled,
-                    onClick = {
-                        tap()
-                        onExpandedChange(!expanded)
-                    },
-                )
-                .padding(Theme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val muted = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
-
-            slots.leading?.let { leading ->
-                ProvideContentColour(muted) {
-                    ContentSlot(content = leading)
-                }
-            }
-
-            Column(Modifier.weight(1f)) {
-                slots.label?.let { title ->
-                    ProvideContentColour(
-                        if (enabled) Theme.colours.content else Theme.colours.contentDisabled
-                    ) {
-                        ProvideTextStyle(Theme.typography.titleSmall) {
-                            ContentSlot(content = title)
-                        }
+        DisableSelection {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Button
+                        stateDescription = if (expanded) expandedLabel else collapsedLabel
                     }
-                }
-                slots.supporting?.let { supporting ->
+                    // `fill`, for the reason `MenuItem` gives: a header is a row,
+                    // and a row's highlight should be the row you press. One line
+                    // of `titleSmall` inside 12dp of padding is 44dp, so on Android
+                    // it sat 2dp short of its target at the top and bottom while
+                    // reaching the full width. Less visible than a menu's 6dp and
+                    // the same defect.
+                    .minimumTouchTarget(fill = true)
+                    .focusRing(interactions, shape)
+                    .clip(shape)
+                    .pointerCursor(enabled = enabled)
+                    .clickable(
+                        interactionSource = interactions,
+                        // A header spanning the screen should not shrink on press.
+                        indication = kontourIndication(shape, pressScale = 1f),
+                        enabled = enabled,
+                        onClick = {
+                            tap()
+                            onExpandedChange(!expanded)
+                        },
+                    )
+                    .padding(Theme.spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val muted = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
+
+                slots.leading?.let { leading ->
                     ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodySmall) {
-                            ContentSlot(content = supporting)
+                        ContentSlot(content = leading)
+                    }
+                }
+
+                Column(Modifier.weight(1f)) {
+                    slots.label?.let { title ->
+                        ProvideContentColour(
+                            if (enabled) Theme.colours.content else Theme.colours.contentDisabled
+                        ) {
+                            ProvideTextStyle(Theme.typography.titleSmall) {
+                                ContentSlot(content = title)
+                            }
+                        }
+                    }
+                    slots.supporting?.let { supporting ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(content = supporting)
+                            }
                         }
                     }
                 }
-            }
 
-            if (chevron != null) {
-                Icon(
-                    imageVector = chevron,
-                    contentDescription = null,
-                    tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
-                    modifier = Modifier.chevronTurn(expanded, label = "accordionChevron"),
-                )
+                if (chevron != null) {
+                    Icon(
+                        imageVector = chevron,
+                        contentDescription = null,
+                        tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
+                        modifier = Modifier.chevronTurn(expanded, label = "accordionChevron"),
+                    )
+                }
             }
         }
 

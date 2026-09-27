@@ -115,6 +115,10 @@ start of a line is left as written, because headings and lists are layout. A
 delimiter that never closes is shown as itself, and `snake_case` keeps its
 underscores. The parse is remembered against the string.
 
+**Text cannot be selected on its own.** Put reading a user may want to copy —
+an address, a reference number, an article — inside a
+[`SelectableText`](selectable-text.md).
+
 ---
 
 ## Accessibility

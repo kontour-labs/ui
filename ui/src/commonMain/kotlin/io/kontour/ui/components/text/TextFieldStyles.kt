@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.foundation.TextSelectionAlpha
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
 
@@ -200,7 +201,7 @@ object TextFieldDefaults {
             // rather than matching it, so it separates from the focused ground,
             // the unfocused ground and the page alike — and it is what every
             // text editor does, for the same reason.
-            selectionBackground = c.accent.solid.copy(alpha = SelectionAlpha),
+            selectionBackground = c.accent.solid.copy(alpha = TextSelectionAlpha),
         )
     }
 
@@ -216,13 +217,3 @@ object TextFieldDefaults {
         gap = Theme.spacing.xs,
     )
 }
-
-/**
- * How much of the accent a text selection lays over the ground beneath it.
- *
- * A third: enough to be unmistakable against a focused field's own tint, not so
- * much that the text on top of it loses its contrast — which is the failure at
- * the other end, and a worse one, because a selection you cannot read is harder
- * to work with than one you cannot see.
- */
-private const val SelectionAlpha = 0.35f

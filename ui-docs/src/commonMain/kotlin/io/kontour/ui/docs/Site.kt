@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.FileOff
+import com.composables.icons.tabler.outline.FileText
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.LayoutGrid
 import com.composables.icons.tabler.outline.Menu2
@@ -47,6 +49,7 @@ import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.list.ListGroup
@@ -54,6 +57,7 @@ import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.contract.componentRegistry
 import io.kontour.ui.demo.DemoCard
 import io.kontour.ui.demo.componentDemos
+import io.kontour.ui.foundation.SelectableText
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
@@ -337,13 +341,13 @@ private fun NavScope.indexItems(current: Route) {
             // behaviour, and it looks like the search is broken.
             expanded = searching || (familyOpen[family.name] ?: family.holds(current)),
             onExpandedChange = { familyOpen = familyOpen + (family.name to it) },
+            key = "family:${family.name}",
+            icon = null,
+            header = { +family.name },
         ) {
             indexFamily(family, current)
         }
     }
-            key = "family:${family.name}",
-            icon = null,
-            header = { +family.name },
 }
 
 /** One family's rows: its own page, then its components. */
@@ -376,13 +380,13 @@ private fun DocFamily.holds(route: Route): Boolean =
 private fun NavScope.indexItem(page: DocPage, current: Route, label: String? = null) {
     item(
         selected = current == Route.Doc(page.path),
+        onClick = { navigate(Route.Doc(page.path)) },
+        key = page.path,
+        icon = null,
     ) {
         +(label ?: page.indexLabel)
     }
 }
-        onClick = { navigate(Route.Doc(page.path)) },
-        key = page.path,
-        icon = null,
 
 /** Whether a page answers what was typed into the index's search field. */
 private fun DocPage.matches(query: String): Boolean =
@@ -565,42 +569,70 @@ private fun DocPageView(path: String) {
         // phone shows about ten of them. Shaping is the most expensive thing the
         // renderer does and it was being done for thirty times more text than
         // anybody could see.
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PagePadding(),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        ) {
-            item {
-                Text(text = page.heading, style = Theme.typography.displaySmall)
-            }
-            // No "Edit this page". The markdown behind these pages is a build
-            // input — the site's routing table, family tree and demo binding
-            // as much as its prose — and sending a reader to a file in a
-            // repository is the same mistake as the screenshots that used to
-            // sit at the top of every one of them: it treats the repository as
-            // a second place to read the documentation, and it is not one.
-            item { Specimens(page) }
+        //
+        // The whole page is one selection region: the title, the prose, the
+        // code and the parameter tables can be selected and copied, and a
+        // selection runs across blocks. It wraps the list rather than each
+        // block because a region per block would stop a drag at every
+        // paragraph. What a lazy list has not composed cannot be selected, so a
+        // selection reaches as far as the window does; "Open as text" is for
+        // the rest, and for the browser's find-in-page, which a canvas cannot
+        // offer.
+        SelectableText(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PagePadding(),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            ) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                        Text(text = page.heading, style = Theme.typography.displaySmall)
+                        // The page's Markdown, which `docs/lay-out-site.py` writes
+                        // beside the app: plain text a browser can search and an
+                        // agent can read. Relative, so it resolves under whatever
+                        // path the site is served from.
+                        TextButton(onClick = { openExternal(page.textUrl) }) {
+                            +Tabler.Outline.FileText
+                            +"Open as text"
+                        }
+                    }
+                }
+                // No "Edit this page". The markdown behind these pages is a build
+                // input — the site's routing table, family tree and demo binding
+                // as much as its prose — and sending a reader to a file in a
+                // repository is the same mistake as the screenshots that used to
+                // sit at the top of every one of them: it treats the repository as
+                // a second place to read the documentation, and it is not one.
+                //
+                // Out of the selection: the demos are things to press and drag,
+                // and a drag across a slider that selected the page instead would
+                // be a demo that does not work.
+                item { DisableSelection { Specimens(page) } }
 
-            // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
-            //
-            // It was written the other way round. `fillMaxWidth` fixes the
-            // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
-            // [0, 760] against a minimum of W — so on any window wider than
-            // 760dp the cap was discarded and the line ran the full width. On a
-            // 1600px display that is a 1600px measure, which is exactly what the
-            // comment on `ProseWidth` says it prevents. Written outside, the
-            // ceiling is in place before anything fills to it.
-            //
-            // The sidebar two hundred lines up has always had it in this order,
-            // which is why that one worked.
-            prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
+                //
+                // It was written the other way round. `fillMaxWidth` fixes the
+                // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
+                // [0, 760] against a minimum of W — so on any window wider than
+                // 760dp the cap was discarded and the line ran the full width. On a
+                // 1600px display that is a 1600px measure, which is exactly what the
+                // comment on `ProseWidth` says it prevents. Written outside, the
+                // ceiling is in place before anything fills to it.
+                //
+                // The sidebar two hundred lines up has always had it in this order,
+                // which is why that one worked.
+                prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
 
-            item {
-                ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                item {
+                    ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                }
             }
         }
     }
 }
+
+/** Where `docs/lay-out-site.py` mirrors this page as Markdown, relative to the site. */
+internal val DocPage.textUrl: String get() = "md/$path.md"
 
 /**
  * The component itself, running, above its prose.

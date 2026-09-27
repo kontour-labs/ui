@@ -426,3 +426,10 @@ have been writing by hand:
   dimming it, so nothing marks where the stack ends.
 - **Icons in `richText`:** `+Icons.Clock`, or `icon(icon, contentDescription)`,
   put an icon in the line; `Text` draws it, with no `inlineContent` to write.
+- **`SelectableText`**, a region whose text the reader can select and copy;
+  nothing in the library is selectable outside one. `KontourTheme` now provides
+  `LocalTextSelectionColors` — the accent, as `TextField` already drew it — and
+  **inside any selection region, a `SelectionContainer` of your own included,
+  controls' labels and clickable rows no longer take part in a selection**, and
+  neither does redacted text. A drag across a paragraph with a button in it
+  copies the paragraph.

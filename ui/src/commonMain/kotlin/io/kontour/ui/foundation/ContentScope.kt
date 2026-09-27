@@ -2,6 +2,7 @@ package io.kontour.ui.foundation
 
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.painter.Painter
@@ -162,7 +163,9 @@ internal class RowContentScopeImpl(
  * FAB, `Tag`, the three `Chip` variants and a `TabBar` tab. That is why this is
  * where [io.kontour.ui.theme.ComponentDefaults.uppercaseLabels] is read and [ContentSlot] is not —
  * the split between the two helpers already falls exactly on the line between a
- * label and a piece of prose, so the flag needs no list of its own.
+ * label and a piece of prose, so the flag needs no list of its own. It is also
+ * why a label is never part of a text selection, and prose in a [ContentSlot]
+ * can be.
  */
 @Composable
 internal fun RowScope.contentScope(
@@ -171,13 +174,17 @@ internal fun RowScope.contentScope(
     overflow: TextOverflow = TextOverflow.Clip,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    RowContentScopeImpl(
-        this,
-        iconSize,
-        maxLines,
-        overflow,
-        uppercase = Theme.componentDefaults.uppercaseLabels,
-    ).content()
+    // A label is pressed, not read: a drag across a paragraph in a
+    // `SelectableText` should pick up the paragraph and not the button in it.
+    DisableSelection {
+        RowContentScopeImpl(
+            this,
+            iconSize,
+            maxLines,
+            overflow,
+            uppercase = Theme.componentDefaults.uppercaseLabels,
+        ).content()
+    }
 }
 
 /** Runs [content] as a slot with no layout of its own. */

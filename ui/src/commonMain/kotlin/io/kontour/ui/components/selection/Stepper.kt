@@ -4,6 +4,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -178,24 +179,26 @@ fun Stepper(
             .widthIn(min = maxOf(valueWidth, widestValue))
             .clearAndSetSemantics {}
 
-        if (animateValue) {
-            AnimatedCounter(
-                value = shown,
-                format = format,
-                style = valueStyle,
-                // The column is wider than the number so the buttons do not
-                // shuffle as it grows; the number belongs in the middle of it,
-                // the way the static branch below has always put it.
-                horizontalArrangement = Arrangement.Center,
-                modifier = valueModifier,
-            )
-        } else {
-            Text(
-                text = format(shown),
-                style = valueStyle,
-                textAlign = TextAlign.Center,
-                modifier = valueModifier,
-            )
+        DisableSelection {
+            if (animateValue) {
+                AnimatedCounter(
+                    value = shown,
+                    format = format,
+                    style = valueStyle,
+                    // The column is wider than the number so the buttons do not
+                    // shuffle as it grows; the number belongs in the middle of it,
+                    // the way the static branch below has always put it.
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = valueModifier,
+                )
+            } else {
+                Text(
+                    text = format(shown),
+                    style = valueStyle,
+                    textAlign = TextAlign.Center,
+                    modifier = valueModifier,
+                )
+            }
         }
 
         IconButton(

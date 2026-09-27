@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,10 +21,12 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Star
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.foundation.SelectableText
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
@@ -194,6 +197,30 @@ internal val ClearFocusOnTapDemo = ComponentDemo(
     }
 }
 
+private val selectableRegion = Knob.Flag("In a SelectableText", initial = true)
+
+internal val SelectableTextDemo = ComponentDemo(
+    slug = "selectable-text",
+    knobs = listOf(selectableRegion),
+) {
+    // The same notice both ways: with the knob off a drag does nothing, which
+    // is the library's default and the comparison worth making. With it on, a
+    // drag across all of it copies the title and the sentence, not the button.
+    val notice = @Composable {
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            Text("Replacement buses", style = Theme.typography.titleMedium)
+            Text("Midland line, Saturday 14 June, 6am to 10pm. Buses leave from stand 4.")
+            Button(onClick = {}) { +"Plan around it" }
+            Text(
+                "Drag across the notice, or double-click a word, then copy.",
+                style = Theme.typography.bodySmall,
+                colour = Theme.colours.contentMuted,
+            )
+        }
+    }
+    if (this[selectableRegion]) SelectableText { notice() } else notice()
+}
+
 internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator") {
     var selected by remember { mutableStateOf(0) }
     val tabs = listOf("Departures", "Route map", "Alerts")
@@ -217,6 +244,7 @@ internal val SelectionIndicatorDemo = ComponentDemo(slug = "selection-indicator"
 internal val foundationDemos = listOf(
     ClearFocusOnTapDemo,
     TextDemo,
+    SelectableTextDemo,
     IconDemo,
     SurfaceDemo,
     DividerDemo,

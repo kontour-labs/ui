@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -155,61 +156,63 @@ fun SelectionRow(
         LocalRowInteractionSource provides interactions,
         LocalRowToggle provides rowToggle,
     ) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .then(selectionModifier)
-                .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val labelColour = if (enabled) colours.content else colours.contentDisabled
-            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
-
-            slots.leading?.let { leading ->
-                Box(contentAlignment = Alignment.Center) {
-                    ProvideContentColour(muted) {
-                        ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
-                    }
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+        DisableSelection {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .then(selectionModifier)
+                    .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                slots.overline?.let { overline ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.labelSmall) {
-                            ContentSlot(maxLines = 1, content = overline)
-                        }
-                    }
-                }
-                slots.label?.let { label ->
-                    ProvideContentColour(labelColour) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 2, content = label)
-                        }
-                    }
-                }
-                slots.supporting?.let { supporting ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodySmall) {
-                            ContentSlot(maxLines = 2, content = supporting)
-                        }
-                    }
-                }
-            }
+                val labelColour = if (enabled) colours.content else colours.contentDisabled
+                val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-            slots.trailing?.let { trailing ->
-                Box(contentAlignment = Alignment.Center) {
-                    // A value — "4 min", "Kilometres" — in the row's muted
-                    // body style, dimming with the row. A control in the slot
-                    // sets its own colours and is unaffected.
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 1, content = trailing)
+                slots.leading?.let { leading ->
+                    Box(contentAlignment = Alignment.Center) {
+                        ProvideContentColour(muted) {
+                            ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    slots.overline?.let { overline ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.labelSmall) {
+                                ContentSlot(maxLines = 1, content = overline)
+                            }
+                        }
+                    }
+                    slots.label?.let { label ->
+                        ProvideContentColour(labelColour) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 2, content = label)
+                            }
+                        }
+                    }
+                    slots.supporting?.let { supporting ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(maxLines = 2, content = supporting)
+                            }
+                        }
+                    }
+                }
+
+                slots.trailing?.let { trailing ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // A value — "4 min", "Kilometres" — in the row's muted
+                        // body style, dimming with the row. A control in the slot
+                        // sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 1, content = trailing)
+                            }
                         }
                     }
                 }

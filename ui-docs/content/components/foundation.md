@@ -5,6 +5,7 @@ The primitives every other component is built from.
 | | |
 |---|---|
 | [`Text`](text.md) | Resolves style and colour from the theme. `String` and `AnnotatedString` overloads |
+| [`SelectableText`](selectable-text.md) | A region whose text the reader can select and copy. Nothing is selectable outside one |
 | [`Icon`](icon.md) | Tinted to the surrounding content colour. Takes an `ImageVector` or `Painter` |
 | [`Surface`](surface.md) | Background, shape, border, shadow — and sets `LocalContentColour` |
 | [`HorizontalDivider` / `VerticalDivider`](divider.md) | Decorative rules |

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
@@ -105,26 +106,28 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
         return
     }
 
-    Text(
-        text = crumb.label,
-        modifier = Modifier
-            .semantics { role = Role.Button }
-            .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .pointerCursor()
-            .clickable(
-                interactionSource = interactions,
-                // A crumb is a link-sized button; nothing else here answers the tap.
-                indication = kontourIndication(
-                    shape,
-                    io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
-                ),
-                onClick = onClick,
-            )
-            .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-        style = Theme.typography.bodySmall,
-        colour = colours.contentMuted,
-        maxLines = 1,
-    )
+    DisableSelection {
+        Text(
+            text = crumb.label,
+            modifier = Modifier
+                .semantics { role = Role.Button }
+                .minimumTouchTarget()
+                .focusRing(interactions, shape)
+                .clip(shape)
+                .pointerCursor()
+                .clickable(
+                    interactionSource = interactions,
+                    // A crumb is a link-sized button; nothing else here answers the tap.
+                    indication = kontourIndication(
+                        shape,
+                        io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
+                    ),
+                    onClick = onClick,
+                )
+                .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
+            style = Theme.typography.bodySmall,
+            colour = colours.contentMuted,
+            maxLines = 1,
+        )
+    }
 }

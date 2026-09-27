@@ -1,6 +1,7 @@
 package io.kontour.ui.theme
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -9,6 +10,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
+import io.kontour.ui.foundation.textSelectionColours
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
@@ -308,6 +310,9 @@ fun KontourTheme(
         LocalBackdropBlur provides backdropBlur,
         LocalContentColour provides resolvedColours.content,
         LocalTextStyle provides typography.bodyMedium,
+        // The target's, like the scheme itself: a selection is not something to
+        // repaint on every frame of a fade. `TextField` draws the same pair.
+        LocalTextSelectionColors provides remember(colours) { colours.textSelectionColours() },
         LocalFeedback provides feedback,
         // One floor per theme, so every light haptic under it shares a rate
         // limit. A floor per component is a floor per component, and a hand does
@@ -447,9 +452,10 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  * `Icon` in the subtree, because `LocalContentColour` is derived from the scheme
  * at the point [KontourTheme] provides it and is not re-derived by providing the
  * scheme again. Half the subtree changes. Nothing errors. The same trap sits
- * under `LocalTextStyle`, derived from `typography.bodyMedium`.
+ * under `LocalTextStyle`, derived from `typography.bodyMedium`, and under
+ * `LocalTextSelectionColors`, derived from the accent.
  *
- * So this re-provides both — but only where they have not been *narrowed*. A
+ * So this re-provides all three — but only where they have not been *narrowed*. A
  * `Surface` sets `LocalContentColour` to the colour that reads on the ground it
  * just painted, and that ground is still painted in the outgoing palette, so its
  * narrowing is not stale and must survive. The test is equality with the
@@ -489,6 +495,10 @@ fun ProvideTokens(
 
     val contentColour = LocalContentColour.current
     val textStyle = LocalTextStyle.current
+    // Compared with the scheme's target, which is what `KontourTheme` derived it
+    // from — not the frame of a fade `outgoingColours` may be.
+    val selectionColours = LocalTextSelectionColors.current
+    val inheritedSelection = selectionColours == LocalColourScheme.current.textSelectionColours()
 
     CompositionLocalProvider(
         LocalColourScheme provides colours,
@@ -508,6 +518,8 @@ fun ProvideTokens(
             },
         LocalTextStyle provides
             if (textStyle == outgoingTypography.bodyMedium) typography.bodyMedium else textStyle,
+        LocalTextSelectionColors provides
+            if (inheritedSelection) colours.textSelectionColours() else selectionColours,
         content = content,
     )
 }

@@ -88,27 +88,31 @@ fun Text(
 ) {
     val redaction = rememberTextRedaction()
 
-    BasicText(
-        text = text,
-        modifier = modifier.then(redaction.modifier),
-        style = resolveTextStyle(
-            style = style,
-            colour = colour,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            fontWeight = fontWeight,
-            fontFamily = fontFamily,
-            letterSpacing = letterSpacing,
-            textDecoration = textDecoration,
-            textAlign = textAlign,
-            lineHeight = lineHeight,
-        ),
-        onTextLayout = redaction.layoutCallback(onTextLayout),
-        overflow = overflow,
-        softWrap = softWrap,
-        maxLines = maxLines,
-        minLines = minLines,
-    )
+    // A redacted string is still here, so it can measure like the real one —
+    // and must not be handed over by a selection around it.
+    ExcludeFromSelection(redaction.redacted) {
+        BasicText(
+            text = text,
+            modifier = modifier.then(redaction.modifier),
+            style = resolveTextStyle(
+                style = style,
+                colour = colour,
+                fontSize = fontSize,
+                fontStyle = fontStyle,
+                fontWeight = fontWeight,
+                fontFamily = fontFamily,
+                letterSpacing = letterSpacing,
+                textDecoration = textDecoration,
+                textAlign = textAlign,
+                lineHeight = lineHeight,
+            ),
+            onTextLayout = redaction.layoutCallback(onTextLayout),
+            overflow = overflow,
+            softWrap = softWrap,
+            maxLines = maxLines,
+            minLines = minLines,
+        )
+    }
 }
 
 /**
@@ -175,17 +179,19 @@ fun Text(
         inlineContent
     }
 
-    BasicText(
-        text = text,
-        modifier = modifier.then(redaction.modifier),
-        style = resolved,
-        onTextLayout = redaction.layoutCallback(onTextLayout),
-        overflow = overflow,
-        softWrap = softWrap,
-        maxLines = maxLines,
-        minLines = minLines,
-        inlineContent = content,
-    )
+    ExcludeFromSelection(redaction.redacted) {
+        BasicText(
+            text = text,
+            modifier = modifier.then(redaction.modifier),
+            style = resolved,
+            onTextLayout = redaction.layoutCallback(onTextLayout),
+            overflow = overflow,
+            softWrap = softWrap,
+            maxLines = maxLines,
+            minLines = minLines,
+            inlineContent = content,
+        )
+    }
 }
 
 @Composable

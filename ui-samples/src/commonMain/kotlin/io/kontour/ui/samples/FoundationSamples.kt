@@ -36,6 +36,7 @@ import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
@@ -46,6 +47,7 @@ import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.foundation.SelectableText
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
@@ -320,6 +322,17 @@ fun KbdBasics() {
         Kbd { +KbdIcons.Command }
         Kbd { +"K" }
         Text("opens the command palette", style = Theme.typography.bodySmall)
+    }
+}
+
+@Composable
+fun SelectableTextBasics() {
+    SelectableText {
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            Text("Replacement buses", style = Theme.typography.titleMedium)
+            Text("Midland line, Saturday 14 June, 6am to 10pm. Buses leave from stand 4.")
+            Button(onClick = { plan() }) { +"Plan around it" }
+        }
     }
 }
 
