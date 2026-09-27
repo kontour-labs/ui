@@ -292,7 +292,10 @@ scrim still has to carry the separation on its own, and does.
 The host answers back itself: the Android back gesture, iOS's edge swipe,
 Escape on the desktop and the web all reach the topmost entry that takes it,
 and nothing beneath it. With nothing open, back goes past the host to whatever
-is behind it — a navigation stack, the platform.
+is behind it — a navigation stack, the platform. On iOS the outermost host
+tracks the edge swipe itself rather than taking the platform's, so a released
+swipe carries on at the finger's speed — see
+[Navigation 3](navigation3.md).
 
 An entry takes back when it has `dismissOnBack = true`, or when it dims the page
 with `ScrimStyle.Dimmed`. It then keeps back from going any further — to the
@@ -310,9 +313,18 @@ dismissed:
   not move, and `onDismissRequest` is not called. `Dialog`, `ModalBottomSheet`,
   `ModalSideSheet` and `CommandPalette` set `dismissOnBack` from their
   `dismissible`.
-- **iOS** (`BackStyle.Swipe`): back never closes an overlay. A sheet is dragged
-  down there, a dialog is answered and a menu is tapped away, as they always
-  were; the edge swipe does nothing to them.
+- **iOS** (`BackStyle.Swipe`): back closes one kind of overlay, the one iOS
+  swipes away — a `ModalSideSheet`, and so a `ModalNavDrawer`, that may be
+  dismissed. It follows a drag towards its own edge by its own slide: on the
+  sheet, anywhere, after anything inside that scrolls sideways; or, for a sheet
+  on the right, the edge swipe from the left, whose finger goes the same way.
+  Past half, or on a flick, it closes; otherwise it slides back. A drawer on the
+  left closes by its own drag left, and the edge swipe leaves it alone. A key
+  closes a side sheet too.
+
+  Everything else stays as it always was there: a bottom sheet is dragged down,
+  a dialog is answered and a menu is tapped away, and the edge swipe does
+  nothing to them.
 
 Toasts and plain tooltips neither dismiss on back nor dim, so a back press while
 a toast is up leaves the screen rather than dismissing a confirmation the user

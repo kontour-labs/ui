@@ -170,7 +170,23 @@ from iOS 26 — not only one from the leading edge. It yields: anything on the
 page that pans sideways first, a carousel, a row's swipe actions, a slider, a
 horizontal list, keeps its pan, and only a pan that goes mostly sideways towards
 the trailing edge becomes back. `rememberPageTransitionStrategy(contentSwipe =
-false)` leaves only the edge.
+false)` leaves only the edge. `Modifier.contentSwipeBack` is the same pan for a
+page of your own, outside `NavDisplay`.
+
+**On iOS the library tracks the swipe itself** — the edge swipe as well as the
+pan from the content — through the outermost `OverlayHost`, so that letting go
+carries on at the finger's speed: past half the width, or on a flick, the page
+goes the rest of the way on a spring that starts at the speed the finger left
+it, with no pause at the moment it lifts; a flick back, or less than half,
+springs it home the same way. The platform's own swipe reports only that the
+finger lifted, and a `NavDisplay` finishes from there at the transition's pace.
+
+**A stack inside a sheet is the sheet's colour.** Each page paints
+`LocalContainerColour` — the ground of the `Surface` it is in — and inside an
+overlay the page going under fades towards it rather than dimming, so a stack
+that does not reach the sheet's edges, with the sheet's grabber above it and its
+safe-area padding below, draws no edge against them as it goes back. On the
+window's own ground the page beneath dims, as iOS's does.
 
 A page's own `NavDisplay.transitionSpec { … }` in its entry's metadata still
 wins. A `transitionSpec` passed to `NavDisplay` itself does not, for decorated
@@ -181,8 +197,9 @@ on every platform — the Android back gesture, iOS's edge swipe, Escape on the
 desktop and the web:
 
 1. the topmost overlay that takes back — a dialog, a sheet. On Android it closes
-   by its own exit animation; on iOS back does not close overlays, so it stops
-   there (see [Overlays](overlays.md#back-and-dismissal));
+   by its own exit animation; on iOS back closes only a side sheet, swiped
+   towards its edge, and otherwise stops there (see
+   [Overlays](overlays.md#back-and-dismissal));
 2. a handler inside it — a stack in a sheet, on both;
 3. a pane: the detail beside its list, or the supporting pane beside its main
    one, which the scene closes itself, following the hand, because the scene
@@ -202,8 +219,9 @@ A third pane — Material's list-detail has an "extra" one — because the libra
 has no three-pane scaffold to lay it out. Shared-element transitions between
 panes, which are `NavDisplay`'s to add and not a layout's.
 
-A back gesture let go finishes on the transition's own remaining curve, so the
-speed of a flick does not carry into it; that would need `NavDisplay` itself to
-change. In two panes, a detail being dragged away
+Android's back gesture, let go, finishes on the transition's own remaining
+curve, so the speed of a flick does not carry into it: the system reports only
+that it was let go, and it is the system's gesture rather than one the library
+could track. iOS's does carry it, above. In two panes, a detail being dragged away
 uncovers the pane's ground rather than the detail before it, which comes up
 once the gesture is let go.

@@ -1928,6 +1928,7 @@ public final class io/kontour/ui/foundation/LinkDefaults {
 public final class io/kontour/ui/foundation/LocalContentKt {
 	public static final fun ProvideContentColour-Iv8Zu3U (JLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun ProvideTextStyle (Landroidx/compose/ui/text/TextStyle;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun getLocalContainerColour ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalContentColour ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalTextStyle ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 }
@@ -1954,6 +1955,8 @@ public final class io/kontour/ui/foundation/RichTextScope {
 	public final fun bold (Ljava/lang/String;)V
 	public final fun bold (Lkotlin/jvm/functions/Function1;)V
 	public final fun code (Ljava/lang/String;)V
+	public final fun icon-OxQ4cp8 (Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;JJ)V
+	public static synthetic fun icon-OxQ4cp8$default (Lio/kontour/ui/foundation/RichTextScope;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;JJILjava/lang/Object;)V
 	public final fun italic (Ljava/lang/String;)V
 	public final fun italic (Lkotlin/jvm/functions/Function1;)V
 	public final fun link (Ljava/lang/String;Ljava/lang/String;)V
@@ -1965,6 +1968,7 @@ public final class io/kontour/ui/foundation/RichTextScope {
 	public final fun strikethrough (Lkotlin/jvm/functions/Function1;)V
 	public final fun tone (Lio/kontour/ui/theme/Tone;Ljava/lang/String;)V
 	public final fun tone (Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function1;)V
+	public final fun unaryPlus (Landroidx/compose/ui/graphics/vector/ImageVector;)V
 	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
 	public final fun unaryPlus (Ljava/lang/String;)V
 }
@@ -2349,6 +2353,10 @@ public final class io/kontour/ui/motion/SurfacesKt {
 	public static final fun atmosphere-eaDK9VM (Landroidx/compose/ui/Modifier;FJJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun edgeVignette-xfPyhaw (Landroidx/compose/ui/Modifier;FFFJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun shimmer-E_cnhBE (Landroidx/compose/ui/Modifier;JJJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class io/kontour/ui/motion/SwipeBackKt {
+	public static final fun contentSwipeBack (Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/motion/Transitions {

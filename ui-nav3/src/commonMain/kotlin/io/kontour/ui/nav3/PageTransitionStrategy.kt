@@ -50,9 +50,14 @@ import io.kontour.ui.theme.Theme
  * Overlay scenes — the supporting pane as a sheet, a dialog — are left alone:
  * they are overlays, and the overlay host answers back for those.
  *
- * **What is not here.** A gesture let go finishes on the transform's own
- * remaining curve, so the velocity of a flick does not carry into it. That
- * would need `NavDisplay` itself to change.
+ * Each page paints the ground of the surface it is in — `LocalContainerColour`
+ * — so a stack inside a sheet is the sheet's colour, and going back in one
+ * draws no edge against the sheet around it.
+ *
+ * **Let go, a swipe carries on at the finger's speed** on iOS, where the
+ * library tracks the swipe itself. Android's back gesture is the system's, and
+ * finishes on the transform's own remaining curve: the velocity of a flick
+ * does not carry into it there.
  *
  * @param contentSwipe Under swipe back, whether a sideways pan from anywhere on
  *   the page goes back, as it does on iOS 26 — not just one from the leading

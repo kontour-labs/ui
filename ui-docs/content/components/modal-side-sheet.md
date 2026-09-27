@@ -2,7 +2,9 @@
 
 A panel from the side that owns the screen until it is dealt with — filters, a
 detail, a second level of something. Scrim behind, focus held inside, dismissed by
-a tap outside, by back, or by its own close button.
+a tap outside, by back, or by its own close button. On iOS back is a drag towards
+the sheet's edge, which it follows by its own slide — see
+[Overlays](../overlays.md#back-and-dismissal).
 
 <!--sample:ModalSideSheetBasics-->
 ```kotlin

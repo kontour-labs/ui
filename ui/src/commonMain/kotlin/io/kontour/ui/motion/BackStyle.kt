@@ -19,19 +19,20 @@ import io.kontour.ui.platform.platformBackStyle
  */
 enum class BackStyle {
     /**
-     * Android's predictive back. The page lifts off — scaling to nine tenths,
-     * rounding its corners, drifting with the finger — and the page it will
-     * return to is revealed behind it before anything is committed. A sheet
-     * shrinks towards its edge; a dialog shrinks where it is.
+     * Android's predictive back. The page follows the finger from whichever
+     * edge the gesture came from, over the page it will return to, before
+     * anything is committed — it moves, whole, and does not shrink. An overlay
+     * that may be dismissed runs its own exit backwards with the gesture.
      */
     Predictive,
 
     /**
      * iOS's swipe back. The page follows the finger one to one from the leading
-     * edge, casting a shadow on the page beneath, which slides in from a third
-     * of the way across under a fading dim. A sheet is dismissed the way a
-     * sheet is on iOS — by moving down — and a dialog, which UIKit never lets a
-     * gesture drag, only fades.
+     * edge, or from anywhere on the content as iOS 26 allows, casting a shadow
+     * on the page beneath, which slides in from a third of the way across. Let
+     * go, it carries on at the finger's speed. Of the overlays, back closes
+     * only a side sheet, swiped towards its own edge; a bottom sheet is dragged
+     * down and a dialog answered, as they always are there.
      */
     Swipe,
 }

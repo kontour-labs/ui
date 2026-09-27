@@ -141,9 +141,16 @@ open left the screen, and `ListDetailPaneScaffold.onBack` was never called. Now:
 
 - **Overlays take back.** The `OverlayHost` gives it to the topmost entry that
   takes it. On Android it closes by the overlay's own exit animation, following
-  the gesture; on iOS back does not close overlays at all, and only stops at
-  them. A handler of your own that called `overlayHost.dismissTop()` on back
-  still works, but never sees an overlay now — remove it.
+  the gesture; on iOS back closes only a side sheet, swiped towards its own
+  edge, and otherwise only stops at the overlay. A handler of your own that
+  called `overlayHost.dismissTop()` on back still works, but never sees an
+  overlay now — remove it.
+- **On iOS the outermost `OverlayHost` takes the back swipe from the platform.**
+  It gives everything under it a back dispatcher of its own and tracks the edge
+  swipe itself, so a released swipe carries on at the finger's speed rather
+  than pausing and finishing at the transition's. A handler registered on the
+  platform's `NavigationEventDispatcher` *outside* the host no longer hears the
+  swipe; register it inside, through `LocalNavigationEventDispatcherOwner`.
 - **A dimmed modal that may not be dismissed swallows back.** `Dialog`,
   `ModalBottomSheet`, `ModalSideSheet` and `CommandPalette` with
   `dismissible = false` take back and do nothing with it, rather than letting it
@@ -325,4 +332,15 @@ have been writing by hand:
   pass `null` to leave one out.
 - **Back:** `BackStyle` and `LocalBackStyle`; `PageMotion`, `rememberPageMotion`
   and `Modifier.pageEffects`, for an app that runs its own `AnimatedContent`
-  between pages and wants them to move the way the platform's do.
+  between pages and wants them to move the way the platform's do; and
+  `Modifier.contentSwipeBack`, iOS 26's back from anywhere on the page, for a
+  page of that kind.
+- **`LocalContainerColour`**, the ground content sits on, provided by every
+  opaque `Surface`. A page in a navigation stack paints it, so a stack inside a
+  sheet is the sheet's colour, and **`TopBar` now defaults to it** rather than to
+  `Theme.colours.background` — the same colour on the window, the sheet's inside
+  a sheet. Pass `containerColour` to keep the old one. Inside an overlay,
+  `Modifier.pageEffects` fades the page beneath towards that colour instead of
+  dimming it, so nothing marks where the stack ends.
+- **Icons in `richText`:** `+Icons.Clock`, or `icon(icon, contentDescription)`,
+  put an icon in the line; `Text` draws it, with no `inlineContent` to write.
