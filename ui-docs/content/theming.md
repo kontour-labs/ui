@@ -115,15 +115,17 @@ KontourTheme(
 ```
 
 `Strings` is a token group like the rest, and it holds every word the library
-draws that you did not supply — 47 of them. Each component still takes its own
-parameter, defaulted from here, so a one-off at a call site keeps working and an
-app-wide change is one argument rather than a sweep through every call site.
+draws that you did not supply — seventy-one words and sixteen phrases. Each
+component still takes its own parameter, defaulted from here, so a one-off at a
+call site keeps working and an app-wide change is one argument rather than a
+sweep through every call site.
 
 One field per idea, not per parameter: `SheetHeader`, `SideSheet` and
-`ModalBottomSheet` all say "Close" and all three read `strings.close`. It is not
-a localisation system — no plurals, no locale lookup, no resource bundle — and
-it is not trying to be. What it guarantees is that no English is welded into a
-component, so an app can feed it from whatever it already uses.
+`ModalBottomSheet` all say "Close" and all three read `strings.close`. A phrase
+with a number in it takes a `Quantity`, so a translation picks its own plural
+form and word order, and `Strings.from` reads every field from whatever resource
+system an app already uses. [Localisation](localisation.md#words) has the
+recipes; the library ships no translations of its own.
 
 **Let an in-app setting win over the OS:**
 

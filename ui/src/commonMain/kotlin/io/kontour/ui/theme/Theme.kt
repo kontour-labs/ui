@@ -24,6 +24,8 @@ import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
 import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.ScriptTypography
+import io.kontour.ui.locale.forLocale
 import io.kontour.ui.locale.layoutDirection
 import io.kontour.ui.locale.platformLocale
 import io.kontour.ui.locale.rememberLocaleFormats
@@ -282,6 +284,13 @@ fun KontourTheme(
      */
     formats: LocaleFormats = inheritedFormats(locale),
     /**
+     * What the type scale does for [locale]'s script: faces of the app's own for
+     * scripts the bundled ones do not cover, and — by default — tracking,
+     * leading and italics made safe for scripts that are not Latin. See
+     * [ScriptTypography].
+     */
+    scriptTypography: ScriptTypography = ScriptTypography(),
+    /**
      * How much physical feedback the app gives. See [HapticsLevel].
      *
      * Separate from [feedback], which decides what each intent *feels like*.
@@ -293,6 +302,10 @@ fun KontourTheme(
     content: @Composable () -> Unit,
 ) {
     val feedbackFloor = remember { FeedbackFloor() }
+    // Every style told its locale, and fitted to its script: an Arabic label
+    // with Latin tracking comes apart, and a Hindi one at Latin leading loses
+    // the tops of its vowel signs.
+    val localisedTypography = remember(typography, locale, scriptTypography) { typography.forLocale(locale, scriptTypography) }
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
     // token locals but must not install a second modality tracker: two Boxes
     // observing the same pointer stream is wasted work, and the inner one would
@@ -351,7 +364,7 @@ fun KontourTheme(
         // frames go through `LocalThemeFade`, which never changes identity, and
         // `Theme.colours` puts the two back together.
         LocalColourScheme provides colours,
-        LocalTypography provides typography,
+        LocalTypography provides localisedTypography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
         LocalElevation provides elevation,
@@ -364,7 +377,7 @@ fun KontourTheme(
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
         LocalContentColour provides resolvedColours.content,
-        LocalTextStyle provides typography.bodyMedium,
+        LocalTextStyle provides localisedTypography.bodyMedium,
         // The target's, like the scheme itself: a selection is not something to
         // repaint on every frame of a fade. `TextField` draws the same pair.
         LocalTextSelectionColors provides remember(colours) { colours.textSelectionColours() },

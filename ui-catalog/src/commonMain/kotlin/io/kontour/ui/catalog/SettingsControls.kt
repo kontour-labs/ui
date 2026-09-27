@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -171,6 +172,18 @@ fun DisplaySettingsControls(
     )
 
     Text(
+        text = "Pseudo-locale",
+        style = Theme.typography.labelMedium,
+        modifier = Modifier.padding(top = Theme.spacing.sm),
+    )
+    SegmentedControl(
+        options = pseudoLocales.map { it.first },
+        selectedIndex = pseudoLocales.indexOfFirst { it.second == settings.pseudoLocale }.coerceAtLeast(0),
+        onSelectedIndexChange = { settings.pseudoLocale = pseudoLocales[it].second },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    Text(
         text = "Haptics",
         style = Theme.typography.labelMedium,
         modifier = Modifier.padding(top = Theme.spacing.sm),
@@ -241,4 +254,16 @@ val textScales: List<Pair<String, Float?>> = listOf(
     "100" to 1f,
     "130" to 1.3f,
     "200" to 2f,
+)
+
+/**
+ * The pseudo-locales, "Off" first: longer and accented, mirrored with other
+ * digits, and marks stacked above and below — the three things a real
+ * translation breaks, without waiting for one.
+ */
+private val pseudoLocales = listOf(
+    "Off" to null,
+    "Longer" to PseudoLocale.Accented,
+    "Mirrored" to PseudoLocale.Bidi,
+    "Tall" to PseudoLocale.Tall,
 )

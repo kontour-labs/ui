@@ -3,7 +3,6 @@ package io.kontour.ui.theme
 import androidx.compose.runtime.Immutable
 import io.kontour.ui.components.selection.ColourChannel
 import io.kontour.ui.components.selection.ColourFormat
-import io.kontour.ui.locale.PluralCategory
 import io.kontour.ui.locale.Quantity
 
 /**
@@ -283,7 +282,7 @@ data class Strings(
          * // Android resources, as `docs/export-strings.py` writes them.
          * val strings = Strings.from(object : StringLookup {
          *     override fun text(key: String) = resources.string("kontour_$key")
-         *     override fun plural(key: String, category: PluralCategory) = resources.plural("kontour_$key", category)
+         *     override fun plural(key: String, quantity: Quantity) = resources.plural("kontour_$key", quantity.value)
          * })
          * ```
          *
@@ -318,30 +317,30 @@ data class Strings(
         nextPage = lookup.text("nextPage") ?: fallback.nextPage,
         goToPage = lookup.text("goToPage") ?: fallback.goToPage,
         goToPageConfirm = lookup.text("goToPageConfirm") ?: fallback.goToPageConfirm,
-        pageNumber = { page -> lookup.phrase("pageNumber", page.category, page.formatted) ?: fallback.pageNumber(page) },
-        itemOfCount = { position, count -> lookup.phrase("itemOfCount", count.category, position.formatted, count.formatted) ?: fallback.itemOfCount(position, count) },
-        pageOfCount = { page, count -> lookup.phrase("pageOfCount", count.category, page.formatted, count.formatted) ?: fallback.pageOfCount(page, count) },
+        pageNumber = { page -> lookup.phrase("pageNumber", page, page.formatted) ?: fallback.pageNumber(page) },
+        itemOfCount = { position, count -> lookup.phrase("itemOfCount", count, position.formatted, count.formatted) ?: fallback.itemOfCount(position, count) },
+        pageOfCount = { page, count -> lookup.phrase("pageOfCount", count, page.formatted, count.formatted) ?: fallback.pageOfCount(page, count) },
         moveUp = lookup.text("moveUp") ?: fallback.moveUp,
         moveDown = lookup.text("moveDown") ?: fallback.moveDown,
         decrease = lookup.text("decrease") ?: fallback.decrease,
         increase = lookup.text("increase") ?: fallback.increase,
         rangeStart = lookup.text("rangeStart") ?: fallback.rangeStart,
         rangeEnd = lookup.text("rangeEnd") ?: fallback.rangeEnd,
-        outOf = { value, count -> lookup.phrase("outOf", count.category, value, count.formatted) ?: fallback.outOf(value, count) },
+        outOf = { value, count -> lookup.phrase("outOf", count, value, count.formatted) ?: fallback.outOf(value, count) },
         inProgress = lookup.text("inProgress") ?: fallback.inProgress,
         stepOfCount = { step, count, working ->
-            lookup.phrase(if (working) "stepOfCountInProgress" else "stepOfCount", count.category, step.formatted, count.formatted)
+            lookup.phrase(if (working) "stepOfCountInProgress" else "stepOfCount", count, step.formatted, count.formatted)
                 ?: fallback.stepOfCount(step, count, working)
         },
         new = lookup.text("new") ?: fallback.new,
-        newCount = { count -> lookup.phrase("newCount", count.category, count.formatted) ?: fallback.newCount(count) },
-        moreThan = { count -> lookup.phrase("moreThan", count.category, count.formatted) ?: fallback.moreThan(count) },
-        cappedCount = { cap -> lookup.phrase("cappedCount", cap.category, cap.formatted) ?: fallback.cappedCount(cap) },
-        moreCount = { count -> lookup.phrase("moreCount", count.category, count.formatted) ?: fallback.moreCount(count) },
-        selectedCount = { count -> lookup.phrase("selectedCount", count.category, count.formatted) ?: fallback.selectedCount(count) },
-        peopleCount = { count -> lookup.phrase("peopleCount", count.category, count.formatted) ?: fallback.peopleCount(count) },
+        newCount = { count -> lookup.phrase("newCount", count, count.formatted) ?: fallback.newCount(count) },
+        moreThan = { count -> lookup.phrase("moreThan", count, count.formatted) ?: fallback.moreThan(count) },
+        cappedCount = { cap -> lookup.phrase("cappedCount", cap, cap.formatted) ?: fallback.cappedCount(cap) },
+        moreCount = { count -> lookup.phrase("moreCount", count, count.formatted) ?: fallback.moreCount(count) },
+        selectedCount = { count -> lookup.phrase("selectedCount", count, count.formatted) ?: fallback.selectedCount(count) },
+        peopleCount = { count -> lookup.phrase("peopleCount", count, count.formatted) ?: fallback.peopleCount(count) },
         unknownInitials = lookup.text("unknownInitials") ?: fallback.unknownInitials,
-        tourPosition = { position, count -> lookup.phrase("tourPosition", count.category, position.formatted, count.formatted) ?: fallback.tourPosition(position, count) },
+        tourPosition = { position, count -> lookup.phrase("tourPosition", count, position.formatted, count.formatted) ?: fallback.tourPosition(position, count) },
         sentences = lookup.text("sentenceSeparator")?.let { separator -> { parts: List<String> -> parts.joinToString(separator) } } ?: fallback.sentences,
         search = lookup.text("search") ?: fallback.search,
         clearSearch = lookup.text("clearSearch") ?: fallback.clearSearch,
@@ -385,11 +384,11 @@ data class Strings(
         activityLess = lookup.text("activityLess") ?: fallback.activityLess,
         activityMore = lookup.text("activityMore") ?: fallback.activityMore,
         activityOnDay = { count, date ->
-            (if (count.value == 0L) lookup.phrase("activityOnDayNone", count.category, date) else null)
-                ?: lookup.phrase("activityOnDay", count.category, count.formatted, date)
+            (if (count.value == 0L) lookup.phrase("activityOnDayNone", count, date) else null)
+                ?: lookup.phrase("activityOnDay", count, count.formatted, date)
                 ?: fallback.activityOnDay(count, date)
         },
-        weekOf = { date -> lookup.phrase("weekOf", PluralCategory.Other, date) ?: fallback.weekOf(date) },
+        weekOf = { date -> lookup.phrase("weekOf", null, date) ?: fallback.weekOf(date) },
         )
     }
 }
@@ -403,15 +402,17 @@ fun interface StringLookup {
     fun text(key: String): String?
 
     /**
-     * The translation of [key] in the form [category] takes, or `null` to use
-     * [text]. Android's `<plurals>` and `pluralStringResource` answer here.
+     * The translation of [key] in the form [quantity] takes, or `null` to use
+     * [text]. Android's `getQuantityString` and Compose's `pluralStringResource`
+     * choose by the number itself — `quantity.value` — and a lookup keyed by
+     * category has `quantity.category`.
      */
-    fun plural(key: String, category: PluralCategory): String? = null
+    fun plural(key: String, quantity: Quantity): String? = null
 }
 
-/** [key]'s translation, its placeholders filled with [arguments]. */
-private fun StringLookup.phrase(key: String, category: PluralCategory, vararg arguments: String): String? =
-    (plural(key, category) ?: text(key))?.let { fillArguments(it, arguments) }
+/** [key]'s translation, in [quantity]'s plural form where it has one, filled with [arguments]. */
+private fun StringLookup.phrase(key: String, quantity: Quantity?, vararg arguments: String): String? =
+    (quantity?.let { plural(key, it) } ?: text(key))?.let { fillArguments(it, arguments) }
 
 /**
  * `%1$s`, `%2$s` — and plain `%s` and `%d`, taken in order — replaced by
@@ -458,3 +459,99 @@ internal fun fillArguments(template: String, arguments: Array<out String>): Stri
         }
     }
 }
+
+/**
+ * These strings with every word passed through [transform] — the phrases' too,
+ * after they are filled in. What a pseudo-locale is made of.
+ */
+internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
+    dismiss = transform(dismiss),
+    close = transform(close),
+    back = transform(back),
+    cancel = transform(cancel),
+    confirm = transform(confirm),
+    gotIt = transform(gotIt),
+    expandSheet = transform(expandSheet),
+    collapseSheet = transform(collapseSheet),
+    closeMenu = transform(closeMenu),
+    loading = transform(loading),
+    loadingMore = transform(loadingMore),
+    loadMoreFailed = transform(loadMoreFailed),
+    retry = transform(retry),
+    refreshing = transform(refreshing),
+    pullToRefresh = transform(pullToRefresh),
+    releaseToRefresh = transform(releaseToRefresh),
+    expanded = transform(expanded),
+    collapsed = transform(collapsed),
+    previous = transform(previous),
+    next = transform(next),
+    previousPage = transform(previousPage),
+    nextPage = transform(nextPage),
+    goToPage = transform(goToPage),
+    goToPageConfirm = transform(goToPageConfirm),
+    pageNumber = { a0 -> transform(pageNumber(a0)) },
+    itemOfCount = { a0, a1 -> transform(itemOfCount(a0, a1)) },
+    pageOfCount = { a0, a1 -> transform(pageOfCount(a0, a1)) },
+    moveUp = transform(moveUp),
+    moveDown = transform(moveDown),
+    decrease = transform(decrease),
+    increase = transform(increase),
+    rangeStart = transform(rangeStart),
+    rangeEnd = transform(rangeEnd),
+    outOf = { a0, a1 -> transform(outOf(a0, a1)) },
+    inProgress = transform(inProgress),
+    stepOfCount = { a0, a1, a2 -> transform(stepOfCount(a0, a1, a2)) },
+    new = transform(new),
+    newCount = { a0 -> transform(newCount(a0)) },
+    moreThan = { a0 -> transform(moreThan(a0)) },
+    cappedCount = { a0 -> transform(cappedCount(a0)) },
+    moreCount = { a0 -> transform(moreCount(a0)) },
+    selectedCount = { a0 -> transform(selectedCount(a0)) },
+    peopleCount = { a0 -> transform(peopleCount(a0)) },
+    unknownInitials = transform(unknownInitials),
+    tourPosition = { a0, a1 -> transform(tourPosition(a0, a1)) },
+    sentences = { parts -> transform(sentences(parts)) },
+    search = transform(search),
+    clearSearch = transform(clearSearch),
+    select = transform(select),
+    noMatches = transform(noMatches),
+    showPassword = transform(showPassword),
+    hidePassword = transform(hidePassword),
+    commandPalettePlaceholder = transform(commandPalettePlaceholder),
+    noMatchingCommands = transform(noMatchingCommands),
+    copy = transform(copy),
+    cut = transform(cut),
+    paste = transform(paste),
+    selectAll = transform(selectAll),
+    more = transform(more),
+    colourArea = transform(colourArea),
+    colourHue = transform(colourHue),
+    colourOpacity = transform(colourOpacity),
+    colourFormat = transform(colourFormat),
+    colourFormatName = { a0 -> transform(colourFormatName(a0)) },
+    colourChannel = { a0 -> transform(colourChannel(a0)) },
+    colourChannelName = { a0 -> transform(colourChannelName(a0)) },
+    colourSpectrum = transform(colourSpectrum),
+    colourPalette = transform(colourPalette),
+    hour = transform(hour),
+    minute = transform(minute),
+    dayPeriod = transform(dayPeriod),
+    month = transform(month),
+    year = transform(year),
+    previousMonth = transform(previousMonth),
+    nextMonth = transform(nextMonth),
+    returnToToday = transform(returnToToday),
+    chooseMonthAndYear = transform(chooseMonthAndYear),
+    resizePanes = transform(resizePanes),
+    navigation = transform(navigation),
+    closeNavigation = transform(closeNavigation),
+    expandNavigation = transform(expandNavigation),
+    collapseNavigation = transform(collapseNavigation),
+    sortedAscending = transform(sortedAscending),
+    sortedDescending = transform(sortedDescending),
+    selectRow = transform(selectRow),
+    activityLess = transform(activityLess),
+    activityMore = transform(activityMore),
+    activityOnDay = { a0, a1 -> transform(activityOnDay(a0, a1)) },
+    weekOf = { a0 -> transform(weekOf(a0)) },
+)

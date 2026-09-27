@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -259,7 +260,7 @@ fun FilterChip(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .clip(shape)
             .background(container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
@@ -375,7 +376,7 @@ fun InputChip(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .clip(shape)
             .background(colours.surfaceSunken, shape)
             .then(
@@ -473,7 +474,7 @@ private fun ChipSurface(
         // The target belongs at the top of the chain, which is where the caller
         // puts it now — see [Chip].
         modifier = modifier
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .padding(horizontal = Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,

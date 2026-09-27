@@ -420,6 +420,68 @@ breaks are few and named first.
 `Motion.scrollSpec` and `Motion.sizeSpec`, for an app's own transitions to
 answer the setting the way the library's do.
 
+### Localisation
+
+The library now has a locale, and everything it writes — numbers, dates,
+times, lists, plurals — is written the reader's way. See
+[the localisation guide](localisation.md).
+
+**Breaks:**
+
+| Before | After |
+|---|---|
+| `DateTimeFormats`, `LocalDateTimeFormats.current` | `LocaleFormats`, `Theme.formats` |
+| `DateTimeFormats(is24Hour, dayFirst, firstDayOfWeek)` | `formats.withConventions(DateTimeConventions(hourCycle, dateOrder, firstDayOfWeek))` — `HourCycle` has all four of `H11`, `H12`, `H23`, `H24`, and `DateOrder` has year-first |
+| `formats.dateShort(d)`, `dateFull(d)`, `timeAndDate(t, d)` | `formats.date(d, DateStyle.Short)`, `date(d, DateStyle.Full)`, `dateTime(d, t)` |
+| `formats.weekdays()`, `weekdayInitials()` | `formats.conventions.weekdays()`, `formats.weekdayName(day, NameWidth.Narrow)` |
+| `formats = …` on `DatePicker`, `CalendarMonth`, `TimePicker`, `ActivityCalendar` | Takes a `LocaleFormats` |
+| `Strings.pageNumber(page: Int)`, `itemOfCount(index, count)`, `pageOfCount`, `outOf`, `stepOfCount`, `moreThan`, `activityOnDay` | Each number is a `Quantity`: already in the reader's digits (`formatted`), with its plural category, and `select(one = …, other = …)` to choose a form. **Positions count from one** — the old `pageNumber` and `itemOfCount` were given an index and added one themselves |
+| `Strings.am`, `Strings.pm` | Gone. `formats.dayPeriod(time)` says it in the reader's language |
+| `PhoneField` grouped as an Australian mobile, and took ten digits | `PhoneField(format = PhoneFormat.None)`: up to fifteen digits, as typed. Pass `PhoneFormat.AustralianMobile` for the old field |
+| `phoneMask()` | `phoneMask(format)` — there is no default country |
+
+**Behaviour, with no change to the call:**
+
+- **Numbers are grouped.** A stepper, a counter, a badge, a rating and
+  pagination show `1,200`, not `1200`, and in the reader's digits and
+  separators.
+- **A badge's count is announced** as "3 new", and past its cap as "More than
+  99"; its drawn `99+` and an avatar group's `+3` are isolated, so the plus
+  stays where it was written in a right-to-left line.
+- **A time picker's day period** is the locale's own word: `am` and `pm` in
+  Australian and British English, `AM` and `PM` in American. Its wheels follow
+  the locale's hour cycle and field order, and its day period is as wide as the
+  locale's longest.
+- **A decimal field accepts the locale's decimal separator,** so `1,5` in
+  German; `InputTransformation.decimal` takes `decimalSeparator`.
+- **Search in `Select` and `CommandPalette`** ignores case and accents: `cafe`
+  finds `Café`.
+- **Avatars, the rail's monograms and the password mask** count by what a
+  reader sees as a character, not by UTF-16 unit, so an emoji or a Devanagari
+  conjunct is one.
+- **Buttons and chips have a minimum height,** not a height, so a label in a
+  tall script or at 200% type grows the control. In English at 100% nothing
+  moved.
+- **Right to left:** the top bar's centred title and the scaffold's FAB place
+  from the start; a switch turns on towards the left; linear and step progress
+  fill from the right; a half star is lit on its right; a carousel, a
+  scrollbar, a pane divider and a switch drag the way they point; the
+  skeleton's shimmer runs from the start; the colour picker's hue and opacity
+  tracks mirror.
+- **A slider takes arrow keys,** mirrored in right to left, and shows a focus
+  ring; the colour picker's square and tracks do too.
+- **`TextField` tells the keyboard the locale,** through `hintLocales`.
+
+**Added:** `KontourTheme(locale, formats, scriptTypography)`; `Theme.locale`;
+`ProvideTokens(formats)`; the `io.kontour.ui.locale` package — `LocaleFormats`,
+`Quantity`, `DateTimeConventions`, `NumberSymbols`, `LocaleTag`,
+`ScriptTypography` and `Typography.forLocale`, `rememberFontsPreloaded`,
+`bidiIsolated`, and `PseudoLocalised`; `Strings.from(StringLookup)`, and the new
+`Strings` fields `newCount`, `cappedCount`, `moreCount`, `selectedCount`,
+`peopleCount`, `unknownInitials`, `tourPosition`, `sentences`,
+`colourFormatName`, `colourChannel` and `colourChannelName`; `ColourChannel`;
+`cardMask(groups)`.
+
 ---
 
 ## Moved, and unaffected if named

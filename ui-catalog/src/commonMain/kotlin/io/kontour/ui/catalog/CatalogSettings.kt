@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -73,6 +74,12 @@ class CatalogSettings {
     var reduceMotion by mutableStateOf<Boolean?>(null)
 
     var rightToLeft by mutableStateOf(false)
+
+    /**
+     * A made-up language to run in — longer words, reversed words, or tall marks
+     * — or null for the real one. See `PseudoLocale`.
+     */
+    var pseudoLocale by mutableStateOf<PseudoLocale?>(null)
 
     /**
      * The font scale to run at, or null to take the device's.

@@ -114,8 +114,12 @@ class MaskTransformation(
     }
 }
 
-/** A phone number shown in [format]'s groups — `0412 345 678` for an Australian mobile. */
-fun phoneMask(format: PhoneFormat = PhoneFormat.AustralianMobile): OutputTransformation =
+/**
+ * A phone number shown in [format]'s groups — `0412 345 678` for
+ * [PhoneFormat.AustralianMobile]. There is no default: numbers are grouped
+ * differently in every country, and a mask for the wrong one is worse than none.
+ */
+fun phoneMask(format: PhoneFormat): OutputTransformation =
     MaskTransformation(groups = format.groups)
 
 /**

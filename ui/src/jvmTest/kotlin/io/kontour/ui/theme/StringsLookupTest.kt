@@ -49,7 +49,7 @@ class StringsLookupTest {
                 else -> null
             }
 
-            override fun plural(key: String, category: PluralCategory): String? = polish[key]?.get(category)
+            override fun plural(key: String, quantity: Quantity): String? = polish[key]?.get(quantity.category)
         })
         val formats = LocaleFormats.english()
         fun q(value: Int, category: PluralCategory) = Quantity(value.toLong(), formats.integer(value), category)

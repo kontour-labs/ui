@@ -107,7 +107,7 @@ InputTransformation.limit(10)
 stored:
 
 ```kotlin
-phoneMask()   // stored "0412345678"  displayed "0412 345 678"
+phoneMask(PhoneFormat.AustralianMobile)   // stored "0412345678"  displayed "0412 345 678"
 cardMask()
 timeMask()
 ```

@@ -2,7 +2,13 @@ package io.kontour.ui.demo
 
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateOrder
 import io.kontour.ui.locale.DateStyle
+import io.kontour.ui.locale.ListStyle
+import io.kontour.ui.locale.PseudoLocale
+import io.kontour.ui.locale.PseudoLocalised
+import io.kontour.ui.locale.RelativeUnit
+import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -180,6 +186,53 @@ internal val RelativeTimeTextDemo = ComponentDemo(
 }
 
 /**
+ * A language that does not exist, over everything the formats write.
+ *
+ * Off is the reader's own; the other three are the tests a screen runs before a
+ * translator sees it — longer words, right to left with Arabic-Indic digits, and
+ * marks stacked above and below every letter.
+ */
+private val pseudoLocale = Knob.Choice("Pseudo-locale", listOf(null) + PseudoLocale.entries, name = { it?.name ?: "Off" })
+
+private val hourCycle = Knob.Choice("Hour cycle", HourCycle.entries.toList(), HourCycle.H23)
+
+private val dateOrder = Knob.Choice("Date order", DateOrder.entries.toList())
+
+internal val LocaleFormatsDemo = ComponentDemo(
+    slug = "locale-formats",
+    knobs = listOf(pseudoLocale, hourCycle, dateOrder),
+) {
+    val mode = this[pseudoLocale]
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = this[hourCycle], dateOrder = this[dateOrder]),
+        ),
+    ) {
+        if (mode == null) FormatsSpecimen() else PseudoLocalised(mode) { FormatsSpecimen() }
+    }
+}
+
+/** One of everything the formats write, and a phrase from the strings around a count. */
+@Composable
+private fun FormatsSpecimen() {
+    val formats = Theme.formats
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        Text(formats.date(Today, DateStyle.Full))
+        Text(formats.dateTime(Today, LocalTime(14, 5)))
+        Text(formats.date(Today, DateStyle.Short))
+        Text(formats.integer(12_345))
+        Text(formats.relativeTime(-5, RelativeUnit.Minute))
+        Text(formats.list(listOf("Perth", "Fremantle", "Joondalup"), ListStyle.And))
+        Text(
+            Theme.strings.pageOfCount(formats.quantity(2), formats.quantity(12)),
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
+/**
  * A made-up year of trips, the same on every run: a hash of each day, quieter
  * at weekends, with about a third of days empty.
  */
@@ -277,4 +330,5 @@ internal val dateTimeDemos = listOf(
     TimeFieldDemo,
     WheelPickerDemo,
     RelativeTimeTextDemo,
+    LocaleFormatsDemo,
 )

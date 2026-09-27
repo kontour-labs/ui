@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -130,7 +131,9 @@ fun Button(
                 interactions,
                 kontourIndication(shape, ButtonDefaults.pressScale(variant, size)),
             )
-            .height(metrics.height)
+            // A minimum, not a height: a label in a tall script, or at 200%,
+            // makes the button taller rather than being cut off.
+            .heightIn(min = metrics.height)
             .clip(shape)
             .background(container, shape)
             .then(

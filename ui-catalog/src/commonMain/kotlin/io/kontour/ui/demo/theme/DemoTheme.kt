@@ -1,5 +1,6 @@
 package io.kontour.ui.demo.theme
 
+import io.kontour.ui.locale.PseudoLocalised
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import io.kontour.ui.catalog.CatalogSettings
@@ -182,6 +183,8 @@ fun DemoThemeProvider(
         motion = theme.motion(reduceMotion),
         sizing = theme.sizing(tier),
         componentDefaults = theme.componentDefaults,
-        content = content,
-    )
+    ) {
+        val pseudo = settings.pseudoLocale
+        if (pseudo != null) PseudoLocalised(pseudo, content) else content()
+    }
 }
