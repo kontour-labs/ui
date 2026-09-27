@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -45,6 +46,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
@@ -354,7 +356,7 @@ private fun SinglePane(
         LaunchedEffect(focus) { state.animateTo(focus) }
     }
     val transition = rememberTransition(state, label = "pane")
-    val ground = Theme.colours.background
+    val ground = LocalContainerColour.current.takeOrElse { Theme.colours.background }
     // The edge of the back gesture this change is, latched when its transform
     // is chosen and held until the next one is, so the page effects last the
     // whole of it — the part after the hand let go included.

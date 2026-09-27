@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +31,7 @@ import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
@@ -92,6 +94,9 @@ object TopBarDefaults {
  * @param onBack Draws a back button. Give it the same thing the system back
  *   gesture does — a visible back that goes somewhere different from the gesture
  *   is worse than no visible back.
+ * @param containerColour The ground of whatever it sits on — the window's, or a
+ *   sheet's inside a sheet — so a bar at the top of a page in a sheet is not a
+ *   band of a different colour.
  */
 @Composable
 fun TopBar(
@@ -101,7 +106,7 @@ fun TopBar(
     backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
-    containerColour: Color = Theme.colours.background,
+    containerColour: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
     contentColour: Color = Theme.colours.content,
     showDivider: Boolean = false,
     /**

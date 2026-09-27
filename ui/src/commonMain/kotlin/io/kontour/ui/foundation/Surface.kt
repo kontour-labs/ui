@@ -93,7 +93,10 @@ fun Surface(
     // recompositions, and the answer has to be none. Inline this call again and
     // it reports 28 — fourteen frames times the two layers of `Elevation.low`.
     val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
-    CompositionLocalProvider(LocalContentColour provides contentColour) {
+    CompositionLocalProvider(
+        LocalContentColour provides contentColour,
+        LocalContainerColour provides if (containerColour.alpha >= 1f) containerColour else LocalContainerColour.current,
+    ) {
         Box(
             modifier = modifier
                 .then(raised)

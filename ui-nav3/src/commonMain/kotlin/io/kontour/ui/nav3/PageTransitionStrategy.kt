@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
@@ -14,6 +15,7 @@ import androidx.navigation3.scene.SceneDecoratorStrategy
 import androidx.navigation3.scene.SceneDecoratorStrategyScope
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.motion.PageMotion
 import io.kontour.ui.motion.pageEffects
@@ -127,7 +129,7 @@ internal class PageScene<T : Any>(
                 .fillMaxSize()
                 // Opaque, as a page is: a pop reveals the page beneath rather
                 // than showing it through the one leaving.
-                .background(Theme.colours.background)
+                .background(LocalContainerColour.current.takeOrElse { Theme.colours.background })
                 .pageEffects(motion, scope, isPop = { scope.isPop() }, gestureEdge = { gesture.edge })
                 // Only a page with somewhere to go back to in its own stack: at
                 // the root of a stack inside a sheet, a pan would otherwise be

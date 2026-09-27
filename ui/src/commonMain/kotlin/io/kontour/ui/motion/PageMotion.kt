@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
@@ -30,6 +31,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEvent
+import io.kontour.ui.foundation.LocalContainerColour
+import io.kontour.ui.overlay.LocalOverlayBack
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
@@ -171,7 +174,18 @@ fun rememberPageMotion(style: BackStyle = LocalBackStyle.current): PageMotion {
  *
  * While one page slides over another, the page going under dims — a tenth of
  * black at most, gone when it is at rest — and the page on top casts a soft
- * shadow from the edge that is over the other one. Under [BackStyle.Swipe] that
+ * shadow from the edge that is over the other one.
+ *
+ * **Inside an overlay the page beneath fades towards its ground instead.** A
+ * stack in a sheet does not reach the sheet's edges: its header and its
+ * safe-area padding are the sheet's, around the stack. Black over the page
+ * would stop where the page does and draw that edge, in the one place the
+ * page and the sheet are otherwise the same colour. Fading towards
+ * [LocalContainerColour] — the sheet's colour — leaves every pixel of that
+ * colour as it was, so the page recedes and nothing marks where it ends. Paint
+ * the page's ground in that colour, before this modifier, for the same reason.
+ *
+ * Under [BackStyle.Swipe] that
  * is every push and pop, as on iOS. Under [BackStyle.Predictive] it is only a
  * back gesture, the one time a page slides over another there; a push or a pop
  * by a button is the shared axis, with nothing to draw. Nothing at all under
@@ -205,6 +219,13 @@ fun Modifier.pageEffects(
         label = "page away from rest",
     ) { state -> if (state == EnterExitState.Visible) 0f else 1f }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // What the page beneath goes under: black on the window's own ground, the
+    // ground itself inside an overlay, where the stack is surrounded by more of it.
+    val veil = if (LocalOverlayBack.current != null) {
+        LocalContainerColour.current.takeOrElse { Theme.colours.background }.copy(alpha = MaxRecede)
+    } else {
+        Color.Black.copy(alpha = MaxDim)
+    }
     return this.drawWithContent {
         drawContent()
         if (away == 0f) return@drawWithContent
@@ -214,7 +235,7 @@ fun Modifier.pageEffects(
         val entering = transition.targetState == EnterExitState.Visible
         val underneath = if (isPop()) entering else !entering
         if (underneath) {
-            drawRect(Color.Black.copy(alpha = MaxDim * away))
+            drawRect(veil, alpha = away)
             return@drawWithContent
         }
         // On top: a shadow cast past the edge over the page beneath. Outside the
@@ -250,6 +271,14 @@ private const val PageEffectDuration = 350
 
 /** UIKit's dim over the page beneath, at its darkest. */
 private const val MaxDim = 0.1f
+
+/**
+ * How far the page beneath fades towards its ground inside an overlay, at most.
+ *
+ * More than the dim, because a fade shows only on what is drawn on the ground
+ * — the words and the lines — where the dim shows on all of it.
+ */
+private const val MaxRecede = 0.35f
 
 /** The shadow the top page casts, at its darkest. */
 private const val ShadowAlpha = 0.12f
