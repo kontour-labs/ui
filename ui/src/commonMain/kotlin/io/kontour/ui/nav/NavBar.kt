@@ -324,8 +324,13 @@ private val BarChild.weight: Float
     }
 
 /**
- * A row that is a `Row` with one addition: the search goes after the right
- * number of destinations, wherever it was composed.
+ * A row that is a `Row` with one addition: the search goes directly after the
+ * right number of destinations, wherever it was composed.
+ *
+ * Directly after, and so ahead of any slot that follows them. An index at or
+ * past the count means after the *last destination*, not after everything: the
+ * suite adds its action as a slot after the destinations, and "at the end" used
+ * to put the search behind the action it is supposed to precede.
  */
 @Composable
 private fun BarRow(
@@ -341,20 +346,17 @@ private fun BarRow(
         val ordered = if (search == null) {
             rest
         } else {
-            val at = searchIndex ?: Int.MAX_VALUE
-            var seen = 0
-            val list = ArrayList<Measurable>(measurables.size)
-            var placed = false
-            for (child in rest) {
-                if (!placed && child.barChild == BarChild.Destination && seen >= at) {
-                    list += search
-                    placed = true
-                }
-                if (child.barChild == BarChild.Destination) seen++
-                list += child
+            val destinations = rest.indices.filter { rest[it].barChild == BarChild.Destination }
+            val after = minOf(searchIndex ?: Int.MAX_VALUE, destinations.size)
+            val at = when {
+                destinations.isEmpty() -> rest.size
+                after == 0 -> destinations.first()
+                else -> destinations[after - 1] + 1
             }
-            if (!placed) list += search
-            list
+            ArrayList<Measurable>(measurables.size).apply {
+                addAll(rest)
+                add(at, search)
+            }
         }
 
         val gap = arrangement.spacing.roundToPx()
