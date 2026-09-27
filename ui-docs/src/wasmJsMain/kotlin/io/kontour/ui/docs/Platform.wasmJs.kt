@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalWasmJsInterop::class)
+
 package io.kontour.ui.docs
 
 import androidx.compose.runtime.Composable
@@ -5,6 +7,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
 import org.w3c.dom.events.Event
 
