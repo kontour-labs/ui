@@ -377,13 +377,18 @@ fun FabMenu(
     // A lambda, so the animation is read at draw rather than in composition — a
     // 45° sweep redraws the glyph instead of recomposing the button forty times
     // on its way round.
-    val rotation = { if (expandedIcon == null) 45f * openness.value else 0f }
+    //
+    // Not under reduced motion, where a glyph spinning is movement for its own
+    // sake: the icon becomes a close glyph on the tap instead, below.
+    val turns = expandedIcon == null && !motion.reduceMotion
+    val rotation = { if (turns) 45f * openness.value else 0f }
 
     // Swapped on the tap rather than partway through the animation. Reading
     // `openness` here would put an animation in the *composition* phase, which
     // is the thing the lambda above exists to avoid — and a swap at the halfway
     // mark is not better than one at the moment the user asked for it.
-    val showingClose = expandedIcon != null && open
+    val closeIcon = expandedIcon ?: if (motion.reduceMotion) SystemIcons.Close else null
+    val showingClose = closeIcon != null && open
 
     FloatingActionButton(
         onClick = { onExpandedChange(!expanded) },
@@ -397,7 +402,7 @@ fun FabMenu(
         interactionSource = interactionSource,
     ) {
         Icon(
-            imageVector = if (showingClose) expandedIcon else icon,
+            imageVector = if (showingClose) closeIcon else icon,
             contentDescription = null,
             // The turn is a draw-time read of the animation, so a 45° sweep
             // redraws the glyph rather than recomposing the button forty times
@@ -438,6 +443,10 @@ private fun FabMenuItems(
 ) {
     val host = LocalOverlayHost.current
     val density = LocalDensity.current
+    // Under reduced motion the items are where they are going from the first
+    // frame and only fade: no flight out of the button, no growing from half
+    // size. The fraction then carries opacity and nothing else.
+    val stayPut = Theme.motion.reduceMotion
 
     // Room for each item's fade to composite in without cutting its own shadow.
     //
@@ -542,8 +551,9 @@ private fun FabMenuItems(
                         .graphicsLayer {
                             val fraction = fractions[index].value
                             alpha = fraction
+                            val grown = if (stayPut) 1f else fraction
                             val scale = FabMenuDefaults.FromScale +
-                                (1f - FabMenuDefaults.FromScale) * fraction
+                                (1f - FabMenuDefaults.FromScale) * grown
                             scaleX = scale
                             scaleY = scale
                         }
@@ -633,7 +643,7 @@ private fun FabMenuItems(
             items.indices.forEach { index ->
                 val label = placeables[index * 2]
                 val button = placeables[index * 2 + 1]
-                val fraction = fractions[index].value
+                val fraction = if (stayPut) 1f else fractions[index].value
 
                 // Out of the FAB and back into it. The travel is interpolated
                 // here rather than in a layer so the item's *hit area* travels

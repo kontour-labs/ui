@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.shape
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import kotlinx.coroutines.withTimeoutOrNull
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -394,7 +396,16 @@ fun LazyItemScope.ReorderableItem(
             // is being *moved* by the reorder, which is exactly what this is
             // for — the gap the dragged row left gets filled by its neighbours
             // sliding into it rather than appearing there.
-            .then(if (dragging) Modifier else Modifier.animateItem())
+            //
+            // Under reduced motion they take their places at once: a row
+            // sliding into a gap is movement the finger did not make.
+            .then(
+                when {
+                    dragging -> Modifier
+                    motion.reduceMotion -> Modifier.animateItem(placementSpec = null)
+                    else -> Modifier.animateItem()
+                }
+            )
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer {
                 translationY = state.offsetFor(index)
@@ -570,10 +581,15 @@ private fun ReorderGripSlot(
         visible = icon != null && handleSide == side,
         gap = 0.dp,
         side = if (side == ReorderHandleSide.Start) SlotGap.Trailing else SlotGap.Leading,
-        enter = expandHorizontally(motion.springOrTween(motion.springDefault), from) +
-            fadeIn(motion.tweenFast()),
-        exit = shrinkHorizontally(motion.springOrTween(motion.springDefault), from) +
-            fadeOut(motion.tweenFast()),
+        // Under reduced motion the grip fades where it will sit and the row
+        // takes its new width at once: the card's text reflowing sideways as the
+        // grip grows is the movement.
+        enter = motion.enterOrFade(
+            expandHorizontally(motion.springOrTween(motion.springDefault), from) + fadeIn(motion.tweenFast()),
+        ),
+        exit = motion.exitOrFade(
+            shrinkHorizontally(motion.springOrTween(motion.springDefault), from) + fadeOut(motion.tweenFast()),
+        ),
     ) {
         if (shown != null) ReorderGrip(shown, enabled, drags)
     }

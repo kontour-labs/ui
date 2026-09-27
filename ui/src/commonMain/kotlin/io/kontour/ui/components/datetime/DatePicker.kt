@@ -66,6 +66,8 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -760,6 +762,8 @@ private fun CalendarFrame(
     content: @Composable (LocalDate) -> Unit,
 ) {
     val motion = Theme.motion
+    // Later months come in from the end the reading runs towards.
+    val towardsEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
 
     // A month changing under a finger that is still down — a header arrow pressed
     // with another finger, or a dwell on a month arrow — is read as a move: the
@@ -961,13 +965,19 @@ private fun CalendarFrame(
                 // transition is actually between, and `LocalDate` is comparable,
                 // so the direction is a fact about the transition rather than a
                 // note left beside it.
-                val enterFrom = if (targetState >= initialState) 1 else -1
-                (
+                //
+                // Mirrored in a right-to-left layout, where a later month is to
+                // the left; and a cross-fade in place under reduced motion,
+                // where a third of the calendar's width is too far to travel.
+                val enterFrom = (if (targetState >= initialState) 1 else -1) * towardsEnd
+                motion.enterOrFade(
                     slideInHorizontally(motion.tweenDefault()) { width -> enterFrom * width / 3 } +
-                        fadeIn(motion.tweenFast())
-                    ).togetherWith(
-                    slideOutHorizontally(motion.tweenDefault()) { width -> -enterFrom * width / 3 } +
-                        fadeOut(motion.tweenFast())
+                        fadeIn(motion.tweenFast()),
+                ).togetherWith(
+                    motion.exitOrFade(
+                        slideOutHorizontally(motion.tweenDefault()) { width -> -enterFrom * width / 3 } +
+                            fadeOut(motion.tweenFast()),
+                    ),
                 ) using SizeTransform(clip = false)
             },
             label = "calendarMonth",

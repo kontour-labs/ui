@@ -378,6 +378,50 @@ took it now style what they hold the same way everywhere.
 
 ---
 
+## The reader's settings
+
+The high-contrast, reduced-motion and localisation audit. Most of it changes
+what components draw at a setting and nothing about how they are called; the
+breaks are few and named first.
+
+**Breaks:**
+
+| Before | After |
+|---|---|
+| `Sizing.selectionIndicator` | Gone. Nothing read it; the indicators are fills, and their edge at high contrast is `selectionEdge()` |
+| `Palette.GreyHcOutlineSubtle`, `Palette.SlateHcOutlineSubtle` | Gone. The enhanced tier's `outlineSubtle` is its `outline` |
+| `ColourScheme(…)` built positionally | Compiles, and gains `inactive` last, defaulted to `outlineStrong` |
+
+**Behaviour, with no change to the call:**
+
+- **A nested `KontourTheme` keeps the reader's `contrast` and `reduceMotion`**
+  from the theme around it, instead of reading the platform's again. A custom
+  `motion` passed to `KontourTheme` takes the theme's `reduceMotion`.
+- **`ColourScheme.inactive`** is the off or not-yet half of a pair — a switch
+  off, unreached stops, the other page dots, and at the enhanced tier every
+  track. It is `outlineStrong` at the standard tier, so nothing there moved.
+  `SliderDefaults.colours`, `ProgressDefaults`, `GaugeDefaults`,
+  `MeterDefaults` and `KnobDefaults` take it for their track at the enhanced
+  tier; `TimelineDefaults.colours(rail)`, `BranchTimelineDefaults`' `muted` and
+  `PageIndicator(inactiveColour)` default to it at both.
+- **At the enhanced tier only:** edges on quiet containers, an accent edge
+  round selections, a check or dash in a switch's thumb, hollow unreached
+  stops, underlined crumbs, a trend's sentiment glyph, a ring round a badge,
+  and every ring, tick and rule as thick as the tier's lines. See
+  [the accessibility page](accessibility.md#what-high-actually-changes).
+- **Under reduced motion,** nothing travels that no finger is moving: sheets,
+  side sheets, the modal rail, toasts, a FAB menu's items and a calendar's month
+  fade in place; a carousel page, a scroll into view and a swipe row opened by
+  the app arrive at once; a rail and a supporting pane take their new width at
+  once. `CarouselState.animateScrollToPage` and `SwipeActionsState.animateTo`
+  are the two public calls that now arrive rather than slide under the setting.
+
+**Added:** `selectionEdge()`; `Motion.enterOrFade`, `Motion.exitOrFade`,
+`Motion.scrollSpec` and `Motion.sizeSpec`, for an app's own transitions to
+answer the setting the way the library's do.
+
+---
+
 ## Moved, and unaffected if named
 
 These changed position only. A call that names the argument — which is how

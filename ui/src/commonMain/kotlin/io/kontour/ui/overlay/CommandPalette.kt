@@ -48,6 +48,7 @@ import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.scrollToItem
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlin.time.Duration
@@ -252,9 +253,12 @@ private fun PaletteBody(
     // The house guard, from `Menu` and `Select`; this call site never had it.
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
 
-    // Keep the highlighted row on screen when the arrows walk past the fold.
+    // Keep the highlighted row on screen when the arrows walk past the fold —
+    // at once under reduced motion, where a list sliding under the keyboard's
+    // cursor is movement nobody's hand made.
+    val motion = Theme.motion
     LaunchedEffect(highlighted) {
-        if (found.isNotEmpty()) listState.animateScrollToItem(highlighted.coerceIn(found.indices))
+        if (found.isNotEmpty()) listState.scrollToItem(highlighted.coerceIn(found.indices), motion)
     }
 
     fun run(index: Int) {

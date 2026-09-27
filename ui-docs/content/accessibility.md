@@ -280,7 +280,17 @@ something on screen is making them uncomfortable and waiting for a relaunch is
 no help.
 
 It does not mean "no animation", and what it actually changes is listed with the
-motion tokens in [`tokens.md`](tokens.md#motion).
+motion tokens in [`tokens.md`](tokens.md#motion). In short: things fade rather
+than fly, programmatic scrolls and size changes arrive at once, and whatever
+follows the reader's own finger still follows it.
+
+**The spinner keeps turning.** Loading is information that something is still
+happening (WCAG 2.2.2 exempts it for that reason), and a spinner that stopped
+would say the opposite. What stops is its breathing: the arc holds one length.
+
+A theme nested inside another — a screen forcing dark mode — keeps the reader's
+setting rather than reading the platform's again, and a custom `Motion` passed
+to `KontourTheme` follows it too.
 
 ---
 

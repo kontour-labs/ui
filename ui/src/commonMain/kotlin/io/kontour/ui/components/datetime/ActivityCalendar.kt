@@ -92,6 +92,7 @@ import io.kontour.ui.input.rememberFocusRingVisible
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.motion.scrollSpec
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.TooltipDefaults
@@ -381,6 +382,8 @@ fun ActivityCalendar(
     val focusColour = Theme.colours.focusRing
     val focusWidth = Theme.sizing.focusRingWidth
     val ringWidth = Theme.sizing.borderWidthStrong
+    // Bringing the keyboard's day into view snaps under reduced motion.
+    val scrollMotion = Theme.motion
     // Today's and the hovered day's rings, and a mark's: lines, thickening with
     // the tier, where they were 1dp and 1.5dp at every tier.
     val hairline = Theme.sizing.borderWidth
@@ -454,8 +457,8 @@ fun ActivityCalendar(
             val left = rect.left.toInt()
             val right = rect.right.toInt()
             when {
-                left < scroll.value -> scroll.animateScrollTo(left)
-                right > scroll.value + viewport -> scroll.animateScrollTo(right - viewport)
+                left < scroll.value -> scroll.animateScrollTo(left, scrollMotion.scrollSpec())
+                right > scroll.value + viewport -> scroll.animateScrollTo(right - viewport, scrollMotion.scrollSpec())
             }
         }
 

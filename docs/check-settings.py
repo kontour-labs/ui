@@ -287,8 +287,8 @@ def unread_sizing() -> list[str]:
 #
 # `Motion`'s helpers shorten a movement and stop it overshooting. None of them
 # makes one **smaller**, so a transform whose objection is "it moves too far"
-# has to read `reduceMotion` itself — or go through `Motion.enter`, `exit`,
-# `scrollSpec` or `sizeSpec`, which are the amplitude helpers and read it for
+# has to read `reduceMotion` itself — or go through `Motion.enterOrFade`,
+# `exitOrFade`, `scrollSpec` or `sizeSpec`, which are the amplitude helpers and read it for
 # the caller.
 #
 # What changed from the rule it replaces, and why:
@@ -315,7 +315,7 @@ MOVEMENT = re.compile(
     r"|\.animateTo\(\s*[^,()]+(?:\([^()]*\))?\s*\)"
     r"|\brememberInfiniteTransition\(|\binfiniteRepeatable\("
 )
-GATED = re.compile(r"reduceMotion|\.enter\(|\.exit\(|scrollSpec\(|sizeSpec\(")
+GATED = re.compile(r"reduceMotion|enterOrFade\(|exitOrFade\(|scrollSpec\(|sizeSpec\(|scrollToItem\([^)]*motion")
 
 MOVEMENT_ALLOWED = {
     # Not movement: geometry drawn at a value.
@@ -342,7 +342,6 @@ MOVEMENT_ALLOWED = {
     "Scrollbar.kt:Scrollbar": "the thumb follows the scroll the reader is making",
     "BottomSheet.kt:BottomSheet": "places the sheet at the offset its state holds; the "
     "animations that move that offset are what this rule checks",
-    "SideSheet.kt:SideSheetPanel": "places the panel at the offset its host's progress holds",
     # The backdrop behind a modal recedes by a few percent.
     "Backdrop.kt:backdropFit": "fits the page into the backdrop's frame; static at rest",
     "Backdrop.kt:overlayBackdrop": "the page receding behind a modal; gated at its call site",
@@ -352,8 +351,14 @@ MOVEMENT_ALLOWED = {
     "PageMotion.kt:predictivePop": "follows the reader's own back gesture",
     "PageMotion.kt:swipePop": "follows the reader's own back gesture",
     "PageMotion.kt:sharedAxis": "chosen by `Transitions`, which reads `reduceMotion`",
+    "PaneScaffold.kt:SinglePane": "runs the pane transition, whose transforms come from "
+    "`rememberPageMotion`, which picks a fade under reduced motion",
+    # A sheet's settling: the reader's drag, or the sheet's own programmatic move.
+    "BottomSheet.kt:FollowBack": "calls `SheetState.animateTo`, which fades in place under reduced motion",
+    "SheetState.kt:settleWhereAimed": "settles where the reader's own drag aimed it; `springOrTween` "
+    "shortens the spec",
 }
-MAX_UNGATED_MOVEMENT = 15
+MAX_UNGATED_MOVEMENT = 0
 
 
 def ungated_movement() -> tuple[list[str], list[str]]:
@@ -663,7 +668,7 @@ def main() -> int:
     ratchet(
         "M movement that never asks about reduced motion", moving, MAX_UNGATED_MOVEMENT,
         "read `Theme.motion.reduceMotion` in the same function, or go through "
-        "`Motion.enter`/`exit`/`scrollSpec`/`sizeSpec`; or exempt it by name with "
+        "`Motion.enterOrFade`/`exitOrFade`/`scrollSpec`/`sizeSpec`; or exempt it by name with "
         "the reason the movement is small",
     )
     for key in stale_moving:

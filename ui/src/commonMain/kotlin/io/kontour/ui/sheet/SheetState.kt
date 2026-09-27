@@ -1,5 +1,6 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import io.kontour.ui.interaction.RubberBand
+import io.kontour.ui.theme.Motion
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -711,14 +713,58 @@ class SheetState internal constructor(
      */
     private var pendingDetent: SheetDetent? by mutableStateOf(null)
 
-    /** Animates to [detent]. Suspends until it arrives. */
+    /**
+     * Animates to [detent]. Suspends until it arrives.
+     *
+     * Under reduced motion it does not travel: opening from hidden, the sheet
+     * appears at its detent and fades up; closing, it fades where it rests and
+     * then goes. A drag is untouched — the sheet follows the reader's own finger
+     * either way, and the setting is about movement nobody's hand is making.
+     */
     suspend fun animateTo(detent: SheetDetent) {
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
             pendingDetent = detent
             return
         }
-        anchoredState.animateTo(anchoredEquivalent(detent))
+        move(anchoredEquivalent(detent))
+    }
+
+    /**
+     * The theme's motion, handed in by the sheet that draws this state — a
+     * state holder cannot read the theme, and one state can be shown by more
+     * than one sheet over its life.
+     */
+    internal var motion: Motion? = null
+
+    /**
+     * How present the sheet is, 0 to 1, drawn as its opacity and multiplied into
+     * a modal's scrim. Always 1 except while reduced motion fades a sheet in or
+     * out in place of a slide.
+     */
+    internal val presence = Animatable(1f)
+
+    private suspend fun move(target: SheetDetent) {
+        val motion = motion
+        if (motion == null || !motion.reduceMotion) {
+            anchoredState.animateTo(target)
+            return
+        }
+        val shown = anchoredState.settledValue != SheetDetent.Hidden
+        when {
+            target == SheetDetent.Hidden -> {
+                presence.animateTo(0f, motion.tweenExit())
+                anchoredState.snapTo(target)
+                presence.snapTo(1f)
+            }
+            !shown -> {
+                presence.snapTo(0f)
+                anchoredState.snapTo(target)
+                presence.animateTo(1f, motion.tweenFast())
+            }
+            // Between two open detents: the new height, at once.
+            else -> anchoredState.snapTo(target)
+        }
     }
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
@@ -966,7 +1012,7 @@ class SheetState internal constructor(
         val target = pendingDetent ?: return
         if (!hasAnchors) return
         pendingDetent = null
-        if (target in allowedDetents) anchoredState.animateTo(target)
+        if (target in allowedDetents) move(target)
     }
 
     /**

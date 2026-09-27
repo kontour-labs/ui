@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.components.selection.CheckboxDefaults
 import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.motion.scrollSpec
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
 
@@ -367,6 +368,7 @@ fun <T> Table(
     val rowCount = items.size + 1 + if (hasFooter) 1 else 0
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
+    val motion = Theme.motion
     val fitted = remember { FittedWidths() }
     val selectionWidth = TableDefaults.SelectionColumnWidth
     val minColumn = TableDefaults.MinColumnWidth
@@ -387,7 +389,7 @@ fun <T> Table(
                 )
                 scrollBy { x, _ ->
                     if (x == 0f) return@scrollBy false
-                    scope.launch { state.horizontal.animateScrollBy(x) }
+                    scope.launch { state.horizontal.animateScrollBy(x, motion.scrollSpec()) }
                     true
                 }
             }

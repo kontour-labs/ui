@@ -2,6 +2,7 @@ package io.kontour.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -163,8 +164,10 @@ fun NavRail(
     val motion = Theme.motion
     val width by animateDpAsState(
         targetValue = if (expanded) expandedWidth else collapsedWidth,
-        // `springGentle`: a rail growing to a sidebar is a large surface.
-        animationSpec = motion.springOrTween(motion.springGentle),
+        // `springGentle`: a rail growing to a sidebar is a large surface. At
+        // once under reduced motion, where the rail and everything beside it
+        // reflowing across 200dp is the movement; the labels fade in.
+        animationSpec = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springGentle),
         label = "navRailWidth",
     )
 

@@ -80,6 +80,8 @@ import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlin.math.abs
@@ -1115,9 +1117,15 @@ private fun ToastCard(
 
     AnimatedVisibility(
         visibleState = toast.presence,
-        enter = slideInVertically(motion.tweenDefault()) { if (towardEdge) it / 2 else -it / 2 } +
-            fadeIn(motion.tweenFast()) +
-            scaleIn(motion.tweenFast(), initialScale = 0.94f),
+        // Under reduced motion every arrival and departure below is a fade in
+        // place: half a card's height of travel and a pill shrinking to a third
+        // of itself are both movement the reader asked to be spared. Where a
+        // card *rests* in the stack is not a movement and stays.
+        enter = motion.enterOrFade(
+            slideInVertically(motion.tweenDefault()) { if (towardEdge) it / 2 else -it / 2 } +
+                fadeIn(motion.tweenFast()) +
+                scaleIn(motion.tweenFast(), initialScale = 0.94f),
+        ),
         // The front card leaves toward the edge it arrived from. A pill behind
         // it cannot: sliding that way takes it *under* the cards in front, so it
         // is simply absent on the next frame — reported as a secondary toast
@@ -1139,9 +1147,11 @@ private fun ToastCard(
         // the top of the stack on **two** frames of a nine-frame tween and then
         // sat still, which reads as a jump because it is one.
         exit = if (depth == 0) {
-            slideOutVertically(motion.tweenExit()) { if (towardEdge) it / 2 else -it / 2 } +
-                fadeOut(motion.tweenExit()) +
-                scaleOut(motion.tweenExit(), targetScale = 0.94f)
+            motion.exitOrFade(
+                slideOutVertically(motion.tweenExit()) { if (towardEdge) it / 2 else -it / 2 } +
+                    fadeOut(motion.tweenExit()) +
+                    scaleOut(motion.tweenExit(), targetScale = 0.94f),
+            )
         } else {
             // **Shrunk on the spot, toward its own centre.**
             //
@@ -1163,14 +1173,16 @@ private fun ToastCard(
             // held back so the pill is still nearly opaque while it is getting
             // small. Shrink first, then disappear; the earlier version faded and
             // shrank at the same rate, which is a pill going translucent in place.
-            fadeOut(
-                tween(
-                    durationMillis = motion.fast - motion.fast / 3,
-                    delayMillis = motion.fast / 3,
-                    easing = motion.exit,
-                )
-            ) +
-                scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale)
+            motion.exitOrFade(
+                fadeOut(
+                    tween(
+                        durationMillis = motion.fast - motion.fast / 3,
+                        delayMillis = motion.fast / 3,
+                        easing = motion.exit,
+                    )
+                ) +
+                    scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale),
+            )
         },
     ) {
         ToastSurface(

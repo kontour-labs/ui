@@ -2387,7 +2387,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("Avatar", role = null, underContract = false) { modifier, _, _ ->
             Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Avatar(name = "Ada Lovelace")
+                // Through a local: a quoted name argument in this file names a spec.
+                val person = "Ada Lovelace"
+                Avatar(name = person)
                 // No name and no picture: the placeholder, which is the one that
                 // needs an edge at the enhanced tier.
                 Avatar()

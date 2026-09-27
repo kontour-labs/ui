@@ -689,10 +689,19 @@ vestibular discomfort — large translation, parallax and spinning are. When
 - transition presets swap movement for opacity
 - springs degrade to tweens, so nothing overshoots or bounces
 - `KontourIndication` drops the press-shrink and keeps the tonal wash
-- continuous looping motion — marquee, indeterminate spinners — stops
+- a marquee stops; a spinner keeps turning, with its breathing stilled — an
+  indicator of work in progress that stopped would read as one that had hung
 - **large transforms lose their amplitude**: an overlay fades in place instead of
   scaling into it, and the screen behind a sheet stays where it is instead of
   receding to 94%
+- **nothing travels that no finger is moving**: a sheet, a side sheet, a toast,
+  a FAB menu's items and a calendar's month all fade where they rest; a carousel
+  page, a scroll into view, a swipe row the app opens and a row settling after a
+  reorder all arrive at once; a rail widening and a supporting pane opening take
+  their size at once and fade what appears in it
+
+A drag is never touched. What follows a finger follows it at every setting —
+the setting is about movement the reader did not make.
 
 Which OS setting turns it on is in
 [`accessibility.md`](accessibility.md#reduced-motion).
@@ -713,6 +722,24 @@ has to read `Theme.motion.reduceMotion` for itself:
 
 ```kotlin
 val scale = if (Theme.motion.reduceMotion) 1f else 0.94f
+```
+
+Or it can go through the helpers that *do* shrink a movement, which is what the
+library's own components use:
+
+| Helper | Under reduced motion |
+|---|---|
+| `Theme.motion.enterOrFade(transition)` | A fade in, at `fast`, in place of the transition |
+| `Theme.motion.exitOrFade(transition)` | A fade out where it stands |
+| `Theme.motion.scrollSpec()` | `snap()`: a programmatic scroll arrives at once |
+| `Theme.motion.sizeSpec()` | `snap()`: a size change is the new size at once |
+
+```kotlin
+AnimatedVisibility(
+    visible = shown,
+    enter = Theme.motion.enterOrFade(slideInVertically { it / 2 } + fadeIn()),
+    exit = Theme.motion.exitOrFade(slideOutVertically { it / 2 } + fadeOut()),
+) { Notice() }
 ```
 
 The rule of thumb is amplitude. A few pixels — a press, a lean, a lift — is

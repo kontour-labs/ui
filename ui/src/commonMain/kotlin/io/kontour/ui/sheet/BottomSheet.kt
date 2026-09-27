@@ -524,6 +524,9 @@ fun BottomSheet(
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
+    // What a programmatic open or close reads to decide between a slide and a
+    // fade. A plain field: nothing recomposes because it was re-stated.
+    state.motion = motion
     val actionsGap = BottomSheetDefaults.ActionsGap
     val floating = presentation == SheetPresentation.Floating
     // Only a floating sheet has anything to morph out of. An edge sheet is what the
@@ -733,6 +736,9 @@ fun BottomSheet(
                 // Read in the layout phase, so neither the drag nor the stretch
                 // above the top detent ever recomposes the sheet's content.
                 .offset { IntOffset(0, sheetTop(state, floating, floatInsets, this, morph)) }
+                // The fade that stands in for the slide under reduced motion;
+                // 1 at every other moment. See `SheetState.animateTo`.
+                .graphicsLayer { alpha = state.presence.value }
                 .then(
                     if (draggable) {
                         Modifier
@@ -970,6 +976,8 @@ fun ModalBottomSheet(
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     val host = LocalOverlayHost.current
+    // Before the first `show()`, which runs before the sheet itself composes.
+    state.motion = Theme.motion
     val key = remember { Any() }
     val scope = rememberCoroutineScope()
     val dismiss by rememberUpdatedState(onDismissRequest)
@@ -1062,7 +1070,7 @@ fun ModalBottomSheet(
                     // the dimming is gone while the sheet is still on its way
                     // down. This is the worst of the desyncs, because a spring
                     // and a tween disagree most in the middle.
-                    visibility = { state.visibleFraction },
+                    visibility = { state.visibleFraction * state.presence.value },
                     // Tell the caller, not just the sheet. This used to only
                     // launch `state.hide()`, so after an outside tap the host
                     // had dropped the entry while the caller's `visible` was
@@ -1524,17 +1532,17 @@ private class SheetParts(
 /**
  * Sits at [SheetDetent.Hidden]'s offset until the sheet has been measured.
  *
- * **The sheet's own travel is not gated on reduced motion, and that is a
- * decision rather than an oversight.** Round 31 took the amplitude out of the
- * two largest transforms in the library under that preference — the backdrop's
- * scale-back and every overlay's scale-in — and stopped here. A sheet sliding up
- * from the bottom edge *is* what tells you where it came from and which way to
- * push it back; a sheet that appeared in place would be a dialog with a drag
- * handle. The preference asks for less gratuitous movement, not for a component
- * to stop being the thing it is.
+ * **Under reduced motion the sheet does not travel when nobody is moving it.**
+ * An open or a close the app asks for — `show()`, `hide()`, `animateTo` — fades
+ * the sheet in at its detent and out where it rests (`SheetState.presence`),
+ * with the scrim following. It used to slide the full height of the screen on
+ * foundation's default spec whatever the reader had asked for, on the argument
+ * that the slide says where the sheet came from; a reader who has asked for
+ * less movement has answered that argument for themselves.
  *
- * What the preference does reach is the sheet's spec: `springOrTween` degrades
- * the spring to a tween, so the travel is shorter and never overshoots.
+ * A **drag** is untouched. The sheet follows the finger at every setting,
+ * because that movement is the reader's own, and where it settles after the
+ * finger lifts is the spec's business, which `springOrTween` already shortens.
  */
 private fun sheetTop(
     state: SheetState,

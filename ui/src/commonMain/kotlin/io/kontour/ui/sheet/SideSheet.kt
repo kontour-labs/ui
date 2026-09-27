@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -356,6 +357,10 @@ private fun SideSheetPanel(
     val fromRight = (side == SheetSide.End) != isRtl
     val alignment = if (fromRight) Alignment.CenterEnd else Alignment.CenterStart
     val travel = with(density) { width.toPx() }
+    // Under reduced motion the panel fades where it will rest instead of
+    // sliding the width of itself across the window: the host's progress
+    // becomes its opacity.
+    val fadeInPlace = Theme.motion.reduceMotion
 
     // Swiped away towards its own edge. The gesture that does it is the one
     // whose finger moves that way — from the left edge for a sheet on the
@@ -388,9 +393,16 @@ private fun SideSheetPanel(
                 // Read in placement, so opening and closing re-place the sheet
                 // without measuring or recomposing it.
                 .offset {
-                    val hidden = travel * (1f - progress().coerceIn(0f, 1f))
+                    val hidden = if (fadeInPlace) 0f else travel * (1f - progress().coerceIn(0f, 1f))
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
                 }
+                .then(
+                    if (fadeInPlace) {
+                        Modifier.graphicsLayer { alpha = progress().coerceIn(0f, 1f) }
+                    } else {
+                        Modifier
+                    }
+                )
                 .then(drag)
                 .then(modifier)
                 .semantics {

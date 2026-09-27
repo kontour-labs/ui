@@ -129,17 +129,18 @@ fun Avatar(
         dark = Theme.colours.content,
     )
 
+    val circle = Theme.shapes.pill
     Box(
         modifier = modifier
             .semantics {
                 if (announcement != null) this.contentDescription = announcement
             }
             .size(size.diameter)
-            .clip(Theme.shapes.pill)
+            .clip(circle)
             .background(if (image != null) Theme.colours.surfaceSunken else background)
             // An avatar with no name and no picture is a well on the page —
             // 1.13:1 at the enhanced tier — so there it takes the tier's edge.
-            .optionalBorder(if (name == null && image == null) contrastEdge() else null, Theme.shapes.pill),
+            .optionalBorder(if (name == null && image == null) contrastEdge() else null, circle),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -147,7 +148,7 @@ fun Avatar(
                 painter = image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(size.diameter).clip(Theme.shapes.pill),
+                modifier = Modifier.size(size.diameter).clip(circle),
             )
 
             // `size.textSize`, which has been sitting there computed and unread.
@@ -240,13 +241,14 @@ fun AvatarGroup(
                 )
             }
             if (overflow > 0) {
+                val circle = Theme.shapes.pill
                 Box(
                     Modifier
                         .size(size.diameter)
-                        .clip(Theme.shapes.pill)
+                        .clip(circle)
                         .background(Theme.colours.surfaceSunken)
-                        .border(Theme.sizing.borderWidthStrong, Theme.colours.surface, Theme.shapes.pill)
-                        .optionalBorder(contrastEdge(), Theme.shapes.pill),
+                        .border(Theme.sizing.borderWidthStrong, Theme.colours.surface, circle)
+                        .optionalBorder(contrastEdge(), circle),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

@@ -59,7 +59,8 @@ row of text reflowed with no warning. The grip expands out of the edge it lives
 on, and because the width being animated is the grip's own, the card's remainder
 is animated by the same curve rather than by a second one kept in step with it.
 Moving `handleSide` across animates the old grip out and the new one in. Under
-reduced motion it cuts, like every other transition in the library.
+reduced motion the grip fades rather than growing out of the edge, and the rows
+a reorder moves take their new places at once instead of sliding into the gap.
 
 The grip is decoration. Move up and move down are the accessible route either
 way, so the glyph carries no description and adding one would only put a third,

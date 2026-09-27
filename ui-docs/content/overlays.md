@@ -743,16 +743,17 @@ nested-menu frustration; the outside-tap scrim closes it instead.
 
 ## Feedback and motion
 
-Every overlay animates in, and every animation respects `reduceMotion`.
+Every overlay animates in. Under reduced motion every one of them fades in
+where it will rest instead: the scales below are 1, and nothing slides.
 
 | | |
 |---|---|
-| Dialog | Scales in from 0.92 — it has no direction to come from; it is not somewhere else on the screen, it is *on top of* the screen |
+| Dialog | Settles in from 1.06 — it has no direction to come from; it is not somewhere else on the screen, it is *on top of* the screen |
 | Menu | Scales from 0.9 with its transform origin at the corner nearest the anchor, so it reads as unfolding out of the control |
 | Popover | Scales from 0.94 |
 | Tooltip | Scales from 0.8 on a bouncy spring — one of the few places a flourish costs nothing, since it is transient and nobody is waiting on it |
 | Coach mark | Scales from 0.85, same spring |
-| Toast | Slides half its height in from whichever edge it is anchored to, and fades |
+| Toast | Slides half its height in from whichever edge it is anchored to, and fades; under reduced motion it only fades, and a pill leaving the stack fades where it is rather than shrinking |
 
 Menus scale from 0.9 rather than from nothing on purpose: a menu springing out of
 a point is a lot of movement for something the user opens dozens of times a day.

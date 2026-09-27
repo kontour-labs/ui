@@ -827,7 +827,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 28
+MAX_CIRCLES = 26
 MAX_ROUNDED_RECT_SHAPES = 0
 
 

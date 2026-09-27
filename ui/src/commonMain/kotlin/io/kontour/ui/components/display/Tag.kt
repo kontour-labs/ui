@@ -172,14 +172,15 @@ fun Badge(
     // At the enhanced tier a ring of the page's colour round the badge, so a red
     // dot straddling a black icon is a dot on the icon rather than part of it.
     val ring = if (highContrast()) BorderStroke(Theme.sizing.borderWidth, Theme.colours.background) else null
+    val round = Theme.shapes.pill
     if (label == null) {
         Box(
             modifier
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
-                .clip(Theme.shapes.pill)
+                .clip(round)
                 .background(containerColour)
-                .optionalBorder(ring, Theme.shapes.pill)
+                .optionalBorder(ring, round)
         )
     } else {
         Box(

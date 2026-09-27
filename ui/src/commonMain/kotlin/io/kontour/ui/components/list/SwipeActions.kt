@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -166,7 +167,7 @@ class SwipeActionsState internal constructor(
      */
     suspend fun animateTo(value: SwipeValue) {
         if (anchoredState.anchors.hasPositionFor(value)) {
-            anchoredState.animateTo(value)
+            move(value)
         } else {
             pending = value
         }
@@ -175,8 +176,20 @@ class SwipeActionsState internal constructor(
     internal suspend fun deliverPending() {
         val target = pending ?: return
         pending = null
-        if (anchoredState.anchors.hasPositionFor(target)) anchoredState.animateTo(target)
+        if (anchoredState.anchors.hasPositionFor(target)) move(target)
     }
+
+    /**
+     * Slides, or under reduced motion arrives: a row sliding open with nobody's
+     * finger on it is the movement the setting is about. A drag is the reader's
+     * and follows their finger either way.
+     */
+    private suspend fun move(value: SwipeValue) {
+        if (reduceMotion) anchoredState.snapTo(value) else anchoredState.animateTo(value)
+    }
+
+    /** The theme's setting, kept current by [rememberSwipeActionsState]. */
+    internal var reduceMotion: Boolean = false
 }
 
 /**
@@ -201,7 +214,8 @@ fun rememberSwipeActionsState(
     val anchored = remember {
         AnchoredDraggableState(initialValue = initialValue)
     }
-    return remember { SwipeActionsState(anchored) }
+    val reduceMotion = Theme.motion.reduceMotion
+    return remember { SwipeActionsState(anchored) }.also { it.reduceMotion = reduceMotion }
 }
 
 /** What a [SwipeActions] takes by default. */

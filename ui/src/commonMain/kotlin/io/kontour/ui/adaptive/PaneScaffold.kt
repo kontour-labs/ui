@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.hoverable
@@ -273,10 +274,18 @@ private fun TwoPaneSupporting(
     // caller starts again from it.
     var weight by remember(supportingWeight) { mutableFloatStateOf(supportingWeight) }
     val motion = Theme.motion
+    // Under reduced motion the pane takes its width at once — the main pane
+    // reflowing across a third of the window, frame by frame, is movement of
+    // everything in it — and fades in where it will rest.
     val share by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springGentle),
+        animationSpec = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springGentle),
         label = "supportingPane",
+    )
+    val appear by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = motion.tweenFast(),
+        label = "supportingPaneFade",
     )
     val fraction = share.coerceIn(0f, 1f)
     var totalWidth by remember { mutableFloatStateOf(0f) }
@@ -320,6 +329,7 @@ private fun TwoPaneSupporting(
             ) {
                 val full = with(density) { (totalWidth * weight).toDp() }
                 Box(
+                    (if (motion.reduceMotion) Modifier.alpha(appear) else Modifier).then(
                     if (fraction < 1f && totalWidth > 0f) {
                         Modifier
                             .fillMaxHeight()
@@ -328,6 +338,7 @@ private fun TwoPaneSupporting(
                     } else {
                         Modifier.fillMaxSize()
                     }
+                    )
                 ) { supporting() }
             }
         }

@@ -193,10 +193,20 @@ class CarouselState internal constructor(
         listState.scrollToItem(page.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
     }
 
-    /** Slides to [page], clamped to the pages there are. What a dot or an arrow does. */
+    /**
+     * Slides to [page], clamped to the pages there are. What a dot or an arrow does.
+     *
+     * Moves at once under reduced motion: a page sliding the width of the
+     * carousel, with no finger on it, is exactly the movement the setting asks
+     * to be spared.
+     */
     suspend fun animateScrollToPage(page: Int) {
-        listState.animateScrollToItem(page.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
+        val target = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        if (reduceMotion) listState.scrollToItem(target) else listState.animateScrollToItem(target)
     }
+
+    /** The theme's setting, kept current by [rememberCarouselState]; a state holder cannot read the theme. */
+    internal var reduceMotion: Boolean = false
 }
 
 /**
@@ -206,7 +216,8 @@ class CarouselState internal constructor(
 @Composable
 fun rememberCarouselState(pageCount: () -> Int): CarouselState {
     val listState = rememberLazyListState()
-    return remember(listState) { CarouselState(listState, pageCount) }
+    val reduceMotion = Theme.motion.reduceMotion
+    return remember(listState) { CarouselState(listState, pageCount) }.also { it.reduceMotion = reduceMotion }
 }
 
 /**
