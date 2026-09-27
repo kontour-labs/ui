@@ -302,7 +302,10 @@ class SheetGeometryTest {
             height = canvasHeight,
             density = Density(density),
         ) {
-            KontourTheme(darkTheme = false, reduceMotion = true) {
+            // Motion on: under reduced motion a sheet opens at its detent and
+            // fades, which is the other correct answer and not the slide this
+            // is about.
+            KontourTheme(darkTheme = false, reduceMotion = false) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Box(Modifier.fillMaxSize()) {
                         val sheet = rememberSheetState(

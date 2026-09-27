@@ -191,8 +191,12 @@ class SettingsPanelHeightTest {
          * Exact rather than rounded up: a ceiling with slack in it is a ceiling
          * that lets a row land unnoticed, which is the whole thing this is here
          * to prevent. Legitimate growth edits these numbers and says why.
+         *
+         * Round 15 added the pseudo-locale row, 97dp at 100%: a label and a
+         * segmented control, put last so that Text size, Haptics and Input
+         * modality are where they were.
          */
-        val Ceilings = listOf(1f to 826, 1.3f to 854, 2f to 1205)
+        val Ceilings = listOf(1f to 923, 1.3f to 957, 2f to 1431)
 
         /**
          * How much taller the panel is at the popover's width than at the sheet's.

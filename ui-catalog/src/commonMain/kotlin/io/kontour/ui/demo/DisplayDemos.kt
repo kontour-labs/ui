@@ -223,10 +223,13 @@ internal val ProgressDemo = ComponentDemo(
             // step walks one lit segment along the row — "somewhere in this
             // sequence, not yet known". `working` keeps the step and animates
             // inside it: the position is known, the progress within it is not.
+            // What is left of the row, so the button keeps its own width — it
+            // used to be squeezed to nothing and was never on screen.
             StepProgress(
                 current = if (indeterminate) null else step,
                 total = 4,
                 working = working,
+                modifier = Modifier.weight(1f),
             )
             Button(
                 onClick = { step = step % 4 + 1 },

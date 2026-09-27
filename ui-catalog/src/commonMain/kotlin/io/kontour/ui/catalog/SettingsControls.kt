@@ -172,18 +172,6 @@ fun DisplaySettingsControls(
     )
 
     Text(
-        text = "Pseudo-locale",
-        style = Theme.typography.labelMedium,
-        modifier = Modifier.padding(top = Theme.spacing.sm),
-    )
-    SegmentedControl(
-        options = pseudoLocales.map { it.first },
-        selectedIndex = pseudoLocales.indexOfFirst { it.second == settings.pseudoLocale }.coerceAtLeast(0),
-        onSelectedIndexChange = { settings.pseudoLocale = pseudoLocales[it].second },
-        modifier = Modifier.fillMaxWidth(),
-    )
-
-    Text(
         text = "Haptics",
         style = Theme.typography.labelMedium,
         modifier = Modifier.padding(top = Theme.spacing.sm),
@@ -205,6 +193,20 @@ fun DisplaySettingsControls(
         selectedIndex = inputModalities.indexOfFirst { it.second == settings.modality }
             .coerceAtLeast(0),
         onSelectedIndexChange = { settings.modality = inputModalities[it].second },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    // Last: a tool for whoever is building the screen, not a setting a reader
+    // opened the panel for, so it does not push theirs further down.
+    Text(
+        text = "Pseudo-locale",
+        style = Theme.typography.labelMedium,
+        modifier = Modifier.padding(top = Theme.spacing.sm),
+    )
+    SegmentedControl(
+        options = pseudoLocales.map { it.first },
+        selectedIndex = pseudoLocales.indexOfFirst { it.second == settings.pseudoLocale }.coerceAtLeast(0),
+        onSelectedIndexChange = { settings.pseudoLocale = pseudoLocales[it].second },
         modifier = Modifier.fillMaxWidth(),
     )
 }

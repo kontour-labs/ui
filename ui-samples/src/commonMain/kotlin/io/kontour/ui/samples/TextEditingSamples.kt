@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.components.text.PhoneFormat
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
@@ -152,7 +153,8 @@ fun SpecialisedFieldsBasics() {
     // at a time.
     PasswordField(state = password, label = "Password", newPassword = true)
     NumberField(state = adults, label = "Adults", maxLength = 2)
-    // Stored clean, displayed masked: the caller reads "0412345678".
-    PhoneField(state = phone, label = "Mobile")
+    // Stored clean, displayed masked: the caller reads "0412345678". The
+    // grouping is the app's to name — the field guesses no country.
+    PhoneField(state = phone, label = "Mobile", format = PhoneFormat.AustralianMobile)
     EmailField(state = email, label = "Email")
 }

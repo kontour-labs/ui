@@ -289,17 +289,19 @@ class AnimatedCounterTest {
         }.use { scene ->
             val rest = scene.frames(10)
             val cells = rest.digitCells()
+            // Grouped as the reader writes it: "1,200", so the separator is a
+            // cell of its own between the thousands and the hundreds.
             assertEquals(
-                4,
+                5,
                 cells.size,
-                "1200 should draw as four separated glyphs and drew ${cells.size} " +
-                    "runs of ink. A font whose digits touch would merge two cells " +
-                    "into one, and then this test is measuring something else.",
+                "1,200 should draw as four separated digits and a separator, and drew " +
+                    "${cells.size} runs of ink. A font whose digits touch would merge " +
+                    "two cells into one, and then this test is measuring something else.",
             )
             // The hundreds and the tens: adjacent, both about to change — 2 to 1
             // and 0 to 9 — and the two the old parity put in opposite phase.
-            val hundreds = cells[1]
-            val tens = cells[2]
+            val hundreds = cells[2]
+            val tens = cells[3]
 
             value.value = 1199
             val shaking = scene.renderUntil(timeoutMillis = ShakeTimeoutMillis) {

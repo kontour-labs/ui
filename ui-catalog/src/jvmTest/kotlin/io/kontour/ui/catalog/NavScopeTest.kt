@@ -248,8 +248,10 @@ class NavScopeTest {
 
         val alerts = onNodeWithContentDescription("Alerts").fetchSemanticsNode()
         val name = alerts.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+        // The badge says "3 new", so the count is inside a phrase rather than a
+        // word of its own.
         assertTrue(
-            "3" in name,
+            name.any { "3" in it },
             "the badged destination announces $name — its badge's count is not part of it",
         )
         assertEquals(

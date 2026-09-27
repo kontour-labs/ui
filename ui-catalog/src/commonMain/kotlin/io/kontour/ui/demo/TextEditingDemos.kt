@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.text.PhoneFormat
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -150,11 +151,15 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
             label = "Email",
             modifier = Modifier.fillMaxWidth(),
         )
+        // An Australian app, so an Australian mobile's grouping. The field
+        // guesses no country by default: a mask for the wrong one is worse
+        // than none.
         PhoneField(
             state = rememberTextFieldState("0412345678"),
             label = "Mobile",
             supporting = "Masked for display; stored as digits",
             modifier = Modifier.fillMaxWidth(),
+            format = PhoneFormat.AustralianMobile,
         )
         // The two knobs are the field: what it *will not* accept is the whole
         // of what a number field is, and both refusals are silent — a rejected

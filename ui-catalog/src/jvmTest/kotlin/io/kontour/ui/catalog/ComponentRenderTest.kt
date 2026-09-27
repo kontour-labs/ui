@@ -1,6 +1,10 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
+import java.awt.image.BufferedImage
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.elevation
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -161,6 +165,29 @@ class ComponentRenderTest {
     }
 
     /**
+     * The control: the walk can fail. A raised panel with a shadow and no edge —
+     * the defect this exists for — scores under 3:1 at the enhanced light tier,
+     * where its ground is the page's own white; a black button with the same
+     * shadow scores far over it.
+     */
+    @Test
+    fun theBoundaryWalkTellsAShadowFromAnEdge() {
+        fun panel(fill: @Composable () -> Color): Float = Scene(width = 600, height = 240, density = 2f) {
+            KontourTheme(darkTheme = false, contrast = ContrastLevel.High, reduceMotion = true) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background), contentAlignment = Alignment.Center) {
+                    val shape = Theme.shapes.container
+                    Box(Modifier.size(160.dp, 80.dp).elevation(Theme.elevation.overlay, shape).background(fill(), shape))
+                }
+            }
+        }.use { boundaryContrast(it.frames(4)) }
+
+        val quiet = panel { Theme.colours.surfaceRaised }
+        val solid = panel { Theme.colours.primary }
+        assertTrue(quiet < ContrastThreshold.NonText, "a raised panel with no edge scored ${quiet}:1 — the walk cannot see the defect")
+        assertTrue(solid >= ContrastThreshold.NonText, "a solid button behind a shadow scored ${solid}:1 — the walk stops in the shadow")
+    }
+
+    /**
      * One specimen, centred on the page's own background.
      *
      * Enabled and inert: the state on show is the resting one, and a specimen
@@ -213,26 +240,37 @@ class ComponentRenderTest {
      *
      * Each walk starts on the page — the render keeps a margin — and goes in
      * along the middle row or column, through whatever the component draws at its
-     * boundary: an edge, a fill, the ink of its text. A shadow is a gradient of
-     * small steps and scores low; the line or fill behind it scores high, as long
-     * as it is within [BoundaryReach] of where the ink began. So a container
-     * that is a quiet fill with a shadow for an edge — the defect this exists
-     * for — is the thing that fails.
+     * boundary: an edge, a fill, the ink of its text. A shadow's tail is a few
+     * levels off the page for many pixels and is skipped; the walk starts where
+     * the shadow darkens, and it stops at the first run of one colour, which is
+     * the component's own ground: whatever edge it has is behind that point, and
+     * the text further in is not an edge. So a container that is a quiet fill
+     * with a shadow for an edge — the defect this exists for — is the thing
+     * that fails, and a black button with a long soft shadow is not.
      */
-    private fun boundaryContrast(file: File): Float {
-        val image = ImageIO.read(file) ?: return 0f
+    private fun boundaryContrast(file: File): Float = ImageIO.read(file)?.let(::boundaryContrast) ?: 0f
+
+    private fun boundaryContrast(image: BufferedImage): Float {
         val page = Color(image.getRGB(0, 0))
         fun score(points: Sequence<Pair<Int, Int>>): Float {
             var started = -1
             var best = 1f
+            var flat = 0
+            var previous = 0
             for ((i, point) in points.withIndex()) {
                 val (x, y) = point
                 val pixel = image.getRGB(x, y)
-                if (started < 0 && pixel != image.getRGB(0, 0)) started = i
-                if (started >= 0) {
-                    best = maxOf(best, contrastRatio(Color(pixel), page))
-                    if (i - started >= BoundaryReach) break
+                val ratio = contrastRatio(Color(pixel), page)
+                if (started < 0) {
+                    if (ratio < ShadowTail) continue
+                    started = i
                 }
+                best = maxOf(best, ratio)
+                // Only a run off the page counts as a ground: the page itself
+                // between two glyphs is a gap to walk across, not an end.
+                flat = if (i > started && ratio >= ShadowTail && pixel == previous) flat + 1 else 0
+                previous = pixel
+                if (flat >= FlatRun || i - started >= BoundaryReach) break
             }
             return best
         }
@@ -250,10 +288,21 @@ class ComponentRenderTest {
 
     private companion object {
         /**
-         * How far past the first drawn pixel a walk looks for the edge: 12dp at
-         * 2×, past the widest soft shadow the scale has.
+         * The most a walk goes past where it began: 24dp at 2×, past the longest
+         * shadow the scale has. The flat run below usually ends it first.
          */
-        const val BoundaryReach = 24
+        const val BoundaryReach = 48
+
+        /** Below this against the page, a pixel is a shadow's tail, not an edge. */
+        const val ShadowTail = 1.05f
+
+        /**
+         * This many pixels of exactly one colour is a ground: 8dp at 2×. A soft
+         * shadow changes a level every few pixels as it fades, so it never
+         * holds one colour this long — and "within a level" would call the
+         * whole gradient flat.
+         */
+        const val FlatRun = 16
 
         /**
          * Specimens that have no edge to find, with the reason.
@@ -264,7 +313,29 @@ class ComponentRenderTest {
          */
         val EdgeExempt = mapOf(
             "Skeleton" to "a placeholder, deliberately faint, and announced as loading",
+            "Redacted" to "a placeholder, as `Skeleton` is; the cards around its bars keep their edges",
             "Modifier.marquee" to "text scrolling in a clipped line; the text is the component",
+            // Text or marks on the page, with no container: there is no ground to
+            // tell from the page, and a walk down the middle crosses the gaps
+            // between words and marks. Their ink is held to text contrast by the
+            // scheme instead.
+            "Stat" to "text on the page, no container",
+            "KeyValueList" to "text on the page, no container",
+            "RelativeTimeText" to "text on the page, no container",
+            "EmptyState" to "text on the page, no container",
+            "RadioGroup" to "rows of text and marks on the page, no container",
+            "Timeline" to "marks and text on the page, no container",
+            "HorizontalTimeline" to "marks and text on the page, no container",
+            "Badge" to "a mark on an icon, ringed in the page's colour at this tier by design",
+            "PageIndicator" to "a row of dots with gaps; the others are `inactive`, 4.5:1 on the page",
+            "ColourSwatchPicker" to "a row of swatches with gaps; each carries its own ring",
+            "ColourPicker" to "a picture of colour, not a container; its cursors carry a double ring",
+            "Avatar" to "a row of discs with gaps; each is a fill, or edged when it has neither name nor picture",
+            "Table" to "rows of text divided by rules; it draws no frame unless it is outlined",
+            "DatePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
+            "DateRangePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
+            "Carousel" to "its pages are the caller's pictures; the carousel draws no ground of its own",
+            "PullToRefresh" to "its list runs off the foot of the card; the disc and each row carry their own edges",
         )
 
         /**

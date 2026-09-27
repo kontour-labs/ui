@@ -1,5 +1,6 @@
 package io.kontour.ui.contract
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import com.composables.icons.tabler.outline.Bell
@@ -2385,8 +2386,18 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Avatar", role = null, underContract = false) { modifier, _, _ ->
-            Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ComponentSpec(
+            "Avatar",
+            role = null,
+            underContract = false,
+            // A group is its discs overlapping, and a disc does not shrink.
+            minWidth = 100,
+        ) { modifier, _, _ ->
+            FlowRow(
+                modifier,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 // Through a local: a quoted name argument in this file names a spec.
                 val person = "Ada Lovelace"
                 Avatar(name = person)
@@ -2407,8 +2418,17 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("Pagination", role = null, underContract = false) { modifier, _, _ ->
-            Pagination(value = 3, pageCount = 12, onValueChange = {}, modifier = modifier)
+        ComponentSpec(
+            "Pagination",
+            role = null,
+            underContract = false,
+            // Two arrows and the page you are on, each a touch target: there is
+            // no narrower arrangement of it that still pages.
+            minWidth = 144,
+        ) { modifier, _, _ ->
+            // A width, so the row windows its pages as it would in a layout
+            // rather than laying all twelve out at the unbounded measure.
+            Pagination(value = 3, pageCount = 12, onValueChange = {}, modifier = modifier.width(SpecimenProseWidth))
         }
     )
 
@@ -2459,7 +2479,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("EmptyState", role = null, underContract = false) { modifier, _, _ ->
+        ComponentSpec("EmptyState", role = null, underContract = false, renderHeight = 160) { modifier, _, _ ->
             EmptyState(modifier.width(SpecimenProseWidth)) {
                 +"No favourites yet"
                 message { +"Star a stop and it will appear here." }
