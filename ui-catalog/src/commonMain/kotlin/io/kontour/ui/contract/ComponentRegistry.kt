@@ -883,7 +883,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 tickLabel = { "${it.toInt()}%" },
                 contentDescription = "Battery",
             ) {
-                Text("Battery")
+                label("Battery")
             }
         }
     )
@@ -901,9 +901,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             renderHeight = 160,
         ) { modifier, _, _ ->
             Timeline(modifier) {
-                TimelineItem { Text("Perth Station") }
-                TimelineItem(connector = ConnectorStyle.Dotted, filled = false) { Text("Walk 4 min") }
-                TimelineItem(connector = ConnectorStyle.None) { Text("Elizabeth Quay") }
+                TimelineItem { +"Perth Station" }
+                TimelineItem(connector = ConnectorStyle.Dotted, filled = false) { +"Walk 4 min" }
+                TimelineItem(connector = ConnectorStyle.None) { +"Elizabeth Quay" }
             }
         }
     )
@@ -973,9 +973,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
             underContract = false,
         ) { modifier, _, _ ->
             HorizontalTimeline(modifier) {
-                TimelineItem { Text("Ordered") }
-                TimelineItem(connector = ConnectorStyle.Dashed) { Text("Packed") }
-                TimelineItem(connector = ConnectorStyle.None, filled = false) { Text("Delivered") }
+                TimelineItem { +"Ordered" }
+                TimelineItem(connector = ConnectorStyle.Dashed) { +"Packed" }
+                TimelineItem(connector = ConnectorStyle.None, filled = false) { +"Delivered" }
             }
         }
     )
@@ -1054,7 +1054,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             underContract = false,
         ) { modifier, _, _ ->
             ChatBubble(side = BubbleSide.Outgoing, modifier = modifier) {
-                Text("Every 15 minutes until 11pm")
+                +"Every 15 minutes until 11pm"
             }
         }
     )
@@ -2209,7 +2209,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         modifier.widthIn(max = SpecimenProseWidth),
                         tone = Tone.Warning,
                     ) {
-                        Text("Journey planning is unavailable while the timetable reloads.")
+                        +"Journey planning is unavailable while the timetable reloads."
                     }
                 },
             ),
@@ -2227,10 +2227,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // is most of what made this a `Banner` sibling — every call site used
             // to pass `bodySmall` by hand and any one of them could have not.
             Callout(modifier.widthIn(max = SpecimenProseWidth)) {
-                Text(
-                    "Melbourne, Sydney and Canberra do not currently support " +
-                        "journey planning.",
-                )
+                +"Melbourne, Sydney and Canberra do not currently support journey planning."
             }
         }
     )

@@ -48,6 +48,12 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.listItemSlots
+import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ProvideContentColour
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.theme.Theme
 
 /** How the connector below a [TimelineItem] is drawn. */
@@ -156,10 +162,11 @@ object TimelineDefaults {
  * ```
  * Timeline {
  *     TimelineItem(nodeColour = routeColour, connector = ConnectorStyle.Solid) {
- *         Text("Perth Station"); Text("Platform 3", …)
+ *         +"Perth Station"
+ *         supporting { +"Platform 3" }
  *     }
- *     TimelineItem(connector = ConnectorStyle.Dashed) { Text("Walk 4 min") }
- *     TimelineItem(connector = ConnectorStyle.None) { Text("Elizabeth Quay") }
+ *     TimelineItem(connector = ConnectorStyle.Dashed) { +"Walk 4 min" }
+ *     TimelineItem(connector = ConnectorStyle.None) { +"Elizabeth Quay" }
  * }
  * ```
  *
@@ -230,6 +237,19 @@ fun Timeline(
  *   segment and a 2dp walk between two stations says which part of the journey
  *   is the journey. Also sets the hollow node's ring, so a dot and the line
  *   leaving it stay the same weight.
+ * @param content What the item says, filled by name as a list row's is:
+ *   `+"Perth Busport"` is the name, in `titleSmall`; `supporting { +"08:29" }`
+ *   the detail under it, smaller and muted; `overline {}` a line above;
+ *   `trailing {}` a value at the end of the name's line — under the detail
+ *   across a [HorizontalTimeline]. `label {}` takes any composable for the
+ *   name. The node is the item's leading edge, so `leading {}` is not drawn.
+ *
+ * ```kotlin
+ * TimelineItem(filled = false, connector = ConnectorStyle.None) {
+ *     +"Perth Busport"
+ *     supporting { +"08:29 · Stand 24" }
+ * }
+ * ```
  */
 @Composable
 fun TimelineItem(
@@ -242,8 +262,9 @@ fun TimelineItem(
     nodeSize: Dp = TimelineDefaults.NodeSize,
     gutterWidth: Dp = TimelineDefaults.GutterWidth,
     connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
-    content: @Composable ColumnScope.() -> Unit,
+    content: ListItemScope.() -> Unit,
 ) {
+    val slots = listItemSlots(content)
     val context = LocalTimelineContext.current
     val colours = context?.colours ?: TimelineDefaults.colours()
     val progress = context?.progress
@@ -280,7 +301,9 @@ fun TimelineItem(
         )
     }
     if (context?.axis == Orientation.Horizontal) {
-        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, nodeSize, connectorWidth, content)
+        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, nodeSize, connectorWidth) {
+            TimelineItemBody(slots, across = true)
+        }
         return
     }
     if (context != null) {
@@ -352,8 +375,56 @@ fun TimelineItem(
                 .weight(1f)
                 .padding(bottom = Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            content = content,
-        )
+        ) {
+            TimelineItemBody(slots, across = false)
+        }
+    }
+}
+
+/**
+ * What a [TimelineItem] says, in the styles an itinerary's stops are set in:
+ * the name in `titleSmall`, the detail under it smaller and muted, a line above
+ * it the same, and a value — a time, a platform — at the end of the name's line
+ * down the page, or under the detail across it, where there is no end to put it
+ * at. The leading region is the node's, and is not drawn.
+ */
+@Composable
+private fun ColumnScope.TimelineItemBody(slots: ListItemScope, across: Boolean) {
+    val muted = Theme.colours.contentMuted
+    slots.overline?.let { overline ->
+        ProvideContentColour(muted) {
+            ProvideTextStyle(Theme.typography.labelSmall) { ContentSlot(maxLines = 1, content = overline) }
+        }
+    }
+    val label = slots.label
+    val trailing = slots.trailing
+    if (!across && trailing != null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+            Box(Modifier.weight(1f)) { label?.let { TimelineTitle(it) } }
+            TimelineValue(trailing)
+        }
+    } else {
+        label?.let { TimelineTitle(it) }
+    }
+    slots.supporting?.let { supporting ->
+        ProvideContentColour(muted) {
+            ProvideTextStyle(Theme.typography.bodySmall) { ContentSlot(content = supporting) }
+        }
+    }
+    if (across && trailing != null) TimelineValue(trailing)
+}
+
+@Composable
+private fun TimelineTitle(label: @Composable ContentScope.() -> Unit) {
+    ProvideTextStyle(Theme.typography.titleSmall) { ContentSlot(content = label) }
+}
+
+@Composable
+private fun TimelineValue(trailing: @Composable ContentScope.() -> Unit) {
+    ProvideContentColour(Theme.colours.contentMuted) {
+        ProvideTextStyle(Theme.typography.bodySmall) {
+            ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+        }
     }
 }
 
@@ -493,9 +564,9 @@ private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), Parent
  *
  * ```kotlin
  * HorizontalTimeline {
- *     TimelineItem { Text("Ordered"); Text("Mon", style = Theme.typography.bodySmall) }
- *     TimelineItem { Text("Packed"); Text("Tue", style = Theme.typography.bodySmall) }
- *     TimelineItem(filled = false, connector = ConnectorStyle.None) { Text("Delivered") }
+ *     TimelineItem { +"Ordered"; supporting { +"Mon" } }
+ *     TimelineItem { +"Packed"; supporting { +"Tue" } }
+ *     TimelineItem(filled = false, connector = ConnectorStyle.None) { +"Delivered" }
  * }
  * ```
  *

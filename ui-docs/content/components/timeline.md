@@ -6,21 +6,28 @@
 ```kotlin
 Timeline {
     TimelineItem {
-        Text("Perth Underground", style = Theme.typography.titleSmall)
-        Text("08:14 · Platform 2", style = Theme.typography.bodySmall)
+        +"Perth Underground"
+        supporting { +"08:14 · Platform 2" }
     }
     TimelineItem {
-        Text("Elizabeth Quay", style = Theme.typography.titleSmall)
-        Text("08:21 · Platform 1", style = Theme.typography.bodySmall)
+        +"Elizabeth Quay"
+        supporting { +"08:21 · Platform 1" }
     }
     // The last item draws no connector below it, because there is nothing
     // for it to connect to.
     TimelineItem(filled = false, connector = ConnectorStyle.None) {
-        Text("Perth Busport", style = Theme.typography.titleSmall)
-        Text("08:29 · Stand 24", style = Theme.typography.bodySmall)
+        +"Perth Busport"
+        supporting { +"08:29 · Stand 24" }
     }
 }
 ```
+
+An item says what it is the way a list row does: `+"Perth Busport"` is the stop,
+in `titleSmall`; `supporting { +"08:29 · Stand 24" }` the detail under it, smaller
+and muted; `overline { }` a line above and `trailing { }` a value at the end of the
+stop's line — under the detail across a `HorizontalTimeline`. `label { }` takes any
+composable for the stop. A leg rather than a stop — a walk between two — can be
+`supporting` alone.
 `Timeline` and `TimelineItem` — a vertical sequence, which in this app is the
 journey itinerary.
 
@@ -88,20 +95,20 @@ wrapped in a `Box` or added between two others takes its place in the count.
 // under it, and the connector running on to the next.
 HorizontalTimeline {
     TimelineItem {
-        Text("Ordered", style = Theme.typography.titleSmall)
-        Text("Mon 3", style = Theme.typography.bodySmall)
+        +"Ordered"
+        supporting { +"Mon 3" }
     }
     TimelineItem {
-        Text("Packed", style = Theme.typography.titleSmall)
-        Text("Tue 4", style = Theme.typography.bodySmall)
+        +"Packed"
+        supporting { +"Tue 4" }
     }
     TimelineItem(connector = ConnectorStyle.Dashed) {
-        Text("On its way", style = Theme.typography.titleSmall)
-        Text("Wed 5", style = Theme.typography.bodySmall)
+        +"On its way"
+        supporting { +"Wed 5" }
     }
     TimelineItem(filled = false, connector = ConnectorStyle.None) {
-        Text("Delivered", style = Theme.typography.titleSmall)
-        Text("Thu 6, expected", style = Theme.typography.bodySmall)
+        +"Delivered"
+        supporting { +"Thu 6, expected" }
     }
 }
 ```

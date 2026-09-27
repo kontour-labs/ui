@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.theme.Theme
 
 /**
@@ -42,8 +43,7 @@ import io.kontour.ui.theme.Theme
  * ```
  * Box {
  *     IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "About this route", onClick = { open = true })
- *     Popover(open, onDismissRequest = { open = false }) {
- *         Text("Route 950", style = Theme.typography.titleSmall)
+ *     Popover(open, onDismissRequest = { open = false }, title = { +"Route 950" }) {
  *         Text("Runs every 15 minutes until 11pm.")
  *     }
  * }
@@ -62,6 +62,9 @@ import io.kontour.ui.theme.Theme
  * Carries an arrow, since a floating panel with no visible connection to its
  * trigger is just a small dialog in the wrong place.
  *
+ * @param title A heading at the top of the panel, in `titleSmall` and announced
+ *   as a heading: `title = { +"Route 950" }`. The body below it is any column of
+ *   content.
  * @param scrim [ScrimStyle.Transparent] by default: taps outside close it
  *   without dimming, which is right for something this light. Pass
  *   [ScrimStyle.Dimmed] when the popover holds a form worth protecting from a
@@ -87,6 +90,7 @@ fun Popover(
     showArrow: Boolean = true,
     maxWidth: Dp = PopoverDefaults.MaxWidth,
     dismissOnScroll: Boolean = true,
+    title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -98,6 +102,7 @@ fun Popover(
     // entry was built — see `AnchoredOverlayLayout`.
     val latestAnchor by rememberUpdatedState(anchor)
     val body by rememberUpdatedState(content)
+    val latestTitle by rememberUpdatedState(title)
     // As with the anchor: read live rather than captured when the entry was
     // published, so a modifier change reaches a popover that is already open.
     val latestModifier by rememberUpdatedState(modifier)
@@ -158,8 +163,10 @@ fun Popover(
                             maxWidth = maxWidth,
                             border = !showArrow,
                             onDismissRequest = { dismiss() },
-                            content = body,
-                        )
+                        ) {
+                            latestTitle?.let { OverlayTitle(Theme.typography.titleSmall, it) }
+                            body()
+                        }
                     }
                 },
             )

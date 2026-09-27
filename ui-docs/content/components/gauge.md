@@ -16,10 +16,8 @@ Gauge(
     contentDescription = "Engine speed",
     stateDescription = { "${it.roundToInt()} revolutions a minute" },
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("8.5k", style = Theme.typography.titleLarge)
-        Text("RPM", style = Theme.typography.labelSmall)
-    }
+    +"8.5k"
+    label("RPM")
 }
 
 // A thermostat: a thumb on a thicker arc, the reading in the middle.
@@ -32,7 +30,8 @@ Gauge(
     tickPlacement = GaugeTickPlacement.Outside,
     contentDescription = "Humidity",
 ) {
-    Text("40", style = Theme.typography.displaySmall)
+    +"40"
+    label("% humidity")
 }
 ```
 
@@ -67,7 +66,11 @@ personality shows in a number:
 - **Ticks** — `majorTicks` counts both ends, so 0, 2K, … 10K is six; `minorTicks`
   sit between each pair; `tickLabel` writes the major ones; `tickPlacement` puts
   them inside the arc or outside it. Outside leaves the middle to the content.
-- **The middle** — a slot. Centred, or under the hub when there is a needle.
+- **The middle** — the readout: `+"8.5k"` is the figure and `label("RPM")` what it
+  is of, the figure in `displaySmall` on a dial of 160dp or more with the middle to
+  itself and `titleLarge` on a smaller one or under a needle's hub, the caption
+  small and muted under it. `value { … }` and `label { … }` take any composable —
+  an icon, a figure in two weights. Centred, or under the hub when there is a needle.
   `showContentBackground = true` sits it on a translucent capsule, so a needle sweeping
   past the reading goes under it rather than through it — the theme's surface at
   85% by default, or `GaugeDefaults.colours(contentBackground = …)`. The capsule

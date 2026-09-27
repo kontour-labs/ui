@@ -2,7 +2,6 @@ package io.kontour.ui.components.display
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -54,7 +53,8 @@ import kotlin.math.roundToInt
  *     tickLabel = { "${it.roundToInt()}%" },
  *     contentDescription = "Battery",
  * ) {
- *     Text("Battery ${charge.roundToInt()}%")
+ *     +"${charge.roundToInt()}%"
+ *     label("Battery")
  * }
  * ```
  *
@@ -114,9 +114,12 @@ import kotlin.math.roundToInt
  * @param contentDescription What is being measured, for a screen reader.
  * @param stateDescription What a screen reader says for the value, from it — "62
  *   percent charged" rather than a share of the range.
- * @param content Above a horizontal meter, full width; beside a vertical one, on
- *   the end side and centred along it; or, with [MeterContentPlacement.AtValue],
- *   centred on the reading and kept inside the meter's ends.
+ * @param content The readout — `+"62%"` the figure, `label("Battery")` what it
+ *   is of; see [ReadoutScope]. Above a horizontal meter, full width, the caption
+ *   at the start and the figure at the end; beside a vertical one, on the end
+ *   side and centred along it, the figure over the caption; or, with
+ *   [MeterContentPlacement.AtValue], the two together as a small tag centred on
+ *   the reading and kept inside the meter's ends.
  */
 @Composable
 fun Meter(
@@ -140,8 +143,9 @@ fun Meter(
     animateValue: Boolean = true,
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
-    content: @Composable BoxScope.() -> Unit = {},
+    content: ReadoutScope.() -> Unit = {},
 ) {
+    val readout = readoutSlots(content)
     require(valueRange.start <= valueRange.endInclusive) {
         "Meter was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }
@@ -354,10 +358,9 @@ fun Meter(
                             translate(left = -x, top = -y) { drawOutline(outline, colour) }
                         },
                         contentAlignment = Alignment.Center,
-                        content = content,
-                    )
-                } else {
-                    content()
+                    ) { BarReadout(readout, horizontal, atValue) }
+                } else if (!readout.isEmpty) {
+                    BarReadout(readout, horizontal, atValue)
                 }
             }
         },

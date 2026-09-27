@@ -113,7 +113,7 @@ class TimelineConnectorTest {
                         connectorColour = Color.Black,
                         modifier = Modifier.height(rowHeight.dp).reportBounds { bounds = it },
                     ) {
-                        Text("Perth Station")
+                        +"Perth Station"
                     }
                 }
             }

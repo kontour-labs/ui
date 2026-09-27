@@ -11,9 +11,12 @@ Knob(
     contentDescription = "Volume",
     stateDescription = { "${(it * 100).roundToInt()}%" },
 ) {
-    Text("${(volume * 100).roundToInt()}")
+    +"${(volume * 100).roundToInt()}"
 }
 ```
+
+The face carries a readout, as a [`Gauge`](gauge.md)'s middle does: `+"40"` is the
+figure, in `titleMedium`, and `label("dB")` what it is of, small and muted under it.
 
 A dial the user turns: a value on an arc, set by turning a raised face with a notch
 on it. The input half of [`Gauge`](gauge.md), drawing the same scale. Where a

@@ -2,7 +2,6 @@ package io.kontour.ui.components.display
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,7 +46,8 @@ import kotlin.math.max
  *     tickLabel = { "${(it / 1000).toInt()}K" },
  *     colours = GaugeDefaults.colours(indicator = ScaleColours.gradient(listOf(pink, purple))),
  * ) {
- *     Stat { value("8.5k"); +"RPM" }
+ *     +"8.5k"
+ *     label("RPM")
  * }
  * ```
  *
@@ -109,7 +109,9 @@ import kotlin.math.max
  *   Reduced motion does not travel either way.
  * @param stateDescription What a screen reader says for the value, from it — "8,500
  *   revolutions a minute" rather than a percentage of the range.
- * @param content Centred in the dial, or just below the needle's hub when there is one.
+ * @param content The readout, centred in the dial, or just below the needle's
+ *   hub when there is one: `+"72"` is the figure, `label("km/h")` what it is of.
+ *   See [ReadoutScope].
  */
 @Composable
 fun Gauge(
@@ -133,8 +135,9 @@ fun Gauge(
     animateValue: Boolean = true,
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
-    content: @Composable BoxScope.() -> Unit = {},
+    content: ReadoutScope.() -> Unit = {},
 ) {
+    val readout = readoutSlots(content)
     require(valueRange.start <= valueRange.endInclusive) {
         "Gauge was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }
@@ -310,10 +313,9 @@ fun Gauge(
                             translate(left = -x, top = -y) { drawOutline(outline, colour) }
                         },
                         contentAlignment = Alignment.Center,
-                        content = content,
-                    )
-                } else {
-                    content()
+                    ) { DialReadout(readout, dialFigure(size, underHub = hasNeedle)) }
+                } else if (!readout.isEmpty) {
+                    DialReadout(readout, dialFigure(size, underHub = hasNeedle))
                 }
             }
         }

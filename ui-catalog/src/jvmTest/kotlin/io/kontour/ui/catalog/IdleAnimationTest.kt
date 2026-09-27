@@ -81,7 +81,7 @@ class IdleAnimationTest {
             indicator = GaugeIndicator.NeedleAndThumb,
             majorTicks = 5,
             contentPlacement = MeterContentPlacement.AtValue,
-        ) { Text("65%") }
+        ) { +"65%" }
     }
 
     @Test
@@ -188,9 +188,9 @@ class IdleAnimationTest {
 
     @Composable
     private fun stops() {
-        TimelineItem { Text("Perth") }
-        TimelineItem { Text("Elizabeth Quay") }
-        TimelineItem(connector = ConnectorStyle.None) { Text("Busport") }
+        TimelineItem { +"Perth" }
+        TimelineItem { +"Elizabeth Quay" }
+        TimelineItem(connector = ConnectorStyle.None) { +"Busport" }
     }
 
     private fun TimelineListScope.listStops() {

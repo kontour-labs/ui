@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -44,9 +46,9 @@ import io.kontour.ui.theme.cornerReaches
  *         ChatBubble(
  *             side = if (message.mine) BubbleSide.Outgoing else BubbleSide.Incoming,
  *             position = GroupPosition.of(messages, index) { it.sender },
- *             meta = { Text(message.time) },
+ *             meta = { +message.time },
  *         ) {
- *             Text(message.text)
+ *             +message.text
  *         }
  *     }
  * }
@@ -81,7 +83,9 @@ import io.kontour.ui.theme.cornerReaches
  *   given — so a short reply is short and a long one still leaves the other side of
  *   the conversation visibly the other side.
  * @param meta Under the message at its end: a time, "Read", a tick. Drawn smaller
- *   and fainter than the message.
+ *   and fainter than the message — `+"9:41"`, `+Tabler.Outline.Checks`.
+ * @param content The message, in the body style: `+"On my way"`, or any
+ *   composable for something richer.
  */
 @Composable
 fun ChatBubble(
@@ -94,8 +98,8 @@ fun ChatBubble(
     shape: CornerBasedShape = Theme.shapes.capsule,
     joinedCorner: Dp = ChatBubbleDefaults.JoinedCorner,
     maxWidthFraction: Float = ChatBubbleDefaults.MaxWidthFraction,
-    meta: (@Composable () -> Unit)? = null,
-    content: @Composable () -> Unit,
+    meta: (@Composable ContentScope.() -> Unit)? = null,
+    content: @Composable ContentScope.() -> Unit,
 ) {
     val tailWidth = ChatBubbleDefaults.TailWidth
     val bubble = remember(side, position, showTail, shape, joinedCorner, tailWidth) {
@@ -146,11 +150,13 @@ fun ChatBubble(
                     bottom = Theme.spacing.xs,
                 )
             ) {
-                ProvideTextStyle(Theme.typography.bodyMedium) { content() }
+                ProvideTextStyle(Theme.typography.bodyMedium) { ContentSlot(content = content) }
                 if (meta != null) {
                     Column(Modifier.align(Alignment.End)) {
                         CompositionLocalProvider(LocalContentColour provides metaColour) {
-                            ProvideTextStyle(Theme.typography.labelSmall.copy(color = metaColour)) { meta() }
+                            ProvideTextStyle(Theme.typography.labelSmall.copy(color = metaColour)) {
+                                ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = meta)
+                            }
                         }
                     }
                 }

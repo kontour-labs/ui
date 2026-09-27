@@ -13,7 +13,6 @@ import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 
@@ -31,7 +30,7 @@ class MeterTest {
                     contentDescription = "Battery",
                     stateDescription = { "${it.toInt()} percent charged" },
                 ) {
-                    Text("Battery")
+                    label("Battery")
                 }
             }
         }

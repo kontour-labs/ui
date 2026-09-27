@@ -8,7 +8,7 @@ if it can go away, it is a `Banner`.
 // The markdown blockquote treatment, for an aside inside prose. Not a
 // status and not dismissible — if it can go away, it is a `Banner`.
 Callout {
-    Text("Melbourne, Sydney and Canberra do not currently support journey planning.")
+    +"Melbourne, Sydney and Canberra do not currently support journey planning."
 }
 ```
 

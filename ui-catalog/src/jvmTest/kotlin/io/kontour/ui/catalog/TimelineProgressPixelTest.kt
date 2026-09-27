@@ -76,7 +76,7 @@ class TimelineProgressPixelTest {
                         TimelineItem(
                             modifier = Modifier.reportBounds { labels[i] = it },
                             connector = if (i == 2) ConnectorStyle.None else ConnectorStyle.Solid,
-                        ) { Text("Stage $i") }
+                        ) { +"Stage $i" }
                     }
                 }
             }
@@ -101,8 +101,8 @@ class TimelineProgressPixelTest {
                                 modifier = Modifier.reportBounds { items[i] = it },
                                 connector = if (i == 2) ConnectorStyle.None else ConnectorStyle.Solid,
                             ) {
-                                Text("Stop $i")
-                                Text("Platform ${i + 1}")
+                                +"Stop $i"
+                                supporting { +"Platform ${i + 1}" }
                             }
                         }
                         if (wrapMiddle && i == 1) Box { item() } else item()

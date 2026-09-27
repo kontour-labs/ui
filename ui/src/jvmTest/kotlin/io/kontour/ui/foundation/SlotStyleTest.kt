@@ -20,6 +20,22 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.BubbleSide
+import io.kontour.ui.components.display.Callout
+import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.Timeline
+import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.overlay.Dialog
+import io.kontour.ui.overlay.Popover
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.selection.SegmentedControl
@@ -27,6 +43,7 @@ import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.ProvideTokens
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -139,5 +156,124 @@ class SlotStyleTest {
         }
         onNodeWithText("DAY", useUnmergedTree = true).fetchSemanticsNode()
         onNodeWithText("WEEK", useUnmergedTree = true).fetchSemanticsNode()
+    }
+
+    // --- the containers that took `+` ----------------------------------------------
+
+    /** Asserts [seen] was given [expected]'s size and weight. */
+    private fun assertStyle(expected: TextStyle, seen: Seen, what: String) {
+        assertEquals(expected.fontSize, seen.style?.fontSize, "$what is not in the expected size")
+        assertEquals(expected.fontWeight, seen.style?.fontWeight, "$what is not in the expected weight")
+    }
+
+    @Test
+    fun aChatBubblesMessageIsBodyAndItsMetaIsSmall() = runComposeUiTest {
+        val message = Seen()
+        val meta = Seen()
+        var body: TextStyle? = null
+        var small: TextStyle? = null
+        themed {
+            body = Theme.typography.bodyMedium
+            small = Theme.typography.labelSmall
+            ChatBubble(side = BubbleSide.Incoming, meta = { probe(meta) }) { probe(message) }
+        }
+        assertStyle(body!!, message, "the message")
+        assertStyle(small!!, meta, "the meta")
+    }
+
+    @Test
+    fun aCalloutIsSmallBodyInItsTone() = runComposeUiTest {
+        val seen = Seen()
+        var small: TextStyle? = null
+        themed {
+            small = Theme.typography.bodySmall
+            Callout(tone = Tone.Warning) { probe(seen) }
+        }
+        assertStyle(small!!, seen, "the callout")
+        assertNotEquals(Color.Unspecified, seen.colour)
+    }
+
+    @Test
+    fun aTimelineItemsNameIsATitleAndItsDetailIsMuted() = runComposeUiTest {
+        val name = Seen()
+        val detail = Seen()
+        var title: TextStyle? = null
+        var small: TextStyle? = null
+        var muted = Color.Unspecified
+        themed {
+            title = Theme.typography.titleSmall
+            small = Theme.typography.bodySmall
+            muted = Theme.colours.contentMuted
+            Timeline {
+                TimelineItem {
+                    label { probe(name) }
+                    supporting { probe(detail) }
+                }
+            }
+        }
+        assertStyle(title!!, name, "the stop's name")
+        assertStyle(small!!, detail, "the stop's detail")
+        assertEquals(muted, detail.colour, "the stop's detail is not muted")
+    }
+
+    @Test
+    fun aDialogsTitleIsLargeAndAHeading() = runComposeUiTest {
+        val seen = Seen()
+        var large: TextStyle? = null
+        themed {
+            large = Theme.typography.titleLarge
+            OverlayHost(Modifier.fillMaxSize()) {
+                Dialog(visible = true, onDismissRequest = {}, title = { probe(seen); +"Filter departures" }) {}
+            }
+        }
+        assertStyle(large!!, seen, "the dialog's title")
+        onNode(isHeading() and hasText("Filter departures")).fetchSemanticsNode()
+    }
+
+    @Test
+    fun aPopoversTitleIsSmallAndAHeading() = runComposeUiTest {
+        val seen = Seen()
+        var small: TextStyle? = null
+        themed {
+            small = Theme.typography.titleSmall
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box {
+                    Popover(visible = true, onDismissRequest = {}, title = { probe(seen); +"Route 950" }) {}
+                }
+            }
+        }
+        assertStyle(small!!, seen, "the popover's title")
+        onNode(isHeading() and hasText("Route 950")).fetchSemanticsNode()
+    }
+
+    @Test
+    fun aReadoutIsSizedByItsDial() = runComposeUiTest {
+        val open = Seen()
+        val hub = Seen()
+        val caption = Seen()
+        val knob = Seen()
+        val bar = Seen()
+        var typography: io.kontour.ui.theme.Typography? = null
+        themed {
+            typography = Theme.typography
+            Column {
+                Gauge(value = 0.4f, size = 160.dp) {
+                    value { probe(open) }
+                    label { probe(caption) }
+                }
+                Gauge(value = 0.4f, size = 160.dp, indicator = GaugeIndicator.Needle) { value { probe(hub) } }
+                Knob(value = 0.4f, onValueChange = {}, contentDescription = "Volume") { value { probe(knob) } }
+                Meter(value = 0.4f, modifier = Modifier.fillMaxWidth()) {
+                    +"40%"
+                    label { probe(bar) }
+                }
+            }
+        }
+        val type = typography!!
+        assertStyle(type.displaySmall, open, "a large dial's figure")
+        assertStyle(type.titleLarge, hub, "a figure under a needle's hub")
+        assertStyle(type.labelSmall, caption, "a dial's caption")
+        assertStyle(type.titleMedium, knob, "a knob's figure")
+        assertStyle(type.labelMedium, bar, "a meter's caption")
     }
 }

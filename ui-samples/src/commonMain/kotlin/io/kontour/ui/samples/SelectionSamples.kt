@@ -149,7 +149,7 @@ fun KnobBasics() {
         contentDescription = "Volume",
         stateDescription = { "${(it * 100).roundToInt()}%" },
     ) {
-        Text("${(volume * 100).roundToInt()}")
+        +"${(volume * 100).roundToInt()}"
     }
 }
 

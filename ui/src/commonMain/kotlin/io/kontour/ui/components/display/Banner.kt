@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -255,13 +256,16 @@ fun AnimatedBanner(
  *   the caller choose, because a callout often has no caller: a documentation
  *   site turns every markdown blockquote into one. Null for a callout that is
  *   tint alone.
+ * @param content The aside, in the callout's small body style and the tone's
+ *   colour: `Callout { +"Fares are capped at $5.20 a day." }`, as a [Banner]
+ *   takes its message.
  */
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
     tone: Tone = Tone.Accent,
     icon: ImageVector? = CalloutDefaults.icon(tone),
-    content: @Composable () -> Unit,
+    content: @Composable ContentScope.() -> Unit,
 ) {
     val colours = bannerColoursFor(tone)
     val shape = Theme.shapes.container
@@ -290,7 +294,7 @@ fun Callout(
                 )
             }
             ProvideTextStyle(Theme.typography.bodySmall) {
-                Box(Modifier.weight(1f)) { content() }
+                Box(Modifier.weight(1f)) { ContentSlot(content = content) }
             }
         }
     }

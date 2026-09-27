@@ -14,7 +14,7 @@ Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             // Consecutive messages from one sender are a run; the last has the tail.
             position = GroupPosition.of(messages, index) { it.first },
         ) {
-            Text(text)
+            +text
         }
     }
 }
@@ -38,6 +38,10 @@ A bubble grows to `maxWidthFraction` of the width it is given — 80% — so a s
 reply is short and a long one still leaves the other side of the conversation
 visibly the other side. `meta` goes under the message at its end, smaller and
 fainter: a time, "Read", a tick.
+
+Both take the `+` shorthand: the message is `+"…"` in the body style, and `meta`
+is `+"9:41"` or `+icon` in its own smaller, fainter one. Anything richer — a
+link, a picture — is a composable in the same block.
 
 ---
 

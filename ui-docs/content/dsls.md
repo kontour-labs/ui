@@ -107,13 +107,14 @@ supporting { +("Perth Underground will be taken off " +     // ✓
 Which one a component uses is invisible at the call site, and the difference is
 worth understanding only when you are writing a component.
 
-**Emitting.** `Button`, `Chip`, `Tag` — anything whose content is a single run of
-things. The slot is a normal `@Composable` lambda and `+` emits where it is
+**Emitting.** `Button`, `Chip`, `Tag`, `ChatBubble`, `Callout`, and a `Dialog`'s or
+`Popover`'s `title` — anything whose content is a single run of things. The slot is a normal `@Composable` lambda and `+` emits where it is
 written. The scope extends the layout scope the lambda already had
 (`RowContentScope : RowScope`), so `Modifier.weight` still means what it did.
 
-**Collecting.** `ListItem`, `Banner`, `TopBar`, `MenuItem`, `SheetHeader` —
-anything with more than one region. Content cannot run where it is written: a
+**Collecting.** `ListItem`, `Banner`, `TopBar`, `MenuItem`, `SheetHeader`,
+`TimelineItem`, and the readouts of `Gauge`, `Meter` and `Knob` — anything with
+more than one region. Content cannot run where it is written: a
 row's label belongs inside a `Column` inside a `Row`, next to a leading slot
 declared after it. So the builder is a plain lambda that *records* what goes
 where, and the component composes the regions in the order the layout wants.
@@ -127,11 +128,31 @@ A collecting builder is not composable, so you cannot call a composable or read
 same shape as Compose's own `LazyListScope`.
 
 **A bare `+` fills the component's primary text** — the region a one-line call
-means. A row's label, a banner's message, a state screen's title, a stat's label.
-Those are four different *names* because they are four different things, and the
+means. A row's label, a banner's message, a state screen's title, a stat's label,
+a readout's figure. Those are five different *names* because they are five
+different things, and the
 [word table](../../docs/building/contributing.md#the-words) keeps them apart: a `label`
 names a control, a `title` heads a region, a `message` is prose. What is uniform
 is which one `+` reaches, not what it is called.
+
+### Which components take it
+
+`+` belongs where a component's content is, nine times in ten, the same kind of
+thing in the same style — so the component can own the style, and the call site
+writes only the words:
+
+| Component | Region | Style it gets |
+|---|---|---|
+| `ChatBubble` | the message; `meta` | `bodyMedium`; `labelSmall`, faint |
+| `Callout` | the aside | `bodySmall`, in the tone's colour |
+| `TimelineItem` | `+` the stop; `supporting`, `overline`, `trailing` | `titleSmall`; `bodySmall`, muted |
+| `Dialog`, `Popover` | `title` | `titleLarge`, `titleSmall`; a heading |
+| `Gauge`, `Meter`, `Knob` | `+` the figure; `label` | sized by the component; `labelSmall`, muted |
+| `ListItem`, `SettingRow`, `SelectionRow` | `trailing` | `bodyMedium`, muted |
+
+It stays out of bodies that are genuinely anything — a `Card`, a `Dialog`'s or a
+sheet's content, an `Accordion`'s panel — and out of holders of controls, like a
+`Toolbar` or a `TopBar`'s actions, where the thing inside sets its own style.
 
 ---
 

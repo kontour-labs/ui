@@ -220,7 +220,7 @@ class GaugeDrawingTest {
                         showContentBackground = background,
                         colours = GaugeDefaults.colours(needle = Color.Green, contentBackground = Color.Magenta),
                     ) {
-                        Box(Modifier.size(width = 120.dp, height = 40.dp))
+                        value { Box(Modifier.size(width = 120.dp, height = 40.dp)) }
                     }
                 }
             }.use { it.frames(4) }

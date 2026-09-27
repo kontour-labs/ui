@@ -15,8 +15,7 @@ Box {
         contentDescription = "About this route",
         onClick = { open = !open },
     )
-    Popover(visible = open, onDismissRequest = { open = false }) {
-        Text("Route 950", style = Theme.typography.titleSmall)
+    Popover(visible = open, onDismissRequest = { open = false }, title = { +"Route 950" }) {
         Text(
             "Runs every 15 minutes until 11pm, then every 30 minutes overnight.",
             style = Theme.typography.bodySmall,
@@ -25,6 +24,9 @@ Box {
     }
 }
 ```
+
+**`title` is a heading at the top of the panel**, `title = { +"Route 950" }`, in
+`titleSmall` and announced as one. The content under it is any column.
 
 **A popover is not a small dialog.** If the content is a decision that must be
 made before anything else can happen, it is a [`Dialog`](dialog.md). If it is a

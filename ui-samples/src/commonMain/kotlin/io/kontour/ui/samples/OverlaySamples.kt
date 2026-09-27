@@ -47,8 +47,7 @@ fun DialogBasics() {
 
     Button(onClick = { open = true }) { +"Rename favourite" }
 
-    Dialog(visible = open, onDismissRequest = { open = false }) {
-        Text("Rename favourite", style = Theme.typography.titleMedium)
+    Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
         Text(
             "Give it a name you will recognise on the home screen.",
             style = Theme.typography.bodySmall,
@@ -88,8 +87,7 @@ fun PopoverBasics() {
             contentDescription = "About this route",
             onClick = { open = !open },
         )
-        Popover(visible = open, onDismissRequest = { open = false }) {
-            Text("Route 950", style = Theme.typography.titleSmall)
+        Popover(visible = open, onDismissRequest = { open = false }, title = { +"Route 950" }) {
             Text(
                 "Runs every 15 minutes until 11pm, then every 30 minutes overnight.",
                 style = Theme.typography.bodySmall,

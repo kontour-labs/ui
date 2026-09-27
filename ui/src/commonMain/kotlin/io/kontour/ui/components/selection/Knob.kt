@@ -7,7 +7,6 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -43,10 +42,13 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.DialColours
 import io.kontour.ui.components.display.DialGeometry
+import io.kontour.ui.components.display.DialReadout
+import io.kontour.ui.components.display.ReadoutScope
 import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.dialArcs
 import io.kontour.ui.components.display.dialFill
 import io.kontour.ui.components.display.dialTicks
+import io.kontour.ui.components.display.readoutSlots
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -71,7 +73,7 @@ import kotlin.math.roundToInt
  *     onValueChange = { volume = it },
  *     contentDescription = "Volume",
  * ) {
- *     Text("${(volume * 100).roundToInt()}")
+ *     +"${(volume * 100).roundToInt()}"
  * }
  * ```
  *
@@ -121,7 +123,9 @@ import kotlin.math.roundToInt
  *   colour, a gradient, or bands at values in the knob's own units; the face is
  *   `thumb` ringed in `thumbRing`, and the notch on it is `needle`.
  * @param stateDescription What a screen reader says for the value, from it.
- * @param content Centred on the face — the value, a unit, an icon.
+ * @param content The readout, centred on the face: `+"40"` is the figure,
+ *   `label("dB")` what it is of, and `value { +icon }` an icon. See
+ *   [ReadoutScope].
  */
 @Composable
 fun Knob(
@@ -139,8 +143,9 @@ fun Knob(
     stateDescription: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable BoxScope.() -> Unit = {},
+    content: ReadoutScope.() -> Unit = {},
 ) {
+    val readout = readoutSlots(content)
     require(valueRange.start <= valueRange.endInclusive) {
         "Knob was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }
@@ -371,8 +376,9 @@ fun Knob(
                     }
                 },
             contentAlignment = Alignment.Center,
-            content = content,
-        )
+        ) {
+            if (!readout.isEmpty) DialReadout(readout, Theme.typography.titleMedium)
+        }
     }
 }
 

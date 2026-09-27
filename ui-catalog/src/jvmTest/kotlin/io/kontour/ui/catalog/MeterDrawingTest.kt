@@ -137,7 +137,7 @@ class MeterDrawingTest {
                     colours = colours(),
                     contentPlacement = MeterContentPlacement.AtValue,
                 ) {
-                    Box(Modifier.size(20.dp).reportBounds { tag = it })
+                    value { Box(Modifier.size(20.dp).reportBounds { tag = it }) }
                 }
             }
             assertTrue(

@@ -186,7 +186,7 @@ class TimelineMotionTest {
                                 TimelineItem(
                                     modifier = Modifier.reportBounds { labels[i] = it },
                                     connector = if (i == 1) ConnectorStyle.None else ConnectorStyle.Solid,
-                                ) { Text("Stage $i, a long enough name") }
+                                ) { +"Stage $i, a long enough name" }
                             }
                         }
                     }

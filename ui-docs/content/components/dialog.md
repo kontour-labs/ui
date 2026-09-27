@@ -9,8 +9,7 @@ var open by remember { mutableStateOf(false) }
 
 Button(onClick = { open = true }) { +"Rename favourite" }
 
-Dialog(visible = open, onDismissRequest = { open = false }) {
-    Text("Rename favourite", style = Theme.typography.titleMedium)
+Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
     Text(
         "Give it a name you will recognise on the home screen.",
         style = Theme.typography.bodySmall,
@@ -24,6 +23,10 @@ Reach for a [`Popover`](popover.md) when the rest of the screen is still usable 
 a dialog says *stop*, and saying it about something optional is how people learn
 to dismiss dialogs without reading them. For the ordinary confirm-or-cancel
 shape, [`AlertDialog`](alert-dialog.md) already lays the buttons out.
+
+**`title` is a heading above the content**, `title = { +"Rename favourite" }`, set
+in `titleLarge` as an [`AlertDialog`](alert-dialog.md)'s is and announced as a
+heading. The content under it is any column.
 
 **A dialog scrolls its own content.** It is centred in the window with nowhere
 else to go, so content taller than the window has no other way out. Without the

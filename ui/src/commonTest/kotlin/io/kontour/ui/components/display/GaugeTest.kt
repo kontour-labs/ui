@@ -7,7 +7,6 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.v2.runComposeUiTest
-import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 
@@ -25,7 +24,7 @@ class GaugeTest {
                     contentDescription = "Engine speed",
                     stateDescription = { "${it.toInt()} revolutions a minute" },
                 ) {
-                    Text("8.5k")
+                    +"8.5k"
                 }
             }
         }

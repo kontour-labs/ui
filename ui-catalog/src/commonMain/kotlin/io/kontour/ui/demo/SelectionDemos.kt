@@ -534,7 +534,7 @@ internal val KnobDemo = ComponentDemo(
             stateDescription = { "${(it * 100).roundToInt()}%" },
             onValueChangeFinished = { echo("Volume ${(volume * 100).roundToInt()}%") },
         ) {
-            Text("${(volume * 100).roundToInt()}", style = Theme.typography.titleMedium)
+            +"${(volume * 100).roundToInt()}"
         }
         KnobControl(
             value = balance,

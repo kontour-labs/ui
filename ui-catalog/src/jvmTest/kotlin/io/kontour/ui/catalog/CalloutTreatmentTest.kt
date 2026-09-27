@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
-import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -155,7 +154,7 @@ class CalloutTreatmentTest {
                             // Null suppresses the mark; the default is the
                             // tone's own, which is the case under test.
                             icon = if (withIcon) calloutMark(tone) else null,
-                        ) { Text("Trams do not run to the terminus after nine.") }
+                        ) { +"Trams do not run to the terminus after nine." }
                     }
                 }
             }

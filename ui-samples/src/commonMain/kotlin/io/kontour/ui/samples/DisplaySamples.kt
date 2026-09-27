@@ -104,10 +104,8 @@ fun GaugeBasics() {
         contentDescription = "Engine speed",
         stateDescription = { "${it.roundToInt()} revolutions a minute" },
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("8.5k", style = Theme.typography.titleLarge)
-            Text("RPM", style = Theme.typography.labelSmall)
-        }
+        +"8.5k"
+        label("RPM")
     }
 
     // A thermostat: a thumb on a thicker arc, the reading in the middle.
@@ -120,7 +118,8 @@ fun GaugeBasics() {
         tickPlacement = GaugeTickPlacement.Outside,
         contentDescription = "Humidity",
     ) {
-        Text("40", style = Theme.typography.displaySmall)
+        +"40"
+        label("% humidity")
     }
 }
 
@@ -194,10 +193,8 @@ fun MeterBasics() {
         contentDescription = "Battery",
         stateDescription = { "${it.roundToInt()} percent charged" },
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Text("Battery", modifier = Modifier.weight(1f))
-            Text("62%")
-        }
+        +"62%"
+        label("Battery")
     }
 
     // A tank up the page, a needle pointing at the level and the reading beside it.
@@ -213,7 +210,7 @@ fun MeterBasics() {
         contentDescription = "Water tank",
         stateDescription = { "${it.roundToInt()} litres" },
     ) {
-        Text("340 L", style = Theme.typography.titleLarge)
+        +"340 L"
     }
 }
 
@@ -227,7 +224,7 @@ fun MeterAtTheReading() {
         showContentBackground = true,
         contentDescription = "Download",
     ) {
-        Text("35%", style = Theme.typography.labelMedium)
+        +"35%"
     }
 
     // A balance either side of zero: the fill runs from the middle out.
@@ -242,7 +239,7 @@ fun MeterAtTheReading() {
         contentPlacement = MeterContentPlacement.AtValue,
         contentDescription = "Balance",
     ) {
-        Text("−12", style = Theme.typography.labelMedium)
+        +"−12"
     }
 }
 
@@ -260,7 +257,7 @@ fun ChatBubbleBasics() {
                 // Consecutive messages from one sender are a run; the last has the tail.
                 position = GroupPosition.of(messages, index) { it.first },
             ) {
-                Text(text)
+                +text
             }
         }
     }
@@ -405,7 +402,7 @@ fun CalloutBasics() {
     // The markdown blockquote treatment, for an aside inside prose. Not a
     // status and not dismissible — if it can go away, it is a `Banner`.
     Callout {
-        Text("Melbourne, Sydney and Canberra do not currently support journey planning.")
+        +"Melbourne, Sydney and Canberra do not currently support journey planning."
     }
 }
 
@@ -475,18 +472,18 @@ fun TagBasics() {
 fun TimelineBasics() {
     Timeline {
         TimelineItem {
-            Text("Perth Underground", style = Theme.typography.titleSmall)
-            Text("08:14 · Platform 2", style = Theme.typography.bodySmall)
+            +"Perth Underground"
+            supporting { +"08:14 · Platform 2" }
         }
         TimelineItem {
-            Text("Elizabeth Quay", style = Theme.typography.titleSmall)
-            Text("08:21 · Platform 1", style = Theme.typography.bodySmall)
+            +"Elizabeth Quay"
+            supporting { +"08:21 · Platform 1" }
         }
         // The last item draws no connector below it, because there is nothing
         // for it to connect to.
         TimelineItem(filled = false, connector = ConnectorStyle.None) {
-            Text("Perth Busport", style = Theme.typography.titleSmall)
-            Text("08:29 · Stand 24", style = Theme.typography.bodySmall)
+            +"Perth Busport"
+            supporting { +"08:29 · Stand 24" }
         }
     }
 }
@@ -533,20 +530,20 @@ fun HorizontalTimelineBasics() {
     // under it, and the connector running on to the next.
     HorizontalTimeline {
         TimelineItem {
-            Text("Ordered", style = Theme.typography.titleSmall)
-            Text("Mon 3", style = Theme.typography.bodySmall)
+            +"Ordered"
+            supporting { +"Mon 3" }
         }
         TimelineItem {
-            Text("Packed", style = Theme.typography.titleSmall)
-            Text("Tue 4", style = Theme.typography.bodySmall)
+            +"Packed"
+            supporting { +"Tue 4" }
         }
         TimelineItem(connector = ConnectorStyle.Dashed) {
-            Text("On its way", style = Theme.typography.titleSmall)
-            Text("Wed 5", style = Theme.typography.bodySmall)
+            +"On its way"
+            supporting { +"Wed 5" }
         }
         TimelineItem(filled = false, connector = ConnectorStyle.None) {
-            Text("Delivered", style = Theme.typography.titleSmall)
-            Text("Thu 6, expected", style = Theme.typography.bodySmall)
+            +"Delivered"
+            supporting { +"Thu 6, expected" }
         }
     }
 }

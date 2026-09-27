@@ -306,6 +306,24 @@ The `+` vocabulary reached more of the components whose content is nearly
 always the same kind of thing in the same style, and the slots that already
 took it now style what they hold the same way everywhere.
 
+- **`ChatBubble`'s content and `meta`, and `Callout`'s content, are
+  `ContentScope` slots** in the style they already provided:
+  `ChatBubble(side, meta = { +"9:41" }) { +"On my way" }`, `Callout { +"…" }`.
+  `Text(…)` inside them still works; a stored `@Composable () -> Unit` passed
+  as the content no longer compiles — wrap it.
+- **`TimelineItem` takes a list row's regions**, collected, instead of a
+  `ColumnScope` body: `+"Perth Busport"` is the stop in `titleSmall`,
+  `supporting { +"08:29" }` the muted detail, `trailing {}` a value. A body of
+  `Text(…)` calls becomes `+"…"` and `supporting { +"…" }`; anything else goes
+  in `label { … }`.
+- **`Dialog(title)` and `Popover(title)`** are new: a heading region above the
+  body, in `titleLarge` and `titleSmall`. A hand-written first
+  `Text(…, style = titleMedium)` moves there. `AlertDialog`'s title is drawn by
+  the same region, and is now announced as a heading.
+- **`Gauge`, `Meter` and `Knob` take a `ReadoutScope`** instead of a `BoxScope`:
+  `+"8.5k"` is the figure, sized by the component, and `label("RPM")` the
+  caption. A body that hand-set both becomes those two lines; anything else goes
+  in `value { … }` or `label { … }`.
 - **A list row's `trailing` is styled.** `ListItem`, `SettingRow`,
   `SelectionRow` and the timeline rows give `trailing { +"4 min" }` the muted
   body style, dimming with a disabled row. `settingValue(…)` existed only to do

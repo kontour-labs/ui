@@ -21,10 +21,8 @@ Meter(
     contentDescription = "Battery",
     stateDescription = { "${it.roundToInt()} percent charged" },
 ) {
-    Row(Modifier.fillMaxWidth()) {
-        Text("Battery", modifier = Modifier.weight(1f))
-        Text("62%")
-    }
+    +"62%"
+    label("Battery")
 }
 
 // A tank up the page, a needle pointing at the level and the reading beside it.
@@ -40,7 +38,7 @@ Meter(
     contentDescription = "Water tank",
     stateDescription = { "${it.roundToInt()} litres" },
 ) {
-    Text("340 L", style = Theme.typography.titleLarge)
+    +"340 L"
 }
 ```
 
@@ -97,7 +95,7 @@ Meter(
     showContentBackground = true,
     contentDescription = "Download",
 ) {
-    Text("35%", style = Theme.typography.labelMedium)
+    +"35%"
 }
 
 // A balance either side of zero: the fill runs from the middle out.
@@ -112,13 +110,15 @@ Meter(
     contentPlacement = MeterContentPlacement.AtValue,
     contentDescription = "Balance",
 ) {
-    Text("−12", style = Theme.typography.labelMedium)
+    +"−12"
 }
 ```
 
-The content slot sits in one place by default, `MeterContentPlacement.Fixed`:
-above a horizontal meter, the full width of it, and beside a vertical one on the
-end side, centred along it. With `AtValue` it **rides along with the reading**,
+The readout is a figure and what it is of — `+"62%"` and `label("Battery")` — and
+sits in one place by default, `MeterContentPlacement.Fixed`: above a horizontal
+meter, the full width of it, the caption at the start and the figure at the end;
+beside a vertical one on the end side, centred along it, the figure over the
+caption. With `AtValue` it **rides along with the reading**,
 centred on it and kept inside the meter's ends, so a label near either end stops
 at the edge rather than hanging off it. It moves with the animated reading, in the
 placement pass, so it never lags the fill.

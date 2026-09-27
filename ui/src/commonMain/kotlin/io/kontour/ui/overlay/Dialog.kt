@@ -42,6 +42,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.StateScope
 import io.kontour.ui.components.display.stateSlots
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -56,8 +57,11 @@ import kotlinx.coroutines.CompletableDeferred
  * A modal dialog.
  *
  * ```
- * Dialog(visible = showing, onDismissRequest = { showing = false }) {
- *     Text("Delete this favourite?", style = Theme.typography.titleMedium)
+ * Dialog(
+ *     visible = showing,
+ *     onDismissRequest = { showing = false },
+ *     title = { +"Filter departures" },
+ * ) {
  *     …
  * }
  * ```
@@ -67,6 +71,9 @@ import kotlinx.coroutines.CompletableDeferred
  * sliding, because a dialog has no direction to come from — it is not somewhere
  * else on the screen, it is *on top of* the screen.
  *
+ * @param title A heading above the content, in `titleLarge` as an [AlertDialog]'s
+ *   is, and announced as a heading: `title = { +"Filter departures" }`. The
+ *   body below it is any column of content.
  * @param dismissible Pass `false` for a decision the user must actually
  *   make. Use sparingly: a dialog that cannot be escaped is a trap, and most
  *   "are you sure" prompts are safe to cancel by tapping away.
@@ -90,6 +97,7 @@ fun Dialog(
      * ignore, and a confirmation with a text field in it is common.
      */
     windowInsets: WindowInsets = WindowInsets.allEdges,
+    title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -102,6 +110,7 @@ fun Dialog(
     val latestModifier by rememberUpdatedState(modifier)
     val latestInsets by rememberUpdatedState(windowInsets)
     val body by rememberUpdatedState(content)
+    val latestTitle by rememberUpdatedState(title)
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -181,8 +190,10 @@ fun Dialog(
                                             .verticalScroll(rememberScrollState())
                                             .padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                                        content = body,
-                                    )
+                                    ) {
+                                        latestTitle?.let { OverlayTitle(Theme.typography.titleLarge, it) }
+                                        body()
+                                    }
                                 }
                             }
                         }
@@ -286,12 +297,8 @@ fun AlertDialog(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         dismissible = dismissible,
+        title = slots.title,
     ) {
-        slots.title?.let { title ->
-            ProvideTextStyle(Theme.typography.titleLarge) {
-                ContentSlot(content = title)
-            }
-        }
         slots.message?.let { message ->
             ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {

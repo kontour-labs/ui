@@ -136,8 +136,8 @@ internal val DialogDemo = ComponentDemo(slug = "dialog", knobs = listOf(overlayD
             visible = open,
             onDismissRequest = { open = false },
             dismissible = dismissible,
+            title = { +"Rename favourite" },
         ) {
-            Text("Rename favourite", style = Theme.typography.titleMedium)
             Text(
                 "Give it a name you will recognise on the home screen.",
                 style = Theme.typography.bodySmall,
@@ -221,8 +221,8 @@ internal val PopoverDemo = ComponentDemo(
                 onDismissRequest = { open = false },
                 side = side,
                 alignment = alignment,
+                title = { +"Route 950" },
             ) {
-                Text("Route 950", style = Theme.typography.titleSmall)
                 Text(
                     "Runs every 15 minutes until 11pm, then every 30 minutes " +
                         "overnight.",

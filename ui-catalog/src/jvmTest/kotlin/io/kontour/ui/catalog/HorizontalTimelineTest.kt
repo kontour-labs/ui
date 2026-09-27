@@ -74,7 +74,7 @@ class HorizontalTimelineTest {
                     TimelineItem(
                         modifier = Modifier.reportBounds { bounds[i] = it },
                         connector = if (i == labels.lastIndex) ConnectorStyle.None else ConnectorStyle.Solid,
-                    ) { Text(label) }
+                    ) { +label }
                 }
             }
         }.use { it.frames(4) }
@@ -88,7 +88,7 @@ class HorizontalTimelineTest {
             HorizontalTimeline {
                 repeat(8) { i ->
                     TimelineItem(modifier = if (i == 0) Modifier.reportBounds { first = it } else Modifier) {
-                        Text("Stage ${i + 1} of the delivery")
+                        +"Stage ${i + 1} of the delivery"
                     }
                 }
             }
@@ -114,8 +114,8 @@ class HorizontalTimelineTest {
                             modifier = Modifier.reportBounds { first = it },
                             nodeColour = Color.Black,
                             connectorColour = Color.Black,
-                        ) { Text("Ordered") }
-                        TimelineItem(connector = ConnectorStyle.None) { Text("Here") }
+                        ) { +"Ordered" }
+                        TimelineItem(connector = ConnectorStyle.None) { +"Here" }
                     }
                 }
             }
@@ -199,7 +199,7 @@ class HorizontalTimelineTest {
                             TimelineItem(
                                 modifier = Modifier.reportBounds { bounds[i] = it },
                                 connector = if (i == names.lastIndex) ConnectorStyle.None else ConnectorStyle.Solid,
-                            ) { Text(name) }
+                            ) { +name }
                         }
                     }
                 }
@@ -230,7 +230,7 @@ class HorizontalTimelineTest {
                         nodeColour = Color.Black,
                         connectorColour = Color.Black,
                         modifier = Modifier.width(widthDp.dp).reportBounds { bounds = it },
-                    ) { Text("Packed") }
+                    ) { +"Packed" }
                 }
             }
         }.use { image = it.frames(8) }

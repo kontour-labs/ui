@@ -594,7 +594,7 @@ public final class io/kontour/ui/components/display/BannerDefaults {
 public final class io/kontour/ui/components/display/BannerKt {
 	public static final fun AnimatedBanner (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Banner (Landroidx/compose/ui/Modifier;Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Callout (Landroidx/compose/ui/Modifier;Lio/kontour/ui/theme/Tone;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Callout (Landroidx/compose/ui/Modifier;Lio/kontour/ui/theme/Tone;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/BannerScope {
@@ -732,7 +732,7 @@ public final class io/kontour/ui/components/display/ChatBubbleDefaults {
 }
 
 public final class io/kontour/ui/components/display/ChatBubbleKt {
-	public static final fun ChatBubble-DLKPS7M (Lio/kontour/ui/components/display/BubbleSide;Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/GroupPosition;ZJJLandroidx/compose/foundation/shape/CornerBasedShape;FFLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ChatBubble-DLKPS7M (Lio/kontour/ui/components/display/BubbleSide;Landroidx/compose/ui/Modifier;Lio/kontour/ui/foundation/GroupPosition;ZJJLandroidx/compose/foundation/shape/CornerBasedShape;FFLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/ColourBand {
@@ -826,7 +826,7 @@ public final class io/kontour/ui/components/display/GaugeIndicator : java/lang/E
 }
 
 public final class io/kontour/ui/components/display/GaugeKt {
-	public static final fun Gauge-QaJT1o8 (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FFFFILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Gauge-QaJT1o8 (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FFFFILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
 }
 
 public final class io/kontour/ui/components/display/GaugeTickPlacement : java/lang/Enum {
@@ -923,7 +923,7 @@ public final class io/kontour/ui/components/display/MeterDefaults {
 }
 
 public final class io/kontour/ui/components/display/MeterKt {
-	public static final fun Meter-udZQu8E (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FLio/kontour/ui/components/display/MeterOrientation;FILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;Lio/kontour/ui/components/display/MeterContentPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Meter-udZQu8E (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FLio/kontour/ui/components/display/MeterOrientation;FILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;Lio/kontour/ui/components/display/MeterContentPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
 }
 
 public final class io/kontour/ui/components/display/MeterOrientation : java/lang/Enum {
@@ -965,6 +965,15 @@ public final class io/kontour/ui/components/display/ProgressKt {
 	public static final fun CircularProgress-kPsmdy8 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;FJJFLandroidx/compose/runtime/Composer;II)V
 	public static final fun LinearProgress-2poqoh4 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;JJFLandroidx/compose/runtime/Composer;II)V
 	public static final fun StepProgress-HtrY1DU (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZJJFFLandroidx/compose/runtime/Composer;II)V
+}
+
+public final class io/kontour/ui/components/display/ReadoutScope {
+	public static final field $stable I
+	public final fun label (Ljava/lang/String;)V
+	public final fun label (Lkotlin/jvm/functions/Function3;)V
+	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
+	public final fun unaryPlus (Ljava/lang/String;)V
+	public final fun value (Lkotlin/jvm/functions/Function3;)V
 }
 
 public final class io/kontour/ui/components/display/ScaleColours {
@@ -1082,7 +1091,7 @@ public final class io/kontour/ui/components/display/TimelineDefaults {
 public final class io/kontour/ui/components/display/TimelineKt {
 	public static final fun HorizontalTimeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineLabelPlacement;ZLio/kontour/ui/components/display/TimelineColours;Landroidx/compose/foundation/ScrollState;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Timeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TimelineItem-mu7haNk (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZFFFLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TimelineItem-mu7haNk (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZFFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TimelineLabelPlacement : java/lang/Enum {
@@ -1353,7 +1362,7 @@ public final class io/kontour/ui/components/selection/KnobDefaults {
 }
 
 public final class io/kontour/ui/components/selection/KnobKt {
-	public static final fun Knob-8l5BUeA (FLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/ranges/ClosedFloatingPointRange;IFFFLio/kontour/ui/components/display/DialColours;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Knob-8l5BUeA (FLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/ranges/ClosedFloatingPointRange;IFFFLio/kontour/ui/components/display/DialColours;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/selection/RadioButtonKt {
@@ -2737,7 +2746,7 @@ public final class io/kontour/ui/overlay/ConfirmHostState {
 public final class io/kontour/ui/overlay/DialogKt {
 	public static final fun AlertDialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function0;ZZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun ConfirmHost (Lio/kontour/ui/overlay/ConfirmHostState;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberConfirmHostState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/overlay/ConfirmHostState;
 }
 
@@ -2888,7 +2897,7 @@ public final class io/kontour/ui/overlay/PopoverDefaults {
 
 public final class io/kontour/ui/overlay/PopoverKt {
 	public static final fun LoadingOverlay (ZLjava/lang/String;Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)V
-	public static final fun Popover-f8-ukHw (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/overlay/ScrimStyle;ZFZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Popover-seJ8HY0 (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/overlay/ScrimStyle;ZFZLkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/overlay/ScrimStyle : java/lang/Enum {

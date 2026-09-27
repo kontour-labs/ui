@@ -266,7 +266,7 @@ private val calloutTone = Knob.Choice("Tone", Tone.entries.toList(), Tone.Info)
 
 internal val CalloutDemo = ComponentDemo(slug = "callout", knobs = listOf(calloutTone)) {
     Callout(Modifier.fillMaxWidth(), tone = this[calloutTone]) {
-        Text("Melbourne, Sydney and Canberra do not currently support journey planning.")
+        +"Melbourne, Sydney and Canberra do not currently support journey planning."
     }
 }
 
@@ -312,25 +312,22 @@ internal val TimelineDemo = ComponentDemo(
     val connector = this[timelineConnector]
     val stops: @Composable () -> Unit = {
         TimelineItem {
-            Text("Perth Station", style = Theme.typography.titleSmall)
-            Text("08:12 — Platform 3", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+            +"Perth Station"
+            supporting { +"08:12 — Platform 3" }
         }
         TimelineItem(connector = connector, filled = false, loading = walking) {
-            Text(
-                // In the words as well as in the node, which is the rule the
-                // component's own KDoc states: the spinner is not announced.
-                if (walking) "Walking — 4 min" else "Walk 4 min",
-                style = Theme.typography.bodySmall,
-                colour = Theme.colours.contentMuted,
-            )
+            // A leg rather than a stop, so only the quiet line — and in the
+            // words as well as in the node, which is the rule the component's
+            // own KDoc states: the spinner is not announced.
+            supporting { +(if (walking) "Walking — 4 min" else "Walk 4 min") }
         }
         TimelineItem {
-            Text("Elizabeth Quay", style = Theme.typography.titleSmall)
-            Text("08:21 — Route 950", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+            +"Elizabeth Quay"
+            supporting { +"08:21 — Route 950" }
         }
         TimelineItem(connector = ConnectorStyle.None) {
-            Text("Perth Busport", style = Theme.typography.titleSmall)
-            Text("08:29 — Stand 24", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+            +"Perth Busport"
+            supporting { +"08:29 — Stand 24" }
         }
     }
     val progress = when (this[timelineProgress]) {
@@ -973,10 +970,8 @@ internal val GaugeDemo = ComponentDemo(
             contentDescription = "Engine speed",
             stateDescription = { "${it.roundToInt()} revolutions a minute" },
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${(rpm / 100).roundToInt() / 10f}k", style = Theme.typography.titleLarge)
-                Text("RPM", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
-            }
+            +"${(rpm / 100).roundToInt() / 10f}k"
+            label("RPM")
         }
         Slider(
             value = rpm,
@@ -1087,19 +1082,9 @@ internal val MeterDemo = ComponentDemo(
             contentDescription = "Battery",
             stateDescription = { "${it.roundToInt()} percent charged" },
         ) {
-            if (atValue) {
-                Text("${charge.roundToInt()}%", style = Theme.typography.labelMedium)
-            } else if (vertical) {
-                Column {
-                    Text("${charge.roundToInt()}%", style = Theme.typography.titleLarge)
-                    Text("Battery", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
-                }
-            } else {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("Battery", style = Theme.typography.labelMedium, modifier = Modifier.weight(1f))
-                    Text("${charge.roundToInt()}%", style = Theme.typography.labelMedium)
-                }
-            }
+            +"${charge.roundToInt()}%"
+            // A tag riding the reading carries the figure alone.
+            if (!atValue) label("Battery")
         }
         Slider(
             value = charge,
@@ -1137,19 +1122,19 @@ internal val ChatBubbleDemo = ComponentDemo(
     val tail = this[bubbleTail]
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         ChatBubble(side = BubbleSide.Incoming, position = GroupPosition.First, showTail = tail) {
-            Text("Is the 950 running tonight?")
+            +"Is the 950 running tonight?"
         }
         ChatBubble(
             side = BubbleSide.Incoming,
             position = GroupPosition.Last,
             showTail = tail,
-            meta = { Text("9:41") },
+            meta = { +"9:41" },
         ) {
-            Text("The app says it's delayed")
+            +"The app says it's delayed"
         }
         Spacer(Modifier.height(Theme.spacing.sm))
-        ChatBubble(side = side, position = position, showTail = tail, meta = { Text("9:42 · Read") }) {
-            Text("Every 15 minutes until 11pm, then every 30 overnight.")
+        ChatBubble(side = side, position = position, showTail = tail, meta = { +"9:42 · Read" }) {
+            +"Every 15 minutes until 11pm, then every 30 overnight."
         }
     }
 }
