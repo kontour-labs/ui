@@ -10,6 +10,7 @@ reason `:ui` has a `jvm()` target it never ships to.
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
+python3 docs/check-settings.py
 ```
 
 | Gate | Asks |
@@ -26,6 +27,7 @@ python3 docs/check-components.py
 | [`checkKdocSamples`](#the-examples-compile) | Does a KDoc or page snippet name parameters and scope calls that exist? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
 | [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry, a demo and an example? |
+| [`check-settings.py`](#every-component-honours-the-readers-settings) | Does any source pattern break high contrast, reduced motion or the reader's locale? |
 | [`SiteRenderTest`](#the-site-is-drawn-and-looked-at) | Does every page of the site draw, at every window width? |
 
 Per-target compilation runs only in CI
@@ -1449,6 +1451,38 @@ Rule 8 is the cheapest of the ten and the only one pointing this direction.
 Rules 1-4 ask whether everything in the library has a page; this asks whether the
 page is about anything, which catches a component renamed in `:ui` whose page
 kept the old spelling. Nothing here could detect that before.
+
+### Every component honours the reader's settings
+
+```sh
+python3 docs/check-settings.py
+```
+
+Three settings the reader chooses and a component has to answer to without
+being asked: high contrast, reduced motion, and where they are. Each has suites
+that render and measure — the contract suite at both tiers, the reduced-motion
+sweep, the pseudo-locale sweep. This is the other half: the source patterns
+that break each promise one reasonable call site at a time.
+
+| Rule | What it finds |
+|---|---|
+| H1 | A quiet ground (`surfaceSunken`, `surfaceRaised`, `accent.container`) in a file with no edge and no read of the tier |
+| H2 | An ink faded with `copy(alpha = …)` in a file that never reads the tier |
+| H3 | A ring, tick or hairline drawn from a constant rather than from `Sizing` |
+| H4 | `ButtonColours(…)` built by hand, skipping the variant's high-contrast edge |
+| H5 | A `Sizing` token nothing reads |
+| M | Movement — a transform, a slide or scale transition, an animated scroll, a spec-less `animateTo` — in a *function* that never reads `reduceMotion` |
+| L1 | An English phrase assembled in a component, or a list joined with an English comma |
+| L2 | `uppercase()` or `lowercase()` with no locale |
+| L3 | A number put on screen with `toString()` |
+| L4 | A table of month or weekday names |
+| L5 | Absolute placement in a file that never asks which way the layout runs |
+
+Every rule has a named allow-list, each entry with its reason, and a ceiling on
+what is left that only goes down. An exemption the detector no longer finds is
+a failure too, so the list cannot outlive its code. Rule M was rule 24 of
+`check-components.py`, and it moved because counting per file had let one read
+of `reduceMotion` excuse every transform beside it.
 
 ### The parameter tables are generated
 

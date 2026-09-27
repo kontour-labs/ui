@@ -1296,9 +1296,8 @@ private fun ToastCard(
                 // a stack **rests**. Taking it away would not calm an animation,
                 // it would flatten three cards into one pile with no order in
                 // it — a picture the reader has to untangle rather than a
-                // movement they have to follow. `check-components.py`'s rule 24
-                // counts this file for that reason: the number is a record, not
-                // an accusation.
+                // movement they have to follow. `check-settings.py`'s rule M
+                // names this function for that reason.
                 .graphicsLayer {
                     // **The pills lean; only the front card travels.**
                     //

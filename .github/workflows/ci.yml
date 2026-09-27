@@ -173,6 +173,11 @@ jobs:
       - name: Check every component has a page
         run: python3 docs/check-components.py
 
+      # The source patterns that break high contrast, reduced motion and
+      # localisation one call site at a time, each with a named allow-list.
+      - name: Check components honour the reader's settings
+        run: python3 docs/check-settings.py
+
       # The Markdown mirror agents read, without building the site: every page
       # mirrored, `llms.txt` listing each exactly once.
       - name: Check the text mirror
