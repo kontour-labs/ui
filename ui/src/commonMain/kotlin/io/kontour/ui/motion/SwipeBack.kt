@@ -225,7 +225,7 @@ internal class BackPan(
      * edge pan does.
      */
     val pass: PointerEventPass,
-    /** Whether a pan starting at [x] in a window [window] wide may become back, at [density] pixels a dp. */
+    /** Whether a pan starting at `x` in a window `window` wide may become back, at `density` pixels a dp. */
     val startsAt: (x: Float, window: Float, density: Float) -> Boolean,
 )
 
