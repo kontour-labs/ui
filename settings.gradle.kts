@@ -52,7 +52,7 @@ include(":ui-catalog")
 // rather than being found by whoever pastes it into their app.
 include(":ui-samples")
 
-// The documentation site: a page per component, deployed to GitHub Pages. It
+// The documentation site: a page per component, deployed to docs.kontour.io/ui. It
 // reads the prose from `docs/` and the specimens from `:ui-catalog`, so there
 // is no third copy of either.
 include(":ui-docs")

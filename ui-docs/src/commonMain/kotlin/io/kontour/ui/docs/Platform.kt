@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 
 /**
- * The three things the site needs from whatever is hosting it.
+ * The four things the site needs from whatever is hosting it.
  *
  * Everything else about this module — the shell, the index, the prose, the
  * routes themselves — is ordinary Compose, and putting it in `commonMain`
@@ -13,7 +13,7 @@ import androidx.compose.runtime.MutableState
  * and it shipped with a landing page that threw on any window narrower than
  * 600dp. Nothing looked, because nothing could.
  *
- * The seam is deliberately three functions wide. A larger one would start
+ * The seam is deliberately four functions wide. A larger one would start
  * pulling browser concepts into the shell; a smaller one would mean faking a
  * `Window` on the JVM, which is a mock of the thing under test.
  */
@@ -33,3 +33,14 @@ expect fun rememberRoute(): MutableState<Route>
 
 /** Goes to [target], leaving an entry the back button can return through. */
 expect fun navigate(target: Route)
+
+/**
+ * Puts [text] on the clipboard: a code block's Copy button.
+ *
+ * Not the framework's `Clipboard`, and on purpose. On the web its writes never
+ * reach the browser — `docs/building/testing.md`, "Three fixes, no number
+ * moved" — while `navigator.clipboard.writeText` called from the same page was
+ * measured working. A button press is a user gesture, which is all that call
+ * asks for.
+ */
+expect fun copyText(text: String)

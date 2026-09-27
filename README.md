@@ -17,9 +17,12 @@ KontourTheme {
 }
 ```
 
-### **[kontour-labs.github.io/ui](https://kontour-labs.github.io/ui/)**
+### **[docs.kontour.io/ui](https://docs.kontour.io/ui/)**
 
-The documentation site: every component running, not pictured. Its source is
+The documentation site: every component running, not pictured. It is private —
+sign in with a GitHub account in the kontour-labs organisation; an agent reads
+the same pages as Markdown with a service token, as
+[`agents.md`](ui-docs/content/agents.md) describes. Its source is
 [`ui-docs/content/`](ui-docs/content), which reads on GitHub too —
 [components](ui-docs/content/components.md) ·
 [installing](ui-docs/content/installing.md) ·

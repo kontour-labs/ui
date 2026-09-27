@@ -28,8 +28,9 @@
 //
 // **Load time is real.** Fetching, parsing and instantiating several megabytes
 // of Wasm is network- and CPU-bound, and headless Chromium does it the same way
-// a visible one does. The server here gzips exactly as GitHub Pages does, so
-// the transfer sizes are the ones a reader actually pays.
+// a visible one does. The server here gzips text and Wasm, as the host does —
+// Cloudflare sends Brotli where the browser takes it, a little smaller — so the
+// transfer sizes are the ones a reader pays, or slightly over.
 //
 // **Frame time is directional only.** There is no GPU in a container, so WebGL
 // runs on SwiftShader and every millisecond is software. Comparing this run to a
@@ -95,7 +96,7 @@ import { createServer } from 'node:http'
 import { readFile, stat, readdir, writeFile } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 import { spawn } from 'node:child_process'
-import { join, extname, normalize, resolve } from 'node:path'
+import { join, extname, normalize, resolve, basename } from 'node:path'
 import { mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { existsSync, readFileSync } from 'node:fs'
@@ -117,7 +118,7 @@ const TYPES = {
   '.ico': 'image/x-icon',
 }
 
-// Pages compresses text and Wasm and leaves images and fonts alone. Matching it
+// The host compresses text and Wasm and leaves images and fonts alone. Matching it
 // matters: gzip is the difference between a 15.9 MB first load and a 5.3 MB one,
 // and measuring the uncompressed number would be measuring a site nobody visits.
 const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.wasm', '.svg'])
@@ -213,9 +214,13 @@ async function serve(root) {
       'content-type': TYPES[ext] ?? 'application/octet-stream',
       'content-length': body.length,
       ...(wantsGzip ? { 'content-encoding': 'gzip' } : {}),
-      // What Pages sends. Left in on purpose: the cache policy is one of the
+      // What Cloudflare Pages sends: revalidate everything, except the two
+      // content-hashed binaries `docs/lay-out-site.py` writes a year's cache
+      // for in `_headers`. Left in on purpose: the cache policy is one of the
       // things being measured, so faking a better one here would hide it.
-      'cache-control': 'max-age=600',
+      'cache-control': /^[0-9a-f]{8,}\.wasm$/.test(basename(file))
+        ? 'private, max-age=31536000, immutable'
+        : 'public, max-age=0, must-revalidate',
     })
     res.end(req.method === 'HEAD' ? undefined : body)
   })

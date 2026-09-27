@@ -26,3 +26,19 @@ actual fun rememberRoute(): MutableState<Route> = route
 actual fun navigate(target: Route) {
     route.value = target
 }
+
+/**
+ * The last thing a Copy button copied, for a test to read.
+ *
+ * The system clipboard is not there to write to in a headless test, and a test
+ * that asserted on it would be asserting on the machine it ran on.
+ */
+internal var lastCopied: String? = null
+
+actual fun copyText(text: String) {
+    lastCopied = text
+    runCatching {
+        java.awt.Toolkit.getDefaultToolkit().systemClipboard
+            .setContents(java.awt.datatransfer.StringSelection(text), null)
+    }
+}

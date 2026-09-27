@@ -153,7 +153,7 @@ private fun Reading() {
         // three of its five targets, and a link that does nothing on iOS is
         // worse than a path someone can find in the repository.
         KeyValueList {
-            item("The site", "kontour-labs.github.io/ui")
+            item("The site", "docs.kontour.io/ui")
             item("Installing", "ui-docs/content/installing.md")
             item("Components", "ui-docs/content/components.md")
             item("Tokens", "ui-docs/content/tokens.md")

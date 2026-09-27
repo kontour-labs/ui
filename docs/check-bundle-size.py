@@ -11,9 +11,10 @@ This is the cheap half of that. `docs/measure-web.mjs` opens a browser and repor
 what the load *costs*; this reports what it *weighs*, needs no browser, and runs in
 under a second, so it can sit in CI on every change.
 
-Sizes are gzip, because that is what crosses the wire — GitHub Pages compresses
-text and Wasm and leaves fonts alone, and the difference between the two numbers
-is a factor of three. Raw sizes are printed alongside, never asserted.
+Sizes are gzip, because that is what crosses the wire — the host compresses text
+and Wasm and leaves fonts alone, and the difference between the two numbers is a
+factor of three. Cloudflare sends Brotli where the browser takes it, which is a
+little smaller, so these are a ceiling on the real transfer rather than it. Raw sizes are printed alongside, never asserted.
 
 Skia gets its own ceiling. `skiko.wasm` is the Compose renderer, it is the same
 bytes whatever this library contains, and at roughly two thirds of the payload it

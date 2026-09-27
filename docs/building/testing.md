@@ -41,44 +41,61 @@ broken, and `commonMain` will not tell you which.
 
 ### What CI actually runs, and what it does not run twice
 
-One workflow, six jobs. It was two workflows, which is how the API reference
+One workflow, seven jobs. It was two workflows, which is how the API reference
 came to be generated twice on every commit: `ci.yml` built it in `targets` and
 uploaded it as an artifact, and `pages.yml` built it again because a workflow
 cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
 the one that publishes it under `/api/`.
 
+**It runs on pushes to `main`, on `v*` tags, and by hand — never on a pull
+request or a push to another branch.** The repository is private, so every
+minute is billed, and a pull request's run was 17 minutes of `test` alone on
+the 4-core runner public repositories get. A branch that wants the checks
+before it lands asks for them: Actions → CI → Run workflow, on that branch.
+That run is the whole suite and never deploys. Branch protection must not
+require status checks, or every merge waits for one that never starts.
+
 | Job | Runs on | For |
 |---|---|---|
-| `guard` | every event | Decides whether main has to re-prove what a pull request already did |
-| `test` | unless `guard` settles it | The suite above, plus the Python checks |
-| `targets` | unless `guard` settles it | Every target compiled |
-| `site` | every event | The Wasm bundle and the API reference — the slowest thing here |
-| `deploy` | not on a pull request | GitHub Pages |
+| `changes` | every run | Decides what a push to `main` has to run, from the paths it changed |
+| `test` | every run | The Python checks always; the Gradle suites `changes` asks for |
+| `targets` | a change to a library, the catalog or a host | Every target compiled |
+| `site` | a change to anything the site is made from | The Wasm bundle, the API reference and the text mirror — the slowest thing here |
+| `deploy` | `main` only | Cloudflare Pages, `docs.kontour.io/ui` |
 | `publish` | a `v*` tag, or a manual version | GitHub Packages |
+| `renders` | a manual run that asks | Contact sheets of every page |
 
 `deploy` needs only `site`, deliberately: a library regression should not take
 the documentation offline, and a broken page should not block a release.
 
-#### The guard
+#### What a push runs
 
-Merging a pull request produces a commit whose **tree** is byte-for-byte the
-branch head's, whenever main has not moved underneath it — and that holds for a
-merge commit, a squash and a rebase alike. So the work `test` and `targets`
-would do on main is work already done, on the same bytes, minutes earlier.
-`guard` compares the two tree SHAs through the API and asks whether that head
-has a successful CI run; if both hold, main builds the site and deploys and does
-nothing else.
+`changes` compares the push with the `main` before it, through the API, and
+sorts the paths:
 
-This is what a merge queue gives you, arrived at from the other direction:
-rather than testing the merge result before it lands, notice afterwards that the
-result is identical to something already tested.
+| Group | Paths | Runs |
+|---|---|---|
+| library | `ui/`, `ui-nav3/`, `haptics/` | Their suites, ABI and convention checks, and the on-screen cursor test |
+| targets | the library's, `ui-catalog/`, `showcase/` | `targets` |
+| catalog | the library's, `ui-catalog/` | The screenshot suite |
+| docs | the library's, `ui-catalog/`, `ui-samples/`, `ui-docs/`, `docs/` | `:ui-docs`, the samples, `site` and `deploy` |
 
-Every path out of it that cannot *prove* the trees match settles on "run
-everything" — a direct push, a conflicted merge, main having moved, a missing
-run, a failed API call, and the guard job itself failing. That last one is why
-the two gated jobs read `!cancelled() && …` rather than a bare condition: a
-failed dependency skips its dependants by default, which is the one direction
-this must never fail in.
+So a page edited in `ui-docs/content` is the Python checks, `:ui-docs:jvmTest`,
+the samples and the site — about twelve minutes — and a change to a component is
+everything. A README-only push is the Python checks, which are what hold the
+README's counts.
+
+Anything it cannot answer for certain runs everything: a tag, a manual run, a
+first push, a force-push, a failed API call, a change longer than the API lists
+(300 paths), and a change to the build (`gradle/`, `buildSrc/`, the root build
+files) or to the workflow itself. So does `changes` failing: the gated jobs read
+`!cancelled() && (changes did not succeed || it asked)` rather than a bare
+condition, because a failed dependency skips its dependants by default, and a
+skipped test job is the one direction this must never fail in.
+
+It replaced `guard`, which asked whether `main`'s tree was byte-for-byte a pull
+request head that had already passed — a merge queue arrived at from the other
+direction. With no pull request runs there is nothing to have passed.
 
 #### What is cached
 

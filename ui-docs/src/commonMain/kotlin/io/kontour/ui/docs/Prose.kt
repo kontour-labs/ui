@@ -15,7 +15,11 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +36,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Copy
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
@@ -42,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mono
 import io.kontour.ui.theme.Tone
+import kotlinx.coroutines.delay
 
 /**
  * Which page is being drawn, for the links in it.
@@ -149,6 +159,16 @@ private fun Block(block: Block) {
 private fun CodeBlock(block: Block.Code) {
     val scroll = rememberScrollState()
     val shape = Theme.shapes.small
+    // Two seconds of a tick after a copy, so the press says it did something:
+    // the clipboard is invisible, and a button that changes nothing reads as a
+    // button that failed.
+    var copied by remember(block) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2_000)
+            copied = false
+        }
+    }
     Box(Modifier.fillMaxWidth().background(Theme.colours.surfaceSunken, shape)) {
         Box(
             Modifier
@@ -172,6 +192,19 @@ private fun CodeBlock(block: Block.Code) {
             orientation = Orientation.Horizontal,
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
             cornerInset = ScrollbarDefaults.cornerInset(shape),
+        )
+        // Over the code's top-right corner rather than beside it: a column of
+        // its own would take 40dp from every block for a button most readers
+        // never press. A line long enough to run under it scrolls out.
+        IconButton(
+            onClick = {
+                copyText(block.code)
+                copied = true
+            },
+            icon = if (copied) Tabler.Outline.Check else Tabler.Outline.Copy,
+            contentDescription = if (copied) "Copied" else "Copy code",
+            size = ButtonSize.Small,
+            modifier = Modifier.align(Alignment.TopEnd).padding(Theme.spacing.xxs),
         )
     }
 }
