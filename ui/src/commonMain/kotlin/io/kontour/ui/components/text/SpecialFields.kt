@@ -350,8 +350,8 @@ fun PhoneField(
     imeChain: ImeChainStep? = null,
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
-    interactionSource: MutableInteractionSource? = null,
     format: PhoneFormat = PhoneFormat.None,
+    interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
         state = state,

@@ -190,7 +190,7 @@ fun <T> MultiSelect(
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
     optionEnabled: (T) -> Boolean = { true },
-    summary: (Set<T>) -> String = selectionSummary(options, optionLabel),
+    summary: (Set<T>) -> String = SelectDefaults.summary(options, optionLabel),
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
@@ -272,7 +272,7 @@ fun <T> Combobox(
     placeholder: String = Theme.strings.select,
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
-    matches: (T, String) -> Boolean = foldedMatch(optionLabel),
+    matches: (T, String) -> Boolean = SelectDefaults.matches(optionLabel),
     emptyLabel: String = Theme.strings.noMatches,
     supporting: String? = null,
     errorMessage: String? = null,
@@ -485,30 +485,35 @@ private fun SelectFrame(
     }
 }
 
-/**
- * Up to three labels, joined as this reader's language joins a list, and then a
- * count — `Strings.selectedCount`, in the reader's digits.
- */
-@Composable
-private fun <T> selectionSummary(options: List<T>, optionLabel: (T) -> String): (Set<T>) -> String {
-    val strings = Theme.strings
-    val formats = Theme.formats
-    return { selected ->
-        val labels = options.filter { it in selected }.map(optionLabel)
-        when {
-            labels.isEmpty() -> ""
-            labels.size <= 3 -> formats.list(labels, ListStyle.Unit)
-            else -> strings.selectedCount(formats.quantity(labels.size))
+/** What [MultiSelect] and [Combobox] take by default. */
+object SelectDefaults {
+    /**
+     * A [MultiSelect]'s closed field: up to three labels, joined as this reader's
+     * language joins a list, and then a count — `Strings.selectedCount`, in the
+     * reader's digits.
+     */
+    @Composable
+    fun <T> summary(options: List<T>, optionLabel: (T) -> String): (Set<T>) -> String {
+        val strings = Theme.strings
+        val formats = Theme.formats
+        return { selected ->
+            val labels = options.filter { it in selected }.map(optionLabel)
+            when {
+                labels.isEmpty() -> ""
+                labels.size <= 3 -> formats.list(labels, ListStyle.Unit)
+                else -> strings.selectedCount(formats.quantity(labels.size))
+            }
         }
     }
-}
 
-/**
- * Whether an option's label contains the query, both folded for search — so
- * `zurich` finds `Zürich`, and a Turkish reader's `İSTANBUL` finds `istanbul`.
- */
-@Composable
-private fun <T> foldedMatch(optionLabel: (T) -> String): (T, String) -> Boolean {
-    val formats = Theme.formats
-    return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
+    /**
+     * A [Combobox]'s search: whether an option's label contains the query, both
+     * folded for search — so `zurich` finds `Zürich`, and a Turkish reader's
+     * `İSTANBUL` finds `istanbul`.
+     */
+    @Composable
+    fun <T> matches(optionLabel: (T) -> String): (T, String) -> Boolean {
+        val formats = Theme.formats
+        return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
+    }
 }

@@ -124,7 +124,7 @@ internal object PluralRules {
                 at++
                 or += andChain()
             }
-            return Condition { operands -> or.any { it.matches(operands) } }
+            return Condition { number -> or.any { it.matches(number) } }
         }
 
         private fun andChain(): Condition {
@@ -133,7 +133,7 @@ internal object PluralRules {
                 at++
                 and += relation()
             }
-            return Condition { operands -> and.all { it.matches(operands) } }
+            return Condition { number -> and.all { it.matches(number) } }
         }
 
         private fun relation(): Condition {
@@ -161,8 +161,8 @@ internal object PluralRules {
                 }
                 ranges += from..to
             } while (peek() == ",")
-            return Condition { operands ->
-                val raw = operands.value(operand)
+            return Condition { number ->
+                val raw = number.value(operand)
                 val value = if (modulus != null) raw % modulus else raw
                 // A range matches whole numbers only: `n = 2..4` is not true of 2.5.
                 val inside = ranges.any { range ->

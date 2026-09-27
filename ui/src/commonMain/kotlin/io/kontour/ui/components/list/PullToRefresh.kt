@@ -610,8 +610,6 @@ private fun RefreshIndicator(
     }
 }
 
-/** Matches [Spinner]'s stroke at the same size, so the swap is not a step. */
-
 /** Where the pull arc's head sits before the finger moves: twelve o'clock. */
 private const val PullHead = -90f
 

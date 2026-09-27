@@ -1309,8 +1309,6 @@ private const val SwipeConfirmDrawMillis: Int = 300
 /** How long the finished tick is held before the action runs and the row returns. */
 private const val SwipeConfirmHoldMillis: Int = 320
 
-/** The tick's stroke. */
-
 /** The share of the confirmation the icon takes to leave, and the tick waits for. */
 private const val IconOutBy: Float = 0.35f
 private const val TickFrom: Float = 0.3f

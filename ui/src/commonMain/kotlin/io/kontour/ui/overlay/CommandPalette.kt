@@ -147,7 +147,7 @@ fun CommandPalette(
      * but a palette that is the only way through a required step is a real case.
      */
     dismissible: Boolean = true,
-    matches: (Command, String) -> Boolean = rememberCommandMatch(),
+    matches: (Command, String) -> Boolean = CommandPaletteDefaults.matches(),
 ) {
     val host = LocalOverlayHost.current
     val latestModifier by rememberUpdatedState(modifier)
@@ -404,6 +404,13 @@ fun commandMatches(command: Command, query: String, formats: LocaleFormats = Loc
 
 /** What a [CommandPalette] takes by default. */
 object CommandPaletteDefaults {
+    /** [commandMatches] in this reader's language, remembered while the formats hold. */
+    @Composable
+    fun matches(): (Command, String) -> Boolean {
+        val formats = Theme.formats
+        return remember(formats) { { command, query -> commandMatches(command, query, formats) } }
+    }
+
     /** Wide enough for a command and its shortcut, narrow enough to read. */
     val Width: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteWidth
@@ -425,11 +432,4 @@ object CommandPaletteDefaults {
      */
     val TopInset: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteTopInset
-}
-
-/** [commandMatches] in this reader's language, remembered while the formats hold. */
-@Composable
-private fun rememberCommandMatch(): (Command, String) -> Boolean {
-    val formats = Theme.formats
-    return remember(formats) { { command, query -> commandMatches(command, query, formats) } }
 }

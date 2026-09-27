@@ -776,7 +776,7 @@ fun PageIndicator(
     style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
     inactiveColour: Color = Theme.colours.inactive,
-    pageDescription: (page: Int, count: Int) -> String = rememberPageDescription(),
+    pageDescription: (page: Int, count: Int) -> String = PageIndicatorDefaults.pageDescription(),
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
      *
@@ -1138,6 +1138,19 @@ enum class PageIndicatorStyle {
 
 /** What a [PageIndicator] takes by default. */
 object PageIndicatorDefaults {
+    /**
+     * How a dot is announced — "Page 2 of 5", in the reader's words and digits.
+     * `page` counts from zero, as the carousel's does.
+     */
+    @Composable
+    fun pageDescription(): (page: Int, count: Int) -> String {
+        val strings = Theme.strings
+        val formats = Theme.formats
+        return remember(strings, formats) {
+            { page, count -> strings.pageOfCount(formats.quantity(page + 1), formats.quantity(count)) }
+        }
+    }
+
     val DotSize: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorDotSize
 
@@ -1239,16 +1252,4 @@ private fun firmSnapFlingBehaviour(listState: LazyListState): FlingBehavior {
         }
     }
     return remember(provider, decay, snap) { snapFlingBehavior(provider, decay, snap) }
-}
-
-
-/**
- * `Strings.pageOfCount` for a page counted from zero, in this reader's digits —
- * remembered, so the indicator is handed the same function every composition.
- */
-@Composable
-private fun rememberPageDescription(): (Int, Int) -> String {
-    val strings = Theme.strings
-    val formats = Theme.formats
-    return remember(strings, formats) { { page, count -> strings.pageOfCount(formats.quantity(page + 1), formats.quantity(count)) } }
 }

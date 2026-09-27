@@ -481,7 +481,11 @@ times, lists, plurals — is written the reader's way. See
 `Strings` fields `newCount`, `cappedCount`, `moreCount`, `selectedCount`,
 `peopleCount`, `unknownInitials`, `tourPosition`, `sentences`,
 `colourFormatName`, `colourChannel` and `colourChannelName`; `ColourChannel`;
-`cardMask(groups)`.
+`cardMask(groups)`. And the defaults that read the reader's settings, so a
+caller who overrides one can write it back: `KontourThemeDefaults` (`contrast()`,
+`reduceMotion()`, `locale()`, `formats(locale)`), `SelectDefaults.summary` and
+`matches`, `PageIndicatorDefaults.pageDescription()` and
+`CommandPaletteDefaults.matches()`.
 
 ---
 

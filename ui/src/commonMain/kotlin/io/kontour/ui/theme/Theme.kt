@@ -214,8 +214,8 @@ fun deviceInDarkTheme(): Boolean = platformSystemDark()
 @Composable
 fun KontourTheme(
     darkTheme: Boolean = deviceInDarkTheme(),
-    contrast: ContrastLevel = inheritedContrast(),
-    reduceMotion: Boolean = inheritedReduceMotion(),
+    contrast: ContrastLevel = KontourThemeDefaults.contrast(),
+    reduceMotion: Boolean = KontourThemeDefaults.reduceMotion(),
     backdropBlur: Boolean = true,
     /**
      * Whether a change of scheme cross-fades rather than cutting.
@@ -276,13 +276,13 @@ fun KontourTheme(
      * other direction from the device's sets the layout direction too, so
      * `Locale("ar")` on an English phone lays out right to left.
      */
-    locale: Locale = inheritedLocale(),
+    locale: Locale = KontourThemeDefaults.locale(),
     /**
      * How numbers, dates, times and lists are written. The platform's for
      * [locale] by default; `LocaleFormats.english()` for pictures that must not
      * change between machines; or an app's own, delegating to either.
      */
-    formats: LocaleFormats = inheritedFormats(locale),
+    formats: LocaleFormats = KontourThemeDefaults.formats(locale),
     /**
      * What the type scale does for [locale]'s script: faces of the app's own for
      * scripts the bundled ones do not cover, and — by default — tracking,
@@ -426,51 +426,55 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
 internal val LocalInputModalityInstalled = staticCompositionLocalOf { false }
 
 /**
- * The contrast tier the enclosing [KontourTheme] chose, or the platform's at
- * the root.
+ * What a [KontourTheme] takes by default: the reader's settings, from the theme
+ * around it or, at the root, from the platform.
  *
  * A nested theme used to read the platform again, so an app with an in-app
- * "High contrast" switch lost it the moment one screen wrapped itself in a
- * theme of its own to force dark.
+ * "High contrast" switch lost it the moment one screen wrapped itself in a theme
+ * of its own to force dark. These are what a nested theme inherits instead, and
+ * what an app passes to keep one setting while changing another.
  */
-@Composable
-internal fun inheritedContrast(): ContrastLevel =
-    if (LocalInputModalityInstalled.current) {
-        LocalContrastLevel.current
-    } else if (platformPrefersHighContrast()) {
-        ContrastLevel.High
-    } else {
-        ContrastLevel.Standard
+object KontourThemeDefaults {
+    /** The contrast tier the enclosing [KontourTheme] chose, or the platform's at the root. */
+    @Composable
+    fun contrast(): ContrastLevel =
+        if (LocalInputModalityInstalled.current) {
+            LocalContrastLevel.current
+        } else if (platformPrefersHighContrast()) {
+            ContrastLevel.High
+        } else {
+            ContrastLevel.Standard
+        }
+
+    /** Whether the enclosing theme reduces motion, or the platform's setting at the root. */
+    @Composable
+    fun reduceMotion(): Boolean =
+        if (LocalInputModalityInstalled.current) {
+            LocalMotion.current.reduceMotion
+        } else {
+            platformPrefersReducedMotion()
+        }
+
+    /**
+     * The enclosing theme's locale, or the device's at the root: a reader's
+     * language, like their contrast, is not something a screen forcing dark mode
+     * means to change.
+     */
+    @Composable
+    fun locale(): Locale =
+        if (LocalInputModalityInstalled.current) LocalLocaleFormats.current.locale else platformLocale()
+
+    /**
+     * The enclosing theme's formats when [locale] is the one they were built for —
+     * an app's own formats, or the fixed English a test pins, survive a nested
+     * theme — and the platform's for [locale] otherwise.
+     */
+    @Composable
+    fun formats(locale: Locale): LocaleFormats {
+        val enclosing = if (LocalInputModalityInstalled.current) LocalLocaleFormats.current else null
+        return if (enclosing != null && enclosing.locale == locale) enclosing else rememberLocaleFormats(locale)
     }
-
-/**
- * The enclosing theme's locale, or the device's at the root: a reader's
- * language, like their contrast, is not something a screen forcing dark mode
- * means to change.
- */
-@Composable
-internal fun inheritedLocale(): Locale =
-    if (LocalInputModalityInstalled.current) LocalLocaleFormats.current.locale else platformLocale()
-
-/**
- * The enclosing theme's formats when [locale] is the one they were built for —
- * an app's own formats, or the fixed English a test pins, survive a nested
- * theme — and the platform's for [locale] otherwise.
- */
-@Composable
-internal fun inheritedFormats(locale: Locale): LocaleFormats {
-    val enclosing = if (LocalInputModalityInstalled.current) LocalLocaleFormats.current else null
-    return if (enclosing != null && enclosing.locale == locale) enclosing else rememberLocaleFormats(locale)
 }
-
-/** @see inheritedContrast — the same for reduced motion. */
-@Composable
-internal fun inheritedReduceMotion(): Boolean =
-    if (LocalInputModalityInstalled.current) {
-        LocalMotion.current.reduceMotion
-    } else {
-        platformPrefersReducedMotion()
-    }
 
 private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +

@@ -912,6 +912,7 @@ public final class io/kontour/ui/components/display/PageIndicatorDefaults {
 	public final fun getActiveWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun getDotSize (Landroidx/compose/runtime/Composer;I)F
 	public final fun getGap (Landroidx/compose/runtime/Composer;I)F
+	public final fun pageDescription (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
 }
 
 public final class io/kontour/ui/components/display/PageIndicatorStyle : java/lang/Enum {
@@ -1625,6 +1626,13 @@ public final class io/kontour/ui/components/text/SearchFieldKt {
 	public static final fun SearchField-7_giTB4 (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;JLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 }
 
+public final class io/kontour/ui/components/text/SelectDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/components/text/SelectDefaults;
+	public final fun matches (Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
+	public final fun summary (Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function1;
+}
+
 public final class io/kontour/ui/components/text/SelectKt {
 	public static final fun Combobox (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 	public static final fun MultiSelect (Ljava/util/Set;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
@@ -1643,7 +1651,7 @@ public final class io/kontour/ui/components/text/SpecialFieldsKt {
 	public static final fun EmailField-WZkjcVY (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 	public static final fun NumberField-HZbsfxo (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/lang/Integer;Landroidx/compose/ui/graphics/vector/ImageVector;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 	public static final fun PasswordField-d5Odp94 (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;ZZILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
-	public static final fun PhoneField-DwkzBkE (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lio/kontour/ui/components/text/PhoneFormat;Landroidx/compose/runtime/Composer;III)V
+	public static final fun PhoneField-DwkzBkE (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/PhoneFormat;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/text/TextAreaDefaults {
@@ -2999,6 +3007,7 @@ public final class io/kontour/ui/overlay/CommandPaletteDefaults {
 	public final fun getMaxHeight (Landroidx/compose/runtime/Composer;I)F
 	public final fun getTopInset (Landroidx/compose/runtime/Composer;I)F
 	public final fun getWidth (Landroidx/compose/runtime/Composer;I)F
+	public final fun matches (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
 }
 
 public final class io/kontour/ui/overlay/CommandPaletteKt {
@@ -3663,6 +3672,15 @@ public final class io/kontour/ui/theme/Elevation {
 
 public final class io/kontour/ui/theme/ElevationKt {
 	public static final fun kontourElevation (Z)Lio/kontour/ui/theme/Elevation;
+}
+
+public final class io/kontour/ui/theme/KontourThemeDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/theme/KontourThemeDefaults;
+	public final fun contrast (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/theme/ContrastLevel;
+	public final fun formats (Landroidx/compose/ui/text/intl/Locale;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/locale/LocaleFormats;
+	public final fun locale (Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/text/intl/Locale;
+	public final fun reduceMotion (Landroidx/compose/runtime/Composer;I)Z
 }
 
 public final class io/kontour/ui/theme/LerpCornerSize : androidx/compose/foundation/shape/CornerSize {

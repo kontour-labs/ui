@@ -2,13 +2,11 @@ package io.kontour.ui.locale
 
 import kotlinx.datetime.DayOfWeek
 
-/**
- * Reading what a platform hands over — LDML patterns, or the parts of a
- * formatted example — into the facts and patterns [LocaleData] holds.
- *
- * Common, so the four platforms agree on what a pattern means, and so it is
- * tested once, here, rather than on four devices.
- */
+// Reading what a platform hands over — LDML patterns, or the parts of a
+// formatted example — into the facts and patterns `LocaleData` holds.
+//
+// Common, so the four platforms agree on what a pattern means, and so it is
+// tested once, here, rather than on four devices.
 
 /** The hour cycle an LDML time pattern is written on; 24-hour when it says nothing. */
 internal fun hourCycleIn(pattern: String): HourCycle {

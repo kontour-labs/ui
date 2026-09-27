@@ -132,7 +132,7 @@ fun Rating(
     val clamped = value.coerceIn(0f, count.toFloat())
     val strings = Theme.strings
     val formats = Theme.formats
-    val outOf: (String, Int) -> String = remember(strings, formats) { { value, of -> strings.outOf(value, formats.quantity(of)) } }
+    val outOf: (String, Int) -> String = remember(strings, formats) { { written, of -> strings.outOf(written, formats.quantity(of)) } }
     val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count, outOf, formats)
 
     if (onValueChange == null) {
