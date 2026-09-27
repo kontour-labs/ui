@@ -10,7 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.ModalNavRail
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
 import io.kontour.ui.sheet.ModalBottomSheet
@@ -82,23 +83,28 @@ class SheetDefaultsTest {
     }
 
     /**
-     * The drawer is built on the modal side sheet and takes its default: flush to
-     * the leading edge. It has no colour parameter, so
-     * its own surface is sampled well inside it, and the gap is the columns before
-     * that colour starts — the page there is dimmed and receded, and neither is it.
+     * The modal rail — the drawer, as was — is built on the modal side sheet and
+     * takes its default: flush to the leading edge.
+     *
+     * The drawer had no colour parameter, so this used to sample its surface well
+     * inside it and count the columns before that colour started. The rail takes
+     * `colours`, so it is painted [SheetColour] like every other sheet here and
+     * measured the same way.
      */
     @Test
-    fun aModalNavDrawerIsAnEdgeSheet() {
+    fun aModalNavRailIsAnEdgeSheet() {
         val image = scene(1400, 900) {
-            ModalNavDrawer(visible = true, onDismissRequest = {}) {}
+            ModalNavRail(
+                visible = true,
+                onDismissRequest = {},
+                colours = NavDefaults.colours(container = SheetColour),
+            ) {}
         }
-        val y = image.height * 3 / 4
-        val drawer = image.getRGB(200, y) and 0xFFFFFF
-        var gap = image.width
-        for (x in 0 until image.width) {
-            if ((image.getRGB(x, y) and 0xFFFFFF) == drawer) { gap = x; break }
-        }
-        assertEquals(0, gap, "a ModalNavDrawer with no presentation floats off its leading edge")
+        assertEquals(
+            0,
+            image.gapLeft(image.height * 3 / 4),
+            "a ModalNavRail with no presentation floats off its leading edge",
+        )
     }
 
     private fun scene(width: Int, height: Int, content: @Composable () -> Unit): BufferedImage =

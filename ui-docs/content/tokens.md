@@ -380,7 +380,7 @@ is, and every button reads it.
 |---|---|---|
 | `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
 | `field` | half its height, up to 18dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
-| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
+| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
 
 **A control is a pill up to `small`, and squarer above it.** Half its own height

@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,23 +66,25 @@ fun rememberNavSearchState(): NavSearchState {
  * ```kotlin
  * val search = rememberNavSearchState()
  *
- * NavBar(
- *     items = destinations,
- *     selectedIndex = current,
- *     search = { NavSearch(search, onSearch = viewModel::search) },
- *     searchIndex = destinations.size / 2,
- * )
+ * NavBar {
+ *     item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *     item(here == Map, { go(Map) }, key = Map, icon = Tabler.Outline.Map) { +"Map" }
+ *     slot(weight = 1f) { NavSearch(search, onSearch = viewModel::search) }
+ *     item(here == Saved, { go(Saved) }, key = Saved, icon = Tabler.Outline.Star) { +"Saved" }
+ *     item(here == Me, { go(Me) }, key = Me, icon = Tabler.Outline.User) { +"Me" }
+ * }
  * ```
  *
- * With `searchIndex = items.size / 2` the destinations sit two either side of
- * it, which is the arrangement a map app wants: the thing people came to do in
- * the middle, and the places they might go on the flanks.
+ * In the middle of the bar the destinations sit two either side of it, which is
+ * the arrangement a map app wants: the thing people came to do in the middle,
+ * and the places they might go on the flanks. [NavigationSuiteScaffold]'s
+ * `search` and `searchIndex` put it there by counting destinations.
  *
  * ### Two shapes, and the surface picks
  *
  * Somewhere narrow — a bar, or a rail at 88dp — this is a pill that opens a
  * panel over the screen, because there is no typing to be done in a hundred dp.
- * Somewhere wide — an expanded rail, a drawer — it is simply the field, because
+ * Somewhere wide — an expanded or a modal rail — it is simply the field, because
  * there is, and an overlay would be ceremony.
  *
  * It reads [LocalNavExpansion] to tell which, so a rail growing into a drawer
@@ -96,6 +99,7 @@ fun rememberNavSearchState(): NavSearchState {
  * @param editInPlace Whether this is a live field rather than a pill that opens
  *   one. Follows the surrounding surface's width by default.
  * @param placement Where the panel goes when there is not room to edit in place.
+ * @param interactionSource Hoisted, to observe the pill's press and hover.
  * @param results Shown with the field: above it over a keyboard, below it at the
  *   top of the screen, and under an in-place field. Given a `ColumnScope`, so a
  *   caller can weight a list to fill what is left.
@@ -118,6 +122,7 @@ fun NavSearch(
     contentColour: Color = Theme.colours.content,
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
     results: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     if (editInPlace) {
@@ -152,6 +157,7 @@ fun NavSearch(
         placement = placement,
         containerColour = containerColour,
         contentColour = contentColour,
+        interactionSource = interactionSource,
         expandedContent = {
             if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results)
 

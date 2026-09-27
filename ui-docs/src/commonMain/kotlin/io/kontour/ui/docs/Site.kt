@@ -57,9 +57,10 @@ import io.kontour.ui.demo.componentDemos
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
-import io.kontour.ui.nav.ModalNavDrawer
-import io.kontour.ui.nav.NavDrawer
-import io.kontour.ui.nav.NavDrawerScope
+import io.kontour.ui.nav.NavScope
+import io.kontour.ui.nav.NavigationSuiteScaffold
+import io.kontour.ui.nav.NavigationSuiteType
+import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
@@ -80,19 +81,15 @@ import io.kontour.ui.theme.deviceInDarkTheme
  *
  * ### Built out of the library it documents
  *
- * `Scaffold`, `TopBar`, `NavDrawer`, `ModalNavDrawer` — not a hand-rolled `Row`
+ * `Scaffold`, `TopBar` and `NavigationSuiteScaffold` — not a hand-rolled `Row`
  * with a hardcoded breakpoint, which is what this was. Dogfooding is the honest
  * reason and there is a practical one too: the site is the largest real
  * application of these components anybody has written, so a component that is
  * awkward here is a component that is awkward.
  *
- * **Not `NavigationSuiteScaffold`**, though it looks like the obvious fit. That
- * takes a flat `List<NavItem>` of three to five icon destinations with a
- * travelling indicator, and this index is a hundred pages in eleven families.
- * Using it would mean either inventing four fake top-level destinations — giving
- * a drawer of four beside a drawer of a hundred — or flattening a tree into a
- * list, which its own KDoc argues against. `NavDrawerScope` is a tree, which is
- * what this is.
+ * The index is a hundred pages in eleven families: a `NavScope` tree of
+ * sections and groups, drawn as a sidebar beside the content where there is
+ * room and as a modal rail behind the menu button where there is not.
  */
 @Composable
 fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
@@ -140,15 +137,13 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
     // than a `>= Medium` comparison written out at the call site. A threshold
     // spelled as a comparison is a threshold that drifts when somebody moves it.
     val besideContent = windowSizeClass.width.hasRoomBeside
-    var indexOpen by remember { mutableStateOf(false) }
+    val suite = rememberNavigationSuiteState()
     var settingsOpen by remember { mutableStateOf(false) }
 
-    // A drawer still open over the page you just chose is a drawer you have to
-    // dismiss before you can read anything.
+    // The modal rail closes itself a frame after a page is chosen from it.
     LaunchedEffect(route) {
-        indexOpen = false
-        // And a family you have just navigated into is one you can see the
-        // inside of, whatever you last did to its chevron.
+        // A family you have just navigated into is one you can see the inside
+        // of, whatever you last did to its chevron.
         //
         // Not tidiness: a collapsed group composes none of its rows, and the
         // selection pill is driven by the selected row *reporting* its bounds.
@@ -174,7 +169,7 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
                         IconButton(
                             icon = Tabler.Outline.Menu2,
                             contentDescription = "Components",
-                            onClick = { indexOpen = true },
+                            onClick = suite::showModal,
                         )
                     }
                 },
@@ -233,32 +228,22 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
             }
         },
     ) { padding ->
-        Row(Modifier.fillMaxSize().padding(padding)) {
-            if (besideContent) {
-                NavDrawer(
-                    width = IndexWidth,
-                    header = { IndexSearchHeader() },
-                    modifier = Modifier.fillMaxHeight(),
-                ) {
-                    indexItems(route)
-                }
-                VerticalDivider(Modifier.fillMaxHeight())
-            }
-            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
-        }
-    }
-
-    // Below Medium the index is a modal drawer behind the menu button. It used
-    // to be nothing at all: the sidebar simply was not rendered under 600dp and
-    // no menu replaced it, so a reader who arrived on a component page from a
-    // search engine had no route to any other page in the site.
-    if (!besideContent) {
-        ModalNavDrawer(
-            visible = indexOpen,
-            onDismissRequest = { indexOpen = false },
+        // Beside the content where there is room; below that, a modal rail
+        // behind the menu button. It used to be nothing at all under 600dp, so
+        // a reader who arrived on a page from a search engine had no route to
+        // any other page in the site.
+        NavigationSuiteScaffold(
+            destinations = { indexItems(route) },
+            modifier = Modifier.fillMaxSize().padding(padding),
+            state = suite,
+            type = if (besideContent) NavigationSuiteType.ExpandedRail else NavigationSuiteType.ModalRail,
+            railExpandedWidth = IndexWidth,
             header = { IndexSearchHeader() },
         ) {
-            indexItems(route)
+            Row(Modifier.fillMaxSize()) {
+                if (besideContent) VerticalDivider(Modifier.fillMaxHeight())
+                Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
+            }
         }
     }
 }
@@ -283,7 +268,7 @@ private fun Content(route: Route, settings: CatalogSettings) {
     }
 }
 
-/** The search field the drawer keeps above its destinations. */
+/** The search field the index keeps above its destinations. */
 @Composable
 private fun IndexSearchHeader() {
     val search = rememberTextFieldState()
@@ -296,9 +281,9 @@ private fun IndexSearchHeader() {
 }
 
 /**
- * The filter, hoisted out of the drawer.
+ * The filter, hoisted out of the index.
  *
- * There are two drawers — permanent and modal — and only ever one on screen, so
+ * The index is a sidebar or a modal rail, and only ever one on screen, so
  * holding the query in either would lose it at the breakpoint. It is small and
  * it is genuinely site-wide state.
  */
@@ -314,13 +299,13 @@ private var indexQuery by mutableStateOf("")
  * that does nothing. An explicit `false` is a different thing from no entry, so
  * the map stores which and the reader always wins.
  *
- * Hoisted for the same reason as [indexQuery]: two drawers, one on screen.
+ * Hoisted for the same reason as [indexQuery]: two surfaces, one on screen.
  */
 private var familyOpen by mutableStateOf(emptyMap<String, Boolean>())
 
 /** Every page, by family, filtered as you type. */
 @Composable
-private fun NavDrawerScope.indexItems(current: Route) {
+private fun NavScope.indexItems(current: Route) {
     val matching = remember(indexQuery) {
         if (indexQuery.isBlank()) {
             docPagesByFamily
@@ -347,7 +332,6 @@ private fun NavDrawerScope.indexItems(current: Route) {
             return@forEach
         }
         group(
-            label = family.name,
             // A search reveals its hits whatever the reader last did to a
             // chevron, otherwise typing a name and getting nothing back is the
             // behaviour, and it looks like the search is broken.
@@ -357,11 +341,14 @@ private fun NavDrawerScope.indexItems(current: Route) {
             indexFamily(family, current)
         }
     }
+            key = "family:${family.name}",
+            icon = null,
+            header = { +family.name },
 }
 
 /** One family's rows: its own page, then its components. */
 @Composable
-private fun NavDrawerScope.indexFamily(family: DocFamily, current: Route) {
+private fun NavScope.indexFamily(family: DocFamily, current: Route) {
     // The family's own page first, where it has one — the "which one" table and
     // the prose that is about the family rather than any component in it. Round
     // 16 gave those pages routes; before that they were the only part of the
@@ -382,22 +369,20 @@ private fun DocFamily.holds(route: Route): Boolean =
     route is Route.Doc && (index?.path == route.path || pages.any { it.path == route.path })
 
 /**
- * One destination.
- *
- * `label` is the drawer's selection-indicator key, so two entries sharing one
- * would collide. A page's first symbol is unique across the tree —
- * `check-components.py` rule 2 keeps it that way — and a guide has no symbols,
- * so it falls back to its title, which is also unique.
+ * One destination, keyed by its path: unique across the tree, where a label is
+ * not — every family's "Overview" row shares one.
  */
 @Composable
-private fun NavDrawerScope.indexItem(page: DocPage, current: Route, label: String? = null) {
+private fun NavScope.indexItem(page: DocPage, current: Route, label: String? = null) {
     item(
-        label = label ?: page.indexLabel,
         selected = current == Route.Doc(page.path),
     ) {
-        navigate(Route.Doc(page.path))
+        +(label ?: page.indexLabel)
     }
 }
+        onClick = { navigate(Route.Doc(page.path)) },
+        key = page.path,
+        icon = null,
 
 /** Whether a page answers what was typed into the index's search field. */
 private fun DocPage.matches(query: String): Boolean =
@@ -497,7 +482,7 @@ private const val SummaryLength = 130
  * What to put at the top of the page, and in the index.
  *
  * A component page is named by what it documents — "NavBar / NavRail /
- * NavDrawer" is better than "Nav surfaces". A guide is named by its title, with
+ * ModalNavRail" is better than "Nav surfaces". A guide is named by its title, with
  * the markdown taken out: `dsls.md` is called "Slots, and the `+` that keeps
  * them short", whose only backticked run is `+`, so reading symbols off it gave
  * a page headed "+" — and, while there was a page-level *API reference* button,
@@ -514,10 +499,8 @@ private val DocPage.heading: String
 /**
  * The name in the sidebar.
  *
- * The *first* symbol rather than all of them: `nav-surfaces` documents three,
- * and "NavBar / NavRail / NavDrawer" wraps to three lines in a 280dp drawer.
- * It is also the drawer's selection-indicator key, so it has to be unique —
- * `check-components.py` rule 2 is what keeps it so.
+ * The *first* symbol rather than all of them: a page that documents three
+ * would wrap to three lines in a 280dp sidebar.
  */
 private val DocPage.indexLabel: String
     get() = if (kind == DocKind.Component) symbols.firstOrNull() ?: plainTitle else plainTitle
@@ -692,13 +675,13 @@ private fun Specimens(page: DocPage) {
  * 320, not the 280 it was, and the collapsible index is why.
  *
  * A component's rows sit one nest level inside their family's chevron, which is
- * `NavDrawerDefaults.NestIndent` — 24dp — off the leading edge, and
- * `NavDrawerItem` draws its label at `maxLines = 1`: it truncates rather than
+ * `NavRailDefaults.NestIndent` — 24dp — off the leading edge, and a rail row
+ * draws its label at `maxLines = 1`: it truncates rather than
  * wrapping. At 280 that ate the tail of the longest names in the tree, and
  * `ExtendedFloatingActionButton` came out as "ExtendedFloatingActionButt".
  *
  * Widening here rather than shrinking `NestIndent`, which is a library token
- * every drawer in every consumer draws against. This is the site's own measure.
+ * every rail in every consumer draws against. This is the site's own measure.
  *
  * Kept below `SiteRenderTest.IndexWidth`, which is where that test starts
  * looking for a page's own ink — if the index grew past it, a page with an empty

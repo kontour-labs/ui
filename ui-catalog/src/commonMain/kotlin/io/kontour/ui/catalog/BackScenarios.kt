@@ -29,7 +29,7 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav3.detailPane
 import io.kontour.ui.nav3.listPane
@@ -406,8 +406,10 @@ private fun SideSheetsScenario(dismissible: Boolean) {
             if (!dismissible) Actions { Action("Done") { filters = false } }
         }
     }
-    ModalNavDrawer(visible = drawer, onDismissRequest = { drawer = false }) {
-        for (place in listOf("Stops", "Routes", "Alerts")) item(label = place, selected = place == "Stops") { drawer = false }
+    ModalNavRail(visible = drawer, onDismissRequest = { drawer = false }) {
+        for (place in listOf("Stops", "Routes", "Alerts")) {
+            item(selected = place == "Stops", onClick = {}, key = place, icon = null) { +place }
+        }
     }
 }
 

@@ -300,6 +300,40 @@ toast host's `Toast`.
 
 ---
 
+## Navigation, merged
+
+The bar, the rail and the drawer had three content models between them — a
+`NavItem` list with a `selectedIndex`, per-row `selected` flags, and strings keyed
+by their own label. They share one now, [`NavScope`](components/nav-scope.md),
+written once and drawn by whichever surface it is in; and the rail and the drawer
+are one component at two widths.
+
+| Before | After |
+|---|---|
+| `NavBar(items, selectedIndex, search = …, searchIndex = …, action = …)` | `NavBar { item(…); slot(weight = 1f) { NavSearch(…) } }` |
+| `NavItem("Home", icon, onClick, badge = 3)` in a list | `item(selected = here == Home, onClick = …, key = Home, icon = icon, badge = { Badge(count = 3) }) { +"Home" }` |
+| `selectedIndex` | `selected` on each `item` |
+| `NavBarStyle.Free` | Gone: `Floating`, the new default, or `Docked`; `glass = true` for either frosted |
+| `NavBar(showBackdrop, containerColour, contentColour, indicatorColour, indicatorSize, labelGap)` | `colours = NavDefaults.colours(…)`; the backdrop went with `Free` |
+| `NavRail(items, selectedIndex, showLabels, action)` | `NavRail(…) { … }`, labels whenever it is wide enough, `footer` for the action |
+| `NavDrawer(header, footer) { … }` | `NavRail(expanded = true, header, footer) { … }` |
+| `ModalNavDrawer(…)` | `ModalNavRail(…)`, which closes itself a frame after a choice (`dismissOnItemClick`) |
+| `NavDrawerItem`, `NavDrawerGroup`, `NavDrawerSection`, `NavBarItem`, `NavRailItem` | `item`, `group`, `section` in the scope |
+| drawer DSL `item("Home", selected = …) { … }`, keyed by its label | `item(…, key = …) { +"Home" }` — a key of yours; a duplicate throws |
+| `NavigationSuiteScaffold(items, selectedIndex, drawerHeader = …)` | `NavigationSuiteScaffold(destinations = { … }, header = …)`; `NavigationSuiteType.Drawer` is `ExpandedRail`, and `ModalRail` is new |
+| `NavExpandingSlot { Icon(…); Text(…) }` in a `RowScope` | `NavExpandingSlot { +icon; +"Filters" }` in a `RowContentScope` |
+| `NavItemDefaults`, `NavDrawerDefaults` | `NavBarDefaults.CircleSize`, `NavRailDefaults.GlyphSize` and `.NestIndent`, `NavRailDefaults.ExpandedWidth` |
+| `ComponentDefaults.navDrawerNestIndent` | `navNestIndent`; `navIndicatorWidth`, `navIndicatorHeight`, `navGlyphHeight` and `navDrawerWidth` are gone |
+
+Also changed: a group in a bar or a narrow rail opens a menu of its destinations,
+and carries the marker while the selected one is inside it; unselected
+destinations are muted everywhere; the marker casts no shadow; a bar's slot is on
+a surface, so a `NavSearch` pill there is a recess; a rail fixed at
+`expanded = true` with no toggle is honoured; an icon-less destination shows its
+label's initial where its label is hidden.
+
+---
+
 ## `+` where a component holds one kind of content
 
 The `+` vocabulary reached more of the components whose content is nearly

@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Home
-import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavRail
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -69,11 +68,14 @@ class NavOverflowTest {
         var image: BufferedImage? = null
         Scene(width = 260, height = height) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                NavRail(
-                    items = List(items) { NavItem("Item ${it + 1}", Tabler.Outline.Home, {}) },
-                    selectedIndex = 0,
-                    expanded = true,
-                )
+                // Collapsed, as this always measured: `expanded = true` without a
+                // toggle used to be ignored, and is a 280dp sidebar now — wider
+                // than this 130dp scene, which would squeeze it rather than test it.
+                NavRail {
+                    repeat(items) { index ->
+                        item(index == 0, {}, key = index, icon = Tabler.Outline.Home) { +"Item ${index + 1}" }
+                    }
+                }
             }
         }.use { scene -> image = scene.frames(12) }
 

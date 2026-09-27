@@ -12,7 +12,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -53,12 +53,6 @@ import kotlin.test.assertTrue
  */
 class NavRailGrowthTest {
 
-    private val items = listOf(
-        NavItem(label = "Nearby", icon = Tabler.Outline.MapPin, onClick = {}),
-        NavItem(label = "Routes", icon = Tabler.Outline.Bus, onClick = {}),
-        NavItem(label = "Saved", icon = Tabler.Outline.Star, onClick = {}),
-    )
-
     @Test
     fun theLabelsWaitForTheRailToBeWideEnoughForThem() {
         var expanded by mutableStateOf(false)
@@ -67,14 +61,17 @@ class NavRailGrowthTest {
 
         Scene(width = 800, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
+                // No `showLabels` any more: a rail shows its labels whenever it
+                // has room for them, which is the thing being measured.
                 NavRail(
-                    items = items,
-                    selectedIndex = 0,
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
-                    showLabels = true,
-                    indicatorColour = Color.Transparent,
-                )
+                    colours = NavDefaults.colours(indicator = Color.Transparent),
+                ) {
+                    item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+                    item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                    item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+                }
             }
         }.use { scene ->
             val collapsed = scene.frames(8)

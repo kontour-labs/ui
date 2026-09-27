@@ -75,5 +75,5 @@ page:
 | `LocalInputModality` | [Input modality](../accessibility.md#input-modality) |
 | `kontourIndication` | [Interaction](../../../docs/building/contributing.md#interaction) |
 | `Feedback` / `FeedbackIntent` | [Interaction](../../../docs/building/contributing.md#interaction) |
-| `SelectionIndicatorBox` | [How selection is shown](nav-surfaces.md#how-selection-is-shown) |
+| `SelectionIndicatorBox` | [How selection is shown](nav-scope.md#how-selection-is-shown) |
 | `OverlayHost` | [Overlays](../overlays.md) |

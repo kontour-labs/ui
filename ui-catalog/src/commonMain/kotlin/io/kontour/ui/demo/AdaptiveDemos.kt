@@ -280,7 +280,7 @@ internal val WindowSizeClassDemo = ComponentDemo(
                     style = Theme.typography.titleMedium,
                 )
                 Text(
-                    "Navigation: ${navigationSuiteTypeFor(info.size.width).name.lowercase()}",
+                    "Navigation: ${navigationSuiteTypeFor(info.size.width).name.replace(Regex("(?<=.)(?=[A-Z])"), " ").lowercase()}",
                     style = Theme.typography.bodySmall,
                     colour = Theme.colours.contentMuted,
                 )

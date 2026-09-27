@@ -28,9 +28,9 @@ neither can see the other. The box owns it, each item marks itself with
 `Modifier.selectionIndicatorItem(key)`, and the box interpolates between the
 bounds it has been told about.
 
-Used by `NavBar`, `NavRail`, `NavDrawer` and `TabBar`, which is why they agree
+Used by `NavBar`, `NavRail`, `ModalNavRail` and `TabBar`, which is why they agree
 about how selection looks — see
-[how selection is shown](nav-surfaces.md#how-selection-is-shown).
+[how selection is shown](nav-scope.md#how-selection-is-shown).
 
 ---
 

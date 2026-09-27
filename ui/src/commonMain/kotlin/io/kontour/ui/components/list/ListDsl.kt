@@ -46,7 +46,7 @@ import io.kontour.ui.foundation.GroupPosition
  *
  * ### Why it is not `@Composable`, which was tried
  *
- * `MenuScope` and `NavDrawerScope` do take `@Composable` builders, and the
+ * `MenuScope` and `NavScope` do take `@Composable` builders, and the
  * asymmetry looks like drift. It is not. Those two *emit* — they are
  * `ColumnScope`s, and every item they declare draws where it is declared. A
  * collecting scope cannot follow them.

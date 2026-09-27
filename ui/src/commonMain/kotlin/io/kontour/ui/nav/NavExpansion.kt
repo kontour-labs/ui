@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,7 +29,10 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
+import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -44,10 +46,10 @@ import io.kontour.ui.theme.Theme
 /**
  * How much room a navigation surface is currently giving its slots.
  *
- * A [NavRail]'s `header` and `action`, a [NavDrawer]'s `header` and `footer`,
- * and a [NavBar]'s `search` and `action` all sit inside a surface whose width is
- * not theirs to choose — 88dp of rail one moment and 280dp the next, or a
- * hundred-odd dp between two pairs of destinations. Slot content that wants to
+ * A [NavRail]'s `header` and `footer`, a [ModalNavRail]'s, and a [NavBar]'s
+ * slots all sit inside a surface whose width is not theirs to choose — 88dp of
+ * rail one moment and 280dp the next, or a hundred-odd dp between two pairs of
+ * destinations. Slot content that wants to
  * respond to that has had no way to know.
  *
  * It is deliberately not about search. A profile row that shows an avatar alone
@@ -57,10 +59,10 @@ import io.kontour.ui.theme.Theme
  * rail's `expanded` flag down by hand.
  *
  * ```kotlin
- * NavRail(items, selectedIndex = current, header = {
+ * NavRail(header = {
  *     val room = LocalNavExpansion.current
  *     Row { Avatar(user); if (room.expanded) Text(user.name) }
- * })
+ * }) { … }
  * ```
  *
  * @property expanded Whether there is room for a label beside an icon. What a
@@ -74,13 +76,12 @@ import io.kontour.ui.theme.Theme
  * publish the same answer, and content written against this local then works
  * inside it without knowing it is not a [NavRail].
  *
- * @property onSurface Whether there is a panel behind this slot. True in a rail
- *   or a drawer, which are `Surface`s; false in a bar, which is free-standing
- *   circles over the content with nothing behind them. It decides which way a
- *   control has to go to be *seen*: raised and light over content, recessed
- *   against a panel. A control that picks one and keeps it is invisible in the
- *   other, which is how a search pill ended up the same colour as the page it
- *   was drawn on.
+ * @property onSurface Whether there is a panel behind this slot. True in every
+ *   navigation surface — a bar, a rail and a modal rail all have one; false for
+ *   content outside them. It decides which way a control has to go to be
+ *   *seen*: raised and light over content, recessed against a panel. A control
+ *   that picks one and keeps it is invisible in the other, which is how a search
+ *   pill ended up the same colour as the page it was drawn on.
  */
 @Immutable
 class NavExpansion(
@@ -105,10 +106,10 @@ class NavExpansion(
     }
 
     internal companion object {
-        /** A bar's: no room for labels, and nothing behind the slot. */
-        val Bar = NavExpansion(expanded = false, progress = 1f, onSurface = false)
+        /** A bar's: no room for labels, on the bar's surface. */
+        val Bar = NavExpansion(expanded = false, progress = 1f, onSurface = true)
 
-        /** A drawer's: all the room there is, on a panel. */
+        /** A modal rail's: all the room there is, on a panel. */
         val Drawer = NavExpansion(expanded = true, progress = 1f, onSurface = true)
     }
 }
@@ -211,13 +212,14 @@ object NavExpandingSlotDefaults {
  * escape closing it, focus trapped inside it, and its own entrance.
  *
  * @param containerColour The collapsed control's ground. Chosen from
- *   [LocalNavExpansion] by default — raised `surface` in a bar, where this
- *   floats over the content beside destinations that are themselves raised
- *   circles, and recessed `surfaceSunken` in a rail or drawer, where there is a
- *   panel behind it and a raised pill would be the panel's own colour.
+ *   [LocalNavExpansion] by default: a recessed `surfaceSunken` on a navigation
+ *   surface, where a raised pill would be the surface's own colour, and a raised
+ *   `surface` anywhere else.
+ * @param interactionSource Hoisted, to observe the control's press and hover.
  * @param expandedContent The panel. Given a `ColumnScope` so it can weight a
  *   list to fill what is left.
- * @param content The collapsed control's contents, in a row.
+ * @param content The collapsed control's contents, in a row: `+icon` and
+ *   `+"Filters"` in the control's own style.
  */
 @Composable
 fun NavExpandingSlot(
@@ -230,8 +232,9 @@ fun NavExpandingSlot(
     contentColour: Color = Theme.colours.content,
     shadow: Shadow = NavExpandingSlotDefaults.shadow(),
     dismissLabel: String = Theme.strings.close,
+    interactionSource: MutableInteractionSource? = null,
     expandedContent: @Composable ColumnScope.() -> Unit,
-    content: @Composable RowScope.() -> Unit,
+    content: @Composable RowContentScope.() -> Unit,
 ) {
     CollapsedControl(
         onClick = { onExpandedChange(true) },
@@ -240,6 +243,7 @@ fun NavExpandingSlot(
         containerColour = containerColour,
         contentColour = contentColour,
         shadow = shadow,
+        interactionSource = interactionSource,
         content = content,
     )
 
@@ -277,9 +281,10 @@ private fun CollapsedControl(
     containerColour: Color,
     contentColour: Color,
     shadow: Shadow,
-    content: @Composable RowScope.() -> Unit,
+    interactionSource: MutableInteractionSource?,
+    content: @Composable RowContentScope.() -> Unit,
 ) {
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.capsule
 
     Surface(
@@ -308,8 +313,11 @@ private fun CollapsedControl(
                 .padding(horizontal = Theme.spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
+        ) {
+            ProvideTextStyle(Theme.typography.bodyMedium) {
+                contentScope(iconSize = Theme.sizing.iconMedium, maxLines = 1, content = content)
+            }
+        }
     }
 }
 

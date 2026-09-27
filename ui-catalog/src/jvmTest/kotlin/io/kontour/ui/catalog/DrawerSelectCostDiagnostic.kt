@@ -14,7 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.motion.Transitions
-import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -22,6 +22,11 @@ import kotlin.test.assertTrue
 
 /**
  * Where the half second between tapping a drawer item and the drawer moving goes.
+ *
+ * The modal nav drawer this was written against is a [ModalNavRail] now — the
+ * same modal side sheet with the same rows in it — and this drives that. "The
+ * drawer" below is the modal rail; the table is the drawer's, and is kept as
+ * the record of why the rail's `dismissOnItemClick` does what it does.
  *
  * Reported from the gallery on a phone: tapping a destination in the modal nav
  * drawer "just does nothing for half a second" and only then animates. There is
@@ -88,9 +93,11 @@ import kotlin.test.assertTrue
  * a reader sees is not a hesitation, it is the drawer arriving already closed —
  * reported as it snapping shut.
  *
- * `pageFirst` is the other order and is what ships: the destination composes on
- * the frame the finger lifts, while the drawer is open and stationary, and the
- * exit starts on the next frame against a page that is already drawn. It buys
+ * `pageFirst` is the other order and is what ships — `ModalNavRail` calls the
+ * destination's `onClick`, waits a frame, and only then dismisses. The
+ * destination composes on the frame the finger lifts, while the drawer is open
+ * and stationary, and the exit starts on the next frame against a page that is
+ * already drawn. It buys
  * the animation back — f2 60.4 → 38.7 and f3 37.8 → 20.9, 264.6ms of exit
  * against 291.5 — and it pays for it with 63.3ms on f1, where the only thing on
  * screen is a drawer that has not started moving yet. A pause before an
@@ -141,7 +148,7 @@ class DrawerSelectCostDiagnostic {
         )
         val pageFirst = frameCosts(changePage = true, closeDrawer = true, deferDrawer = true)
 
-        println("tapping a destination in the modal drawer, ms per frame")
+        println("tapping a destination in the modal rail, ms per frame")
         println("  arm      " + (1..Frames).joinToString(" ") { "f$it".padStart(6) })
         val arms = listOf(
             "both" to both,
@@ -212,12 +219,15 @@ class DrawerSelectCostDiagnostic {
                                 }
                             }
                         }
-                        ModalNavDrawer(
+                        // Driven through its state rather than tapped, so every arm
+                        // can order the two changes itself; `dismissOnItemClick`
+                        // never fires, and what it would do is the `pageFirst` arm.
+                        ModalNavRail(
                             visible = drawerOpen,
                             onDismissRequest = { drawerOpen = false },
                         ) {
                             pages.forEachIndexed { index, page ->
-                                item(page.title, icon = page.icon, selected = index == selected) {}
+                                item(index == selected, {}, key = index, icon = page.icon) { +page.title }
                             }
                         }
                     }

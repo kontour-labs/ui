@@ -253,7 +253,7 @@ class SelectionIndicatorState internal constructor() {
  * whatever is above them, which was reported twice as a pill flying up the list
  * when a drawer group closed on the current page.
  *
- * Measured: a marker on a sub-item of a `NavDrawer` group travelled from row 402
+ * Measured: a marker on a sub-item of a sidebar group travelled from row 402
  * to row 222 across fourteen frames of the collapse before fading out at all.
  *
  * The rows moving is real, and every row *below* a collapsing group moves too —
@@ -574,7 +574,7 @@ fun SelectionIndicatorBox(
  * Reports this node as the selected item of the enclosing indicator group.
  *
  * Does nothing outside a [SelectionIndicatorBox], which is what lets a single
- * `NavBarItem` render standalone — in the contract suite, or in a caller's own
+ * bar destination render standalone — in the contract suite, or in a caller's own
  * layout — without an indicator group around it.
  *
  * Measurement and reporting are deliberately separate: every item measures

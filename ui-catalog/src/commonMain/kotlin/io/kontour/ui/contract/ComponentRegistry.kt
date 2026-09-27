@@ -54,6 +54,9 @@ import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Route
+import com.composables.icons.tabler.outline.User
+import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
@@ -131,12 +134,10 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
-import io.kontour.ui.nav.NavBarItem
-import io.kontour.ui.nav.NavDrawerGroup
-import io.kontour.ui.nav.NavDrawerItem
-import io.kontour.ui.nav.NavDrawerSection
-import io.kontour.ui.nav.NavItem
-import io.kontour.ui.nav.NavRailItem
+import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarStyle
+import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.overlay.OverlayHost
@@ -1473,110 +1474,68 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // --- Navigation ------------------------------------------------------
     add(
-        // Every navigation item rests unselected, and unselected is the state
-        // with no indicator in it. The pill — its shape, its colour, where it
-        // sits relative to icon and label — is what distinguishes these three
-        // from one another and from a plain row, and none of it was on show.
+        // The control is the selected destination: the bar is a group of them,
+        // and the one that is where the app is carries the role, the name and
+        // the click.
         ComponentSpec(
-            name = "NavBarItem",
+            name = "NavBar",
             role = Role.Tab,
+            control = ControlLocator.SelectedOption,
             states = listOf(
-                RenderState("selected") { modifier ->
-                    NavBarItem(
-                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = true,
-                        modifier = modifier,
-                    )
+                RenderState("labels") { modifier ->
+                    NavBar(modifier = modifier, showLabels = true) { specimenDestinations(onClick = {}) }
                 },
-                RenderState("pressed") { modifier ->
-                    NavBarItem(
-                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = false,
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    )
+                RenderState("docked") { modifier ->
+                    NavBar(modifier = modifier, style = NavBarStyle.Docked) { specimenDestinations(onClick = {}) }
                 },
             ),
         ) { modifier, enabled, onClick ->
-            NavBarItem(
-                item = NavItem(
-                    label = "Plan",
-                    icon = Tabler.Outline.Star,
-                    onClick = onClick,
-                    enabled = enabled,
-                ),
-                selected = false,
-                modifier = modifier,
-            )
+            NavBar(modifier = modifier) { specimenDestinations(onClick = onClick, enabled = enabled) }
         }
     )
 
     add(
         ComponentSpec(
-            name = "NavDrawerItem",
+            name = "NavRail",
             role = Role.Tab,
+            control = ControlLocator.SelectedOption,
+            renderHeight = 240,
             states = listOf(
-                RenderState("selected") { modifier ->
-                    NavDrawerItem(
-                        selected = true,
-                        onClick = {},
-                        key = "drawer-item",
-                        modifier = modifier,
-                    ) { +"Favourites" }
-                },
-                RenderState("pressed") { modifier ->
-                    NavDrawerItem(
-                        selected = false,
-                        onClick = {},
-                        key = "drawer-item",
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    ) { +"Favourites" }
+                // The sidebar the rail grows into: labels, a section title.
+                RenderState("expanded") { modifier ->
+                    NavRail(modifier = modifier, expanded = true, revealSelected = false) {
+                        section("Saved") { specimenDestinations(onClick = {}) }
+                    }
                 },
             ),
         ) { modifier, enabled, onClick ->
-            NavDrawerItem(
-                selected = false,
-                onClick = onClick,
-                key = "drawer-item",
-                modifier = modifier,
-                enabled = enabled,
-            ) { +"Favourites" }
+            NavRail(modifier = modifier, revealSelected = false) {
+                specimenDestinations(onClick = onClick, enabled = enabled)
+            }
         }
     )
 
     add(
+        // A group's disclosure, closed so that it is the one clickable thing:
+        // a button that says whether it is expanded, not a destination.
         ComponentSpec(
-            name = "NavRailItem",
-            role = Role.Tab,
-            states = listOf(
-                RenderState("selected") { modifier ->
-                    NavRailItem(
-                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = true,
-                        modifier = modifier,
-                    )
-                },
-                RenderState("pressed") { modifier ->
-                    NavRailItem(
-                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = false,
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    )
-                },
-            ),
+            name = "NavScope",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            renderHeight = 160,
         ) { modifier, enabled, onClick ->
-            NavRailItem(
-                item = NavItem(
-                    label = "Map",
-                    icon = Tabler.Outline.Star,
-                    onClick = onClick,
+            NavRail(modifier = modifier, expanded = true, revealSelected = false) {
+                group(
+                    expanded = false,
+                    onExpandedChange = { onClick() },
+                    key = "lines",
+                    icon = Tabler.Outline.Route,
+                    header = { +"Lines" },
                     enabled = enabled,
-                ),
-                selected = false,
-                modifier = modifier,
-            )
+                ) {
+                    item(selected = false, onClick = {}, key = "joondalup", icon = null) { +"Joondalup" }
+                }
+            }
         }
     )
 
@@ -2377,27 +2336,17 @@ val componentRegistry: List<ComponentSpec> = buildList {
             }
         }
     )
+}
 
-    add(
-        ComponentSpec("NavDrawerSection", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerSection(title = { +"Saved" }, modifier = modifier) {
-                item(label = "Nearby", selected = false, onClick = {})
-            }
-        }
-    )
-
-    add(
-        ComponentSpec("NavDrawerGroup", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerGroup(
-                header = { +"Lines" },
-                expanded = true,
-                onExpandedChange = {},
-                modifier = modifier,
-            ) {
-                item(label = "Joondalup", selected = false, onClick = {})
-            }
-        }
-    )
+/**
+ * Three destinations for a navigation specimen, the first selected: the one the
+ * contract finds, and the one [onClick] is wired to.
+ */
+@Composable
+private fun NavScope.specimenDestinations(onClick: () -> Unit, enabled: Boolean = true) {
+    item(selected = true, onClick = onClick, key = "plan", icon = Tabler.Outline.Star, enabled = enabled) { +"Plan" }
+    item(selected = false, onClick = {}, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+    item(selected = false, onClick = {}, key = "me", icon = Tabler.Outline.User) { +"Me" }
 }
 
 
@@ -2504,12 +2453,9 @@ private val SpecimenProseWidth = 260.dp
  *
  * ### Do not read these as a press-against-marker comparison
  *
- * For `NavBarItem` they can be — all three of its states render on the same
- * 152x152 canvas. For `NavRailItem` they cannot: resting, selected and pressed
- * come out 216x94, 240x144 and 274x160, because a rail item drawn on its own
- * sizes to something that varies with its state, and it is never drawn on its
- * own in an app. Two renders of different sizes cannot be laid side by side and
- * judged.
+ * A destination is never drawn on its own in an app, so the navigation
+ * specimens are whole bars and rails, and a press is not among their states:
+ * two renders of a surface differ in more than the press.
  *
  * The question "is the highlight under your finger the shape the marker will
  * take" is answered by `NavIndicationShapeTest`, which puts the item inside a

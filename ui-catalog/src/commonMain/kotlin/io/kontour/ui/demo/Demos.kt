@@ -70,7 +70,7 @@ val demoFamilies: List<DemoFamily> = listOf(
  * Keyed by slug rather than by symbol name, because the page is the thing a
  * demo is for and a page can be about more than one symbol — `chip.md` covers
  * three. The old specimen block matched `componentRegistry` entries against the
- * backticked words in a page's title, which is why `nav-surfaces` showed none of
+ * backticked words in a page's title, which is why the old `nav-surfaces` page showed none of
  * its five registered specimens and `tab-bar` showed a `Tab` but never a
  * `TabBar`. A slug cannot near-miss.
  *

@@ -103,13 +103,12 @@ SYMBOL = re.compile(r"`([^`]+)`")
 
 # A family page can name the rest of its subjects on one line under the title:
 #
-#     *Also on this page: `NavBarItem`, `NavRailItem`, …*
+#     *Also on this page: `NavBarScope`, `NavBarStyle`, …*
 #
-# `nav-surfaces.md` is the case. Five item types, each a real component, and the
-# page that explains them is written as a comparison of the three surfaces they
-# belong to — three pages each saying "see the other two" would not be a split.
-# Putting all eight symbols in the title makes a title nobody can read, so the
-# page says so in a line a reader sees and this can parse.
+# `nav-bar.md` is the case: the scope, the style and the defaults are real
+# types, and the page that explains them is the bar's. Putting every symbol in the
+# title makes a title nobody can read, so the page says so in a line a reader
+# sees and this can parse.
 #
 # Deliberately *not* "any heading on the page": `button-group.md` has a section
 # called "Not a `SegmentedControl`", and a page is not the owner of everything
@@ -512,14 +511,14 @@ MAX_UNSWEPT_ENUMS = 2
 
 # Only goes down. See rule 16.
 #
-# Four, and the criterion earns every one of them. `matchHeightConstraintsFirst`
+# Three, and the criterion earns every one of them. `matchHeightConstraintsFirst`
 # and `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
-# `Surface`, pressed by nobody because there is nothing to look at;
+# `Surface`, pressed by nobody because there is nothing to look at; and
 # `MenuItem.multiple` changes what a screen reader announces and is set by
-# `MultiSelect` at `Select.kt:233`, so it is exercised without being named; and
-# `NavBarItem.showLabel` is handed down from `NavBar.showLabels`, which the
-# nav-surfaces demo *does* sweep.
+# `MultiSelect` at `Select.kt:233`, so it is exercised without being named.
 #
+# It was four until the navigation merge deleted `NavBarItem`, whose
+# `showLabel` was handed down from `NavBar.showLabels` and never named itself.
 # It was five until `isNewPassword` got a knob — an autofill hint with nothing to
 # render, which turned out to be worth pressing anyway because the keyboard it
 # asks for is the thing a reader is checking.
@@ -528,7 +527,7 @@ MAX_UNSWEPT_ENUMS = 2
 # switched off and stayed that way — the chip morph whose own KDoc carries the
 # worked example, the stepper's `AnimatedCounter` wired in and never turned on,
 # the range slider's tick marks. A reader could not press one of them.
-MAX_UNDEMOED_FLAGS = 4
+MAX_UNDEMOED_FLAGS = 3
 
 
 def undemoed_flags() -> list[str]:
@@ -736,7 +735,7 @@ HAPTIC_FILE_NAMES = {
     "Reorderable": "ReorderableItem",
     "Dialog": "AlertDialog",
     "IconButton": "IconToggleButton",
-    "NavDrawer": "NavDrawerGroup",
+    "NavRail": "NavScope",
     "Select": "MultiSelect",
     "TableRows": "Table",
 }
@@ -1020,9 +1019,8 @@ MAX_DEFAULTS_LITERALS = 99
 #
 # The honesty guard on a wide object of defaulted fields: at its default, a field
 # nothing reads is indistinguishable from one that is wired. Two fields are read
-# twice on purpose — `uppercaseLabels` by the row-shaped slot and by a field's
-# label, and `navIndicatorWidth` by the pill and by the glyph box that is as wide
-# as it — so this counts fields read *never*.
+# twice on purpose — `uppercaseLabels`, by the row-shaped slot and by a field's
+# label, is one — so this counts fields read *never*.
 #
 # What it catches that a value check cannot: a forward dropped during the sweep.
 # Fifteen of the fifty-eight defaults are shared by two or more fields, so wiring

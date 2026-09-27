@@ -12,7 +12,6 @@ import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
-import io.kontour.ui.nav.NavItem
 import io.kontour.ui.theme.KontourTheme
 import java.awt.image.BufferedImage
 import kotlin.math.sqrt
@@ -52,12 +51,19 @@ import kotlin.test.assertTrue
  * Dark theme, because the container is `surface` — near-white on a light page,
  * which is nothing to threshold against. In dark it is a light bar on a dark
  * ground and the fill separates cleanly from the shadow.
+ *
+ * ### Glass is the same capsule
+ *
+ * `glass = true` swaps the painted `Surface` for a `GlassSurface`, a second code
+ * path that is handed the shape separately. A frosted bar that came out square
+ * would be the drift above all over again, on the one variant nobody looks at
+ * in a golden — so it is measured the same way.
  */
 class NavBarFloatingShapeTest {
 
     @Test
     fun theFloatingBarIsACapsule() {
-        val fraction = cornerFraction()
+        val fraction = cornerFraction(glass = false)
         assertTrue(
             fraction >= RoundEnough,
             "the floating nav bar's corner measured $fraction of half its height. " +
@@ -68,21 +74,38 @@ class NavBarFloatingShapeTest {
         )
     }
 
-    private fun cornerFraction(): Float {
+    /**
+     * The frosted variant, which draws its pane through `GlassSurface` rather
+     * than `Surface`. Its tint is translucent, so over the black ground it is a
+     * dimmer fill than the painted bar's — and its hairline edge is the content
+     * colour — but both are well clear of the ground the threshold sits on.
+     */
+    @Test
+    fun theFloatingGlassBarIsACapsuleToo() {
+        val fraction = cornerFraction(glass = true)
+        assertTrue(
+            fraction >= RoundEnough,
+            "the floating nav bar's corner measured $fraction of half its height " +
+                "with `glass = true`. The frosted pane is handed its shape " +
+                "separately from the painted one, and it has to be the same " +
+                "capsule the painted bar is.",
+        )
+    }
+
+    private fun cornerFraction(glass: Boolean): Float {
         var bounds = Rect.Zero
         val image = Scene(width = 800, height = 400, darkTheme = true) {
             KontourTheme(darkTheme = true) {
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
                     NavBar(
-                        items = listOf(
-                            NavItem("Nearby", Tabler.Outline.MapPin, onClick = {}),
-                            NavItem("Routes", Tabler.Outline.Bus, onClick = {}),
-                            NavItem("Saved", Tabler.Outline.Star, onClick = {}),
-                        ),
-                        selectedIndex = 0,
                         style = NavBarStyle.Floating,
+                        glass = glass,
                         modifier = Modifier.reportBounds { bounds = it },
-                    )
+                    ) {
+                        item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+                        item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                        item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+                    }
                 }
             }
         }.use { it.frames(6) }

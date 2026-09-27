@@ -314,7 +314,7 @@ dismissed:
   `ModalSideSheet` and `CommandPalette` set `dismissOnBack` from their
   `dismissible`.
 - **iOS** (`BackStyle.Swipe`): back closes one kind of overlay, the one iOS
-  swipes away — a `ModalSideSheet`, and so a `ModalNavDrawer`, that may be
+  swipes away — a `ModalSideSheet`, and so a `ModalNavRail`, that may be
   dismissed. It follows a drag towards its own edge by its own slide: on the
   sheet, anywhere, after anything inside that scrolls sideways; or, for a sheet
   on the right, the edge swipe from the left, whose finger goes the same way.

@@ -7,7 +7,7 @@ Panels that come in from an edge and rest at positions you name.
 | [`BottomSheet`](bottom-sheet.md) | Content that shares the screen with what is behind it | A `ModalBottomSheet`, when the map underneath is still the point |
 | [`ModalBottomSheet`](modal-bottom-sheet.md) | A task that owns the screen until it is done | A `Dialog`, on a phone, where a sheet is easier to reach |
 | [`SideSheet`](side-sheet.md) | A rail beside a page that stays usable — filters, an inspector | A `ModalSideSheet`, when the page beside it is still the point |
-| [`ModalSideSheet`](modal-side-sheet.md) | Filters and detail over the content on a wide window, until they are done | A `ModalNavDrawer`, which is for destinations |
+| [`ModalSideSheet`](modal-side-sheet.md) | Filters and detail over the content on a wide window, until they are done | A `ModalNavRail`, which is for destinations |
 | [`SheetHeader`](sheet-header.md) | The title row every sheet needs | Rebuilding the title, actions and handle per sheet |
 | [`DragHandle`](drag-handle.md) | The grab bar at the top of a sheet | — |
 

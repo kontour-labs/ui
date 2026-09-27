@@ -219,7 +219,7 @@ component still works inside it, unchanged:
 | Scope | Extends | Used by |
 |---|---|---|
 | `MenuScope` | `ColumnScope` | `DropdownMenu`, `AnchoredDropdownMenu`, `SubMenu` |
-| `NavDrawerScope` | `ColumnScope` | `NavDrawer`, `ModalNavDrawer`, `NavDrawerSection`, `NavDrawerGroup` |
+| `NavScope` | — | `NavBar` (as `NavBarScope`), `NavRail`, `ModalNavRail`, `NavigationSuiteScaffold` |
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
 
 ```kotlin
@@ -301,26 +301,32 @@ lists this is for and the wrong one for a list of thousands; a group of thousand
 of rows with rounded ends is not a thing anyone wants to look at, so the
 constraint and the design agree.
 
-### `NavDrawerScope` — the indent
+### `NavScope` — one tree, four surfaces
 
-A destination inside a `group` inside a `section` is still a destination. It
-keeps its full touch target and reports its selection to the travelling pill
-through a composition local rather than through its parent, so the only thing
-nesting changes is the indent — and by hand that means threading `nestLevel`
-down every branch.
+The same destinations are a bar on a phone, a rail on a tablet and a sidebar on a
+desktop, and by hand that is three copies of them, kept in step. `NavScope` is
+written once and each surface draws it its own way: a `group` is a menu in a bar
+and a disclosure in a sidebar, a `section` is inline in a bar and a title in a
+sidebar. A destination inside a group inside a section is still a destination —
+it reports its selection to the travelling marker through a composition local
+rather than through its parent, so nesting changes the indent and nothing else.
 
 ```kotlin
-NavDrawer(header = { AppMark() }) {
-    item("Home", icon = Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
-
+NavRail(expanded = true) {
+    item(tab == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
     section("Saved") {
-        item("Favourites", icon = Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
-        group("Routes", expanded = open, onExpandedChange = { open = it }) {
-            item("950", selected = route == "950") { go("950") }
+        item(tab == Favourites, { go(Favourites) }, key = Favourites, icon = Tabler.Outline.Star) { +"Favourites" }
+        group(open, { open = it }, key = "routes", icon = Tabler.Outline.Route, header = { +"Routes" }) {
+            item(route == "950", { go("950") }, key = "950", icon = null) { +"950" }
         }
     }
 }
 ```
+
+**Its label is `+"Stops"` and collects a `String`**, unlike a slot: it is drawn
+where there is room and announced where there is not — a bar's circles, a
+collapsed rail's icons — and an announcement is a `String` (see the table at the
+top). It is required for the same reason.
 
 ---
 

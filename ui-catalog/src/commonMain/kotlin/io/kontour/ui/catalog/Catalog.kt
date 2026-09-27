@@ -13,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -58,9 +56,10 @@ import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
-import io.kontour.ui.nav.ModalNavDrawer
-import io.kontour.ui.nav.NavItem
 import io.kontour.ui.nav.NavigationSuiteScaffold
+import io.kontour.ui.nav.NavigationSuiteType
+import io.kontour.ui.nav.navigationSuiteTypeFor
+import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
@@ -177,10 +176,9 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
  * | Input modality | Forces the touch/pointer/keyboard branch — focus rings, hover, scrollbars and tooltip triggers all key off it, and on a desktop host you would otherwise only ever see the pointer branch |
  * | Reduce motion | Every animation in the system honours it; this is how you check |
  *
- * Above compact, navigation is a rail on medium and a drawer on expanded,
- * decided by [NavigationSuiteScaffold]. Resizing the window is itself a test.
- * Compact gets a menu button and a modal drawer instead — see [CompactCatalog]
- * for why a gallery is not the shape a bottom bar is for.
+ * Navigation is a [NavigationSuiteScaffold] at every width: a modal rail
+ * behind a menu button on compact, an expandable rail on medium and a sidebar
+ * above. Resizing the window is itself a test.
  */
 @Composable
 fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
@@ -207,25 +205,10 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
      */
     val pageState = rememberSaveableStateHolder()
 
-    /**
-     * The destinations, built once.
-     *
-     * Fourteen `NavItem`s with a lambda each, rebuilt inline on every
-     * recomposition of this function — which is every time `selected` changes,
-     * because `selected` is read here. `NavigationSuiteScaffold` takes a `List`,
-     * which is unstable, so a fresh one is a changed argument and the whole rail
-     * or drawer recomposed on every navigation. The same mistake the echo lambda
-     * below is deliberately remembered to avoid.
-     */
-    val destinations = remember {
-        pages.mapIndexed { index, page ->
-            NavItem(
-                label = page.title,
-                icon = page.icon,
-                onClick = { selected = index },
-            )
-        }
-    }
+    // The shell's navigation state: whether the compact modal rail is open, and
+    // whether the medium window's rail is expanded, which persists while the
+    // window stays that size.
+    val suite = rememberNavigationSuiteState()
 
     val density = LocalDensity.current
     // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
@@ -288,35 +271,44 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                 { what: String -> toasts.show(what) }
                             }
                         ) {
-                            // Twelve destinations is more than a bottom bar can hold
-                            // — the labels truncate to three letters each — so on
-                            // compact the catalog drives its own modal drawer rather
-                            // than taking what `NavigationSuiteScaffold` would pick.
-                            // That is not a gap in the scaffold: it chooses correctly
-                            // for an app with three to five destinations, which a
-                            // gallery is not. Above compact the scaffold's choice is
-                            // right and it makes it.
-                            if (LocalWindowSizeClass.current.width == WindowWidthClass.Compact) {
-                                CompactCatalog(
-                                    selected = selected,
-                                    onSelectedChange = { selected = it },
-                                    action = settingsButton,
-                                    pageState = pageState,
-                                )
-                            } else {
-                                NavigationSuiteScaffold(
-                                    items = destinations,
-                                    selectedIndex = selected,
-                                    action = settingsButton,
-                                ) { contentPadding ->
-                                    // **The shell does not scroll.** It used
-                                    // to, because every page was a plain
-                                    // `Column`; the generated ones are lazy, and
-                                    // a `LazyColumn` inside a `verticalScroll`
-                                    // is measured with an infinite height and
-                                    // throws. Each page brings its own scroller
-                                    // now, which is also what keeps the lazy
-                                    // ones lazy — the whole reason they are.
+                            // Twelve destinations is more than a bottom bar can
+                            // hold — the labels truncate to three letters each —
+                            // so on compact the destinations are a modal rail the
+                            // top bar's menu button opens, rather than a bar. A
+                            // gallery is somewhere you browse, not an app with a
+                            // handful of places to flick between. Above compact,
+                            // an expandable rail on medium and a sidebar beyond.
+                            val width = LocalWindowSizeClass.current.width
+                            val compact = width == WindowWidthClass.Compact
+                            NavigationSuiteScaffold(
+                                destinations = {
+                                    pages.forEachIndexed { index, page ->
+                                        item(
+                                            selected = index == selected,
+                                            onClick = { selected = index },
+                                            key = index,
+                                            icon = page.icon,
+                                        ) { +page.title }
+                                    }
+                                },
+                                state = suite,
+                                type = if (compact) NavigationSuiteType.ModalRail else navigationSuiteTypeFor(width),
+                                railExpandable = true,
+                                action = if (compact) null else settingsButton,
+                            ) { contentPadding ->
+                                // **The shell does not scroll.** Each page brings
+                                // its own scroller, which is what keeps the lazy
+                                // ones lazy: a `LazyColumn` inside a
+                                // `verticalScroll` is measured with an infinite
+                                // height and throws.
+                                if (compact) {
+                                    CompactCatalog(
+                                        selected = selected,
+                                        onMenu = suite::showModal,
+                                        action = settingsButton,
+                                        pageState = pageState,
+                                    )
+                                } else {
                                     Box(
                                         Modifier
                                             .fillMaxSize()
@@ -382,90 +374,23 @@ internal fun CatalogDestination(
 }
 
 /**
- * The compact layout: a top bar with a menu button, and the destinations in a
- * modal drawer.
+ * The compact layout's page: a top bar whose menu button opens the destinations
+ * in the suite's modal rail.
  *
- * A gallery is a browsing surface, not an app with a handful of places you flick
- * between, so the list is somewhere you go rather than something always present.
+ * Choosing a destination changes the page first and closes the rail a frame
+ * later — `ModalNavRail`'s `dismissOnItemClick` — so the destination's
+ * expensive first frame lands while the rail is still and covering it, not
+ * inside its exit. `DrawerSelectCostDiagnostic` measured the alternatives: the
+ * same 64ms landing in the exit read as the rail snapping shut, and holding the
+ * choice until the rail had gone read as the page changing late.
  */
 @Composable
 private fun CompactCatalog(
     selected: Int,
-    onSelectedChange: (Int) -> Unit,
+    onMenu: () -> Unit,
     action: @Composable () -> Unit,
     pageState: SaveableStateHolder,
 ) {
-    var drawerOpen by remember { mutableStateOf(false) }
-
-    /**
-     * Whether a destination has been chosen and the drawer is on its way out.
-     *
-     * Reported from a phone: tapping a destination "just does nothing for half a
-     * second" and only then animates. `DrawerSelectCostDiagnostic` measures where
-     * that goes, and it is not the drawer. Setting `selected` and clearing
-     * `drawerOpen` in the same lambda puts both in the same snapshot, so the
-     * frame that starts the exit animation is also the frame that composes and
-     * measures a whole destination for the first time — 91.1ms here against
-     * 15.3ms for the exit on its own. A phone is several times slower again, and
-     * one frame that long at the start of a gesture is a tap that did nothing.
-     *
-     * **Two fixes have been through here and both moved the cost rather than
-     * paying it.** Holding the choice until the drawer's content left
-     * composition bought the exit its frame back and cost 150ms before the page
-     * changed — reported, in turn, as the screen changing only after the drawer
-     * had gone. Deferring the choice by a single frame instead put the
-     * destination's 64.2ms first frame *inside* the exit — 60.4ms and 37.8ms
-     * for the second and third frames of a 150ms animation that only has about
-     * nine — reported as the drawer snapping closed, which is what an
-     * animation that drops its middle looks like. Both are the same 64.2ms; the
-     * only question was ever which frame it lands on.
-     *
-     * **So the page changes first, while the drawer is still open and still.**
-     * The scrim and the panel cover the destination completely, so the swap
-     * happens where there is nothing to see it; the expensive frame lands on a
-     * frame with nothing moving on it, which is the only kind of frame that can
-     * afford it; and the exit then plays over a page that is already composed,
-     * at about 5ms, which is what the same measurement gives every frame after
-     * the first.
-     *
-     * What it costs is one frame of the drawer sitting open and motionless after
-     * the tap — about 16ms on a revisit, about 64ms the first time a destination
-     * is opened. That is a delay *before* an animation rather than a stutter
-     * *inside* one, and only one of the two reads as a fault.
-     *
-     * A frame, not a delay: `withFrameNanos` is the thing being waited for, so
-     * this cannot go stale against a display's refresh rate the way a duration
-     * would.
-     *
-     * **A cross-fade was tried here and measured worse**, which is the opposite
-     * of what it was expected to do. Wrapping the destination in an
-     * `AnimatedContent` puts two of them on screen together — two `LazyColumn`s,
-     * two sets of per-card overlay hosts, and two compositing layers carrying
-     * the scale and the alpha — and the fade's eight middle frames came out at
-     * 37-46ms against 22-29 for the cut. The arithmetic that suggested it was
-     * affordable added the destination's *settled* cost, 5.8ms, and not the cost
-     * of drawing it through a layer. It is moot now in any case: the page
-     * changes behind a drawer that has not started moving, so there is nothing
-     * on screen to fade between. `DrawerSelectCostDiagnostic` keeps the arm so
-     * the number is on record rather than the conclusion.
-     *
-     * The row still moves the moment it is pressed, and now does so because the
-     * selection genuinely has changed rather than because a shadow value says it
-     * is about to.
-     */
-    var closing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(closing) {
-        if (!closing) return@LaunchedEffect
-        // The destination is composed by the time an effect runs — effects are
-        // dispatched after the composition that scheduled them — but it has not
-        // been *drawn*. One frame buys it that, on a frame with nothing else
-        // happening on it.
-        withFrameNanos { }
-        drawerOpen = false
-        closing = false
-    }
-
     Scaffold(
         topBar = {
             TopBar(
@@ -473,7 +398,7 @@ private fun CompactCatalog(
                     IconButton(
                         icon = Tabler.Outline.Menu2,
                         contentDescription = "Destinations",
-                        onClick = { drawerOpen = true },
+                        onClick = onMenu,
                     )
                 },
                 actions = { action() },
@@ -492,16 +417,6 @@ private fun CompactCatalog(
                 pageState = pageState,
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-    }
-
-    ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
-        pages.forEachIndexed { index, page ->
-            item(page.title, icon = page.icon, selected = index == selected) {
-                // The page first, the close second. See `closing`.
-                onSelectedChange(index)
-                closing = true
-            }
         }
     }
 }

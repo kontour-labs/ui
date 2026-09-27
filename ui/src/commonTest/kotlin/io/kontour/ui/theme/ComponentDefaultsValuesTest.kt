@@ -106,17 +106,13 @@ class ComponentDefaultsValuesTest {
 
     @Test
     fun navigationMetricsAreWhatTheyWere() {
-        assertEquals(56.dp, d.navIndicatorWidth)
-        assertEquals(32.dp, d.navIndicatorHeight)
-        assertEquals(28.dp, d.navGlyphHeight)
         assertEquals(48.dp, d.navInlineGlyph)
         assertEquals(40.dp, d.navCircleSize)
         assertEquals(1.08f, d.navSelectedIconScale)
         assertEquals(12.dp, d.navBarItemGap)
         assertEquals(88.dp, d.navRailCollapsedWidth)
         assertEquals(280.dp, d.navRailExpandedWidth)
-        assertEquals(280.dp, d.navDrawerWidth)
-        assertEquals(24.dp, d.navDrawerNestIndent)
+        assertEquals(24.dp, d.navNestIndent)
         assertEquals(56.dp, d.topBarHeight)
         assertEquals(112.dp, d.topBarLargeHeight)
         assertEquals(48.dp, d.tabBarHeight)
@@ -187,17 +183,13 @@ class ComponentDefaultsValuesTest {
                 keyValueLabelWidth = 108.dp,
                 keyValueMinValueWidth = 96.dp,
                 marqueeGap = 48.dp,
-                navIndicatorWidth = 56.dp,
-                navIndicatorHeight = 32.dp,
-                navGlyphHeight = 28.dp,
                 navInlineGlyph = 48.dp,
                 navCircleSize = 40.dp,
                 navSelectedIconScale = 1.08f,
                 navBarItemGap = 12.dp,
                 navRailCollapsedWidth = 88.dp,
                 navRailExpandedWidth = 280.dp,
-                navDrawerWidth = 280.dp,
-                navDrawerNestIndent = 24.dp,
+                navNestIndent = 24.dp,
                 topBarHeight = 56.dp,
                 topBarLargeHeight = 112.dp,
                 tabBarHeight = 48.dp,

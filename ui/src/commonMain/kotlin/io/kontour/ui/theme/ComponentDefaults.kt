@@ -184,17 +184,13 @@ data class ComponentDefaults(
     val marqueeGap: Dp = 48.dp,
 
     // --- Navigation ---
-    val navIndicatorWidth: Dp = 56.dp,
-    val navIndicatorHeight: Dp = 32.dp,
-    val navGlyphHeight: Dp = 28.dp,
     val navInlineGlyph: Dp = 48.dp,
     val navCircleSize: Dp = 40.dp,
     val navSelectedIconScale: Float = 1.08f,
     val navBarItemGap: Dp = 12.dp,
     val navRailCollapsedWidth: Dp = 88.dp,
     val navRailExpandedWidth: Dp = 280.dp,
-    val navDrawerWidth: Dp = 280.dp,
-    val navDrawerNestIndent: Dp = 24.dp,
+    val navNestIndent: Dp = 24.dp,
     val topBarHeight: Dp = 56.dp,
     val topBarLargeHeight: Dp = 112.dp,
     val tabBarHeight: Dp = 48.dp,

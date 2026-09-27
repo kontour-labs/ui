@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.hasSetTextAction
@@ -16,14 +13,18 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toArgb
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavBarStyle
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.NavSearch
 import io.kontour.ui.nav.LocalNavExpansion
 import io.kontour.ui.nav.NavExpandPlacement
@@ -42,10 +43,15 @@ import kotlin.test.assertTrue
 /**
  * A [NavSearch] collapsed in the bar, and expanded over everything.
  *
- * The bar has always had a `search` slot, and `searchIndex` has always been able
- * to put it between two destinations. What is new is that tapping it opens
- * something, and *where* that something goes — which is the one decision this
- * component defers to its caller, so it is the one worth pinning.
+ * The bar has always had room for a search between two destinations — a
+ * `search` parameter placed by `searchIndex` once, a `slot(weight = 1f)` written
+ * where it goes now. What is new is that tapping it opens something, and
+ * *where* that something goes — which is the one decision this component defers
+ * to its caller, so it is the one worth pinning.
+ *
+ * Every bar has a surface now, so both styles are driven: the search sits in a
+ * floating capsule or on a docked strip, and has to open the same way from
+ * either.
  *
  * ### Measured by which half of the screen the field is in
  *
@@ -62,27 +68,32 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class NavSearchTest {
 
-    private val items = listOf(
-        NavItem(label = "Nearby", icon = Tabler.Outline.MapPin, onClick = {}),
-        NavItem(label = "Routes", icon = Tabler.Outline.Bus, onClick = {}),
-    )
+    /** Two destinations, the first of them selected. */
+    @Composable
+    private fun NavScope.items() {
+        item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+        item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+    }
 
     @Test
     fun theCollapsedPillOpensOverTheKeyboardOrAtTheTop() {
-        val overKeyboard = fieldCentre(NavExpandPlacement.AboveKeyboard)
-        val atTop = fieldCentre(NavExpandPlacement.Top)
+        for (style in NavBarStyle.entries) {
+            val overKeyboard = fieldCentre(NavExpandPlacement.AboveKeyboard, style)
+            val atTop = fieldCentre(NavExpandPlacement.Top, style)
 
-        assertTrue(
-            overKeyboard > Height / 2,
-            "an AboveKeyboard search put its field at y=${overKeyboard}px of " +
-                "$Height — it belongs in the bottom half, where the thumb that " +
-                "opened it is",
-        )
-        assertTrue(
-            atTop < Height / 2,
-            "a Top search put its field at y=${atTop}px of $Height — it belongs " +
-                "in the top half, with the results reading downwards from it",
-        )
+            assertTrue(
+                overKeyboard > Height / 2,
+                "an AboveKeyboard search in a $style bar put its field at " +
+                    "y=${overKeyboard}px of $Height — it belongs in the bottom " +
+                    "half, where the thumb that opened it is",
+            )
+            assertTrue(
+                atTop < Height / 2,
+                "a Top search in a $style bar put its field at y=${atTop}px of " +
+                    "$Height — it belongs in the top half, with the results " +
+                    "reading downwards from it",
+            )
+        }
     }
 
     /**
@@ -103,6 +114,13 @@ class NavSearchTest {
      * threshold on their own, whatever the ground under them is doing. So it
      * reads the commonest colour strictly *inside* the control's bounds, which
      * is the fill and nothing else, and compares that.
+     *
+     * The first two cases set [LocalNavExpansion] by hand, one each way. Every
+     * bar has a surface now — `NavExpansion.Bar.onSurface` is true — so "a bar's
+     * page" is a question only content *outside* a surface asks. The rest are
+     * the real surfaces, reached the way an app reaches them: a `slot` in each
+     * style of bar, and a rail's `header`, each against the colour the surface
+     * itself is painted.
      */
     @Test
     fun theCollapsedControlIsNotTheColourOfWhatItStandsOn() {
@@ -110,11 +128,34 @@ class NavSearchTest {
             val (ground, page) = pillGroundAndPage(onSurface)
             assertTrue(
                 ground != page,
-                "a control on ${if (onSurface) "a rail's panel" else "a bar's page"} " +
+                "a control ${if (onSurface) "on a panel" else "over the page"} " +
                     "is filled with the same colour as the page under it " +
                     "(${ground.toString(16)}) — it has no edge at all",
             )
         }
+
+        for (style in NavBarStyle.entries) {
+            val (ground, bar) = pillGround { pill ->
+                NavBar(style = style) {
+                    items()
+                    slot(weight = 1f) { pill() }
+                }
+            }
+            assertTrue(
+                ground != bar,
+                "a search in a $style bar's slot is filled with the bar's own " +
+                    "colour (${ground.toString(16)}) — it has no edge at all",
+            )
+        }
+
+        val (ground, rail) = pillGround { pill ->
+            NavRail(header = { pill() }) { items() }
+        }
+        assertTrue(
+            ground != rail,
+            "a search in a rail's header is filled with the rail's own colour " +
+                "(${ground.toString(16)}) — it has no edge at all",
+        )
     }
 
     /**
@@ -173,8 +214,6 @@ class NavSearchTest {
                 KontourTheme(darkTheme = false, reduceMotion = true) {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
                         NavRail(
-                            items = items,
-                            selectedIndex = 0,
                             modifier = Modifier.testTag("rail"),
                             expanded = expanded,
                             onExpandedChange = {},
@@ -186,7 +225,7 @@ class NavSearchTest {
                                     placeholder = "Search",
                                 )
                             },
-                        )
+                        ) { items() }
                     }
                 }
             }
@@ -239,37 +278,85 @@ class NavSearchTest {
 
             page = image[2, image.height - 3].toArgb() and 0xFFFFFF
 
-            // Inset, because the outermost ring of a rounded pill is its own
-            // antialiased edge blending into whatever is behind it.
-            val counts = HashMap<Int, Int>()
-            val inset = 6
-            for (y in (bounds.top.toInt() + inset) until (bounds.bottom.toInt() - inset)) {
-                for (x in (bounds.left.toInt() + inset) until (bounds.right.toInt() - inset)) {
-                    if (x !in 0 until image.width || y !in 0 until image.height) continue
-                    val rgb = image[x, y].toArgb() and 0xFFFFFF
-                    counts[rgb] = (counts[rgb] ?: 0) + 1
-                }
-            }
-            ground = counts.maxByOrNull { it.value }?.key ?: page
+            ground = image.commonestInside(bounds) ?: page
         }
 
         return ground to page
     }
 
     /**
-     * Where the expanded field's ink sits, having tapped the pill open.
+     * The commonest colour strictly inside [bounds], or null if there is no
+     * inside.
      *
-     * The pill is found by its content description rather than by position,
-     * because [NavBar] decides where in the row it goes and this test is not
-     * about that — `NavBarLayoutTest.searchCanSitBetweenTwoItems` is.
+     * Inset, because the outermost ring of a rounded pill is its own
+     * antialiased edge blending into whatever is behind it.
      */
-    private fun fieldCentre(placement: NavExpandPlacement): Int {
+    private fun PixelMap.commonestInside(bounds: Rect): Int? {
+        val counts = HashMap<Int, Int>()
+        val inset = 6
+        for (y in (bounds.top.toInt() + inset) until (bounds.bottom.toInt() - inset)) {
+            for (x in (bounds.left.toInt() + inset) until (bounds.right.toInt() - inset)) {
+                if (x !in 0 until width || y !in 0 until height) continue
+                val rgb = this[x, y].toArgb() and 0xFFFFFF
+                counts[rgb] = (counts[rgb] ?: 0) + 1
+            }
+        }
+        return counts.maxByOrNull { it.value }?.key
+    }
+
+    /**
+     * A collapsed [NavSearch]'s fill inside a real navigation surface, and the
+     * colour that surface is painted.
+     *
+     * [surface] is handed the pill to put wherever it goes. The surface's colour
+     * is read from the same defaults it paints with rather than sampled, because
+     * there is nowhere beside a pill in a bar's slot that is certainly the bar and
+     * certainly not a destination or a shadow.
+     */
+    private fun pillGround(surface: @Composable (pill: @Composable () -> Unit) -> Unit): Pair<Int, Int> {
+        var ground = 0
+        var painted = 0
+
+        runComposeUiTest {
+            setContent {
+                KontourTheme(darkTheme = false, reduceMotion = true) {
+                    painted = NavDefaults.colours().container.toArgb() and 0xFFFFFF
+                    Box(Modifier.fillMaxSize().background(Color.White).testTag("page")) {
+                        val search = rememberNavSearchState()
+                        surface {
+                            NavSearch(
+                                state = search,
+                                modifier = Modifier.testTag("pill"),
+                                placeholder = "Search",
+                            )
+                        }
+                    }
+                }
+            }
+
+            val bounds = onNodeWithTag("pill").fetchSemanticsNode().boundsInRoot
+            val image = onNodeWithTag("page").captureToImage().toPixelMap()
+            ground = image.commonestInside(bounds) ?: painted
+        }
+
+        return ground to painted
+    }
+
+    /**
+     * Where the expanded field's ink sits, having opened the search from its
+     * state.
+     *
+     * Opened through the state rather than a tap on the pill, because [NavBar]
+     * decides where in the row the pill goes and this test is not about that —
+     * `NavBarLayoutTest.searchCanSitBetweenTwoItems` is.
+     */
+    private fun fieldCentre(placement: NavExpandPlacement, style: NavBarStyle): Int {
         var state: NavSearchState? = null
 
         Scene(width = Width, height = Height) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
-                    Search(placement) { state = it }
+                    Search(placement, style) { state = it }
                 }
             }
         }.use { scene ->
@@ -280,17 +367,16 @@ class NavSearchTest {
         }
     }
 
+    /** A bar of [style] with the search in a slot between its two destinations. */
     @Composable
-    private fun Search(placement: NavExpandPlacement, onState: (NavSearchState) -> Unit) {
+    private fun Search(placement: NavExpandPlacement, style: NavBarStyle, onState: (NavSearchState) -> Unit) {
         val search = rememberNavSearchState()
         onState(search)
-        var selected by mutableStateOf(0)
-        NavBar(
-            items = items,
-            selectedIndex = selected,
-            searchIndex = 1,
-            search = { NavSearch(state = search, placement = placement) },
-        )
+        NavBar(style = style) {
+            item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+            slot(weight = 1f) { NavSearch(state = search, placement = placement) }
+            item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+        }
     }
 
     /**

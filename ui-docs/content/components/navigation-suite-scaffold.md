@@ -1,22 +1,34 @@
 # `NavigationSuiteScaffold`
 
-Picks the surface from the window size and places it, so a screen declares its
-destinations once and never arranges them.
+*Also on this page: `NavigationSuiteType`, `NavigationSuiteState`, `navigationSuiteTypeFor`.*
+
+Picks the surface from the window size and places it, so a screen writes its
+destinations once, as a [`NavScope`](nav-scope.md), and never arranges them.
 
 <!--sample:NavigationSuiteScaffoldBasics-->
 ```kotlin
-var selected by remember { mutableStateOf(0) }
-val items = remember {
-    listOf(
-        NavItem("Home", Tabler.Outline.Home, onClick = { selected = 0 }),
-        NavItem("Saved", Tabler.Outline.Star, onClick = { selected = 1 }),
-        NavItem("Alerts", Tabler.Outline.Bell, badge = 3, onClick = { selected = 2 }),
-    )
-}
+var here by remember { mutableStateOf("home") }
+val suite = rememberNavigationSuiteState()
 
-// A bar on a phone, a rail on a tablet, a drawer on a desktop — chosen from
+// A bar on a phone, a rail on a tablet, a sidebar on a desktop — chosen from
 // the window size class, so the screen below says nothing about which.
-NavigationSuiteScaffold(items = items, selectedIndex = selected) { contentPadding ->
+NavigationSuiteScaffold(
+    destinations = {
+        item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+        item(here == "saved", { here = "saved" }, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+        item(
+            selected = here == "alerts",
+            onClick = { here = "alerts" },
+            key = "alerts",
+            icon = Tabler.Outline.Bell,
+            badge = { Badge(count = 3) },
+        ) {
+            +"Alerts"
+        }
+    },
+    state = suite,
+    railExpandable = true,
+) { contentPadding ->
     Screen()
 }
 ```
@@ -24,32 +36,54 @@ NavigationSuiteScaffold(items = items, selectedIndex = selected) { contentPaddin
 | Window | Surface | Placement |
 |---|---|---|
 | Compact (< 600dp) | `NavBar` | **Bottom of the screen**, over the content |
-| Medium (< 840dp) | `NavRail` | **Leading edge**, icons only, beside the content |
-| Expanded and up | `NavDrawer` | **Leading edge**, labels always shown |
+| Medium (< 840dp) | `NavRail`, collapsed | **Leading edge**, beside the content; `railExpandable` gives it a toggle |
+| Expanded and up | `NavRail`, expanded | **Leading edge**, labels always shown |
 
 **This is an app, not a website.** Destinations live at the bottom on a phone
 because that is where a thumb reaches, and move to the leading edge on a wide
-window because a horizontal bar there eats the dimension there is least of. A
-[`TopBar`](top-bar.md) in this system is a title and its actions — never a place to
-put destinations.
+window because a bar there eats the dimension there is least of. A
+[`TopBar`](top-bar.md) is a title and its actions, never a place for destinations.
 
-**The bar overlays the content** rather than sitting below it, matching the
-floating toolbar the app uses over its map. The scaffold hands your content the
-padding to inset by, the same way a map insets its controls by a sheet's
-`visibleHeight`.
+**The bar overlays the content** rather than sitting below it; the scaffold hands
+your content the padding to inset by. A rail sits beside the content and hands it
+none.
+
+### The modal rail
+
+<!--sample:NavigationSuiteModalRail-->
+```kotlin
+var here by remember { mutableStateOf("home") }
+val suite = rememberNavigationSuiteState()
+
+// No navigation on screen until the app asks for it: a top bar's menu
+// button calls `suite.showModal()`.
+NavigationSuiteScaffold(
+    destinations = {
+        item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+        item(here == "saved", { here = "saved" }, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+    },
+    state = suite,
+    type = NavigationSuiteType.ModalRail,
+) {
+    IconButton(icon = Tabler.Outline.Home, contentDescription = "Destinations", onClick = suite::showModal)
+}
+```
+
+`NavigationSuiteType.ModalRail` is never chosen automatically. It is for a phone
+whose destinations are too many or too nested for a bar: no navigation on screen
+until a menu button calls `state.showModal()`. `NavigationSuiteState` also holds
+whether the rail is expanded, so it persists while the window stays a rail.
+
+`barStyle` and `glass` reach the bar and the modal rail; `search` goes in the bar
+after `searchIndex` destinations, counted — `null`, or a number at or past the
+count, puts it at the end; `action` goes after everything in a bar and at the foot
+of a rail; `header` goes above a rail's destinations.
 
 ---
 
 ## Accessibility
 
 The surface changes with the window and the destinations do not, so what is
-announced is the same on a phone, a tablet and a desktop. That is the property
-worth protecting: a user who has learned the order of their destinations should
-not have to relearn it because they rotated the device.
-
-Each surface applies `selectableGroup()` to its items, so a screen reader
-announces "2 of 4" rather than four unrelated buttons.
-
-`search` and `action` sit **outside** that group deliberately. Inside it, a
-search field would be counted as a destination — "1 of 5" for four destinations —
-which is the bug the separation exists to prevent.
+announced is the same on a phone, a tablet and a desktop. Each surface groups its
+destinations, so a screen reader announces "2 of 4"; a search and an action sit
+outside that count.

@@ -37,16 +37,16 @@ instead. For a panel that shares the screen with the page, use
 [`SideSheet`](side-sheet.md).
 
 It is **flush to its side**, the top and the bottom, at one width, as
-[`SideSheet`](side-sheet.md#one-width-flush-to-its-side) is. `ModalNavDrawer` is
+[`SideSheet`](side-sheet.md#one-width-flush-to-its-side) is. `ModalNavRail` is
 one of these.
 
 `scrim = ScrimStyle.None` lets the page behind take pointer events and stops the
 sheet trapping focus, but it is still an overlay in the `OverlayHost`, above
 everything in the page. A rail that belongs *in* the layout is a `SideSheet`.
 
-For destinations rather than content, `ModalNavDrawer` is the same motion with a
-navigation model attached — a sheet full of links is a drawer wearing the wrong
-component.
+For destinations rather than content, [`ModalNavRail`](modal-nav-rail.md) is the
+same motion with a navigation model attached — a sheet full of links is a sidebar
+wearing the wrong component.
 
 ---
 
