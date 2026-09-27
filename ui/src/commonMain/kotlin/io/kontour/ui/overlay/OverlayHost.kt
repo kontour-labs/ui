@@ -25,20 +25,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.Scrim
 import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
+import io.kontour.ui.motion.EdgePanWidth
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.rememberSwipeBackInput
+import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.theme.Theme
 
 /**
@@ -370,10 +383,16 @@ private fun EntryHost(
     val backOwner = rememberChildBackDispatcher(enabled = takesBack && !leaving)
     val backStyle = LocalBackStyle.current
     val (back, backHandler) = rememberOverlayBack(
-        // Back closes an overlay only under predictive back, and only one that
-        // may be dismissed. Under swipe back — iOS — it never does: a sheet is
-        // dragged down there, and a dialog answered.
-        closes = { backStyle == BackStyle.Predictive && entry.dismissOnBack },
+        // Back closes an overlay under predictive back, and only one that may be
+        // dismissed. Under swipe back — iOS — only what iOS swipes away: a side
+        // sheet, by a gesture moving towards its own edge, or by a key. A
+        // bottom sheet is dragged down there, and a dialog answered.
+        closes = { back, edge ->
+            entry.dismissOnBack && when (backStyle) {
+                BackStyle.Predictive -> true
+                BackStyle.Swipe -> back.swipeAwayEdge.let { away -> away != null && (edge == null || edge == away) }
+            }
+        },
         onCommit = { state.dismissForBack(entry) },
     )
     RegisterBackHandler(backOwner, backHandler)
@@ -609,15 +628,27 @@ fun OverlayHost(
     // dispatcher is disabled rather than its handlers outranked, so it does not
     // matter what the page registers or when: a navigation stack composed after
     // a dialog opened still cannot pop from behind it.
+    //
+    // On iOS the outermost host builds that tree on a dispatcher of its own
+    // rather than under the platform's, and tracks the swipe itself: see
+    // `libraryTracksBackSwipe`. Everywhere else the tree hangs off the
+    // platform's, as the system's back and Escape arrive there.
+    val ownBack = if (LocalTakesBackSwipe.current) rememberOwnBackDispatcher() else null
+    val backRoot = ownBack ?: LocalNavigationEventDispatcherOwner.current
     val backTarget = state.backTarget
-    val pageBack = rememberChildBackDispatcher(enabled = backTarget == null)
+    val pageBack = rememberChildBackDispatcher(enabled = backTarget == null, parent = backRoot)
 
-    CompositionLocalProvider(LocalOverlayHost provides state) {
+    CompositionLocalProvider(
+        LocalOverlayHost provides state,
+        LocalTakesBackSwipe provides false,
+        *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
+    ) {
         Box(
             modifier
                 .fillMaxSize()
                 .trackHostOrigin(state)
-                .clearFocusOnTap(clearFocusOnTap),
+                .clearFocusOnTap(clearFocusOnTap)
+                .then(if (ownBack != null) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(
                 Modifier
@@ -722,3 +753,39 @@ fun OverlayHost(
         }
     }
 }
+
+/**
+ * The back swipe from the leading edge, and Escape, for a host that has taken
+ * back over from the platform.
+ *
+ * UIKit's edge pan, in the library's hands: a pan that starts within
+ * [EdgePanWidth] of the leading edge and heads for the trailing one. It looks
+ * before anything under it does, as UIKit's does — a carousel against the edge
+ * does not get to keep it — and only while something would answer back, so at
+ * the root of an app the edge is the content's.
+ */
+@Composable
+private fun Modifier.edgeSwipeBack(dispatcher: NavigationEventDispatcher): Modifier {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val pan = remember(rtl) {
+        BackPan(
+            rightwards = !rtl,
+            edge = if (rtl) NavigationEvent.EDGE_RIGHT else NavigationEvent.EDGE_LEFT,
+            pass = PointerEventPass.Initial,
+            startsAt = { x, window, density -> (if (rtl) window - x else x) < EdgePanWidth.value * density },
+        )
+    }
+    val swipe = rememberSwipeBackInput(dispatcher)
+    val keys = remember { KeyBackInput() }
+    DisposableEffect(dispatcher, keys) {
+        dispatcher.addInput(keys)
+        onDispose { dispatcher.removeInput(keys) }
+    }
+    return this
+        .swipeBack(pan, swipe)
+        // After everything focused inside has had the key and left it.
+        .onKeyEvent { event ->
+            event.key == Key.Escape && event.type == KeyEventType.KeyDown && keys.press()
+        }
+}
+

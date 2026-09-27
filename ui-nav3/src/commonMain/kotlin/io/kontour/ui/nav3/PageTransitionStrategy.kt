@@ -18,6 +18,7 @@ import androidx.navigation3.ui.NavDisplay
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.motion.PageMotion
+import io.kontour.ui.motion.contentSwipeBack
 import io.kontour.ui.motion.pageEffects
 import io.kontour.ui.motion.rememberPageMotion
 import io.kontour.ui.theme.Theme
@@ -134,13 +135,7 @@ internal class PageScene<T : Any>(
                 // Only a page with somewhere to go back to in its own stack: at
                 // the root of a stack inside a sheet, a pan would otherwise be
                 // claimed for a back the sheet does not take.
-                .then(
-                    if (contentSwipe && inner.previousEntries.isNotEmpty()) {
-                        Modifier.contentSwipeBack(motion.style)
-                    } else {
-                        Modifier
-                    }
-                )
+                .contentSwipeBack(enabled = contentSwipe && inner.previousEntries.isNotEmpty())
         ) {
             inner.content()
         }

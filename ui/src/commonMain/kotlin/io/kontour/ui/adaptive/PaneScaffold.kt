@@ -51,6 +51,7 @@ import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberEndStopLatch
+import io.kontour.ui.motion.contentSwipeBack
 import io.kontour.ui.motion.pageEffects
 import io.kontour.ui.motion.rememberPageMotion
 import io.kontour.ui.theme.Theme
@@ -389,6 +390,8 @@ private fun SinglePane(
                     isPop = { transition.targetState == PaneFocus.List },
                     gestureEdge = { gestureEdge.edge },
                 )
+                // Back from anywhere on the detail, under swipe back.
+                .contentSwipeBack(enabled = current == PaneFocus.Detail)
         ) {
             when (current) {
                 PaneFocus.List -> list()

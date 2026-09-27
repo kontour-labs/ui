@@ -17,12 +17,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -31,6 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowLeft
 import com.composables.icons.tabler.outline.ArrowRight
@@ -39,7 +43,13 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.motion.BackPan
+import io.kontour.ui.motion.BackStyle
+import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.rememberSwipeBackInput
+import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.overlay.BackdropStyle
+import io.kontour.ui.overlay.LocalOverlayBack
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
 import io.kontour.ui.overlay.OverlayEntry
@@ -182,12 +192,13 @@ fun ModalSideSheet(
                     BackdropStyle.None
                 },
                 dismissOnOutside = dismissible,
-                // Back dismisses, as a tap outside does, where back closes
-                // overlays at all — predictive back; under swipe back the sheet
-                // is closed the ways it always was. A gesture slides it out by
-                // its own slide. `onBack` is the arrow for a sheet pushed from
-                // another; a stack that should answer the gesture itself goes
-                // inside the sheet.
+                // Back dismisses, as a tap outside does. A gesture slides it out
+                // by its own slide: under predictive back from either edge, and
+                // under swipe back — iOS, which does swipe a side sheet away — by
+                // a drag towards the sheet's own edge, on the sheet or from the
+                // far edge of the screen. `onBack` is the arrow for a sheet
+                // pushed from another; a stack that should answer the gesture
+                // itself goes inside the sheet, and goes back first.
                 dismissOnBack = dismissible,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },
@@ -203,6 +214,7 @@ fun ModalSideSheet(
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
                         progress = LocalOverlayProgress.current,
+                        swipeAway = dismissible,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -323,6 +335,8 @@ private fun SideSheetPanel(
     // flag on first composition could only ever run 0 -> 1, which is why nothing in
     // the library animated *out*.
     progress: () -> Float,
+    // Whether back may swipe it away: a modal sheet that may be dismissed.
+    swipeAway: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -332,6 +346,24 @@ private fun SideSheetPanel(
     val fromRight = (side == SheetSide.End) != isRtl
     val alignment = if (fromRight) Alignment.CenterEnd else Alignment.CenterStart
     val travel = with(density) { width.toPx() }
+
+    // Swiped away towards its own edge. The gesture that does it is the one
+    // whose finger moves that way — from the left edge for a sheet on the
+    // right — so the host's edge swipe closes it too, and the host follows it
+    // by the sheet's own slide. Under swipe back the sheet also takes that drag
+    // itself, anywhere on it, after anything inside that scrolls sideways.
+    val back = LocalOverlayBack.current
+    val awayEdge = if (fromRight) NavigationEvent.EDGE_LEFT else NavigationEvent.EDGE_RIGHT
+    SideEffect { back?.swipeAwayEdge = if (swipeAway) awayEdge else null }
+    val dispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
+    val drag = if (swipeAway && back != null && dispatcher != null && LocalBackStyle.current == BackStyle.Swipe) {
+        val pan = remember(fromRight) {
+            BackPan(rightwards = fromRight, edge = awayEdge, pass = PointerEventPass.Main, startsAt = { _, _, _ -> true })
+        }
+        Modifier.swipeBack(pan, rememberSwipeBackInput(dispatcher))
+    } else {
+        Modifier
+    }
 
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -345,6 +377,7 @@ private fun SideSheetPanel(
                     val hidden = travel * (1f - progress().coerceIn(0f, 1f))
                     IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
                 }
+                .then(drag)
                 .then(modifier)
                 .semantics {
                     isTraversalGroup = true

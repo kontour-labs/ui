@@ -33,7 +33,8 @@ import kotlin.test.assertTrue
 /**
  * A back gesture moves an overlay only by the animation it already has — its
  * own appearance run backwards, its own slide, a sheet's own offset — and only
- * under predictive back, and only when it may be dismissed.
+ * when it may be dismissed: under predictive back, or under swipe back for the
+ * one overlay iOS swipes away, a side sheet.
  *
  * Measured by where the panel's content lands on screen — its bounds in the
  * root, which carry every layer's transform and every placement offset — at
@@ -50,9 +51,9 @@ class OverlayBackMotionTest {
             override val navigationEventDispatcher = dispatcher
         }
 
-        fun dragTo(progress: Float) {
-            input.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f))
-            input.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, progress, 0f, 0f))
+        fun dragTo(progress: Float, edge: Int = NavigationEvent.EDGE_LEFT) {
+            input.backStarted(NavigationEvent(edge, 0f, 0f, 0f))
+            input.backProgressed(NavigationEvent(edge, progress, 0f, 0f))
         }
     }
 
@@ -168,13 +169,23 @@ class OverlayBackMotionTest {
         assertEquals(rest, bounds("panel"), "a dialog moved under swipe back")
     }
 
+    /**
+     * iOS swipes a side sheet away, towards its own edge: a sheet on the right
+     * follows a swipe from the left edge, whose finger moves the way the sheet
+     * goes — by its own slide — and not one from the right.
+     */
     @Test
-    fun underSwipeBackASideSheetStaysPut() = runComposeUiTest {
+    fun underSwipeBackASideSheetFollowsOnlyAGestureTowardsItsEdge() = runComposeUiTest {
         val back = Back()
         setContent { Harness(back, BackStyle.Swipe) { FilterSheet() } }
         val rest = bounds("panel")
+        runOnUiThread { back.dragTo(0.5f, NavigationEvent.EDGE_RIGHT) }
+        assertEquals(rest, bounds("panel"), "a swipe away from the sheet's edge moved it")
+        runOnUiThread { back.input.backCancelled() }
+
         runOnUiThread { back.dragTo(0.5f) }
-        assertEquals(rest, bounds("panel"), "a side sheet moved under swipe back")
+        val mid = bounds("panel")
+        assertEquals(rest.left + rest.width / 2, mid.left, rest.width * 0.03f, "halfway is half the sheet's own slide")
     }
 
     /** Under reduced motion the dialog's own exit only fades, so the gesture only fades it. */

@@ -20,7 +20,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
@@ -102,6 +104,50 @@ class ContentSwipeBackTest {
         waitForIdle()
         assertEquals(listOf<Any>(Stops), backStack.toList(), "a pan across the page did not go back")
     }
+
+    /**
+     * Let go, the page carries on from the frame the finger lifts: no frame
+     * where it stands still — the pause the platform's own release has — and
+     * no slower than the finger was going.
+     */
+    @Test
+    fun letGoThePageMovesOnEveryFrameUntilItHasGone() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val backStack = mutableStateListOf<Any>(Stops, Stop)
+        setContent { Display(BackStyle.Swipe, backStack) }
+        waitForIdle()
+        mainClock.autoAdvance = false
+        // On the root, whose coordinates stay put: the page's own move with the
+        // finger, and a position given relative to it would run away with it.
+        onRoot().performTouchInput { down(Offset(width * 0.3f, height * 0.6f)) }
+        // A finger moving steadily, one frame at a time, to past half the width.
+        repeat(12) { step ->
+            onRoot().performTouchInput { moveTo(Offset(width * 0.3f + 20f * (step + 1), height * 0.6f)) }
+            mainClock.advanceTimeByFrame()
+        }
+        val lastHeld = left("stop")
+        assertTrue(lastHeld != null && lastHeld in 200f..240f, "the page did not follow the finger: $lastHeld")
+        onRoot().performTouchInput { up() }
+
+        // Until it is off the page: a frame there, while the pop takes it
+        // away, shows nothing of it.
+        val seen = mutableListOf(lastHeld!!)
+        for (frame in 1..60) {
+            mainClock.advanceTimeByFrame()
+            val left = left("stop") ?: break
+            seen += left
+            if (left >= 400f) break
+        }
+        assertTrue(seen.size in 8..25, "the page took ${seen.size - 1} frames to leave: $seen")
+        seen.zipWithNext().forEachIndexed { frame, (a, b) ->
+            assertTrue(b > a, "frame $frame after letting go stood still at ${a}px: $seen")
+        }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        assertEquals(listOf<Any>(Stops), backStack.toList())
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.left(tag: String): Float? =
+        onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().firstOrNull()?.boundsInRoot?.left
 
     @Test
     fun aShortSlowPanIsAbandoned() = runDesktopComposeUiTest(width = 400, height = 800) {
