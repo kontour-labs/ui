@@ -20,9 +20,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -184,6 +189,8 @@ fun rememberPageMotion(style: BackStyle = LocalBackStyle.current): PageMotion {
  * [LocalContainerColour] — the sheet's colour — leaves every pixel of that
  * colour as it was, so the page recedes and nothing marks where it ends. Paint
  * the page's ground in that colour, before this modifier, for the same reason.
+ * The shadow the page on top casts fades out at its top and bottom there too,
+ * rather than ending in a line against the sheet's header and padding.
  *
  * Under [BackStyle.Swipe] that
  * is every push and pop, as on iOS. Under [BackStyle.Predictive] it is only a
@@ -221,7 +228,8 @@ fun Modifier.pageEffects(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // What the page beneath goes under: black on the window's own ground, the
     // ground itself inside an overlay, where the stack is surrounded by more of it.
-    val veil = if (LocalOverlayBack.current != null) {
+    val inOverlay = LocalOverlayBack.current != null
+    val veil = if (inOverlay) {
         LocalContainerColour.current.takeOrElse { Theme.colours.background }.copy(alpha = MaxRecede)
     } else {
         Color.Black.copy(alpha = MaxDim)
@@ -248,22 +256,53 @@ fun Modifier.pageEffects(
             edge == NavigationEvent.EDGE_LEFT -> false
             else -> rtl
         }
-        val width = motion.shadowWidthPx
-        val shade = Color.Black.copy(alpha = ShadowAlpha)
-        if (shadowOnRight) {
-            drawRect(
-                brush = Brush.horizontalGradient(listOf(shade, Color.Transparent), startX = size.width, endX = size.width + width),
-                topLeft = Offset(size.width, 0f),
-                size = Size(width, size.height),
-            )
-        } else {
-            drawRect(
-                brush = Brush.horizontalGradient(listOf(Color.Transparent, shade), startX = -width, endX = 0f),
-                topLeft = Offset(-width, 0f),
-                size = Size(width, size.height),
-            )
-        }
+        drawEdgeShadow(
+            onRight = shadowOnRight,
+            width = motion.shadowWidthPx,
+            // Inside an overlay the stack stops short of the surface around it
+            // — a sheet's header above, its safe-area padding below — so the
+            // shadow fades out at both ends rather than stopping in a line
+            // there. On the window it runs the page's full height, as UIKit's.
+            fade = if (inOverlay) minOf(ShadowEndFade.toPx(), size.height / 4f) else 0f,
+        )
     }
+}
+
+/**
+ * The shadow a page casts past one of its vertical edges, [width] wide, fading
+ * to nothing over [fade] at its top and bottom.
+ *
+ * The fade needs the strip in a layer of its own, masked by a vertical ramp;
+ * without one it is a single rectangle.
+ */
+private fun DrawScope.drawEdgeShadow(onRight: Boolean, width: Float, fade: Float) {
+    val shade = Color.Black.copy(alpha = ShadowAlpha)
+    val left = if (onRight) size.width else -width
+    val across = if (onRight) {
+        Brush.horizontalGradient(listOf(shade, Color.Transparent), startX = left, endX = left + width)
+    } else {
+        Brush.horizontalGradient(listOf(Color.Transparent, shade), startX = left, endX = left + width)
+    }
+    val strip = Size(width, size.height)
+    if (fade <= 0f || size.height <= 0f) {
+        drawRect(brush = across, topLeft = Offset(left, 0f), size = strip)
+        return
+    }
+    val end = fade / size.height
+    drawIntoCanvas { it.saveLayer(Rect(left, 0f, left + width, size.height), Paint()) }
+    drawRect(brush = across, topLeft = Offset(left, 0f), size = strip)
+    drawRect(
+        brush = Brush.verticalGradient(
+            0f to Color.Transparent,
+            end to Color.Black,
+            1f - end to Color.Black,
+            1f to Color.Transparent,
+        ),
+        topLeft = Offset(left, 0f),
+        size = strip,
+        blendMode = BlendMode.DstIn,
+    )
+    drawIntoCanvas { it.restore() }
 }
 
 /** How long the dim and the shadow take to go, when nothing seeks them. */
@@ -282,4 +321,7 @@ private const val MaxRecede = 0.35f
 
 /** The shadow the top page casts, at its darkest. */
 private const val ShadowAlpha = 0.12f
+
+/** How far the shadow fades in from each end, inside an overlay, at most. */
+private val ShadowEndFade = 32.dp
 

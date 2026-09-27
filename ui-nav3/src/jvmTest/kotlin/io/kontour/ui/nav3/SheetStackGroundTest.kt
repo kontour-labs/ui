@@ -163,6 +163,34 @@ class SheetStackGroundTest {
         assertTrue(faded.green > 0.1f && faded.blue > 0.1f, "the page beneath did not recede: its block is $faded")
     }
 
+    /**
+     * The shadow the page on top casts runs down its edge, but fades out at
+     * the stack's top and bottom rather than stopping in a line against the
+     * sheet's header and padding.
+     */
+    @Test
+    fun theShadowFadesOutAtTheStacksEnds() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val back = Back()
+        val backStack = mutableStateListOf<Any>(Departures, Route)
+        setContent { InASheet(back, dark = false, backStack) }
+        waitForIdle()
+        dragTo(back, 0.5f)
+        val stack = bounds("stack")
+        val map = pixels()
+        // Just left of the page on top, which has slid half the width away:
+        // inside its shadow, over the empty ground of the page beneath.
+        val edge = (stack.left + stack.width * 0.5f).toInt()
+        val x = edge - 4
+        val middle = stack.center.y.toInt()
+        val ground = map[edge - 40, middle]
+        val shaded = map[x, middle]
+        assertTrue(shaded.red < ground.red - 0.02f, "no shadow at the edge's middle: $shaded on $ground")
+        val top = map[x, stack.top.toInt() + 1]
+        val bottom = map[x, stack.bottom.toInt() - 2]
+        assertTrue(same(top, ground), "the shadow ends in a line at the stack's top: $top on $ground")
+        assertTrue(same(bottom, ground), "the shadow ends in a line at the stack's bottom: $bottom on $ground")
+    }
+
     /** On the window's own ground the page beneath still dims, as iOS's does. */
     @Test
     fun onTheWindowThePageBeneathDims() = runDesktopComposeUiTest(width = 400, height = 800) {

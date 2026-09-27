@@ -325,6 +325,12 @@ dismissed:
   Everything else stays as it always was there: a bottom sheet is dragged down,
   a dialog is answered and a menu is tapped away, and the edge swipe does
   nothing to them.
+- **The drag on a side sheet is the sheet's own, on every platform.** Android's
+  `ModalSideSheet` follows the same drag towards its edge and closes the same
+  way. It reaches the sheet's entry directly rather than going through back,
+  so a stack inside the sheet with somewhere to go back to does not take it:
+  the sheet the finger is on moves. The platform's back gesture still reaches
+  that stack first.
 
 Toasts and plain tooltips neither dismiss on back nor dim, so a back press while
 a toast is up leaves the screen rather than dismissing a confirmation the user

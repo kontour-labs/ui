@@ -69,6 +69,12 @@ internal class OverlayBackState {
      * swipe from the left edge. A plain field, read when a gesture starts.
      */
     var swipeAwayEdge: Int? = null
+
+    /**
+     * The entry's own handler, for a gesture its panel tracks itself: see
+     * [rememberDirectBack]. Set once, by [rememberOverlayBack].
+     */
+    internal var handler: OverlayBackHandler? = null
 }
 
 /** The back gesture aimed at the overlay this is inside, or null outside one. */
@@ -95,6 +101,8 @@ private object OverlayBackInfo : NavigationEventInfo()
  * - **The exception is a side sheet**, which iOS does swipe away: under swipe
  *   back a gesture moving towards its own edge — see
  *   [OverlayBackState.swipeAwayEdge] — follows and closes it, and so does a key.
+ *   The sheet's own drag, under either style, reaches this handler directly,
+ *   by [rememberDirectBack].
  *
  * A plain `NavigationEventHandler` rather than `NavigationBackHandler`, because
  * the host decides which entry may answer by enabling its *dispatcher*, and
@@ -114,25 +122,36 @@ internal class OverlayBackHandler(
     /** The edge of the gesture under way, or null between gestures. */
     private var edge: Int? = null
 
-    override fun onBackStarted(event: NavigationEvent) {
+    override fun onBackStarted(event: NavigationEvent) = started(event)
+
+    override fun onBackProgressed(event: NavigationEvent) = progressed(event)
+
+    override fun onBackCancelled() = cancelled()
+
+    override fun onBackCompleted() = completed()
+
+    // The same four, callable from a [DirectBackHandler] as well as by the
+    // dispatcher this is registered with.
+
+    internal fun started(event: NavigationEvent) {
         edge = event.swipeEdge
         if (!closes(event.swipeEdge)) return
         back.progress = event.progress
         back.following = true
     }
 
-    override fun onBackProgressed(event: NavigationEvent) {
+    internal fun progressed(event: NavigationEvent) {
         if (back.following) back.progress = event.progress
     }
 
-    override fun onBackCancelled() {
+    internal fun cancelled() {
         edge = null
         if (!back.following) return
         back.following = false
         back.cancels++
     }
 
-    override fun onBackCompleted() {
+    internal fun completed() {
         val followed = back.following
         val from = edge
         back.following = false
@@ -141,6 +160,43 @@ internal class OverlayBackHandler(
         if (followed) back.commits++
         onCommit()
     }
+}
+
+/** Hands whatever reaches it straight to [target]. */
+private class DirectBackHandler(
+    private val target: OverlayBackHandler,
+) : NavigationEventHandler<NavigationEventInfo>(OverlayBackInfo, true) {
+    override fun onBackStarted(event: NavigationEvent) = target.started(event)
+
+    override fun onBackProgressed(event: NavigationEvent) = target.progressed(event)
+
+    override fun onBackCancelled() = target.cancelled()
+
+    override fun onBackCompleted() = target.completed()
+}
+
+/**
+ * A back dispatcher that reaches [back]'s entry and nothing else, for a gesture
+ * the entry's own panel tracks — a side sheet dragged towards its edge — or
+ * null outside an overlay.
+ *
+ * A root of its own, not a child of the entry's: through the entry's
+ * dispatcher, a drag on a sheet would reach whatever inside it registered
+ * later — a stack with somewhere to go back to — and pop a page instead of
+ * moving the sheet the finger is on. The platform's gestures still go the
+ * usual way, through the entry's dispatcher, so a stack inside a sheet still
+ * goes back first to those.
+ */
+@Composable
+internal fun rememberDirectBack(back: OverlayBackState?): NavigationEventDispatcher? {
+    val handler = back?.handler ?: return null
+    val dispatcher = remember(handler) {
+        NavigationEventDispatcher().also { it.addHandler(DirectBackHandler(handler)) }
+    }
+    DisposableEffect(dispatcher) {
+        onDispose { dispatcher.dispose() }
+    }
+    return dispatcher
 }
 
 /**
@@ -196,7 +252,9 @@ internal fun rememberOverlayBack(
     val back = remember { OverlayBackState() }
     val latestCloses by rememberUpdatedState(closes)
     val latestCommit by rememberUpdatedState(onCommit)
-    val handler = remember(back) { OverlayBackHandler(back, { edge -> latestCloses(back, edge) }) { latestCommit() } }
+    val handler = remember(back) {
+        OverlayBackHandler(back, { edge -> latestCloses(back, edge) }) { latestCommit() }.also { back.handler = it }
+    }
     return back to handler
 }
 

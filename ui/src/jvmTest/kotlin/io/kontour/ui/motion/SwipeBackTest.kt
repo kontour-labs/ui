@@ -267,14 +267,20 @@ class SwipeBackTest {
     }
 
     @Test
-    fun aSideSheetFollowsADragTowardsItsEdgeAndClosesOnce() = runComposeUiTest {
+    fun aSideSheetFollowsADragTowardsItsEdgeAndClosesOnce() = runComposeUiTest { dragASideSheet(BackStyle.Swipe) }
+
+    /** Android's sheet takes the same drag: it is the sheet's, not the platform's back. */
+    @Test
+    fun onAndroidASideSheetFollowsTheSameDrag() = runComposeUiTest { dragASideSheet(BackStyle.Predictive) }
+
+    private fun ComposeUiTest.dragASideSheet(style: BackStyle) {
         val platform = NavigationEventDispatcher()
         var visible by mutableStateOf(true)
         var dismissed = 0
         setContent {
             CompositionLocalProvider(
                 LocalNavigationEventDispatcherOwner provides owner(platform),
-                LocalBackStyle provides BackStyle.Swipe,
+                LocalBackStyle provides style,
             ) {
                 KontourTheme(darkTheme = false) {
                     OverlayHost(Modifier.fillMaxSize()) {
@@ -313,6 +319,41 @@ class SwipeBackTest {
         }
         waitForIdle()
         assertEquals(1, dismissed, "a drag past half did not close the sheet, or closed it twice")
+    }
+
+    /**
+     * A stack inside the sheet with somewhere to go back to takes the
+     * platform's back gesture, but not a drag on the sheet: that closes the
+     * sheet the finger is on, and the stack keeps its page.
+     */
+    @Test
+    fun aDragClosesTheSheetAndNotTheStackInsideIt() = runComposeUiTest {
+        val platform = NavigationEventDispatcher()
+        val stack = Recorder()
+        var visible by mutableStateOf(true)
+        var dismissed = 0
+        setContent {
+            CompositionLocalProvider(
+                LocalNavigationEventDispatcherOwner provides owner(platform),
+                LocalBackStyle provides BackStyle.Predictive,
+            ) {
+                KontourTheme(darkTheme = false) {
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        ModalSideSheet(visible = visible, onDismissRequest = { dismissed++; visible = false }) {
+                            RegisterBackHandler(LocalNavigationEventDispatcherOwner.current, stack)
+                            Text("Route 950", Modifier.fillMaxSize().testTag("panel"))
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithTag("panel", useUnmergedTree = true).performTouchInput {
+            swipe(Offset(width * 0.1f, centerY), Offset(width * 0.9f, centerY), durationMillis = 300)
+        }
+        waitForIdle()
+        assertEquals(1, dismissed, "the drag did not close the sheet")
+        assertEquals(0, stack.started, "the drag reached the stack inside the sheet")
     }
 
     @Test

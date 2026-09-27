@@ -157,6 +157,10 @@ open left the screen, and `ListDetailPaneScaffold.onBack` was never called. Now:
   pop the screen behind them. `dismissible = false` used to leave
   `dismissOnBack` on; an entry of your own with `ScrimStyle.Dimmed` does the
   same.
+- **A side sheet is dragged closed on every platform,** towards its own edge,
+  not only on iOS. The drag is the sheet's own: a stack inside the sheet with
+  somewhere to go back to no longer takes it, though it still takes the
+  platform's back gesture first.
 - **`ListDetailPaneScaffold` calls `onBack`** for back on one pane, and follows
   the gesture.
 - **How back looks is per platform:** `LocalBackStyle` is `Predictive` on Android

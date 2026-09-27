@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
-import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowLeft
 import com.composables.icons.tabler.outline.ArrowRight
@@ -44,8 +43,6 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.motion.BackPan
-import io.kontour.ui.motion.BackStyle
-import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.motion.rememberSwipeBackInput
 import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.overlay.BackdropStyle
@@ -55,6 +52,7 @@ import io.kontour.ui.overlay.LocalOverlayProgress
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.overlay.rememberDirectBack
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -81,9 +79,12 @@ enum class SheetSide { Start, End }
  * instead.
  *
  * Slides rather than dragging through detents. A side sheet has one useful
- * position — open — and a horizontal drag on a wide screen usually means
- * something else was intended. Dismissal is the scrim, the close button or a
- * back gesture.
+ * position — open. Dismissal is the scrim, the close button, a back gesture, or
+ * dragging the sheet towards its own edge, on every platform: it follows the
+ * finger, closes past half or on a flick, and slides back if let go short. The
+ * drag yields to anything inside that moves sideways first, and closes the
+ * sheet even when a stack inside it has somewhere to go back to — the sheet is
+ * what the finger is on.
  *
  * Flush to its side, the top and the bottom, at one width. It could float clear
  * of its edges and be dragged out to the whole window for a while, and both were
@@ -194,11 +195,12 @@ fun ModalSideSheet(
                 dismissOnOutside = dismissible,
                 // Back dismisses, as a tap outside does. A gesture slides it out
                 // by its own slide: under predictive back from either edge, and
-                // under swipe back — iOS, which does swipe a side sheet away — by
-                // a drag towards the sheet's own edge, on the sheet or from the
-                // far edge of the screen. `onBack` is the arrow for a sheet
-                // pushed from another; a stack that should answer the gesture
-                // itself goes inside the sheet, and goes back first.
+                // under swipe back — iOS, which does swipe a side sheet away —
+                // from the far edge of the screen. A drag on the sheet towards
+                // its own edge closes it on every platform. `onBack` is the
+                // arrow for a sheet pushed from another; a stack that should
+                // answer the back gesture itself goes inside the sheet, and goes
+                // back first — to the platform's gesture, not to the drag.
                 dismissOnBack = dismissible,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },
@@ -349,21 +351,22 @@ private fun SideSheetPanel(
 
     // Swiped away towards its own edge. The gesture that does it is the one
     // whose finger moves that way — from the left edge for a sheet on the
-    // right — so the host's edge swipe closes it too, and the host follows it
-    // by the sheet's own slide. Under swipe back the sheet also takes that drag
-    // itself, anywhere on it, after anything inside that scrolls sideways.
+    // right — so the host's edge swipe closes it too under swipe back, and the
+    // host follows it by the sheet's own slide. The sheet also takes that drag
+    // itself, anywhere on it, after anything inside that moves sideways, on
+    // every platform: straight to its own entry, never to a stack inside it.
     val back = LocalOverlayBack.current
     val awayEdge = if (fromRight) NavigationEvent.EDGE_LEFT else NavigationEvent.EDGE_RIGHT
     // Only ever set, never cleared: a sheet that is not swiped away — the
     // non-modal one, laid out inside some other overlay — is not the entry's
     // own panel, and must not clear what that panel said.
     SideEffect { if (swipeAway) back?.swipeAwayEdge = awayEdge }
-    val dispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
-    val drag = if (swipeAway && back != null && dispatcher != null && LocalBackStyle.current == BackStyle.Swipe) {
+    val direct = if (swipeAway) rememberDirectBack(back) else null
+    val drag = if (direct != null) {
         val pan = remember(fromRight) {
             BackPan(rightwards = fromRight, edge = awayEdge, pass = PointerEventPass.Main, startsAt = { _, _, _ -> true })
         }
-        Modifier.swipeBack(pan, rememberSwipeBackInput(dispatcher))
+        Modifier.swipeBack(pan, rememberSwipeBackInput(direct))
     } else {
         Modifier
     }
