@@ -679,10 +679,10 @@ internal fun DrawScope.drawEdgeArrow(
     ring: Color,
     fill: Color,
     chevron: Color,
+    stroke: Float,
 ) {
     if (alpha <= 0f) return
     val radius = ArrowRingRadius.toPx()
-    val stroke = RingStroke.toPx()
     val side = if (pointsLeft) -1f else 1f
     val centre = Offset(day.x + side * (halfCell - radius - ArrowRingInset.toPx()), day.y)
     drawCircle(ring, radius = radius, center = centre, alpha = alpha, style = Stroke(stroke))
@@ -744,7 +744,6 @@ private const val RingFadeFull: Float = 0.75f
 /** The ring round the arrow, and how far it sits in from the day's box. */
 internal val ArrowRingRadius = 6.5.dp
 private val ArrowRingInset = 1.5.dp
-private val RingStroke = 1.5.dp
 
 /** The progress arc, a little bolder than the ring it fills. */
 private const val ProgressStrokeShare: Float = 1.4f

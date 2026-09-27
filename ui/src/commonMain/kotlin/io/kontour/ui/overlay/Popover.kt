@@ -31,6 +31,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -153,7 +155,10 @@ fun Popover(
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                         arrow = if (showArrow) {
-                            ArrowSpec(colour = colours.surfaceRaised)
+                            // A raised panel on a raised page is 1.00:1 at the
+                            // enhanced tier; there the arrow is outlined and the
+                            // panel keeps its border below.
+                            ArrowSpec(colour = colours.surfaceRaised, edge = contrastEdge(colours.outlineSubtle))
                         } else {
                             null
                         },
@@ -161,7 +166,7 @@ fun Popover(
                         PopoverPanel(
                             modifier = latestModifier,
                             maxWidth = maxWidth,
-                            border = !showArrow,
+                            border = !showArrow || highContrast(),
                             onDismissRequest = { dismiss() },
                         ) {
                             latestTitle?.let { OverlayTitle(Theme.typography.titleSmall, it) }

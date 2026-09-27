@@ -49,6 +49,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
@@ -423,6 +426,7 @@ fun <T> WheelPicker(
      * stale.
      */
     val rowColour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
+    val enhanced = highContrast()
     val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour) {
         {
             items(items.size) { index ->
@@ -437,7 +441,7 @@ fun <T> WheelPicker(
                         modifier = Modifier.graphicsLayer {
                             val distance = drumDistance(index)
                             val shrink = wheelShrink(distance)
-                            alpha = wheelFade(distance)
+                            alpha = wheelFade(distance, enhanced)
                             scaleX = shrink
                             scaleY = shrink
                         },
@@ -557,6 +561,9 @@ fun <T> WheelPicker(
                 .height(itemHeight)
                 .clip(Theme.shapes.medium)
                 .background(Theme.colours.surfaceSunken)
+                // The band says which row is chosen; at the enhanced tier it
+                // needs an edge to say it at all.
+                .optionalBorder(contrastEdge(), Theme.shapes.medium)
         )
 
         LazyColumn(
@@ -733,6 +740,7 @@ private fun <T> InfiniteWheel(
 
     val halfVisible = visibleItems / 2
     val rows = visibleItems + 2
+    val enhanced = highContrast()
 
     /**
      * The topmost row laid out: a whole number, so composition follows the rows
@@ -817,6 +825,9 @@ private fun <T> InfiniteWheel(
                 .align(Alignment.Center)
                 .clip(Theme.shapes.medium)
                 .background(Theme.colours.surfaceSunken)
+                // The band says which row is chosen; at the enhanced tier it
+                // needs an edge to say it at all.
+                .optionalBorder(contrastEdge(), Theme.shapes.medium)
         )
 
         Column(
@@ -886,7 +897,7 @@ private fun <T> InfiniteWheel(
                         modifier = Modifier.graphicsLayer {
                             val distance = abs(position - offset.value / itemPx)
                             val shrink = wheelShrink(distance)
-                            alpha = wheelFade(distance)
+                            alpha = wheelFade(distance, enhanced)
                             scaleX = shrink
                             scaleY = shrink
                         },
@@ -935,7 +946,12 @@ private fun shortestTurn(from: Int, to: Int, size: Int): Int {
  * look alike. Its distance comes off the list's scroll offset since, so at rest
  * they still agree exactly and in motion they now agree too.
  */
-internal fun wheelFade(distance: Float): Float = when {
+internal fun wheelFade(distance: Float, enhanced: Boolean = false): Float = when {
+    // The rows either side are values the reader can scroll to, and at the
+    // enhanced tier they stay legible: 0.6 of the ink is 5.7:1 on white and 7.4
+    // on black, where the standard tier's 0.2 is barely there.
+    enhanced && distance <= 1f -> lerp(1f, 0.75f, distance)
+    enhanced -> lerp(0.75f, 0.6f, (distance - 1f).coerceAtMost(1f))
     distance <= 1f -> lerp(1f, 0.45f, distance)
     else -> lerp(0.45f, 0.2f, (distance - 1f).coerceAtMost(1f))
 }

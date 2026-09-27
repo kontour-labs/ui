@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.interaction.FeedbackIntent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ import io.kontour.ui.interaction.rememberHoldFeedback
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
+import io.kontour.ui.theme.lines
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -281,6 +283,10 @@ fun CalendarMonth(
         val weekdayBase = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
         val weekdayStyle = remember(weekdayBase, cellSize) { weekdayBase.grownFor(cellSize) }
         val colours = Theme.colours
+        // The dwell arrow's ring: a line and a half, thickening with the tier.
+        val arrowStroke = Theme.sizing.lines(1.5f)
+    // On the range's cap the ring is faded at the standard tier and solid at the enhanced one.
+    val capRingAlpha = if (highContrast()) 1f else CapRingAlpha
         val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
         Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
@@ -379,9 +385,10 @@ fun CalendarMonth(
                             pointsLeft = (edgeDay == DwellEdge.Previous) != rtl,
                             progress = if (state.edge == edgeDay) state.dwell.value else 0f,
                             alpha = presence,
-                            ring = if (onCap) colours.onPrimary.copy(alpha = CapRingAlpha) else colours.outlineStrong,
+                            ring = if (onCap) colours.onPrimary.copy(alpha = capRingAlpha) else colours.outlineStrong,
                             fill = if (onCap) colours.onPrimary else colours.primary,
                             chevron = if (onCap) colours.onPrimary else colours.content,
+                            stroke = arrowStroke.toPx(),
                         )
                     }
                 },

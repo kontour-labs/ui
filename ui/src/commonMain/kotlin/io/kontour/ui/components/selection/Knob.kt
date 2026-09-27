@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.components.display.DialColours
 import io.kontour.ui.components.display.DialGeometry
 import io.kontour.ui.components.display.DialReadout
@@ -58,6 +59,7 @@ import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.lines
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -155,6 +157,9 @@ fun Knob(
     val scope = rememberCoroutineScope()
     val motion = Theme.motion
     val density = LocalDensity.current
+    // The face's rim and the ticks are lines, thickening with the tier.
+    val faceRing = Theme.sizing.borderWidth
+    val tickLine = Theme.sizing.lines(1.5f)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val ticker = rememberDetentTicker()
@@ -346,9 +351,9 @@ fun Knob(
                 .drawWithCache {
                     val geometry = DialGeometry(centre, radius, DialGeometry.startFor(sweep), sweep)
                     val face = (radius - thicknessPx / 2f - KnobFaceGap.toPx()).coerceAtLeast(1f)
-                    val ring = KnobFaceRing.toPx()
+                    val ring = faceRing.toPx()
                     val notchWidth = KnobNotch.toPx()
-                    val tickWidth = KnobTickWidth.toPx()
+                    val tickWidth = tickLine.toPx()
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
                     val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, colours.indicator.stops(valueRange, scaleDefault))
@@ -413,7 +418,7 @@ object KnobDefaults {
     @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
-        track: Color = Theme.colours.surfaceSunken,
+        track: Color = trackAtTier(Theme.colours.surfaceSunken),
         tick: Color = Theme.colours.outline,
         thumb: Color = Theme.colours.surfaceRaised,
         thumbRing: Color = Theme.colours.outline,
@@ -433,11 +438,9 @@ private val KnobSize: Dp = 96.dp
 private val KnobThickness: Dp = 6.dp
 private const val KnobSweep: Float = 270f
 private val KnobFaceGap: Dp = 6.dp
-private val KnobFaceRing: Dp = 1.dp
 private val KnobNotch: Dp = 3.dp
 private val KnobTick: Dp = 4.dp
 private val KnobTickGap: Dp = 3.dp
-private val KnobTickWidth: Dp = 1.5.dp
 
 /**
  * How far a drag goes for the whole range, whatever the knob's size: a step of ten

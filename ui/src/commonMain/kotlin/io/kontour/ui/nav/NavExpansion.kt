@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
@@ -306,6 +307,9 @@ private fun CollapsedControl(
         containerColour = containerColour,
         contentColour = if (enabled) contentColour else Theme.colours.contentDisabled,
         shadow = shadow,
+        // A recess in the bar, `surfaceSunken` on `surface`: 1.13:1 at the
+        // enhanced tier, so the control was a word floating in the bar.
+        border = contrastEdge(),
     ) {
         Row(
             modifier = Modifier

@@ -299,7 +299,9 @@ object Palette {
     val GreyHcSubtle = Color(0xFF4A4A4A)
     val GreyHcDisabled = Color(0xFF6E6E6E)
     val GreyHcOutline = Color(0xFF767676)
-    val GreyHcOutlineSubtle = Color(0xFF949494)
+
+    /** The enhanced light tier's off state: 3.94:1 from [Black], 4.68:1 on [GreyHcSunken]. */
+    val GreyHcInactive = Color(0xFF6B6B6B)
 
     /** The enhanced tier's well. A shade tighter to the page than [Grey50]. */
     val GreyHcSunken = Color(0xFFF0F0F0)
@@ -325,7 +327,9 @@ object Palette {
     val SlateHcDisabled = Color(0xFF8A8296)
     val SlateHcOutline = Color(0xFF9C93AA)
     val SlateHcOutlineStrong = Color(0xFFC6BDD4)
-    val SlateHcOutlineSubtle = Color(0xFF6B6377)
+
+    /** The enhanced dark tier's off state: 3.34:1 from [White], 4.13:1 on [InkHcRaised]. */
+    val SlateHcInactive = Color(0xFF9189A0)
 
     val GreenHcSolid = Color(0xFF1B5E20)
     val GreenHcTint = Color(0xFFDCEFDD)

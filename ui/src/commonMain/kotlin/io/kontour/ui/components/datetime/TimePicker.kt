@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
@@ -197,6 +198,9 @@ fun TimeField(
                 ),
             shape = shape,
             containerColour = Theme.colours.surfaceSunken,
+            // A well on the page is 1.13:1 at the enhanced tier; the field has
+            // to be seen to be pressed.
+            border = contrastEdge(),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(

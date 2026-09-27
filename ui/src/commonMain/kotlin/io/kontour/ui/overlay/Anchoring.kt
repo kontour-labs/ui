@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -469,6 +470,8 @@ internal data class ArrowSpec(
     val colour: Color,
     val width: Dp = 14.dp,
     val height: Dp = 7.dp,
+    /** An outline round the arrow, where the panel it belongs to has one. */
+    val edge: BorderStroke? = null,
 )
 
 /** Carries the arrow geometry from the measure pass to the draw pass. */
@@ -599,7 +602,10 @@ internal fun AnchoredOverlayLayout(
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
-                if (path != null && arrow != null) drawPath(path, arrow.colour)
+                if (path != null && arrow != null) {
+                    drawPath(path, arrow.colour)
+                    arrow.edge?.let { drawPath(path, it.brush, style = Stroke(it.width.toPx())) }
+                }
             },
         content = content,
     ) { measurables, constraints ->

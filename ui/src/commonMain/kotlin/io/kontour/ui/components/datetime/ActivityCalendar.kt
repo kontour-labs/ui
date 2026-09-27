@@ -98,6 +98,7 @@ import io.kontour.ui.overlay.TooltipDefaults
 import io.kontour.ui.overlay.TooltipOverlay
 import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.lines
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlinx.coroutines.delay
@@ -380,6 +381,10 @@ fun ActivityCalendar(
     val focusColour = Theme.colours.focusRing
     val focusWidth = Theme.sizing.focusRingWidth
     val ringWidth = Theme.sizing.borderWidthStrong
+    // Today's and the hovered day's rings, and a mark's: lines, thickening with
+    // the tier, where they were 1dp and 1.5dp at every tier.
+    val hairline = Theme.sizing.borderWidth
+    val markRingWidth = Theme.sizing.lines(1.5f)
     val hoverColour = Theme.colours.outlineStrong
     val edge = contrastEdge()
     val labelSpace = Theme.spacing.xs
@@ -599,7 +604,8 @@ fun ActivityCalendar(
                                 val ring = ringWidth.toPx()
                                 val selectionRing = grown(ring / 2f + OneDp.toPx())
                                 val focusRing = grown(focusWidth.toPx() / 2f + OneDp.toPx())
-                                val hoverRing = grown(OneDp.toPx() / 2f)
+                                val hoverRing = grown(hairline.toPx() / 2f)
+                                val markStroke = markRingWidth.toPx()
                                 val todayInset = OneDp.toPx() * 1.5f
                                 val todayRing = cellShape.createOutline(
                                     Size(size - todayInset * 2, size - todayInset * 2), layoutDirection, this,
@@ -668,6 +674,7 @@ fun ActivityCalendar(
                                                     drawMark(
                                                         mark, size, ground, cellPath, dogEar, markRing,
                                                         painters[mark.icon], iconSize, mark.text?.let { markTexts[it] },
+                                                        markStroke,
                                                     )
                                                 }
                                             }
@@ -679,8 +686,8 @@ fun ActivityCalendar(
                                             drawOutline(shape, colour, style = Stroke(stroke))
                                         }
                                     }
-                                    ringAt(today, todayRing, -todayInset, colours.today, OneDp.toPx())
-                                    ringAt(hoverDay, hoverRing, OneDp.toPx() / 2f, hoverColour, OneDp.toPx())
+                                    ringAt(today, todayRing, -todayInset, colours.today, hairline.toPx())
+                                    ringAt(hoverDay, hoverRing, hairline.toPx() / 2f, hoverColour, hairline.toPx())
                                     ringAt(selected, selectionRing, ring / 2f + OneDp.toPx(), colours.selection, ring)
                                     if (ringVisible) {
                                         ringAt(
@@ -856,6 +863,7 @@ private fun DrawScope.drawMark(
     painter: VectorPainter?,
     iconSize: Float,
     text: TextLayoutResult?,
+    ringStroke: Float,
 ) {
     if (mark.corner.isSpecified) clipPath(cell) { drawPath(dogEar, mark.corner) }
     if (mark.dot.isSpecified) {
@@ -864,7 +872,7 @@ private fun DrawScope.drawMark(
     }
     if (mark.outline.isSpecified) {
         val inset = MarkRingInset.toPx()
-        translate(inset, inset) { drawOutline(ring, mark.outline, style = Stroke(MarkRingWidth.toPx())) }
+        translate(inset, inset) { drawOutline(ring, mark.outline, style = Stroke(ringStroke)) }
     }
     val content = mark.contentColour.takeIf { it.isSpecified } ?: contentColourFor(ground)
     if (painter != null) {
@@ -899,12 +907,17 @@ private fun Legend(
     less: String,
     more: String,
 ) {
+    // The swatches carry the grid's own edge at the enhanced tier, so the
+    // lightest of them is still a square beside the words rather than a gap.
+    val edge = contrastEdge()
     Layout(
         content = {
             Text(less, colour = colours.label, style = Theme.typography.labelSmall, maxLines = 1)
             colours.levels.forEach { shade ->
                 Canvas(Modifier.size(cell)) {
-                    drawOutline(shape.createOutline(size, layoutDirection, this), shade)
+                    val outline = shape.createOutline(size, layoutDirection, this)
+                    drawOutline(outline, shade)
+                    if (edge != null) drawOutline(outline, edge.brush, style = Stroke(edge.width.toPx()))
                 }
             }
             Text(more, colour = colours.label, style = Theme.typography.labelSmall, maxLines = 1)
@@ -963,7 +976,6 @@ private const val MarkDotShare: Float = 0.1f
 private const val MarkDotLift: Float = 0.1f
 private val MarkTextPadding: Dp = 2.dp
 private val MarkRingInset: Dp = 2.dp
-private val MarkRingWidth: Dp = 1.5.dp
 
 /** How far along from empty to full the first shade starts. */
 private const val LevelFloor: Float = 0.3f

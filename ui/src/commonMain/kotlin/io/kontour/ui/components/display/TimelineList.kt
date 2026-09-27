@@ -338,6 +338,7 @@ internal fun TimelineRow.rail(
             loading = stop.loading,
             ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
             here = here?.here == true,
+            reached = here?.reached != false,
         ),
         legs = listOfNotNull(
             above?.leg(LegAt.Start, index - 1, from = 1f),

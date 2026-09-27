@@ -44,6 +44,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.adaptive.leadingEdges
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.HorizontalDivider
@@ -194,6 +197,9 @@ fun NavRail(
             modifier = modifier.width(width).fillMaxHeight(),
             containerColour = colours.container,
             contentColour = SurfaceDefaults.contentColour(colours.container),
+            // The rail's ground against the page's is the tier's 1.00:1, so the
+            // rail and the content beside it were one field of white.
+            border = contrastEdge(),
         ) {
             Column(
                 modifier = Modifier
@@ -397,6 +403,7 @@ private fun RailItems(
                             .fillMaxSize()
                             .clip(Theme.shapes.capsule)
                             .background(colours.indicator)
+                            .optionalBorder(selectionEdge(), Theme.shapes.capsule)
                     )
                 },
             ) {

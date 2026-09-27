@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -112,7 +113,9 @@ fun FloatingActionButton(
         shape = shape,
         containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
         // without this the icon lands in the FAB's top-left corner rather than
@@ -187,7 +190,9 @@ fun FloatingActionButton(
         shape = shape,
         containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
         contentAlignment = Alignment.Center,
         content = { LoadingSwap(loading = loading, spinnerSize = size.icon) { content() } },
@@ -293,7 +298,9 @@ fun ExtendedFloatingActionButton(
         shape = shape,
         containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
     ) {
         // The whole row swaps, icon and label together: a spinner beside a

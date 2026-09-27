@@ -85,6 +85,7 @@ measured 1.15:1.
 | `outline` | `#E5E5E5` | `#3C3547` | Dividers and decorative rules |
 | `outlineStrong` | `#818181` | `#7C7484` | The boundary of anything interactive |
 | `outlineSubtle` | `#EFEFEF` | `#2C2735` | The faintest rule, for dense lists |
+| `inactive` | `#818181` | `#7C7484` | The off or not-yet half of a pair: a switch off, stops not reached, the other page dots. `outlineStrong` at this tier; its own value at the enhanced one |
 
 `outline` is too light to bound a control — it does not meet the 3:1 that
 WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use

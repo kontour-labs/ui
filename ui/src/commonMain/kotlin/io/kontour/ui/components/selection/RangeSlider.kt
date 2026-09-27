@@ -168,6 +168,8 @@ fun RangeSlider(
 
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val motion = Theme.motion
+    // The ring of page colour round the thumb, as thick as a strong border.
+    val thumbRingLine = Theme.sizing.borderWidthStrong
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
@@ -1031,7 +1033,7 @@ fun RangeSlider(
                                     squashPx = drawn.squash,
                                     ringColour = colours.thumbRing,
                                     fillColour = colours.thumb(enabled),
-                                    ringPx = SliderThumbRing.toPx(),
+                                    ringPx = thumbRingLine.toPx(),
                                     capsule = pill,
                                 )
                             }

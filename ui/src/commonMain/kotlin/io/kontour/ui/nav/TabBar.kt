@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
 import androidx.compose.foundation.ScrollState
 import androidx.compose.animation.animateColorAsState
@@ -229,6 +231,7 @@ fun TabBar(
                                 // built and why it is not built here.
                                 .clip(indicatorShape)
                                 .background(indicatorColour)
+                                .optionalBorder(selectionEdge(), indicatorShape)
                         )
                     },
                 ) {

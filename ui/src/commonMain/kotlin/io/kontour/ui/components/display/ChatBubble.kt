@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.GroupPosition
@@ -112,7 +114,10 @@ fun ChatBubble(
     }
     val outgoing = side == BubbleSide.Outgoing
     val sideways = Theme.spacing.sm
-    val metaColour = contentColour.copy(alpha = contentColour.alpha * MetaAlpha)
+    // The time and status under a message are faded at the standard tier, and
+    // at the enhanced one they are ink: 7:1 is not a fraction of the bubble's.
+    val enhanced = highContrast()
+    val metaColour = if (enhanced) contentColour else contentColour.copy(alpha = contentColour.alpha * MetaAlpha)
 
     val share = maxWidthFraction.coerceIn(0f, 1f)
     Box(
@@ -141,6 +146,9 @@ fun ChatBubble(
             shape = bubble,
             containerColour = containerColour,
             contentColour = contentColour,
+            // Someone else's message is a well on the page — 1.13:1 at the
+            // enhanced tier — so it takes the tier's edge, tail and all.
+            border = if (outgoing) null else contrastEdge(),
         ) {
             Column(
                 Modifier.padding(

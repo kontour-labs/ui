@@ -60,27 +60,68 @@ authored would be a lie in an enum.
 
 ### What `High` actually changes
 
-Three things, and for a long time it was only the first:
+Five things, and for a long time it was only the first:
 
 **The scheme.** `kontourColourScheme(dark, contrast)` returns a different
 `ColourScheme` — AAA body contrast, a near-ink `outline`, pure white on pure
-black in dark mode.
+black in dark mode, and an `outlineSubtle` equal to `outline`: there is no faint
+rule at this tier, because a menu's border in the fainter grey was 3.03:1.
+
+**The pairs.** The tier used to darken every boundary toward `primary`, which is
+right for a boundary and wrong for the other half of a pair: a switch's off
+track was **1.85:1** from its on track, where the standard tier has 4.81.
+`ColourScheme.inactive` is the off or not-yet half — a switch off, a timeline's
+stops not reached, the page dots that are not current, and at this tier every
+track a fill runs along (`Slider`, the progress forms, `Gauge`, `Meter`,
+`Knob`). It equals `outlineStrong` at the standard tier, so nothing there moved,
+and a check holds every pair at this tier to 3:1 and every off mark to 4.5:1 on
+its ground.
 
 **The tokens.** `Sizing` is keyed on the tier, so every line in the system gets
-thicker: `borderWidth`, `borderWidthStrong`, `dividerThickness`,
-`focusRingWidth` and `selectionIndicator`. A component that reads one of those
-responds without being touched, which is most of them.
+thicker: `borderWidth`, `borderWidthStrong`, `dividerThickness` and
+`focusRingWidth`. A component that reads one of those responds without being
+touched — and every ring, tick and rule in the library is drawn from one: the
+avatar group's ring, a gauge's and a knob's ticks, a slider's thumb ring, the
+colour picker's cursor, a table's rules and an activity calendar's rings used to
+be constants of their own, and stayed hairlines beside borders twice their
+weight.
 
 **The edges.** `contrastEdge()` gives a container a boundary it does not
 otherwise have, and returns `null` at `Standard` so the call site reads as
 "this container's border, or an edge if the user needs one". `Card` Elevated
 and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
-sheets, `Toolbar`, `SegmentedControl`'s track and `TextFieldVariant.Filled` all
-take one. Its *thumb* does not — see below.
-`NavBar` was listed here and does not call it — it sits on its own surface with
-its own boundary, and the entry was wrong rather than the component.
+sheets, `Toolbar`, `SegmentedControl`'s track, `TextFieldVariant.Filled`,
+`NavBar` in both styles and on glass, `NavRail`, `NavSearch`'s results and a
+navigation slot's recess, someone else's `ChatBubble`, `TimePicker`'s field,
+`WheelPicker`'s band, a `Popover` with its arrow (the arrow is outlined too),
+the pull-to-refresh disc, a disabled FAB, an avatar with neither name nor
+picture, `GlassSurface`, and the activity calendar's legend all take one. The
+segmented control's *thumb* does not — see below.
 
-That third part is the one a darker `outline` cannot do. An elevated `Card` is
+`selectionEdge()` is the same for a **selection**: an outline in the accent
+round a selected tint, which at this tier is 1.25:1 from the page. The travelling
+indicators of `NavBar`, `NavRail` and `TabBar`, the current `Pagination` page, a
+selected `FilterChip`, a selected `ListItem` (and so a `CommandPalette`
+highlight and a `TimelineList` row) and a selected `Table` row take it.
+
+**Marks as well as colours.** Where a state was colour and nothing else, the
+tier adds a mark, and only this tier:
+
+| Component | At `High` |
+|---|---|
+| `Switch` | A check in the thumb when on, a dash when off |
+| `Timeline`, `TimelineList`, `BranchTimeline` | Stops not yet reached are hollow; the halo round the current stop is a solid ring |
+| `PageIndicator` | A `Worm` rests with the current dot widened, as `Pill` does |
+| `Breadcrumbs` | Crumbs you can follow are underlined |
+| `Stat` | A good or bad trend gets a tick or an alert before it |
+| `Badge` | A ring of the page's colour separates it from what it sits on |
+| `Slider`, `RangeSlider` | Ticks are cut into the track in the page's colour |
+
+And nothing that is text fades: a coach mark's step count, a chat bubble's
+time, a toast's stacked rims, a wheel's neighbouring rows (to no fainter than
+5.7:1) and an idle scrollbar all go to full ink.
+
+That edge part is the one a darker `outline` cannot do. An elevated `Card` is
 `surfaceRaised` on the page with a shadow for an edge, and a shadow does not
 change between tiers; at the high-contrast light tier those two grounds are both
 pure white, so the card measures **1.00:1** against the page it sits on — against
@@ -119,10 +160,11 @@ all. It is the same trade iOS makes with its own segmented control, at a
 measured 1.15:1, and it is a trade: someone who could find the old `#D0D0D0`
 ground and cannot find this shadow has lost something real.
 
-A selected **chip** still takes `outlineStrong`, because a tint 1.29:1 from the
-page genuinely cannot carry it alone. `contrastFailures` walks `outlineStrong`
-against the fills as well as the grounds, which is what keeps that promise
-honest.
+A selected **chip** is its tint and its label's colour at the standard tier; its
+unselected border goes. At the enhanced tier the tint cannot carry it alone, so
+it keeps an edge, in the accent — `selectionEdge()`. `contrastFailures` walks
+`outlineStrong` against the fills as well as the grounds, which is what keeps
+the unselected chip's boundary honest.
 
 **How this is kept honest.** `LocalContrastLevel` was provided by the theme and
 read by nothing in the repo for most of the project's life, and it went

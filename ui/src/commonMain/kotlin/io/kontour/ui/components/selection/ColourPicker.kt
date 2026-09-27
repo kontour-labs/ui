@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +42,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.interaction.rememberTapFeedback
@@ -379,6 +382,7 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
         )
     }
 
+    val look = cursorLook()
     Canvas(
         Modifier
             .fillMaxWidth()
@@ -417,7 +421,8 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
             Offset(
                 hsv.saturation.coerceIn(0f, 1f) * size.width,
                 (1f - hsv.value.coerceIn(0f, 1f)) * size.height,
-            )
+            ),
+            look,
         )
     }
 }
@@ -477,6 +482,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
         onHsvChange(next)
     }
 
+    val look = cursorLook()
     Canvas(
         Modifier
             .fillMaxWidth()
@@ -541,7 +547,8 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
             Offset(
                 (column + 0.5f) * cell.width,
                 (row + 0.5f) * cell.height,
-            )
+            ),
+            look,
         )
     }
 }
@@ -632,6 +639,7 @@ private fun Track(
         onFractionChange(fraction)
     }
 
+    val look = cursorLook()
     Canvas(
         Modifier
             .fillMaxWidth()
@@ -681,7 +689,7 @@ private fun Track(
             brush = background(),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius),
         )
-        cursor(Offset(fraction.coerceIn(0f, 1f) * size.width, size.height / 2f))
+        cursor(Offset(fraction.coerceIn(0f, 1f) * size.width, size.height / 2f), look)
     }
 }
 
@@ -696,16 +704,16 @@ private fun Track(
  * Clamped inside the box rather than centred on the value at the edges, so the
  * marker is never half drawn off the side of the control it belongs to.
  */
-private fun DrawScope.cursor(at: Offset) {
+private fun DrawScope.cursor(at: Offset, look: CursorLook) {
     val radius = CursorRadius.toPx()
-    val edge = radius + CursorStroke.toPx()
+    val stroke = look.stroke.toPx()
+    val edge = radius + stroke
     val centre = Offset(
         at.x.coerceIn(edge, (size.width - edge).coerceAtLeast(edge)),
         at.y.coerceIn(edge, (size.height - edge).coerceAtLeast(edge)),
     )
-    val stroke = CursorStroke.toPx()
     drawCircle(
-        color = Color.Black.copy(alpha = CursorShadowAlpha),
+        color = Color.Black.copy(alpha = look.outerAlpha),
         radius = radius + stroke / 2f,
         center = centre,
         style = Stroke(stroke * 2f),
@@ -768,7 +776,21 @@ private const val AreaAspect = 1.6f
 private val SwatchSize: Dp = 28.dp
 private val TrackHeight: Dp = 20.dp
 private val CursorRadius: Dp = 7.dp
-private val CursorStroke: Dp = 2.dp
+
+/**
+ * How the cursor's two rings are drawn, read once in composition.
+ *
+ * The outer ring is a shadow at the standard tier and solid at the enhanced
+ * one, where a ring the reader has to find on any hue should not be the
+ * translucent half of the pair; and both are as thick as a strong border.
+ */
+@Immutable
+private class CursorLook(val stroke: Dp, val outerAlpha: Float)
+
+@Composable
+@ReadOnlyComposable
+private fun cursorLook(): CursorLook =
+    CursorLook(Theme.sizing.borderWidthStrong, if (highContrast()) 1f else CursorShadowAlpha)
 private const val CursorShadowAlpha = 0.28f
 
 /**

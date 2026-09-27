@@ -39,7 +39,9 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
@@ -186,6 +188,8 @@ fun Slider(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
     val motion = Theme.motion
+    // The ring of page colour round the thumb, as thick as a strong border.
+    val thumbRingLine = Theme.sizing.borderWidthStrong
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
 
@@ -711,7 +715,7 @@ fun Slider(
                             // where it overlaps the filled track.
                             ringColour = colours.thumbRing,
                             fillColour = thumbColour,
-                            ringPx = SliderThumbRing.toPx(),
+                            ringPx = thumbRingLine.toPx(),
                             capsule = pill,
                         )
 
@@ -772,10 +776,14 @@ object SliderDefaults {
     @ReadOnlyComposable
     fun colours(
         indicator: Color = Theme.colours.primary,
-        track: Color = Theme.colours.outline,
+        // `outline`, and `inactive` at the enhanced tier: the fill has to be
+        // told apart from the track, and `outline` was 2.93:1 from it in dark.
+        track: Color = trackAtTier(Theme.colours.outline),
         thumb: Color = indicator,
         thumbRing: Color = Theme.colours.surface,
-        tick: Color = Theme.colours.contentSubtle,
+        // At the enhanced tier a tick is a notch cut in the page's colour:
+        // `contentSubtle` on the darker track was 1.6:1.
+        tick: Color = if (highContrast()) Theme.colours.background else Theme.colours.contentSubtle,
         tickOnIndicator: Color = Theme.colours.onPrimary,
         indicatorDisabled: Color = Theme.colours.contentDisabled,
         trackDisabled: Color = Theme.colours.surfaceSunken,
@@ -836,7 +844,6 @@ object SliderDefaults {
 internal val SliderLabelGap = 6.dp
 
 /** The page-coloured ring around a thumb. Constant, not scaled — see `sliderThumb`. */
-internal val SliderThumbRing = 2.dp
 
 
 private fun Float.coerceIn(range: ClosedFloatingPointRange<Float>): Float =

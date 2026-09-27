@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -166,6 +169,9 @@ fun Badge(
         else -> "$count"
     }
 
+    // At the enhanced tier a ring of the page's colour round the badge, so a red
+    // dot straddling a black icon is a dot on the icon rather than part of it.
+    val ring = if (highContrast()) BorderStroke(Theme.sizing.borderWidth, Theme.colours.background) else null
     if (label == null) {
         Box(
             modifier
@@ -173,6 +179,7 @@ fun Badge(
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
                 .clip(Theme.shapes.pill)
                 .background(containerColour)
+                .optionalBorder(ring, Theme.shapes.pill)
         )
     } else {
         Box(
@@ -181,6 +188,7 @@ fun Badge(
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                 .clip(Theme.shapes.capsule)
                 .background(containerColour)
+                .optionalBorder(ring, Theme.shapes.capsule)
                 .padding(horizontal = 5.dp),
             contentAlignment = Alignment.Center,
         ) {

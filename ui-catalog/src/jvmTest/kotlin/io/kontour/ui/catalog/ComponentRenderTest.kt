@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import io.kontour.ui.a11y.ContrastThreshold
+import io.kontour.ui.a11y.contrastRatio
 import io.kontour.ui.contract.componentRegistry
 import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import java.io.File
@@ -72,10 +76,28 @@ class ComponentRenderTest {
     @Test
     fun everySpecimenRendersDark() = renderAll(dark = true)
 
-    private fun renderAll(dark: Boolean) {
-        val suffix = if (dark) "dark" else "light"
+    /**
+     * Every specimen again at the enhanced tier, where a component that is a
+     * quiet fill with a shadow for an edge disappears into the page.
+     *
+     * No render had ever been taken at this tier: the contract, the demos and
+     * these pictures all ran at the standard one, so a chat bubble, a nav bar or
+     * a knob's face could lose its edge and nothing would look. Resting only —
+     * the extra states are about motion and pressing, which the tier does not
+     * change the shape of — and each is also held to a boundary, below.
+     */
+    @Test
+    fun everySpecimenRendersHighContrastLight() = renderAll(dark = false, contrast = ContrastLevel.High)
+
+    @Test
+    fun everySpecimenRendersHighContrastDark() = renderAll(dark = true, contrast = ContrastLevel.High)
+
+    private fun renderAll(dark: Boolean, contrast: ContrastLevel = ContrastLevel.Standard) {
+        val high = contrast == ContrastLevel.High
+        val suffix = (if (high) "hc-" else "") + if (dark) "dark" else "light"
         val drawn = mutableListOf<String>()
         val blank = mutableListOf<String>()
+        val edgeless = mutableListOf<String>()
 
         for (spec in componentRegistry) {
             val file = Screenshot.render(
@@ -84,10 +106,17 @@ class ComponentRenderTest {
                 height = spec.renderHeight?.times(2) ?: CanvasHeight,
                 trim = InkMargin,
             ) {
-                Frame(dark = dark) { spec.content(Modifier, true) {} }
+                Frame(dark = dark, contrast = contrast) { spec.content(Modifier, true) {} }
             }
             if (inkedFraction(file) < MinimumInk) blank += spec.name
             drawn += spec.slug
+            if (high && spec.name !in EdgeExempt) {
+                val weakest = boundaryContrast(file)
+                if (weakest < ContrastThreshold.NonText) {
+                    edgeless += "${spec.name}: ${"%.2f".format(weakest)}:1"
+                }
+            }
+            if (high) continue
 
             // The states a component cannot be caught in at rest. Same frame and
             // same density, so the extra picture is comparable with the resting
@@ -101,13 +130,21 @@ class ComponentRenderTest {
                     height = state.height?.times(2) ?: spec.renderHeight?.times(2) ?: CanvasHeight,
                     trim = InkMargin,
                 ) {
-                    Frame(dark = dark) { state.content(Modifier) }
+                    Frame(dark = dark, contrast = contrast) { state.content(Modifier) }
                 }
                 if (inkedFraction(stateFile) < MinimumInk) blank += "${spec.name} (${state.name})"
                 drawn += "${spec.slug}-${state.name}"
             }
         }
 
+        assertTrue(
+            edgeless.isEmpty(),
+            "${edgeless.size} specimens have no boundary at 3:1 from the page at the " +
+                "enhanced tier ($suffix) — the strongest step found walking in from " +
+                "each side is below what WCAG 1.4.11 asks of a component's edge. " +
+                "Give it `contrastEdge()`, or exempt it by name with the reason:\n" +
+                edgeless.joinToString("\n") { "  · $it" },
+        )
         assertTrue(
             blank.isEmpty(),
             "${blank.size} specimens rendered a blank card in $suffix — a " +
@@ -135,8 +172,8 @@ class ComponentRenderTest {
      * compose one whether or not they show anything in it.
      */
     @androidx.compose.runtime.Composable
-    private fun Frame(dark: Boolean, content: @Composable () -> Unit) {
-        KontourTheme(darkTheme = dark, reduceMotion = true) {
+    private fun Frame(dark: Boolean, contrast: ContrastLevel, content: @Composable () -> Unit) {
+        KontourTheme(darkTheme = dark, contrast = contrast, reduceMotion = true) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
@@ -170,7 +207,66 @@ class ComponentRenderTest {
         return inked.toDouble() / (image.width * image.height)
     }
 
+    /**
+     * The weakest of four walks in from the edges of the picture, each scored by
+     * the strongest step it meets against the page.
+     *
+     * Each walk starts on the page — the render keeps a margin — and goes in
+     * along the middle row or column, through whatever the component draws at its
+     * boundary: an edge, a fill, the ink of its text. A shadow is a gradient of
+     * small steps and scores low; the line or fill behind it scores high, as long
+     * as it is within [BoundaryReach] of where the ink began. So a container
+     * that is a quiet fill with a shadow for an edge — the defect this exists
+     * for — is the thing that fails.
+     */
+    private fun boundaryContrast(file: File): Float {
+        val image = ImageIO.read(file) ?: return 0f
+        val page = Color(image.getRGB(0, 0))
+        fun score(points: Sequence<Pair<Int, Int>>): Float {
+            var started = -1
+            var best = 1f
+            for ((i, point) in points.withIndex()) {
+                val (x, y) = point
+                val pixel = image.getRGB(x, y)
+                if (started < 0 && pixel != image.getRGB(0, 0)) started = i
+                if (started >= 0) {
+                    best = maxOf(best, contrastRatio(Color(pixel), page))
+                    if (i - started >= BoundaryReach) break
+                }
+            }
+            return best
+        }
+        val w = image.width
+        val h = image.height
+        val midX = w / 2
+        val midY = h / 2
+        return minOf(
+            score((0 until w).asSequence().map { it to midY }),
+            score((w - 1 downTo 0).asSequence().map { it to midY }),
+            score((0 until h).asSequence().map { midX to it }),
+            score((h - 1 downTo 0).asSequence().map { midX to it }),
+        )
+    }
+
     private companion object {
+        /**
+         * How far past the first drawn pixel a walk looks for the edge: 12dp at
+         * 2×, past the widest soft shadow the scale has.
+         */
+        const val BoundaryReach = 24
+
+        /**
+         * Specimens that have no edge to find, with the reason.
+         *
+         * A walk along the middle row or column of a picture meets the component
+         * only if the component is there; these are ones where it meets a gap
+         * by design, or where the thing drawn is deliberately faint.
+         */
+        val EdgeExempt = mapOf(
+            "Skeleton" to "a placeholder, deliberately faint, and announced as loading",
+            "Modifier.marquee" to "text scrolling in a clipped line; the text is the component",
+        )
+
         /**
          * 300×120dp at the goldens' 2×.
          *

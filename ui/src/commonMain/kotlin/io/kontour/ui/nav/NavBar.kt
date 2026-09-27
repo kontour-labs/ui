@@ -33,6 +33,9 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
@@ -220,6 +223,7 @@ internal fun NavBarLayout(
                         .fillMaxSize()
                         .clip(navItemShape(circle))
                         .background(colours.indicator)
+                        .optionalBorder(selectionEdge(), navItemShape(circle))
                 )
             },
         ) {
@@ -300,6 +304,9 @@ private fun BarGround(
             containerColour = colours.container,
             contentColour = contentColour,
             shadow = shadow,
+            // A floating bar is `surface` on `background` with a shadow for an
+            // edge, and those two grounds are 1.00:1 at the enhanced light tier.
+            border = contrastEdge(),
             content = content,
         )
     }

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.ContentScope
@@ -128,7 +129,7 @@ object TimelineDefaults {
     @ReadOnlyComposable
     fun colours(
         node: Color = Theme.colours.primary,
-        rail: Color = Theme.colours.outlineStrong,
+        rail: Color = Theme.colours.inactive,
         progress: Color = Theme.colours.primary,
     ): TimelineColours = TimelineColours(node, rail, progress)
 
@@ -269,6 +270,7 @@ fun TimelineItem(
     val colours = context?.colours ?: TimelineDefaults.colours()
     val progress = context?.progress
     val slot = remember { TimelineSlot() }
+    val enhanced = highContrast()
     // Where the journey stands against this item. Read in composition only to
     // start and stop the motion and to colour a spinner; the rail itself reads
     // the index as it draws, after the timeline has laid its items out.
@@ -287,6 +289,7 @@ fun TimelineItem(
                 loading = loading,
                 ringWidth = connectorWidth,
                 here = at?.here == true,
+                reached = at?.reached != false,
             ),
             legs = listOf(
                 RailLeg(
@@ -366,6 +369,7 @@ fun TimelineItem(
                     nodeAlong = nodeRadius + TimelineNodeGap.toPx(),
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
+                    highContrast = enhanced,
                 )
             }
         }
@@ -450,6 +454,7 @@ private fun AcrossItem(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val band = nodeSize + TimelineNodeGap * 2
+    val enhanced = highContrast()
     Box(
         Modifier
             .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Band, band)))
@@ -467,6 +472,7 @@ private fun AcrossItem(
                     nodeAlong = centre,
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
+                    highContrast = enhanced,
                 )
             },
     ) {

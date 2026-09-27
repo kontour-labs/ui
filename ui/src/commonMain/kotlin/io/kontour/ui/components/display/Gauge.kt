@@ -31,7 +31,9 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.lines
 import kotlin.math.max
 
 /**
@@ -143,6 +145,9 @@ fun Gauge(
     }
     val motion = Theme.motion
     val density = LocalDensity.current
+    // A tick and the thumb's ring are lines, and thicken with the tier.
+    val tickLine = Theme.sizing.lines(1.5f)
+    val thumbRingLine = Theme.sizing.borderWidthStrong
     val labelStyle = Theme.typography.labelSmall.copy(color = colours.tickLabel)
     val measurer = rememberTextMeasurer()
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
@@ -234,7 +239,7 @@ fun Gauge(
                     } else {
                         tickEdge - majorPx - tickGapPx - labelExtent / 2f
                     }
-                    val tickWidth = GaugeTickWidth.toPx()
+                    val tickWidth = tickLine.toPx()
                     val minorPx = GaugeMinorTick.toPx()
                     val stops = colours.indicator.stops(range, scaleDefault)
                     val fill = dialFill(geometry, thicknessPx, cap, stops)
@@ -271,7 +276,7 @@ fun Gauge(
                         if (hasThumb) {
                             dialThumb(
                                 geometry, at, radius = thumbPx,
-                                ring = GaugeThumbRing.toPx(),
+                                ring = thumbRingLine.toPx(),
                                 fill = colours.thumb, ringColour = colours.thumbRing,
                             )
                         }
@@ -402,7 +407,7 @@ object GaugeDefaults {
     @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
-        track: Color = Theme.colours.surfaceSunken,
+        track: Color = trackAtTier(Theme.colours.surfaceSunken),
         tick: Color = Theme.colours.outline,
         tickLabel: Color = Theme.colours.contentMuted,
         needle: Color = Theme.colours.content,
@@ -418,8 +423,6 @@ private const val GaugeSweep: Float = 270f
 internal val GaugeTickGap: Dp = 4.dp
 internal val GaugeMajorTick: Dp = 6.dp
 internal val GaugeMinorTick: Dp = 3.dp
-internal val GaugeTickWidth: Dp = 1.5.dp
-internal val GaugeThumbRing: Dp = 2.dp
 
 /** How far past the arc's half-width a thumb reaches. */
 internal const val ThumbShare: Float = 0.85f

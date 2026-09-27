@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.theme.Theme
 
 /**
@@ -52,7 +53,7 @@ fun LinearProgress(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
     height: Dp = ProgressDefaults.LinearHeight,
 ) {
     val motion = Theme.motion
@@ -150,7 +151,7 @@ fun CircularProgress(
     contentDescription: String? = null,
     size: Dp = ProgressDefaults.CircularSize,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
     strokeWidth: Dp = ProgressDefaults.CircularStrokeWidth,
 ) {
     // Indeterminate is the [Spinner], not a second sweep of the same arc.
@@ -241,7 +242,7 @@ fun StepProgress(
     contentDescription: String? = null,
     working: Boolean = false,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
     height: Dp = ProgressDefaults.StepHeight,
     gap: Dp = ProgressDefaults.StepGap,
 ) {

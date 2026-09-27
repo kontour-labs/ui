@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.TriStateCheckbox
@@ -94,6 +96,8 @@ internal data class TableEnv<T>(
     val columnCount: Int,
     val rowCount: Int,
     val hasFooter: Boolean,
+    /** The rules' weight: the theme's divider, which thickens with the tier. */
+    val hairline: Dp,
 ) {
     /** The declared column drawn at [index] of the layout, which counts the checkbox column first. */
     fun column(index: Int): TableColumn<T> = columns[if (leading) index - 1 else index]
@@ -329,6 +333,10 @@ private fun <T> BodyRow(env: TableEnv<T>, index: Int, item: T) {
                         if (announcement != null) contentDescription = announcement
                     }
                     .background(ground)
+                    // A selected row is a tint; at the enhanced tier it is also
+                    // outlined in the accent — the single-choice table's only
+                    // mark, since it has no checkbox column to say so.
+                    .optionalBorder(if (isSelected) selectionEdge() else null, RectangleShape)
                     .then(click ?: Modifier)
                     .insetFocusRing(interactions, enabled = click != null && env.enabled)
                     .tableRules(
@@ -499,7 +507,7 @@ private class CellGroupPolicy(
  */
 private fun Modifier.tableRules(env: TableEnv<*>, top: Color?, bottom: Color?): Modifier = drawWithContent {
     drawContent()
-    val hair = HairlineWidth.toPx()
+    val hair = env.hairline.toPx()
     val layout = env.layout
     val shift = env.scroll.value
     val rtl = layoutDirection == LayoutDirection.Rtl
@@ -563,4 +571,3 @@ private fun androidx.compose.ui.text.TextStyle.figures(numeric: Boolean) =
 private const val TabularFigures = "tnum"
 private const val HeaderMaxLines = 2
 private const val TableRowType = "tableRow"
-private val HairlineWidth: Dp = 1.dp

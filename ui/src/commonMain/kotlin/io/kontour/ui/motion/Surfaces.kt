@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.platform.platformSupportsBackdropBlur
@@ -151,7 +152,10 @@ fun GlassSurface(
             // A hairline of the content colour along the edge. On real frosted
             // glass this is the refraction at the bevel; here it is the thing
             // that stops a translucent rectangle reading as a bug.
-            border = androidx.compose.foundation.BorderStroke(
+            //
+            // At the enhanced tier the pane is near-opaque and the hairline, at
+            // 7% of the ink, is invisible; it becomes the tier's edge instead.
+            border = contrastEdge() ?: androidx.compose.foundation.BorderStroke(
                 Theme.sizing.borderWidth,
                 Theme.colours.content.copy(alpha = borderAlpha * 0.2f),
             ),

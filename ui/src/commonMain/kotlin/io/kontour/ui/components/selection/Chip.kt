@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -222,6 +223,9 @@ fun FilterChip(
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
+    // At the enhanced tier the selected chip keeps an edge, in the accent: its
+    // tint alone is 1.25:1 from the page.
+    val selectedBorder = selectionEdge()?.let { colours.accent.solid } ?: colours.outlineStrong.invisible()
 
     val container by animateColorAsState(
         targetValue = when {
@@ -244,7 +248,7 @@ fun FilterChip(
     val borderColour by animateColorAsState(
         targetValue = when {
             !enabled -> colours.outline
-            selected -> colours.outlineStrong.invisible()
+            selected -> selectedBorder
             else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),

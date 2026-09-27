@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.lines
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -151,6 +153,9 @@ fun Meter(
     }
     val motion = Theme.motion
     val density = LocalDensity.current
+    // As `Gauge`'s: lines, thickening with the tier.
+    val tickLine = Theme.sizing.lines(1.5f)
+    val thumbRingLine = Theme.sizing.borderWidthStrong
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val labelStyle = Theme.typography.labelSmall.copy(color = colours.tickLabel)
     val measurer = rememberTextMeasurer()
@@ -200,8 +205,8 @@ fun Meter(
     val tickGapPx = with(density) { GaugeTickGap.toPx() }
     val majorPx = if (majorTicks >= 2) with(density) { GaugeMajorTick.toPx() } else 0f
     val minorPx = with(density) { GaugeMinorTick.toPx() }
-    val tickWidthPx = with(density) { GaugeTickWidth.toPx() }
-    val ringPx = with(density) { GaugeThumbRing.toPx() }
+    val tickWidthPx = with(density) { tickLine.toPx() }
+    val ringPx = with(density) { thumbRingLine.toPx() }
     val thumbPx = if (hasThumb) thicknessPx * ThumbShare else 0f
     // The needle is a small triangle beside the track, pointing at the reading
     // from the side the ticks are not on: a caret on a ruler. It was a stripe
@@ -473,7 +478,7 @@ object MeterDefaults {
     @ReadOnlyComposable
     fun colours(
         indicator: ScaleColours = ScaleColours.solid(Theme.colours.primary),
-        track: Color = Theme.colours.surfaceSunken,
+        track: Color = trackAtTier(Theme.colours.surfaceSunken),
         tick: Color = Theme.colours.outline,
         tickLabel: Color = Theme.colours.contentMuted,
         needle: Color = Theme.colours.content,

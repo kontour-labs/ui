@@ -1186,7 +1186,8 @@ private fun ConfirmingIcon(
     confirmation: () -> Float,
     reduceMotion: Boolean,
 ) {
-    val stroke = with(LocalDensity.current) { SwipeTickStroke.toPx() }
+    // Half a line heavier than a strong border, at either tier.
+    val stroke = with(LocalDensity.current) { (Theme.sizing.borderWidthStrong + 0.5.dp).toPx() }
     Box(
         modifier = Modifier
             .size(Theme.sizing.iconLarge)
@@ -1283,7 +1284,6 @@ private const val SwipeConfirmDrawMillis: Int = 300
 private const val SwipeConfirmHoldMillis: Int = 320
 
 /** The tick's stroke. */
-private val SwipeTickStroke: Dp = 2.5.dp
 
 /** The share of the confirmation the icon takes to leave, and the tick waits for. */
 private const val IconOutBy: Float = 0.35f

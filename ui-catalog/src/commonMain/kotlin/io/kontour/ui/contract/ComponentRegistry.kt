@@ -1,5 +1,18 @@
 package io.kontour.ui.contract
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import com.composables.icons.tabler.outline.Bell
+import com.composables.icons.tabler.outline.Mail
+import io.kontour.ui.components.display.Avatar
+import io.kontour.ui.components.display.AvatarGroup
+import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.BadgedBox
+import io.kontour.ui.components.display.Card
+import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.Skeleton
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.Knob
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityMark
@@ -85,6 +98,12 @@ import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Banner
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.motion.GlassSurface
+import io.kontour.ui.nav.Breadcrumbs
+import io.kontour.ui.nav.Crumb
+import io.kontour.ui.nav.Pagination
+import io.kontour.ui.nav.TopBar
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Carousel
@@ -2336,6 +2355,120 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     }
                 }
             }
+        }
+    )
+
+    // --- Pictures for the components the contract never drew ----------------
+    //
+    // Rendered at both contrast tiers, which is why they are here: the
+    // high-contrast audit found that about twenty components had no specimen, so
+    // nothing had ever photographed them at the tier that asks the most of an
+    // edge. They are drawn, not operated — each has its own behaviour tests.
+
+    add(
+        ComponentSpec("Tag", role = null, underContract = false) { modifier, _, _ ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Tag(tone = Tone.Success) { +"On time" }
+                Tag(tone = Tone.Warning) { +"Delayed" }
+                Tag(tone = Tone.Neutral) { +"Platform 2" }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Badge", role = null, underContract = false) { modifier, _, _ ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                BadgedBox(badge = { Badge(count = 3) }) { Icon(Tabler.Outline.Bell, contentDescription = null) }
+                BadgedBox(badge = { Badge() }) { Icon(Tabler.Outline.Mail, contentDescription = null) }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Avatar", role = null, underContract = false) { modifier, _, _ ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Avatar(name = "Ada Lovelace")
+                // No name and no picture: the placeholder, which is the one that
+                // needs an edge at the enhanced tier.
+                Avatar()
+                AvatarGroup(names = listOf("Ada Lovelace", "Grace Hopper", "Alan Turing", "Ken Thompson"))
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Card", role = null, underContract = false) { modifier, _, _ ->
+            Card(modifier = modifier.width(SpecimenProseWidth)) {
+                Text("Perth Underground")
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Pagination", role = null, underContract = false) { modifier, _, _ ->
+            Pagination(value = 3, pageCount = 12, onValueChange = {}, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec("Breadcrumbs", role = null, underContract = false) { modifier, _, _ ->
+            Breadcrumbs(
+                listOf(Crumb("Routes", onClick = {}), Crumb("Route 950", onClick = {}), Crumb("Stops")),
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec("ColourSwatchPicker", role = null, underContract = false) { modifier, _, _ ->
+            val swatches = listOf(Color(0xFF0B6E99), Color(0xFFE11F26), Color(0xFF1B5E20), Color(0xFFF2C200))
+            ColourSwatchPicker(
+                value = swatches[1],
+                options = swatches,
+                onValueChange = {},
+                swatchColour = { it },
+                swatchLabel = { "Route colour" },
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec("TopBar", role = null, underContract = false) { modifier, _, _ ->
+            TopBar(modifier = modifier.width(SpecimenProseWidth)) { +"Perth Underground" }
+        }
+    )
+
+    add(
+        ComponentSpec("GlassSurface", role = null, underContract = false) { modifier, _, _ ->
+            GlassSurface(modifier = modifier, shape = Theme.shapes.pill) {
+                Text("Live departures", modifier = Modifier.padding(16.dp))
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Skeleton", role = null, underContract = false) { modifier, _, _ ->
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Skeleton(Modifier.width(180.dp).height(20.dp))
+                Skeleton(Modifier.width(120.dp).height(16.dp))
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("EmptyState", role = null, underContract = false) { modifier, _, _ ->
+            EmptyState(modifier.width(SpecimenProseWidth)) {
+                +"No favourites yet"
+                message { +"Star a stop and it will appear here." }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("PageIndicator", role = null, underContract = false) { modifier, _, _ ->
+            val carousel = rememberCarouselState { 5 }
+            PageIndicator(state = carousel, modifier = modifier, onPageClick = {})
         }
     )
 }

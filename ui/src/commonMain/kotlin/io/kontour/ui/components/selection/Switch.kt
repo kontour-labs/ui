@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -135,6 +136,12 @@ fun Switch(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
+    // At the enhanced tier the thumb carries its state as a mark as well as a
+    // position: a check when on, a dash when off. Position alone is a
+    // difference of colour and place, and a reader who asked for more contrast
+    // may be the reader who cannot see the colour.
+    val stateGlyph = highContrast()
+    val glyphStroke = Theme.sizing.borderWidthStrong
     // `pill` rather than `control`, and the reason is the thumb below.
     //
     // The thumb is drawn at `thumbPx / 2f` — half its own height, with no cap,
@@ -185,7 +192,9 @@ fun Switch(
      * enabled to disabled, where both ends move at once and the thumb does not.
      */
     val trackOff by animateColorAsState(
-        targetValue = if (enabled) colours.outlineStrong else colours.contentDisabled,
+        // `inactive`, which is `outlineStrong` at the standard tier and 3:1 from
+        // `primary` at the enhanced one, where `outlineStrong` was 1.85.
+        targetValue = if (enabled) colours.inactive else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "switchTrackOff",
     )
@@ -614,6 +623,42 @@ fun Switch(
             colour = thumbColour,
             wallOnRight = band.offset > 0f,
         )
+
+        if (stateGlyph) {
+            // Cross-faded by the same fraction as the track, so a drag half way
+            // over is half a check and half a dash, and each is drawn in the
+            // colour of the track end it belongs to.
+            val centre = Offset(x + thumbWidth / 2f, top + thumbPx / 2f)
+            val r = thumbPx * 0.26f
+            val stroke = glyphStroke.toPx()
+            if (f > 0f) {
+                val check = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(centre.x - r, centre.y)
+                    lineTo(centre.x - r * 0.3f, centre.y + r * 0.7f)
+                    lineTo(centre.x + r, centre.y - r * 0.7f)
+                }
+                drawPath(
+                    check,
+                    trackOn,
+                    alpha = f,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = stroke,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                    ),
+                )
+            }
+            if (f < 1f) {
+                drawLine(
+                    trackOff,
+                    Offset(centre.x - r * 0.8f, centre.y),
+                    Offset(centre.x + r * 0.8f, centre.y),
+                    strokeWidth = stroke,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    alpha = 1f - f,
+                )
+            }
+        }
     }
 }
 

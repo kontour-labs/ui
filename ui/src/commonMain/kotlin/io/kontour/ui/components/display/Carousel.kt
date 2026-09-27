@@ -1,6 +1,7 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.runtime.withFrameNanos
+import io.kontour.ui.a11y.highContrast
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import androidx.compose.animation.core.animateDpAsState
@@ -758,7 +759,7 @@ fun PageIndicator(
     onPageClick: ((Int) -> Unit)? = null,
     style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
-    inactiveColour: Color = Theme.colours.outlineStrong,
+    inactiveColour: Color = Theme.colours.inactive,
     pageDescription: (Int, Int) -> String = Theme.strings.pageOfCount,
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
@@ -809,7 +810,7 @@ fun PageIndicator(
             modifier = Modifier,
             enabled = enabled,
             onPageClick = onPageClick,
-            style = style,
+            requestedStyle = style,
             activeColour = activeColour,
             inactiveColour = inactiveColour,
             label = pageDescription,
@@ -841,11 +842,15 @@ private fun PageDots(
     modifier: Modifier,
     enabled: Boolean,
     onPageClick: ((Int) -> Unit)?,
-    style: PageIndicatorStyle,
+    requestedStyle: PageIndicatorStyle,
     activeColour: Color,
     inactiveColour: Color,
     label: (Int, Int) -> String,
 ) {
+    // A worm rests as a row of identical dots, which says where you are only
+    // by colour. At the enhanced tier that is not enough, so it rests the way
+    // `Pill` does — the current dot widened — and still travels like a worm.
+    val style = if (highContrast() && requestedStyle == PageIndicatorStyle.Worm) PageIndicatorStyle.Pill else requestedStyle
     val count = state.pageCount
     val current = state.currentPage
     // Both of the styles that draw a pill *over* the dots rather than widening

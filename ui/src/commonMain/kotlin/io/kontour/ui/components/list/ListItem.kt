@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ExcludeFromSelection
@@ -284,6 +286,10 @@ internal fun ListItemImpl(
                     // deliberately quiet, so at the tier that asks for more it is the
                     // edge rather than the fill that has to say where a row ends.
                     .then(if (edged) contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier else Modifier)
+                    // A selected row is a tint 1.25:1 from the page at the
+                    // enhanced tier; there it is outlined in the accent as well,
+                    // over whatever edge the row already has.
+                    .optionalBorder(if (selected && enabled) selectionEdge() else null, shape)
                     .then(clickModifier)
                     // `xs`, not `sm`. The 12dp version put 24dp of air around a
                     // single line of text inside a row whose minimum is already 56dp,

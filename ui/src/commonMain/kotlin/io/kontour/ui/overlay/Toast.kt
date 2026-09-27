@@ -62,12 +62,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.components.action.ButtonDefaults
 import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.components.action.Button
-import io.kontour.ui.components.action.ButtonColours
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
@@ -1402,7 +1403,12 @@ private fun ToastSurface(
         border = if (depth == 0) {
             null
         } else {
-            BorderStroke(Theme.sizing.borderWidth, content.copy(alpha = ToastDefaults.PillRim))
+            // Solid at the enhanced tier, where a translucent rim is the part
+            // of the stack a reader who asked for contrast would lose.
+            BorderStroke(
+                Theme.sizing.borderWidth,
+                if (highContrast()) content else content.copy(alpha = ToastDefaults.PillRim),
+            )
         },
         shadow = Theme.elevation.high,
     ) {
@@ -1508,13 +1514,17 @@ private fun ToastSurface(
                     // arguing. A wash of the colour the text is already in
                     // gives it a ground at every tone without introducing a
                     // second hue.
-                    colours = ButtonColours(
+                    //
+                    // Through `ButtonDefaults`, so the ghost's edge at the
+                    // enhanced tier comes with it: built by hand, this was a
+                    // word on a dark pill with nothing to say it could be
+                    // pressed, at exactly the tier that asks for more.
+                    colours = ButtonDefaults.colours(
+                        variant = ButtonVariant.Ghost,
                         container = content.copy(alpha = ToastDefaults.ActionGround),
                         content = content,
-                        border = null,
                         containerDisabled = Color.Transparent,
                         contentDisabled = content.copy(alpha = ToastDefaults.DisabledContent),
-                        borderDisabled = null,
                     ),
                 ) { +toast.actionLabel }
             }

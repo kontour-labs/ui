@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.layout.AlignmentLine
@@ -27,6 +29,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.isSpecified
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.list.ListItemImpl
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -95,6 +98,8 @@ internal class RailNode(
     val loading: Boolean,
     val ringWidth: Dp,
     val here: Boolean = false,
+    /** Whether a journey has got this far. Only a travelled timeline has stops that are not. */
+    val reached: Boolean = true,
 )
 
 /** Everything one row draws of the rail, legs in the order they are drawn. */
@@ -187,6 +192,7 @@ internal fun DrawScope.drawRail(
     nodeAlong: Float,
     nodeRadius: Float,
     phase: Float = Float.NaN,
+    highContrast: Boolean = false,
 ) {
     val space = RailSpace(axis, layoutDirection == LayoutDirection.Rtl, size)
     val clear = nodeRadius + TimelineNodeGap.toPx()
@@ -251,20 +257,31 @@ internal fun DrawScope.drawRail(
     val node = row.node ?: return
     if (node.loading) return
     val centre = space.point(nodeAlong, cross(node.lane))
+    val ring = node.ringWidth.toPx()
     if (node.here) {
-        drawCircle(node.colour.copy(alpha = HaloAlpha), radius = clear, center = centre)
+        // At the enhanced tier the halo is a ring rather than a wash: 30% of the
+        // node's colour is a shape the tier's reader may not see at all, and the
+        // stop the journey is *at* is the one thing on a timeline they came for.
+        val haloStyle = if (highContrast) Stroke(ring) else Fill
+        val haloAlpha = if (highContrast) 1f else HaloAlpha
+        val haloRadius = if (highContrast) clear - ring / 2f else clear
+        drawCircle(node.colour.copy(alpha = haloAlpha), radius = haloRadius, center = centre, style = haloStyle)
         if (!phase.isNaN()) {
             // A ping off the halo: out to [PulseReach] of it, easing off as it
             // goes, and fading to nothing on the way — then again.
             val eased = 1f - (1f - phase).let { it * it * it }
             drawCircle(
-                node.colour.copy(alpha = HaloAlpha * (1f - phase)),
-                radius = clear * (1f + (PulseReach - 1f) * eased),
+                node.colour.copy(alpha = haloAlpha * (1f - phase)),
+                radius = haloRadius * (1f + (PulseReach - 1f) * eased),
                 center = centre,
+                style = haloStyle,
             )
         }
     }
-    drawTimelineNode(centre, nodeRadius, node.ringWidth.toPx(), node.colour, node.filled)
+    // Not yet reached is hollow at the enhanced tier, so reached and not
+    // reached differ in shape as well as colour.
+    val filled = node.filled && (node.reached || !highContrast)
+    drawTimelineNode(centre, nodeRadius, ring, node.colour, filled)
 }
 
 /**
@@ -350,6 +367,7 @@ internal fun RailListRow(
 ) {
     val start = Theme.spacing.xs
     val label = Theme.typography.bodyMedium
+    val enhanced = highContrast()
     val lineHeight = with(LocalDensity.current) {
         if (label.lineHeight.isSpecified) label.lineHeight.toPx() else label.fontSize.toPx() * FallbackLeading
     }
@@ -393,6 +411,7 @@ internal fun RailListRow(
                     nodeAlong = nodeY.floatValue,
                     nodeRadius = nodeSize.toPx() / 2f,
                     phase = phase.floatValue,
+                    highContrast = enhanced,
                 )
             },
     ) { measurables, constraints ->

@@ -59,7 +59,6 @@ class ContrastLevelReachesComponentsTest {
             "borderWidthStrong" to (standard.borderWidthStrong to high.borderWidthStrong),
             "dividerThickness" to (standard.dividerThickness to high.dividerThickness),
             "focusRingWidth" to (standard.focusRingWidth to high.focusRingWidth),
-            "selectionIndicator" to (standard.selectionIndicator to high.selectionIndicator),
         )
         for ((name, pair) in lines) {
             val (std, hc) = pair

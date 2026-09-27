@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -398,7 +399,9 @@ private fun CoachmarkBubble(
                     Text(
                         text = "${tour.position} / ${tour.count}",
                         style = Theme.typography.labelSmall,
-                        colour = colours.accent.onSolid.copy(alpha = StepCountAlpha),
+                        // Faded beside the message at the standard tier (5.4:1); ink at the
+                        // enhanced one, which asks 7.
+                        colour = if (highContrast()) colours.accent.onSolid else colours.accent.onSolid.copy(alpha = StepCountAlpha),
                     )
                 }
                 Box(Modifier.weight(1f))

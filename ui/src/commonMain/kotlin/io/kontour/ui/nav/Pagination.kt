@@ -31,6 +31,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
@@ -337,6 +339,7 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
                 if (selected) colours.accent.container else androidx.compose.ui.graphics.Color.Transparent,
                 shape,
             )
+            .optionalBorder(if (selected) selectionEdge() else null, shape)
             .pointerCursor(enabled = enabled)
             .selectable(
                 selected = selected,

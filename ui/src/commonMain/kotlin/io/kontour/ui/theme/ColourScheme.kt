@@ -257,6 +257,27 @@ data class ColourScheme(
 
     /** Whether this scheme reads as dark. Drives status-bar icons and image scrims. */
     val isDark: Boolean,
+
+    /**
+     * A mark in its **off or not-yet** state, beside the same mark on: a
+     * switch's track when it is off, a timeline's stops not yet reached, the
+     * page dots that are not the current page, a slider's or gauge's track at
+     * the enhanced tier.
+     *
+     * [outlineStrong] in both standard schemes, so nothing at that tier moved
+     * when this arrived. It is its own role because the enhanced tier needs a
+     * value [outlineStrong] cannot be: that tier darkens every boundary toward
+     * [primary] — which is right for a boundary and wrong for the *other half of
+     * a pair*. A switch's off track was 1.85:1 from its on track at high
+     * contrast, which is closer than at the standard tier, where it was 4.8.
+     *
+     * Held by `StatePairContrastTest` to 3:1 from [primary] (the on half of
+     * every pair it is in) and to 4.5:1 from the grounds it sits on — 3:1 on
+     * [surfaceRaised], where the enhanced dark tier has no value that clears
+     * both. Last, and defaulted to [outlineStrong], so a scheme built before it
+     * existed still compiles and still draws exactly what it drew.
+     */
+    val inactive: Color = outlineStrong,
 )
 
 /**
@@ -337,6 +358,8 @@ fun lightColourScheme(
         literal = Palette.GreenDeep,
         comment = contentMuted,
     ),
+    /** See [ColourScheme.inactive]. */
+    inactive: Color = outlineStrong,
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
@@ -367,6 +390,7 @@ fun lightColourScheme(
     overlayDragged = overlayDragged,
     code = code,
     isDark = false,
+    inactive = inactive,
 )
 
 /** The default dark scheme. Surfaces and muted tones come from `home html.dark`. */
@@ -434,6 +458,8 @@ fun darkColourScheme(
         literal = Palette.GreenLight,
         comment = contentMuted,
     ),
+    /** See [ColourScheme.inactive]. */
+    inactive: Color = outlineStrong,
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
@@ -464,6 +490,7 @@ fun darkColourScheme(
     overlayDragged = overlayDragged,
     code = code,
     isDark = true,
+    inactive = inactive,
 )
 
 /**
@@ -538,7 +565,10 @@ fun highContrastLightColourScheme(
     contentDisabled: Color = Palette.GreyHcDisabled,
     outline: Color = Palette.GreyHcOutline,
     outlineStrong: Color = Palette.GreyHcMuted,
-    outlineSubtle: Color = Palette.GreyHcOutlineSubtle,
+    // The same as `outline`. A menu's or popover's border is this, on the page,
+    // and the fainter grey it used to be was 3.03:1 — the tier asks 4.5 of a
+    // boundary. There is no faint rule at the enhanced tier; that is its point.
+    outlineSubtle: Color = outline,
     primary: Color = Palette.Black,
     onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
@@ -608,6 +638,9 @@ fun highContrastLightColourScheme(
         literal = Palette.GreenOnLight,
         comment = contentMuted,
     ),
+    // Lighter than `outlineStrong`, which this tier darkens nearly to `primary`:
+    // 3.94:1 from black, 4.68:1 on the well. See [ColourScheme.inactive].
+    inactive: Color = Palette.GreyHcInactive,
 ): ColourScheme = lightColourScheme(
     background = background,
     surface = surface,
@@ -637,6 +670,7 @@ fun highContrastLightColourScheme(
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
     code = code,
+    inactive = inactive,
 )
 
 /**
@@ -666,7 +700,8 @@ fun highContrastDarkColourScheme(
     contentDisabled: Color = Palette.SlateHcDisabled,
     outline: Color = Palette.SlateHcOutline,
     outlineStrong: Color = Palette.SlateHcOutlineStrong,
-    outlineSubtle: Color = Palette.SlateHcOutlineSubtle,
+    // The same as `outline`, for the reason the light tier gives.
+    outlineSubtle: Color = outline,
     primary: Color = Palette.White,
     onPrimary: Color = Palette.Black,
     accent: StatusColours = StatusColours(
@@ -723,6 +758,9 @@ fun highContrastDarkColourScheme(
         literal = Palette.GreenPale,
         comment = contentMuted,
     ),
+    // 3.34:1 from white, 5.03:1 on the surface and 4.13:1 on the raised ground,
+    // which is the one that cannot also reach 4.5 while white stays 3:1 away.
+    inactive: Color = Palette.SlateHcInactive,
 ): ColourScheme = darkColourScheme(
     background = background,
     surface = surface,
@@ -752,6 +790,7 @@ fun highContrastDarkColourScheme(
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
     code = code,
+    inactive = inactive,
 )
 
 /** Picks the built-in scheme for a given mode and contrast tier. */

@@ -18,6 +18,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextDecoration
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -125,7 +127,14 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
                     onClick = onClick,
                 )
                 .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-            style = Theme.typography.bodySmall,
+            // Underlined at the enhanced tier. A crumb you can follow and the
+            // one you are on differ in colour — `contentMuted` against
+            // `content` — and at that tier both are near-black.
+            style = if (highContrast()) {
+                Theme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline)
+            } else {
+                Theme.typography.bodySmall
+            },
             colour = colours.contentMuted,
             maxLines = 1,
         )

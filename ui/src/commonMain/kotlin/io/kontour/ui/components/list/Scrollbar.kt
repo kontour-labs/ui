@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
@@ -185,7 +186,9 @@ fun Scrollbar(
         label = "scrollbarThickness",
     )
     val alpha by animateFloatAsState(
-        targetValue = if (active) 1f else 0.5f,
+        // Half-faded at rest, except at the enhanced tier, where a thumb the
+        // reader has to find is not the thing to make fainter.
+        targetValue = if (active || highContrast()) 1f else 0.5f,
         animationSpec = motion.tweenFast(),
         label = "scrollbarAlpha",
     )

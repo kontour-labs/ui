@@ -69,7 +69,7 @@ object BranchTimelineDefaults {
     @ReadOnlyComposable
     fun colours(
         lanes: List<Color> = palette(),
-        muted: Color = Theme.colours.outlineStrong,
+        muted: Color = Theme.colours.inactive,
     ): BranchTimelineColours = BranchTimelineColours(lanes, muted)
 
     /** The width of one lane beyond the first, which fits a node with a little room either side. */
@@ -356,6 +356,7 @@ internal fun branchRail(
             loading = stop.loading,
             ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
             here = index == shape.reachedRow,
+            reached = reached == null || reached[index],
         ),
         legs = legs,
     )

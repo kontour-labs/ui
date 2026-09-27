@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
@@ -233,6 +234,7 @@ private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Uni
         modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
         shape = Theme.shapes.panel,
         containerColour = Theme.colours.surface,
+        border = contrastEdge(),
     ) {
         Column(
             modifier = Modifier.padding(Theme.spacing.md),

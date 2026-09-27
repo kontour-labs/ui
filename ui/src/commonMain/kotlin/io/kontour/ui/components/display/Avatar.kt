@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
@@ -134,7 +136,10 @@ fun Avatar(
             }
             .size(size.diameter)
             .clip(Theme.shapes.pill)
-            .background(if (image != null) Theme.colours.surfaceSunken else background),
+            .background(if (image != null) Theme.colours.surfaceSunken else background)
+            // An avatar with no name and no picture is a well on the page —
+            // 1.13:1 at the enhanced tier — so there it takes the tier's edge.
+            .optionalBorder(if (name == null && image == null) contrastEdge() else null, Theme.shapes.pill),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -226,7 +231,7 @@ fun AvatarGroup(
                     // all it ever was — the parameter carried a colour and hid a
                     // hardcoded 2dp and pill shape behind it.
                     modifier = Modifier.border(
-                        AvatarGroupRing,
+                        Theme.sizing.borderWidthStrong,
                         Theme.colours.surface,
                         Theme.shapes.pill,
                     ),
@@ -240,7 +245,8 @@ fun AvatarGroup(
                         .size(size.diameter)
                         .clip(Theme.shapes.pill)
                         .background(Theme.colours.surfaceSunken)
-                        .border(AvatarGroupRing, Theme.colours.surface, Theme.shapes.pill),
+                        .border(Theme.sizing.borderWidthStrong, Theme.colours.surface, Theme.shapes.pill)
+                        .optionalBorder(contrastEdge(), Theme.shapes.pill),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -313,4 +319,3 @@ private fun String.initials(): String =
         .ifEmpty { "?" }
 
 /** The ring that keeps overlapping avatars legible against one another. */
-private val AvatarGroupRing = 2.dp

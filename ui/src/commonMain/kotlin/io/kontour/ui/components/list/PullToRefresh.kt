@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Spinner
@@ -545,6 +546,8 @@ private fun RefreshIndicator(
         shape = Theme.shapes.pill,
         containerColour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
+        // A raised disc over the list is 1.00:1 at the enhanced tier.
+        border = contrastEdge(),
         contentAlignment = Alignment.Center,
     ) {
         if (refreshing) {
@@ -578,8 +581,10 @@ private fun RefreshIndicator(
             // is the one thing that makes a growing arc read as turning rather
             // than as unrolling from a fixed point.
             val colour = LocalContentColour.current
+            // Half a line heavier than a strong border, at either tier.
+            val arcStroke = Theme.sizing.borderWidthStrong + 0.5.dp
             Canvas(Modifier.size(Theme.sizing.iconMedium)) {
-                val stroke = PullStroke.toPx()
+                val stroke = arcStroke.toPx()
                 val inset = stroke / 2f
                 // The length the spinner will open at, so the swap is not a
                 // step. Under reduced motion the spinner holds `RestingSweep`
@@ -606,7 +611,6 @@ private fun RefreshIndicator(
 }
 
 /** Matches [Spinner]'s stroke at the same size, so the swap is not a step. */
-private val PullStroke = 2.5.dp
 
 /** Where the pull arc's head sits before the finger moves: twelve o'clock. */
 private const val PullHead = -90f

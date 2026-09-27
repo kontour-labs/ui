@@ -151,6 +151,7 @@ def enclosing_function(spans: list[tuple[str, int, int]], offset: int) -> tuple[
 QUIET_FILL = re.compile(r"\b(?:surfaceSunken|surfaceRaised|accent\.container)\b")
 HAS_EDGE = re.compile(
     r"contrastEdge\(|selectionEdge\(|\.border\(|highContrast\(\)|BorderStroke\(|LocalContrastLevel"
+    r"|trackAtTier\("
 )
 
 QUIET_FILL_ALLOWED = {
@@ -160,8 +161,14 @@ QUIET_FILL_ALLOWED = {
     "content that is loading, is not interactive, and says so to a screen reader",
     "TextButton.kt": "the tint is the hover and press wash on a text-only "
     "button; its label, at 7:1, is the control",
+    "TimelineList.kt": "its rows are list rows, which draw the tier's edge "
+    "themselves (`edged`) and the selection's",
+    "NavScope.kt": "names the default indicator colour; the bar and the rail "
+    "that draw the indicator give it the selection edge",
+    "NavigationSuiteScaffold.kt": "hands the rail a raised ground; `NavRail` "
+    "draws the tier's edge round it",
 }
-MAX_QUIET_FILLS = 18
+MAX_QUIET_FILLS = 0
 
 
 def quiet_fills() -> list[str]:
@@ -188,7 +195,7 @@ ALPHA_ON_INK = re.compile(
 )
 READS_TIER = re.compile(r"highContrast\(\)|LocalContrastLevel|contrastEdge\(")
 ALPHA_ALLOWED: dict[str, str] = {}
-MAX_FADED_INKS = 4
+MAX_FADED_INKS = 0
 
 
 def faded_inks() -> list[str]:
@@ -218,7 +225,7 @@ FIXED_STROKE = re.compile(
     re.M,
 )
 STROKE_ALLOWED: dict[str, str] = {}
-MAX_FIXED_STROKES = 12
+MAX_FIXED_STROKES = 0
 
 
 def fixed_strokes() -> list[str]:
@@ -240,7 +247,7 @@ def fixed_strokes() -> list[str]:
 # `ButtonColours(…)` built by hand skips it — Toast's action did, and at high
 # contrast it was a word on a dark pill with no sign it could be pressed.
 RAW_BUTTON_COLOURS = re.compile(r"\bButtonColours\(")
-MAX_RAW_BUTTON_COLOURS = 1
+MAX_RAW_BUTTON_COLOURS = 0
 
 
 def raw_button_colours() -> list[str]:
@@ -261,7 +268,7 @@ def raw_button_colours() -> list[str]:
 # does not keep: `selectionIndicator` thickened from 3 to 4dp at high contrast
 # and no indicator in the library was drawn from it.
 SIZING_FIELD = re.compile(r"^\s+val (\w+): Dp", re.M)
-MAX_UNREAD_SIZING = 1
+MAX_UNREAD_SIZING = 0
 
 
 def unread_sizing() -> list[str]:
@@ -576,6 +583,32 @@ def absolute_placement() -> list[str]:
 
 
 # ===========================================================================
+# The pages
+# ===========================================================================
+
+# Rules D1 and D2 — every component page says what the reader's settings do to it.
+#
+# The two settings are the reader's, and a reader who has turned one on is the
+# one reading an Accessibility section to find out what they get. "Nothing
+# changes, because nothing moves" is an answer; silence is not. Counted down
+# from where the audit found them, which was almost every page.
+ACCESSIBILITY_SECTION = re.compile(r"^## Accessibility\s*$(.*?)(?=^## |\Z)", re.M | re.S)
+SAYS_CONTRAST = re.compile(r"high contrast|high-contrast|enhanced tier|contrastlevel\.high", re.I)
+SAYS_MOTION = re.compile(r"reduced motion|reducemotion|reduce motion", re.I)
+MAX_PAGES_SILENT_ON_CONTRAST = 117
+MAX_PAGES_SILENT_ON_MOTION = 114
+
+
+def pages_silent_on(pattern: re.Pattern) -> list[str]:
+    silent = []
+    for page in sorted(Path("ui-docs/content/components").glob("*.md")):
+        m = ACCESSIBILITY_SECTION.search(page.read_text())
+        if m and not pattern.search(m.group(1)):
+            silent.append(page.stem)
+    return silent
+
+
+# ===========================================================================
 
 
 def main() -> int:
@@ -665,6 +698,20 @@ def main() -> int:
         "use `placeRelative`, or read `layoutDirection` and mirror",
     )
 
+    # The pages.
+    silent_contrast = pages_silent_on(SAYS_CONTRAST)
+    ratchet(
+        "D1 component pages silent on high contrast", silent_contrast, MAX_PAGES_SILENT_ON_CONTRAST,
+        "say in the page's Accessibility section what the enhanced tier changes, "
+        "or that it changes nothing and why",
+    )
+    silent_motion = pages_silent_on(SAYS_MOTION)
+    ratchet(
+        "D2 component pages silent on reduced motion", silent_motion, MAX_PAGES_SILENT_ON_MOTION,
+        "say in the page's Accessibility section what reduced motion changes, "
+        "or that nothing moves",
+    )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in problems:
@@ -678,7 +725,8 @@ def main() -> int:
         f"reduced motion: {len(moving)} ungated movements, {len(MOVEMENT_ALLOWED)} exempt by name; "
         f"locale: {len(literals)} English phrases, {len(cases)} case changes, "
         f"{len(numbers)} unformatted numbers, {len(words)} calendar tables, "
-        f"{len(placed)} absolute placements."
+        f"{len(placed)} absolute placements; "
+        f"pages: {len(silent_contrast)} silent on high contrast, {len(silent_motion)} on reduced motion."
     )
     return 0
 

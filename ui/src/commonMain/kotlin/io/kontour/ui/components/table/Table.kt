@@ -362,6 +362,7 @@ fun <T> Table(
     val columns = TableScope<T>().apply(content).columns.toList()
     val leading = selection == TableSelection.Multiple
     val hasFooter = columns.any { it.footer != null }
+    val hairline = Theme.sizing.dividerThickness
     val columnCount = columns.size + if (leading) 1 else 0
     val rowCount = items.size + 1 + if (hasFooter) 1 else 0
     val layoutDirection = LocalLayoutDirection.current
@@ -423,6 +424,7 @@ fun <T> Table(
             columnCount = columnCount,
             rowCount = rowCount,
             hasFooter = hasFooter,
+            hairline = hairline,
         )
 
         // A fitted column is as wide as the widest of its title and its first
