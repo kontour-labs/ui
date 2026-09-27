@@ -354,7 +354,10 @@ private fun SideSheetPanel(
     // itself, anywhere on it, after anything inside that scrolls sideways.
     val back = LocalOverlayBack.current
     val awayEdge = if (fromRight) NavigationEvent.EDGE_LEFT else NavigationEvent.EDGE_RIGHT
-    SideEffect { back?.swipeAwayEdge = if (swipeAway) awayEdge else null }
+    // Only ever set, never cleared: a sheet that is not swiped away — the
+    // non-modal one, laid out inside some other overlay — is not the entry's
+    // own panel, and must not clear what that panel said.
+    SideEffect { if (swipeAway) back?.swipeAwayEdge = awayEdge }
     val dispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
     val drag = if (swipeAway && back != null && dispatcher != null && LocalBackStyle.current == BackStyle.Swipe) {
         val pan = remember(fromRight) {
