@@ -26,10 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
@@ -65,7 +63,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.input.rememberFocusRingVisible
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
@@ -529,28 +527,6 @@ private fun Modifier.tableRules(env: TableEnv<*>, top: Color?, bottom: Color?): 
         }
     }
     if (layout.pinned > 0 && (env.lines == TableLines.Grid || shift > 0)) vertical(layout.pinnedWidth.toFloat())
-}
-
-/**
- * A focus ring drawn inside the row rather than around it: around it, the next
- * row down would paint over its bottom edge.
- */
-@Composable
-private fun Modifier.insetFocusRing(interactions: InteractionSource, enabled: Boolean): Modifier {
-    val visible = rememberFocusRingVisible(interactions) && enabled
-    if (!visible) return this
-    val colour = Theme.colours.focusRing
-    val width = Theme.sizing.focusRingWidth
-    return drawWithContent {
-        drawContent()
-        val stroke = width.toPx()
-        drawRect(
-            colour,
-            topLeft = Offset(stroke / 2f, stroke / 2f),
-            size = Size(size.width - stroke, size.height - stroke),
-            style = Stroke(stroke),
-        )
-    }
 }
 
 @Composable

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Shadow
@@ -79,7 +80,7 @@ fun Card(
     Surface(
         modifier = modifier.then(
             if (onClick != null) {
-                Modifier.pointerCursor(enabled = enabled).clickable(
+                Modifier.focusRing(interactions, shape, enabled = enabled).pointerCursor(enabled = enabled).clickable(
                     interactionSource = interactions,
                     // pressScale = 1f: a card is too large to shrink convincingly.
                     indication = kontourIndication(shape, pressScale = 1f),

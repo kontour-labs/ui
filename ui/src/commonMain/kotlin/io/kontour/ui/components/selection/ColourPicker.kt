@@ -1,6 +1,8 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
@@ -40,6 +49,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.a11y.highContrast
@@ -54,6 +64,7 @@ import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.input.focusRing
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -383,10 +394,25 @@ private fun SaturationValueArea(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: B
     }
 
     val look = cursorLook()
+    val interactions = remember { MutableInteractionSource() }
     Canvas(
         Modifier
             .fillMaxWidth()
             .aspectRatio(AreaAspect)
+            .focusRing(interactions, Theme.shapes.small, enabled = enabled)
+            // Arrows move the cursor a step across or down; the plane is a
+            // picture of colour, not of reading order, so it does not mirror.
+            .planeKeys(enabled) { across, down ->
+                val now = liveHsv
+                onHsvChange(
+                    now.copy(
+                        saturation = (now.saturation + across).coerceIn(0f, 1f),
+                        value = (now.value - down).coerceIn(0f, 1f),
+                    )
+                )
+                colourFinished()
+            }
+            .focusable(enabled, interactions)
             .clip(Theme.shapes.small)
             // Taken in the layout phase. Reading `size` inside the draw block
             // and writing it to state is a write from draw, which is the one
@@ -483,10 +509,28 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
     }
 
     val look = cursorLook()
+    val interactions = remember { MutableInteractionSource() }
     Canvas(
         Modifier
             .fillMaxWidth()
             .aspectRatio(AreaAspect)
+            .focusRing(interactions, Theme.shapes.small, enabled = enabled)
+            // A cell at a time, from the cell the colour is in.
+            .planeKeys(enabled, step = 1f, page = 1f) { across, down ->
+                val now = liveHsv
+                val column = (now.saturation.coerceIn(0f, 1f) * PaletteColumns - 1f).roundToInt()
+                val row = ((1f - now.value.coerceIn(0f, 1f)) * PaletteRows).roundToInt()
+                val nextColumn = (column + across.roundToInt()).coerceIn(0, PaletteColumns - 1)
+                val nextRow = (row + down.roundToInt()).coerceIn(0, PaletteRows - 1)
+                onHsvChange(
+                    now.copy(
+                        saturation = (nextColumn + 1).toFloat() / PaletteColumns,
+                        value = 1f - nextRow.toFloat() / PaletteRows,
+                    )
+                )
+                colourFinished()
+            }
+            .focusable(enabled, interactions)
             .clip(Theme.shapes.small)
             .onSizeChanged { box = it.toSize() }
             .freeDragOwning(
@@ -553,7 +597,7 @@ private fun PaletteGrid(hsv: Hsv, onHsvChange: (Hsv) -> Unit, enabled: Boolean) 
     }
 }
 
-/** The whole wheel, left to right, with the current hue marked. */
+/** The whole wheel, from the start of the track to its end, with the current hue marked. */
 @Composable
 private fun HueTrack(hue: Float, onHueChange: (Float) -> Unit, enabled: Boolean) {
     val strings = Theme.strings
@@ -629,21 +673,50 @@ private fun Track(
     // slider's texture between them — see `DragTexture`.
     val endStop = rememberEndStopLatch()
     val texture = rememberDragTexture()
+    // A track reads in the direction of the page, as a slider does: in
+    // right-to-left the hue starts at the right and opacity grows leftwards.
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val liveFraction by rememberUpdatedState(fraction)
 
     fun report(x: Float) {
         if (width <= 0f) return
         at = x
-        endStop.at(x / width)
-        val fraction = (x / width).coerceIn(0f, 1f)
-        texture.at(fraction)
-        onFractionChange(fraction)
+        val along = if (rtl) 1f - x / width else x / width
+        endStop.at(along)
+        val next = along.coerceIn(0f, 1f)
+        texture.at(next)
+        onFractionChange(next)
     }
 
     val look = cursorLook()
+    val interactions = remember { MutableInteractionSource() }
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(TrackHeight)
+            .focusRing(interactions, Theme.shapes.capsule, enabled = enabled)
+            .onKeyEvent { event ->
+                if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                // Left and right move the thumb the way they point, so they swap
+                // meaning in right-to-left; up and down are more and less.
+                val forward = if (rtl) -TrackKeyStep else TrackKeyStep
+                val now = liveFraction
+                val next = when (event.key) {
+                    Key.DirectionRight -> now + forward
+                    Key.DirectionLeft -> now - forward
+                    Key.DirectionUp -> now + TrackKeyStep
+                    Key.DirectionDown -> now - TrackKeyStep
+                    Key.PageUp -> now + TrackPageStep
+                    Key.PageDown -> now - TrackPageStep
+                    Key.MoveHome -> 0f
+                    Key.MoveEnd -> 1f
+                    else -> return@onKeyEvent false
+                }
+                onFractionChange(next.coerceIn(0f, 1f))
+                colourFinished()
+                true
+            }
+            .focusable(enabled, interactions)
             // Layout phase, not draw. See `SaturationValueArea`.
             .onSizeChanged { width = it.width.toFloat() }
             // The capsule is the clip, not only the fill. The opacity track's
@@ -684,14 +757,46 @@ private fun Track(
             }
     ) {
         val radius = size.height / 2f
-        behind?.invoke(this)
-        drawRoundRect(
-            brush = background(),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius),
-        )
-        cursor(Offset(fraction.coerceIn(0f, 1f) * size.width, size.height / 2f), look)
+        scale(scaleX = if (rtl) -1f else 1f, scaleY = 1f) {
+            behind?.invoke(this)
+            drawRoundRect(
+                brush = background(),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius),
+            )
+        }
+        val along = fraction.coerceIn(0f, 1f)
+        cursor(Offset((if (rtl) 1f - along else along) * size.width, size.height / 2f), look)
     }
 }
+
+/**
+ * Arrow keys on a two-axis control: [onMove] gets a step across and a step down,
+ * a [step] at a time, or a [page] with Page Up and Page Down.
+ */
+private fun Modifier.planeKeys(
+    enabled: Boolean,
+    step: Float = TrackKeyStep,
+    page: Float = TrackPageStep,
+    onMove: (across: Float, down: Float) -> Unit,
+): Modifier = onKeyEvent { event ->
+    if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+    when (event.key) {
+        Key.DirectionRight -> onMove(step, 0f)
+        Key.DirectionLeft -> onMove(-step, 0f)
+        Key.DirectionUp -> onMove(0f, -step)
+        Key.DirectionDown -> onMove(0f, step)
+        Key.PageUp -> onMove(0f, -page)
+        Key.PageDown -> onMove(0f, page)
+        else -> return@onKeyEvent false
+    }
+    true
+}
+
+/** How far one press of an arrow moves a track or the square: a hundredth. */
+private const val TrackKeyStep = 0.01f
+
+/** How far Page Up or Page Down moves it: a tenth. */
+private const val TrackPageStep = 0.1f
 
 /**
  * The marker both the area and the tracks use.

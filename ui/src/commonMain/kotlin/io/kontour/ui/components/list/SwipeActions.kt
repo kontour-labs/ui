@@ -12,7 +12,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
@@ -78,6 +80,7 @@ import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DetentTicker
 import io.kontour.ui.interaction.DragClaim
@@ -1118,6 +1121,7 @@ private fun SwipeActionButton(
     onClick: () -> Unit,
 ) {
     val content = contentColourFor(action.background)
+    val interactions = remember { MutableInteractionSource() }
     Surface(
         modifier = Modifier.fillMaxSize(),
         shape = shape,
@@ -1130,7 +1134,10 @@ private fun SwipeActionButton(
             // icon and label in the middle of it.
             modifier = Modifier
                 .fillMaxSize()
-                .clickableAction(onClick, action.label)
+                // In the action's own content colour: the scheme's ring is not
+                // made for a red or green ground.
+                .insetFocusRing(interactions, shape, colour = content)
+                .clickableAction(onClick, action.label, interactions)
                 .graphicsLayer {
                     val shown = arrival()
                     alpha = shown
@@ -1254,8 +1261,13 @@ private fun ConfirmingIcon(
  * two.
  */
 @Composable
-private fun Modifier.clickableAction(onClick: () -> Unit, label: String): Modifier =
-    pointerCursor().clickable(onClickLabel = label, onClick = onClick)
+private fun Modifier.clickableAction(onClick: () -> Unit, label: String, interactions: MutableInteractionSource): Modifier =
+    pointerCursor().clickable(
+        interactionSource = interactions,
+        indication = LocalIndication.current,
+        onClickLabel = label,
+        onClick = onClick,
+    )
 
 /**
  * How fast a release has to be before it counts as a flick, per second. The number

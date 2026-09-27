@@ -75,6 +75,7 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.kontourIndication
@@ -428,6 +429,8 @@ fun MenuItem(
                 // for a 4dp inset, and now every side really is at 4.
                 .minimumTouchTarget(fill = true)
                 .clip(rowShape)
+                // Inside the row: the panel clips anything drawn around it.
+                .insetFocusRing(interactions, rowShape, enabled)
                 .pointerCursor(enabled = enabled)
                 .clickable(
                     interactionSource = interactions,

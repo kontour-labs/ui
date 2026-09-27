@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
@@ -181,6 +182,7 @@ fun TimeField(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRing(interactions, shape, enabled = enabled)
                 .semantics {
                     if (label != null) contentDescription = label
                     stateDescription = formats.time(value)

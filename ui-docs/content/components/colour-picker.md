@@ -137,6 +137,15 @@ why `showValueField` defaults to on: a picker with the field turned off and no
 swatches has one input and it is a drag. Turn it off only where the colour is a
 convenience rather than the point.
 
+**From a keyboard, all three take focus** and show the focus ring. On a track
+the arrows move the thumb the way they point, a hundredth at a time — so in
+right-to-left, where the tracks run from the right, Right lowers the value — Up
+and Down raise and lower it, Page Up and Page Down move a tenth, and Home and End
+go to the ends. In the area the arrows move the cursor across and down; in the
+palette grid, a cell at a time. The area does not mirror in right-to-left: it is
+a picture of colour, with white at one side and the hue at the other, not text
+that reads in a direction.
+
 Every swatch carries its own hex as a content description, through
 [`ColourSwatchPicker`](colour-swatch-picker.md), and reports
 `Role.RadioButton` inside a selectable group.

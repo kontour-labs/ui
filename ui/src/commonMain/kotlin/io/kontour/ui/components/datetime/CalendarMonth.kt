@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberHoldFeedback
@@ -764,6 +765,9 @@ private fun DayCell(
                 .minimumTouchTarget()
                 .matchCellSize()
                 .clip(shape)
+                // Inside the day: the days either side touch it. With no
+                // indication, this is the only sign of where the keyboard is.
+                .insetFocusRing(interactions, shape, enabled)
                 // On the node that is pressed, not on the fill behind it.
                 //
                 // The date and the selection used to be announced from the
