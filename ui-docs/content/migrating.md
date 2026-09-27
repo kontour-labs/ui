@@ -468,7 +468,8 @@ times, lists, plurals — is written the reader's way. See
   scrollbar, a pane divider and a switch drag the way they point; the
   skeleton's shimmer runs from the start; the colour picker's hue and opacity
   tracks mirror.
-- **A slider takes arrow keys,** mirrored in right to left, and shows a focus
+- **A slider, and each of a range slider's thumbs, take arrow keys,** mirrored
+  in right to left, as well as Page Up and Down, Home and End, and show a focus
   ring; the colour picker's square and tracks do too.
 - **`TextField` tells the keyboard the locale,** through `hintLocales`.
 

@@ -22,6 +22,13 @@ import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import kotlin.test.assertEquals
+import io.kontour.ui.components.selection.RangeSlider
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.display.Card
@@ -92,6 +99,43 @@ class KeyboardFocusRingTest {
         hue.performKeyInput { pressKey(Key.DirectionRight) }
         waitForIdle()
         assertNotEquals(Color(0xFFFF0000), picked, "the hue track took focus and ignored the arrow key")
+    }
+
+    @Test
+    fun eachRangeSliderThumbTakesFocusAndShowsIt() {
+        ringAppears({ onNodeWithContentDescription("Range start") }) { range() }
+        ringAppears({ onNodeWithContentDescription("Range end") }) { range() }
+    }
+
+    @Test
+    fun aRangeSliderThumbAnswersItsKeysTheWayTheyPoint() {
+        for (rtl in listOf(false, true)) runComposeUiTest {
+            var value by mutableStateOf(0.2f..0.8f)
+            setContent {
+                KontourTheme {
+                    CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+                        RangeSlider(value = value, onValueChange = { value = it }, steps = 9)
+                    }
+                }
+            }
+            val start = onNodeWithContentDescription("Range start")
+            start.requestFocus()
+            start.performKeyInput { pressKey(Key.DirectionRight) }
+            waitForIdle()
+            // A step is a tenth: Right raises it left to right, and lowers it
+            // right to left, where the track runs from the right.
+            assertEquals(if (rtl) 0.1f else 0.3f, value.start, 0.001f, "rtl = $rtl")
+            assertEquals(0.8f, value.endInclusive, 0.001f, "the other thumb moved")
+            // End goes as far as a finger could take it: up to the other thumb.
+            start.performKeyInput { pressKey(Key.MoveEnd) }
+            waitForIdle()
+            assertTrue(value.start <= value.endInclusive, "the start key-pressed past the end: $value")
+        }
+    }
+
+    @Composable
+    private fun range() {
+        RangeSlider(value = 0.2f..0.8f, onValueChange = {}, contentDescription = "Fare zone")
     }
 
     @Composable

@@ -2,6 +2,7 @@ package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap as snapSpec
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -22,6 +23,10 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -1080,6 +1085,7 @@ fun RangeSlider(
             ThumbSemantics(
                 contentDescription = startContentDescription,
                 current = value.start,
+                valueRange = valueRange,
                 // As far as a finger can take it, which is the end of the track
                 // less the gap it has to leave — not "as far as the other thumb",
                 // which is where it used to stop and no longer does.
@@ -1088,17 +1094,22 @@ fun RangeSlider(
                 steps = steps,
                 enabled = enabled,
                 announcement = announcement,
+                interactions = interactions,
                 onSet = { emit(Thumb.Start, fractionOf(it)) },
+                onFinished = { currentFinished?.invoke() },
             )
             ThumbSemantics(
                 contentDescription = endContentDescription,
                 current = value.endInclusive,
+                valueRange = valueRange,
                 bounds = (valueRange.start + gap)
                     .coerceAtMost(valueRange.endInclusive)..valueRange.endInclusive,
                 steps = steps,
                 enabled = enabled,
                 announcement = announcement,
+                interactions = interactions,
                 onSet = { emit(Thumb.End, fractionOf(it)) },
+                onFinished = { currentFinished?.invoke() },
             )
         }
     }
@@ -1117,15 +1128,31 @@ fun RangeSlider(
 private fun ThumbSemantics(
     contentDescription: String,
     current: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
     bounds: ClosedFloatingPointRange<Float>,
     steps: Int,
     enabled: Boolean,
     announcement: String?,
+    interactions: MutableInteractionSource,
     onSet: (Float) -> Unit,
+    onFinished: () -> Unit,
 ) {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Box(
         Modifier
             .minimumTouchTarget()
+            // Each thumb takes the keyboard in turn, with `Slider`'s keys, as far
+            // as a finger could take it. The ring is the control's: the two
+            // share its interaction source, and the thumb that moves says which.
+            .onKeyEvent { event ->
+                if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val next = sliderKeyTarget(event.key, current, valueRange, bounds, steps, rtl)
+                    ?: return@onKeyEvent false
+                onSet(next)
+                onFinished()
+                true
+            }
+            .focusable(enabled, interactions)
             .semantics {
                 this.contentDescription = contentDescription
                 if (!enabled) disabled()

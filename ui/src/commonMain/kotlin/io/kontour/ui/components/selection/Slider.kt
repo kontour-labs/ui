@@ -507,28 +507,12 @@ fun Slider(
                     }
                 }
             }
-            // Arrows move the thumb the way they point, so Right lowers the value
-            // in right to left, where the track runs from the right; Up and Down
-            // are more and less; Page keys move a tenth; Home and End go to the
-            // ends. A step where there are steps, a hundredth where there are not.
             .onKeyEvent { event ->
                 if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                val span = valueRange.endInclusive - valueRange.start
-                val step = if (steps > 0) span / (steps + 1) else span / 100f
-                val page = maxOf(step, span / 10f)
-                val forward = if (layoutDirection == LayoutDirection.Rtl) -step else step
-                val next = when (event.key) {
-                    Key.DirectionRight -> value + forward
-                    Key.DirectionLeft -> value - forward
-                    Key.DirectionUp -> value + step
-                    Key.DirectionDown -> value - step
-                    Key.PageUp -> value + page
-                    Key.PageDown -> value - page
-                    Key.MoveHome -> valueRange.start
-                    Key.MoveEnd -> valueRange.endInclusive
-                    else -> return@onKeyEvent false
-                }
-                currentOnValueChange(next.coerceIn(valueRange))
+                val next = sliderKeyTarget(
+                    event.key, value, valueRange, valueRange, steps, layoutDirection == LayoutDirection.Rtl,
+                ) ?: return@onKeyEvent false
+                currentOnValueChange(next)
                 currentFinished?.invoke()
                 true
             }
@@ -880,3 +864,38 @@ internal val SliderLabelGap = 6.dp
 
 private fun Float.coerceIn(range: ClosedFloatingPointRange<Float>): Float =
     coerceIn(range.start, range.endInclusive)
+
+/**
+ * Where a key takes a slider's [value], within [bounds], or `null` for a key a
+ * slider does not use.
+ *
+ * Arrows move the thumb the way they point, so Right lowers the value in right to
+ * left, where the track runs from the right; Up and Down are more and less; Page
+ * keys move a tenth; Home and End go as far as [bounds] allows. A step where there
+ * are [steps], a hundredth of [valueRange] where there are not.
+ */
+internal fun sliderKeyTarget(
+    key: Key,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    bounds: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    rtl: Boolean,
+): Float? {
+    val span = valueRange.endInclusive - valueRange.start
+    val step = if (steps > 0) span / (steps + 1) else span / 100f
+    val page = maxOf(step, span / 10f)
+    val forward = if (rtl) -step else step
+    val next = when (key) {
+        Key.DirectionRight -> value + forward
+        Key.DirectionLeft -> value - forward
+        Key.DirectionUp -> value + step
+        Key.DirectionDown -> value - step
+        Key.PageUp -> value + page
+        Key.PageDown -> value - page
+        Key.MoveHome -> bounds.start
+        Key.MoveEnd -> bounds.endInclusive
+        else -> return null
+    }
+    return next.coerceIn(bounds.start, bounds.endInclusive)
+}

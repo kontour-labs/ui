@@ -448,17 +448,26 @@ internal fun textRuns(text: String): List<Pair<Int, String>> = buildList {
     if (start >= 0) add(start to text.substring(start))
 }
 
-/** Right to left when the first letter in [text] is from a right-to-left script; digits decide nothing. */
+/**
+ * Right to left when the first letter in [text] is from a right-to-left script;
+ * digits, marks and punctuation decide nothing.
+ *
+ * By block rather than by `Char.directionality`, which only the JVM has. Every
+ * letter outside these blocks is written left to right.
+ */
 internal fun directionOf(text: String): LayoutDirection {
     for (char in text) {
-        when (char.directionality) {
-            CharDirectionality.RIGHT_TO_LEFT, CharDirectionality.RIGHT_TO_LEFT_ARABIC -> return LayoutDirection.Rtl
-            CharDirectionality.LEFT_TO_RIGHT -> return LayoutDirection.Ltr
-            else -> Unit
-        }
+        if (!char.isLetter()) continue
+        return if (RightToLeftBlocks.any { char.code in it }) LayoutDirection.Rtl else LayoutDirection.Ltr
     }
     return LayoutDirection.Ltr
 }
+
+/**
+ * Hebrew, Arabic, Syriac, Thaana, N'Ko, Samaritan, Mandaic and Arabic's
+ * extensions, and the Hebrew and Arabic presentation forms.
+ */
+private val RightToLeftBlocks = listOf(0x0590..0x08FF, 0xFB1D..0xFDFF, 0xFE70..0xFEFF)
 
 /**
  * A digit leaving upward while the next arrives from below, or the reverse.
