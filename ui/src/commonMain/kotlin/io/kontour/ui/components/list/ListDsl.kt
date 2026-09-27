@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.GroupPosition
 
 /**
@@ -85,7 +86,7 @@ class ListGroupScope internal constructor() {
         icon: ImageVector? = null,
         selected: Boolean = false,
         role: Role = Role.Button,
-        trailing: (@Composable () -> Unit)? = null,
+        trailing: (@Composable ContentScope.() -> Unit)? = null,
         onClick: (() -> Unit)? = null,
     ) {
         rows += { position ->
@@ -100,7 +101,7 @@ class ListGroupScope internal constructor() {
                 if (overline != null) overline { +overline }
                 if (supporting != null) supporting { +supporting }
                 if (icon != null) leading { +icon }
-                if (trailing != null) trailing { trailing() }
+                if (trailing != null) this.trailing(trailing)
             }
         }
     }
@@ -123,7 +124,7 @@ class ListGroupScope internal constructor() {
                 +label
                 if (supporting != null) supporting { +supporting }
                 if (icon != null) leading { +icon }
-                if (value != null) trailing { settingValue(value) }
+                if (value != null) trailing { +value }
             }
         }
     }

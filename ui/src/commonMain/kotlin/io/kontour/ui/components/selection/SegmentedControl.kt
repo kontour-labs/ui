@@ -198,6 +198,11 @@ fun SegmentedControl(
 ) {
     val tap = rememberTapFeedback()
     if (options.isEmpty()) return
+    // In capitals when the theme sets labels that way, as `Button`, `Chip` and
+    // `Tab` do — and measured in capitals, so whether they fit is decided
+    // about the words that are drawn.
+    val uppercase = Theme.componentDefaults.uppercaseLabels
+    val labels = remember(options, uppercase) { if (uppercase) options.map { it.uppercase() } else options }
 
     // Only here to put `constraints` in scope for the fit decision below — the
     // control has to know how wide it is *before* it decides which way to run,
@@ -307,10 +312,10 @@ fun SegmentedControl(
     // Read out here: `TrackPadding` is a `@ReadOnlyComposable` property off the
     // theme, and `remember`'s calculation is not a composable context.
     val trackPadding = SegmentedControlDefaults.TrackPadding
-    val stacked = remember(options, measurer, constraints.maxWidth, density, labelStyle, trackPadding) {
+    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding) {
         val track = with(density) { constraints.maxWidth.toDp() } - trackPadding * 2
         val each = track / options.size
-        val widest = options.maxOf { measurer.measure(it, labelStyle).size.width }
+        val widest = labels.maxOf { measurer.measure(it, labelStyle).size.width }
         with(density) { widest.toDp() } > each
     }
 
@@ -323,8 +328,8 @@ fun SegmentedControl(
      * with a 1.20 line height passes that at about 2.14x, after which the
      * segment's own clip cut the glyphs top and bottom with nothing marking it.
      */
-    val labelHeight = remember(options, measurer, density, labelStyle) {
-        with(density) { options.maxOf { measurer.measure(it, labelStyle).size.height }.toDp() }
+    val labelHeight = remember(labels, measurer, density, labelStyle) {
+        with(density) { labels.maxOf { measurer.measure(it, labelStyle).size.height }.toDp() }
     }
 
     /** One segment's content box: at least what it used to be, and at least the type. */
@@ -745,7 +750,7 @@ fun SegmentedControl(
         // building it. Everything else about a segment is identical either way.
         if (stacked) {
             Column(track) {
-                options.forEachIndexed { index, option ->
+                labels.forEachIndexed { index, option ->
                     SegmentedOption(
                         // Stacked, each segment is its own row and therefore its
                         // own touch target: `height` less the track's padding
@@ -763,7 +768,7 @@ fun SegmentedControl(
             }
         } else {
             Row(track) {
-                options.forEachIndexed { index, option ->
+                labels.forEachIndexed { index, option ->
                     SegmentedOption(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         option = option,

@@ -1012,10 +1012,12 @@ public final class io/kontour/ui/components/display/StatKt {
 public final class io/kontour/ui/components/display/StatScope {
 	public static final field $stable I
 	public final fun announcement (Ljava/lang/String;)V
+	public final fun label (Lkotlin/jvm/functions/Function3;)V
 	public final fun supporting (Ljava/lang/String;)V
 	public final fun supporting (Lkotlin/jvm/functions/Function3;)V
 	public final fun trend (Lio/kontour/ui/components/display/StatTrend;Ljava/lang/String;)V
 	public final fun trend (Lio/kontour/ui/components/display/StatTrend;Lkotlin/jvm/functions/Function3;)V
+	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
 	public final fun unaryPlus (Ljava/lang/String;)V
 	public final fun value (Ljava/lang/String;)V
 	public final fun value (Lkotlin/jvm/functions/Function3;)V
@@ -1136,8 +1138,8 @@ public final class io/kontour/ui/components/list/ListDslKt {
 public final class io/kontour/ui/components/list/ListGroupScope {
 	public static final field $stable I
 	public final fun item (Lkotlin/jvm/functions/Function3;)V
-	public final fun item-nCNpSLQ (Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;)V
-	public static synthetic fun item-nCNpSLQ$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun item-nCNpSLQ (Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun item-nCNpSLQ$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 	public final fun setting (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZLkotlin/jvm/functions/Function0;)V
 	public static synthetic fun setting$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZLkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 }
@@ -1158,7 +1160,6 @@ public final class io/kontour/ui/components/list/ListItemKt {
 	public static final fun SectionHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SettingRow (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Lio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun listPositions (I)Ljava/util/List;
-	public static final fun settingValue (Lio/kontour/ui/foundation/ContentScope;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/components/list/ListItemScope {
@@ -2758,7 +2759,7 @@ public final class io/kontour/ui/overlay/MenuKt {
 	public static final fun MenuDivider (Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuItem (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZZZZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuSectionHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SubMenu (Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SubMenu (Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public abstract interface class io/kontour/ui/overlay/MenuScope : androidx/compose/foundation/layout/ColumnScope {

@@ -333,7 +333,14 @@ internal fun ListItemImpl(
 
             slots.trailing?.let { trailing ->
                 Box(contentAlignment = Alignment.Center) {
-                    ContentSlot(content = trailing)
+                    // A value — "4 min", "Kilometres" — in the row's muted
+                    // body style, dimming with the row. A control in the slot
+                    // sets its own colours and is unaffected.
+                    ProvideContentColour(muted) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            ContentSlot(maxLines = 1, content = trailing)
+                        }
+                    }
                 }
             }
         }
@@ -489,30 +496,5 @@ fun SettingRow(
         position = position,
         interactionSource = interactionSource,
         content = content,
-    )
-}
-
-/**
- * The value a setting is currently at, drawn at the trailing edge.
- *
- * `SettingRow` used to take this as a `value: String?` whose whole job was to
- * build a default for its `trailing` slot — the parallel-parameter shape the slot
- * API exists to delete. It is a one-line helper now, and it composes with
- * anything else the trailing edge wants.
- *
- * ```kotlin
- * SettingRow(onClick = ::openUnits) {
- *     +"Units"
- *     trailing { settingValue("Kilometres") }
- * }
- * ```
- */
-@Composable
-fun ContentScope.settingValue(value: String) {
-    Text(
-        text = value,
-        style = Theme.typography.bodyMedium,
-        colour = Theme.colours.contentMuted,
-        maxLines = 1,
     )
 }

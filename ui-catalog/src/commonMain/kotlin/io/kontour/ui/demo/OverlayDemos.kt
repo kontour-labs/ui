@@ -305,8 +305,10 @@ internal val ContextMenuAreaDemo = ComponentDemo(slug = "context-menu-area") {
                 MenuItem(onClick = suggest) { +"Suggest a correction" }
                 MenuDivider()
                 SubMenu(
-                    label = { +"Add to a list" },
-                    leadingIcon = Tabler.Outline.Star,
+                    label = {
+                        +"Add to a list"
+                        leading { +Tabler.Outline.Star }
+                    },
                 ) {
                     MenuItem(onClick = { echo("Added to Favourites") }) { +"Favourites" }
                     MenuItem(onClick = { echo("Added to Morning commute") }) {

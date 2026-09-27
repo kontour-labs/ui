@@ -77,7 +77,8 @@ import androidx.compose.ui.unit.dp
  *   there is nowhere else for this to live. It is applied where the library
  *   turns a caller's `String` into text on a *control* — the seven row-shaped
  *   slots (`Button`, the extended FAB, `Tag`, the three `Chip` variants and a
- *   `TabBar` tab) and a field's label — and nowhere else. Dialog titles, banner
+ *   `TabBar` tab), a `SegmentedControl`'s options and a field's label — and
+ *   nowhere else. Dialog titles, banner
  *   messages, list rows and menu items go through a different slot helper and
  *   are prose, not labels.
  *

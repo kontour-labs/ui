@@ -123,10 +123,18 @@ internal class MenuScopeImpl(
         ) {
             +label
             if (leadingIcon != null) leading { +leadingIcon }
-            if (trailingIcon != null) trailing { +trailingIcon }
-            // A key cap, not muted text. `⌘S` set in the row's own type reads
-            // as part of the label; the border is what says it is a key.
-            if (shortcut != null) trailing { Kbd { +shortcut } }
+            // One region holding both, icon then key cap: a second `trailing`
+            // replaces the first, which is how an item given both used to lose
+            // its icon. The region sits in the row, so the two sit side by side.
+            if (trailingIcon != null || shortcut != null) {
+                trailing {
+                    if (trailingIcon != null) +trailingIcon
+                    // A key cap, not muted text. `⌘S` set in the row's own type
+                    // reads as part of the label; the border is what says it is
+                    // a key.
+                    if (shortcut != null) Kbd { +shortcut }
+                }
+            }
         }
     }
 
@@ -151,7 +159,13 @@ internal class MenuScopeImpl(
         // action is done with the menu, and leaving the parent open over the
         // result is the same hanging-menu bug one level up.
         val dismiss = onDismissRequest
-        SubMenu(label = { +label }, enabled = enabled, leadingIcon = leadingIcon) {
+        SubMenu(
+            label = {
+                +label
+                if (leadingIcon != null) leading { +leadingIcon }
+            },
+            enabled = enabled,
+        ) {
             MenuScopeImpl(this, dismiss).content()
         }
     }

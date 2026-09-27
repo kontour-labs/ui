@@ -300,6 +300,32 @@ toast host's `Toast`.
 
 ---
 
+## `+` where a component holds one kind of content
+
+The `+` vocabulary reached more of the components whose content is nearly
+always the same kind of thing in the same style, and the slots that already
+took it now style what they hold the same way everywhere.
+
+- **A list row's `trailing` is styled.** `ListItem`, `SettingRow`,
+  `SelectionRow` and the timeline rows give `trailing { +"4 min" }` the muted
+  body style, dimming with a disabled row. `settingValue(…)` existed only to do
+  that and is gone: write `trailing { +"Kilometres" }`. A control in the slot —
+  a switch, a badge — sets its own colours and does not change.
+- **`ListGroupScope.item(trailing)`** is a `ContentScope` lambda, so
+  `trailing = { +"4 min" }` compiles. A stored `@Composable () -> Unit` passed
+  there no longer does; wrap it: `trailing = { mine() }`.
+- **`SubMenu(leadingIcon)` is gone.** Put the icon in the label, as on a
+  `MenuItem`: `SubMenu(label = { +"Sort by"; leading { +icon } })`. The
+  `MenuScope.submenu(leadingIcon)` shorthand is unchanged.
+- **`StatScope`** takes `+AnnotatedString` and `label { … }`, like every other
+  collecting scope.
+- **Fixed:** a `MenuScope.item` given both `trailingIcon` and `shortcut` drew
+  only the shortcut. It draws both, icon first.
+- **`SegmentedControl` honours `uppercaseLabels`,** as `Button`, `Chip` and
+  `Tab` do.
+
+---
+
 ## Moved, and unaffected if named
 
 These changed position only. A call that names the argument — which is how

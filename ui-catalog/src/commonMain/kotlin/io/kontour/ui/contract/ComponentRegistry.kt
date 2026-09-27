@@ -108,7 +108,6 @@ import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.list.rememberSwipeActionsState
-import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ColourPicker
@@ -1713,7 +1712,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
             ) {
                 +"Theme"
-                trailing { settingValue("Match system") }
+                trailing { +"Match system" }
             }
         }
     )
@@ -1793,7 +1792,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     position = GroupPosition.First,
                 ) {
                     +"Theme"
-                    trailing { settingValue("Always dark") }
+                    trailing { +"Always dark" }
                 }
                 SettingRow(
                     onClick = onClick,
@@ -1801,7 +1800,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     position = GroupPosition.Last,
                 ) {
                     +"Text size"
-                    trailing { settingValue("Default") }
+                    trailing { +"Default" }
                 }
             }
         }

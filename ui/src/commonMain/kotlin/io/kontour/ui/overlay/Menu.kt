@@ -39,7 +39,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -529,6 +528,8 @@ fun MenuSectionHeader(
  * }
  * ```
  *
+ * An icon goes in the label, `leading { +icon }`, as on a [MenuItem].
+ *
  * Opens on hover for a mouse and on tap for a finger, which is the difference
  * that makes nested menus usable on touch at all — hover-only submenus are
  * unreachable without a pointer, and tap-only submenus feel sticky with a mouse.
@@ -544,7 +545,6 @@ fun SubMenu(
     label: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: ImageVector? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
@@ -600,7 +600,6 @@ fun SubMenu(
             interactionSource = interactions,
         ) {
             label()
-            if (leadingIcon != null) leading { +leadingIcon }
             trailing { +SystemIcons.ChevronForward }
         }
     }

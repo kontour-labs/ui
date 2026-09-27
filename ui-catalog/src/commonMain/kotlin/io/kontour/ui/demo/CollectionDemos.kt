@@ -47,7 +47,6 @@ import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.components.list.rememberReorderableState
-import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.table.SortDirection
 import io.kontour.ui.components.table.Table
@@ -151,7 +150,7 @@ internal val ListSectionDemo = ComponentDemo(
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
-            trailing { settingValue(themes[theme]) }
+            trailing { +themes[theme] }
         }
         SettingRow(position = GroupPosition.Last, onClick = { echo("Delay alerts") }) {
             +"Delay alerts"
@@ -172,7 +171,7 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
-            trailing { settingValue(themes[theme]) }
+            trailing { +themes[theme] }
         }
         SettingRow(position = GroupPosition.Last, onClick = { notify = !notify }) {
             +"Delay alerts"

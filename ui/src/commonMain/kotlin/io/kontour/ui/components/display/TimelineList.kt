@@ -18,7 +18,6 @@ import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.foundation.shape
-import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
 /** How a [TimelineList]'s rows are drawn. */
@@ -117,16 +116,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         ) {
             +label
             if (supporting != null) supporting { +supporting }
-            if (trailing != null) {
-                trailing {
-                    Text(
-                        trailing,
-                        style = Theme.typography.bodyMedium,
-                        colour = Theme.colours.contentMuted,
-                        maxLines = 1,
-                    )
-                }
-            }
+            if (trailing != null) trailing { +trailing }
         }
     }
 }

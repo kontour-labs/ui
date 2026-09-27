@@ -204,7 +204,14 @@ fun SelectionRow(
 
             slots.trailing?.let { trailing ->
                 Box(contentAlignment = Alignment.Center) {
-                    ContentSlot(content = trailing)
+                    // A value — "4 min", "Kilometres" — in the row's muted
+                    // body style, dimming with the row. A control in the slot
+                    // sets its own colours and is unaffected.
+                    ProvideContentColour(muted) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            ContentSlot(maxLines = 1, content = trailing)
+                        }
+                    }
                 }
             }
         }

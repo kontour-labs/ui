@@ -203,8 +203,8 @@ sheets, and the glass and backdrop dials.
 `uppercaseLabels` is the one field that is not a measurement, and it is here
 because there is nowhere else: casing is not something a `TextStyle` can carry.
 It applies where the library turns a `String` you passed into text **on a
-control** — a button, an extended FAB, a tag, a chip, a tab and a field's label
-— and not to dialog titles, banner messages, list rows or menu items, which are
+control** — a button, an extended FAB, a tag, a chip, a tab, a segmented
+control's options and a field's label — and not to dialog titles, banner messages, list rows or menu items, which are
 prose. Writing `Text("Save")` inside a slot instead of `+"Save"` opts out, the
 same way it opts out of the slot's line limit and text style.
 
