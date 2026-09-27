@@ -105,6 +105,11 @@ kotlin {
             api(project(":ui"))
             api(libs.navigation3.ui)
             api(libs.navigation3.runtime)
+            // `implementation`: `SceneBack` reads the dispatcher owner, and
+            // nothing public mentions it. It reached the platform compiles
+            // through Navigation 3 and not the common metadata one, so Dokka —
+            // the one task that compiles `commonMain` on its own — failed.
+            implementation(libs.navigationevent.compose)
         }
 
         commonTest.dependencies {

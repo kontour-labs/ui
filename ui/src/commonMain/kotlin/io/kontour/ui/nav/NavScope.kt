@@ -53,7 +53,7 @@ import io.kontour.ui.theme.Theme
  * A group carries the selection marker while the destination selected inside it
  * is hidden, so the surface always says where you are.
  *
- * **Every destination has a [key]**, the identity the selection marker travels
+ * **Every destination has a `key`**, the identity the selection marker travels
  * between, and no two in one surface may share one: a duplicate throws. It is a
  * value of yours — a route, an enum — never the label, which a translation
  * changes under the marker.
