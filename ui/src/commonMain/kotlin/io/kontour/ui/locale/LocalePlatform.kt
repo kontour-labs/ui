@@ -46,7 +46,7 @@ fun rememberLocaleFormats(locale: Locale): LocaleFormats {
 @Composable
 internal expect fun platformHourCycleSetting(): HourCycle?
 
-/** Whether [locale] is written right to left. */
+/** Whether this locale is written right to left. */
 internal val Locale.layoutDirection: LayoutDirection
     get() = if (LocaleTag.of(this).isRightToLeft) LayoutDirection.Rtl else LayoutDirection.Ltr
 
