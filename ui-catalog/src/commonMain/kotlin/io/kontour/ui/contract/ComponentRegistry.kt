@@ -1502,8 +1502,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             renderHeight = 240,
             states = listOf(
                 // The sidebar the rail grows into: labels, a section title.
+                // 240dp rather than the default, so it fits the card every
+                // specimen shares instead of being cropped at its edge.
                 RenderState("expanded") { modifier ->
-                    NavRail(modifier = modifier, expanded = true, revealSelected = false) {
+                    NavRail(modifier = modifier, expanded = true, expandedWidth = 240.dp, revealSelected = false) {
                         section("Saved") { specimenDestinations(onClick = {}) }
                     }
                 },
@@ -1524,7 +1526,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             control = ControlLocator.Clickable,
             renderHeight = 160,
         ) { modifier, enabled, onClick ->
-            NavRail(modifier = modifier, expanded = true, revealSelected = false) {
+            NavRail(modifier = modifier, expanded = true, expandedWidth = 240.dp, revealSelected = false) {
                 group(
                     expanded = false,
                     onExpandedChange = { onClick() },

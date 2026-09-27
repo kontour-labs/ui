@@ -206,11 +206,14 @@ internal val SelectableTextDemo = ComponentDemo(
     // The same notice both ways: with the knob off a drag does nothing, which
     // is the library's default and the comparison worth making. With it on, a
     // drag across all of it copies the title and the sentence, not the button.
+    var planned by remember { mutableStateOf(false) }
     val notice = @Composable {
         Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
             Text("Replacement buses", style = Theme.typography.titleMedium)
             Text("Midland line, Saturday 14 June, 6am to 10pm. Buses leave from stand 4.")
-            Button(onClick = {}) { +"Plan around it" }
+            Button(onClick = { planned = !planned }) {
+                +if (planned) "Planned" else "Plan around it"
+            }
             Text(
                 "Drag across the notice, or double-click a word, then copy.",
                 style = Theme.typography.bodySmall,

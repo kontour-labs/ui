@@ -178,7 +178,9 @@ internal fun NavDestination(
             }
         }
         .selectionIndicatorItem(markerKey, marked)
-        .minimumTouchTarget()
+        // `fill`, so the row that lights up under a press is the whole 48dp the
+        // marker covers, not the shorter content centred in it.
+        .minimumTouchTarget(fill = true)
         .focusRing(interactions, shape, enabled = enabled)
         .then(target)
 
@@ -297,12 +299,19 @@ internal fun NavDestination(
                     .indication(interactions, kontourIndication(Theme.shapes.capsule, pressScale = 1f))
                     .padding(
                         horizontal = Theme.spacing.sm - Theme.spacing.xxs,
-                        vertical = if (hasGlyph) Theme.spacing.xxs else Theme.spacing.sm,
+                        // `sm` whether or not there is a glyph, a drawer row's
+                        // padding: the glyph box is an icon tall now, so an icon
+                        // row and a text row are one height, and a sidebar that
+                        // mixes them keeps an even rhythm.
+                        vertical = Theme.spacing.sm,
                     ),
-                // `lg`, and it is arithmetic: a collapsed rail has to end before its
-                // labels begin, and the label starts one padding of each past the
-                // glyph box.
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                // `xs`, and it is arithmetic: the icon is centred in a glyph box
+                // wider than it, so the box's own margin plus `xs` puts the label
+                // `md` from the icon's edge — a drawer row's gap. It was `lg`,
+                // which put the label 32dp away and read as two columns. A
+                // collapsed rail needs no room kept: a label only appears once
+                // the rail is past halfway to its expanded width.
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (hasGlyph) glyph()

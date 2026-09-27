@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -25,6 +27,7 @@ import com.composables.icons.tabler.outline.MapPin
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavRailDefaults
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -47,6 +50,50 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalTestApi::class)
 class NavRailFixedTest {
+
+    /**
+     * A sidebar is as dense as the drawer it replaced: an icon row is the icon
+     * and `sm` above and below it, 48dp, and rows are `xxs` apart — a 52dp
+     * pitch, which is what the showcase's navigation sheet had.
+     *
+     * Merged, the rail's rows took the collapsed rail's square 48dp glyph box
+     * plus their own padding: 56dp rows, 8dp apart, a 64dp pitch. Nothing
+     * failed; the sheet just read a quarter looser, and it was a reader who saw
+     * it.
+     */
+    @Test
+    fun aSidebarsRowsAreADrawersDistanceApart() = runComposeUiTest {
+        var gap = 0f
+        var iconRow = 0f
+        setContent {
+            KontourTheme(darkTheme = false, reduceMotion = true) {
+                gap = with(density) { Theme.spacing.xxs.toPx() }
+                iconRow = with(density) { (Theme.sizing.iconLarge + Theme.spacing.sm * 2).toPx() }
+                Box(Modifier.fillMaxSize()) {
+                    NavRail(expanded = true) {
+                        item(true, {}, key = "stops", icon = Tabler.Outline.MapPin) { +"Stops" }
+                        item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                        item(false, {}, key = "about", icon = null) { +"About" }
+                        item(false, {}, key = "help", icon = null) { +"Help" }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        val rows = listOf("Stops", "Routes", "About", "Help").map { label ->
+            onNode(hasText(label) and hasClickAction()).fetchSemanticsNode().boundsInRoot
+        }
+        rows.take(2).forEach { row ->
+            assertTrue(
+                abs(row.height - iconRow) <= 1f,
+                "an icon row is ${row.height}px, not a drawer row's ${iconRow}px (the icon and `sm` either side)",
+            )
+        }
+        rows.zipWithNext { a, b -> b.top - a.bottom }.forEach { between ->
+            assertTrue(abs(between - gap) <= 1f, "rows are ${between}px apart, not a drawer's ${gap}px: $rows")
+        }
+    }
 
     @Test
     fun aFixedSidebarShowsItsLabelsAndNoToggle() = runComposeUiTest {

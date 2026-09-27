@@ -30,6 +30,12 @@ changes — labels fading in, section titles taking the place of the hairlines t
 stood for them, a group becoming a disclosure — changes when the *animated* width
 passes halfway, not when the flag flips.
 
+**Expanded, it reads at a drawer's density.** A row is its icon and `sm` above
+and below — 48dp, the touch target — rows are `xxs` apart, and a label sits `md`
+from its icon. The glyph box is as wide as a collapsed rail needs, so the icons
+stay put, but only an icon tall, so a sidebar is not a column of widely spaced
+buttons.
+
 ### Sections and groups
 
 <!--sample:NavRailTree-->

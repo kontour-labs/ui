@@ -81,13 +81,21 @@ object NavRailDefaults {
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navRailExpandedWidth
 
     /**
-     * The glyph's box in a rail's row, at every width. Square, and sized so a
-     * collapsed rail holds it without squeezing: a box that gets clamped is a box
-     * the icon sits in differently at every width, which is most of what made
-     * the icons move as a rail grew.
+     * The glyph's box in a rail's row, at every width.
+     *
+     * As wide as a collapsed rail holds without squeezing: a box that gets
+     * clamped is a box the icon sits in differently at every width, which is
+     * most of what made the icons move as a rail grew.
+     *
+     * As tall as the icon, and no taller. It was square, 48 by 48, which with
+     * the row's own padding made every row 56dp and the sidebar a quarter
+     * looser than the drawer it replaced. The height a row needs is the touch
+     * target's, which the row reserves itself — so an icon row, a text row and
+     * a group are all 48dp, and a sidebar reads at a drawer's density.
      */
     val GlyphSize: DpSize
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navInlineGlyph.let { DpSize(it, it) }
+        @Composable @ReadOnlyComposable get() =
+            DpSize(Theme.componentDefaults.navInlineGlyph, Theme.sizing.iconLarge)
 
     /** How far a group's destinations sit in from the group, in a rail wide enough to show them. */
     val NestIndent: Dp
@@ -394,7 +402,10 @@ private fun RailItems(
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().selectableGroup(),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                    // `xxs`, a drawer's gap: rows are already 48dp targets, and
+                    // `xs` between them spread a sidebar of twenty pages over a
+                    // screen and a half.
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                 ) {
                     scope.content()
                 }
@@ -522,7 +533,7 @@ private class RailScope(
         val deeper = RailScope(keys, colours, room, glyph, indent, nest + 1, afterClick)
         // One child of the rail's spaced column, not two. As two, the header and
         // its children were separated by the column's gap whatever their height,
-        // so a collapsing group held an extra `spacing.xs` until it was removed —
+        // so a collapsing group held an extra gap until it was removed —
         // and every row below jumped up by it on that frame. The gap belongs to
         // the children and grows and shrinks with them.
         // Locals, because `Column` is a layout scope too, and the DSL marker
@@ -576,8 +587,8 @@ private class RailScope(
                 // every frame; the marker must not follow them up the rail.
                 CompositionLocalProvider(LocalSelectionIndicatorLeaving provides !showing) {
                     Column(
-                        Modifier.padding(top = Theme.spacing.xs),
-                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        Modifier.padding(top = Theme.spacing.xxs),
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     ) {
                         deeper.content()
                     }
