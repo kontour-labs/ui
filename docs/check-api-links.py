@@ -98,8 +98,15 @@ def main() -> int:
     # the site already declines to draw a reference link for a page that is not
     # about a symbol. It is listed here so that a *component* page arriving in
     # the same state is not mistaken for it.
+    #
+    # `Toast` is the other, for a different reason: the class is internal —
+    # what a caller holds is a `ToastHostState` and a `ToastHost`, and the
+    # page's own table links both. Its title names the idea the reader is
+    # looking for, and making the class public to give the title a target
+    # would publish an implementation detail for the sake of a link.
+    EXEMPT = {"+", "Toast"}
     for where, symbol in page_symbols():
-        if symbol == "+":
+        if symbol in EXEMPT:
             continue
         if symbol not in paths:
             problems.append(f"{where}: `{symbol}` has no reference path, so its link lands on the index")

@@ -58,8 +58,19 @@ object KotlinSignatures {
         val qualified: String
             get() = listOfNotNull(receiver ?: enclosing, name).joinToString(".")
 
-        /** Public unless it says otherwise — the Kotlin default. */
-        val isPublic: Boolean get() = visibility == "public"
+        /**
+         * Inside a function rather than a type: indented, and in no type's
+         * body. Nobody outside can call it, whatever it says about itself.
+         */
+        val isLocal: Boolean get() = indent > 0 && enclosing == null
+
+        /**
+         * Public unless it says otherwise — the Kotlin default — and not local.
+         * A local function says nothing either, and was read as public: the
+         * `fittedWidth` inside `Table`'s layout became `TableScope.fittedWidth`
+         * on the API page, linking to a reference page that does not exist.
+         */
+        val isPublic: Boolean get() = visibility == "public" && !isLocal
 
         /**
          * A component, as opposed to a state holder or a plain function.
@@ -110,6 +121,52 @@ object KotlinSignatures {
             }
         }
         return text.length
+    }
+
+    /**
+     * The body of the declaration whose header ends at [from], from its `{`
+     * to its `}`, or null for one without a body.
+     *
+     * The body is the first `{` outside parentheses, or, after an `=`, the
+     * first on that line — `= remember { … }` is still a scope a function
+     * declares things in. A line back at the declaration's own [indent] that
+     * does not carry on its header — a `)`, a `:`, a `,`, a `where` — ends the
+     * search: that is the next declaration, and a `{` in it is not this one's.
+     */
+    private fun body(text: String, from: Int, indent: Int): IntRange? {
+        var parens = 0
+        var i = from
+        while (i < text.length) {
+            when (text[i]) {
+                '(' -> parens++
+                ')' -> parens--
+                '{' -> if (parens == 0) return i..balancedBrace(text, i)
+                '=' -> if (parens == 0 && text.getOrNull(i + 1) != '=') {
+                    val end = text.indexOf('\n', i).let { if (it < 0) text.length else it }
+                    val open = text.indexOf('{', i)
+                    return if (open in 0 until end) open..balancedBrace(text, open) else null
+                }
+                '\n' -> if (parens == 0) {
+                    // The next line with something on it.
+                    var start = i + 1
+                    while (start < text.length && text[start].isWhitespace()) {
+                        if (text[start] == '\n') i = start
+                        start++
+                    }
+                    if (start >= text.length) return null
+                    val carriesOn = text[start] in "):,{" || text.startsWith("where ", start)
+                    if (start - i - 1 <= indent && !carriesOn) return null
+                }
+            }
+            i++
+        }
+        return null
+    }
+
+    /** How far the line holding [at] is indented. */
+    private fun indentAt(text: String, at: Int): Int {
+        val start = text.lastIndexOf('\n', at - 1) + 1
+        return text.substring(start).takeWhile { it == ' ' || it == '\t' }.length
     }
 
     /** Index of the `)` closing the `(` at [start]. */
@@ -249,6 +306,8 @@ object KotlinSignatures {
 
     private val packageHeader = Regex("""^package\s+([\w.]+)""", RegexOption.MULTILINE)
 
+    private val anonymousObject = Regex("""\bobject\s*:""")
+
     private val typeHeader = Regex(
         """^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual|enum|annotation)\s+)*""" +
             """(?:class|interface|object)\s+([A-Za-z_]\w*)""",
@@ -358,20 +417,39 @@ object KotlinSignatures {
         val clean = withoutComments(text)
         val found = mutableListOf<Declaration>()
 
-        // Where each type starts and how far it is indented, so an indented
-        // declaration can say which type it belongs to. `action` on its own is
-        // not a name anyone can look up; `ButtonGroupScope.action` is.
-        val types = typeHeader.findAll(clean)
-            .map { Triple(it.range.first, it.groupValues[1].length, it.groupValues[2]) }
-            .toList()
+        // Where each type's body is and how far the type is indented, so an
+        // indented declaration can say which type it belongs to. `action` on
+        // its own is not a name anyone can look up; `ButtonGroupScope.action`
+        // is. The body, and not just where the type starts, because a type
+        // that has closed encloses nothing: a local function in a composable
+        // below `TableScope` was read as a member of it.
+        //
+        // Function bodies and anonymous objects are scopes too, with no name:
+        // what is declared in them is local — the `onPreScroll` of an
+        // `object : NestedScrollConnection` inside `SheetState` is not
+        // `SheetState.onPreScroll`.
+        val scopes = buildList {
+            typeHeader.findAll(clean).forEach {
+                val indent = it.groupValues[1].length
+                add(Triple(body(clean, it.range.last + 1, indent), indent, it.groupValues[2]))
+            }
+            anonymousObject.findAll(clean).forEach {
+                add(Triple(body(clean, it.range.last + 1, indentAt(clean, it.range.first)), 0, null))
+            }
+            functionHeader.findAll(clean).forEach {
+                val opening = clean.indexOf('(', it.range.last - 1)
+                add(Triple(body(clean, balanced(clean, opening) + 1, it.groupValues[1].length), 0, null))
+            }
+        }
 
         fun add(kind: Kind, match: MatchResult, indent: String, visibility: String, receiver: String?, name: String) {
             val opening = clean.indexOf('(', match.range.last - 1)
             if (opening < 0) return
-            // The innermost type that opened before this and is less indented.
-            val enclosing = types.lastOrNull { (at, depth, _) ->
-                at < match.range.first && depth < indent.length
-            }?.third
+            // The innermost scope this is in; a type only if that is a type.
+            val enclosing = scopes
+                .filter { (body, depth, _) -> body != null && match.range.first in body && depth < indent.length }
+                .maxByOrNull { it.first!!.first }
+                ?.third
             // Annotations sit on the lines directly above; walk back over the
             // run of them. `@Composable` is what separates a component from a
             // state holder, and several rules below turn on that.
