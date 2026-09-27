@@ -25,7 +25,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListGroup
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.ModalNavDrawer
 import io.kontour.ui.nav.TopBar
@@ -40,6 +42,7 @@ import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.closeEnclosingSheet
 import io.kontour.ui.theme.Theme
 
 /**
@@ -62,7 +65,8 @@ internal enum class BackScenario(val title: String, val note: String) {
     Supporting(
         "Supporting pane",
         "Beside the main pane on a tablet, where back closes it. On a phone it is a sheet: Android's back " +
-            "closes it; on iOS it is dragged down.",
+            "closes it; on iOS it is dragged down. Either way it has a close button rather than a back arrow: " +
+            "it was presented, not gone to.",
     ),
     Sheet(
         "Bottom sheet",
@@ -72,12 +76,12 @@ internal enum class BackScenario(val title: String, val note: String) {
     SheetStack(
         "Sheet with a stack",
         "A stack inside the sheet goes back first, on both. With nothing left in it, Android's back closes the " +
-            "sheet; iOS's leaves it open.",
+            "sheet; iOS's leaves it open. Its first page closes the sheet with a button; the pages after it go back.",
     ),
     SideSheets(
         "Side sheet and drawer",
-        "On Android back slides each out by its own slide, following the gesture. On iOS back leaves them " +
-            "open: tap outside.",
+        "Back slides each out by its own slide, following the finger. On iOS that is a drag towards its edge: " +
+            "the sheet anywhere on it, or from the left edge of the screen; the drawer by its own drag left.",
     ),
     Dialog(
         "Dialog",
@@ -122,6 +126,10 @@ private val Stops = listOf("Perth Busport", "Elizabeth Quay", "Claremont", "Frem
 /**
  * One page: a title bar, with a back arrow when there is somewhere to go back
  * to, and a list of rows that go somewhere.
+ *
+ * The first page of something presented — a sheet, a supporting pane shown as
+ * one — has nowhere to go back to *within* it, so it gets [onClose] instead: a
+ * close button, which is what leaving it is.
  */
 @Composable
 private fun FramePage(
@@ -129,10 +137,17 @@ private fun FramePage(
     onBack: (() -> Unit)?,
     rows: List<Pair<String, () -> Unit>>,
     note: String? = null,
+    onClose: (() -> Unit)? = null,
     extra: @Composable () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
-        TopBar(onBack = onBack, windowInsets = WindowInsets(0)) { +title }
+        TopBar(
+            onBack = onBack,
+            windowInsets = WindowInsets(0),
+            actions = onClose?.let { close ->
+                { IconButton(icon = SystemIcons.Close, contentDescription = Theme.strings.close, onClick = close) }
+            },
+        ) { +title }
         Column(
             Modifier
                 .fillMaxSize()
@@ -274,7 +289,9 @@ private fun SupportingScenario() {
                 )
             }
             entry<ConditionsRoute>(metadata = supportingPane()) {
-                FramePage("Conditions", onBack = pop, rows = emptyList(), note = "24 °C, dry, a light easterly.")
+                // Presented beside the run, or over it as a sheet: closed, not
+                // gone back from.
+                FramePage("Conditions", onBack = null, onClose = pop, rows = emptyList(), note = "24 °C, dry, a light easterly.")
             }
         },
     )
@@ -322,7 +339,7 @@ private fun DeparturesSheet(open: Boolean, onClose: () -> Unit, dismissible: Boo
         val inner = remember { mutableStateListOf<Any>(StopsRoute) }
         var report by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxWidth().height(420.dp).padding(safeArea)) {
-            SheetStack(inner, onReport = { report = true }, withDialog = withDialog, onDone = onClose, dismissible = dismissible)
+            SheetStack(inner, onReport = { report = true }, withDialog = withDialog, onDone = onClose)
         }
         if (withDialog) ReportDialog(report, onClose = { report = false }, dismissible = dismissible)
     }
@@ -334,7 +351,6 @@ private fun SheetStack(
     onReport: () -> Unit,
     withDialog: Boolean,
     onDone: () -> Unit,
-    dismissible: Boolean,
 ) {
     val pop: () -> Unit = { backStack.removeLastOrNull() }
     NavDisplay(
@@ -343,10 +359,12 @@ private fun SheetStack(
         sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
         entryProvider = entryProvider {
             entry<StopsRoute> {
+                // The sheet's first page closes the sheet, with the sheet's own
+                // animation where it has one; the pages after it go back.
+                val close = closeEnclosingSheet() ?: onDone
                 FramePage(
-                    "Departures", onBack = null,
+                    "Departures", onBack = null, onClose = close,
                     rows = listOf("950", "935").map { "12:04 · $it" to { backStack += ServiceRoute("Perth Busport", it) } },
-                    extra = { if (!dismissible) Actions { Action("Done", onDone) } },
                 )
             }
             entry<ServiceRoute> { service ->
