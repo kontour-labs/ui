@@ -294,8 +294,9 @@ Escape on the desktop and the web all reach the topmost entry that takes it,
 and nothing beneath it. With nothing open, back goes past the host to whatever
 is behind it — a navigation stack, the platform. On iOS the outermost host
 tracks the edge swipe itself rather than taking the platform's, so a released
-swipe carries on at the finger's speed — see
-[Navigation 3](navigation3.md).
+swipe carries on at the finger's speed, and a swipe from the very edge goes
+back even over a control that pans sideways — see
+[Navigation 3](navigation3.md#back-and-how-pages-move).
 
 An entry takes back when it has `dismissOnBack = true`, or when it dims the page
 with `ScrimStyle.Dimmed`. It then keeps back from going any further — to the

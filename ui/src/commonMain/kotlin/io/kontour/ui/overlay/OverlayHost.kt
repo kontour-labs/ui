@@ -760,9 +760,11 @@ fun OverlayHost(
  *
  * UIKit's edge pan, in the library's hands: a pan that starts within
  * [EdgePanWidth] of the leading edge and heads for the trailing one. It looks
- * before anything under it does, as UIKit's does — a carousel against the edge
- * does not get to keep it — and only while something would answer back, so at
- * the root of an app the edge is the content's.
+ * before anything under it does, as UIKit's does — a carousel or a row of swipe
+ * actions against the edge does not get to keep it, since the edge decides as
+ * early as they do — and only while something would answer back, so at the
+ * root of an app the edge is the content's. A control that took the press
+ * itself, a slider, keeps it.
  */
 @Composable
 private fun Modifier.edgeSwipeBack(dispatcher: NavigationEventDispatcher): Modifier {
@@ -773,6 +775,7 @@ private fun Modifier.edgeSwipeBack(dispatcher: NavigationEventDispatcher): Modif
             edge = if (rtl) NavigationEvent.EDGE_RIGHT else NavigationEvent.EDGE_LEFT,
             pass = PointerEventPass.Initial,
             startsAt = { x, window, density -> (if (rtl) window - x else x) < EdgePanWidth.value * density },
+            early = true,
         )
     }
     val swipe = rememberSwipeBackInput(dispatcher)

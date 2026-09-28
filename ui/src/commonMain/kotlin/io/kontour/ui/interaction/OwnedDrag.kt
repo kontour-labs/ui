@@ -355,6 +355,15 @@ private fun Modifier.ownedDrag(
                         cancelled = true
                         break
                     }
+                    // **Taken over from above.** An ancestor looking first — the screen
+                    // edge's back swipe, which claims in the initial pass — consumed
+                    // the change before it reached here: the gesture is theirs now,
+                    // and a row carrying on under a page being swiped away is two
+                    // things answering one finger.
+                    if (press != null && change.isConsumed) {
+                        cancelled = true
+                        break
+                    }
                     if (!change.pressed) {
                         // The up as well, but only once this is genuinely a drag.
                         // Leaving it unconsumed let a clickable parent count the
@@ -455,7 +464,7 @@ private fun Modifier.ownedDrag(
  * claim; enough that the direction is the finger's and not the jitter of a thumb
  * settling onto the glass.
  */
-private const val DirectionDecisionShare = 0.4f
+internal const val DirectionDecisionShare = 0.4f
 
 /**
  * Where a dragging node is, for turning its local pointer positions into the

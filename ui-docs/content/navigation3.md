@@ -173,6 +173,16 @@ the trailing edge becomes back. `rememberPageTransitionStrategy(contentSwipe =
 false)` leaves only the edge. `Modifier.contentSwipeBack` is the same pan for a
 page of your own, outside `NavDisplay`.
 
+**From the very edge, back wins; from anywhere else, the control does.** The
+edge swipe decides as early as a swipe row does, and before it, so a swipe that
+starts in the 20dp band at the leading edge goes back even when it starts on a
+row with actions on both sides — the row is left where it was. A control that
+takes the press itself keeps it, edge or not: a slider pressed at its very start
+still slides. Away from the edge a swipe row owns both directions, including the
+side it has no actions on, where it gives under the finger and comes back rather
+than letting the page go. The catalog's Back page has a two-sided row, a
+one-sided row, a slider and a carousel on its second page to try this on.
+
 **On iOS the library tracks the swipe itself** — the edge swipe as well as the
 pan from the content — through the outermost `OverlayHost`, so that letting go
 carries on at the finger's speed: past half the width, or on a flick, the page

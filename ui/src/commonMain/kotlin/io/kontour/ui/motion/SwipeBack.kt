@@ -27,6 +27,7 @@ import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import io.kontour.ui.interaction.DirectionDecisionShare
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
@@ -227,6 +228,23 @@ internal class BackPan(
     val pass: PointerEventPass,
     /** Whether a pan starting at `x` in a window `window` wide may become back, at `density` pixels a dp. */
     val startsAt: (x: Float, window: Float, density: Float) -> Boolean,
+    /**
+     * The screen edge's: claims as early as a control deciding its direction
+     * does, and gives way to a control that took the press itself.
+     *
+     * The edge and a swipe row under it both want a sideways pan, and whoever
+     * claims first has it. Claimed at the touch slop, the edge lost to any row —
+     * a row decides at [io.kontour.ui.interaction.DirectionDecisionShare] of it
+     * — so a swipe from the very edge of the screen over a row of swipe actions
+     * opened the row. Reported from a phone, with how iOS does it: from the edge
+     * it is back, from anywhere else it is the row. Deciding at the same point in
+     * the initial pass, the edge is first.
+     *
+     * A slider pressed inside the band is different: it took the press itself,
+     * before anything moved, and a slider against the edge that could not be
+     * dragged would be the page's fault.
+     */
+    val early: Boolean = false,
 )
 
 /**
@@ -253,6 +271,7 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
 ) {
     val commitVelocity = CommitVelocity.toPx()
     val sign = if (pan.rightwards) 1f else -1f
+    val claimAt = if (pan.early) slop * DirectionDecisionShare else slop
     awaitPointerEventScope {
         while (true) {
             val down = awaitPointerEvent(pan.pass)
@@ -266,6 +285,12 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             if (!pan.startsAt(start.x, placed.windowWidth, density)) continue
 
             val id = first.id
+            if (pan.early) {
+                // The same press, after everything under it has seen it: a control
+                // that took the press itself keeps it.
+                val settled = awaitPointerEvent(PointerEventPass.Final)
+                if (settled.changes.firstOrNull { it.id == id }?.isConsumed == true) continue
+            }
             val tracker = VelocityTracker()
             tracker.addPosition(first.uptimeMillis, start)
             var claimed = false
@@ -284,8 +309,11 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                 if (!claimed) {
                     // Somebody inside took it; it was theirs.
                     if (change.isConsumed || !change.pressed) break
-                    if (abs(delta.x) > slop || abs(delta.y) > slop) {
-                        if (along > slop && abs(delta.x) > 2 * abs(delta.y)) {
+                    if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
+                        // Early, a row's own test: within 45° of sideways. Later,
+                        // on the content, twice as far sideways as up or down.
+                        val sideways = if (pan.early) abs(delta.x) >= abs(delta.y) else abs(delta.x) > 2 * abs(delta.y)
+                        if (along > claimAt && sideways) {
                             claimed = true
                             claimOffset = along
                             input.start(pan.edge, at)

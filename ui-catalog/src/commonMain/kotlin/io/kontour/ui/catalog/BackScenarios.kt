@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,7 +27,14 @@ import androidx.navigation3.ui.NavDisplay
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListGroup
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.SwipeAction
+import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.ModalNavRail
@@ -204,6 +212,7 @@ private fun PagesScenario() {
                 FramePage(
                     stop.name, onBack = pop,
                     rows = listOf("950", "935", "37").map { "Route $it" to { backStack += ServiceRoute(stop.name, it) } },
+                    extra = { SidewaysControls() },
                 )
             }
             entry<ServiceRoute> { service ->
@@ -218,6 +227,58 @@ private fun PagesScenario() {
             }
         },
     )
+}
+
+/**
+ * Things on a page that take a sideways drag of their own, under a page that
+ * can go back — where the edge and the page's controls share one finger.
+ *
+ * From the very edge a swipe is back, whatever it starts on, as on iOS. From
+ * anywhere else it is the control's: a row with actions on one side only still
+ * gives under the finger the other way rather than letting the page go.
+ */
+@Composable
+private fun SidewaysControls() {
+    var level by remember { mutableFloatStateOf(0.4f) }
+    val photos = rememberCarouselState { 3 }
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        Text(
+            "From the very edge, back. From anywhere else, the control.",
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
+        SwipeActions(
+            start = listOf(SwipeAction("Pin", SystemIcons.Check, onAction = {}, background = Theme.colours.success.solid)),
+            end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+        ) {
+            ListItem {
+                +"Next departure"
+                supporting { +"Actions on both sides" }
+            }
+        }
+        SwipeActions(
+            end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+        ) {
+            ListItem {
+                +"Saved stop"
+                supporting { +"Actions on one side" }
+            }
+        }
+        Slider(value = level, onValueChange = { level = it }, modifier = Modifier.fillMaxWidth())
+        Carousel(
+            state = photos,
+            contentDescription = "Stop photos",
+            modifier = Modifier.fillMaxWidth().height(96.dp),
+        ) { page ->
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = Theme.shapes.small,
+                containerColour = Theme.colours.surfaceSunken,
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Photo ${page + 1}") }
+            }
+        }
+    }
 }
 
 // --- panes -------------------------------------------------------------------
