@@ -281,7 +281,7 @@ enum class AvatarCorner(internal val atEnd: Boolean, internal val atBottom: Bool
  * What an [Avatar] carries on its rim: a status, a count, a glyph, or anything.
  *
  * Collected, then drawn over the avatar, each on the rim at 45° in its corner and
- * ringed in the colour of whatever the avatar sits on. Each [description] joins
+ * ringed in the colour of whatever the avatar sits on. Each `description` joins
  * the avatar's announcement; leave it null for one that says nothing new.
  */
 @LayoutScopeMarker

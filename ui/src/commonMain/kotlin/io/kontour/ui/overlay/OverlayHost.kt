@@ -138,7 +138,7 @@ class OverlayEntry(
      * scroll is the clearest possible statement that the user has finished with
      * them.
      *
-     * It is also what lets the page scroll at all. See [Scrim]'s
+     * It is also what lets the page scroll at all. See [io.kontour.ui.foundation.Scrim]'s
      * `onScrollRequest`: a scrim is in front of the page for every kind of
      * pointer event or none, so an overlay that will not close on a scroll is
      * an overlay that stops the page scrolling.
@@ -235,7 +235,7 @@ class OverlayHostState {
     /**
      * How far the entry that owns the backdrop is in, or null when none does.
      *
-     * A lambda rather than a value, and for the same reason [Scrim] takes one:
+     * A lambda rather than a value, and for the same reason [io.kontour.ui.foundation.Scrim] takes one:
      * this changes every frame, and the thing reading it is a `graphicsLayer`
      * wrapped around the *whole application*. Reading a float here in
      * composition would recompose every screen in the app once per frame of
