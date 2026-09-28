@@ -2,8 +2,14 @@ package io.kontour.ui.components.datetime
 
 import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -171,7 +177,63 @@ fun <T> WheelPicker(
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
-    val flingBehavior = rememberSnapFlingBehavior(listState)
+    val snapFling = rememberSnapFlingBehavior(listState)
+    val decay = rememberSplineBasedDecay<Float>()
+    val lastIndex by rememberUpdatedState(items.lastIndex)
+
+    /**
+     * The list's own snapping fling, and a bounce where it would run off an end.
+     *
+     * A flick hard enough to reach the first or last row stopped dead against it:
+     * the list cannot scroll past its end and dropped whatever speed was left.
+     * Asked for from a phone, "add bounce-back animation when flicking to end" —
+     * which is what a drum does on iOS.
+     *
+     * So a fling the decay would carry past an end is run here instead: the decay
+     * to the end, and the speed it arrives with thrown into the band, which goes
+     * out and springs back. A fling that stays inside the drum is the snap's, as
+     * before. Nothing moves the value: the band is drawn, and the drum rests on
+     * the end row it reached.
+     */
+    val flingBehavior = remember(snapFling, decay, band, bandLimit, itemPx, wheelMotion) {
+        object : FlingBehavior {
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                // A stretch the finger opened is the finger's, and is being
+                // released as this starts; and a bounce is motion reduced motion
+                // does without.
+                if (wheelMotion.reduceMotion || band.stretched || initialVelocity == 0f) {
+                    return with(snapFling) { performFling(initialVelocity) }
+                }
+                // Rows from the far end the fling is heading for. What the list
+                // cannot use is swallowed above rather than handed back, so
+                // `scrollBy` reports everything consumed and the end is found by
+                // where the drum is instead.
+                fun room(): Float {
+                    val turned = listState.firstVisibleItemIndex * itemPx + listState.firstVisibleItemScrollOffset
+                    return if (initialVelocity > 0f) lastIndex * itemPx - turned else turned
+                }
+                if (abs(decay.calculateTargetValue(0f, initialVelocity)) <= room()) {
+                    return with(snapFling) { performFling(initialVelocity) }
+                }
+                var arrival = 0f
+                var travelled = 0f
+                AnimationState(0f, initialVelocity).animateDecay(decay) {
+                    scrollBy(value - travelled)
+                    travelled = value
+                    if (room() < 0.5f) {
+                        arrival = velocity
+                        cancelAnimation()
+                    }
+                }
+                // Out the way the drum was going: a list scrolling forward moves
+                // its rows up, and the band's offset is a downward translation.
+                if (arrival != 0f) {
+                    band.bounce(-arrival, bandLimit, wheelMotion.springOrTween(wheelMotion.springGentle))
+                }
+                return 0f
+            }
+        }
+    }
     val ticker = rememberDetentTicker()
 
     // **Running out of hours reports nothing now, and this was the strongest

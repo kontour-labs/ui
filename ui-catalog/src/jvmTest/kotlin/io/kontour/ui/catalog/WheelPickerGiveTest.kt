@@ -125,6 +125,54 @@ class WheelPickerGiveTest {
             )
         }
     }
+
+    /**
+     * A flick that reaches the end carries on into the band and comes back.
+     *
+     * Asked for from a phone: "add bounce-back animation when flicking to end".
+     * The drum used to stop dead on the first row with whatever speed it had
+     * left. The crown is the first row of ink, which only ever sits *below* where
+     * it rests at the start of the list if the drum has gone past it.
+     */
+    @Test
+    fun aFlickIntoTheFirstRowBouncesBack() {
+        val (overshoot, selected) = flickToTheStart(reduceMotion = false)
+        assertTrue(overshoot > 6, "a hard flick into the first row went ${overshoot}px past it — it should bounce")
+        assertTrue(overshoot < 60, "a hard flick into the first row went ${overshoot}px past it — a bounce, not a second track")
+        assertTrue(selected == 0, "the flick should rest on the first row, and rested on $selected")
+    }
+
+    /** The control, and the setting: under reduced motion the drum stops at the end. */
+    @Test
+    fun underReducedMotionAFlickStopsAtTheEnd() {
+        val (overshoot, selected) = flickToTheStart(reduceMotion = true)
+        assertTrue(overshoot <= 2, "under reduced motion a flick went ${overshoot}px past the first row")
+        assertTrue(selected == 0, "the flick should rest on the first row, and rested on $selected")
+    }
+
+    /** How far past its resting place the crown went after a hard flick to the start, and where it settled. */
+    private fun flickToTheStart(reduceMotion: Boolean): Pair<Int, Int> {
+        var selected by mutableStateOf(5)
+        var bounds = Rect.Zero
+        val crowns = mutableListOf<Int>()
+        Scene(width = 300, height = 400, reduceMotion = reduceMotion) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                WheelPicker(
+                    items = (0..9).map { it.toString() },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
+                    modifier = Modifier.reportBounds { bounds = it },
+                    itemLabel = { it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(20)
+            // About 3750px a second, downward: towards the first row.
+            scene.drag(from = bounds.alongY(0.2f), to = bounds.alongY(0.8f), steps = 4)
+            repeat(90) { crowns += scene.frame().firstInkRow(bounds) }
+        }
+        return (crowns.max() - crowns.last()) to selected
+    }
 }
 
 /**

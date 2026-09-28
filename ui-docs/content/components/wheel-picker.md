@@ -23,9 +23,11 @@ The scrolling drum, for any list of values. `TimePicker` is three of these.
 dead at either one is a boundary the finger cannot feel — the gesture simply
 stops answering and the control reads as broken rather than as finished. Pushed
 past an end, the drum follows the finger a row or so further, each pixel buying
-less than the last, and springs back when the finger lifts. Nothing is selected
-by it: the stretch is drawn and no index, no settled value and nothing the caller
-sees knows it happened.
+less than the last, and springs back when the finger lifts. A flick that reaches
+an end carries on into the same give and bounces back, rather than stopping dead
+on the last row with its speed thrown away. Nothing is selected by either: the
+stretch is drawn and no index, no settled value and nothing the caller sees knows
+it happened.
 
 Set `infinite = true` and there are no ends to feel. That is a decision about
 whether the *values* wrap — hours and months do, a list of countries does not —
@@ -100,4 +102,4 @@ Under reduced motion the drum still follows the finger, and its rows keep the
 curve that is how a wheel reads. What settles on its own does so over a short
 tween without overshoot — the give at the ends, and every turn of an `infinite`
 wheel — and a finite wheel's turn to a tapped row, and its settle after a mouse
-drag, arrive at once.
+drag, arrive at once. A flick into an end stops there, without the bounce.

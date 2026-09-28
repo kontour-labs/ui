@@ -1976,6 +1976,7 @@ final class io.kontour.ui.interaction/RubberBand { // io.kontour.ui.interaction/
 
     final fun payBack(kotlin/Float): kotlin/Float // io.kontour.ui.interaction/RubberBand.payBack|payBack(kotlin.Float){}[0]
     final fun pull(kotlin/Float, kotlin/Float): kotlin/Float // io.kontour.ui.interaction/RubberBand.pull|pull(kotlin.Float;kotlin.Float){}[0]
+    final suspend fun bounce(kotlin/Float, kotlin/Float, androidx.compose.animation.core/AnimationSpec<kotlin/Float>) // io.kontour.ui.interaction/RubberBand.bounce|bounce(kotlin.Float;kotlin.Float;androidx.compose.animation.core.AnimationSpec<kotlin.Float>){}[0]
     final suspend fun release(androidx.compose.animation.core/AnimationSpec<kotlin/Float>) // io.kontour.ui.interaction/RubberBand.release|release(androidx.compose.animation.core.AnimationSpec<kotlin.Float>){}[0]
 }
 

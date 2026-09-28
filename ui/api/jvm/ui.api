@@ -2264,6 +2264,7 @@ public final class io/kontour/ui/interaction/RowInteractionKt {
 
 public final class io/kontour/ui/interaction/RubberBand {
 	public static final field $stable I
+	public final fun bounce (FFLandroidx/compose/animation/core/AnimationSpec;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getOffset ()F
 	public final fun getStretched ()Z
 	public final fun payBack (F)F

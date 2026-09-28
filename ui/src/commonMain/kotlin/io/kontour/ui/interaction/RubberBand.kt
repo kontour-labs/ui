@@ -153,6 +153,31 @@ class RubberBand internal constructor() {
             animationSpec = spec,
         ) { value, _ -> offset = sign * value.coerceAtLeast(0f) }
     }
+
+    /**
+     * Throws the stretch out at [velocity], pixels a second, and springs it home:
+     * a boundary hit at speed rather than pulled into.
+     *
+     * [spec] runs from nothing to nothing with [velocity] as its start, so how far
+     * the stretch goes is the spring's to say — a critically damped one goes out
+     * once and comes back without crossing. The distance is then read through the
+     * same approach to [limit] that [pull] uses, so however hard the flick, the
+     * band gives less than [limit] and never looks like somewhere to stop.
+     *
+     * Written for the wheel picker, where a flick into the first or last row
+     * stopped dead: "add bounce-back animation when flicking to end".
+     */
+    suspend fun bounce(velocity: Float, limit: Float, spec: AnimationSpec<Float>) {
+        if (velocity == 0f || limit <= 0f) return
+        val sign = if (velocity > 0f) 1f else -1f
+        animate(
+            initialValue = 0f,
+            targetValue = 0f,
+            initialVelocity = abs(velocity),
+            animationSpec = spec,
+        ) { value, _ -> offset = sign * limit * (1f - exp(-value.coerceAtLeast(0f) / limit)) }
+        offset = 0f
+    }
 }
 
 /** A [RubberBand] that survives recomposition. */
