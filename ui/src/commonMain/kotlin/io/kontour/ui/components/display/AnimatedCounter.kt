@@ -38,6 +38,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.HoldFeedback
+import io.kontour.ui.interaction.rememberHoldFeedback
 import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
@@ -48,6 +50,9 @@ import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 
 /**
@@ -164,8 +169,8 @@ fun AnimatedCounter(
      */
     warnBefore: Duration = Duration.ZERO,
     /**
-     * Whether a warning is felt as well as seen: a light tap as the digits start
-     * to shake, and a full one as the number they warned of lands — once each
+     * Whether a warning is felt as well as seen: a faint rumble for as long as
+     * the digits shake, and a tap as the number they warned of lands — once each
      * per warning. Only matters with a [warnBefore].
      *
      * On by default, because a number that warns is one the reader may be about
@@ -173,16 +178,17 @@ fun AnimatedCounter(
      * reader who is not looking. It used to tap on *every* drop of such a
      * counter, including the ones that landed mid-wiggle, so a quick run of
      * drops buzzed once each through a single warning; now a warning is felt
-     * where it starts and where it ends, however many drops it covers. A rise
-     * that cuts a warning short lands without the second tap: it is not the
-     * news the first one warned of. Under reduced motion, where nothing shakes,
-     * it taps once, at the drop.
+     * for as long as it runs and where it ends, however many drops it covers. A
+     * rise that cuts a warning short stops the rumble and lands without the tap:
+     * it is not the news the rumble warned of. Under reduced motion, where
+     * nothing shakes, it taps once, at the drop.
      */
     hapticWarning: Boolean = true,
     contentDescription: String? = null,
 ) {
     val motion = Theme.motion
     val tap = rememberTapFeedback()
+    val warned = rememberHoldFeedback()
     val felt by rememberUpdatedState(hapticWarning && warnBefore > Duration.ZERO)
 
     // What is actually drawn, which is `value` except while a fall is being
@@ -221,17 +227,28 @@ fun AnimatedCounter(
             }
             // Down is the one direction worth reporting, and only on a counter
             // that warns: a number that falls there is a seat count or a time
-            // remaining the reader may be about to act on. Light as the shaking
-            // starts, and the full tap as the number lands — once each per
-            // warning, since a drop landing mid-wiggle is part of the warning
+            // remaining the reader may be about to act on. A faint rumble for as
+            // long as the digits shake, and the tap as the number lands — once
+            // per warning, since a drop landing mid-wiggle is part of the warning
             // already running. It used to report every fall on every counter: a
             // seconds countdown buzzed once a second, and a `Stepper`'s own
             // counter answered its minus button a second time.
-            if (felt) tap.light()
+            //
+            // The rumble replaced a light tap at the start, asked for from a
+            // phone: a shake is felt better as something going on than as a knock.
+            if (felt) warned.start()
             warning = true
             try {
-                withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }
+                coroutineScope {
+                    val building = if (felt) launch { buildRumble(warned, warnBefore) } else null
+                    try {
+                        withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }
+                    } finally {
+                        building?.cancel()
+                    }
+                }
             } finally {
+                warned.stop()
                 warning = false
             }
             val landed = latest
@@ -559,3 +576,20 @@ private fun wiggleCycles(warnBefore: Duration): Int =
 
 /** Between two OpenType feature settings — CSS's syntax, not a word. */
 private const val FeatureSeparator = ", "
+
+/**
+ * The warning's rumble, built across [over] — the hold's own ramp, taken only
+ * [WarningRumbleShare] of the way, so it stays a shake that is felt rather than
+ * an alarm.
+ */
+private suspend fun buildRumble(hold: HoldFeedback, over: Duration) {
+    val total = over.inWholeNanoseconds.coerceAtLeast(1L).toFloat()
+    val start = withFrameNanos { it }
+    while (true) {
+        withFrameNanos { now -> hold.update(((now - start) / total).coerceIn(0f, 1f) * WarningRumbleShare) }
+    }
+}
+
+/** How far up the hold's ramp a counter's warning goes: half, which is faint. */
+private const val WarningRumbleShare = 0.5f
+

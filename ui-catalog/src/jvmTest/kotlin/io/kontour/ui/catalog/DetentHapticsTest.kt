@@ -1986,9 +1986,10 @@ class DetentHapticsTest {
     }
 
     /**
-     * A counter is not a control, and taps on a fall only where it was asked to
-     * warn of one: a countdown used to buzz every second. Where it warns, lightly
-     * as the shaking starts, and fully as the number lands.
+     * A counter is not a control, and is felt on a fall only where it was asked
+     * to warn of one: a countdown used to buzz every second. Where it warns, a
+     * faint rumble while the digits shake — it was a light tap, and a shake is
+     * felt better as something going on — and a tap as the number lands.
      */
     @Test
     fun aCounterTapsOnAFallOnlyWhereItWarns() {
@@ -2013,19 +2014,19 @@ class DetentHapticsTest {
         }
         assertEquals(emptyList(), fell(kotlin.time.Duration.ZERO), "a plain counter falling buzzed")
         assertEquals(
-            listOf("Tap light", "Tap"), fell(kotlin.time.Duration.parse("450ms")),
-            "a warning counter should tap lightly as it starts to shake, and fully as the number lands",
+            listOf("Hold", "Hold stopped", "Tap"), fell(kotlin.time.Duration.parse("450ms")),
+            "a warning counter should rumble while it shakes, stop, and tap as the number lands",
         )
     }
 
     /**
-     * The warning is felt where it starts and where it ends, and nowhere between:
+     * The warning is felt while it runs and where it ends, and nothing more:
      * drops landing mid-wiggle are part of the warning already running, and a
      * quick run of them used to buzz once each. `hapticWarning = false` keeps
      * the warning to the eye.
      */
     @Test
-    fun aWarningTapsTwiceHoweverManyDropsItCovers() {
+    fun aWarningIsFeltOnceHoweverManyDropsItCovers() {
         fun fell(hapticWarning: Boolean): List<String> {
             val felt = mutableListOf<String>()
             var value by mutableStateOf(10)
@@ -2049,11 +2050,11 @@ class DetentHapticsTest {
             }
             return felt
         }
-        assertEquals(listOf("Tap light", "Tap"), fell(hapticWarning = true), "one warning, three drops")
+        assertEquals(listOf("Hold", "Hold stopped", "Tap"), fell(hapticWarning = true), "one warning, three drops")
         assertEquals(emptyList(), fell(hapticWarning = false), "a warning asked not to be felt was")
     }
 
-    /** Records each report with whether it was played at part strength. */
+    /** Records each report with whether it was played at part strength, and each sustained one's start and stop. */
     @Composable
     private fun RecordingStrength(into: MutableList<String>, content: @Composable () -> Unit) {
         CompositionLocalProvider(
@@ -2064,6 +2065,18 @@ class DetentHapticsTest {
 
                 override fun perform(intent: FeedbackIntent, scale: Float) {
                     into += if (scale < 1f) "${intent.name} light" else intent.name
+                }
+
+                override fun sustain(intent: FeedbackIntent): SustainedFeedback {
+                    into += intent.name
+                    return object : SustainedFeedback {
+                        private var stopped = false
+                        override fun update(progress: Float) = Unit
+                        override fun stop() {
+                            if (!stopped) into += "${intent.name} stopped"
+                            stopped = true
+                        }
+                    }
                 }
             },
             content = content,

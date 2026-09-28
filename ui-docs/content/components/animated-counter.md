@@ -84,10 +84,11 @@ A second drop landing mid-warning restarts nothing — the wiggle carries on and
 the roll, when it comes, goes to wherever the value has reached — so a value
 falling every second does not queue a second of warning per step.
 
-**`hapticWarning` is the warning felt:** a light tap as the digits start to
-shake, and a full one as the number lands — once each per warning, since a drop
+**`hapticWarning` is the warning felt:** a faint rumble for as long as the digits
+shake, and a tap as the number lands — once each per warning, since a drop
 landing mid-wiggle is part of the warning already running. A rise that cuts the
-warning short lands without the second: it is not the news the first warned of.
+warning short stops the rumble and lands without the tap: it is not the news the
+rumble warned of.
 On by default, since a number that warns is one the reader may be about to act
 on; `hapticWarning = false` keeps the warning to the eye. Under reduced motion,
 where nothing shakes, one tap comes at the drop.

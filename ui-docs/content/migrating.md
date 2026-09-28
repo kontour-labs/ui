@@ -515,7 +515,7 @@ these change what an existing call does.
   what the controls left.
 - **A centred `TopBar` or `SheetHeader` stays centred when only its subtitle is
   too long**, which now ends in an ellipsis.
-- **A warning `AnimatedCounter` taps lightly as the warning starts and fully as
+- **A warning `AnimatedCounter` rumbles faintly while the warning runs and taps as
   the number lands**, not once per drop; `hapticWarning = false` turns it off.
 - **A `FabMenu`'s items leave 50ms apart**, not 28ms, so each is felt as it
   lands; `FabMenuDefaults.Stagger` says so.
