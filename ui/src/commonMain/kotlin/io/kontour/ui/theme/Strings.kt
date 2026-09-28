@@ -170,8 +170,6 @@ data class Strings(
     val cut: String = "Cut",
     val paste: String = "Paste",
     val selectAll: String = "Select all",
-    /** The overflow control on a selection toolbar that has outgrown its row. */
-    val more: String = "More",
 
     // Colour picker
     /** The saturation-and-value square. */
@@ -357,7 +355,6 @@ data class Strings(
         cut = lookup.text("cut") ?: fallback.cut,
         paste = lookup.text("paste") ?: fallback.paste,
         selectAll = lookup.text("selectAll") ?: fallback.selectAll,
-        more = lookup.text("more") ?: fallback.more,
         colourArea = lookup.text("colourArea") ?: fallback.colourArea,
         colourHue = lookup.text("colourHue") ?: fallback.colourHue,
         colourOpacity = lookup.text("colourOpacity") ?: fallback.colourOpacity,
@@ -527,7 +524,6 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     cut = transform(cut),
     paste = transform(paste),
     selectAll = transform(selectAll),
-    more = transform(more),
     colourArea = transform(colourArea),
     colourHue = transform(colourHue),
     colourOpacity = transform(colourOpacity),

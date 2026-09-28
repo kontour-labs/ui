@@ -771,7 +771,7 @@ also what stopped a guess being written down as a cause.
 
 ## A wrong sentence in this repository is a wrong assumption in the next round
 
-`TextSelectionToolbar`'s KDoc and `text-toolbar.md` both said Compose falls back
+`TextSelectionToolbar`'s KDoc and `text-toolbar.md` (both since removed, with the toolbar) both said Compose falls back
 to "nothing recognisable in a browser". Round 26 repeated that claim in a new
 KDoc, on the strength of the old one, and only a canary build caught it: the
 fallback is a perfectly visible toolbar, a rounded pill reading

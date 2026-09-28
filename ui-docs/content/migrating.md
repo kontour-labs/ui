@@ -290,7 +290,7 @@ does: `Modifier.padding(bottom = it)` becomes `Modifier.padding(it)`.
 | `CapsuleCap` | `Shapes.CapsuleCap` |
 | `TimelineListDefaults.NodeSize`, `GutterWidth` | `TimelineDefaults.NodeSize`, `GutterWidth` |
 | `BranchTimelineDefaults.NodeSize`, `GutterWidth` | `TimelineDefaults.NodeSize`, `GutterWidth` |
-| `textToolbarLabels(…)` | `TextToolbarDefaults.labels(…)` |
+| `textToolbarLabels(…)` | Removed with the selection toolbar — see [From a round on phones](#from-a-round-on-phones) |
 | `FabPosition.Center`, `OverlayAlignment.Center`, `TableAlign.Center` | `.Centre` |
 | `linkedText { }`, `LinkedTextScope` | `richText { }`, `RichTextScope` — the same builder, which now does bold, italic, code, tone and Markdown as well as links; `link(text) { }` is unchanged |
 
@@ -571,6 +571,8 @@ these change what an existing call does.
 | `BottomSheetDefaults.PositionalThreshold` | Removed: a release is judged by where it would land, projected half a second on, and below a flick by position — see [Sheets](components/sheets.md) |
 | `ActivityCalendar(showLegend = false)` | `ActivityCalendar(legend = ActivityLegend.None)`; `true` is the default, `ActivityLegend.Steps` |
 | `ActivityCalendar(markerFor = { d, n -> mark })` returning `ActivityMark?` | `marksFor = { d, n -> listOfNotNull(mark) }`, returning a list: a day can have several |
+| `TextSelectionToolbar`, `TextToolbarAction`, `TextToolbarLabels`, `TextToolbarDefaults` | Removed. Every platform keeps its own selection toolbar; the library's right-click menu stays and reads `Theme.strings` |
+| `Strings.more` | Removed with the toolbar, the one thing that read it |
 
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
 `ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;

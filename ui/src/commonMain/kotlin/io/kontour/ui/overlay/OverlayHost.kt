@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
-import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
@@ -760,23 +759,18 @@ fun OverlayHost(
                     // this tree shares.
                     .then(if (shutBy != null) Modifier.clearAndSetSemantics {} else Modifier)
             ) {
-                // Every text box below here gets the library's own selection
-                // toolbar. See `DefaultTextSelectionToolbar` for why the host
-                // installs it rather than the field: `LocalOverlayHost` throws
-                // when there is no host, so a field that reached for one would
-                // break every app that draws a field on its own.
-                DefaultTextSelectionToolbar {
-                    // And the right-click menu, for the same reason and in the
-                    // same place: it opens into this host, and a field cannot
-                    // reach for a host that may not exist.
-                    TextContextMenuHost {
-                        if (pageBack != null) {
-                            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides pageBack) {
-                                content()
-                            }
-                        } else {
+                // Every text box below here gets the library's right-click
+                // menu. The host installs it rather than the field, because it
+                // opens into this host: `LocalOverlayHost` throws when there is
+                // no host, so a field that reached for one would break every app
+                // that draws a field on its own.
+                TextContextMenuHost {
+                    if (pageBack != null) {
+                        CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides pageBack) {
                             content()
                         }
+                    } else {
+                        content()
                     }
                 }
             }

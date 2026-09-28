@@ -41,8 +41,6 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.text.TextField
-import io.kontour.ui.components.text.TextSelectionToolbar
-import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
@@ -297,20 +295,6 @@ fun ImeChainBasics() {
 
     TextField(state = from, label = "From", imeChain = chain["from"])
     TextField(state = to, label = "To", imeChain = chain["to"])
-}
-
-@Composable
-fun TextToolbarBasics() {
-    // Wrap the part of the app that has something to add to a text selection.
-    // With no actions, Android and iOS keep their own toolbar and this installs
-    // nothing; desktop and the web have none to keep, so the host's draws instead.
-    TextSelectionToolbar(
-        actions = listOf(
-            TextToolbarAction("Plan a trip") { /* open the planner */ },
-        ),
-    ) {
-        Screen()
-    }
 }
 
 @Composable
