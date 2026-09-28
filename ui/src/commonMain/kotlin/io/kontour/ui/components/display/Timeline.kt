@@ -55,6 +55,7 @@ import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /** How the connector below a [TimelineItem] is drawn. */
@@ -622,7 +623,7 @@ fun HorizontalTimeline(
             Layout(
                 content = content,
                 // Read in item order, whichever side of the rail each label is on.
-                modifier = Modifier.horizontalScroll(scrollState).semantics { isTraversalGroup = true },
+                modifier = Modifier.horizontalScroll(scrollState, flingBehavior = ScrollDefaults.flingBehavior()).semantics { isTraversalGroup = true },
             ) { measurables, outer ->
                 val items = acrossItems(measurables)
                 items.forEachIndexed { index, item -> item.slot?.let { if (it.index != index) it.index = index } }

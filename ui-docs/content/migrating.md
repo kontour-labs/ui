@@ -549,6 +549,12 @@ these change what an existing call does.
 - **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
   into it, staying in the overlay host until it has; the pill is hidden while it
   is open.
+- **On iOS the library's own scrollers fling the library's way**: at UIKit's rate,
+  with a flick on a moving list adding to its speed, as an iPhone's lists do.
+  Menus, dialogs, popovers, tooltips, tables, tabs, breadcrumbs, the rail, the
+  command palette and the timelines all use `ScrollDefaults.flingBehavior()`.
+  Your own lists keep Compose's fling until they are handed it too — see
+  [Flings](tokens.md#flings). Other platforms are unchanged.
 
 **Changed, and a call that names them stops compiling:**
 
@@ -563,7 +569,8 @@ these change what an existing call does.
 `Avatar(decorations)` with `AvatarDecorationScope` and `AvatarCorner`;
 `MenuScope.actionRow` and `MenuActionRow` with `MenuActionRowScope`;
 `SwipeActions(tapConfirmation)`; `NavExpansion(expanded, progress: () -> Float, onSurface)`;
-`AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
+`AnimatedCounter(hapticWarning)`; `ScrollDefaults.flingBehavior()`, `ScrollFeel`
+and `LocalScrollFeel`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with
 `IosHapticsRoute`.
 

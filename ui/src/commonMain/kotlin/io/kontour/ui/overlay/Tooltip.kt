@@ -44,6 +44,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.interaction.rememberLongPressFeedback
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
@@ -318,7 +319,7 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         // it — almost never is not never, at 200% type against a short side.
         Box(
             Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.xxs,
@@ -505,7 +506,7 @@ private fun CoachMarkBubble(
         // is the likelier of the two to want it.
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {

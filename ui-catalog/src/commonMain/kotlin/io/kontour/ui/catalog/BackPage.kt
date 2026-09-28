@@ -41,6 +41,7 @@ import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 
@@ -87,7 +88,7 @@ internal fun BackPage(modifier: Modifier = Modifier) {
     }
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Theme.spacing.md),
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
         Card(Modifier.fillMaxWidth()) {

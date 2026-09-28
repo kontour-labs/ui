@@ -2141,6 +2141,30 @@ final class io.kontour.ui.motion/PageMotion { // io.kontour.ui.motion/PageMotion
     final fun push(): androidx.compose.animation/ContentTransform // io.kontour.ui.motion/PageMotion.push|push(){}[0]
 }
 
+final class io.kontour.ui.motion/ScrollFeel { // io.kontour.ui.motion/ScrollFeel|null[0]
+    constructor <init>(kotlin/Float = ..., kotlin/Float = ..., kotlin/Boolean = ...) // io.kontour.ui.motion/ScrollFeel.<init>|<init>(kotlin.Float;kotlin.Float;kotlin.Boolean){}[0]
+
+    final val accumulates // io.kontour.ui.motion/ScrollFeel.accumulates|{}accumulates[0]
+        final fun <get-accumulates>(): kotlin/Boolean // io.kontour.ui.motion/ScrollFeel.accumulates.<get-accumulates>|<get-accumulates>(){}[0]
+    final val decelerationRate // io.kontour.ui.motion/ScrollFeel.decelerationRate|{}decelerationRate[0]
+        final fun <get-decelerationRate>(): kotlin/Float // io.kontour.ui.motion/ScrollFeel.decelerationRate.<get-decelerationRate>|<get-decelerationRate>(){}[0]
+    final val velocityScale // io.kontour.ui.motion/ScrollFeel.velocityScale|{}velocityScale[0]
+        final fun <get-velocityScale>(): kotlin/Float // io.kontour.ui.motion/ScrollFeel.velocityScale.<get-velocityScale>|<get-velocityScale>(){}[0]
+
+    final fun component1(): kotlin/Float // io.kontour.ui.motion/ScrollFeel.component1|component1(){}[0]
+    final fun component2(): kotlin/Float // io.kontour.ui.motion/ScrollFeel.component2|component2(){}[0]
+    final fun component3(): kotlin/Boolean // io.kontour.ui.motion/ScrollFeel.component3|component3(){}[0]
+    final fun copy(kotlin/Float = ..., kotlin/Float = ..., kotlin/Boolean = ...): io.kontour.ui.motion/ScrollFeel // io.kontour.ui.motion/ScrollFeel.copy|copy(kotlin.Float;kotlin.Float;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.ui.motion/ScrollFeel.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.kontour.ui.motion/ScrollFeel.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.kontour.ui.motion/ScrollFeel.toString|toString(){}[0]
+
+    final object Companion { // io.kontour.ui.motion/ScrollFeel.Companion|null[0]
+        final const val UIKitDecelerationRate // io.kontour.ui.motion/ScrollFeel.Companion.UIKitDecelerationRate|{}UIKitDecelerationRate[0]
+            final fun <get-UIKitDecelerationRate>(): kotlin/Float // io.kontour.ui.motion/ScrollFeel.Companion.UIKitDecelerationRate.<get-UIKitDecelerationRate>|<get-UIKitDecelerationRate>(){}[0]
+    }
+}
+
 final class io.kontour.ui.nav/Crumb { // io.kontour.ui.nav/Crumb|null[0]
     constructor <init>(kotlin/String, kotlin/Function0<kotlin/Unit>? = ...) // io.kontour.ui.nav/Crumb.<init>|<init>(kotlin.String;kotlin.Function0<kotlin.Unit>?){}[0]
 
@@ -4078,6 +4102,10 @@ final object io.kontour.ui.motion/MarqueeDefaults { // io.kontour.ui.motion/Marq
         final fun <get-Velocity>(): androidx.compose.ui.unit/Dp // io.kontour.ui.motion/MarqueeDefaults.Velocity.<get-Velocity>|<get-Velocity>(){}[0]
 }
 
+final object io.kontour.ui.motion/ScrollDefaults { // io.kontour.ui.motion/ScrollDefaults|null[0]
+    final fun flingBehavior(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.foundation.gestures/FlingBehavior // io.kontour.ui.motion/ScrollDefaults.flingBehavior|flingBehavior(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+}
+
 final object io.kontour.ui.motion/ScrollEffectDefaults { // io.kontour.ui.motion/ScrollEffectDefaults|null[0]
     final const val ParallaxStrength // io.kontour.ui.motion/ScrollEffectDefaults.ParallaxStrength|{}ParallaxStrength[0]
         final fun <get-ParallaxStrength>(): kotlin/Float // io.kontour.ui.motion/ScrollEffectDefaults.ParallaxStrength.<get-ParallaxStrength>|<get-ParallaxStrength>(){}[0]
@@ -4708,10 +4736,14 @@ final val io.kontour.ui.locale/io_kontour_ui_locale_ScriptTypography$stableprop 
 final val io.kontour.ui.locale/io_kontour_ui_locale_TimeLayout$stableprop // io.kontour.ui.locale/io_kontour_ui_locale_TimeLayout$stableprop|#static{}io_kontour_ui_locale_TimeLayout$stableprop[0]
 final val io.kontour.ui.motion/LocalBackStyle // io.kontour.ui.motion/LocalBackStyle|{}LocalBackStyle[0]
     final fun <get-LocalBackStyle>(): androidx.compose.runtime/ProvidableCompositionLocal<io.kontour.ui.motion/BackStyle> // io.kontour.ui.motion/LocalBackStyle.<get-LocalBackStyle>|<get-LocalBackStyle>(){}[0]
+final val io.kontour.ui.motion/LocalScrollFeel // io.kontour.ui.motion/LocalScrollFeel|{}LocalScrollFeel[0]
+    final fun <get-LocalScrollFeel>(): androidx.compose.runtime/ProvidableCompositionLocal<io.kontour.ui.motion/ScrollFeel?> // io.kontour.ui.motion/LocalScrollFeel.<get-LocalScrollFeel>|<get-LocalScrollFeel>(){}[0]
 final val io.kontour.ui.motion/io_kontour_ui_motion_GlassSurfaceDefaults$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_GlassSurfaceDefaults$stableprop|#static{}io_kontour_ui_motion_GlassSurfaceDefaults$stableprop[0]
 final val io.kontour.ui.motion/io_kontour_ui_motion_MarqueeDefaults$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_MarqueeDefaults$stableprop|#static{}io_kontour_ui_motion_MarqueeDefaults$stableprop[0]
 final val io.kontour.ui.motion/io_kontour_ui_motion_PageMotion$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_PageMotion$stableprop|#static{}io_kontour_ui_motion_PageMotion$stableprop[0]
+final val io.kontour.ui.motion/io_kontour_ui_motion_ScrollDefaults$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_ScrollDefaults$stableprop|#static{}io_kontour_ui_motion_ScrollDefaults$stableprop[0]
 final val io.kontour.ui.motion/io_kontour_ui_motion_ScrollEffectDefaults$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_ScrollEffectDefaults$stableprop|#static{}io_kontour_ui_motion_ScrollEffectDefaults$stableprop[0]
+final val io.kontour.ui.motion/io_kontour_ui_motion_ScrollFeel$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_ScrollFeel$stableprop|#static{}io_kontour_ui_motion_ScrollFeel$stableprop[0]
 final val io.kontour.ui.motion/io_kontour_ui_motion_Transitions$stableprop // io.kontour.ui.motion/io_kontour_ui_motion_Transitions$stableprop|#static{}io_kontour_ui_motion_Transitions$stableprop[0]
 final val io.kontour.ui.nav/LocalNavExpansion // io.kontour.ui.nav/LocalNavExpansion|{}LocalNavExpansion[0]
     final fun <get-LocalNavExpansion>(): androidx.compose.runtime/ProvidableCompositionLocal<io.kontour.ui.nav/NavExpansion> // io.kontour.ui.nav/LocalNavExpansion.<get-LocalNavExpansion>|<get-LocalNavExpansion>(){}[0]
@@ -5173,7 +5205,9 @@ final fun io.kontour.ui.motion/GlassSurface(androidx.compose.ui/Modifier?, andro
 final fun io.kontour.ui.motion/io_kontour_ui_motion_GlassSurfaceDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_GlassSurfaceDefaults$stableprop_getter|io_kontour_ui_motion_GlassSurfaceDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.motion/io_kontour_ui_motion_MarqueeDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_MarqueeDefaults$stableprop_getter|io_kontour_ui_motion_MarqueeDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.motion/io_kontour_ui_motion_PageMotion$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_PageMotion$stableprop_getter|io_kontour_ui_motion_PageMotion$stableprop_getter(){}[0]
+final fun io.kontour.ui.motion/io_kontour_ui_motion_ScrollDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_ScrollDefaults$stableprop_getter|io_kontour_ui_motion_ScrollDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.motion/io_kontour_ui_motion_ScrollEffectDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_ScrollEffectDefaults$stableprop_getter|io_kontour_ui_motion_ScrollEffectDefaults$stableprop_getter(){}[0]
+final fun io.kontour.ui.motion/io_kontour_ui_motion_ScrollFeel$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_ScrollFeel$stableprop_getter|io_kontour_ui_motion_ScrollFeel$stableprop_getter(){}[0]
 final fun io.kontour.ui.motion/io_kontour_ui_motion_Transitions$stableprop_getter(): kotlin/Int // io.kontour.ui.motion/io_kontour_ui_motion_Transitions$stableprop_getter|io_kontour_ui_motion_Transitions$stableprop_getter(){}[0]
 final fun io.kontour.ui.motion/isPageTransitionActive(androidx.compose.runtime/Composer?, kotlin/Int): kotlin/Boolean // io.kontour.ui.motion/isPageTransitionActive|isPageTransitionActive(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 final fun io.kontour.ui.motion/rememberPageMotion(io.kontour.ui.motion/BackStyle?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): io.kontour.ui.motion/PageMotion // io.kontour.ui.motion/rememberPageMotion|rememberPageMotion(io.kontour.ui.motion.BackStyle?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]

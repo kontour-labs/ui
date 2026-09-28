@@ -73,6 +73,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.ChevronTurn
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.motion.chevronTurn
 import io.kontour.ui.motion.enterOrFade
 import io.kontour.ui.motion.exitOrFade
@@ -411,7 +412,7 @@ private fun RailItems(
             else -> Alignment.TopStart
         },
     ) {
-        Column(Modifier.verticalScroll(scroll)) {
+        Column(Modifier.verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())) {
             SelectionIndicatorBox(
                 state = indicator,
                 // A pill around the whole row, narrower than it and exactly as

@@ -27,6 +27,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /** One step in a [Breadcrumbs] trail. */
@@ -68,7 +69,7 @@ fun Breadcrumbs(
 ) {
     Row(
         modifier = modifier
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .semantics { }
             .padding(vertical = Theme.spacing.xxs),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),

@@ -56,6 +56,7 @@ import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.NavigationSuiteType
 import io.kontour.ui.nav.navigationSuiteTypeFor
@@ -139,7 +140,7 @@ internal val pages: List<Page> = listOf(
 /** A scroller for the two pages that are a plain column of content. */
 @Composable
 private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState())) { content() }
+    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { content() }
 }
 
 @Composable
@@ -147,6 +148,7 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(Theme.spacing.md),
+        flingBehavior = ScrollDefaults.flingBehavior(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
     ) {
         items(family.demos, key = { it.slug }) { demo ->
@@ -472,7 +474,7 @@ internal fun SettingsSheetContent(
 ) {
     Column(
         Modifier
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm)
             // **Inside the scroller, which is the whole point of being handed
             // it.** Outside it — which is what the sheet used to do for every

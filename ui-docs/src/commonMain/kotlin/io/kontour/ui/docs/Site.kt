@@ -47,6 +47,7 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.Tag
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.TextButton
@@ -409,7 +410,7 @@ private fun Home() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .padding(PagePadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
@@ -582,6 +583,7 @@ private fun DocPageView(path: String) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PagePadding(),
+                flingBehavior = ScrollDefaults.flingBehavior(),
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             ) {
                 item {

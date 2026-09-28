@@ -27,6 +27,7 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
@@ -80,7 +81,7 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
     val shapes = rememberArmShapes(squircles)
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
@@ -135,6 +136,8 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
+
+        ScrollFeelCard()
 
         platformCornerReadout()?.let { lines -> Corners(lines) }
     }
@@ -219,15 +222,17 @@ private fun Verdict(label: String, tenths: Int, displayHz: Int, real: Boolean) {
     )
 }
 
+/** One switchable thing, as a row that switches it. [ScrollFeelCard] has them too. */
 @Composable
-private fun Arm(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
+internal fun Arm(label: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     SelectionRow(
         selected = on,
         onSelectedChange = onChange,
+        enabled = enabled,
         role = Role.Switch,
     ) {
         +label
-        trailing { Switch(checked = on, onCheckedChange = null) }
+        trailing { Switch(checked = on, onCheckedChange = null, enabled = enabled) }
     }
 }
 
@@ -261,6 +266,7 @@ private fun Workload(recording: Boolean, onFlipTheme: () -> Unit) {
             LazyColumn(
                 Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
+                flingBehavior = ScrollDefaults.flingBehavior(),
             ) {
                 items(Stops) { stop ->
                     Card(Modifier.fillMaxWidth()) {

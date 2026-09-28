@@ -50,6 +50,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -187,7 +188,7 @@ fun Dialog(
                                     // room, and only then starts scrolling.
                                     Column(
                                         modifier = Modifier
-                                            .verticalScroll(rememberScrollState())
+                                            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                                             .padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                                     ) {

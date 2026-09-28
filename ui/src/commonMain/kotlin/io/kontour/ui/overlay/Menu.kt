@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.kontourMotion
 import kotlin.math.roundToInt
@@ -492,7 +493,7 @@ private fun MenuSurface(
         ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(scroll)
+                    .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
                     .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
                     .fillMaxWidth(),
                 content = content,

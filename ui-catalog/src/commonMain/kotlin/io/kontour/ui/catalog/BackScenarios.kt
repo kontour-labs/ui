@@ -37,6 +37,7 @@ import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav3.detailPane
@@ -159,7 +160,7 @@ private fun FramePage(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {

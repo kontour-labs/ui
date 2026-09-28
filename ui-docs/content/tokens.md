@@ -746,6 +746,55 @@ The rule of thumb is amplitude. A few pixels — a press, a lean, a lift — is
 covered by the helpers shortening it. A transform that moves a whole panel or a
 whole screen is not, and needs the explicit read.
 
+### Flings
+
+How a list carries on after a finger lets it go is `ScrollDefaults.flingBehavior()`.
+Every scroller in the library that does not snap uses it: menus, dialogs,
+popovers, tooltips, tables, tabs, breadcrumbs, the rail, the command palette and
+the timelines. Carousels, wheel pickers and sheets snap to their own positions
+and keep their own flings.
+
+**Pass it to your own lists as well.** Compose has no way to change the fling of
+every list in an app at once. A list that is not handed this one flings the
+platform's way, and on iOS that will not match the lists around it.
+
+```kotlin
+LazyColumn(flingBehavior = ScrollDefaults.flingBehavior()) { … }
+Column(Modifier.verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { … }
+```
+
+What it does depends on `LocalScrollFeel`:
+
+| Platform | `LocalScrollFeel` | The fling |
+|---|---|---|
+| iOS | `ScrollFeel()` | The library's: slows at UIKit's rate, and flicks add up |
+| Android, desktop, web | `null` | The platform's own, unchanged |
+
+The iOS default exists because flings on iOS were reported to "stop too soon".
+Compose's iOS fling already slows at UIKit's rate, so the rate was not the
+difference. The difference was **accumulation**. On an iPhone, a flick while a
+list is still moving adds to the speed it already has, so a run of flicks goes
+further each time. In Compose, each flick started again from rest.
+
+A `ScrollFeel` has three settings:
+
+| Property | Default | What it changes |
+|---|---|---|
+| `decelerationRate` | `0.998` | How much speed is kept each millisecond. This is UIKit's `normal` rate: a throw at `v` travels about `v × 0.5s` |
+| `velocityScale` | `1` | A multiplier on the release velocity, for a throw that Compose reads slower than UIKit does |
+| `accumulates` | `true` | Whether a flick in the same direction, within 0.6s and faster than 300dp/s, adds to what was left of the last one |
+
+Provide a different `ScrollFeel` to tune it, or to give another platform the
+same behaviour. Provide `null` to get the platform's own fling back:
+
+```kotlin
+CompositionLocalProvider(LocalScrollFeel provides ScrollFeel(velocityScale = 1.2f)) { App() }
+```
+
+The values can be set by hand on a phone. The catalog's **Frames** page has a
+Scroll feel card that sets all three live, reports each throw's speed and
+distance, and on iOS puts a `UIScrollView` beside it to compare against.
+
 ---
 
 ## Sizing

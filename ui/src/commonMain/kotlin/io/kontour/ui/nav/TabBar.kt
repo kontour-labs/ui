@@ -69,6 +69,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
 
@@ -185,7 +186,7 @@ fun TabBar(
             Box(if (scrollable) Modifier.weight(1f, fill = false) else Modifier.weight(1f)) {
             Box(
                 if (scrollable) {
-                    Modifier.horizontalScroll(scrollState)
+                    Modifier.horizontalScroll(scrollState, flingBehavior = ScrollDefaults.flingBehavior())
                 } else {
                     Modifier
                 }

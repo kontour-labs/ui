@@ -34,9 +34,10 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /**
@@ -214,7 +215,7 @@ private fun PopoverPanel(
         // scroll away from the top edge.
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             content = content,

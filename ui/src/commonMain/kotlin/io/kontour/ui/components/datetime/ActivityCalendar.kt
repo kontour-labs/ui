@@ -96,6 +96,7 @@ import io.kontour.ui.input.rememberFocusRingVisible
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.motion.scrollSpec
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
@@ -558,7 +559,7 @@ fun ActivityCalendar(
                         },
                         modifier = Modifier
                             .fadingEdges(scroll, Orientation.Horizontal)
-                            .horizontalScroll(scroll)
+                            .horizontalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
                             // Squeezed shorter than it is, the grid runs off the
                             // bottom rather than centring, so its rows stay level
                             // with the weekday labels beside them.

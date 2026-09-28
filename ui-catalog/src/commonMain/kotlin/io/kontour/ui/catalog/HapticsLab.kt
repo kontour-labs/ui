@@ -54,6 +54,7 @@ import io.kontour.ui.interaction.LocalHaptics
 import io.kontour.ui.interaction.defaultEffect
 import io.kontour.ui.interaction.rememberHaptics
 import io.kontour.ui.interaction.rememberHoldFeedback
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -86,7 +87,7 @@ internal fun HapticsLab(modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalHaptics provides (tracedRoute ?: LocalHaptics.current)) {
         val player = rememberHaptics()
         Column(
-            modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Theme.spacing.md),
+            modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             ThisDevice(player, route, { route = it }, rumbleRoute, { rumbleRoute = it })

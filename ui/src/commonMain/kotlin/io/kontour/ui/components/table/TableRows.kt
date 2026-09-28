@@ -62,13 +62,14 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.input.insetFocusRing
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
-import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.interaction.rememberToggleFeedback
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.theme.Theme
 
 /** Everything a row needs to know about the table it is in. */
 internal data class TableEnv<T>(
@@ -116,7 +117,7 @@ internal fun <T> TableFrame(env: TableEnv<T>, listState: LazyListState, boundedH
         HeaderRow(env)
         if (boundedHeight) {
             Box(Modifier.weight(1f, fill = false)) {
-                LazyColumn(state = listState) {
+                LazyColumn(state = listState, flingBehavior = ScrollDefaults.flingBehavior()) {
                     itemsIndexed(
                         items = env.items,
                         key = env.key?.let { key -> { _: Int, item: T -> key(item) } },

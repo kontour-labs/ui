@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /**
@@ -95,7 +96,7 @@ internal fun Panel(
 @Composable
 internal fun DeviceStrip(content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        modifier = Modifier.horizontalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         content = content,
     )

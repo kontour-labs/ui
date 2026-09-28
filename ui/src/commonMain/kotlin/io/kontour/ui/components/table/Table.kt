@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.components.selection.CheckboxDefaults
 import io.kontour.ui.foundation.ContentScope
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.motion.scrollSpec
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
@@ -400,6 +401,7 @@ fun <T> Table(
                 orientation = Orientation.Horizontal,
                 enabled = state.horizontal.maxValue > 0,
                 reverseDirection = ScrollableDefaults.reverseDirection(layoutDirection, Orientation.Horizontal, false),
+                flingBehavior = ScrollDefaults.flingBehavior(),
             ),
     ) { constraints ->
         fitted.forget(density, fontScale)

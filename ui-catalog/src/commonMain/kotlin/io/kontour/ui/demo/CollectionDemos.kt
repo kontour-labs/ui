@@ -29,6 +29,7 @@ import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
@@ -338,6 +339,7 @@ internal val ReorderableItemDemo = ComponentDemo(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),
+            flingBehavior = ScrollDefaults.flingBehavior(),
         ) {
             itemsIndexed(order, key = { _, name -> name }) { index, name ->
                 ReorderableItem(
@@ -370,7 +372,7 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
         onRefresh = { refreshing = true },
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) {
             stops.forEachIndexed { index, (name, detail) ->
                 ListItem(position = GroupPosition.of(index, stops.size)) {
                     +name
@@ -410,7 +412,7 @@ internal val LoadMoreDemo = ComponentDemo(
 internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar") {
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxWidth().height(160.dp)) {
-        Column(Modifier.fillMaxWidth().verticalScroll(scroll)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())) {
             repeat(14) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
         }
         // `alwaysVisible`, because a scrollbar hides itself unless the input can
@@ -431,7 +433,7 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
             modifier = Modifier
                 .fillMaxWidth()
                 .fadingEdges(scroll)
-                .verticalScroll(scroll),
+                .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             repeat(10) { index ->

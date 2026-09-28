@@ -1059,6 +1059,49 @@ def drag_handlers_by_reference() -> list[str]:
     return offenders
 
 
+# A scroller of the library's own, and the call's arguments up to its closing
+# parenthesis — which is where a `flingBehavior` would be.
+SCROLLER_CALL = re.compile(r"\b(verticalScroll|horizontalScroll|LazyColumn|LazyRow|LazyVerticalGrid|scrollable)\(")
+
+# Scrollers that do not fling freely: each snaps to something of its own, and
+# a free fling there is the bug, not the feel.
+SNAPPING_SCROLLERS = {
+    "WheelPicker.kt": "snaps to a row, and bounces at its ends",
+    "Carousel.kt": "snaps to a page",
+    "BottomSheet.kt": "snaps to a detent",
+    "SheetState.kt": "snaps to a detent",
+}
+
+
+def scrollers_off_the_library_fling() -> list[str]:
+    """Library scrollers that fling the platform's way rather than `ScrollDefaults`'.
+
+    Asked for from a phone: on iOS, flings "stop too soon". The library's fling
+    adds a flick to one still moving, as UIKit does — see `ScrollDefaults` — and a
+    scroller that leaves the argument off flings Compose's way instead, which is
+    the difference the phone noticed. Compose has no way to change every list's
+    fling at once, so each scroller has to ask.
+    """
+    offenders = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in SNAPPING_SCROLLERS:
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        for match in SCROLLER_CALL.finditer(text):
+            depth, end = 0, match.end() - 1
+            for end in range(match.end() - 1, len(text)):
+                if text[end] == "(":
+                    depth += 1
+                elif text[end] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            if "flingBehavior" not in text[match.start():end]:
+                line = text.count("\n", 0, match.start()) + 1
+                offenders.append(f"{path.name}:{line} `{match.group(1)}`")
+    return offenders
+
+
 def unread_component_defaults() -> list[str]:
     """`ComponentDefaults` fields no component reads."""
     root = Path("ui/src/commonMain/kotlin")
@@ -1830,6 +1873,18 @@ def main() -> int:
             f"once and holds the parameters the composable was born with. Spell "
             f"it `{{ report(it) }}` and read any hoisted value through "
             f"`rememberUpdatedState`"
+        )
+
+    # Rule 26 — a library scroller flings the library's way.
+    #
+    # See `scrollers_off_the_library_fling`.
+    off_fling = scrollers_off_the_library_fling()
+    if off_fling:
+        problems.append(
+            f"{len(off_fling)} scroller(s) in :ui fling the platform's way rather "
+            f"than the library's: {', '.join(off_fling)} — pass "
+            f"`flingBehavior = ScrollDefaults.flingBehavior()`, or name the file "
+            f"in SNAPPING_SCROLLERS with what it snaps to"
         )
 
     if problems:

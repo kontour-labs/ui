@@ -50,6 +50,7 @@ import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.motion.scrollToItem
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
@@ -367,6 +368,7 @@ private fun PaletteBody(
                 // each command look like its own card in a pile of cards.
                 LazyColumn(
                     state = listState,
+                    flingBehavior = ScrollDefaults.flingBehavior(),
                     modifier = Modifier.heightIn(max = maxHeight),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {

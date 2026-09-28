@@ -48,6 +48,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mono
 import io.kontour.ui.theme.Tone
@@ -174,7 +175,7 @@ private fun CodeBlock(block: Block.Code) {
             Modifier
                 .fillMaxWidth()
                 .padding(Theme.spacing.md)
-                .horizontalScroll(scroll)
+                .horizontalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
         ) {
             Text(
                 text = highlighted(block),
@@ -284,7 +285,7 @@ private fun DocTable(block: Block.Table) {
             modifier = if (fits) {
                 Modifier.fillMaxWidth()
             } else {
-                Modifier.horizontalScroll(rememberScrollState())
+                Modifier.horizontalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             },
             columnWidth = if (fits) null else MinColumnWidth,
         )
