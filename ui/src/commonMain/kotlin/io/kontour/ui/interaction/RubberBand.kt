@@ -1,6 +1,9 @@
 package io.kontour.ui.interaction
 
+import androidx.compose.animation.core.AnimationConstants
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.animateTo
 import androidx.compose.animation.core.animate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -159,23 +162,71 @@ class RubberBand internal constructor() {
      * a boundary hit at speed rather than pulled into.
      *
      * [spec] runs from nothing to nothing with [velocity] as its start, so how far
-     * the stretch goes is the spring's to say — a critically damped one goes out
-     * once and comes back without crossing. The distance is then read through the
-     * same approach to [limit] that [pull] uses, so however hard the flick, the
-     * band gives less than [limit] and never looks like somewhere to stop.
+     * the stretch goes is the spring's to say. The distance is then read through
+     * the same approach to [limit] that [pull] uses, so however hard the flick,
+     * the band gives less than [limit] and never looks like somewhere to stop.
+     *
+     * It ends the moment it is home. An under-damped [spec] would carry on through
+     * nothing and back, and a critically damped one never quite arrives: both
+     * leave the thing it moves a pixel or two off where it rests for a good part
+     * of a second, which is what was reported on a two-row drum (below).
      *
      * Written for the wheel picker, where a flick into the first or last row
      * stopped dead: "add bounce-back animation when flicking to end".
      */
     suspend fun bounce(velocity: Float, limit: Float, spec: AnimationSpec<Float>) {
-        if (velocity == 0f || limit <= 0f) return
+        carryOn(past = 0f, velocity = velocity, limit = limit, spec = spec, sinceNanos = AnimationConstants.UnspecifiedTime)
+    }
+
+    /**
+     * [bounce], taken up by a motion that has just run into the boundary: [past]
+     * pixels beyond it already, in the frame the motion last drew at
+     * [sinceNanos].
+     *
+     * ### Why the hand-off has to be seamless
+     *
+     * Reported from a phone on the AM/PM drum: a flick "settles, then sort of
+     * moves up just a little bit, and the item is a bit off-centre". A drum of
+     * two rows has one row of travel, so nearly every flick ends in the bounce,
+     * and the bounce was two steps: the decay stopped the drum *on* its end row,
+     * and a new animation then started from nothing on the next frame. Measured,
+     * the row sat centred for two frames, went out past the band by up to eleven
+     * points, and crept back over thirty frames on a critically damped spring —
+     * a drum that had visibly arrived, then left, then spent half a second a
+     * pixel or two off centre.
+     *
+     * So the frame the motion ran out of room in draws the part it had no room
+     * for, and the spring's first frame follows on from that frame's time rather
+     * than starting its own clock at zero. There is no frame at rest in between,
+     * which is what made the end row look like somewhere the drum had stopped.
+     */
+    internal suspend fun carryOn(
+        past: Float,
+        velocity: Float,
+        limit: Float,
+        spec: AnimationSpec<Float>,
+        sinceNanos: Long,
+    ) {
+        if (limit <= 0f || (velocity == 0f && past <= 0f)) return
         val sign = if (velocity > 0f) 1f else -1f
-        animate(
-            initialValue = 0f,
-            targetValue = 0f,
+        fun place(raw: Float) {
+            offset = sign * limit * (1f - exp(-raw.coerceAtLeast(0f) / limit))
+        }
+        place(past)
+        AnimationState(
+            initialValue = past.coerceAtLeast(0f),
             initialVelocity = abs(velocity),
+            lastFrameTimeNanos = sinceNanos,
+        ).animateTo(
+            targetValue = 0f,
             animationSpec = spec,
-        ) { value, _ -> offset = sign * limit * (1f - exp(-value.coerceAtLeast(0f) / limit)) }
+            sequentialAnimation = sinceNanos != AnimationConstants.UnspecifiedTime,
+        ) {
+            place(value)
+            // Home: the rest of an under-damped spring is a lobe the other side
+            // of nothing, which the clamp above would hold at nothing anyway.
+            if (value <= 0f) cancelAnimation()
+        }
         offset = 0f
     }
 }

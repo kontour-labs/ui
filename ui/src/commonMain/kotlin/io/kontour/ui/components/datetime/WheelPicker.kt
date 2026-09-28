@@ -2,6 +2,7 @@ package io.kontour.ui.components.datetime
 
 import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationConstants
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.calculateTargetValue
@@ -216,19 +217,39 @@ fun <T> WheelPicker(
                     return with(snapFling) { performFling(initialVelocity) }
                 }
                 var arrival = 0f
+                var past = 0f
+                var arrivedAt = AnimationConstants.UnspecifiedTime
                 var travelled = 0f
                 AnimationState(0f, initialVelocity).animateDecay(decay) {
-                    scrollBy(value - travelled)
+                    val step = value - travelled
+                    val before = room()
+                    scrollBy(step)
                     travelled = value
                     if (room() < 0.5f) {
+                        // What this frame's step had no room for, and when: the
+                        // band takes up from here, in this frame, rather than the
+                        // drum stopping on its end row first. See `carryOn`.
+                        past = (abs(step) - before).coerceAtLeast(0f)
                         arrival = velocity
+                        arrivedAt = lastFrameTimeNanos
                         cancelAnimation()
                     }
                 }
                 // Out the way the drum was going: a list scrolling forward moves
                 // its rows up, and the band's offset is a downward translation.
+                //
+                // Snappy and under-damped, and over the moment it is home. It was
+                // `springGentle`, critically damped: it goes out once, but comes
+                // back so slowly that the end row sat a pixel or two off centre
+                // for half a second after it had visibly arrived.
                 if (arrival != 0f) {
-                    band.bounce(-arrival, bandLimit, wheelMotion.springOrTween(wheelMotion.springGentle))
+                    band.carryOn(
+                        past = past,
+                        velocity = -arrival,
+                        limit = bandLimit,
+                        spec = wheelMotion.springOrTween(wheelMotion.springDefault),
+                        sinceNanos = arrivedAt,
+                    )
                 }
                 return 0f
             }
