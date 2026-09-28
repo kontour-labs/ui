@@ -169,7 +169,7 @@ class NavSearchMorphTest {
     @Test
     fun thePanelShowsOnlyOnceTheCapsuleHasLandedAndTheCapsuleStaysUntilItIsOpaque() {
         var progress = 0f
-        val morph = NavMorph { progress }
+        val morph = NavMorph(androidx.compose.foundation.shape.RoundedCornerShape(50)) { progress }
         for (step in 0..200) {
             progress = step / 200f
             if (morph.geometry < 1f) {

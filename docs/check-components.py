@@ -834,7 +834,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 27
+MAX_CIRCLES = 28
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -923,6 +923,14 @@ def circles() -> list[str]:
     stop being concentric the moment a theme lowers `capsuleCap`: at 10dp the
     track came out at 10 against a thumb at 12, which was reported. Not a square
     box, and not a lozenge either — a capsule whose partner cannot be capped.
+
+    **27 to 28, for the navigation bar's search control**, which is a lozenge
+    and uncapped on purpose. Asked for from a phone: "have a pill shape in the
+    nav bar, and then animating to the standard text field's shape as it grows".
+    It is one site: `NavExpandingSlot` chooses the shape once and hands it to the
+    control and to the morph that leaves it, which draws whatever it is given —
+    so the morph stays consistent whichever shape the control has, and the
+    choice of pill is the design's, not a constraint of the animation.
 
     The second count is stricter and is a ban rather than a ratchet.
     `RoundedCornerShape` no longer appears in `:ui` at all; it used to appear

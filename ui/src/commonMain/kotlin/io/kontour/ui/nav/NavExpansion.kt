@@ -308,8 +308,11 @@ fun NavExpandingSlot(
     // nothing joining it to what had been tapped.
     val motion = Theme.motion
     val progress = remember { Animatable(if (expanded) 1f else 0f) }
-    val morph = remember { NavMorph { progress.value } }
+    // A pill at any height, where `capsule` stops rounding at 18dp: asked for so
+    // the control is the same shape at every size, and it is the shape the
+    // capsule leaves as and comes home to.
     val controlShape = Theme.shapes.pill
+    val morph = remember { NavMorph(controlShape) { progress.value } }
     SideEffect {
         morph.reduced = motion.reduceMotion
         morph.easing = motion.standard
@@ -345,6 +348,7 @@ fun NavExpandingSlot(
         shadow = shadow,
         interactionSource = interactionSource,
         morph = morph,
+        shape = controlShape,
         content = content,
     )
 
@@ -391,7 +395,7 @@ fun NavExpandingSlot(
  * animate in there too?"
  */
 @Stable
-internal class NavMorph(private val progress: () -> Float) {
+internal class NavMorph(controlShape: CornerBasedShape, private val progress: () -> Float) {
     var reduced: Boolean = false
     var easing: Easing = LinearEasing
     var pill: LayoutCoordinates? = null
@@ -407,7 +411,7 @@ internal class NavMorph(private val progress: () -> Float) {
      * not. Null for the target where the panel names none, whose capsule ends as
      * a rounded box.
      */
-    var controlShape: CornerBasedShape? = null
+    var controlShape: CornerBasedShape = controlShape
     var targetShape: CornerBasedShape? = null
 
     /**
@@ -477,7 +481,6 @@ internal val LocalNavMorphProbe = staticCompositionLocalOf<((NavMorphDrawn) -> U
 @Composable
 private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
     val fallback = Theme.colours.surface
-    val pillShape = Theme.shapes.pill
     // A panel with no field to become ends as a box rounded by the panel's margin.
     val panelShape = remember { SquircleShape(NavExpandingSlotDefaults.Margin) }
     val probe = LocalNavMorphProbe.current
@@ -508,7 +511,7 @@ private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
                 // at 18dp, so the capsule changed shape at both ends — reported as
                 // wanting the shape to "remain consistent, or at least animate
                 // between the two".
-                val startShape = morph.controlShape ?: pillShape
+                val startShape = morph.controlShape
                 val endShape = (if (morph.target != null) morph.targetShape else null) ?: panelShape
                 val shape = startShape.lerpCorners(endShape, g)
                 val outline = shape.createOutline(rect.size, layoutDirection, this)
@@ -608,12 +611,10 @@ private fun CollapsedControl(
     shadow: Shadow,
     interactionSource: MutableInteractionSource?,
     morph: NavMorph,
+    shape: CornerBasedShape,
     content: @Composable RowContentScope.() -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    // A pill at any height, where `capsule` stops rounding at 18dp: it is the
-    // shape the capsule leaves as, and the one it comes home to.
-    val shape = Theme.shapes.pill
 
     Surface(
         modifier = modifier
