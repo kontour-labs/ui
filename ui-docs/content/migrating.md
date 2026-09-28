@@ -530,6 +530,9 @@ these change what an existing call does.
 - **`DatePicker` and `DateRangePicker` are always six weeks tall**, so a
   five-week month has a blank week at the end, and **a sideways drag on either
   pages the month** — on a range picker, only a drag that starts off the days.
+  The arrows and `CalendarNavigationState` changes move the months side by side a
+  page apart, as a swipe does, where they used to slide a third of the way and
+  fade.
 - **A tapped `SwipeActions` action ticks before it runs**, as a full swipe does, so
   its `onAction` comes about 0.6s after the tap; `tapConfirmation = false` runs it
   at once. A drag that starts on a revealed action now moves the row, and the row

@@ -79,19 +79,28 @@ leaves it out. The same goes for [`DateRangePicker`](date-range-picker.md). A
 [`CalendarMonth`](calendar-month.md) on its own has no header: the month it shows
 is the caller's to change.
 
-**A swipe pages the month.** Drag the grid sideways and the months follow the
-finger side by side; let go past a third of the way, or with a flick, and it goes
-on to the next at the finger's speed, landing with a snap felt as well as seen.
-Short of that it comes back. Right to left it runs the other way. A drag that sets
-off up or down is the page's, so a picker in a scrolling page still scrolls.
+**A swipe pages the month, and everything else moves the same way.** The months
+sit side by side on one strip. Drag the grid sideways and they follow the finger;
+let go past a third of the way, or with a flick, and it goes on to the next month
+at the finger's speed. Short of that it comes back. Right to left it runs the
+other way. A drag that sets off up or down is the page's, so a picker in a
+scrolling page still scrolls.
 
-The month and year above the grid cross-fade with it, each as visible as its month
-is in view, so the title is already the new month when the swipe lands. And
-landing is the end of the same movement: the month that slid in is the one that
-stays, rather than being drawn again — it used to hand over to the arrows'
-crossing, which showed the old month for a frame first. A swipe that catches the
-last one before it has settled carries on from the month it was going to, so
-quick swipes go on month after month.
+The arrows, the today button, a sideways scroll and a `jumpTo` from your code all
+move that same strip. A new move takes over a running one at the speed it had, so
+pressing an arrow three times is one motion across three months. A jump further
+than a month does not travel through every month between: the month it goes to
+comes in beside the one in view.
+
+A swipe that catches the last one before it has come to rest counts from the
+month that one was going to, so quick swipes go on month after month. Each month
+a swipe commits to is felt as a snap **when the swipe lets go**, however quickly
+the next one follows. Arrows have their own press feedback.
+
+The month and year above the grid cross-fade with the months, each as visible as
+its month is in view, so the title is already the new month when the months land.
+The title's width moves between the two months' widths as they do, so the
+chooser's arrow beside it travels with it instead of jumping once they land.
 
 **A sideways scroll pages the month** — a trackpad's two-finger swipe, a mouse's
 tilt wheel, or shift and the wheel — which is how everything else pages on a

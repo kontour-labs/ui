@@ -2,6 +2,8 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
+import io.kontour.ui.components.datetime.CalendarNavigationState
+import io.kontour.ui.components.datetime.rememberCalendarNavigationState
 import io.kontour.ui.sheet.rememberSheetState
 import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.ModalBottomSheet
@@ -1595,6 +1597,57 @@ class DetentHapticsTest {
             "tapping a date fired ${tapped.summary()}. A press on the smallest " +
                 "target the library has reports that the control took it, once — a " +
                 "tick as well would be a detent nothing crossed.",
+        )
+    }
+
+    /**
+     * Every month a swipe commits to is felt, however quickly the swipes come.
+     *
+     * Reported from a phone: "when you swipe quickly, the haptics don't play
+     * properly". A month was felt when the swipe that brought it came to rest, and
+     * a second swipe caught the first before it had — so a run of quick swipes
+     * paged three months and was felt once. It is felt now as each swipe lets go,
+     * which is when the month is decided.
+     */
+    @Test
+    fun quickSwipesAcrossTheMonthsAreEachFelt() {
+        val felt = mutableListOf<FeedbackIntent>()
+        lateinit var navigation: CalendarNavigationState
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 800) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    navigation = rememberCalendarNavigationState(LocalDate(2026, 6, 1))
+                    DatePicker(
+                        value = null,
+                        onValueChange = {},
+                        navigation = navigation,
+                        modifier = Modifier.reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(6)
+            val y = bounds.bottom - bounds.height * 0.3f
+            repeat(3) {
+                scene.drag(
+                    from = Offset(bounds.left + bounds.width * 0.8f, y),
+                    to = Offset(bounds.left + bounds.width * 0.3f, y),
+                    steps = 5,
+                    paceMillis = 20,
+                )
+                // Caught well before it has come to rest.
+                scene.frames(3)
+            }
+            scene.frames(60)
+        }
+
+        assertEquals(LocalDate(2026, 9, 1), navigation.visibleMonth, "three quick swipes left from June should reach September")
+        assertEquals(
+            3,
+            felt.count { it == FeedbackIntent.Snap },
+            "three quick swipes across three months fired ${felt.summary()}: each month a swipe lands on is felt",
         )
     }
 
