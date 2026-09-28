@@ -167,10 +167,10 @@ class RubberBand internal constructor() {
      * the band gives less than [limit] and never looks like somewhere to stop.
      *
      * An under-damped [spec] ends the moment it passes home, rather than carrying
-     * on through nothing and back. A critically damped one should say when it is
-     * close enough, with a visibility threshold, or it spends a good part of a
-     * second a pixel or two short — which is what was reported on a two-row drum
-     * (below).
+     * on through nothing and back. A critically damped one never quite arrives —
+     * it spends a good part of a second a pixel or two short, which is what was
+     * reported on a two-row drum — so the wheel's own bounce goes out on one and
+     * comes home on an ease instead; see `carryOn`.
      *
      * Written for the wheel picker, where a flick into the first or last row
      * stopped dead: "add bounce-back animation when flicking to end".
@@ -200,6 +200,17 @@ class RubberBand internal constructor() {
      * for, and the spring's first frame follows on from that frame's time rather
      * than starting its own clock at zero. There is no frame at rest in between,
      * which is what made the end row look like somewhere the drum had stopped.
+     *
+     * ### Out on a spring, home on an ease
+     *
+     * With [back], the stretch goes out on [spec] only as far as it carries it —
+     * to where its speed is spent — and comes home on [back] from there. One
+     * spring for both halves was tried three ways and each was reported: a gentle
+     * critically damped one crept the last pixels home for half a second, "a bit
+     * off-centre"; an under-damped one cut as it passed home read as "jumpy", and
+     * as snapping into place; a stiff critically damped one crept again, for less
+     * long. A spring's return is an approach, and never an arrival. An ease
+     * arrives: at exactly nothing, at no speed, when it says it will.
      */
     internal suspend fun carryOn(
         past: Float,
@@ -207,6 +218,7 @@ class RubberBand internal constructor() {
         limit: Float,
         spec: AnimationSpec<Float>,
         sinceNanos: Long,
+        back: AnimationSpec<Float>? = null,
     ) {
         if (limit <= 0f || (velocity == 0f && past <= 0f)) return
         val sign = if (velocity > 0f) 1f else -1f
@@ -214,8 +226,10 @@ class RubberBand internal constructor() {
             offset = sign * limit * (1f - exp(-raw.coerceAtLeast(0f) / limit))
         }
         place(past)
+        var peak = past.coerceAtLeast(0f)
+        var peakAt = sinceNanos
         AnimationState(
-            initialValue = past.coerceAtLeast(0f),
+            initialValue = peak,
             initialVelocity = abs(velocity),
             lastFrameTimeNanos = sinceNanos,
         ).animateTo(
@@ -224,13 +238,28 @@ class RubberBand internal constructor() {
             sequentialAnimation = sinceNanos != AnimationConstants.UnspecifiedTime,
         ) {
             place(value)
-            // Home, for a spring that goes through it: the rest of an under-damped
-            // one is a lobe the other side of nothing, which the clamp above would
-            // hold at nothing anyway. *Through*, not at: the first frame is at the
-            // value it starts from, which is nothing when the motion ran out of
-            // room exactly at the boundary — and stopping there was a bounce that
-            // never happened, the drum stopping dead.
-            if (value < 0f) cancelAnimation()
+            peak = value
+            peakAt = lastFrameTimeNanos
+            when {
+                // Out as far as [spec] carries it, and then [back] brings it home.
+                back != null && this.velocity <= 0f -> cancelAnimation()
+                // Home, for a spring that goes through it: the rest of an
+                // under-damped one is a lobe the other side of nothing, which the
+                // clamp above would hold at nothing anyway. *Through*, not at: the
+                // first frame is at the value it starts from, which is nothing when
+                // the motion ran out of room exactly at the boundary — and stopping
+                // there was a bounce that never happened, the drum stopping dead.
+                value < 0f -> cancelAnimation()
+            }
+        }
+        if (back != null && peak > 0f) {
+            // From where it stopped, and from that frame, so the turn is a moment
+            // at rest rather than a pause; and to exactly nothing, at no speed.
+            AnimationState(initialValue = peak, lastFrameTimeNanos = peakAt).animateTo(
+                targetValue = 0f,
+                animationSpec = back,
+                sequentialAnimation = peakAt != AnimationConstants.UnspecifiedTime,
+            ) { place(value) }
         }
         offset = 0f
     }

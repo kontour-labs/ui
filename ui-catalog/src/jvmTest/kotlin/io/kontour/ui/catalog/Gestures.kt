@@ -43,6 +43,12 @@ class Scene(
     val density: Float = 2f,
     reduceMotion: Boolean = false,
     darkTheme: Boolean = false,
+    /**
+     * How long a frame is. 16ms by default; 8ms is a 120Hz phone, whose frames
+     * a motion has to look right at as well — and a bug in how two animations
+     * hand over is a bug in timing, which is exactly what this changes.
+     */
+    private val frameNanos: Long = 16_000_000L,
     content: @Composable () -> Unit,
 ) : AutoCloseable {
 
@@ -87,7 +93,7 @@ class Scene(
 
     /** Renders the next frame, 16ms on from the last. */
     fun frame(): BufferedImage {
-        nanos += FrameNanos
+        nanos += frameNanos
         val png = requireNotNull(scene.render(nanos).encodeToData(EncodedImageFormat.PNG)) {
             "Skia failed to encode a frame"
         }.bytes
@@ -118,7 +124,7 @@ class Scene(
      * printed was the blur diluted by two image codecs.
      */
     fun advance() {
-        nanos += FrameNanos
+        nanos += frameNanos
         scene.render(nanos).close()
     }
 
@@ -147,7 +153,7 @@ class Scene(
      * passed. Returns the frame that satisfied it, or null if none did.
      *
      * For the one thing a frame count cannot express: a component that times
-     * itself out with `delay`. This scene's clock is [FrameNanos] per rendered
+     * itself out with `delay`. This scene's clock is [frameNanos] per rendered
      * frame and `delay` runs on the wall clock, and the two have no fixed
      * relationship — a frame here costs about 45ms of real time on a throttled
      * container and rather less on a CI runner, so "render 95 frames" means
@@ -265,7 +271,7 @@ class Scene(
      */
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
     fun touch(type: PointerEventType, fingers: List<Touch>) {
-        nanos += FrameNanos
+        nanos += frameNanos
         scene.sendPointerEvent(
             eventType = type,
             pointers = fingers.map {
@@ -289,7 +295,7 @@ class Scene(
      */
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
     fun pan(type: PointerEventType, at: Offset, offset: Offset = Offset.Zero) {
-        nanos += FrameNanos
+        nanos += frameNanos
         scene.sendPointerEvent(
             eventType = type,
             pointers = listOf(
@@ -311,9 +317,6 @@ class Scene(
 
     override fun close() = scene.close()
 
-    private companion object {
-        const val FrameNanos = 16_000_000L
-    }
 }
 
 /** Reports this node's bounds in root pixels, for aiming a gesture at it. */

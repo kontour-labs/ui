@@ -4,9 +4,12 @@ import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationConstants
 import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -17,7 +20,9 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -176,11 +181,43 @@ fun <T> WheelPicker(
     // Shared arithmetic with the sheet, whose own overshoot was measured and
     // written first — see `RubberBand`.
     val band = rememberRubberBand()
+    // **Home the moment the finger lets go, and there.** A finger that carries the
+    // drum past its end is the commonest way to reach one on a short drum — a
+    // flick on the two-row AM/PM drum is longer than its one row of travel — and
+    // that stretch was released on `springGentle`, which is critically damped at
+    // a low stiffness: it spent the last dozen pixels creeping, and the row sat
+    // off centre for a fifth of a second after it had visibly arrived. Reported
+    // as "settles, then sort of moves up just a little bit" — and it was there
+    // through three changes to the bounce, because it is not the bounce.
+    //
+    // Stiff and critically damped instead: it sets off at once, as a released
+    // stretch does, never passes home, and is within half a pixel in well under
+    // a fifth of a second, where it is placed.
+    val homeSpec = remember(wheelMotion) {
+        spring(dampingRatio = 1f, stiffness = wheelMotion.springSnappy.stiffness, visibilityThreshold = ArrivalSlopPx)
+    }
+    // A bounce's way home starts from where it stopped, at rest, so it eases out
+    // of the turn as well as into home.
+    val turnSpec = remember { tween<Float>(durationMillis = BounceHomeMillis, easing = FastOutSlowInEasing) }
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
-    val snapFling = rememberSnapFlingBehavior(listState)
     val decay = rememberSplineBasedDecay<Float>()
+    // The list's own snapping, with an approach that arrives. Foundation's default
+    // is a soft spring whose last few pixels take a fifth of a second, and on a
+    // drum with the value's word in the band that reads as settling off centre and
+    // then moving.
+    val snapFling = remember(listState, decay, wheelMotion) {
+        snapFlingBehavior(
+            snapLayoutInfoProvider = SnapLayoutInfoProvider(listState, SnapPosition.Center),
+            decayAnimationSpec = decay,
+            snapAnimationSpec = spring(
+                dampingRatio = 1f,
+                stiffness = wheelMotion.springSnappy.stiffness,
+                visibilityThreshold = ArrivalSlopPx,
+            ),
+        )
+    }
     val lastIndex by rememberUpdatedState(items.lastIndex)
 
     /**
@@ -200,11 +237,32 @@ fun <T> WheelPicker(
     val flingBehavior = remember(snapFling, decay, band, bandLimit, itemPx, wheelMotion) {
         object : FlingBehavior {
             override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                // A drum at rest with a row off the band is a drum showing the
+                // wrong thing. The fling above ends on the end row by
+                // construction; this is what makes that a guarantee rather than
+                // an expectation.
+                suspend fun ScrollScope.settleOnARow() {
+                    val off = listState.firstVisibleItemScrollOffset.toFloat()
+                    if (off == 0f) return
+                    val by = if (off > itemPx / 2f) itemPx - off else -off
+                    // A pixel is placed, not travelled: easing it in would be the
+                    // creep this is here to prevent.
+                    if (abs(by) <= 1f) {
+                        scrollBy(by)
+                        return
+                    }
+                    var moved = 0f
+                    animate(0f, by, animationSpec = tween(BounceHomeMillis, easing = FastOutSlowInEasing)) { value, _ ->
+                        scrollBy(value - moved)
+                        moved = value
+                    }
+                }
+
                 // A stretch the finger opened is the finger's, and is being
                 // released as this starts; and a bounce is motion reduced motion
                 // does without.
                 if (wheelMotion.reduceMotion || band.stretched || initialVelocity == 0f) {
-                    return with(snapFling) { performFling(initialVelocity) }
+                    return with(snapFling) { performFling(initialVelocity) }.also { settleOnARow() }
                 }
                 // Rows from the far end the fling is heading for. What the list
                 // cannot use is swallowed above rather than handed back, so
@@ -215,26 +273,25 @@ fun <T> WheelPicker(
                     return if (initialVelocity > 0f) lastIndex * itemPx - turned else turned
                 }
                 if (abs(decay.calculateTargetValue(0f, initialVelocity)) <= room()) {
-                    return with(snapFling) { performFling(initialVelocity) }
+                    return with(snapFling) { performFling(initialVelocity) }.also { settleOnARow() }
                 }
                 var arrival = 0f
                 var past = 0f
                 var arrivedAt = AnimationConstants.UnspecifiedTime
                 var travelled = 0f
-                // Where the end is, once, from the fling's own start. Read from the
-                // decay's distance rather than from where the list says it is each
-                // frame: a list that reports its position a frame late would put
-                // the arrival a frame late, and the drum would stop at its end for
-                // that frame and then jump out into the band.
-                val toEnd = room()
                 AnimationState(0f, initialVelocity).animateDecay(decay) {
-                    scrollBy(value - travelled)
+                    val step = value - travelled
+                    val before = room()
+                    scrollBy(step)
                     travelled = value
-                    if (abs(value) >= toEnd - ArrivalSlopPx) {
-                        // What this frame's travel had no room for, and when: the
+                    // At the end by where the list *is*, so the drum always comes
+                    // to rest on its end row, whatever took a share of the scroll
+                    // on the way.
+                    if (room() < ArrivalSlopPx) {
+                        // What this frame's step had no room for, and when: the
                         // band takes up from here, in this frame, rather than the
                         // drum stopping on its end row first. See `carryOn`.
-                        past = (abs(value) - toEnd).coerceAtLeast(0f)
+                        past = (abs(step) - before).coerceAtLeast(0f)
                         arrival = velocity
                         arrivedAt = lastFrameTimeNanos
                         cancelAnimation()
@@ -243,26 +300,21 @@ fun <T> WheelPicker(
                 // Out the way the drum was going: a list scrolling forward moves
                 // its rows up, and the band's offset is a downward translation.
                 //
-                // Critically damped — out once and back, never through — as stiff
-                // as the theme's snappy spring, and done within half a pixel. It was
-                // `springGentle`, which came back so slowly that the end row sat
-                // a pixel or two off centre for half a second after it had
-                // visibly arrived. It was then `springDefault` as it stands,
-                // under-damped and stopped as it passed home, which was reported
-                // as "jumpy", and sometimes as snapping into place.
+                // Out on a critically damped spring until its speed is spent, and
+                // home on an ease that arrives at exactly nothing — see `carryOn`
+                // for the three single springs that did not.
                 if (arrival != 0f) {
                     band.carryOn(
                         past = past,
                         velocity = -arrival,
                         limit = bandLimit,
-                        spec = spring(
-                            dampingRatio = 1f,
-                            stiffness = wheelMotion.springSnappy.stiffness,
-                            visibilityThreshold = BounceSettledPx,
-                        ),
+                        spec = spring(dampingRatio = 1f, stiffness = wheelMotion.springDefault.stiffness),
                         sinceNanos = arrivedAt,
+                        back = turnSpec,
                     )
                 }
+                // Whatever happened on the way, a drum rests on a row.
+                settleOnARow()
                 return 0f
             }
         }
@@ -460,7 +512,7 @@ fun <T> WheelPicker(
                 // Launched rather than awaited for that reason: this function
                 // suspends until the whole settle is over, and a band that
                 // waits for it is a band that hangs open for half a second.
-                scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
+                scope.launch { band.release(homeSpec) }
                 return Velocity.Zero
             }
 
@@ -642,7 +694,7 @@ fun <T> WheelPicker(
                 // The list's own fling snaps; a raw drag has to be given back
                 // to the nearest row itself, or the drum is left between two.
                 onDragStopped = {
-                    scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
+                    scope.launch { band.release(homeSpec) }
                     scope.launch { listState.scrollToItem(centredIndex, wheelMotion) }
                 },
             ),
@@ -1071,8 +1123,8 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
  */
 private const val WheelOverscrollRows = 1.5f
 
-/** How close to home a bounce is home: under a pixel, where the eye cannot see the rest. */
-private const val BounceSettledPx = 0.5f
+/** How long a bounce takes to come home from as far as it went. */
+private const val BounceHomeMillis = 220
 
 /** How close to its end a fling has reached it: the list's own positions are whole pixels. */
 private const val ArrivalSlopPx = 0.5f
