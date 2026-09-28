@@ -89,6 +89,7 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Spacer
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.components.display.BubbleSide
 import io.kontour.ui.components.display.ChatBubble
 import io.kontour.ui.components.display.GaugeTickPlacement
@@ -881,9 +882,22 @@ internal val KbdDemo = ComponentDemo(slug = "kbd", knobs = listOf(kbdIcons)) {
                 Kbd { if (icons) +icon else +character }
             }
         }
+        // ⌥ and ⌃ in the mono that draws them, and Escape and forward delete
+        // named rather than shown: no bundled face has ⎋ or ⌦, and Outfit has
+        // none of the four. A glyph no bundled font draws is drawn by whatever
+        // font the machine falls back to, so this line came out a pixel taller
+        // on CI than where its golden was recorded, and moved the rest of the
+        // page with it.
         Text(
-            "⌥ and ⌃ stay characters because the bundled mono draws them. ⎋ and " +
-                "⌦ stay characters because nothing draws them.",
+            richText {
+                code("⌥")
+                +" and "
+                code("⌃")
+                +(
+                    " stay characters because the bundled mono draws them. Escape and " +
+                        "forward delete stay characters because nothing draws them."
+                    )
+            },
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
