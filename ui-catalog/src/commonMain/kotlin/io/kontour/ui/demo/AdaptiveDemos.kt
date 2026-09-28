@@ -41,9 +41,7 @@ import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.motion.PageTransition
-import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.motion.sharedElement
 import io.kontour.ui.nav.TopBar
@@ -209,41 +207,6 @@ internal val AspectRatioBoxDemo = ComponentDemo(slug = "aspect-ratio-box") {
             variant = ButtonVariant.Secondary,
             size = ButtonSize.Small,
         ) { +(if (loaded) "Unload" else "Load the photo") }
-    }
-}
-
-internal val GlassSurfaceDemo = ComponentDemo(slug = "glass-surface") {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .clip(Theme.shapes.large)
-            .atmosphere(),
-    ) {
-        Column(Modifier.padding(Theme.spacing.lg)) {
-            Text("Get where you're going", style = Theme.typography.titleLarge)
-            Text(
-                "Live departures for every stop in Perth.",
-                style = Theme.typography.bodySmall,
-                colour = Theme.colours.contentMuted,
-            )
-        }
-        GlassSurface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(Theme.spacing.md)
-                .height(48.dp)
-                .fillMaxWidth(0.8f),
-            shape = Theme.shapes.pill,
-        ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    "translucent, not blurred",
-                    style = Theme.typography.labelSmall,
-                    colour = Theme.colours.contentMuted,
-                )
-            }
-        }
     }
 }
 
@@ -488,7 +451,6 @@ internal val adaptiveDemos = listOf(
     ScaffoldDemo,
     PaneScaffoldDemo,
     AspectRatioBoxDemo,
-    GlassSurfaceDemo,
     PointerCursorDemo,
     PageTransitionDemo,
 )

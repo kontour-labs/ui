@@ -52,7 +52,7 @@ screen — it holds the title and sits at the top. A toolbar floats **over**
 content that is not its own, which is why it has a shadow and rounded corners
 and a top bar has neither. If it is the screen's chrome, it is a top bar.
 
-For a translucent one over a live map, use `GlassSurface` and read the note in
+There is no translucent one for a live map: see
 [adaptive](adaptive.md#there-is-no-portable-backdrop-blur--for-a-floating-bar) — there is no
 portable backdrop blur.
 

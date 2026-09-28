@@ -230,7 +230,7 @@ that reports its corner, which is under what anyone can see. A device's smoothin
 is discrete and fixed for the life of a process, so it costs no extra entries in
 that cache — the same thirteen shapes are simply built on the device's curve.
 
-This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
+This is a real backdrop filter, not a second pass of the content blurred behind a panel.
 The difference is that behind a modal there is exactly one node — the host
 composes the whole app as a single full-size sibling of the overlay stack — and
 blurring a node's own content is what `Modifier.blur` already does. Nothing is

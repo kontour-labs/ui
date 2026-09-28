@@ -80,7 +80,6 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
-import io.kontour.ui.sheet.LocalSideSheetGlass
 import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.theme.Theme
@@ -287,7 +286,6 @@ fun NavRail(
  *
  * @param side The leading edge by default, where every platform puts primary
  *   navigation.
- * @param glass Frosted rather than painted: the page shows through the panel.
  * @param dismissOnItemClick Whether choosing a destination closes the rail. It
  *   calls the destination's `onClick` first and closes a frame later, so the new
  *   page is composed behind a panel that has not started moving: the expensive
@@ -300,7 +298,6 @@ fun ModalNavRail(
     modifier: Modifier = Modifier,
     side: SheetSide = SheetSide.Start,
     width: Dp = NavRailDefaults.ExpandedWidth,
-    glass: Boolean = false,
     colours: NavColours = NavDefaults.colours(container = Theme.colours.surfaceRaised),
     revealSelected: Boolean = true,
     dismissOnItemClick: Boolean = true,
@@ -321,38 +318,36 @@ fun ModalNavRail(
         closing = false
     }
 
-    CompositionLocalProvider(LocalSideSheetGlass provides glass) {
-        ModalSideSheet(
-            visible = visible,
-            onDismissRequest = onDismissRequest,
-            modifier = modifier,
-            side = side,
-            width = width,
-            containerColour = colours.container,
-            contentColour = SurfaceDefaults.contentColour(colours.container),
-            dismissLabel = dismissLabel,
-            paneTitle = paneTitle,
-            windowInsets = windowInsets,
-        ) {
-            CompositionLocalProvider(LocalNavExpansion provides NavExpansion.Drawer) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                ) {
-                    if (header != null) Column(Modifier.padding(start = Theme.spacing.sm), content = header)
-                    RailItems(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        colours = colours,
-                        reveal = RailReveal.Full,
-                        revealSelected = revealSelected,
-                        itemAlignment = Alignment.Top,
-                        afterClick = if (dismissOnItemClick) ({ closing = true }) else null,
-                        content = content,
-                    )
-                    if (footer != null) Column(Modifier.padding(start = Theme.spacing.sm), content = footer)
-                }
+    ModalSideSheet(
+        visible = visible,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        side = side,
+        width = width,
+        containerColour = colours.container,
+        contentColour = SurfaceDefaults.contentColour(colours.container),
+        dismissLabel = dismissLabel,
+        paneTitle = paneTitle,
+        windowInsets = windowInsets,
+    ) {
+        CompositionLocalProvider(LocalNavExpansion provides NavExpansion.Drawer) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            ) {
+                if (header != null) Column(Modifier.padding(start = Theme.spacing.sm), content = header)
+                RailItems(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    colours = colours,
+                    reveal = RailReveal.Full,
+                    revealSelected = revealSelected,
+                    itemAlignment = Alignment.Top,
+                    afterClick = if (dismissOnItemClick) ({ closing = true }) else null,
+                    content = content,
+                )
+                if (footer != null) Column(Modifier.padding(start = Theme.spacing.sm), content = footer)
             }
         }
     }

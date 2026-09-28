@@ -148,7 +148,7 @@ private fun NavScope.tree(here: String, onChange: (String) -> Unit, groupOpen: B
     item(here == "profile", { onChange("profile") }, key = "profile", icon = Tabler.Outline.User) { +"Profile" }
 }
 
-/** Something behind a bar, so a floating one is seen to float and a glass one to be glass. */
+/** Something behind a bar, so a floating one is seen to float. */
 @Composable
 private fun PageBehind() {
     Column(
@@ -168,7 +168,6 @@ private fun PageBehind() {
 }
 
 private val barStyle = Knob.Choice("Style", NavBarStyle.entries.toList(), NavBarStyle.Floating)
-private val barGlass = Knob.Flag("Glass")
 private val barLabels = Knob.Flag("Labels")
 
 /**
@@ -187,7 +186,7 @@ private val barSearchPlacement =
 
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barGlass, barLabels, barSearch, barSearchPlacement),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -198,7 +197,6 @@ internal val NavBarDemo = ComponentDemo(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             NavBar(
                 style = this@ComponentDemo[barStyle],
-                glass = this@ComponentDemo[barGlass],
                 showLabels = this@ComponentDemo[barLabels],
             ) {
                 val first = allDestinations.take(if (withSearch) 2 else 4)
@@ -260,9 +258,8 @@ internal val NavRailDemo = ComponentDemo(
 }
 
 private val modalSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSide.Start)
-private val modalGlass = Knob.Flag("Glass")
 
-internal val ModalNavRailDemo = ComponentDemo(slug = "modal-nav-rail", knobs = listOf(modalSide, modalGlass)) {
+internal val ModalNavRailDemo = ComponentDemo(slug = "modal-nav-rail", knobs = listOf(modalSide)) {
     var open by remember { mutableStateOf(false) }
     var here by remember { mutableStateOf("map") }
     var groupOpen by remember { mutableStateOf(true) }
@@ -275,7 +272,6 @@ internal val ModalNavRailDemo = ComponentDemo(slug = "modal-nav-rail", knobs = l
             visible = open,
             onDismissRequest = { open = false },
             side = this@ComponentDemo[modalSide],
-            glass = this@ComponentDemo[modalGlass],
         ) {
             tree(here, { here = it }, groupOpen, { groupOpen = it })
         }

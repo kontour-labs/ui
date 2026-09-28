@@ -74,7 +74,7 @@ whose destinations are too many or too nested for a bar: no navigation on screen
 until a menu button calls `state.showModal()`. `NavigationSuiteState` also holds
 whether the rail is expanded, so it persists while the window stays a rail.
 
-`barStyle` and `glass` reach the bar and the modal rail; `search` goes in the bar
+`barStyle` reaches the bar; `search` goes in the bar
 after `searchIndex` destinations, counted — `null`, or a number at or past the
 count, puts it at the end; `action` goes after everything in a bar and at the foot
 of a rail; `header` goes above a rail's destinations.

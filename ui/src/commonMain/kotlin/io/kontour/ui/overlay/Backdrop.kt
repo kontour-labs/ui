@@ -135,9 +135,9 @@ object BackdropDefaults {
     /**
      * How far the content behind is blurred once an overlay is fully in.
      *
-     * Larger than `GlassSurface`'s 14dp, which is tuned for a small panel over a
-     * busy background. Across a whole screen a radius that size reads as a
-     * smudge on the glass rather than as distance.
+     * Larger than a small panel over a busy background would take. Across a
+     * whole screen a radius of 14dp or so reads as a smudge on the glass rather
+     * than as distance.
      */
     val BlurRadius: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.backdropBlurRadius
@@ -394,12 +394,13 @@ private fun backdropOpaqueBottom(): Float =
  * Blurs, and optionally pushes back, everything drawn inside this node while an
  * overlay above it asks for it.
  *
- * ### Why this is a backdrop filter when `GlassSurface`'s is not
+ * ### Why this can be a backdrop filter when a floating bar cannot
  *
  * `Modifier.blur` blurs a layer's own content, not what is behind it, and there
  * is no portable equivalent of `backdrop-filter`. For a bar floating over a live
  * map that is a real wall — the bar is a sibling *above* the map, so blurring it
- * blurs the bar. `GlassSurface` documents the workaround and its cost.
+ * blurs the bar. The only workaround composes the content twice, which is why
+ * the library has no frosted bar.
  *
  * A modal is the other case, and it is not the same problem at all. `OverlayHost`
  * composes the app content as a single full-size sibling in the same render tree

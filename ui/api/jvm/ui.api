@@ -2567,15 +2567,6 @@ public final class io/kontour/ui/motion/BackStyleKt {
 	public static final fun getLocalBackStyle ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 }
 
-public final class io/kontour/ui/motion/GlassSurfaceDefaults {
-	public static final field $stable I
-	public static final field BorderAlpha F
-	public static final field INSTANCE Lio/kontour/ui/motion/GlassSurfaceDefaults;
-	public final fun getAlpha (Landroidx/compose/runtime/Composer;I)F
-	public final fun getBlurRadius (Landroidx/compose/runtime/Composer;I)F
-	public final fun getOpaqueAlpha (Landroidx/compose/runtime/Composer;I)F
-}
-
 public final class io/kontour/ui/motion/MarqueeDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/motion/MarqueeDefaults;
@@ -2674,7 +2665,6 @@ public final class io/kontour/ui/motion/SharedElementsKt {
 }
 
 public final class io/kontour/ui/motion/SurfacesKt {
-	public static final fun GlassSurface-gibX1Mk (Landroidx/compose/ui/Modifier;Landroidx/compose/ui/graphics/Shape;JFFFLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun atmosphere-eaDK9VM (Landroidx/compose/ui/Modifier;FJJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun edgeVignette-xfPyhaw (Landroidx/compose/ui/Modifier;FFFJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun shimmer-E_cnhBE (Landroidx/compose/ui/Modifier;JJJLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
@@ -2729,7 +2719,7 @@ public final class io/kontour/ui/nav/NavBarDefaults {
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarScope : io/kontour/ui/nav/NavScope {
@@ -2821,7 +2811,7 @@ public final class io/kontour/ui/nav/NavRailDefaults {
 }
 
 public final class io/kontour/ui/nav/NavRailKt {
-	public static final fun ModalNavRail-GVfq81o (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FZLio/kontour/ui/nav/NavColours;ZZLjava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ModalNavRail-b7y7nX4 (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetSide;FLio/kontour/ui/nav/NavColours;ZZLjava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun NavRail-rcagYwc (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/Alignment$Vertical;FFLio/kontour/ui/nav/NavColours;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
@@ -2860,7 +2850,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-9QqXcbg (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;ZLjava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavigationSuiteScaffold-47NDXZU (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Ljava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
 }
@@ -3545,8 +3535,8 @@ public final class io/kontour/ui/theme/ColourSchemeKt {
 
 public final class io/kontour/ui/theme/ComponentDefaults {
 	public static final field $stable I
-	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component10-D9Ej5fM ()F
 	public final fun component11-D9Ej5fM ()F
@@ -3592,21 +3582,18 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun component48-D9Ej5fM ()F
 	public final fun component49-D9Ej5fM ()F
 	public final fun component5-D9Ej5fM ()F
-	public final fun component50 ()F
-	public final fun component51 ()F
+	public final fun component50-D9Ej5fM ()F
+	public final fun component51-D9Ej5fM ()F
 	public final fun component52-D9Ej5fM ()F
 	public final fun component53-D9Ej5fM ()F
 	public final fun component54-D9Ej5fM ()F
 	public final fun component55-D9Ej5fM ()F
-	public final fun component56-D9Ej5fM ()F
-	public final fun component57-D9Ej5fM ()F
-	public final fun component58-D9Ej5fM ()F
 	public final fun component6-D9Ej5fM ()F
 	public final fun component7-D9Ej5fM ()F
 	public final fun component8-D9Ej5fM ()F
 	public final fun component9-D9Ej5fM ()F
-	public final fun copy-9s3BdgM (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
-	public static synthetic fun copy-9s3BdgM$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
+	public final fun copy-EEQZ_nw (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
+	public static synthetic fun copy-EEQZ_nw$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBackdropBlurRadius-D9Ej5fM ()F
 	public final fun getBackdropInset-D9Ej5fM ()F
@@ -3625,9 +3612,6 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun getCommandPaletteMaxHeight-D9Ej5fM ()F
 	public final fun getCommandPaletteTopInset-D9Ej5fM ()F
 	public final fun getCommandPaletteWidth-D9Ej5fM ()F
-	public final fun getGlassAlpha ()F
-	public final fun getGlassBlurRadius-D9Ej5fM ()F
-	public final fun getGlassOpaqueAlpha ()F
 	public final fun getKeyValueLabelWidth-D9Ej5fM ()F
 	public final fun getKeyValueMinValueWidth-D9Ej5fM ()F
 	public final fun getListItemMinHeight-D9Ej5fM ()F

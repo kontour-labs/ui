@@ -100,7 +100,6 @@ import io.kontour.ui.components.display.AnimatedBanner
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.foundation.Icon
-import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.Pagination
@@ -2465,14 +2464,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("TopBar", role = null, underContract = false) { modifier, _, _ ->
             TopBar(modifier = modifier.width(SpecimenProseWidth)) { +"Perth Underground" }
-        }
-    )
-
-    add(
-        ComponentSpec("GlassSurface", role = null, underContract = false) { modifier, _, _ ->
-            GlassSurface(modifier = modifier, shape = Theme.shapes.pill) {
-                Text("Live departures", modifier = Modifier.padding(16.dp))
-            }
         }
     )
 

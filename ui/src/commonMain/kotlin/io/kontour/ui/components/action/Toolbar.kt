@@ -64,10 +64,8 @@ import io.kontour.ui.theme.outset
  * holds several controls that are merely near each other. A toolbar usually
  * contains a group.
  *
- * For a translucent one over a live map, wrap
- * [io.kontour.ui.motion.GlassSurface] instead and read the note there about
- * backdrop blur — there is no portable one for a bar over live content. A modal
- * is a different problem and does blur; see
+ * There is no translucent one: Compose has no portable backdrop blur for a bar
+ * over live content. A modal is a different problem and does blur; see
  * [io.kontour.ui.overlay.BackdropStyle].
  */
 @Composable

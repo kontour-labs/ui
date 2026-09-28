@@ -34,10 +34,6 @@ A third, free-standing circles with nothing behind them, is gone: a circle
 casting its own shadow over a photograph read as a sticker rather than as
 navigation, and every other surface in the library has a ground.
 
-`glass` makes either one frosted rather than painted — the page shows through,
-blurred where the platform can — and goes back to opaque under high contrast,
-where translucency is the thing the user asked to be rid of.
-
 `showLabels` is off by default. A word under every icon is a row of words, and the
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.
@@ -81,8 +77,7 @@ Destinations are `Role.Tab` inside a `selectableGroup()`. A slot is outside the
 count, so a search is not announced as "3 of 5" among four destinations. A group
 is a `Role.Button` that opens a menu.
 
-At high contrast the bar takes an edge, painted or glass, and a glass bar is
-nearly opaque. The travelling marker takes an accent outline, `selectionEdge()`,
+At high contrast the bar takes an edge. The travelling marker takes an accent outline, `selectionEdge()`,
 because a tint alone is too faint at that tier, and the focus ring is drawn
 thicker.
 

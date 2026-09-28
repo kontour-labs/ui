@@ -235,10 +235,6 @@ data class ComponentDefaults(
      * move with it.
      */
     val sheetFloatingInset: Dp = 12.dp,
-    val glassAlpha: Float = 0.58f,
-    /** What a glass surface falls back to at the high-contrast tier. */
-    val glassOpaqueAlpha: Float = 0.94f,
-    val glassBlurRadius: Dp = 14.dp,
     val sheetMaxWidth: Dp = 640.dp,
     val sideSheetWidth: Dp = 480.dp,
     /** How much of the toast beneath the top one shows. */

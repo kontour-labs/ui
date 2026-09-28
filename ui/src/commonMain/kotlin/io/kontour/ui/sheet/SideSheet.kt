@@ -56,10 +56,7 @@ import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.rememberDirectBack
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Shape
-import io.kontour.ui.motion.GlassSurface
-import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -162,7 +159,6 @@ fun ModalSideSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestBackLabel by rememberUpdatedState(backLabel)
-    val latestGlass by rememberUpdatedState(LocalSideSheetGlass.current)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -225,7 +221,6 @@ fun ModalSideSheet(
                         backLabel = latestBackLabel,
                         progress = LocalOverlayProgress.current,
                         swipeAway = dismissible,
-                        glass = latestGlass,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -348,8 +343,6 @@ private fun SideSheetPanel(
     progress: () -> Float,
     // Whether back may swipe it away: a modal sheet that may be dismissed.
     swipeAway: Boolean = false,
-    // Frosted rather than painted: see `LocalSideSheetGlass`.
-    glass: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -428,7 +421,7 @@ private fun SideSheetPanel(
             // Mirrored for a start-side sheet, so the rounded edge is always the
             // one facing the content rather than the window edge.
             val panelShape = if (fromRight) shape else shape.mirrorHorizontally()
-            PanelGround(glass, panelShape, containerColour, contentColour) {
+            PanelGround(panelShape, containerColour, contentColour) {
                 CompositionLocalProvider(LocalSheetState provides null) {
                     Column(
                         // Inside the surface, so the sheet's colour still runs
@@ -463,36 +456,21 @@ private fun SideSheetPanel(
     }
 }
 
-/**
- * Whether a [ModalSideSheet] composed under it is frosted glass rather than a
- * painted panel. Internal: `ModalNavRail(glass = true)` is the one surface that
- * offers it, and the sheet reads it where it is called, not where its panel is
- * drawn, since the panel is composed in the overlay host.
- */
-internal val LocalSideSheetGlass = staticCompositionLocalOf { false }
-
-/** The side sheet's ground: a raised panel, or a pane of [GlassSurface]. */
+/** The side sheet's ground: a raised panel. */
 @Composable
 private fun PanelGround(
-    glass: Boolean,
     shape: Shape,
     containerColour: Color,
     contentColour: Color,
     content: @Composable () -> Unit,
 ) {
-    if (glass) {
-        GlassSurface(modifier = Modifier.fillMaxSize(), shape = shape, tint = containerColour) {
-            ProvideContentColour(contentColour, content)
-        }
-    } else {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            shape = shape,
-            containerColour = containerColour,
-            contentColour = contentColour,
-            border = contrastEdge(),
-            shadow = Theme.elevation.overlay,
-            content = content,
-        )
-    }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        shape = shape,
+        containerColour = containerColour,
+        contentColour = contentColour,
+        border = contrastEdge(),
+        shadow = Theme.elevation.overlay,
+        content = content,
+    )
 }

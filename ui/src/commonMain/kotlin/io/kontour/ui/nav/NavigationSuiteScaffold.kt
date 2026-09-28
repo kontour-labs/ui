@@ -122,7 +122,6 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param type Override the automatic choice — [NavigationSuiteType.ModalRail],
  *   which is never chosen automatically, is the common reason.
  * @param barStyle The bar's style, when there is one.
- * @param glass A frosted bar and modal rail, rather than painted ones.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
  *   the bar, which does not; a rail shows labels whenever it is wide enough.
  * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
@@ -144,7 +143,6 @@ fun NavigationSuiteScaffold(
     state: NavigationSuiteState = rememberNavigationSuiteState(),
     type: NavigationSuiteType = navigationSuiteTypeFor(LocalWindowSizeClass.current.width),
     barStyle: NavBarStyle = NavBarStyle.Floating,
-    glass: Boolean = false,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -174,7 +172,6 @@ fun NavigationSuiteScaffold(
                         .fillMaxWidth()
                         .onSizeChanged { barHeight = with(density) { it.height.toDp() } },
                     style = barStyle,
-                    glass = glass,
                     showLabels = showLabels ?: false,
                     colours = colours,
                     arrangement = null,
@@ -212,7 +209,6 @@ fun NavigationSuiteScaffold(
                     visible = state.modalVisible,
                     onDismissRequest = state::hideModal,
                     width = railExpandedWidth,
-                    glass = glass,
                     // A panel over the page is raised, as every modal one is,
                     // unless the app chose its ground.
                     colours = if (colours.container == Theme.colours.surface) {

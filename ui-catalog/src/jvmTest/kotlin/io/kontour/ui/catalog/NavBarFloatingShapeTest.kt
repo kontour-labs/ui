@@ -51,19 +51,12 @@ import kotlin.test.assertTrue
  * Dark theme, because the container is `surface` — near-white on a light page,
  * which is nothing to threshold against. In dark it is a light bar on a dark
  * ground and the fill separates cleanly from the shadow.
- *
- * ### Glass is the same capsule
- *
- * `glass = true` swaps the painted `Surface` for a `GlassSurface`, a second code
- * path that is handed the shape separately. A frosted bar that came out square
- * would be the drift above all over again, on the one variant nobody looks at
- * in a golden — so it is measured the same way.
  */
 class NavBarFloatingShapeTest {
 
     @Test
     fun theFloatingBarIsACapsule() {
-        val fraction = cornerFraction(glass = false)
+        val fraction = cornerFraction()
         assertTrue(
             fraction >= RoundEnough,
             "the floating nav bar's corner measured $fraction of half its height. " +
@@ -74,32 +67,13 @@ class NavBarFloatingShapeTest {
         )
     }
 
-    /**
-     * The frosted variant, which draws its pane through `GlassSurface` rather
-     * than `Surface`. Its tint is translucent, so over the black ground it is a
-     * dimmer fill than the painted bar's — and its hairline edge is the content
-     * colour — but both are well clear of the ground the threshold sits on.
-     */
-    @Test
-    fun theFloatingGlassBarIsACapsuleToo() {
-        val fraction = cornerFraction(glass = true)
-        assertTrue(
-            fraction >= RoundEnough,
-            "the floating nav bar's corner measured $fraction of half its height " +
-                "with `glass = true`. The frosted pane is handed its shape " +
-                "separately from the painted one, and it has to be the same " +
-                "capsule the painted bar is.",
-        )
-    }
-
-    private fun cornerFraction(glass: Boolean): Float {
+    private fun cornerFraction(): Float {
         var bounds = Rect.Zero
         val image = Scene(width = 800, height = 400, darkTheme = true) {
             KontourTheme(darkTheme = true) {
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
                     NavBar(
                         style = NavBarStyle.Floating,
-                        glass = glass,
                         modifier = Modifier.reportBounds { bounds = it },
                     ) {
                         item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }

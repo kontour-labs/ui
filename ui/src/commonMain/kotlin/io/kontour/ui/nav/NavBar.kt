@@ -40,12 +40,10 @@ import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.foundation.IndicatorSizing
-import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SurfaceDefaults
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
-import io.kontour.ui.motion.GlassSurface
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
@@ -133,8 +131,6 @@ enum class NavBarStyle {
  *
  * @param style [NavBarStyle.Floating], a capsule over the content, or
  *   [NavBarStyle.Docked], a surface along the bottom edge.
- * @param glass Frosted rather than painted: the page shows through the bar,
- *   blurred where the platform can. Opaque again under high contrast.
  * @param showLabels Off by default. A word under every icon is a row of words,
  *   and the few destinations of a bar are ones its user already knows. Hidden
  *   labels are still announced.
@@ -145,7 +141,6 @@ enum class NavBarStyle {
 fun NavBar(
     modifier: Modifier = Modifier,
     style: NavBarStyle = NavBarStyle.Floating,
-    glass: Boolean = false,
     showLabels: Boolean = false,
     colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
@@ -155,7 +150,6 @@ fun NavBar(
     NavBarLayout(
         modifier = modifier,
         style = style,
-        glass = glass,
         showLabels = showLabels,
         colours = colours,
         arrangement = arrangement,
@@ -177,7 +171,6 @@ fun NavBar(
 internal fun NavBarLayout(
     modifier: Modifier,
     style: NavBarStyle,
-    glass: Boolean,
     showLabels: Boolean,
     colours: NavColours,
     arrangement: Arrangement.Horizontal?,
@@ -246,7 +239,6 @@ internal fun NavBarLayout(
         // The surface reaches the window's edge and the insets are applied
         // inside it, so its colour runs under the gesture bar.
         NavBarStyle.Docked -> BarGround(
-            glass = glass,
             modifier = modifier.fillMaxWidth(),
             shape = RectangleShape,
             colours = colours,
@@ -271,7 +263,6 @@ internal fun NavBarLayout(
             // A capsule, concentric with the circles it holds: 20dp of their
             // radius and `xs` around them is half the bar's height.
             BarGround(
-                glass = glass,
                 modifier = if (hug) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
                 shape = Theme.shapes.pill,
                 colours = colours,
@@ -283,34 +274,26 @@ internal fun NavBarLayout(
     }
 }
 
-/** The bar's surface: painted, or frosted glass. */
+/** The bar's surface. */
 @Composable
 private fun BarGround(
-    glass: Boolean,
     modifier: Modifier,
     shape: Shape,
     colours: NavColours,
     shadow: Shadow,
     content: @Composable () -> Unit,
 ) {
-    val contentColour = SurfaceDefaults.contentColour(colours.container)
-    if (glass) {
-        GlassSurface(modifier = modifier, shape = shape, tint = colours.container) {
-            ProvideContentColour(contentColour, content)
-        }
-    } else {
-        Surface(
-            modifier = modifier,
-            shape = shape,
-            containerColour = colours.container,
-            contentColour = contentColour,
-            shadow = shadow,
-            // A floating bar is `surface` on `background` with a shadow for an
-            // edge, and those two grounds are 1.00:1 at the enhanced light tier.
-            border = contrastEdge(),
-            content = content,
-        )
-    }
+    Surface(
+        modifier = modifier,
+        shape = shape,
+        containerColour = colours.container,
+        contentColour = SurfaceDefaults.contentColour(colours.container),
+        shadow = shadow,
+        // A floating bar is `surface` on `background` with a shadow for an
+        // edge, and those two grounds are 1.00:1 at the enhanced light tier.
+        border = contrastEdge(),
+        content = content,
+    )
 }
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */

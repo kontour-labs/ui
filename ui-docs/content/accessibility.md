@@ -91,11 +91,11 @@ otherwise have, and returns `null` at `Standard` so the call site reads as
 "this container's border, or an edge if the user needs one". `Card` Elevated
 and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
 sheets, `Toolbar`, `SegmentedControl`'s track, `TextFieldVariant.Filled`,
-`NavBar` in both styles and on glass, `NavRail`, `NavSearch`'s results and a
+`NavBar` in both styles, `NavRail`, `NavSearch`'s results and a
 navigation slot's recess, someone else's `ChatBubble`, `TimePicker`'s field,
 `WheelPicker`'s band, a `Popover` with its arrow (the arrow is outlined too),
 the pull-to-refresh disc, a disabled FAB, an avatar with neither name nor
-picture, `GlassSurface`, and the activity calendar's legend all take one. The
+picture, and the activity calendar's legend all take one. The
 segmented control's *thumb* does not — see below.
 
 `selectionEdge()` is the same for a **selection**: an outline in the accent

@@ -15,7 +15,6 @@
 | `Modifier.revealOnScroll` | Fades content in the first time it appears |
 | `Modifier.parallax` | Scroll-linked drift |
 | `Modifier.shimmer` | The travelling highlight behind a skeleton |
-| [`GlassSurface`](glass-surface.md) | Translucent panel for a bar over content |
 | `Modifier.atmosphere` | The radial glow both websites use behind a hero |
 | `Modifier.edgeVignette` | Soft falloff at the edges of a scrolling page |
 
@@ -65,11 +64,10 @@ exists to remove. The full list of what reduced motion changes is with the
 ## There is no portable backdrop blur — for a floating bar
 Compose's `Modifier.blur` blurs a layer's *own* content, not what is behind it,
 and there is no common equivalent of CSS's `backdrop-filter` or iOS's
-`UIVisualEffectView`. So `GlassSurface` draws a translucent tint and a hairline
-edge — most of what reads as glass — and offers real frosting only via a
-`backdrop` slot that composes the background **twice**. Fine for a static image;
-not for the live map a floating bar actually sits over, which is why it is not
-the default.
+`UIVisualEffectView`. The only way to frost a bar over live content is to
+compose that content **twice**, once blurred behind the bar — fine for a static
+image, not for the live map a floating bar actually sits over. So the library has
+no frosted bar: bars and rails are painted.
 
 **A modal is not the same problem, and does blur properly.** The wall above is
 about a bar that is a sibling *above* live content: there is no single node that

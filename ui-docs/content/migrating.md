@@ -313,7 +313,7 @@ are one component at two widths.
 | `NavBar(items, selectedIndex, search = …, searchIndex = …, action = …)` | `NavBar { item(…); slot(weight = 1f) { NavSearch(…) } }` |
 | `NavItem("Home", icon, onClick, badge = 3)` in a list | `item(selected = here == Home, onClick = …, key = Home, icon = icon, badge = { Badge(count = 3) }) { +"Home" }` |
 | `selectedIndex` | `selected` on each `item` |
-| `NavBarStyle.Free` | Gone: `Floating`, the new default, or `Docked`; `glass = true` for either frosted |
+| `NavBarStyle.Free` | Gone: `Floating`, the new default, or `Docked` |
 | `NavBar(showBackdrop, containerColour, contentColour, indicatorColour, indicatorSize, labelGap)` | `colours = NavDefaults.colours(…)`; the backdrop went with `Free` |
 | `NavRail(items, selectedIndex, showLabels, action)` | `NavRail(…) { … }`, labels whenever it is wide enough, `footer` for the action |
 | `NavDrawer(header, footer) { … }` | `NavRail(expanded = true, header, footer) { … }` |
@@ -573,6 +573,9 @@ these change what an existing call does.
 | `ActivityCalendar(markerFor = { d, n -> mark })` returning `ActivityMark?` | `marksFor = { d, n -> listOfNotNull(mark) }`, returning a list: a day can have several |
 | `TextSelectionToolbar`, `TextToolbarAction`, `TextToolbarLabels`, `TextToolbarDefaults` | Removed. Every platform keeps its own selection toolbar; the library's right-click menu stays and reads `Theme.strings` |
 | `Strings.more` | Removed with the toolbar, the one thing that read it |
+| `GlassSurface`, `GlassSurfaceDefaults` | Removed. Compose has no portable backdrop blur for a panel over live content, so it was only ever a translucent tint; use a `Surface` |
+| `NavBar(glass)`, `ModalNavRail(glass)`, `NavigationSuiteScaffold(glass)` | Removed: bars and rails are painted |
+| `ComponentDefaults(glassAlpha, glassOpaqueAlpha, glassBlurRadius)` | Removed with them |
 
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
 `ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;

@@ -21,7 +21,7 @@ ModalNavRail(visible = open, onDismissRequest = { open = false }) {
 
 It renders through [`ModalSideSheet`](modal-side-sheet.md), from the leading edge
 by default, so it stacks with dialogs, dims the page, closes on back and can be
-dragged closed towards its edge. `glass` frosts the panel.
+dragged closed towards its edge.
 
 **Choosing a destination closes it — a frame later.** `dismissOnItemClick` calls
 the destination's `onClick` first, while the rail is still open and still, and
@@ -40,8 +40,7 @@ says what just appeared, and the scrim carries a labelled dismiss action.
 Destinations are `Role.Tab` in a `selectableGroup()`; a group is a disclosure that
 says whether it is open.
 
-At high contrast the panel gains the edge both sheets take at this tier, and
-with `glass` the pane turns near-opaque and takes the same edge. The marker
+At high contrast the panel gains the edge both sheets take at this tier. The marker
 behind the current destination keeps an edge in the accent round its tint, and
 dividers and the focus ring are drawn thicker.
 

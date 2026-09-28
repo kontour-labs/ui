@@ -201,7 +201,7 @@ minimum width and a rating's five stars are facts about the component, and a
 control's corner is `Theme.shapes.control`, its border weight
 `Theme.sizing.borderWidth` and its spring `Theme.motion` already. What is left
 is button and row density, navigation geometry, the widths of overlays and
-sheets, and the glass and backdrop dials.
+sheets, and the backdrop dials.
 
 `uppercaseLabels` is the one field that is not a measurement, and it is here
 because there is nowhere else: casing is not something a `TextStyle` can carry.

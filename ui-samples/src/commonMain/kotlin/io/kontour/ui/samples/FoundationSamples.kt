@@ -54,8 +54,6 @@ import io.kontour.ui.foundation.richText
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.motion.GlassSurface
-import io.kontour.ui.motion.atmosphere
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
@@ -228,19 +226,6 @@ fun WindowSizeClassBasics() {
     // Provide a fresh one wherever a subtree gets its own width.
     WindowSizeClassProvider {
         if (windowSizeClass.width == WindowWidthClass.Compact) Screen() else Screen()
-    }
-}
-
-@Composable
-fun GlassSurfaceBasics() {
-    Box(Modifier.fillMaxSize().atmosphere()) {
-        Screen()
-        GlassSurface(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(Theme.spacing.md),
-            shape = Theme.shapes.pill,
-        ) {
-            Text("Live departures", modifier = Modifier.padding(Theme.spacing.md))
-        }
     }
 }
 
