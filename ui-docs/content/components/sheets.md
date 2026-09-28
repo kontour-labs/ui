@@ -241,6 +241,14 @@ list up to its top first. A release used to stop the sheet dead for a few frames
 and then ease it away from rest. A pull that followed a scroll was also read as
 the list's, and sprang back.
 
+**A flick is read off the finger when the platform loses it.** On iOS, Compose's
+velocity tracker reports no speed at all for a thumb laid on the sheet, rested a
+moment, and flicked — it takes the rest for the finger stopping — and the same for
+a throw across a slow frame. So when a release reports exactly nothing but the
+finger was still moving as it lifted, the sheet reads the throw off the last tenth
+of a second of the finger's own path. A finger that stopped before lifting still
+settles by position.
+
 **A flick from the content has to be firmer.** Below 300dp/s, a release settles
 by position. A fling the list spent on itself does not move the sheet at all: a
 reader who scrolled the list and let go was moving the list, and its leftovers

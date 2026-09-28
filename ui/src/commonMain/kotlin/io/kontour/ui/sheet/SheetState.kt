@@ -1042,6 +1042,9 @@ class SheetState internal constructor(
      */
     private var releasedBySheet: Boolean = false
 
+    /** The finger on the sheet, for a release the platform reports as no throw at all. See [SheetFinger]. */
+    internal val finger = SheetFinger()
+
     /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
      * when the finger left.
@@ -1324,7 +1327,7 @@ class SheetState internal constructor(
                 if (!restingAtADetent()) {
                     listScrolled = false
                     releasedBySheet = true
-                    settleWhereAimed(available.y, settleSpec, flickVelocity, atLeastOne = true)
+                    settleWhereAimed(finger.releaseVelocity(available.y), settleSpec, flickVelocity, atLeastOne = true)
                     releaseOvershoot(settleSpec)
                     return available
                 }

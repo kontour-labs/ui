@@ -3,6 +3,8 @@ package io.kontour.ui.sheet
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
@@ -643,11 +645,18 @@ fun BottomSheet(
     // from, so it moves the sheet inside the drag it already holds.
     val handleFlick = with(density) { SheetHandleFlickVelocity.toPx() }
     val fling = remember(state, settleSpec, handleFlick) {
-        snapFlingBehavior(
+        val snap = snapFlingBehavior(
             snapLayoutInfoProvider = SheetSnapping(state, handleFlick),
             decayAnimationSpec = exponentialDecay(),
             snapAnimationSpec = settleSpec,
         )
+        // The throw as the finger made it, where the platform's tracker lost it:
+        // see `SheetFinger`. Handed on as the fling's own velocity, so the snap
+        // both aims by it and starts at it.
+        object : FlingBehavior {
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float =
+                with(snap) { performFling(state.finger.releaseVelocity(initialVelocity)) }
+        }
     }
 
     // A detent asked for before the sheet had been measured, delivered once it
@@ -736,6 +745,7 @@ fun BottomSheet(
                 .then(
                     if (draggable) {
                         Modifier
+                            .followSheetFinger(state.finger)
                             .nestedScroll(scrollConnection)
                             .anchoredDraggable(
                                 state = state.anchoredState,

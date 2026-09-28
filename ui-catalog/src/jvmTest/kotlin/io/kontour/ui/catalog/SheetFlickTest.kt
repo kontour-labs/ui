@@ -169,6 +169,77 @@ class SheetFlickTest {
     }
 
     /**
+     * A finger laid on the sheet, rested a moment, then flicked away closes it —
+     * on the sheet itself and from its list.
+     *
+     * The most natural way to throw a sheet off an iPhone, and the one that did
+     * nothing there. UIKit's velocity tracker in Compose resets to zero when a
+     * gesture over 100ms long saw a gap of more than 40ms between touches within
+     * 50ms of the lift — and it counts the rest after touch-down as that gap. So
+     * a press, a pause and a 30ms flick reported no speed at all, and the sheet
+     * settled by position and sprang back. The desktop's tracker loses the same
+     * throw here, for its own reason: too few samples after the pause.
+     */
+    @Test
+    fun aFingerThatRestsThenFlicksClosesTheSheet() {
+        assertEquals(SheetDetent.Hidden, restedThenFlicked(onList = false), "a rest and a flick on the sheet left it open")
+        assertEquals(SheetDetent.Hidden, restedThenFlicked(onList = true), "a rest and a flick on the sheet's list left it open")
+    }
+
+    /** And a finger that stops before it lifts has not thrown anything. */
+    @Test
+    fun aFingerThatStopsBeforeLiftingDoesNotCloseIt() {
+        assertEquals(SheetDetent.Expanded, restedThenFlicked(onList = true, pauseBeforeLift = true))
+        assertEquals(SheetDetent.Expanded, restedThenFlicked(onList = false, pauseBeforeLift = true))
+    }
+
+    private fun restedThenFlicked(onList: Boolean, pauseBeforeLift: Boolean = false): SheetDetent {
+        var state: SheetState? = null
+        var visible by mutableStateOf(true)
+        var settled: SheetDetent? = null
+        Scene(width = 600, height = 900) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                val sheet = rememberSheetState(
+                    detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.Expanded,
+                )
+                state = sheet
+                ModalBottomSheet(visible = visible, onDismissRequest = { visible = false }, state = sheet) {
+                    val body = Modifier.fillMaxWidth().height(300.dp)
+                    if (onList) {
+                        Box(body.verticalScroll(rememberScrollState())) {
+                            Box(Modifier.fillMaxWidth().height(900.dp).background(Color.LightGray))
+                        }
+                    } else {
+                        Box(body.background(Color.LightGray))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(80)
+            val sheet = requireNotNull(state)
+            val from = Offset(300f, 600f)
+            scene.press(from)
+            // Resting on it, as a thumb does before a flick.
+            scene.frames(5)
+            // Then two frames of throw, 60px a frame — 3600px/s.
+            scene.move(Offset(from.x, from.y + 60f))
+            scene.frame()
+            scene.move(Offset(from.x, from.y + 120f))
+            scene.frame()
+            if (pauseBeforeLift) scene.frames(6)
+            scene.release(Offset(from.x, from.y + 120f))
+            repeat(12) {
+                scene.frames(10)
+                if (sheet.currentDetent == SheetDetent.Hidden || !visible) settled = SheetDetent.Hidden
+            }
+            if (settled == null) settled = sheet.currentDetent
+        }
+        return requireNotNull(settled)
+    }
+
+    /**
      * The sheet's offset each frame from the release of a flick of its list, the
      * release frame first. [afterRelease] runs straight after the release instead.
      */
