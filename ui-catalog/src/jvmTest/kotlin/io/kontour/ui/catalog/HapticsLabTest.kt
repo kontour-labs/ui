@@ -4,12 +4,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.haptics.HapticEffect
 import io.kontour.haptics.HapticRecord
 import io.kontour.haptics.RecordingHaptics
+import io.kontour.haptics.TracingHaptics
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalHaptics
 import io.kontour.ui.interaction.defaultEffect
@@ -43,5 +45,22 @@ class HapticsLabTest {
             ),
             player.records,
         )
+    }
+
+    @Test
+    fun theTraceCountsWhatThePageAskedOfThePlayer() = runComposeUiTest {
+        val player = TracingHaptics(RecordingHaptics())
+        setContent {
+            CompositionLocalProvider(LocalHaptics provides player) {
+                KontourTheme { HapticsLab() }
+            }
+        }
+        onNodeWithText("Probe").performScrollTo().performClick()
+        onNodeWithText("Felt it").performScrollTo().performClick()
+        waitForIdle()
+        // A tap is a light impact; the note is kept in the log below the counts.
+        assertEquals(1, player.trace.counters["play Impact"])
+        assertEquals(listOf("probe: felt"), player.trace.log)
+        onNodeWithText("play Impact: 1", substring = true).assertExists()
     }
 }

@@ -122,11 +122,19 @@ refuses a vibration for any other reason moves that player to them for good.
 
 **iOS** plays one-offs through UIKit's feedback generators — Apple's own, which
 follow the system's haptics switch — and uses Core Haptics only for the swells,
-patterns and rumbles UIKit has no word for. There is one engine for the
-process, started when first needed and again whenever the system stopped it,
-including after the app has been in the background. An iPad has no Taptic
-Engine and plays nothing. A static framework may need `-framework CoreHaptics`
-in the app's linker flags.
+patterns and rumbles UIKit has no word for. Generators are kept for a burst of
+haptics and made afresh after a pause of a second and a half, and let go when
+the app comes back to the foreground: holding one for the life of the process
+was reported to leave a phone silent until the app was reopened. There is one
+engine for the process, started when first needed and again whenever the
+system stopped it, and made again from scratch if the system resets it or it
+will not start. An iPad has no Taptic Engine and plays nothing. A static
+framework may need `-framework CoreHaptics` in the app's linker flags.
+
+`Haptics(route = …)` pins another way of playing one-offs — the old
+process-long generators, generators attached to a view (iOS 17.5), or Core
+Haptics taps with no UIKit at all — for comparing on a phone, not for an app to
+choose.
 
 **The web** has the Vibration API where there is one: Chrome and Firefox on
 Android. Safari has none on any device. It has no strength, only length, so a
@@ -163,3 +171,25 @@ assertEquals(listOf(HapticRecord.Played(FeedbackIntent.ToggleOn.defaultEffect)),
 ```
 
 `Haptics.None` plays nothing and never fails, for screenshots and previews.
+
+## When a haptic is not felt
+
+No platform says whether a motor moved, so the question a trace answers is how
+far a request got. Wrap the player in a `TracingHaptics` and every call is
+counted by effect before the platform sees it; `platformTrace` is what the
+platform counted underneath, where it keeps one — on iOS, every generator made
+and fired, every `prepare`, and the engine's starts, stops, resets and errors.
+
+```kotlin
+val traced = TracingHaptics(rememberHaptics())
+CompositionLocalProvider(LocalHaptics provides traced) {
+    KontourTheme { App() }
+}
+// On a diagnostics page:
+Text(traced.trace.describe() + (traced.platformTrace?.describe() ?: ""))
+```
+
+Read the counters before and after the haptics go quiet: the first that stops
+rising is the layer that stopped. The catalog's haptics page shows both, with
+runs that replay a slider driven into its stop and quick taps through a
+multi-select.

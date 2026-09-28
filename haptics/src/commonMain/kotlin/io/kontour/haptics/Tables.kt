@@ -437,6 +437,30 @@ internal fun appleEvents(kind: PrimitiveKind, strength: Float, start: Double): L
 }
 
 /**
+ * A one-off UIKit would play, as Core Haptics taps instead: what iOS plays on the
+ * route that bypasses UIKit's generators, to tell a stuck generator from a stuck
+ * engine. Near enough to UIKit's feel to compare, not a replacement for it.
+ */
+internal fun appleTransients(plan: ApplePlan): List<AppleEvent> = when (plan) {
+    ApplePlan.Selection -> appleEvents(PrimitiveKind.Tick, 0.6f, 0.0)
+    is ApplePlan.Impact -> when (plan.style) {
+        ImpactStyle.Light -> appleEvents(PrimitiveKind.Click, 0.5f * plan.intensity, 0.0)
+        ImpactStyle.Medium -> appleEvents(PrimitiveKind.Click, 0.8f * plan.intensity, 0.0)
+        ImpactStyle.Heavy -> appleEvents(PrimitiveKind.Thud, plan.intensity, 0.0)
+        ImpactStyle.Soft -> appleEvents(PrimitiveKind.LowTick, plan.intensity, 0.0)
+        ImpactStyle.Rigid -> appleEvents(PrimitiveKind.Tick, plan.intensity, 0.0)
+    }
+    is ApplePlan.Notification -> when (plan.type) {
+        NotificationType.Success -> appleEvents(PrimitiveKind.Click, 0.6f, 0.0) + appleEvents(PrimitiveKind.Click, 0.9f, 0.1)
+        NotificationType.Warning ->
+            appleEvents(PrimitiveKind.Click, 0.9f, 0.0) + appleEvents(PrimitiveKind.Click, 0.7f, WarningGapMillis / 1000.0)
+        NotificationType.Error ->
+            appleEvents(PrimitiveKind.Tick, 0.9f, 0.0) + appleEvents(PrimitiveKind.Tick, 0.9f, 0.07) + appleEvents(PrimitiveKind.Tick, 0.9f, 0.14)
+    }
+    is ApplePlan.Events -> plan.events
+}
+
+/**
  * A rumble's two dynamic parameters on iOS: intensity *multiplies* the event's,
  * which is 1, and sharpness is *added* to the event's, which is ½.
  */

@@ -2,7 +2,12 @@ package io.kontour.ui.demo.theme
 
 import io.kontour.ui.locale.PseudoLocalised
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import io.kontour.haptics.TracingHaptics
+import io.kontour.ui.interaction.LocalHaptics
+import io.kontour.ui.interaction.rememberHaptics
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.ComponentDefaults
@@ -145,6 +150,25 @@ fun DemoThemeProvider(
     )
     val reduceMotion = settings.reduceMotion ?: systemReduceMotion
 
+    // Every haptic either surface plays is counted on its way to the platform, so
+    // the haptics page can show how far a request got when a phone goes quiet —
+    // wherever in the app it went quiet. A map lookup per haptic.
+    val player = rememberHaptics()
+    val traced = remember(player) { player as? TracingHaptics ?: TracingHaptics(player) }
+    CompositionLocalProvider(LocalHaptics provides traced) {
+        ThemedContent(settings, dark, tier, reduceMotion, content)
+    }
+}
+
+@Composable
+private fun ThemedContent(
+    settings: CatalogSettings,
+    dark: Boolean,
+    tier: ContrastLevel,
+    reduceMotion: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val theme = settings.theme
     // A theme change cuts, colours and all, and it does so by taking
     // `KontourTheme`'s default rather than by naming it here.
     //

@@ -27,6 +27,14 @@ interface Haptics : AutoCloseable {
     /** What this device can play, and how. */
     val capability: HapticCapability
 
+    /**
+     * What this player has done, counted step by step, where it keeps a record —
+     * for a diagnostics page when a haptic was not felt. `null`, the default,
+     * keeps none. The iOS player counts its generators and its engine; a
+     * [TracingHaptics] counts what it was asked.
+     */
+    val trace: HapticsTrace? get() = null
+
     /** Plays one effect, now. */
     fun play(effect: HapticEffect)
 

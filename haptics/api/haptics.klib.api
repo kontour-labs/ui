@@ -1,5 +1,6 @@
 // Klib ABI Dump
 // Targets: [iosArm64, iosSimulatorArm64, js, wasmJs]
+// Alias: ios => [iosArm64, iosSimulatorArm64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -39,6 +40,8 @@ final enum class io.kontour.haptics/NotificationType : kotlin/Enum<io.kontour.ha
 abstract interface io.kontour.haptics/Haptics : kotlin/AutoCloseable { // io.kontour.haptics/Haptics|null[0]
     abstract val capability // io.kontour.haptics/Haptics.capability|{}capability[0]
         abstract fun <get-capability>(): io.kontour.haptics/HapticCapability // io.kontour.haptics/Haptics.capability.<get-capability>|<get-capability>(){}[0]
+    open val trace // io.kontour.haptics/Haptics.trace|{}trace[0]
+        open fun <get-trace>(): io.kontour.haptics/HapticsTrace? // io.kontour.haptics/Haptics.trace.<get-trace>|<get-trace>(){}[0]
 
     abstract fun cancel() // io.kontour.haptics/Haptics.cancel|cancel(){}[0]
     abstract fun close() // io.kontour.haptics/Haptics.close|close(){}[0]
@@ -454,6 +457,25 @@ final class io.kontour.haptics/HapticPatternScope { // io.kontour.haptics/Haptic
     final fun at(kotlin.time/Duration, io.kontour.haptics/HapticEffect.Primitive) // io.kontour.haptics/HapticPatternScope.at|at(kotlin.time.Duration;io.kontour.haptics.HapticEffect.Primitive){}[0]
 }
 
+final class io.kontour.haptics/HapticsTrace { // io.kontour.haptics/HapticsTrace|null[0]
+    constructor <init>() // io.kontour.haptics/HapticsTrace.<init>|<init>(){}[0]
+
+    final val counters // io.kontour.haptics/HapticsTrace.counters|{}counters[0]
+        final fun <get-counters>(): kotlin.collections/Map<kotlin/String, kotlin/Int> // io.kontour.haptics/HapticsTrace.counters.<get-counters>|<get-counters>(){}[0]
+    final val log // io.kontour.haptics/HapticsTrace.log|{}log[0]
+        final fun <get-log>(): kotlin.collections/List<kotlin/String> // io.kontour.haptics/HapticsTrace.log.<get-log>|<get-log>(){}[0]
+
+    final fun clear() // io.kontour.haptics/HapticsTrace.clear|clear(){}[0]
+    final fun count(kotlin/String) // io.kontour.haptics/HapticsTrace.count|count(kotlin.String){}[0]
+    final fun describe(): kotlin/String // io.kontour.haptics/HapticsTrace.describe|describe(){}[0]
+    final fun note(kotlin/String, kotlin/String? = ...) // io.kontour.haptics/HapticsTrace.note|note(kotlin.String;kotlin.String?){}[0]
+
+    final object Companion { // io.kontour.haptics/HapticsTrace.Companion|null[0]
+        final const val LogLength // io.kontour.haptics/HapticsTrace.Companion.LogLength|{}LogLength[0]
+            final fun <get-LogLength>(): kotlin/Int // io.kontour.haptics/HapticsTrace.Companion.LogLength.<get-LogLength>|<get-LogLength>(){}[0]
+    }
+}
+
 final class io.kontour.haptics/RecordingHaptics : io.kontour.haptics/Haptics { // io.kontour.haptics/RecordingHaptics|null[0]
     constructor <init>(io.kontour.haptics/HapticCapability = ...) // io.kontour.haptics/RecordingHaptics.<init>|<init>(io.kontour.haptics.HapticCapability){}[0]
 
@@ -470,6 +492,44 @@ final class io.kontour.haptics/RecordingHaptics : io.kontour.haptics/Haptics { /
     final fun startRumble(kotlin/Float, kotlin/Float, kotlin.time/Duration): io.kontour.haptics/Rumble // io.kontour.haptics/RecordingHaptics.startRumble|startRumble(kotlin.Float;kotlin.Float;kotlin.time.Duration){}[0]
 }
 
+final class io.kontour.haptics/TracingHaptics : io.kontour.haptics/Haptics { // io.kontour.haptics/TracingHaptics|null[0]
+    constructor <init>(io.kontour.haptics/Haptics, io.kontour.haptics/HapticsTrace = ...) // io.kontour.haptics/TracingHaptics.<init>|<init>(io.kontour.haptics.Haptics;io.kontour.haptics.HapticsTrace){}[0]
+
+    final val capability // io.kontour.haptics/TracingHaptics.capability|{}capability[0]
+        final fun <get-capability>(): io.kontour.haptics/HapticCapability // io.kontour.haptics/TracingHaptics.capability.<get-capability>|<get-capability>(){}[0]
+    final val platformTrace // io.kontour.haptics/TracingHaptics.platformTrace|{}platformTrace[0]
+        final fun <get-platformTrace>(): io.kontour.haptics/HapticsTrace? // io.kontour.haptics/TracingHaptics.platformTrace.<get-platformTrace>|<get-platformTrace>(){}[0]
+    final val trace // io.kontour.haptics/TracingHaptics.trace|{}trace[0]
+        final fun <get-trace>(): io.kontour.haptics/HapticsTrace // io.kontour.haptics/TracingHaptics.trace.<get-trace>|<get-trace>(){}[0]
+
+    final fun cancel() // io.kontour.haptics/TracingHaptics.cancel|cancel(){}[0]
+    final fun close() // io.kontour.haptics/TracingHaptics.close|close(){}[0]
+    final fun play(io.kontour.haptics/HapticEffect) // io.kontour.haptics/TracingHaptics.play|play(io.kontour.haptics.HapticEffect){}[0]
+    final fun play(io.kontour.haptics/HapticPattern) // io.kontour.haptics/TracingHaptics.play|play(io.kontour.haptics.HapticPattern){}[0]
+    final fun startRumble(kotlin/Float, kotlin/Float, kotlin.time/Duration): io.kontour.haptics/Rumble // io.kontour.haptics/TracingHaptics.startRumble|startRumble(kotlin.Float;kotlin.Float;kotlin.time.Duration){}[0]
+    final fun toString(): kotlin/String // io.kontour.haptics/TracingHaptics.toString|toString(){}[0]
+}
+
 final fun (io.kontour.haptics/HapticEffect).io.kontour.haptics/scaled(kotlin/Float): io.kontour.haptics/HapticEffect // io.kontour.haptics/scaled|scaled@io.kontour.haptics.HapticEffect(kotlin.Float){}[0]
-final fun io.kontour.haptics/Haptics(): io.kontour.haptics/Haptics // io.kontour.haptics/Haptics|Haptics(){}[0]
 final fun io.kontour.haptics/hapticPattern(kotlin/Function1<io.kontour.haptics/HapticPatternScope, kotlin/Unit>): io.kontour.haptics/HapticPattern // io.kontour.haptics/hapticPattern|hapticPattern(kotlin.Function1<io.kontour.haptics.HapticPatternScope,kotlin.Unit>){}[0]
+
+// Targets: [ios]
+final enum class io.kontour.haptics/IosHapticsRoute : kotlin/Enum<io.kontour.haptics/IosHapticsRoute> { // io.kontour.haptics/IosHapticsRoute|null[0]
+    enum entry Auto // io.kontour.haptics/IosHapticsRoute.Auto|null[0]
+    enum entry BurstGenerators // io.kontour.haptics/IosHapticsRoute.BurstGenerators|null[0]
+    enum entry CoreHaptics // io.kontour.haptics/IosHapticsRoute.CoreHaptics|null[0]
+    enum entry ProcessGenerators // io.kontour.haptics/IosHapticsRoute.ProcessGenerators|null[0]
+    enum entry ViewGenerators // io.kontour.haptics/IosHapticsRoute.ViewGenerators|null[0]
+
+    final val entries // io.kontour.haptics/IosHapticsRoute.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.haptics/IosHapticsRoute> // io.kontour.haptics/IosHapticsRoute.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.kontour.haptics/IosHapticsRoute // io.kontour.haptics/IosHapticsRoute.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.kontour.haptics/IosHapticsRoute> // io.kontour.haptics/IosHapticsRoute.values|values#static(){}[0]
+}
+
+// Targets: [ios]
+final fun io.kontour.haptics/Haptics(io.kontour.haptics/IosHapticsRoute = ..., platform.UIKit/UIView? = ...): io.kontour.haptics/Haptics // io.kontour.haptics/Haptics|Haptics(io.kontour.haptics.IosHapticsRoute;platform.UIKit.UIView?){}[0]
+
+// Targets: [js, wasmJs]
+final fun io.kontour.haptics/Haptics(): io.kontour.haptics/Haptics // io.kontour.haptics/Haptics|Haptics(){}[0]

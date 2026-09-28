@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import io.kontour.haptics.HapticCapability
 import io.kontour.haptics.HapticEffect
 import io.kontour.haptics.Haptics
+import io.kontour.haptics.HapticsTrace
+import io.kontour.haptics.TracingHaptics
 import io.kontour.haptics.ImpactStyle
 import io.kontour.haptics.NotificationType
 import io.kontour.haptics.Rumble
@@ -74,16 +76,21 @@ import kotlin.time.Duration.Companion.milliseconds
 internal fun HapticsLab(modifier: Modifier = Modifier) {
     var route by remember { mutableIntStateOf(0) }
     var rumbleRoute by remember { mutableIntStateOf(0) }
-    // A route pinned for comparison, where the platform has more than one.
+    // A route pinned for comparison, where the platform has more than one —
+    // counted into the same trace as the app's own player, so the trace card
+    // reads the same whichever route played.
     val routed = rememberRoutedHaptics(route, rumbleRoute)
+    val appTrace = (LocalHaptics.current as? TracingHaptics)?.trace
+    val tracedRoute = remember(routed, appTrace) { routed?.let { TracingHaptics(it, appTrace ?: HapticsTrace()) } }
 
-    CompositionLocalProvider(LocalHaptics provides (routed ?: LocalHaptics.current)) {
+    CompositionLocalProvider(LocalHaptics provides (tracedRoute ?: LocalHaptics.current)) {
         val player = rememberHaptics()
         Column(
             modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             ThisDevice(player, route, { route = it }, rumbleRoute, { rumbleRoute = it })
+            Trace(player)
             Intents()
             Effects(player)
             RumbleCard(player)
@@ -149,10 +156,99 @@ private fun ThisDevice(
         if (HapticsRoutes.isNotEmpty()) {
             Text("Route, for comparing", style = Theme.typography.labelMedium)
             SegmentedControl(options = HapticsRoutes, selectedIndex = route, onSelectedIndexChange = onRoute)
-            Text("Rumble route", style = Theme.typography.labelMedium)
-            SegmentedControl(options = RumbleRoutes, selectedIndex = rumbleRoute, onSelectedIndexChange = onRumbleRoute)
+            if (RumbleRoutes.isNotEmpty()) {
+                Text("Rumble route", style = Theme.typography.labelMedium)
+                SegmentedControl(options = RumbleRoutes, selectedIndex = rumbleRoute, onSelectedIndexChange = onRumbleRoute)
+            }
         }
     }
+}
+
+/**
+ * How far each haptic got, when a phone goes quiet: the app's counts above the
+ * platform's, and runs that replay the two sequences reported to silence an
+ * iPhone for good — a slider driven into its stop, and quick taps through a
+ * multi-select.
+ *
+ * Read it before and after the haptics stop. The first counter that stops rising
+ * is the layer that stopped; if they all keep rising and nothing is felt, the
+ * requests reached the platform and the platform dropped them. Refreshed by its
+ * buttons rather than on a timer, so an idle page stays idle.
+ */
+@Composable
+private fun Trace(player: Haptics) {
+    val app = player as? TracingHaptics
+    val scope = rememberCoroutineScope()
+    var shown by remember(player) { mutableStateOf(traceText(player)) }
+    fun refresh() {
+        shown = traceText(player)
+    }
+    LabSection(
+        "Trace",
+        "Every haptic this app plays is counted here, whichever page played it. When they stop, refresh this " +
+            "before anything else, then select the text and copy it into a report.",
+    ) {
+        LabButtons {
+            LabPlay("Slider into its stop ×5") {
+                scope.launch {
+                    repeat(5) {
+                        // A drag's grains, faster as it goes, and then the wall.
+                        repeat(StressGrains) { i ->
+                            player.play(FeedbackIntent.Scrub.defaultEffect.scaled(0.25f + 0.75f * i / (StressGrains - 1)))
+                            delay(50)
+                        }
+                        player.play(FeedbackIntent.Limit.defaultEffect)
+                        delay(300)
+                    }
+                    refresh()
+                }
+            }
+            LabPlay("Multi-select run") {
+                scope.launch {
+                    repeat(20) { i ->
+                        player.play((if (i % 2 == 0) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff).defaultEffect)
+                        delay(80)
+                    }
+                    refresh()
+                }
+            }
+            LabPlay("Probe") {
+                player.play(FeedbackIntent.Tap.defaultEffect)
+                refresh()
+            }
+            LabPlay("Felt it") {
+                app?.trace?.note("probe: felt")
+                refresh()
+            }
+            LabPlay("Didn't feel it") {
+                app?.trace?.note("probe: not felt")
+                refresh()
+            }
+            LabPlay("Refresh") { refresh() }
+            LabPlay("Reset") {
+                app?.trace?.clear()
+                (app?.platformTrace ?: player.trace)?.clear()
+                refresh()
+            }
+        }
+        SelectionContainer { Text(shown, style = Theme.typography.bodySmall) }
+    }
+}
+
+/** How many grains the slider run plays before each wall. */
+private const val StressGrains = 12
+
+/** The app's counts and the platform's, as text to read and copy. */
+private fun traceText(player: Haptics): String {
+    val app = player as? TracingHaptics
+    val platform = app?.platformTrace ?: player.trace
+    return buildString {
+        appendLine("App, asked of the player")
+        append(app?.trace?.describe()?.ifEmpty { "nothing yet\n" } ?: "not traced\n")
+        appendLine()
+        appendLine("Platform")
+        append(platform?.describe()?.ifEmpty { "nothing yet\n" } ?: "keeps no trace here\n")
+    }.trimEnd()
 }
 
 /** Each intent through the app's own dispatcher: the effect a component plays, at the level in Settings. */

@@ -169,6 +169,21 @@ class PlatformTablesTest {
         }
     }
 
+    /**
+     * The route that bypasses UIKit plays every one-off as Core Haptics taps, and
+     * every one of those is a real event Core Haptics accepts.
+     */
+    @Test
+    fun everyOneOffHasCoreHapticsTapsForTheRouteWithoutUIKit() {
+        for (s in strengths) for (effect in everyEffect(s)) {
+            val events = appleTransients(applePlan(effect))
+            assertTrue(events.isNotEmpty(), "$effect plays nothing without UIKit")
+            events.forEach {
+                assertTrue(it.intensity in 0f..1f && it.sharpness in 0f..1f && it.startSeconds >= 0.0, "$effect has $it")
+            }
+        }
+    }
+
     @Test
     fun aPatternOnIosKeepsItsTiming() {
         val pattern = hapticPattern {

@@ -373,6 +373,7 @@ public abstract interface class io/kontour/haptics/Haptics : java/lang/AutoClose
 	public abstract fun cancel ()V
 	public abstract fun close ()V
 	public abstract fun getCapability ()Lio/kontour/haptics/HapticCapability;
+	public fun getTrace ()Lio/kontour/haptics/HapticsTrace;
 	public abstract fun play (Lio/kontour/haptics/HapticEffect;)V
 	public abstract fun play (Lio/kontour/haptics/HapticPattern;)V
 	public abstract fun startRumble-SxA4cEA (FFJ)Lio/kontour/haptics/Rumble;
@@ -384,7 +385,24 @@ public final class io/kontour/haptics/Haptics$Companion {
 }
 
 public final class io/kontour/haptics/Haptics$DefaultImpls {
+	public static fun getTrace (Lio/kontour/haptics/Haptics;)Lio/kontour/haptics/HapticsTrace;
 	public static synthetic fun startRumble-SxA4cEA$default (Lio/kontour/haptics/Haptics;FFJILjava/lang/Object;)Lio/kontour/haptics/Rumble;
+}
+
+public final class io/kontour/haptics/HapticsTrace {
+	public static final field Companion Lio/kontour/haptics/HapticsTrace$Companion;
+	public static final field LogLength I
+	public fun <init> ()V
+	public final fun clear ()V
+	public final fun count (Ljava/lang/String;)V
+	public final fun describe ()Ljava/lang/String;
+	public final fun getCounters ()Ljava/util/Map;
+	public final fun getLog ()Ljava/util/List;
+	public final fun note (Ljava/lang/String;Ljava/lang/String;)V
+	public static synthetic fun note$default (Lio/kontour/haptics/HapticsTrace;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
+}
+
+public final class io/kontour/haptics/HapticsTrace$Companion {
 }
 
 public final class io/kontour/haptics/ImpactStyle : java/lang/Enum {
@@ -416,6 +434,7 @@ public final class io/kontour/haptics/RecordingHaptics : io/kontour/haptics/Hapt
 	public fun close ()V
 	public fun getCapability ()Lio/kontour/haptics/HapticCapability;
 	public final fun getRecords ()Ljava/util/List;
+	public fun getTrace ()Lio/kontour/haptics/HapticsTrace;
 	public fun play (Lio/kontour/haptics/HapticEffect;)V
 	public fun play (Lio/kontour/haptics/HapticPattern;)V
 	public fun startRumble-SxA4cEA (FFJ)Lio/kontour/haptics/Rumble;
@@ -430,5 +449,19 @@ public abstract interface class io/kontour/haptics/Rumble : java/lang/AutoClosea
 
 public final class io/kontour/haptics/Rumble$DefaultImpls {
 	public static fun close (Lio/kontour/haptics/Rumble;)V
+}
+
+public final class io/kontour/haptics/TracingHaptics : io/kontour/haptics/Haptics {
+	public fun <init> (Lio/kontour/haptics/Haptics;Lio/kontour/haptics/HapticsTrace;)V
+	public synthetic fun <init> (Lio/kontour/haptics/Haptics;Lio/kontour/haptics/HapticsTrace;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun cancel ()V
+	public fun close ()V
+	public fun getCapability ()Lio/kontour/haptics/HapticCapability;
+	public final fun getPlatformTrace ()Lio/kontour/haptics/HapticsTrace;
+	public fun getTrace ()Lio/kontour/haptics/HapticsTrace;
+	public fun play (Lio/kontour/haptics/HapticEffect;)V
+	public fun play (Lio/kontour/haptics/HapticPattern;)V
+	public fun startRumble-SxA4cEA (FFJ)Lio/kontour/haptics/Rumble;
+	public fun toString ()Ljava/lang/String;
 }
 

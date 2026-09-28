@@ -1,10 +1,18 @@
-// Passing `null` for an `NSError**` is how every Core Haptics call here says it
-// will read the result instead of the error, and that needs the opt-in.
-@file:OptIn(ExperimentalForeignApi::class)
+// An `NSError**` is how Core Haptics reports what went wrong, and reading one
+// back — or passing `null` to say it will not be read — needs the opt-ins.
+@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 
 package io.kontour.haptics
 
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.ObjCObjectVar
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.cValue
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.value
 import platform.CoreHaptics.CHHapticAdvancedPatternPlayerProtocol
 import platform.CoreHaptics.CHHapticDynamicParameter
 import platform.CoreHaptics.CHHapticDynamicParameterIDHapticIntensityControl
@@ -18,23 +26,59 @@ import platform.CoreHaptics.CHHapticEventTypeHapticContinuous
 import platform.CoreHaptics.CHHapticEventTypeHapticTransient
 import platform.CoreHaptics.CHHapticPattern
 import platform.CoreHaptics.CHHapticTimeImmediate
+import platform.Foundation.NSError
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperatingSystemVersion
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSThread
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
+import platform.UIKit.UIApplicationDidReceiveMemoryWarningNotification
 import platform.UIKit.UIDevice
+import platform.UIKit.UIFeedbackGenerator
 import platform.UIKit.UIImpactFeedbackGenerator
 import platform.UIKit.UIImpactFeedbackStyle
 import platform.UIKit.UINotificationFeedbackGenerator
 import platform.UIKit.UINotificationFeedbackType
 import platform.UIKit.UISelectionFeedbackGenerator
+import platform.UIKit.UIView
 import platform.darwin.DISPATCH_TIME_NOW
 import platform.darwin.dispatch_after
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_time
 import kotlin.time.Duration
+
+/**
+ * How the iOS player plays its one-off effects — for comparing on a phone, not
+ * for an app to choose.
+ *
+ * Kept because haptics were reported to stop for good on iPhones — after a
+ * slider ran into its stop, or quick taps through a multi-select — and only a
+ * hand on a phone can tell which way of driving the Taptic Engine keeps
+ * working. The catalog's haptics page switches between these, with a trace of
+ * what each did.
+ */
+enum class IosHapticsRoute {
+    /** [BurstGenerators]: what an app gets. */
+    Auto,
+
+    /** UIKit's generators, held for the whole process and prepared after every haptic: the old way. */
+    ProcessGenerators,
+
+    /** UIKit's generators, made afresh after a pause and prepared only when made. */
+    BurstGenerators,
+
+    /**
+     * As [BurstGenerators], but each generator attached to a view, as iOS 17.5
+     * added — falling back to [BurstGenerators] before 17.5 or without a view.
+     */
+    ViewGenerators,
+
+    /** No UIKit generators at all: every one-off as Core Haptics taps, near UIKit's feel. */
+    CoreHaptics,
+}
 
 /**
  * The haptics of this iPhone.
@@ -44,38 +88,63 @@ import kotlin.time.Duration
  * switch. Core Haptics plays what UIKit has no word for: the swells, patterns,
  * and rumbles. An iPad has neither, and plays nothing.
  *
- * Every instance shares one set of generators and one haptic engine for the
- * process, so making one per screen costs nothing. The engine starts the first
- * time something needs it, stops itself when idle, and starts again when next
- * asked — including after the app has been in the background, when the system
- * stops it.
+ * Generators are kept for a burst of haptics and made afresh after a pause (see
+ * [IosHapticsRoute.BurstGenerators]); one haptic engine serves the process,
+ * starts the first time something needs it, stops itself when idle, and is made
+ * again from scratch if the system resets it or it will not start. What it did
+ * is counted in [Haptics.trace].
+ *
+ * @param route [IosHapticsRoute.Auto] unless comparing routes.
+ * @param view The view to attach generators to on [IosHapticsRoute.ViewGenerators].
  */
-fun Haptics(): Haptics = IosHaptics()
+fun Haptics(route: IosHapticsRoute = IosHapticsRoute.Auto, view: UIView? = null): Haptics = IosHaptics(route, view)
 
-private class IosHaptics : Haptics {
+private class IosHaptics(private val route: IosHapticsRoute, view: UIView?) : Haptics {
     private val rumbles = mutableSetOf<IosRumble>()
     private var closed = false
+    private val generators: Generators? = when (route) {
+        IosHapticsRoute.CoreHaptics -> null
+        IosHapticsRoute.ProcessGenerators -> AppleHaptics.processGenerators
+        IosHapticsRoute.Auto, IosHapticsRoute.BurstGenerators -> Generators(BurstGapSeconds, view = null, reprepare = false)
+        IosHapticsRoute.ViewGenerators -> Generators(BurstGapSeconds, view, reprepare = false)
+    }
+
+    init {
+        generators?.let { AppleHaptics.live += it }
+    }
 
     override val capability: HapticCapability get() = AppleHaptics.capability
 
+    override val trace: HapticsTrace get() = AppleHaptics.trace
+
     override fun play(effect: HapticEffect) {
-        if (closed || !effect.audible || !AppleHaptics.supportsHaptics) return
+        if (!accepts() || !effect.audible) return
         val plan = applePlan(effect)
-        onMain { AppleHaptics.play(plan) }
+        onMain { AppleHaptics.play(plan, generators) }
     }
 
     override fun play(pattern: HapticPattern) {
-        if (closed || !AppleHaptics.supportsHaptics) return
+        if (!accepts()) return
         val events = appleEvents(pattern)
         onMain { AppleHaptics.playEvents(events) }
     }
 
     override fun startRumble(intensity: Float, sharpness: Float, timeout: Duration): Rumble {
-        if (closed || !AppleHaptics.supportsHaptics) return StoppedRumble
+        if (!accepts()) return StoppedRumble
         val rumble = IosRumble(timeout, onStopped = { rumbles -= it })
         rumbles += rumble
         rumble.start(unit(intensity), unit(sharpness))
         return rumble
+    }
+
+    /** Whether a request goes any further, counting the ones that do not. */
+    private fun accepts(): Boolean {
+        val trace = AppleHaptics.trace
+        return when {
+            closed -> false.also { trace.count("refused: player closed") }
+            !AppleHaptics.supportsHaptics -> false.also { trace.count("refused: no haptics hardware") }
+            else -> true
+        }
     }
 
     override fun cancel() {
@@ -86,14 +155,86 @@ private class IosHaptics : Haptics {
         if (closed) return
         cancel()
         closed = true
+        generators?.let { if (it !== AppleHaptics.processGenerators) AppleHaptics.live -= it }
+        AppleHaptics.trace.note("player closed ($route)", step = "player closed")
     }
 }
 
-/** The generators and the engine, one of each for the process. */
+/** A pause this long ends a burst of haptics; the next one makes new generators. */
+private const val BurstGapSeconds = 1.5
+
+private sealed interface GeneratorKey {
+    data object Selection : GeneratorKey
+    data object Notification : GeneratorKey
+    data class Impact(val style: ImpactStyle) : GeneratorKey
+}
+
+/** UIKit's generators for one player, under one policy. */
+private class Generators(burstGap: Double?, private val view: UIView?, private val reprepare: Boolean) {
+    private val cache = GeneratorCache<GeneratorKey, UIFeedbackGenerator>(burstGap, ::now) { key ->
+        make(key).also {
+            AppleHaptics.trace.count("generator made")
+            it.prepare()
+            AppleHaptics.trace.count("prepare")
+        }
+    }
+
+    fun selection() = cache[GeneratorKey.Selection] as UISelectionFeedbackGenerator
+    fun notification() = cache[GeneratorKey.Notification] as UINotificationFeedbackGenerator
+    fun impact(style: ImpactStyle) = cache[GeneratorKey.Impact(style)] as UIImpactFeedbackGenerator
+
+    /** After a haptic: the old policy prepared again at once, to keep the engine warm. */
+    fun fired(generator: UIFeedbackGenerator) {
+        if (!reprepare) return
+        generator.prepare()
+        AppleHaptics.trace.count("prepare")
+    }
+
+    fun clear() = cache.clear()
+
+    private fun make(key: GeneratorKey): UIFeedbackGenerator {
+        val attached = view?.takeIf { AppleHaptics.viewGeneratorsAvailable }
+        return when (key) {
+            GeneratorKey.Selection ->
+                if (attached != null) UISelectionFeedbackGenerator.feedbackGeneratorForView(attached) else UISelectionFeedbackGenerator()
+            GeneratorKey.Notification ->
+                if (attached != null) UINotificationFeedbackGenerator.feedbackGeneratorForView(attached) else UINotificationFeedbackGenerator()
+            is GeneratorKey.Impact -> {
+                val style = uiStyle(key.style)
+                if (attached != null) {
+                    UIImpactFeedbackGenerator.feedbackGeneratorWithStyle(style, forView = attached)
+                } else {
+                    UIImpactFeedbackGenerator(style = style)
+                }
+            }
+        }
+    }
+}
+
+private fun uiStyle(style: ImpactStyle): UIImpactFeedbackStyle = when (style) {
+    ImpactStyle.Light -> UIImpactFeedbackStyle.UIImpactFeedbackStyleLight
+    ImpactStyle.Medium -> UIImpactFeedbackStyle.UIImpactFeedbackStyleMedium
+    ImpactStyle.Heavy -> UIImpactFeedbackStyle.UIImpactFeedbackStyleHeavy
+    ImpactStyle.Soft -> UIImpactFeedbackStyle.UIImpactFeedbackStyleSoft
+    ImpactStyle.Rigid -> UIImpactFeedbackStyle.UIImpactFeedbackStyleRigid
+}
+
+/** What the whole process shares: the engine, the old route's generators, and the trace. */
 private object AppleHaptics {
 
     /** Whether this device has a Taptic Engine at all; iPads do not. */
     val supportsHaptics: Boolean by lazy { CHHapticEngine.capabilitiesForHardware().supportsHaptics }
+
+    /** Whether UIKit can attach a generator to a view: iOS 17.5 and later. */
+    val viewGeneratorsAvailable: Boolean by lazy {
+        NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(
+            cValue<NSOperatingSystemVersion> {
+                majorVersion = 17
+                minorVersion = 5
+                patchVersion = 0
+            },
+        )
+    }
 
     val capability: HapticCapability by lazy {
         HapticCapability(
@@ -103,19 +244,24 @@ private object AppleHaptics {
             details = listOf(
                 "iOS ${UIDevice.currentDevice.systemVersion}",
                 "Haptics hardware: " + if (supportsHaptics) "yes" else "none",
-                "One-offs: UIKit feedback generators; swells and rumbles: Core Haptics",
+                "One-offs: UIKit feedback generators, fresh each burst; swells and rumbles: Core Haptics",
             ),
         )
     }
 
-    private val selection by lazy { UISelectionFeedbackGenerator().also { it.prepare() } }
-    private val notifications by lazy { UINotificationFeedbackGenerator().also { it.prepare() } }
-    private val impacts = mutableMapOf<ImpactStyle, UIImpactFeedbackGenerator>()
+    /** Everything the iOS players did, for the process. */
+    val trace = HapticsTrace()
+
+    /** The old route's generators, which were the process's. */
+    val processGenerators = Generators(burstGap = null, view = null, reprepare = true)
+
+    /** Every player's generators, to let go of together when the app comes back or runs short. */
+    val live = mutableSetOf<Generators>()
 
     private var engine: CHHapticEngine? = null
     private var running = false
 
-    /** Bumped when the engine resets, so a rumble knows its player went with it. */
+    /** Bumped when the engine resets or is made again, so a rumble knows its player went with it. */
     var generation = 0
         private set
 
@@ -124,25 +270,34 @@ private object AppleHaptics {
 
     private var observing = false
 
-    fun play(plan: ApplePlan) {
+    fun play(plan: ApplePlan, generators: Generators?) {
+        observe()
+        if (generators == null) {
+            trace.count("core haptics one-off")
+            playEvents(appleTransients(plan))
+            return
+        }
         when (plan) {
-            ApplePlan.Selection -> selection.run {
-                selectionChanged()
-                prepare()
+            ApplePlan.Selection -> generators.selection().let {
+                it.selectionChanged()
+                trace.count("selection")
+                generators.fired(it)
             }
-            is ApplePlan.Impact -> impact(plan.style).run {
-                impactOccurredWithIntensity(plan.intensity.toDouble())
-                prepare()
+            is ApplePlan.Impact -> generators.impact(plan.style).let {
+                it.impactOccurredWithIntensity(unit(plan.intensity).toDouble())
+                trace.count("impact ${plan.style}")
+                generators.fired(it)
             }
-            is ApplePlan.Notification -> notifications.run {
-                notificationOccurred(
+            is ApplePlan.Notification -> generators.notification().let {
+                it.notificationOccurred(
                     when (plan.type) {
                         NotificationType.Success -> UINotificationFeedbackType.UINotificationFeedbackTypeSuccess
                         NotificationType.Warning -> UINotificationFeedbackType.UINotificationFeedbackTypeWarning
                         NotificationType.Error -> UINotificationFeedbackType.UINotificationFeedbackTypeError
                     },
                 )
-                prepare()
+                trace.count("notification ${plan.type}")
+                generators.fired(it)
             }
             is ApplePlan.Events -> playEvents(plan.events)
         }
@@ -151,59 +306,103 @@ private object AppleHaptics {
     fun playEvents(events: List<AppleEvent>) {
         if (events.isEmpty()) return
         val engine = startedEngine() ?: return
-        val pattern = pattern(events) ?: return
-        val player = engine.createPlayerWithPattern(pattern, null) ?: return
-        player.startAtTime(CHHapticTimeImmediate, null)
+        val pattern = pattern(events) ?: return trace.count("pattern refused")
+        val (player, made) = withError { engine.createPlayerWithPattern(pattern, it) }
+        if (player == null) return trace.note("player not made: ${made.describe()}", step = "pattern player failed")
+        val (started, error) = withError { player.startAtTime(CHHapticTimeImmediate, it) }
+        if (started) trace.count("pattern played") else trace.note("pattern not started: ${error.describe()}", step = "pattern start failed")
     }
 
-    /** The engine, started — made the first time, and started again whenever the system stopped it. */
+    /**
+     * The engine, started: made the first time, started again whenever the system
+     * stopped it, and made again from scratch after a reset or a start that failed.
+     */
     fun startedEngine(): CHHapticEngine? {
-        observeBackground()
-        val engine = engine ?: runCatching { CHHapticEngine(andReturnError = null) }.getOrNull()?.also { made ->
-            made.playsHapticsOnly = true
-            made.autoShutdownEnabled = true
-            made.stoppedHandler = { _ -> onMain { running = false } }
-            made.resetHandler = {
-                onMain {
-                    running = false
-                    generation++
-                }
+        observe()
+        val engine = engine ?: makeEngine() ?: return null
+        if (!running) {
+            val (started, error) = withError { engine.startAndReturnError(it) }
+            if (!started) {
+                trace.note("engine did not start: ${error.describe()}", step = "engine start failed")
+                // Whatever state it is in, it is not one to try again from.
+                this.engine = null
+                generation++
+                return null
             }
-            engine = made
-        } ?: return null
-        if (!running) running = engine.startAndReturnError(null)
-        return engine.takeIf { running }
+            running = true
+            trace.count("engine started")
+        }
+        return engine
+    }
+
+    private fun makeEngine(): CHHapticEngine? {
+        val (made, error) = withError { e -> runCatching { CHHapticEngine(andReturnError = e) }.getOrNull() }
+        if (made == null) {
+            trace.note("engine not made: ${error.describe()}", step = "engine make failed")
+            return null
+        }
+        trace.count("engine made")
+        made.playsHapticsOnly = true
+        made.autoShutdownEnabled = true
+        made.stoppedHandler = { reason ->
+            onMain {
+                running = false
+                trace.note("engine stopped (reason $reason)", step = "engine stopped")
+            }
+        }
+        made.resetHandler = {
+            onMain {
+                // Apple's advice is to start it again and remake its players; making the
+                // engine itself again is the same with less to get wrong.
+                running = false
+                if (engine === made) engine = null
+                generation++
+                dropGenerators("engine reset")
+                trace.note("engine reset", step = "engine reset")
+            }
+        }
+        engine = made
+        generation++
+        return made
+    }
+
+    fun dropGenerators(why: String) {
+        live.forEach { it.clear() }
+        processGenerators.clear()
+        trace.note("generators dropped: $why", step = "generators dropped")
     }
 
     /**
      * A background app's engine is stopped by the system; a rumble that thought it
-     * was playing would come back as nothing, so they all stop on the way out.
+     * was playing would come back as nothing, so they all stop on the way out. On
+     * the way back in, and when memory runs short, every generator is let go.
      */
-    private fun observeBackground() {
+    private fun observe() {
         if (observing) return
         observing = true
-        NSNotificationCenter.defaultCenter.addObserverForName(
-            name = UIApplicationDidEnterBackgroundNotification,
-            `object` = null,
-            queue = NSOperationQueue.mainQueue,
-        ) { _ ->
+        val centre = NSNotificationCenter.defaultCenter
+        centre.addObserverForName(UIApplicationDidEnterBackgroundNotification, `object` = null, queue = NSOperationQueue.mainQueue) { _ ->
             playing.toList().forEach { it.stop() }
             running = false
+            trace.count("app to background")
+        }
+        centre.addObserverForName(UIApplicationDidBecomeActiveNotification, `object` = null, queue = NSOperationQueue.mainQueue) { _ ->
+            dropGenerators("app became active")
+        }
+        centre.addObserverForName(UIApplicationDidReceiveMemoryWarningNotification, `object` = null, queue = NSOperationQueue.mainQueue) { _ ->
+            dropGenerators("memory warning")
         }
     }
-
-    private fun impact(style: ImpactStyle): UIImpactFeedbackGenerator = impacts.getOrPut(style) {
-        UIImpactFeedbackGenerator(
-            style = when (style) {
-                ImpactStyle.Light -> UIImpactFeedbackStyle.UIImpactFeedbackStyleLight
-                ImpactStyle.Medium -> UIImpactFeedbackStyle.UIImpactFeedbackStyleMedium
-                ImpactStyle.Heavy -> UIImpactFeedbackStyle.UIImpactFeedbackStyleHeavy
-                ImpactStyle.Soft -> UIImpactFeedbackStyle.UIImpactFeedbackStyleSoft
-                ImpactStyle.Rigid -> UIImpactFeedbackStyle.UIImpactFeedbackStyleRigid
-            },
-        ).also { it.prepare() }
-    }
 }
+
+/** [block]'s result, and the error it wrote, if it wrote one. */
+private inline fun <T> withError(block: (CPointer<ObjCObjectVar<NSError?>>) -> T): Pair<T, NSError?> = memScoped {
+    val error = alloc<ObjCObjectVar<NSError?>>()
+    val result = block(error.ptr)
+    result to error.value
+}
+
+private fun NSError?.describe(): String = this?.let { "${it.domain} ${it.code}: ${it.localizedDescription}" } ?: "no error given"
 
 /** A Core Haptics pattern of [events], or null if Core Haptics would not make one. */
 private fun pattern(events: List<AppleEvent>): CHHapticPattern? = runCatching {
@@ -282,15 +481,18 @@ private class IosRumble(timeout: Duration, private val onStopped: (IosRumble) ->
 
     private fun begin() {
         if (!isActive) return
+        val trace = AppleHaptics.trace
         val engine = AppleHaptics.startedEngine() ?: return
         val loop = pattern(listOf(AppleEvent(0.0, continuous = true, durationSeconds = LoopSeconds, intensity = 1f, sharpness = 0.5f)))
-            ?: return
-        val made = engine.createAdvancedPlayerWithPattern(loop, null) ?: return
+            ?: return trace.count("rumble pattern refused")
+        val (made, error) = withError { engine.createAdvancedPlayerWithPattern(loop, it) }
+        if (made == null) return trace.note("rumble player not made: ${error.describe()}", step = "rumble player failed")
         made.loopEnabled = true
         player = made
         generation = AppleHaptics.generation
         sendNow()
-        made.startAtTime(CHHapticTimeImmediate, null)
+        val (started, startError) = withError { made.startAtTime(CHHapticTimeImmediate, it) }
+        if (started) trace.count("rumble started") else trace.note("rumble not started: ${startError.describe()}", step = "rumble start failed")
     }
 
     /** At most about sixty a second: the rest are folded into the next. */
