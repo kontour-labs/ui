@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,7 @@ import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.Text
 import kotlin.math.roundToInt
+import io.kontour.ui.components.display.DialColours
 import io.kontour.ui.components.selection.Knob as KnobControl
 import io.kontour.ui.theme.Theme
 
@@ -493,36 +495,32 @@ private val PickerWidth = 320.dp
 private val knobStepped = Knob.Flag("Steps")
 private val knobEnabled = Knob.Flag("Enabled", initial = true)
 
+/** On, a tap on the face opens the value for typing. */
+private val knobEditable = Knob.Flag("Tap to type", initial = true)
+
 /** How far the knob turns from one end to the other. */
 private val knobSweep =
     Knob.Choice("Sweep", listOf(180f, 270f, 320f), 270f, name = { "${it.roundToInt()}°" })
 
 /**
  * What the fill is painted with: the accent, a gradient along the scale, or bands —
- * green, then amber from 70%, then red from 90%, given in the knob's own units.
+ * green, then amber from 70%, then red from 90%, given in each knob's own units.
  */
 private val knobFill = Knob.Choice("Fill", listOf("Solid", "Gradient", "Bands"), "Solid", name = { it })
 
 internal val KnobDemo = ComponentDemo(
     slug = "knob",
-    knobs = listOf(knobStepped, knobSweep, knobFill, knobEnabled),
+    knobs = listOf(knobStepped, knobSweep, knobFill, knobEditable, knobEnabled),
 ) {
     val sweep = this[knobSweep]
-    val colours = when (this[knobFill]) {
-        "Gradient" -> KnobDefaults.colours(indicator = ScaleColours.gradient(listOf(KnobTeal, KnobBlue)))
-        "Bands" -> KnobDefaults.colours(
-            indicator = ScaleColours.bands {
-                band(from = 0f, colour = Theme.colours.success.solid)
-                band(from = 0.7f, colour = Theme.colours.warning.solid)
-                band(from = 0.9f, colour = Theme.colours.danger.solid)
-            },
-        )
-        else -> KnobDefaults.colours()
-    }
-    var volume by remember { mutableStateOf(0.4f) }
+    val fill = this[knobFill]
+    // In the units its readout shows, so the number a tap opens for typing is the
+    // number on the face.
+    var volume by remember { mutableStateOf(40f) }
     var balance by remember { mutableStateOf(0.5f) }
     val stepped = this[knobStepped]
     val enabled = this[knobEnabled]
+    val editable = this[knobEditable]
     Row(
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
@@ -530,15 +528,17 @@ internal val KnobDemo = ComponentDemo(
         KnobControl(
             value = volume,
             onValueChange = { volume = it },
+            valueRange = 0f..100f,
             steps = if (stepped) 9 else 0,
             enabled = enabled,
+            editable = editable,
             sweepAngle = sweep,
-            colours = colours,
+            colours = knobColours(fill, top = 100f),
             contentDescription = "Volume",
-            stateDescription = { "${(it * 100).roundToInt()}%" },
-            onValueChangeFinished = { echo("Volume ${(volume * 100).roundToInt()}%") },
+            stateDescription = { "${it.roundToInt()}%" },
+            onValueChangeFinished = { echo("Volume ${volume.roundToInt()}%") },
         ) {
-            +"${(volume * 100).roundToInt()}"
+            +"${volume.roundToInt()}"
         }
         KnobControl(
             value = balance,
@@ -546,12 +546,32 @@ internal val KnobDemo = ComponentDemo(
             valueRange = 0f..1f,
             steps = if (stepped) 9 else 0,
             enabled = enabled,
+            editable = editable,
             sweepAngle = sweep,
-            colours = colours,
+            colours = knobColours(fill, top = 1f),
             size = 72.dp,
             contentDescription = "Balance",
         )
     }
+}
+
+/** The demo's fill, with bands in the units of a knob that goes up to [top]. */
+@Composable
+private fun knobColours(fill: String, top: Float): DialColours = when (fill) {
+    "Gradient" -> KnobDefaults.colours(indicator = ScaleColours.gradient(listOf(KnobTeal, KnobBlue)))
+    "Bands" -> {
+        val success = Theme.colours.success.solid
+        val warning = Theme.colours.warning.solid
+        val danger = Theme.colours.danger.solid
+        KnobDefaults.colours(
+            indicator = ScaleColours.bands {
+                band(from = 0f, colour = success)
+                band(from = top * 0.7f, colour = warning)
+                band(from = top * 0.9f, colour = danger)
+            },
+        )
+    }
+    else -> KnobDefaults.colours()
 }
 
 private val KnobTeal = Color(0xFF2EC4B6)

@@ -332,8 +332,6 @@ MOVEMENT_ALLOWED = {
     # Small by construction: inside the control's own bounds, a few pixels.
     "IconButton.kt:IconButtonSurface": "an icon's own turn inside its button, as a toggle's state",
     "LoadingSwap.kt:LoadingSwap": "a label shrinking into a spinner inside the same button",
-    "WheelPicker.kt:WheelPicker": "the drum's foreshortening of rows that are already scrolling "
-    "under the finger; it is how a wheel reads, and is static at rest",
     "WheelPicker.kt:InfiniteWheel": "places rows on the drum at the scroll the finger set",
     "CalendarMonth.kt:DayCell": "a day's label nudged by at most its own width while a range "
     "drag leans on it",

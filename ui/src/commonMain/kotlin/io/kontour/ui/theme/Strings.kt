@@ -119,6 +119,8 @@ data class Strings(
     val increase: String = "Increase",
     val rangeStart: String = "Range start",
     val rangeEnd: String = "Range end",
+    /** The action that opens a control's value for typing — a knob's readout. */
+    val editValue: String = "Edit value",
     /** A score against its scale: "4.5 out of 5". `value` is already written out. */
     val outOf: (value: String, count: Quantity) -> String = { value, count -> "$value out of ${count.formatted}" },
     /** A progress bar that knows neither how far it is nor how far it has to go. */
@@ -326,6 +328,7 @@ data class Strings(
         increase = lookup.text("increase") ?: fallback.increase,
         rangeStart = lookup.text("rangeStart") ?: fallback.rangeStart,
         rangeEnd = lookup.text("rangeEnd") ?: fallback.rangeEnd,
+        editValue = lookup.text("editValue") ?: fallback.editValue,
         outOf = { value, count -> lookup.phrase("outOf", count, value, count.formatted) ?: fallback.outOf(value, count) },
         inProgress = lookup.text("inProgress") ?: fallback.inProgress,
         stepOfCount = { step, count, working ->
@@ -498,6 +501,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     increase = transform(increase),
     rangeStart = transform(rangeStart),
     rangeEnd = transform(rangeEnd),
+    editValue = transform(editValue),
     outOf = { a0, a1 -> transform(outOf(a0, a1)) },
     inProgress = transform(inProgress),
     stepOfCount = { a0, a1, a2 -> transform(stepOfCount(a0, a1, a2)) },

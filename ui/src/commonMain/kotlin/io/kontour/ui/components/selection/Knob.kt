@@ -1,6 +1,27 @@
 package io.kontour.ui.components.selection
 
 import androidx.compose.animation.core.AnimationState
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.abs
+import kotlin.math.roundToLong
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
@@ -69,13 +90,14 @@ import kotlin.math.roundToInt
  * it.
  *
  * ```kotlin
- * var volume by remember { mutableStateOf(0.4f) }
+ * var volume by remember { mutableStateOf(40f) }
  * Knob(
  *     value = volume,
  *     onValueChange = { volume = it },
+ *     valueRange = 0f..100f,
  *     contentDescription = "Volume",
  * ) {
- *     +"${(volume * 100).roundToInt()}"
+ *     +"${volume.roundToInt()}"
  * }
  * ```
  *
@@ -116,6 +138,22 @@ import kotlin.math.roundToInt
  * the square's corners is the page's, so a knob in a scrolling column does not
  * stop the column scrolling.
  *
+ * ### Typing a value
+ *
+ * **Tap the face and type**, where a turn is too coarse for the number wanted —
+ * asked for from a phone as "tap value to edit". The readout becomes a field in
+ * its own style, holding the value and selected, with a decimal keyboard. Done,
+ * Enter or tapping away sets it: read in the reader's own digits and separator,
+ * kept inside [valueRange] and put on the nearest step. Something that is not a
+ * number leaves the value as it was, and Escape puts it back. From the keyboard,
+ * Enter or Space on the focused knob opens the field, and assistive technology
+ * gets it as an action.
+ *
+ * The field holds **the value itself**, in [valueRange]'s units. A readout that
+ * shows something else — a 0 to 1 volume written as a percentage — would offer a
+ * number the reader has not seen, so give such a knob the range it shows, `0f..100f`,
+ * or `editable = false`.
+ *
  * @param steps How many values between the two ends it stops at, as for [Slider].
  *   Zero turns smoothly. Each stop gets a tick mark outside the track.
  * @param sweepAngle How far round the scale goes, in degrees, centred on the gap
@@ -125,6 +163,8 @@ import kotlin.math.roundToInt
  *   colour, a gradient, or bands at values in the knob's own units; the face is
  *   `thumb` ringed in `thumbRing`, and the notch on it is `needle`.
  * @param stateDescription What a screen reader says for the value, from it.
+ * @param editable Whether a tap on the face opens the value for typing. See
+ *   "Typing a value" above.
  * @param content The readout, centred on the face: `+"40"` is the figure,
  *   `label("dB")` what it is of, and `value { +icon }` an icon. See
  *   [ReadoutScope].
@@ -144,6 +184,7 @@ fun Knob(
     contentDescription: String? = null,
     stateDescription: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
+    editable: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
     content: ReadoutScope.() -> Unit = {},
 ) {
@@ -185,12 +226,37 @@ fun Knob(
     val decidePx = with(density) { KnobDecideAfter.toPx() }
     val flickPx = with(density) { KnobFlick.toPx() }
     val reader = remember { KnobTurnReader() }
+    val formats = Theme.formats
+    val editLabel = Theme.strings.editValue
+    // The readout, open for typing. Not saved across a configuration change: a
+    // half-typed number is not worth restoring into a control the hand has left.
+    var editing by remember { mutableStateOf(false) }
+    val canEdit = editable && enabled
+    val knobFocus = remember { FocusRequester() }
 
     fun emit(fraction: Float, fromHand: Boolean) {
         val landed = snapped(fraction.coerceIn(0f, 1f))
         if (steps > 0 && fromHand) ticker.at((landed * intervals).roundToInt())
         if (steps == 0 && fromHand) texture.at(landed)
         currentOnValueChange(valueRange.start + span * landed)
+    }
+
+    /** What the field holds: the value, to as many places as its steps need. */
+    fun editText(): String = formats.decimal(value.toDouble(), knobEditDigits(span, steps))
+
+    /**
+     * Sets what was typed, if it is a number, kept in range and on a step. Focus
+     * comes back to the knob when the field was answered from the keyboard, and
+     * stays wherever it went when the reader tapped away.
+     */
+    fun commitEdit(typed: String, fromKeys: Boolean) {
+        editing = false
+        if (fromKeys) knobFocus.requestFocus()
+        val number = formats.parseDecimal(typed.trim())?.toFloat()?.coerceIn(valueRange) ?: return
+        // Taken as typed where it can be: through a fraction and back, 15 came
+        // out as 15.000001. A stepped knob puts it on its step.
+        currentOnValueChange(if (steps == 0) number else valueRange.start + span * snapped(fractionOf(number)))
+        currentFinished?.invoke()
     }
 
     fun finish() {
@@ -253,9 +319,16 @@ fun Knob(
                         true
                     }
                 }
+                if (canEdit && !editing) {
+                    customActions = listOf(CustomAccessibilityAction(editLabel) { editing = true; true })
+                }
             }
             .onKeyEvent { event ->
-                if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                if (!enabled || editing || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                if (canEdit && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.Spacebar)) {
+                    editing = true
+                    return@onKeyEvent true
+                }
                 val step = if (steps > 0) 1f / intervals else KeyStep
                 val now = fractionOf(value)
                 val next = when (event.key) {
@@ -271,6 +344,7 @@ fun Knob(
                 currentFinished?.invoke()
                 true
             }
+            .focusRequester(knobFocus)
             .focusable(enabled, interactions),
         contentAlignment = Alignment.Center,
     ) {
@@ -348,6 +422,17 @@ fun Knob(
                     },
                     onEnd = { if (spin?.isActive != true) finish() },
                 )
+                // A tap on the face, which the drag above leaves alone: it claims on
+                // movement, and a tap never moves far enough to be one.
+                .pointerInput(canEdit, radius) {
+                    if (!canEdit) return@pointerInput
+                    detectTapGestures { at ->
+                        if ((at - centre).getDistance() <= radius) {
+                            spin?.cancel()
+                            editing = true
+                        }
+                    }
+                }
                 .drawWithCache {
                     val geometry = DialGeometry(centre, radius, DialGeometry.startFor(sweep), sweep)
                     val face = (radius - thicknessPx / 2f - KnobFaceGap.toPx()).coerceAtLeast(1f)
@@ -382,9 +467,91 @@ fun Knob(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            if (!readout.isEmpty) DialReadout(readout, Theme.typography.titleMedium)
+            if (editing) {
+                KnobEditor(
+                    initial = remember { editText() },
+                    width = with(density) { (radius * EditorWidth).toDp() },
+                    onCommit = ::commitEdit,
+                    onCancel = {
+                        editing = false
+                        knobFocus.requestFocus()
+                    },
+                )
+            } else if (!readout.isEmpty) {
+                DialReadout(readout, Theme.typography.titleMedium)
+            }
         }
     }
+}
+
+/**
+ * A knob's readout, open for typing: the value, selected, in the figure's style,
+ * set on Done, Enter or leaving it, and put back on Escape. Commits once however
+ * it is left — Done takes the focus away too, and that is not a second answer.
+ */
+@Composable
+private fun KnobEditor(
+    initial: String,
+    width: Dp,
+    onCommit: (text: String, fromKeys: Boolean) -> Unit,
+    onCancel: () -> Unit,
+) {
+    val state = remember { TextFieldState(initial, TextRange(0, initial.length)) }
+    val focus = remember { FocusRequester() }
+    var answered by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
+    fun commit(fromKeys: Boolean) {
+        if (answered) return
+        answered = true
+        onCommit(state.text.toString(), fromKeys)
+    }
+    fun cancel() {
+        if (answered) return
+        answered = true
+        onCancel()
+    }
+    val colours = Theme.colours
+    BasicTextField(
+        state = state,
+        modifier = Modifier
+            .width(width)
+            .focusRequester(focus)
+            .onFocusChanged { now ->
+                if (focused && !now.isFocused) commit(fromKeys = false)
+                focused = now.isFocused
+            }
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.Escape -> { cancel(); true }
+                    Key.Enter, Key.NumPadEnter -> { commit(fromKeys = true); true }
+                    else -> false
+                }
+            },
+        textStyle = Theme.typography.titleMedium.copy(color = colours.content, textAlign = TextAlign.Center),
+        cursorBrush = SolidColor(colours.accent.solid),
+        lineLimits = TextFieldLineLimits.SingleLine,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+        onKeyboardAction = { commit(fromKeys = true) },
+    )
+    LaunchedEffect(Unit) { focus.requestFocus() }
+}
+
+/**
+ * How many places a knob's value is typed to: enough to write a step exactly — a
+ * step of a tenth is one place — or, turning smoothly, a hundredth of the range.
+ * Never more than three, for a step like an eleventh that no number of places
+ * writes exactly.
+ */
+internal fun knobEditDigits(span: Float, steps: Int): Int {
+    if (span <= 0f) return 0
+    var unit = (if (steps > 0) span / (steps + 1) else span / 100f).toDouble()
+    var digits = 0
+    while (digits < MaxEditDigits && abs(unit - unit.roundToLong()) > EditTolerance * maxOf(1.0, abs(unit))) {
+        unit *= 10
+        digits++
+    }
+    return digits
 }
 
 /**
@@ -467,5 +634,10 @@ private const val PageStep: Float = 0.1f
 private const val NotchFrom: Float = 0.45f
 private const val NotchTo: Float = 0.85f
 private const val DisabledAlpha: Float = 0.38f
+
+/** The field's width, as a share of the dial's radius: most of the face across. */
+private const val EditorWidth: Float = 1.3f
+private const val MaxEditDigits: Int = 3
+private const val EditTolerance: Double = 1e-3
 private const val MinSweep: Float = 30f
 private const val FullTurn: Float = 360f

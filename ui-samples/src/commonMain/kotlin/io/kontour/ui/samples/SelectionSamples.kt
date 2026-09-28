@@ -140,16 +140,17 @@ fun ColourSwatchPickerBasics() {
 
 @Composable
 fun KnobBasics() {
-    var volume by remember { mutableStateOf(0.4f) }
+    var volume by remember { mutableStateOf(40f) }
 
     Knob(
         value = volume,
         onValueChange = { volume = it },
+        valueRange = 0f..100f,
         steps = 9,
         contentDescription = "Volume",
-        stateDescription = { "${(it * 100).roundToInt()}%" },
+        stateDescription = { "${it.roundToInt()}%" },
     ) {
-        +"${(volume * 100).roundToInt()}"
+        +"${volume.roundToInt()}"
     }
 }
 

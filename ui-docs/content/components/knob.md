@@ -2,16 +2,17 @@
 
 <!--sample:KnobBasics-->
 ```kotlin
-var volume by remember { mutableStateOf(0.4f) }
+var volume by remember { mutableStateOf(40f) }
 
 Knob(
     value = volume,
     onValueChange = { volume = it },
+    valueRange = 0f..100f,
     steps = 9,
     contentDescription = "Volume",
-    stateDescription = { "${(it * 100).roundToInt()}%" },
+    stateDescription = { "${it.roundToInt()}%" },
 ) {
-    +"${(volume * 100).roundToInt()}"
+    +"${volume.roundToInt()}"
 }
 ```
 
@@ -89,6 +90,20 @@ has.
 The drag belongs to the round face and track. A finger landing in the square's
 corners is the page's, so a knob in a scrolling column does not stop it scrolling.
 
+**Tap the face to type a value**, for when a turn is too coarse for the number
+wanted — asked for from a phone as *"tap value to edit"*. The readout becomes a
+field in its own style, holding the value with all of it selected, over a decimal
+keyboard. Done, Enter or tapping away sets it: read in the reader's own digits and
+decimal separator, kept inside `valueRange` and put on the nearest step. Something
+that is not a number leaves the value as it was; Escape puts it back.
+`editable = false` turns it off.
+
+The field holds **the value itself**, in `valueRange`'s units, to as many places as
+a step needs. So a readout that shows something else — a 0 to 1 volume written as a
+percentage — would offer a number the reader never saw: give such a knob the range
+its readout shows, `0f..100f` as above, or `editable = false`. On iOS the decimal
+keyboard has no Done key, so the value is set when the field loses focus.
+
 ---
 
 ## Accessibility
@@ -100,7 +115,9 @@ cannot be moved from under the user.
 
 **From the keyboard**, once focused: the arrow keys move a step (or a hundredth of
 the range without steps), Page Up and Page Down a tenth, Home and End to the ends.
-The focus ring is round, like the knob.
+Enter or Space opens the value for typing, and Enter sets it and hands focus back
+to the knob. The focus ring is round, like the knob. Assistive technology gets the
+field as an action, "Edit value" (`Strings.editValue`).
 
 Give it a `contentDescription` naming what it sets, and a `stateDescription` for a
 value that is not a percentage.
