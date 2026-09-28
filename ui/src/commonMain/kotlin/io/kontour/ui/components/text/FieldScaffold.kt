@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -269,11 +272,13 @@ internal fun FieldScaffold(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (leadingIcon != null) {
+                    val parts = LocalFieldParts.current
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
                         tint = if (enabled) colours.label else colours.contentDisabled,
                         size = Theme.sizing.iconMedium,
+                        modifier = if (parts != null) Modifier.onPlaced(parts.icon) else Modifier,
                     )
                 }
 
@@ -394,3 +399,18 @@ private fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap)
         }
     }
 }
+
+/**
+ * Where a field's parts were placed, for something that has to draw its way into
+ * them: a search pill carrying its icon and its word into the field it opens.
+ *
+ * A composition local rather than parameters because the field is several layers
+ * down from whoever wants to know, and nothing but that one morph does.
+ */
+internal class FieldParts(
+    val icon: (LayoutCoordinates) -> Unit,
+    /** The box the field starts its text in, which is where its placeholder sits too. */
+    val text: (LayoutCoordinates) -> Unit,
+)
+
+internal val LocalFieldParts = staticCompositionLocalOf<FieldParts?> { null }

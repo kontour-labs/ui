@@ -551,7 +551,8 @@ these change what an existing call does.
   every width.
 - **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
   into it, staying in the overlay host until it has; the pill is hidden while it
-  is open.
+  is open. A `NavSearch` pill's icon and word travel with it into the field, and
+  the panel's contents fade in once it has landed rather than while it moves.
 - **A dismissed overlay stops holding the page straight away.** Its scrim fades
   without taking taps, and a sheet, a FAB menu or a search panel lets go as it
   starts its own exit rather than once it has finished. An `OverlayEntry` with

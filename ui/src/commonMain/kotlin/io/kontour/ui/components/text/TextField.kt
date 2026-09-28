@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -204,8 +205,12 @@ fun TextField(
         },
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
+        val parts = LocalFieldParts.current
 
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+        Box(
+            Modifier.weight(1f).then(if (parts != null) Modifier.onPlaced(parts.text) else Modifier),
+            contentAlignment = Alignment.CenterStart,
+        ) {
             CompositionLocalProvider(
                 LocalTextSelectionColors provides selectionColours,
                 LocalContentColour provides contentColour,

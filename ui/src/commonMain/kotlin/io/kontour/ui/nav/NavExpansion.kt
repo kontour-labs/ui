@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
@@ -27,23 +28,38 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
@@ -325,6 +341,7 @@ fun NavExpandingSlot(
         contentColour = contentColour,
         shadow = shadow,
         interactionSource = interactionSource,
+        morph = morph,
         content = content,
     )
 
@@ -355,9 +372,20 @@ fun NavExpandingSlot(
  *
  * The phases, as shares of the movement: the capsule travels over the first
  * [GeometryEnd] and eases into place; the panel's contents fade in from
- * [ContentFrom] once it is nearly there; what is under a field — results — from
+ * [ContentFrom], once it has landed; what is under a field — results — from
  * [ResultsFrom]; and the capsule goes once the contents cover it. Closing runs
  * them backwards.
+ *
+ * ### Nothing fades in until the capsule has landed
+ *
+ * The capsule carries the control's own parts — a search's icon and its word —
+ * and puts them down exactly where the field draws its own, in the field's
+ * colours. The field's contents then fade in *over* them: the same glyphs in the
+ * same place, so the fade changes no pixel, and the capsule goes once they are
+ * opaque. The contents used to start fading in while the capsule was still
+ * travelling, which with parts on it would be two words on screen, one moving and
+ * one not. Asked for from a phone: "can we make the 'Search' text and icon
+ * animate in there too?"
  */
 @Stable
 internal class NavMorph(private val progress: () -> Float) {
@@ -370,6 +398,21 @@ internal class NavMorph(private val progress: () -> Float) {
     var target: LayoutCoordinates? = null
     var targetColour: Color = Color.Unspecified
 
+    /**
+     * What the control carries into what it becomes, drawn on the capsule while
+     * it travels. Null for a control that names nothing to carry, whose capsule
+     * travels bare.
+     */
+    var carried: CarriedParts? by mutableStateOf(null)
+
+    /** Where the carried icon and word are in the control, and where they go in the target. */
+    var iconFrom: LayoutCoordinates? = null
+    var wordFrom: LayoutCoordinates? = null
+    var iconTo: LayoutCoordinates? = null
+
+    /** The box the target starts its text in: its placeholder's, and its text's once there is some. */
+    var wordTo: LayoutCoordinates? = null
+
     val geometry: Float get() = if (reduced) 1f else easing.transform(share(0f, GeometryEnd))
     val content: Float get() = if (reduced) progress().coerceIn(0f, 1f) else share(ContentFrom, ContentTo)
     val results: Float get() = if (reduced) 1f else share(ResultsFrom, 1f)
@@ -379,24 +422,45 @@ internal class NavMorph(private val progress: () -> Float) {
 
     private companion object {
         const val GeometryEnd = 0.6f
-        const val ContentFrom = 0.45f
-        const val ContentTo = 0.7f
-        const val ResultsFrom = 0.65f
-        const val CapsuleFrom = 0.7f
-        const val CapsuleTo = 0.85f
+        const val ContentFrom = GeometryEnd
+        const val ContentTo = 0.75f
+        const val ResultsFrom = 0.7f
+        const val CapsuleFrom = ContentTo
+        const val CapsuleTo = 0.9f
     }
 }
+
+/**
+ * The parts of a control a capsule carries: an icon and a word, and the colours
+ * each is drawn in where it starts and where it lands. Sizes are the same at both
+ * ends — a search's pill and its field both set their word in `bodyMedium` beside
+ * a medium icon — so only the place and the colour travel.
+ */
+@Immutable
+internal data class CarriedParts(
+    val icon: ImageVector?,
+    val iconColourFrom: Color,
+    val iconColourTo: Color,
+    val word: String?,
+    val style: TextStyle,
+    val wordColourFrom: Color,
+    val wordColourTo: Color,
+)
+
+/** Where each part of a morph was drawn in one frame: for tests, which cannot see a drawing. */
+internal data class NavMorphDrawn(val capsule: Rect, val icon: Rect?, val word: Rect?)
 
 /** The morph of the panel being composed, for what is in it to join in. */
 internal val LocalNavMorph = staticCompositionLocalOf<NavMorph?> { null }
 
-/** Hears each rectangle the capsule is drawn in: for tests, which cannot see a drawing. */
-internal val LocalNavMorphProbe = staticCompositionLocalOf<((Rect) -> Unit)?> { null }
+/** Hears where each frame of the morph was drawn: for tests, which cannot see a drawing. */
+internal val LocalNavMorphProbe = staticCompositionLocalOf<((NavMorphDrawn) -> Unit)?> { null }
 
 /**
  * The capsule between the control and the panel, drawn over the scrim and under
  * the panel: the control's shape and colour at the start, the field's (or a
- * panel's rounded box) at the end.
+ * panel's rounded box) at the end — carrying the control's icon and word, where
+ * it names them, from where the control drew them to where the field does.
  */
 @Composable
 private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
@@ -404,6 +468,9 @@ private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
     val panelCorner = with(LocalDensity.current) { NavExpandingSlotDefaults.Margin.toPx() }
     val probe = LocalNavMorphProbe.current
     val layer = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val carried = morph.carried
+    val icon = carried?.icon?.let { rememberVectorPainter(it) }
+    val measurer = rememberTextMeasurer()
     Box(
         Modifier
             .fillMaxSize()
@@ -428,7 +495,72 @@ private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
                     cornerRadius = CornerRadius(corner),
                     alpha = alpha,
                 )
-                probe?.invoke(rect)
+
+                // The parts, over the capsule and inside it. Only where both ends
+                // are placed: a part with nowhere to go is left to the field's own
+                // fade.
+                var iconAt: Rect? = null
+                var wordAt: Rect? = null
+                if (carried != null) {
+                    clipRect(rect.left, rect.top, rect.right, rect.bottom) {
+                        val iconFrom = morph.iconFrom?.takeIf { it.isAttached }
+                        val iconTo = morph.iconTo?.takeIf { it.isAttached }
+                        if (icon != null && iconFrom != null && iconTo != null) {
+                            val at = lerp(
+                                here.localBoundingBoxOf(iconFrom, clipBounds = false),
+                                here.localBoundingBoxOf(iconTo, clipBounds = false),
+                                g,
+                            )
+                            translate(at.left, at.top) {
+                                with(icon) {
+                                    draw(
+                                        size = at.size,
+                                        alpha = alpha,
+                                        colorFilter = ColorFilter.tint(lerp(carried.iconColourFrom, carried.iconColourTo, g)),
+                                    )
+                                }
+                            }
+                            iconAt = at
+                        }
+                        val wordFrom = morph.wordFrom?.takeIf { it.isAttached }
+                        val wordTo = morph.wordTo?.takeIf { it.isAttached }
+                        if (carried.word != null && wordFrom != null && wordTo != null) {
+                            val start = here.localBoundingBoxOf(wordFrom, clipBounds = false)
+                            val box = here.localBoundingBoxOf(wordTo, clipBounds = false)
+                            // As wide as the control let it be at one end and the
+                            // field at the other, so a long query is cut where the
+                            // pill cut it and grows to what the field shows.
+                            val room = start.width + (box.width - start.width) * g
+                            val whole = measurer.measure(carried.word, carried.style, maxLines = 1)
+                            val laid = if (whole.size.width <= room + 0.5f) {
+                                whole
+                            } else {
+                                measurer.measure(
+                                    carried.word,
+                                    carried.style,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1,
+                                    constraints = Constraints(maxWidth = room.toInt().coerceAtLeast(0)),
+                                )
+                            }
+                            // Where the field sets its text: at the start of its
+                            // box and centred down it, as its placeholder is.
+                            val land = Offset(
+                                x = if (layoutDirection == LayoutDirection.Rtl) box.right - laid.size.width else box.left,
+                                y = box.top + (box.height - laid.size.height) / 2f,
+                            )
+                            val at = lerp(start.topLeft, land, g)
+                            drawText(
+                                textLayoutResult = laid,
+                                color = lerp(carried.wordColourFrom, carried.wordColourTo, g),
+                                topLeft = at,
+                                alpha = alpha,
+                            )
+                            wordAt = Rect(at, Size(laid.size.width.toFloat(), laid.size.height.toFloat()))
+                        }
+                    }
+                }
+                probe?.invoke(NavMorphDrawn(rect, iconAt, wordAt))
             },
     )
 }
@@ -451,6 +583,7 @@ private fun CollapsedControl(
     contentColour: Color,
     shadow: Shadow,
     interactionSource: MutableInteractionSource?,
+    morph: NavMorph,
     content: @Composable RowContentScope.() -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -487,7 +620,11 @@ private fun CollapsedControl(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProvideTextStyle(Theme.typography.bodyMedium) {
-                contentScope(iconSize = Theme.sizing.iconMedium, maxLines = 1, content = content)
+                // So what is in the control can say where its parts are, for the
+                // capsule to carry them.
+                CompositionLocalProvider(LocalNavMorph provides morph) {
+                    contentScope(iconSize = Theme.sizing.iconMedium, maxLines = 1, content = content)
+                }
             }
         }
     }

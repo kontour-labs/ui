@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -27,6 +28,8 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.components.text.FieldParts
+import io.kontour.ui.components.text.LocalFieldParts
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.TextFieldDefaults
 import io.kontour.ui.components.text.TextFieldVariant
@@ -177,18 +180,25 @@ fun NavSearch(
 
             if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results, morph)
 
-            SearchField(
-                state = state.text,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focus)
-                    .onPlaced { morph?.target = it },
-                placeholder = placeholder,
-                searchIcon = searchIcon,
-                onQuery = onQuery,
-                onSearch = onSearch,
-                shape = Theme.shapes.capsule,
-            )
+            // Where the field draws its icon and starts its text: where the
+            // capsule puts down the pill's.
+            val parts = remember(morph) {
+                morph?.let { FieldParts(icon = { at -> it.iconTo = at }, text = { at -> it.wordTo = at }) }
+            }
+            CompositionLocalProvider(LocalFieldParts provides parts) {
+                SearchField(
+                    state = state.text,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus)
+                        .onPlaced { morph?.target = it },
+                    placeholder = placeholder,
+                    searchIcon = searchIcon,
+                    onQuery = onQuery,
+                    onSearch = onSearch,
+                    shape = Theme.shapes.capsule,
+                )
+            }
 
             if (placement == NavExpandPlacement.Top) ResultsPanel(results, morph)
 
@@ -203,12 +213,18 @@ fun NavSearch(
             }
         },
     ) {
+        // The parts the capsule carries into the field: this icon and this word,
+        // from where they are drawn here to where the field draws its own, and
+        // from this pill's colours to the field's.
+        val morph = LocalNavMorph.current
+        val iconTint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled
         if (searchIcon != null) {
             Icon(
                 imageVector = searchIcon,
                 contentDescription = null,
                 size = Theme.sizing.iconMedium,
-                tint = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
+                tint = iconTint,
+                modifier = Modifier.onPlaced { morph?.iconFrom = it },
             )
         }
         // The last query once there has been one. A pill that goes back to
@@ -218,18 +234,35 @@ fun NavSearch(
         // recomposes this once, at the point the word fits, not every frame.
         val room = LocalNavExpansion.current
         val worded by remember(room) { derivedStateOf { room.progress > NavSearchDefaults.LabelAt } }
+        val word = typed.ifEmpty { placeholder }
+        val wordStyle = Theme.typography.bodyMedium
+        val wordColour = when {
+            !enabled -> Theme.colours.contentDisabled
+            typed.isEmpty() -> Theme.colours.contentMuted
+            else -> contentColour
+        }
         if (worded) {
             Text(
-                text = typed.ifEmpty { placeholder },
-                style = Theme.typography.bodyMedium,
-                colour = when {
-                    !enabled -> Theme.colours.contentDisabled
-                    typed.isEmpty() -> Theme.colours.contentMuted
-                    else -> contentColour
-                },
+                text = word,
+                style = wordStyle,
+                colour = wordColour,
                 maxLines = 1,
+                modifier = Modifier.onPlaced { morph?.wordFrom = it },
             )
         }
+        val fieldColours = TextFieldDefaults.colours(TextFieldVariant.Filled)
+        val carried = CarriedParts(
+            icon = searchIcon,
+            iconColourFrom = iconTint,
+            iconColourTo = fieldColours.label,
+            // Nothing to carry from a pill too narrow for a word: the field's own
+            // fades in where it is.
+            word = if (worded) word else null,
+            style = wordStyle,
+            wordColourFrom = wordColour,
+            wordColourTo = if (typed.isEmpty()) fieldColours.placeholder else fieldColours.content,
+        )
+        SideEffect { morph?.carried = carried }
     }
 }
 
