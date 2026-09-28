@@ -337,6 +337,7 @@ fun NavExpandingSlot(
     // gallery's own rail specimen.
     if (expanded || showing) {
         ExpandedPanel(
+            closing = !expanded,
             onCollapse = { onExpandedChange(false) },
             placement = placement,
             dismissLabel = dismissLabel,
@@ -495,6 +496,7 @@ private fun CollapsedControl(
 /** The panel, in the overlay host. */
 @Composable
 private fun ExpandedPanel(
+    closing: Boolean,
     onCollapse: () -> Unit,
     placement: NavExpandPlacement,
     dismissLabel: String,
@@ -565,6 +567,12 @@ private fun ExpandedPanel(
             )
         )
         onDispose { host.hide(key) }
+    }
+
+    // Going back into the control is the panel on its way out: the page is
+    // the reader's again from the moment it starts, not once it has landed.
+    LaunchedEffect(closing) {
+        if (closing) host.letGo(key) else host.takeBack(key)
     }
 }
 

@@ -44,7 +44,7 @@ import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.components.text.DefaultTextSelectionToolbar
 import io.kontour.ui.components.text.TextContextMenuHost
-import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
@@ -210,6 +210,12 @@ class OverlayHostState {
     private val leaving = mutableStateListOf<Any>()
 
     /**
+     * Entries animating their own way out ([OverlayEntry.managesOwnExit]) that
+     * have let go of the page: still drawn, no longer in its way. See [letGo].
+     */
+    private val lettingGo = mutableStateListOf<Any>()
+
+    /**
      * Where the host itself sits in the window, so anchors captured in root
      * coordinates can be made host-local. Zero when the host is at the root,
      * which is the common case and the recommended one.
@@ -244,14 +250,21 @@ class OverlayHostState {
 
     /** The stack, bottom to top. Sorted by layer, then by push order within a layer. */
     val visible: List<OverlayEntry>
-        get() = entries.filter { it.key !in leaving }.sortedBy { it.layer.ordinal }
+        get() = entries.filter { it.key !in leaving && it.key !in lettingGo }.sortedBy { it.layer.ordinal }
 
     /** [visible], plus whatever is still animating out. What the host draws. */
     internal val rendered: List<OverlayEntry>
         get() = entries.sortedBy { it.layer.ordinal }
 
-    /** True while this entry is on its way out rather than on its way in. */
+    /** True while the host is animating this entry out. */
     internal fun isLeaving(key: Any): Boolean = key in leaving
+
+    /**
+     * True once this entry is on its way out, whoever is animating it: it is
+     * drawn, and nothing else about it — its scrim takes no taps, it holds no
+     * focus, back goes past it.
+     */
+    internal fun isGoing(key: Any): Boolean = key in leaving || key in lettingGo
 
     /** True when nothing at all is showing. */
     val isEmpty: Boolean get() = visible.isEmpty()
@@ -271,6 +284,7 @@ class OverlayHostState {
         // Re-showing something that is mid-exit turns it straight back around
         // rather than stacking a second copy behind the one leaving.
         leaving.remove(entry.key)
+        lettingGo.remove(entry.key)
         val existing = entries.indexOfFirst { it.key == entry.key }
         if (existing >= 0) {
             entries[existing] = entry
@@ -291,10 +305,30 @@ class OverlayHostState {
         if (entries.any { it.key == key } && key !in leaving) leaving.add(key)
     }
 
+    /**
+     * An entry that animates its own way out has started to: from here on it is
+     * drawn and nothing more. Its scrim lets taps through to the page, the page
+     * takes focus and is read again, and back goes past it — while it slides or
+     * folds away on its own clock, until it calls [hide].
+     *
+     * Reported from a phone as the page taking "an extra split second" to answer
+     * after a sheet had gone: the sheet held the page for the whole of its slide,
+     * and then for the host's fade on top.
+     */
+    internal fun letGo(key: Any) {
+        if (entries.any { it.key == key } && key !in leaving && key !in lettingGo) lettingGo.add(key)
+    }
+
+    /** Undoes [letGo]: the entry turned back before it had gone. */
+    internal fun takeBack(key: Any) {
+        lettingGo.remove(key)
+    }
+
     /** Called by the host once [key] has finished animating out. */
     internal fun finishHiding(key: Any) {
         entries.removeAll { it.key == key }
         leaving.remove(key)
+        lettingGo.remove(key)
     }
 
     /** True when an entry with this key is showing. */
@@ -340,7 +374,7 @@ class OverlayHostState {
 
     /** What a completed back gesture aimed at [entry] does: [dismissTop], for that entry. */
     internal fun dismissForBack(entry: OverlayEntry) {
-        if (!entry.dismissOnBack || isLeaving(entry.key)) return
+        if (!entry.dismissOnBack || isGoing(entry.key)) return
         entry.onDismiss?.invoke()
         if (!entry.managesOwnExit) hide(entry.key)
     }
@@ -374,13 +408,16 @@ private fun EntryHost(
 ) {
     val motion = Theme.motion
     val leaving = state.isLeaving(entry.key)
+    // On its way out by either route. The page is the reader's again from here,
+    // not from when the last of the entry has been drawn.
+    val going = state.isGoing(entry.key)
     val progress = remember { Animatable(0f) }
 
     // Back, for this entry alone. Its dispatcher is enabled only while it is
     // the entry back goes to, and its handler is registered before its content
     // is composed, so a stack inside a sheet answers first while it has
     // somewhere to go back to. See `OverlayBack.kt`.
-    val backOwner = rememberChildBackDispatcher(enabled = takesBack && !leaving)
+    val backOwner = rememberChildBackDispatcher(enabled = takesBack && !going)
     val backStyle = LocalBackStyle.current
     val (back, backHandler) = rememberOverlayBack(
         // Back closes an overlay under predictive back, and only one that may be
@@ -417,6 +454,13 @@ private fun EntryHost(
     }
 
     LaunchedEffect(leaving) {
+        // An entry that animates itself out calls `hide` when it has finished:
+        // there is nothing left to fade. Fading it anyway kept its scrim over
+        // the page for another 150ms after the sheet had gone.
+        if (leaving && entry.managesOwnExit) {
+            state.finishHiding(entry.key)
+            return@LaunchedEffect
+        }
         progress.animateTo(
             targetValue = if (leaving) 0f else 1f,
             // Out faster than in. An overlay arriving wants to be noticed; one
@@ -464,26 +508,26 @@ private fun EntryHost(
         // times per open. Mostly that is waste; the part that is not is that a
         // tap landing in the wrong frame meets a detector that has just been
         // torn down.
-        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, leaving) {
-            if (entry.dismissOnOutside && !leaving) {
+        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, going) {
+            if (entry.dismissOnOutside && !going) {
                 { state.dismissOutside(entry) }
             } else {
-                // Still consumes taps on the way out; it just no longer offers a
-                // dismissal for something already dismissed.
+                // No dismissal for something already dismissed, or for
+                // something that may not be dismissed at all.
                 null
             }
         }
         // Remembered for the same reason `dismiss` is: `Scrim` keys a gesture
         // coroutine on it, and `EntryHost` recomposes every frame an overlay is
         // animating.
-        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, leaving) {
-            if (entry.dismissOnScroll && !leaving) {
+        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, going) {
+            if (entry.dismissOnScroll && !going) {
                 { state.dismissOutside(entry) }
             } else {
                 null
             }
         }
-        Scrim(
+        ScrimLayer(
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim`.
             fraction = fraction,
@@ -491,6 +535,10 @@ private fun EntryHost(
             dismissLabel = entry.dismissLabel,
             colour = if (dimmed) Theme.colours.scrim else Color.Transparent,
             onScrollRequest = scrolled,
+            // Once it is going, a tap is the page's: what the scrim was keeping
+            // it from is already on its way off the screen. Material's scrim
+            // does the same.
+            blocks = !going,
         )
     }
 
@@ -623,6 +671,10 @@ fun OverlayHost(
     // sibling needs it too — it is the node the backdrop is applied to.
     val dimming = topDimmedEntry(stack)
     val backdrop = dimming?.backdrop ?: BackdropStyle.None
+    // What the page is shut behind for a reader: the same, but only while it is
+    // still here. One on its way out gives the page back to a screen reader as
+    // it gives it back to a finger — see `OverlayHostState.letGo`.
+    val shutBy = topDimmedEntry(state.visible)
 
     // Back goes to the page only while no overlay takes it. The page's
     // dispatcher is disabled rather than its handlers outranked, so it does not
@@ -706,7 +758,7 @@ fun OverlayHost(
                     // findable. Clearing states the fact — there is no such
                     // control right now — in the one vocabulary every reader of
                     // this tree shares.
-                    .then(if (dimming != null) Modifier.clearAndSetSemantics {} else Modifier)
+                    .then(if (shutBy != null) Modifier.clearAndSetSemantics {} else Modifier)
             ) {
                 // Every text box below here gets the library's own selection
                 // toolbar. See `DefaultTextSelectionToolbar` for why the host

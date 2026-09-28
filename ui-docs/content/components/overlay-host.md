@@ -77,6 +77,13 @@ overlay passes — so "tap outside to close" exists for someone who cannot tap
 outside. Where it is not, the scrim still consumes input, so taps cannot reach
 content the user can no longer see.
 
+**Once an overlay is dismissed, the page is the reader's again at once**, while
+the overlay is still animating away. Its scrim fades without taking taps, focus
+and screen readers go back to the page, and back goes past it. That includes a
+sheet sliding down, a FAB menu folding and a search panel going back into its
+pill. An entry that animates its own exit (`managesOwnExit`) is removed the
+moment it calls `hide`, with no fade of the host's on top.
+
 At high contrast a dimmed scrim is darker, because what it separates from is
 higher contrast too. The host draws no edge of its own; each panel in it takes
 the tier on its own page.

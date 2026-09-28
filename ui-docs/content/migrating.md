@@ -549,6 +549,11 @@ these change what an existing call does.
 - **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
   into it, staying in the overlay host until it has; the pill is hidden while it
   is open.
+- **A dismissed overlay stops holding the page straight away.** Its scrim fades
+  without taking taps, and a sheet, a FAB menu or a search panel lets go as it
+  starts its own exit rather than once it has finished. An `OverlayEntry` with
+  `managesOwnExit` is removed as soon as it calls `hide`, without the host's
+  150ms fade after it.
 - **On iOS the library's own scrollers fling the library's way**: at UIKit's rate,
   with a flick on a moving list adding to its speed, as an iPhone's lists do.
   Menus, dialogs, popovers, tooltips, tables, tabs, breadcrumbs, the rail, the

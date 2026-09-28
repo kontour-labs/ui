@@ -76,6 +76,23 @@ fun Scrim(
     dismissLabel: String? = null,
     colour: Color = Theme.colours.scrim,
     onScrollRequest: (() -> Unit)? = null,
+) = ScrimLayer(fraction, onDismissRequest, modifier, dismissLabel, colour, onScrollRequest, blocks = true)
+
+/**
+ * [Scrim], and whether it stands in the way at all.
+ *
+ * [blocks] false is a scrim that is only drawn: an overlay's on its way out,
+ * which dims what is behind it as it goes and no longer keeps a finger off it.
+ */
+@Composable
+internal fun ScrimLayer(
+    fraction: () -> Float,
+    onDismissRequest: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    dismissLabel: String? = null,
+    colour: Color = Theme.colours.scrim,
+    onScrollRequest: (() -> Unit)? = null,
+    blocks: Boolean = true,
 ) {
     val animated by animateColorAsState(
         targetValue = colour,
@@ -91,7 +108,7 @@ fun Scrim(
                 if (f > 0f) drawRect(animated.copy(alpha = animated.alpha * f))
             }
             .then(
-                if (onScrollRequest != null) {
+                if (blocks && onScrollRequest != null) {
                     Modifier.pointerInput(onScrollRequest) {
                         awaitPointerEventScope {
                             while (true) {
@@ -129,7 +146,9 @@ fun Scrim(
                 }
             )
             .then(
-                if (onDismissRequest != null) {
+                if (!blocks) {
+                    Modifier
+                } else if (onDismissRequest != null) {
                     Modifier
                         .pointerInput(onDismissRequest) {
                             detectTapGestures { onDismissRequest() }

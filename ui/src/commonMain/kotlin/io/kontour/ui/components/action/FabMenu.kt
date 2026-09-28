@@ -383,6 +383,9 @@ fun FabMenu(
                 }
             }
         } else {
+            // Folding away is the menu on its way out: the page is the reader's
+            // again from here, not from when the last item is home.
+            host.letGo(key)
             val last = fractions.lastIndex
             val folding = fractions.mapIndexed { index, fraction ->
                 launch {

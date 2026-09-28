@@ -1104,7 +1104,10 @@ fun ModalBottomSheet(
         } else {
             // `hide()` suspends until the sheet has finished sliding down, so
             // the scrim is still there to fade behind it rather than being
-            // pulled out from under a sheet that is still moving.
+            // pulled out from under a sheet that is still moving. It fades
+            // there without standing in the way: the page answers from the
+            // moment the sheet is closed, not from when it has landed.
+            host.letGo(key)
             if (state.isVisible) state.hide()
             host.hide(key)
         }
