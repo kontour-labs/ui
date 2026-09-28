@@ -543,6 +543,9 @@ these change what an existing call does.
   layout lambda, or behind `derivedStateOf`.
 - **A rail's labels end in an ellipsis** instead of at the last whole word, at
   every width.
+- **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
+  into it, staying in the overlay host until it has; the pill is hidden while it
+  is open.
 
 **Changed, and a call that names them stops compiling:**
 

@@ -28,6 +28,15 @@ put and the field goes into the `OverlayHost`, which brings the scrim, back and
 Escape, and trapped focus with it. `NavExpandPlacement` says where it lands:
 `AboveKeyboard`, near the thumb that opened it, or `Top`, where a browser puts one.
 
+**The pill becomes the field.** A capsule leaves the pill where it sits and grows
+into the field, taking on the field's shape and colour on the way; the field's
+contents fade in as it arrives, and the results after them. Going back runs the
+same movement the other way, and the panel stays until the capsule has landed in
+the pill again. Either placement — the field over the keyboard or at the top —
+is where it goes. It used to appear over the page with nothing joining it to
+what was tapped. `NavExpandingSlot` does the same with a panel that has no
+field, growing into the panel itself.
+
 The pill is a recess in the surface it sits on — `surfaceSunken` in a bar and a
 rail alike, since both have a ground now — and raised `surface` outside one.
 
@@ -80,6 +89,6 @@ edge, so a pill recessed into a bar is no longer a word floating in it, and the
 pill's focus ring thickens.
 
 Under reduced motion the pill keeps its press wash and loses its shrink, and
-nothing behind the open panel recedes. The panel has no entrance of its own to
-shorten: it is there on the first frame at every setting, with the scrim dimming
-behind it.
+nothing behind the open panel recedes. Nothing travels from the pill either: the
+panel fades in where it will be, with the scrim dimming behind it, and fades out
+there.

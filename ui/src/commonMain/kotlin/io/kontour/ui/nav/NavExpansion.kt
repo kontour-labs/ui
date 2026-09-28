@@ -1,5 +1,9 @@
 package io.kontour.ui.nav
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,16 +18,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
@@ -43,6 +62,7 @@ import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
+import kotlin.math.min
 
 /**
  * How much room a navigation surface is currently giving its slots.
@@ -263,9 +283,43 @@ fun NavExpandingSlot(
     expandedContent: @Composable ColumnScope.() -> Unit,
     content: @Composable RowContentScope.() -> Unit,
 ) {
+    // **The control becomes the panel.** A capsule leaves the control where it
+    // sits and grows into the panel's field — or the panel itself — the field's
+    // own contents fade in once it has arrived, and anything under them after
+    // that; closing runs the same movement back into the control, and the panel
+    // stays until it has landed there. It used to appear over the page with
+    // nothing joining it to what had been tapped.
+    val motion = Theme.motion
+    val progress = remember { Animatable(if (expanded) 1f else 0f) }
+    val morph = remember { NavMorph { progress.value } }
+    SideEffect {
+        morph.reduced = motion.reduceMotion
+        morph.easing = motion.standard
+    }
+    LaunchedEffect(expanded, motion.reduceMotion) {
+        progress.animateTo(
+            targetValue = if (expanded) 1f else 0f,
+            // Linear in time: each part of the movement brings its own easing.
+            // Out faster than in, as every overlay leaves.
+            animationSpec = tween(
+                durationMillis = when {
+                    motion.reduceMotion -> motion.fast
+                    expanded -> motion.slow
+                    else -> motion.slow * 3 / 4
+                },
+                easing = LinearEasing,
+            ),
+        )
+    }
+    val showing by remember { derivedStateOf { progress.value > 0f } }
+
     CollapsedControl(
         onClick = { onExpandedChange(true) },
-        modifier = modifier,
+        modifier = modifier
+            .onPlaced { morph.pill = it }
+            // Gone while it is the capsule, which is where it went; there under
+            // reduced motion, where nothing leaves it.
+            .graphicsLayer { alpha = if (!morph.reduced && progress.value > 0f) 0f else 1f },
         enabled = enabled,
         containerColour = containerColour,
         contentColour = contentColour,
@@ -274,21 +328,108 @@ fun NavExpandingSlot(
         content = content,
     )
 
-    // Composed only while open, so the *host* is only looked up while open.
+    // Composed only while open or closing, so the *host* is only looked up then.
     // `LocalOverlayHost` throws when there is none rather than returning null —
     // deliberately, because an overlay with nowhere to go is a bug that looks
     // like a missing feature — but a collapsed control has nowhere it wants to
     // go yet. Reading it unconditionally meant merely *placing* one of these in
     // a surface outside a host crashed on composition, which caught the
     // gallery's own rail specimen.
-    if (expanded) {
+    if (expanded || showing) {
         ExpandedPanel(
             onCollapse = { onExpandedChange(false) },
             placement = placement,
             dismissLabel = dismissLabel,
+            morph = morph,
+            controlColour = containerColour,
             content = expandedContent,
         )
     }
+}
+
+/**
+ * How far a slot's panel has come out of the control that opened it, and where
+ * the two are: read frame by frame, in draw, by the capsule that joins them and
+ * by the panel's contents as they fade in.
+ *
+ * The phases, as shares of the movement: the capsule travels over the first
+ * [GeometryEnd] and eases into place; the panel's contents fade in from
+ * [ContentFrom] once it is nearly there; what is under a field — results — from
+ * [ResultsFrom]; and the capsule goes once the contents cover it. Closing runs
+ * them backwards.
+ */
+@Stable
+internal class NavMorph(private val progress: () -> Float) {
+    var reduced: Boolean = false
+    var easing: Easing = LinearEasing
+    var pill: LayoutCoordinates? = null
+    var panel: LayoutCoordinates? = null
+
+    /** What the capsule becomes, where the panel names one — a search's field. */
+    var target: LayoutCoordinates? = null
+    var targetColour: Color = Color.Unspecified
+
+    val geometry: Float get() = if (reduced) 1f else easing.transform(share(0f, GeometryEnd))
+    val content: Float get() = if (reduced) progress().coerceIn(0f, 1f) else share(ContentFrom, ContentTo)
+    val results: Float get() = if (reduced) 1f else share(ResultsFrom, 1f)
+    val capsule: Float get() = if (reduced) 0f else 1f - share(CapsuleFrom, CapsuleTo)
+
+    private fun share(from: Float, to: Float): Float = ((progress() - from) / (to - from)).coerceIn(0f, 1f)
+
+    private companion object {
+        const val GeometryEnd = 0.6f
+        const val ContentFrom = 0.45f
+        const val ContentTo = 0.7f
+        const val ResultsFrom = 0.65f
+        const val CapsuleFrom = 0.7f
+        const val CapsuleTo = 0.85f
+    }
+}
+
+/** The morph of the panel being composed, for what is in it to join in. */
+internal val LocalNavMorph = staticCompositionLocalOf<NavMorph?> { null }
+
+/** Hears each rectangle the capsule is drawn in: for tests, which cannot see a drawing. */
+internal val LocalNavMorphProbe = staticCompositionLocalOf<((Rect) -> Unit)?> { null }
+
+/**
+ * The capsule between the control and the panel, drawn over the scrim and under
+ * the panel: the control's shape and colour at the start, the field's (or a
+ * panel's rounded box) at the end.
+ */
+@Composable
+private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
+    val fallback = Theme.colours.surface
+    val panelCorner = with(LocalDensity.current) { NavExpandingSlotDefaults.Margin.toPx() }
+    val probe = LocalNavMorphProbe.current
+    val layer = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onPlaced { layer[0] = it }
+            .drawBehind {
+                val alpha = morph.capsule
+                if (alpha <= 0f) return@drawBehind
+                val here = layer[0]?.takeIf { it.isAttached } ?: return@drawBehind
+                val pill = morph.pill?.takeIf { it.isAttached } ?: return@drawBehind
+                val target = morph.target?.takeIf { it.isAttached } ?: morph.panel?.takeIf { it.isAttached }
+                    ?: return@drawBehind
+                val from = here.localBoundingBoxOf(pill, clipBounds = false)
+                val to = here.localBoundingBoxOf(target, clipBounds = false)
+                val g = morph.geometry
+                val rect = lerp(from, to, g)
+                val endCorner = if (morph.target != null) to.height / 2f else panelCorner
+                val corner = (from.height / 2f + (endCorner - from.height / 2f) * g).coerceAtMost(min(rect.width, rect.height) / 2f)
+                drawRoundRect(
+                    color = lerp(controlColour, morph.targetColour.takeOrElse { fallback }, g),
+                    topLeft = rect.topLeft,
+                    size = rect.size,
+                    cornerRadius = CornerRadius(corner),
+                    alpha = alpha,
+                )
+                probe?.invoke(rect)
+            },
+    )
 }
 
 /**
@@ -357,6 +498,8 @@ private fun ExpandedPanel(
     onCollapse: () -> Unit,
     placement: NavExpandPlacement,
     dismissLabel: String,
+    morph: NavMorph,
+    controlColour: Color,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -367,6 +510,7 @@ private fun ExpandedPanel(
     val latestPlacement by rememberUpdatedState(placement)
     val latestCollapse by rememberUpdatedState(onCollapse)
     val latestContent by rememberUpdatedState(content)
+    val latestControlColour by rememberUpdatedState(controlColour)
 
     DisposableEffect(key) {
         host.show(
@@ -378,8 +522,13 @@ private fun ExpandedPanel(
                 dismissOnBack = true,
                 trapFocus = true,
                 dismissLabel = dismissLabel,
+                // It goes back into the control on its own clock and is taken
+                // down when it has landed there, and the scrim follows it.
+                managesOwnExit = true,
+                visibility = { if (morph.reduced) morph.content else morph.geometry },
                 onDismiss = { latestCollapse() },
                 content = {
+                    MorphCapsule(morph, latestControlColour)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -401,11 +550,16 @@ private fun ExpandedPanel(
                             NavExpandPlacement.Top -> Alignment.TopCenter
                         },
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                            content = latestContent,
-                        )
+                        CompositionLocalProvider(LocalNavMorph provides morph) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onPlaced { morph.panel = it }
+                                    .graphicsLayer { alpha = morph.content },
+                                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                                content = latestContent,
+                            )
+                        }
                     }
                 },
             )

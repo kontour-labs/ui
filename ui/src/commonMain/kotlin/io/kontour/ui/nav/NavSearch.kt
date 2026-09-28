@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -20,10 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.components.text.SearchField
+import io.kontour.ui.components.text.TextFieldDefaults
+import io.kontour.ui.components.text.TextFieldVariant
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -150,6 +156,9 @@ fun NavSearch(
 
     val focus = remember { FocusRequester() }
     val typed = state.text.text.toString()
+    // The field the pill grows into: its ground once it is focused, which it is
+    // by the time the capsule arrives.
+    val fieldColour = TextFieldDefaults.colours(TextFieldVariant.Filled).containerFocused
 
     NavExpandingSlot(
         expanded = state.expanded,
@@ -161,11 +170,19 @@ fun NavSearch(
         contentColour = contentColour,
         interactionSource = interactionSource,
         expandedContent = {
-            if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results)
+            // The pill becomes the field: the capsule it leaves as ends where the
+            // field is, in the field's colour, and the results come after.
+            val morph = LocalNavMorph.current
+            SideEffect { morph?.targetColour = fieldColour }
+
+            if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results, morph)
 
             SearchField(
                 state = state.text,
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focus)
+                    .onPlaced { morph?.target = it },
                 placeholder = placeholder,
                 searchIcon = searchIcon,
                 onQuery = onQuery,
@@ -173,13 +190,17 @@ fun NavSearch(
                 shape = Theme.shapes.capsule,
             )
 
-            if (placement == NavExpandPlacement.Top) ResultsPanel(results)
+            if (placement == NavExpandPlacement.Top) ResultsPanel(results, morph)
 
             // Inside the panel, so the field it focuses exists. Nothing else in
             // the overlay wants focus, but `trapFocus` would otherwise leave it
             // on the scrim with the keyboard shut — an expanded search you have
-            // to tap a second time to type in.
-            LaunchedEffect(Unit) { focus.requestFocus() }
+            // to tap a second time to type in. And let go of as the panel goes
+            // back into the pill, so the keyboard goes with it rather than after.
+            val focusManager = LocalFocusManager.current
+            LaunchedEffect(state.expanded) {
+                if (state.expanded) focus.requestFocus() else focusManager.clearFocus(force = true)
+            }
         },
     ) {
         if (searchIcon != null) {
@@ -232,10 +253,14 @@ object NavSearchDefaults {
  * that plain text on a dimmed page is barely legible.
  */
 @Composable
-private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Unit)?) {
+private fun ColumnScope.ResultsPanel(results: (@Composable ColumnScope.() -> Unit)?, morph: NavMorph?) {
     if (results == null) return
     Surface(
-        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f, fill = false)
+            // After the field: the last thing to arrive, and the first to go.
+            .graphicsLayer { alpha = morph?.results ?: 1f },
         shape = Theme.shapes.panel,
         containerColour = Theme.colours.surface,
         border = contrastEdge(),
