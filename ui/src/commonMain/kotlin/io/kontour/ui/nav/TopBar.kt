@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyListState
@@ -29,6 +28,7 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
+import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContainerColour
@@ -46,10 +46,12 @@ enum class TopBarStyle {
     Small,
 
     /**
-     * One line, title centred.
+     * One line, title centred on the bar — or, where the controls leave it too
+     * little room to be centred, exactly [Small].
      *
      * For a screen with actions on both sides, where a leading title would sit
-     * off-balance. Costs width, so a long title truncates sooner.
+     * off-balance. A title that does not fit centred is not squeezed or pushed
+     * off-centre: it starts against the leading controls, as a [Small] one does.
      */
     Centred,
 
@@ -152,11 +154,12 @@ fun TopBar(
                     centred = style == TopBarStyle.Centred,
                     leading = { Leading(onBack, backLabel, navigation) },
                     title = {
-                        TitleBlock(
-                            slots = slots,
-                            modifier = Modifier.padding(horizontal = Theme.spacing.xs),
-                            centred = style == TopBarStyle.Centred,
-                        )
+                        // Centred when the bar could centre it and started when it
+                        // could not — see `CentredBarTitle` — so a Centred bar
+                        // whose title does not fit is exactly a Small one.
+                        CentredBarTitle(modifier = Modifier.padding(horizontal = Theme.spacing.xs)) {
+                            TitleLines(slots = slots)
+                        }
                     },
                     trailing = {
                         Row(
@@ -219,7 +222,7 @@ fun TopBar(
                                 bottom = Theme.spacing.sm,
                             )
                     ) {
-                        TitleBlock(slots = slots, large = true)
+                        Column { TitleLines(slots = slots, large = true) }
                     }
                 }
             }
@@ -245,33 +248,20 @@ private fun Leading(
     }
 }
 
+/** The title and its supporting line, each a line of whatever stacks them. */
 @Composable
-private fun TitleBlock(
-    slots: ListItemScope,
-    modifier: Modifier = Modifier,
-    centred: Boolean = false,
-    large: Boolean = false,
-) {
-    val align = if (centred) TextAlign.Center else TextAlign.Unspecified
-    Column(
-        modifier = modifier,
-        horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
-    ) {
-        slots.label?.let { title ->
-            Box(Modifier.semantics { heading() }) {
-                ProvideTextStyle(
-                    (if (large) Theme.typography.displaySmall else Theme.typography.titleMedium)
-                        .copy(textAlign = align)
-                ) {
-                    ContentSlot(maxLines = if (large) 2 else 1, content = title)
-                }
+private fun TitleLines(slots: ListItemScope, large: Boolean = false) {
+    slots.label?.let { title ->
+        Box(Modifier.semantics { heading() }) {
+            ProvideTextStyle(if (large) Theme.typography.displaySmall else Theme.typography.titleMedium) {
+                ContentSlot(maxLines = if (large) 2 else 1, content = title)
             }
         }
-        slots.supporting?.let { subtitle ->
-            ProvideContentColour(Theme.colours.contentMuted) {
-                ProvideTextStyle(Theme.typography.bodySmall.copy(textAlign = align)) {
-                    ContentSlot(maxLines = 1, content = subtitle)
-                }
+    }
+    slots.supporting?.let { subtitle ->
+        ProvideContentColour(Theme.colours.contentMuted) {
+            ProvideTextStyle(Theme.typography.bodySmall) {
+                ContentSlot(maxLines = 1, content = subtitle)
             }
         }
     }

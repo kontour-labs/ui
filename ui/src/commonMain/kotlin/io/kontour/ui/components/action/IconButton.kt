@@ -322,6 +322,9 @@ internal fun RevealToggleButton(
     shape: Shape = Theme.shapes.capsule,
 ) {
     val interactions = remember { MutableInteractionSource() }
+    // Answers like the toggle it is, as `IconToggleButton` does: reported from a
+    // phone as the one toggle in a password field that said nothing when pressed.
+    val toggled = rememberToggleFeedback()
     val drawn = hiddenIcon == null
     val strike by animateFloatAsState(
         targetValue = if (drawn && !revealed) 1f else 0f,
@@ -350,7 +353,10 @@ internal fun RevealToggleButton(
             indication = null,
             enabled = enabled,
             role = Role.Checkbox,
-            onValueChange = onRevealedChange,
+            onValueChange = {
+                toggled(it)
+                onRevealedChange(it)
+            },
         ),
     )
 }

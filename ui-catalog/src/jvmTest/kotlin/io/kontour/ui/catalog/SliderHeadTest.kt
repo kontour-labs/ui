@@ -9,6 +9,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.Density
+import io.kontour.ui.theme.KontourTheme
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.LayoutDirection
@@ -31,6 +45,7 @@ import kotlin.test.assertTrue
  * it?". The label is off unless a formatter is given, shown while the thumb is held
  * and gone once it is let go.
  */
+@OptIn(ExperimentalTestApi::class)
 class SliderHeadTest {
 
     /**
@@ -89,11 +104,51 @@ class SliderHeadTest {
         )
     }
 
+    /**
+     * The value shows while the thumb is held, stays a second after it is let go —
+     * asked for from a phone, where the number vanished at the moment the reader
+     * lifted their finger to read it — and then goes.
+     */
     @Test
-    fun aHeldThumbShowsItsValueAboveAndLettingGoHidesIt() {
-        val (held, released) = labelInk(LayoutDirection.Ltr)
+    fun aHeldThumbShowsItsValueWhichLingersASecondAfterRelease() {
+        val (held, lingering, gone) = labelInk(LayoutDirection.Ltr)
         assertTrue(held > 30, "a held thumb drew ${held}px of label above it, where it should show its value")
-        assertTrue(released < 3, "the label was still drawn (${released}px) after the thumb was let go")
+        assertTrue(lingering > 30, "half a second after release the label had gone (${lingering}px); it should linger")
+        assertTrue(gone < 3, "the label was still drawn (${gone}px) a second and a half after the thumb was let go")
+    }
+
+    /** An arrow key moves the value with nothing held; the label shows it, briefly. */
+    @Test
+    fun anArrowKeyShowsTheValueBriefly() = runComposeUiTest {
+        var bounds = Rect.Zero
+        var current by mutableStateOf(0.5f)
+        setContent {
+            CompositionLocalProvider(LocalDensity provides Density(2f)) {
+                KontourTheme(darkTheme = false) {
+                    Box(Modifier.fillMaxSize().background(Color.White).padding(top = 60.dp, start = 20.dp, end = 20.dp)) {
+                        Slider(
+                            value = current,
+                            onValueChange = { current = it },
+                            valueLabel = { "${(it * 100).roundToInt()}%" },
+                            modifier = Modifier.fillMaxWidth().testTag("slider").reportBounds { bounds = it },
+                        )
+                    }
+                }
+            }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(100)
+        fun inkNow() = onRoot().captureToImage().toAwtImage().darkInkAbove(bounds, bounds.alongX(current).x)
+        val atRest = inkNow()
+        onNodeWithTag("slider").requestFocus()
+        onNodeWithTag("slider").performKeyInput { pressKey(Key.DirectionRight) }
+        mainClock.advanceTimeBy(400)
+        val after = inkNow()
+        mainClock.advanceTimeBy(2000)
+        val later = inkNow()
+        assertTrue(atRest < 3, "the label showed (${atRest}px) before anything happened")
+        assertTrue(after > 30, "an arrow key moved the value to $current and the label did not show it (${after}px)")
+        assertTrue(later < 3, "the label a key showed was still up (${later}px) well after a second")
     }
 
     /**
@@ -102,7 +157,7 @@ class SliderHeadTest {
      */
     @Test
     fun theLabelFollowsTheThumbRightToLeft() {
-        val (held, _) = labelInk(LayoutDirection.Rtl, value = 0.2f, probeAt = 0.8f)
+        val (held, _, _) = labelInk(LayoutDirection.Rtl, value = 0.2f, probeAt = 0.8f)
         assertTrue(
             held > 30,
             "right to left, the label was not above the thumb at the right-hand end (${held}px)",
@@ -113,11 +168,12 @@ class SliderHeadTest {
      * The dark ink above the track, near [probeAt] of the way across, while a press on
      * the thumb is held and after it is let go.
      */
-    private fun labelInk(direction: LayoutDirection, value: Float = 0.5f, probeAt: Float = 0.5f): Pair<Int, Int> {
+    private fun labelInk(direction: LayoutDirection, value: Float = 0.5f, probeAt: Float = 0.5f): Triple<Int, Int, Int> {
         var bounds = Rect.Zero
         var current by mutableStateOf(value)
         var held = 0
-        var released = 0
+        var lingering = 0
+        var gone = 0
         Scene(width = 600, height = 420) {
             CompositionLocalProvider(LocalLayoutDirection provides direction) {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(top = 120.dp, start = 40.dp, end = 40.dp)) {
@@ -135,9 +191,11 @@ class SliderHeadTest {
             scene.press(at)
             held = scene.frames(20).darkInkAbove(bounds, at.x)
             scene.release(at)
-            released = scene.frames(40).darkInkAbove(bounds, at.x)
+            // Frames are 16ms apart: half a second, then a second and a half.
+            lingering = scene.frames(30).darkInkAbove(bounds, at.x)
+            gone = scene.frames(64).darkInkAbove(bounds, at.x)
         }
-        return held to released
+        return Triple(held, lingering, gone)
     }
 
     /** Dark pixels in the 60px band above [bounds], within 80px of [x]. */

@@ -163,32 +163,29 @@ fun AnimatedCounter(
      * has asked for less movement should not also be shown a stale number.
      */
     warnBefore: Duration = Duration.ZERO,
+    /**
+     * Whether a warning is felt as well as seen: one light tap as the digits
+     * start to shake, once per warning. Only matters with a [warnBefore].
+     *
+     * On by default, because a number that warns is one the reader may be about
+     * to act on — a seat count, a time remaining — and the tap is what reaches a
+     * reader who is not looking. It used to tap on *every* drop of such a
+     * counter, including the ones that landed mid-wiggle, so a quick run of
+     * drops buzzed once each through a single warning; now the warning and the
+     * tap are one event. Under reduced motion, where nothing shakes, it taps at
+     * the drop instead.
+     */
+    hapticWarning: Boolean = true,
     contentDescription: String? = null,
 ) {
     val motion = Theme.motion
     val tap = rememberTapFeedback()
+    val felt by rememberUpdatedState(hapticWarning && warnBefore > Duration.ZERO)
 
     // What is actually drawn, which is `value` except while a fall is being
     // announced. See [warnBefore].
     var shown by remember { mutableIntStateOf(value) }
     var warning by remember { mutableStateOf(false) }
-
-    // Down is the one direction worth reporting, and only on a counter that
-    // warns: a number that falls there is a seat count or a time remaining the
-    // reader may be about to act on, which is what `warnBefore` says. Once per
-    // drop, and whether or not motion is reduced — a reader who has asked for
-    // less movement is exactly the one the drop is quietest for.
-    //
-    // It used to report every fall on every counter, from any source: a
-    // seconds countdown buzzed once a second for as long as it was on screen,
-    // and a `Stepper`'s own counter answered its minus button a second time.
-    // A counter that does not warn is a number, and a number changing where the
-    // reader is looking says nothing a haptic needs to.
-    val heard = remember { PreviousValue(value) }
-    LaunchedEffect(value) {
-        if (value < heard.value && warnBefore > Duration.ZERO) tap()
-        heard.value = value
-    }
 
     // **One hold, for as long as the counter is composed, and it cannot be
     // left stuck.**
@@ -211,10 +208,22 @@ fun AnimatedCounter(
     LaunchedEffect(warnBefore, motion.reduceMotion) {
         snapshotFlow { latest }.collect { target ->
             if (target >= shown || warnBefore <= Duration.ZERO || motion.reduceMotion) {
+                // Nothing shakes under reduced motion, so the drop itself is the
+                // warning, and the reader who asked for less movement is exactly
+                // the one it is quietest for.
+                if (target < shown && felt) tap()
                 warning = false
                 shown = target
                 return@collect
             }
+            // Down is the one direction worth reporting, and only on a counter
+            // that warns: a number that falls there is a seat count or a time
+            // remaining the reader may be about to act on. Once per warning — a
+            // drop landing mid-wiggle is part of the warning already running.
+            // It used to report every fall on every counter: a seconds countdown
+            // buzzed once a second, and a `Stepper`'s own counter answered its
+            // minus button a second time.
+            if (felt) tap()
             warning = true
             try {
                 withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }

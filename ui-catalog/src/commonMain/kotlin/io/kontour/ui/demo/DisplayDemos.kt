@@ -124,12 +124,26 @@ internal val CardDemo = ComponentDemo(
 
 private val tagTone = Knob.Choice("Tone", Tone.entries.toList())
 
-internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone)) {
+/** Whether the route tags lead somewhere — the route they name. */
+private val tagClickable = Knob.Flag("Clickable", initial = false)
+
+private val tagEnabled = Knob.Flag("Enabled", initial = true)
+
+internal val TagDemo = ComponentDemo(slug = "tag", knobs = listOf(tagTone, tagClickable, tagEnabled)) {
     val tone = this[tagTone]
+    val clickable = this[tagClickable]
+    val enabled = this[tagEnabled]
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Tag(tone = tone) { +"Live" }
-            Tag(tone = tone) {
+            Tag(
+                tone = tone,
+                onClick = if (clickable) ({ echo("Opened route 950") }) else null,
+                enabled = enabled,
+            ) {
                 +Tabler.Outline.Bus
                 +"950"
             }
@@ -599,12 +613,15 @@ internal val AccordionDemo = ComponentDemo(slug = "accordion") {
  */
 private val counterWarn = Knob.Flag("Warn before dropping", initial = true)
 
+/** Whether the warning is felt as well: one tap as the digits start to shake. */
+private val counterHaptic = Knob.Flag("Tap as it warns", initial = true)
+
 /** Two there-and-backs at the tremor's own rhythm, which is what it is tuned for. */
 private val CounterWarning: Duration = 450.milliseconds
 
 internal val AnimatedCounterDemo = ComponentDemo(
     slug = "animated-counter",
-    knobs = listOf(counterWarn),
+    knobs = listOf(counterWarn, counterHaptic),
 ) {
     var minutes by remember { mutableStateOf(14) }
     Row(
@@ -620,6 +637,7 @@ internal val AnimatedCounterDemo = ComponentDemo(
             // inside it, so the 1.5s this used to pass would be a second and a
             // half of shaking.
             warnBefore = if (this@ComponentDemo[counterWarn]) CounterWarning else Duration.ZERO,
+            hapticWarning = this@ComponentDemo[counterHaptic],
         )
         Button(
             onClick = {

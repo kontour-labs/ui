@@ -1,5 +1,13 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -23,6 +31,9 @@ import kotlin.math.pow
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 
 /**
  * One slider thumb, stretched by how far it is from where it is trying to be.
@@ -710,3 +721,57 @@ internal fun DrawScope.sliderValueLabel(
 }
 
 
+
+/**
+ * Whether a slider's value label is up: while the thumb is held, and for
+ * [LabelLingerTime] after it lets go.
+ *
+ * Asked for from a phone: the label vanished with the finger, so the number the
+ * reader had just chosen went at the moment they lifted to read it. It stays a
+ * second now, then fades as it always did — and an arrow key, which changes the
+ * value with nothing held, [poke]s it up for the same second.
+ */
+@Stable
+internal class LabelLinger {
+    /** Whether the label is up though nothing is holding the thumb. */
+    var lingering by mutableStateOf(false)
+        private set
+
+    internal var pokes by mutableIntStateOf(0)
+        private set
+
+    /** The value changed with nothing held — a key: show it for [LabelLingerTime]. */
+    fun poke() {
+        lingering = true
+        pokes++
+    }
+
+    internal fun hold() {
+        lingering = true
+    }
+
+    internal fun lapse() {
+        lingering = false
+    }
+}
+
+/** A second: long enough to read a number after lifting, short enough not to cover what is under it. */
+internal val LabelLingerTime: Duration = 1000.milliseconds
+
+/**
+ * Remembers a [LabelLinger] for a slider held while [active]. The label is up
+ * while `active || lingering`.
+ */
+@Composable
+internal fun rememberLabelLinger(active: Boolean): LabelLinger {
+    val linger = remember { LabelLinger() }
+    LaunchedEffect(active, linger.pokes) {
+        if (active) {
+            linger.hold()
+        } else if (linger.lingering) {
+            delay(LabelLingerTime)
+            linger.lapse()
+        }
+    }
+    return linger
+}

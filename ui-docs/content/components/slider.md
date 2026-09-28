@@ -89,8 +89,10 @@ that shape has no straight run for its smoothing to ease into and is exactly a
 circle, so resting and held are one shape at two lengths. The value's bubble is
 the same pill.
 
-**`valueLabel` puts the value above the head while it is held**, and takes it
-away when the finger lifts:
+**`valueLabel` puts the value above the head while it is held**, keeps it there
+for a second after the finger lifts — so the number just chosen is still there to
+read — and then fades it. An arrow key, which moves the value with nothing held,
+shows it for the same second:
 
 ```kotlin
 Slider(
@@ -104,7 +106,8 @@ It is drawn outside the slider's bounds, so the control's size and hit area are
 the same with or without it — give it room above, or a clipping parent (a card,
 the top of a scroller) will cut the bubble. Off unless given, since most sliders
 sit beside a number that already says what they are set to. `RangeSlider` takes
-the same, over whichever thumb the finger has.
+the same, over whichever thumb the finger has — and after it lifts, over the
+thumb that moved last.
 
 **Running into either end of the range is reported once**, as a haptic, for as
 long as the finger stays against it — trembling there included; backing off

@@ -1,7 +1,9 @@
 # `TopBar`
 
 Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
-`Large`.
+`Large`. `Centred` centres the title on the bar where it fits, and where the
+controls leave it too little room it is laid out exactly as `Small`, against the
+leading controls — never centred in what was left over.
 
 <!--sample:TopBarCollapsing-->
 ```kotlin

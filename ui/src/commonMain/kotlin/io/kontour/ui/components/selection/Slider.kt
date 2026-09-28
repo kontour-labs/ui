@@ -265,8 +265,10 @@ fun Slider(
     // pass. See `sliderValueLabel`.
     val labelMeasurer = rememberTextMeasurer()
     val labelStyle = Theme.typography.labelMedium.copy(color = colours.valueLabelContent)
+    // Up while the thumb is held and for a second after — see `LabelLinger`.
+    val linger = rememberLabelLinger(active)
     val labelProgress = animateFloatAsState(
-        targetValue = if (valueLabel != null && active) 1f else 0f,
+        targetValue = if (valueLabel != null && (active || linger.lingering)) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "sliderValueLabel",
     )
@@ -514,6 +516,8 @@ fun Slider(
                 ) ?: return@onKeyEvent false
                 currentOnValueChange(next)
                 currentFinished?.invoke()
+                // Nothing is held, so nothing would show the value the key chose.
+                linger.poke()
                 true
             }
             .focusable(enabled, interactions)

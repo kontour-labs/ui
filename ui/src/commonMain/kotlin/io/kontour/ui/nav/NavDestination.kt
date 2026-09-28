@@ -284,7 +284,11 @@ internal fun NavDestination(
                 // to the glyph lands on it.
                 modifier = interaction.padding(bottom = if (showLabel) Theme.spacing.xxs else 0.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(labelGap),
+                // Centred in what the touch target leaves. With a label the two
+                // fill it and this is the top, as before; without one the glyph
+                // used to sit at the top of its 48dp target with the slack under
+                // it, a few points above the marker centred on the same target.
+                verticalArrangement = Arrangement.spacedBy(labelGap, Alignment.CenterVertically),
             ) {
                 glyph()
                 labelText()

@@ -36,7 +36,8 @@ backspace takes one character. It used to replace the whole text in one go, and 
 hardware backspace on a replaced range deleted everything in it.
 `KeyboardType.Password` is an IME *hint* and substitutes no glyphs; a field
 relying on it alone is plaintext, which this one was for most of the project's
-life.
+life. Its eye is announced as a checkbox, checked while the password shows, and
+answers a press as every toggle does: a crisp tick revealing, a low one hiding.
 
 **The character just typed shows for a moment** before it is masked, the way a
 phone keyboard does — the only confirmation a reader has that the key they meant

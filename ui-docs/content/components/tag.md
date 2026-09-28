@@ -20,15 +20,29 @@ That is the whole reason the component exists rather than callers styling a
 `Surface` themselves: the case they would get wrong is the one where the feed
 hands them a colour nobody designed for.
 
-**Reach for a [`Chip`](chip.md) instead** when the
-thing is pressable. A tag is a label; a chip is a control.
+**`onClick` makes a tag lead to what it labels** — a route number that opens the
+route, a category that lists everything in it — and it stays a label to look at:
+the same size and colours, with a press and a focus ring added.
+
+```kotlin
+Tag(onClick = { openRoute(960) }) { +"960" }
+```
+
+On a touch screen a clickable tag reserves the platform's touch target around
+itself, as every control does, so it takes more room in a row than a plain one.
+
+**Reach for a [`Chip`](chip.md) instead** when the thing is a choice or an action
+among others. A tag is a label that may lead somewhere; a chip is a control.
 
 ---
 
 ## Accessibility
 
-A tag is not interactive and carries no role. Its text is announced in reading
-order like any other text.
+A plain tag is not interactive and carries no role. Its text is announced in
+reading order like any other text. With an `onClick` it is a button, announced
+with its text, takes focus with a ring, and answers a press as a button does —
+with no haptic, since pressing something that leads elsewhere is not an outcome.
+Disabled, it keeps its colours and dims its text.
 
 `contentDescription` overrides that, and is for a tag whose visible text is an
 abbreviation — "PLT 2" announced as "Platform 2". Where the visible text already
@@ -44,4 +58,5 @@ for the neutral tone — so a tint that sits close to the page still has a
 boundary. A tag given its own `containerColour` takes the edge of its `tone`
 too.
 
-Nothing about a tag moves, so reduced motion changes nothing.
+Nothing about a tag moves; a clickable one's press is a fade at every setting and
+does not shrink under reduced motion.

@@ -409,9 +409,12 @@ internal val StepperDemo = ComponentDemo(
 private val ratingHalf = Knob.Flag("Half marks")
 private val ratingEnabled = Knob.Flag("Enabled", initial = true)
 
+/** Whether a tap on the score already given takes it back to nothing. */
+private val ratingZero = Knob.Flag("Allow zero", initial = true)
+
 internal val RatingDemo = ComponentDemo(
     slug = "rating",
-    knobs = listOf(ratingHalf, ratingEnabled),
+    knobs = listOf(ratingHalf, ratingZero, ratingEnabled),
 ) {
     var score by remember { mutableStateOf(3f) }
     Rating(
@@ -419,6 +422,7 @@ internal val RatingDemo = ComponentDemo(
         contentDescription = "Your rating",
         onValueChange = { score = it },
         allowHalf = this[ratingHalf],
+        allowZero = this[ratingZero],
         enabled = this[ratingEnabled],
     )
 }

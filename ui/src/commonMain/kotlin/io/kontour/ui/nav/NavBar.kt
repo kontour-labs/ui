@@ -231,6 +231,7 @@ internal fun NavBarLayout(
                 arrangement = rowArrangement,
                 fill = !hug,
                 searchIndex = searchIndex,
+                slotsCentred = !showLabels,
                 modifier = Modifier.selectableGroup(),
             ) {
                 scope.content()
@@ -344,6 +345,7 @@ private fun BarRow(
     arrangement: Arrangement.Horizontal,
     fill: Boolean,
     searchIndex: Int?,
+    slotsCentred: Boolean,
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -409,22 +411,23 @@ private fun BarRow(
                     x[i] = at
                     at += all[i].width + gap
                 }
-                all.forEachIndexed { i, p -> p.placeRelative(x[i], childTop(aligned[i], p, height)) }
+                all.forEachIndexed { i, p -> p.placeRelative(x[i], childTop(aligned[i], p, height, slotsCentred)) }
             } else {
                 with(arrangement) { arrange(width, IntArray(all.size) { all[it].width }, layoutDirection, x) }
-                all.forEachIndexed { i, p -> p.place(x[i], childTop(aligned[i], p, height)) }
+                all.forEachIndexed { i, p -> p.place(x[i], childTop(aligned[i], p, height, slotsCentred)) }
             }
         }
     }
 }
 
 /**
- * A fixed-width slot sits against the top, level with the circles, which keep
- * their place when a label under them makes the row taller; everything else is
- * centred.
+ * Where a child sits vertically: level with the circles. A fixed-width slot sits
+ * against the top when labels hang under the circles, which keep their place as
+ * a label makes the row taller; without labels the circles are centred in their
+ * targets, and so is it. Everything else is centred.
  */
-private fun childTop(child: BarChild, placeable: Placeable, height: Int): Int =
-    if (child is BarChild.Slot && child.weight == 0f) 0 else (height - placeable.height) / 2
+private fun childTop(child: BarChild, placeable: Placeable, height: Int, slotsCentred: Boolean): Int =
+    if (child is BarChild.Slot && child.weight == 0f && !slotsCentred) 0 else (height - placeable.height) / 2
 
 /** A bar's [NavBarScope]. */
 private class BarScope(

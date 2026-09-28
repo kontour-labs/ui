@@ -239,8 +239,12 @@ fun RangeSlider(
     // `activeThumb` goes back to `None` the moment the finger lifts.
     val labelled = remember { LabelledThumb() }
     if (activeThumb != Thumb.None) labelled.thumb = activeThumb
+    // Up for a second after the finger lifts, over the thumb that moved last —
+    // see `LabelLinger`. A press that picked neither thumb picks nothing to show.
+    val holding = active && activeThumb != Thumb.None
+    val linger = rememberLabelLinger(holding)
     val labelProgress = animateFloatAsState(
-        targetValue = if (valueLabel != null && active && activeThumb != Thumb.None) 1f else 0f,
+        targetValue = if (valueLabel != null && (holding || (linger.lingering && labelled.thumb != Thumb.None))) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
         label = "rangeSliderValueLabel",
     )
@@ -1097,6 +1101,10 @@ fun RangeSlider(
                 interactions = interactions,
                 onSet = { emit(Thumb.Start, fractionOf(it)) },
                 onFinished = { currentFinished?.invoke() },
+                onKeyed = {
+                    labelled.thumb = Thumb.Start
+                    linger.poke()
+                },
             )
             ThumbSemantics(
                 contentDescription = endContentDescription,
@@ -1110,6 +1118,10 @@ fun RangeSlider(
                 interactions = interactions,
                 onSet = { emit(Thumb.End, fractionOf(it)) },
                 onFinished = { currentFinished?.invoke() },
+                onKeyed = {
+                    labelled.thumb = Thumb.End
+                    linger.poke()
+                },
             )
         }
     }
@@ -1136,6 +1148,7 @@ private fun ThumbSemantics(
     interactions: MutableInteractionSource,
     onSet: (Float) -> Unit,
     onFinished: () -> Unit,
+    onKeyed: () -> Unit,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Box(
@@ -1150,6 +1163,7 @@ private fun ThumbSemantics(
                     ?: return@onKeyEvent false
                 onSet(next)
                 onFinished()
+                onKeyed()
                 true
             }
             .focusable(enabled, interactions)

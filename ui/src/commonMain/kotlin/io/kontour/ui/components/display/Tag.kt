@@ -4,6 +4,8 @@ import io.kontour.ui.locale.bidiIsolated
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -12,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -27,6 +31,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -35,22 +40,30 @@ import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
 
 
 /**
- * A small, non-interactive label — a status, a category, a route number.
+ * A small label — a status, a category, a route number.
  *
  * ```
  * Tag(tone = Tone.Success) { +"Live" }
  * Tag(containerColour = routeColour) { +"960" } // colour straight out of a GTFS feed
+ * Tag(onClick = { openRoute(960) }) { +"960" }   // a label that leads to what it labels
  * ```
  *
- * Not a [io.kontour.ui.components.selection.Chip]. A chip is something the user
- * can act on; a tag is something the interface is telling them. If it can be
- * tapped, it is a chip.
+ * Not a [io.kontour.ui.components.selection.Chip]. A chip is a choice or an
+ * action among others; a tag is something the interface is telling the reader.
+ * An [onClick] makes a tag a way *to* what it labels — a route number that opens
+ * the route, a category that lists everything in it — and it stays a label to
+ * look at: same size, same colours, a press and a focus ring added. On a touch
+ * screen it reserves the platform's touch target around itself, so a clickable
+ * tag takes more room in a row than a plain one.
  *
  * ### Arbitrary colours
  *
@@ -63,13 +76,19 @@ import kotlin.math.roundToInt
  *
  * @param containerColour An explicit background. Overrides [tone]. The label colour is
  *   derived, not guessed.
+ * @param onClick What a press does, or `null`, the default, for a tag that is only
+ *   a label. Announced as a button with its text.
+ * @param enabled Whether a clickable tag takes presses. A disabled one keeps its
+ *   colours and dims its text.
  */
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     tone: Tone = Tone.Neutral,
     containerColour: Color = Color.Unspecified,
     shape: Shape = Theme.shapes.control,
+    onClick: (() -> Unit)? = null,
     /**
      * Overrides what the tag announces.
      *
@@ -78,10 +97,15 @@ fun Tag(
      * should expand — "PU" reading as "Perth Underground".
      */
     contentDescription: String? = null,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
     val container = if (containerColour != Color.Unspecified) containerColour else tagContainerFor(tone)
-    val contentColour = if (containerColour != Color.Unspecified) {
+    val clickable = onClick != null
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val contentColour = if (clickable && !enabled) {
+        Theme.colours.contentDisabled
+    } else if (containerColour != Color.Unspecified) {
         contentColourFor(
             background = containerColour,
             light = Theme.colours.onPrimary.takeIf { !Theme.colours.isDark } ?: Theme.colours.content,
@@ -93,6 +117,12 @@ fun Tag(
 
     Row(
         modifier = modifier
+            // Target first, then the visuals, as a chip does: reserve the room a
+            // finger needs, and draw the tag inside it.
+            .then(
+                if (clickable) Modifier.minimumTouchTarget().focusRing(interactions, shape, enabled = enabled)
+                else Modifier
+            )
             // Merged rather than described: a tag used to build its own
             // `contentDescription` from its `label`, and with the label in a slot
             // there is no string to build one from. Merging is the better answer
@@ -110,6 +140,19 @@ fun Tag(
             .then(
                 contrastEdge(tagBorderFor(tone))
                     ?.let { Modifier.border(it, shape) } ?: Modifier
+            )
+            .then(
+                if (onClick != null) {
+                    Modifier.pointerCursor(enabled = enabled).clickable(
+                        interactionSource = interactions,
+                        indication = kontourIndication(shape),
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                }
             )
             .padding(horizontal = 8.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),

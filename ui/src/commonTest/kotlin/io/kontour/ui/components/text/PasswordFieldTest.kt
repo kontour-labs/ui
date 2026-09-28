@@ -23,6 +23,10 @@ import androidx.compose.ui.platform.testTag
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Eye
 import com.composables.icons.tabler.outline.EyeOff
+import androidx.compose.runtime.CompositionLocalProvider
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -186,6 +190,32 @@ class PasswordFieldTest {
                 "typing four characters asked for the keyboard ${requests - onFocus} more " +
                     "times after focus ($onFocus) — each one is the keyboard hiding and coming back",
             )
+        }
+    }
+
+    /**
+     * The reveal toggle answers like the toggle it is — reported from a phone as
+     * the one toggle in the field that said nothing when pressed.
+     */
+    @Test
+    fun revealingPlaysATurnOn() {
+        val heard = mutableListOf<FeedbackIntent>()
+        runComposeUiTest {
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { heard += it }) {
+                        PasswordField(
+                            state = rememberTextFieldState(Secret),
+                            label = "Password",
+                            revealIcon = Tabler.Outline.Eye,
+                            hideIcon = Tabler.Outline.EyeOff,
+                        )
+                    }
+                }
+            }
+            onNodeWithContentDescription("Show password").performClick()
+            waitForIdle()
+            assertEquals(listOf(FeedbackIntent.ToggleOn), heard)
         }
     }
 

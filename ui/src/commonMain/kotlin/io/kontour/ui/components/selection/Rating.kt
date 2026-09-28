@@ -92,6 +92,12 @@ import kotlin.math.ceil
  *   the right half is whole, which is the only mapping anyone guesses right
  *   first time — and the halves divide the mark's whole 48dp target, not its
  *   glyph, so the half score is a 24dp-wide region rather than a 10dp one.
+ * @param allowZero Whether the score can be taken back to nothing. On by
+ *   default, as asked for from a phone: a rating with no way back to zero is one
+ *   a slip of the thumb commits the reader to. A tap on the score already given
+ *   clears it — decided when the finger lifts, so a drag that starts there still
+ *   drags — as does a drag carried off the start of the row, or choosing the
+ *   selected mark again from the keyboard. Off, the lowest score is one mark.
  * @param contentDescription What the score is *of* — "Your rating", "Average
  *   rating". Required: five stars with no name is a row of decoration.
  * @param onValueChange `null` for read-only. Receives whole numbers unless
@@ -114,6 +120,7 @@ fun Rating(
     enabled: Boolean = true,
     count: Int = RatingDefaults.Count,
     allowHalf: Boolean = false,
+    allowZero: Boolean = true,
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
     markSize: Dp = Theme.sizing.iconLarge,
@@ -181,13 +188,25 @@ fun Rating(
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
+    // Whether the gesture's press landed on the score already given — which,
+    // lifted without a drag, takes it back to zero. See `allowZero`.
+    var pressedOnScore = false
+
     fun setFromX(x: Float, press: Boolean) {
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
         val index = if (isRtl) count - 1 - nearest else nearest
         val within = ((x - markLeft[nearest]) / markWidth[nearest]).coerceIn(0f, 1f)
+        // Carried off the start of the row: before the first mark in reading
+        // order, which is its left in LTR and its right in RTL.
+        val offStart = if (isRtl) {
+            x > markLeft[count - 1] + markWidth[count - 1]
+        } else {
+            x < markLeft[0]
+        }
         val next = when {
+            allowZero && offStart -> 0f
             !allowHalf -> (index + 1).toFloat()
             // The left half of a mark is the half mark. Mirrored in RTL, where
             // "the left half" is the far side of the same star.
@@ -202,6 +221,7 @@ fun Rating(
             // changed the score.
             ticker.reset()
             ticker.at(detent)
+            pressedOnScore = next == currentValue && next > 0f
             if (next == currentValue) return
             tap()
         } else {
@@ -221,7 +241,7 @@ fun Rating(
             }
             .then(
                 if (enabled) {
-                    Modifier.pointerInput(count, allowHalf, isRtl) {
+                    Modifier.pointerInput(count, allowHalf, allowZero, isRtl) {
                         awaitEachGesture {
                             // Claimed on the down, on the initial pass, which
                             // travels parent to child — so the marks' own
@@ -242,6 +262,8 @@ fun Rating(
                             )
                             down.consume()
                             setFromX(down.position.x, press = true)
+                            var travel = Offset.Zero
+                            var lifted = false
 
                             while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -250,11 +272,23 @@ fun Rating(
                                 // reports zero for a change that has already
                                 // been consumed, so reading it afterwards is a
                                 // gesture that can never see any movement.
-                                val travelled = change.positionChange() != Offset.Zero
+                                val moved = change.positionChange()
                                 change.consume()
-                                if (!change.pressed) break
-                                if (travelled) setFromX(change.position.x, press = false)
+                                if (!change.pressed) {
+                                    lifted = true
+                                    break
+                                }
+                                travel += moved
+                                if (moved != Offset.Zero) setFromX(change.position.x, press = false)
                             }
+                            // A tap on the score already given, lifted where it
+                            // landed: take it back. Not decided on the press, so
+                            // a drag from the current score is a drag.
+                            if (allowZero && lifted && pressedOnScore && travel.getDistance() < viewConfiguration.touchSlop) {
+                                tap()
+                                currentChange(0f)
+                            }
+                            pressedOnScore = false
                             ticker.reset()
                             currentFinished?.invoke()
                         }
@@ -296,8 +330,11 @@ fun Rating(
                         // checkbox activated from the keyboard does — and neither
                         // answers the score it already has, as a radio does not.
                         onClick = {
-                            if (markValue.toFloat() != currentValue) tap()
-                            onValueChange(markValue.toFloat())
+                            // The selected mark again takes the score back, where
+                            // that is allowed — the keyboard's way to zero.
+                            val next = if (allowZero && markValue.toFloat() == currentValue) 0f else markValue.toFloat()
+                            if (next != currentValue) tap()
+                            onValueChange(next)
                             currentFinished?.invoke()
                         },
                         enabled = enabled,

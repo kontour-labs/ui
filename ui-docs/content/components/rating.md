@@ -39,12 +39,20 @@ on a half mark — the left half of a mark is `.5`, the right half is whole. Off
 default, because a rating that starts emitting `3.5` to callers who expected `4`
 is a change of contract rather than a nicety.
 
+**A score can be taken back to zero.** Tap the score already given and it clears —
+decided when the finger lifts, so a drag that starts there still drags — or carry
+a drag off the start of the row. `allowZero = false` keeps the lowest score at one
+mark, for a rating that has to be given. A quick double tap on a new score now
+sets it and then clears it, which is the one habit this changes.
+
 ---
 
 ## Accessibility
 
 Interactive, it is a `selectableGroup()` of `Role.RadioButton` marks — a rating
-is one of five, and that is what a screen reader should hear.
+is one of five, and that is what a screen reader should hear. Activating the
+selected mark again clears the score, which is how the keyboard and a screen
+reader reach zero; the score is then announced as "0 out of 5".
 
 Read-only, it is one node with a `stateDescription`: "4.3 out of 5". A read-only
 rating rendered as five separate stars would be five nodes announcing nothing

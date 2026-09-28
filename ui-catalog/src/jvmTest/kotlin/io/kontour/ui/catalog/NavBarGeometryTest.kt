@@ -391,6 +391,83 @@ class NavBarGeometryTest {
         )
     }
 
+    /**
+     * Without labels, each glyph is centred in its destination — and so under the
+     * marker, which is centred in the same target.
+     *
+     * Reported from a phone: the icons sat high in a label-less bar. The glyph
+     * column was top-aligned inside the 48dp touch target, so the 40dp circle
+     * had its 8dp of slack all underneath it while the marker, centred, sat 4dp
+     * lower. At the JVM's 24dp target there is no slack to put anywhere, so this
+     * asks for a phone's.
+     */
+    @Test
+    fun withoutLabelsTheGlyphIsCentredInItsTarget() {
+        val offsets = mutableListOf<Offset>()
+        runComposeUiTest {
+            setContent {
+                CompositionLocalProvider(LocalDensity provides Density(pixelsPerDp, 1f)) {
+                    KontourTheme(
+                        darkTheme = false,
+                        reduceMotion = true,
+                        sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = AndroidTouchTarget),
+                    ) {
+                        Box(Modifier.fillMaxSize().background(Color.White)) {
+                            NavBar(
+                                modifier = Modifier.testTag("bar"),
+                                showLabels = false,
+                                colours = NavDefaults.colours(
+                                    container = Color.White,
+                                    content = Color.Black,
+                                    indicator = Color.White,
+                                ),
+                            ) {
+                                destinations.forEachIndexed { index, label ->
+                                    item(
+                                        selected = index == 0,
+                                        onClick = {},
+                                        key = label,
+                                        icon = Tabler.Outline.Search,
+                                        contentDescription = label,
+                                    ) { +label }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+            val bar = onNodeWithTag("bar").fetchSemanticsNode().boundsInRoot
+            val pixels = onNodeWithTag("bar").captureToImage().toPixelMap()
+            // The two unselected destinations, drawn in plain `content` ink.
+            destinations.drop(1).forEach { label ->
+                val box = onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+                    .translate(-bar.left, -bar.top)
+                var top = Int.MAX_VALUE
+                var bottom = Int.MIN_VALUE
+                for (y in box.top.toInt().coerceAtLeast(0) until box.bottom.toInt()) {
+                    for (x in box.left.toInt().coerceAtLeast(0) until box.right.toInt()) {
+                        val c = pixels[x, y]
+                        if (c.red < Ink && c.green < Ink && c.blue < Ink) {
+                            top = minOf(top, y)
+                            bottom = maxOf(bottom, y)
+                        }
+                    }
+                }
+                assertTrue(top <= bottom, "$label drew no glyph to measure")
+                // The glyph's own vertical extent, centred against its target's.
+                offsets += Offset(0f, (top + bottom + 1) / 2f - box.center.y)
+            }
+        }
+        offsets.forEach {
+            assertTrue(
+                abs(it.y) <= 1.5f,
+                "a label-less glyph sits ${it.y / pixelsPerDp}dp off the middle of its 48dp target " +
+                    "(the marker is centred there) — the column is not centring it",
+            )
+        }
+    }
+
     @Test
     fun theActionSitsBesideTheDestinationsNotAmongThem() {
         // A 56dp FAB inside the bar's own shape left 4dp of air and read as jammed

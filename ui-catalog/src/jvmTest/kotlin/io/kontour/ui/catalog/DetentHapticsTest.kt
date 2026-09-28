@@ -2011,6 +2011,38 @@ class DetentHapticsTest {
         assertEquals(listOf(FeedbackIntent.Tap), fell(kotlin.time.Duration.parse("1s")), "a warning counter falling did not")
     }
 
+    /**
+     * The warning and its tap are one event: drops landing mid-wiggle are part of
+     * the warning already running, and a quick run of them used to buzz once each.
+     * `hapticWarning = false` keeps the warning to the eye.
+     */
+    @Test
+    fun aWarningTapsOnceHoweverManyDropsItCovers() {
+        fun fell(hapticWarning: Boolean): List<FeedbackIntent> {
+            val felt = mutableListOf<FeedbackIntent>()
+            var value by mutableStateOf(10)
+            Scene(width = 300, height = 200) {
+                Recording(felt) {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        AnimatedCounter(value = value, warnBefore = kotlin.time.Duration.parse("1s"), hapticWarning = hapticWarning)
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                // Three drops inside one second-long warning.
+                value = 9
+                scene.frames(4)
+                value = 8
+                scene.frames(4)
+                value = 7
+                scene.frames(4)
+            }
+            return felt
+        }
+        assertEquals(listOf(FeedbackIntent.Tap), fell(hapticWarning = true), "one warning, three drops")
+        assertEquals(emptyList(), fell(hapticWarning = false), "a warning asked not to be felt was")
+    }
+
     /** A row picked up and put straight back landed nowhere new: its long press, and nothing else. */
     @Test
     fun aReorderPutStraightBackIsOnlyItsLongPress() {
