@@ -150,7 +150,7 @@ fun NavSearch(
                 searchIcon = searchIcon,
                 onQuery = onQuery,
                 onSearch = onSearch,
-                shape = Theme.shapes.capsule,
+                shape = Theme.shapes.field,
             )
             results?.invoke(this)
         }
@@ -176,7 +176,11 @@ fun NavSearch(
             // The pill becomes the field: the capsule it leaves as ends where the
             // field is, in the field's colour, and the results come after.
             val morph = LocalNavMorph.current
-            SideEffect { morph?.targetColour = fieldColour }
+            val fieldShape = Theme.shapes.field
+            SideEffect {
+                morph?.targetColour = fieldColour
+                morph?.targetShape = fieldShape
+            }
 
             if (placement == NavExpandPlacement.AboveKeyboard) ResultsPanel(results, morph)
 
@@ -196,7 +200,7 @@ fun NavSearch(
                     searchIcon = searchIcon,
                     onQuery = onQuery,
                     onSearch = onSearch,
-                    shape = Theme.shapes.capsule,
+                    shape = Theme.shapes.field,
                 )
             }
 

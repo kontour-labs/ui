@@ -17,6 +17,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -125,6 +126,34 @@ class NavSearchMorphTest {
             last.capsule.contains(endIcon.center) && endIcon.right <= fieldWord.left && abs(endIcon.center.y - fieldWord.center.y) <= 1f,
             "the icon landed at $endIcon, not beside the field's placeholder at $fieldWord",
         )
+    }
+
+    /**
+     * The capsule is the bar's pill as it leaves and the field's shape as it
+     * arrives, and between the two on the way.
+     *
+     * Asked for from a phone: "can we make sure the shape remains consistent (or
+     * at least animates between the two shapes) during the morph? … a pill shape
+     * in the nav bar, and then animating to the standard text field's shape". It
+     * was drawn with circular corners half its height all the way, which matched
+     * neither end: the field stops rounding at 18dp, so the capsule landed as a
+     * pill on a field that is not one.
+     */
+    @Test
+    fun theShapeGoesFromThePillToTheField() = runComposeUiTest {
+        val drawn = mutableListOf<NavMorphDrawn>()
+        val state = bar(NavExpandPlacement.AboveKeyboard, reduceMotion = false) { drawn += it }
+        mainClock.autoAdvance = false
+        state.expand()
+        val opening = frames { drawn }
+        mainClock.autoAdvance = true
+        assertTrue(opening.size > 2, "nothing was drawn")
+        val first = opening.first()
+        val last = opening.last()
+        assertEquals(first.capsule.height / 2f, first.corner, 0.5f, "the capsule left as ${first.corner}px corners, not the pill it was")
+        val field = minOf(last.capsule.height / 2f, 18f * density.density)
+        assertEquals(field, last.corner, 0.5f, "the capsule landed with ${last.corner}px corners, not the field's $field")
+        assertTrue(last.capsule.height / 2f > field + 2f, "the field should be taller than its corners reach, or this proves nothing")
     }
 
     /**

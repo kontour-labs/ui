@@ -29,8 +29,10 @@ Escape, and trapped focus with it. `NavExpandPlacement` says where it lands:
 `AboveKeyboard`, near the thumb that opened it, or `Top`, where a browser puts one.
 
 **The pill becomes the field.** A capsule leaves the pill where it sits and grows
-into the field, taking on the field's shape and colour on the way, and it
-carries the pill's icon and word with it: they travel from where the pill drew
+into the field, taking on the field's colour on the way and its shape: it is
+the bar's pill as it leaves and the standard field shape (`Theme.shapes.field`)
+as it arrives, each corner blended between the two as it grows. It carries the
+pill's icon and word with it: they travel from where the pill drew
 them to where the field draws its own icon and placeholder, or the query once
 there is one. The field's contents fade in only once the capsule has landed,
 over those same parts in the same place, and the results after them. Going back

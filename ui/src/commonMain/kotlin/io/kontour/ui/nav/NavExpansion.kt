@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -36,13 +37,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -52,7 +53,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -77,8 +77,9 @@ import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Shadow
+import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
-import kotlin.math.min
+import io.kontour.ui.theme.lerpCorners
 
 /**
  * How much room a navigation surface is currently giving its slots.
@@ -308,9 +309,11 @@ fun NavExpandingSlot(
     val motion = Theme.motion
     val progress = remember { Animatable(if (expanded) 1f else 0f) }
     val morph = remember { NavMorph { progress.value } }
+    val controlShape = Theme.shapes.pill
     SideEffect {
         morph.reduced = motion.reduceMotion
         morph.easing = motion.standard
+        morph.controlShape = controlShape
     }
     LaunchedEffect(expanded, motion.reduceMotion) {
         progress.animateTo(
@@ -399,6 +402,15 @@ internal class NavMorph(private val progress: () -> Float) {
     var targetColour: Color = Color.Unspecified
 
     /**
+     * The control's shape and the target's: the capsule is each at its end and
+     * part-way between them on the way, so it is never a shape either of them is
+     * not. Null for the target where the panel names none, whose capsule ends as
+     * a rounded box.
+     */
+    var controlShape: CornerBasedShape? = null
+    var targetShape: CornerBasedShape? = null
+
+    /**
      * What the control carries into what it becomes, drawn on the capsule while
      * it travels. Null for a control that names nothing to carry, whose capsule
      * travels bare.
@@ -448,7 +460,7 @@ internal data class CarriedParts(
 )
 
 /** Where each part of a morph was drawn in one frame: for tests, which cannot see a drawing. */
-internal data class NavMorphDrawn(val capsule: Rect, val icon: Rect?, val word: Rect?)
+internal data class NavMorphDrawn(val capsule: Rect, val icon: Rect?, val word: Rect?, val corner: Float = 0f)
 
 /** The morph of the panel being composed, for what is in it to join in. */
 internal val LocalNavMorph = staticCompositionLocalOf<NavMorph?> { null }
@@ -465,7 +477,9 @@ internal val LocalNavMorphProbe = staticCompositionLocalOf<((NavMorphDrawn) -> U
 @Composable
 private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
     val fallback = Theme.colours.surface
-    val panelCorner = with(LocalDensity.current) { NavExpandingSlotDefaults.Margin.toPx() }
+    val pillShape = Theme.shapes.pill
+    // A panel with no field to become ends as a box rounded by the panel's margin.
+    val panelShape = remember { SquircleShape(NavExpandingSlotDefaults.Margin) }
     val probe = LocalNavMorphProbe.current
     val layer = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val carried = morph.carried
@@ -486,15 +500,25 @@ private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
                 val to = here.localBoundingBoxOf(target, clipBounds = false)
                 val g = morph.geometry
                 val rect = lerp(from, to, g)
-                val endCorner = if (morph.target != null) to.height / 2f else panelCorner
-                val corner = (from.height / 2f + (endCorner - from.height / 2f) * g).coerceAtMost(min(rect.width, rect.height) / 2f)
-                drawRoundRect(
-                    color = lerp(controlColour, morph.targetColour.takeOrElse { fallback }, g),
-                    topLeft = rect.topLeft,
-                    size = rect.size,
-                    cornerRadius = CornerRadius(corner),
-                    alpha = alpha,
-                )
+                // **The control's own shape at the start and the field's at the
+                // end, and part-way between them on the way**, each corner blended
+                // on the library's squircle. It used to be a round rectangle with
+                // circular corners half its height all the way, which was neither:
+                // the bar's control rounds to a squircle and a field stops rounding
+                // at 18dp, so the capsule changed shape at both ends — reported as
+                // wanting the shape to "remain consistent, or at least animate
+                // between the two".
+                val startShape = morph.controlShape ?: pillShape
+                val endShape = (if (morph.target != null) morph.targetShape else null) ?: panelShape
+                val shape = startShape.lerpCorners(endShape, g)
+                val outline = shape.createOutline(rect.size, layoutDirection, this)
+                translate(rect.left, rect.top) {
+                    drawOutline(
+                        outline = outline,
+                        color = lerp(controlColour, morph.targetColour.takeOrElse { fallback }, g),
+                        alpha = alpha,
+                    )
+                }
 
                 // The parts, over the capsule and inside it. Only where both ends
                 // are placed: a part with nowhere to go is left to the field's own
@@ -560,7 +584,7 @@ private fun MorphCapsule(morph: NavMorph, controlColour: Color) {
                         }
                     }
                 }
-                probe?.invoke(NavMorphDrawn(rect, iconAt, wordAt))
+                probe?.invoke(NavMorphDrawn(rect, iconAt, wordAt, shape.topStart.toPx(rect.size, this)))
             },
     )
 }
@@ -587,7 +611,9 @@ private fun CollapsedControl(
     content: @Composable RowContentScope.() -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.capsule
+    // A pill at any height, where `capsule` stops rounding at 18dp: it is the
+    // shape the capsule leaves as, and the one it comes home to.
+    val shape = Theme.shapes.pill
 
     Surface(
         modifier = modifier
