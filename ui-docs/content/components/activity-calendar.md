@@ -28,10 +28,17 @@ ActivityCalendar(
     end = today,
     showMonthLabels = false,
     showWeekdayLabels = false,
-    showLegend = false,
+    legend = ActivityLegend.None,
     colours = ActivityCalendarDefaults.colours(full = Theme.colours.info.solid),
 )
 ```
+
+**The legend** is `ActivityLegend.Steps` by default: "Less", a small square of
+every shade, "More". The squares are 10dp whatever size the cells are, so the key
+reads as a key rather than as another row of days. `ActivityLegend.Gradient`
+draws one bar blended through the same shades instead, for a scale that reads as
+a quantity rather than as a few kinds of day; it runs from empty at the start
+side, so it mirrors right to left. `ActivityLegend.None` leaves it out.
 
 ## The range
 
@@ -82,21 +89,20 @@ corners. The default shape is a small squircle, the library's own corner. Pass
 val holiday = Theme.colours.warning.solid
 // A mark draws on a day as well as its shade — a folded corner, an icon, a
 // count spelled out — and says in words what it means, for the tooltip and
-// the screen reader, which cannot see a corner.
+// the screen reader, which cannot see a corner. A day can have several.
 ActivityCalendar(
     activity = tripsByDay,
     end = LocalDate(2026, 6, 5),
-    markerFor = { date, count ->
-        when {
-            date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
-            date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
-            count >= 10 -> ActivityMark(text = "$count")
-            else -> null
-        }
+    marksFor = { date, count ->
+        listOfNotNull(
+            ActivityMark(corner = holiday, description = "Public holiday").takeIf { date in publicHolidays },
+            flights[date]?.let { ActivityMark(icon = Tabler.Outline.Plane, description = it) },
+            ActivityMark(text = "$count").takeIf { count >= 10 },
+        )
     },
 )
 ```
-`markerFor` draws on a day as well as its shade. An `ActivityMark` can have any
+`marksFor` draws on a day as well as its shade. An `ActivityMark` can have any
 of these, together:
 
 - **`corner`**: a dog-ear, the cell's top end corner folded over in a colour. For
@@ -107,10 +113,24 @@ of these, together:
 - **`dot`** and **`outline`**: a dot under the middle, a ring inside the edge.
 - **`fill`**: the cell's colour in place of its shade.
 
+**A day can have several marks.** `marksFor` returns a list, so a payday that is
+also a public holiday is two marks, not a third kind of mark that means both.
+They share the cell:
+
+| Part | With more than one |
+|---|---|
+| `corner` | Each folds a different corner: top end, then top start, bottom end, bottom start |
+| `dot` | In a row under the middle, smaller the more there are, up to four |
+| `icon` | Two side by side, a little smaller; three or more, the first and how many more ("+2") |
+| `text` | The first, and only on a day with no icon |
+| `outline` | A second ring inside the first |
+| `fill` | The first |
+
 **Say what a mark means in `description`.** It follows the day's count in the
 tooltip and in its week's words for a screen reader — "4 activities on Friday,
 5 June 2026. Public holiday" — because a corner or an icon is drawn, not
-announced. The marks are drawn in the same pass as the shades, so a year of them
+announced. Several are joined as a list in the reader's language: "Public
+holiday and Ferry to Rottnest". The marks are drawn in the same pass as the shades, so a year of them
 costs no more than a year without.
 
 ## Picking and reading a day
@@ -164,8 +184,8 @@ language. "Less", "More", the day's count and "Week of" come from the theme's
 strings and can be translated; the count takes its plural form from the
 reader's language too.
 
-At high contrast every day's cell, and every swatch in the legend, takes the
-tier's edge, so an empty day and the lightest shade are still squares rather than
+At high contrast every day's cell, and every swatch in the legend or its
+blended bar, takes the tier's edge, so an empty day and the lightest shade are still squares rather than
 gaps. The rings for today, the hovered day, the picked day, the keyboard's focus
 and a mark are all drawn from `Sizing`, and thicken with the tier, and the
 scrolling weeks do not fade at the edges.

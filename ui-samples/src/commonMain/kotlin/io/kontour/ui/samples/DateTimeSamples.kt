@@ -91,17 +91,16 @@ fun ActivityCalendarMarks() {
     val holiday = Theme.colours.warning.solid
     // A mark draws on a day as well as its shade — a folded corner, an icon, a
     // count spelled out — and says in words what it means, for the tooltip and
-    // the screen reader, which cannot see a corner.
+    // the screen reader, which cannot see a corner. A day can have several.
     ActivityCalendar(
         activity = tripsByDay,
         end = LocalDate(2026, 6, 5),
-        markerFor = { date, count ->
-            when {
-                date in publicHolidays -> ActivityMark(corner = holiday, description = "Public holiday")
-                date in flights -> ActivityMark(icon = Tabler.Outline.Plane, description = flights.getValue(date))
-                count >= 10 -> ActivityMark(text = "$count")
-                else -> null
-            }
+        marksFor = { date, count ->
+            listOfNotNull(
+                ActivityMark(corner = holiday, description = "Public holiday").takeIf { date in publicHolidays },
+                flights[date]?.let { ActivityMark(icon = Tabler.Outline.Plane, description = it) },
+                ActivityMark(text = "$count").takeIf { count >= 10 },
+            )
         },
     )
 }

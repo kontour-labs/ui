@@ -526,7 +526,15 @@ these change what an existing call does.
   at once. A drag that starts on a revealed action now moves the row, and the row
   gives past its last resting place instead of stopping dead.
 
+**Changed, and a call that names them stops compiling:**
+
+| Before | After |
+|---|---|
+| `ActivityCalendar(showLegend = false)` | `ActivityCalendar(legend = ActivityLegend.None)`; `true` is the default, `ActivityLegend.Steps` |
+| `ActivityCalendar(markerFor = { d, n -> mark })` returning `ActivityMark?` | `marksFor = { d, n -> listOfNotNull(mark) }`, returning a list: a day can have several |
+
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
+`ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;
 `SwipeActions(tapConfirmation)`;
 `AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with

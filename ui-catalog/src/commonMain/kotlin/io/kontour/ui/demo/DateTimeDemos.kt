@@ -24,6 +24,7 @@ import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityLegend
 import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.ActivityCalendarDefaults
 import io.kontour.ui.components.datetime.ActivityLevels
@@ -251,9 +252,14 @@ private val activityMonths = Knob.Flag("Month labels", initial = true)
 
 private val activityWeekdays = Knob.Flag("Weekday labels", initial = true)
 
-private val activityLegend = Knob.Flag("Legend", initial = true)
+/** What the shades mean, under the grid: a square of each, one blended bar, or nothing. */
+private val activityLegend = Knob.Choice("Legend", ActivityLegend.entries, ActivityLegend.Steps)
 
-/** Days decorated as well as shaded: holidays folded over, trips with an icon, busy days counted. */
+/**
+ * Days decorated as well as shaded: holidays folded over, trips with an icon, busy
+ * days counted — and with "All", every one that applies, so a holiday spent
+ * travelling carries both.
+ */
 private val activityMarks = Knob.Choice("Marks", listOf("None", "Holidays", "Trips", "Busy days", "All"))
 
 /** Western Australia's public holidays in the demo's year. */
@@ -265,6 +271,8 @@ private val holidays = listOf(
 
 /** Days away, with a plane on them. */
 private val trips = mapOf(
+    // A holiday as well: under "All" it carries a folded corner and a plane.
+    LocalDate(2026, 1, 26) to "Ferry to Rottnest",
     LocalDate(2026, 2, 13) to "Flight to Sydney",
     LocalDate(2026, 2, 17) to "Flight home",
     LocalDate(2026, 5, 8) to "Flight to Broome",
@@ -301,21 +309,20 @@ internal val ActivityCalendarDemo = ComponentDemo(
         ),
         showMonthLabels = this[activityMonths],
         showWeekdayLabels = this[activityWeekdays],
-        showLegend = this[activityLegend],
-        markerFor = if (marks == "None") {
+        legend = this[activityLegend],
+        marksFor = if (marks == "None") {
             null
         } else {
             { date, count ->
                 val all = marks == "All"
-                when {
-                    (all || marks == "Holidays") && date in holidays ->
-                        ActivityMark(corner = holidayColour, description = "Public holiday")
-                    (all || marks == "Trips") && date in trips ->
-                        ActivityMark(icon = Tabler.Outline.Plane, fill = tripColour, description = trips.getValue(date))
-                    (all || marks == "Busy days") && count >= 8 ->
-                        ActivityMark(text = "$count", description = "A busy day")
-                    else -> null
-                }
+                listOfNotNull(
+                    ActivityMark(corner = holidayColour, description = "Public holiday")
+                        .takeIf { (all || marks == "Holidays") && date in holidays },
+                    trips[date]?.takeIf { all || marks == "Trips" }
+                        ?.let { ActivityMark(icon = Tabler.Outline.Plane, fill = tripColour, description = it) },
+                    ActivityMark(text = "$count", description = "A busy day")
+                        .takeIf { (all || marks == "Busy days") && count >= 8 },
+                )
             }
         },
     )

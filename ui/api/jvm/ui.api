@@ -393,7 +393,16 @@ public final class io/kontour/ui/components/datetime/ActivityCalendarDefaults {
 }
 
 public final class io/kontour/ui/components/datetime/ActivityCalendarKt {
-	public static final fun ActivityCalendar-1_yWA4Y (Ljava/util/Map;Lkotlinx/datetime/LocalDate;Landroidx/compose/ui/Modifier;ZILkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function2;Lio/kontour/ui/components/datetime/ActivityLevels;Lio/kontour/ui/components/datetime/ActivityCalendarColours;FFLandroidx/compose/ui/graphics/Shape;ZZZLio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function2;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun ActivityCalendar-1_yWA4Y (Ljava/util/Map;Lkotlinx/datetime/LocalDate;Landroidx/compose/ui/Modifier;ZILkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function2;Lio/kontour/ui/components/datetime/ActivityLevels;Lio/kontour/ui/components/datetime/ActivityCalendarColours;FFLandroidx/compose/ui/graphics/Shape;ZZLio/kontour/ui/components/datetime/ActivityLegend;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function2;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
+}
+
+public final class io/kontour/ui/components/datetime/ActivityLegend : java/lang/Enum {
+	public static final field Gradient Lio/kontour/ui/components/datetime/ActivityLegend;
+	public static final field None Lio/kontour/ui/components/datetime/ActivityLegend;
+	public static final field Steps Lio/kontour/ui/components/datetime/ActivityLegend;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/datetime/ActivityLegend;
+	public static fun values ()[Lio/kontour/ui/components/datetime/ActivityLegend;
 }
 
 public abstract interface class io/kontour/ui/components/datetime/ActivityLevels {

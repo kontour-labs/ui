@@ -1027,11 +1027,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 weeks = 10,
                 today = end,
-                markerFor = { date, _ ->
+                marksFor = { date, _ ->
                     when (date) {
-                        holiday -> ActivityMark(corner = warning, description = "Public holiday")
-                        end.minus(DatePeriod(days = 10)) -> ActivityMark(dot = info, description = "Trip")
-                        else -> null
+                        holiday -> listOf(ActivityMark(corner = warning, description = "Public holiday"))
+                        end.minus(DatePeriod(days = 10)) -> listOf(ActivityMark(dot = info, description = "Trip"))
+                        else -> emptyList()
                     }
                 },
             )

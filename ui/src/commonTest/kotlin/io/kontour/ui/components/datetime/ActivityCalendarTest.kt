@@ -182,7 +182,7 @@ class ActivityCalendarTest {
                 OverlayHost {
                     Calendar(
                         onDayClick = {},
-                        markerFor = { date, _ -> if (date == end) ActivityMark(corner = Color.Red, description = "Payday") else null },
+                        marksFor = { date, _ -> if (date == end) listOf(ActivityMark(corner = Color.Red, description = "Payday")) else emptyList() },
                     )
                 }
             }
@@ -192,6 +192,32 @@ class ActivityCalendarTest {
         waitForIdle()
         onNodeWithText("4 activities on Friday, 5 June 2026. Payday").assertExists()
         onNode(hasContentDescription("Payday", substring = true)).assertExists()
+    }
+
+    /** Several marks on one day are said together, and share the cell. */
+    @Test
+    fun severalMarksCombine() {
+        val plane = io.kontour.ui.foundation.SystemIcons.Close
+        val combined = requireNotNull(
+            combineMarks(
+                listOf(
+                    ActivityMark(corner = Color.Red, description = "Public holiday"),
+                    ActivityMark(icon = plane, text = "9", description = "Ferry to Rottnest"),
+                    ActivityMark(icon = plane, corner = Color.Blue),
+                    ActivityMark(icon = plane, fill = Color.Green),
+                ),
+                joined = { it.joinToString(" and ") },
+                more = { "+$it" },
+            ),
+        )
+        assertEquals("Public holiday and Ferry to Rottnest", combined.description)
+        assertEquals(listOf(Color.Red, Color.Blue), combined.corners)
+        assertEquals(1, combined.icons.size, "three icons draw the first")
+        assertEquals("+2", combined.text, "and how many more, in place of any text")
+        assertEquals(Color.Green, combined.fill)
+        assertEquals(null, combineMarks(emptyList(), { "" }, { "" }))
+        val words = requireNotNull(combineMarks(listOf(ActivityMark(text = "12"), ActivityMark(text = "x")), { "" }, { "" }))
+        assertEquals("12", words.text, "with no icon, the first text")
     }
 
     /** Left to fit, the cells are big enough to pick: 20dp at least, so 24dp with the gap. */
@@ -207,7 +233,7 @@ class ActivityCalendarTest {
                         weeks = 53,
                         showWeekdayLabels = false,
                         showMonthLabels = false,
-                        showLegend = false,
+                        legend = ActivityLegend.None,
                     )
                 }
             }
@@ -221,7 +247,7 @@ class ActivityCalendarTest {
     @androidx.compose.runtime.Composable
     private fun Calendar(
         selected: LocalDate? = null,
-        markerFor: ((LocalDate, Int) -> ActivityMark?)? = null,
+        marksFor: ((LocalDate, Int) -> List<ActivityMark>)? = null,
         onDayClick: (LocalDate) -> Unit,
     ) {
         ActivityCalendar(
@@ -230,11 +256,11 @@ class ActivityCalendarTest {
             weeks = 8,
             selected = selected,
             onDayClick = onDayClick,
-            markerFor = markerFor,
+            marksFor = marksFor,
             cellSize = 12.dp,
             showMonthLabels = false,
             showWeekdayLabels = false,
-            showLegend = false,
+            legend = ActivityLegend.None,
             formats = LocaleFormats.english(),
         )
     }

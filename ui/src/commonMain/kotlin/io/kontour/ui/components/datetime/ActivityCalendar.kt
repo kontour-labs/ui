@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Outline
@@ -155,6 +156,14 @@ data class ActivityCalendarColours(
  * corner, a trip's icon, a count spelled out on a busy day. Any of the parts
  * can be combined; leave out the ones a day does not need.
  *
+ * **A day can have several.** A payday that is also a public holiday is two
+ * marks, not a third that means both. They share the cell: each corner folds a
+ * different corner — top end, then top start, bottom end, bottom start — dots
+ * sit in a row and shrink to fit, two icons sit side by side a little smaller,
+ * and three or more show the first and how many more. [text] is drawn only on a
+ * day with no icon. A second outline sits inside the first, the first [fill] is
+ * the cell's, and every [description] is said, joined as a list.
+ *
  * @param icon A glyph in the middle of the cell, about three fifths its size.
  * @param text A few characters in the middle of the cell — a count, a letter —
  *   drawn small, and smaller still if they would not fit. Ignored with [icon].
@@ -178,6 +187,21 @@ data class ActivityMark(
     val contentColour: Color = Color.Unspecified,
     val description: String? = null,
 )
+
+/** What an [ActivityCalendar] shows under its grid to say what the shades mean. */
+enum class ActivityLegend {
+    /** Nothing. */
+    None,
+
+    /** "Less", a small square of every shade, "More". */
+    Steps,
+
+    /**
+     * "Less", one bar blended through the shades, "More": for a scale that reads
+     * as a quantity rather than as a few kinds of day.
+     */
+    Gradient,
+}
 
 /** What an [ActivityCalendar] takes by default. */
 object ActivityCalendarDefaults {
@@ -246,7 +270,7 @@ object ActivityCalendarDefaults {
  *     end = today,
  *     showMonthLabels = false,
  *     showWeekdayLabels = false,
- *     showLegend = false,
+ *     legend = ActivityLegend.None,
  *     colours = ActivityCalendarDefaults.colours(full = Theme.colours.info.solid),
  * )
  * ```
@@ -268,8 +292,9 @@ object ActivityCalendarDefaults {
  *
  * ### Marks
  *
- * [markerFor] decorates days: a corner folded over for a holiday, an icon for a
- * trip, a count written out on a busy day. See [ActivityMark].
+ * [marksFor] decorates days: a corner folded over for a holiday, an icon for a
+ * trip, a count written out on a busy day — and more than one on the same day.
+ * See [ActivityMark].
  *
  * ### Touch, pointer and keys
  *
@@ -291,8 +316,8 @@ object ActivityCalendarDefaults {
  * @param onDayClick Makes the days pickable. Without it the calendar is a picture
  *   with tooltips.
  * @param today Drawn with an inner ring.
- * @param markerFor What to draw on a day besides its shade, given its date and
- *   count, or null for nothing. Asked once per day shown.
+ * @param marksFor What to draw on a day besides its shade, given its date and
+ *   count: nothing, one mark, or several. Asked once per day shown.
  * @param levels How counts become shades.
  * @param colours The shades, labels and rings.
  * @param cellSize A fixed cell size. Unspecified fits the width.
@@ -300,7 +325,8 @@ object ActivityCalendarDefaults {
  * @param cellShape Each cell's shape.
  * @param showMonthLabels Month names along the top.
  * @param showWeekdayLabels Mon, Wed and Fri down the start side.
- * @param showLegend "Less", the shades, "More", under the grid.
+ * @param legend What the shades mean, under the grid: small squares of each, a
+ *   bar blended through them, or nothing.
  * @param formats Names the days, for the tooltip and the screen reader.
  * @param firstDayOfWeek The day each column starts on.
  * @param describe What a day says, given its count.
@@ -317,7 +343,7 @@ fun ActivityCalendar(
     selected: LocalDate? = null,
     onDayClick: ((LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
-    markerFor: ((date: LocalDate, count: Int) -> ActivityMark?)? = null,
+    marksFor: ((date: LocalDate, count: Int) -> List<ActivityMark>)? = null,
     levels: ActivityLevels = ActivityLevels.Quantiles,
     colours: ActivityCalendarColours = ActivityCalendarDefaults.colours(),
     cellSize: Dp = Dp.Unspecified,
@@ -325,7 +351,7 @@ fun ActivityCalendar(
     cellShape: Shape = ActivityCalendarDefaults.CellShape,
     showMonthLabels: Boolean = true,
     showWeekdayLabels: Boolean = true,
-    showLegend: Boolean = true,
+    legend: ActivityLegend = ActivityLegend.Steps,
     formats: LocaleFormats = Theme.formats,
     firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
     describe: (date: LocalDate, count: Int) -> String = ActivityCalendarDefaults.describe(formats),
@@ -347,13 +373,20 @@ fun ActivityCalendar(
         }
     }
 
-    // Each shown day's mark, in the same order as the shades.
-    val marks = remember(activity, grid, markerFor) {
-        if (markerFor == null) {
+    // Each shown day's marks, combined, in the same order as the shades.
+    val strings = Theme.strings
+    val marks = remember(activity, grid, marksFor, formats, strings) {
+        if (marksFor == null) {
             null
         } else {
             Array(columns * 7) { index ->
-                grid.dateAt(index / 7, index % 7)?.let { markerFor(it, activity[it] ?: 0) }
+                grid.dateAt(index / 7, index % 7)?.let { date ->
+                    combineMarks(
+                        marksFor(date, activity[date] ?: 0),
+                        joined = { formats.list(it) },
+                        more = { strings.moreCount(formats.quantity(it.toLong())) },
+                    )
+                }
             }
         }
     }
@@ -361,12 +394,13 @@ fun ActivityCalendar(
     // same lambda from one composition to the next and is not rebuilt, month
     // labels re-shaped and all, whenever anything else here recomposes.
     val painters = remember { HashMap<ImageVector, VectorPainter>() }
-    marks?.mapNotNullTo(LinkedHashSet()) { it?.icon }?.forEach { icon ->
+    marks?.flatMapTo(LinkedHashSet()) { it?.icons.orEmpty() }?.forEach { icon ->
         key(icon) { painters[icon] = rememberVectorPainter(icon) }
     }
     fun say(date: LocalDate, count: Int): String {
         val words = describe(date, count)
-        val meaning = markerFor?.invoke(date, count)?.description ?: return words
+        val meaning = grid.cellOf(date)?.let { (column, row) -> marks?.get(column * 7 + row)?.description }
+            ?: return words
         return "$words. $meaning"
     }
 
@@ -378,7 +412,6 @@ fun ActivityCalendar(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val rtl = layoutDirection == LayoutDirection.Rtl
-    val strings = Theme.strings
     val interactive = enabled && onDayClick != null
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val ringVisible = rememberFocusRingVisible(interactions)
@@ -630,20 +663,23 @@ fun ActivityCalendar(
                                 fun leftOf(column: Int): Float = if (rtl) width - column * step - size else column * step
                                 val cellPath = Path().apply { addOutline(outline) }
                                 val ear = size * DogEarShare
-                                val dogEar = Path().apply {
-                                    // The top end corner: right, or left right to left.
-                                    val edge = if (rtl) 0f else size
-                                    val inward = if (rtl) ear else size - ear
-                                    moveTo(inward, 0f)
-                                    lineTo(edge, 0f)
-                                    lineTo(edge, ear)
-                                    close()
-                                }
-                                val iconSize = size * MarkIconShare
-                                val markTexts = marks?.mapNotNullTo(LinkedHashSet()) { it?.text }?.associateWith { text ->
-                                    val room = size - MarkTextPadding.toPx() * 2
+                                // The corners, in the order a day's marks take them:
+                                // top end, top start, bottom end, bottom start.
+                                val dogEars = listOf(true to true, true to false, false to true, false to false)
+                                    .map { (top, atEnd) ->
+                                        val right = atEnd != rtl
+                                        val x = if (right) size else 0f
+                                        val y = if (top) 0f else size
+                                        Path().apply {
+                                            moveTo(x + if (right) -ear else ear, y)
+                                            lineTo(x, y)
+                                            lineTo(x, y + if (top) ear else -ear)
+                                            close()
+                                        }
+                                    }
+                                fun fitted(text: String, room: Float): TextLayoutResult {
                                     val natural = measurer.measure(text, labelStyle, maxLines = 1, softWrap = false)
-                                    if (natural.size.width <= room || natural.size.width == 0) {
+                                    return if (natural.size.width <= room || natural.size.width == 0) {
                                         natural
                                     } else {
                                         measurer.measure(
@@ -653,12 +689,21 @@ fun ActivityCalendar(
                                             softWrap = false,
                                         )
                                     }
-                                }.orEmpty()
-                                val markRing = cellShape.createOutline(
-                                    Size(size - MarkRingInset.toPx() * 2, size - MarkRingInset.toPx() * 2),
-                                    layoutDirection,
-                                    this,
+                                }
+                                val padding = MarkTextPadding.toPx()
+                                // A day's text has the cell; the "+2" after an icon has
+                                // the half of it the icon leaves.
+                                val markTexts = marks?.mapNotNullTo(LinkedHashSet()) { day -> day?.text?.let { it to day.icons.isNotEmpty() } }
+                                    ?.associateWith { (text, beside) ->
+                                        fitted(text, if (beside) size / 2f - padding else size - padding * 2)
+                                    }.orEmpty()
+                                fun ringInset(by: Float) = cellShape.createOutline(
+                                    Size(size - by * 2, size - by * 2), layoutDirection, this,
                                 )
+                                val markRings = listOf(
+                                    MarkRingInset.toPx(),
+                                    MarkRingInset.toPx() + markStroke + OneDp.toPx(),
+                                ).map { it to ringInset(it) }
 
                                 onDrawBehind {
                                     months.forEach { (column, text) ->
@@ -678,9 +723,10 @@ fun ActivityCalendar(
                                                     drawOutline(outline, edge.brush, style = Stroke(edge.width.toPx()))
                                                 }
                                                 if (mark != null) {
-                                                    drawMark(
-                                                        mark, size, ground, cellPath, dogEar, markRing,
-                                                        painters[mark.icon], iconSize, mark.text?.let { markTexts[it] },
+                                                    drawMarks(
+                                                        mark, size, ground, rtl, cellPath, dogEars, markRings,
+                                                        mark.icons.map { painters.getValue(it) },
+                                                        mark.text?.let { markTexts[it to mark.icons.isNotEmpty()] },
                                                         markStroke,
                                                     )
                                                 }
@@ -718,12 +764,13 @@ fun ActivityCalendar(
                     }
                 }
             }
-            if (showLegend) {
+            if (legend != ActivityLegend.None) {
                 Legend(
                     modifier = Modifier.align(Alignment.End).padding(top = labelSpace),
+                    style = legend,
                     colours = colours,
-                    cell = cell,
                     gap = cellGap,
+                    wordGap = labelSpace,
                     shape = cellShape,
                     less = strings.activityLess,
                     more = strings.activityMore,
@@ -818,7 +865,7 @@ private fun WeekNode(
     week: Int,
     grid: ActivityGrid,
     activity: Map<LocalDate, Int>,
-    marks: Array<ActivityMark?>?,
+    marks: Array<DayMarks?>?,
     formats: LocaleFormats,
     weekOf: (String) -> String,
     sentences: (List<String>) -> String,
@@ -861,36 +908,103 @@ private fun WeekNode(
     )
 }
 
-/** One day's [ActivityMark], drawn over its cell's ground at the cell's top left. */
-private fun DrawScope.drawMark(
-    mark: ActivityMark,
+/**
+ * A day's marks, combined: what the grid draws on the cell and the words said
+ * for them. See [ActivityMark] for how several share one cell.
+ */
+@Immutable
+internal class DayMarks(
+    val corners: List<Color>,
+    val dots: List<Color>,
+    val outlines: List<Color>,
+    val fill: Color,
+    /** One or two, drawn; a third or more shows as [text]. */
+    val icons: List<ImageVector>,
+    /** The day's text with no icon, or how many icons more with them: "+2". */
+    val text: String?,
+    val contentColour: Color,
+    val description: String?,
+)
+
+/**
+ * [marks] as one day's drawing, or null if there are none. [joined] writes the
+ * descriptions as a list; [more] how many icons did not fit.
+ */
+internal fun combineMarks(
+    marks: List<ActivityMark>,
+    joined: (List<String>) -> String,
+    more: (Int) -> String,
+): DayMarks? {
+    if (marks.isEmpty()) return null
+    val icons = marks.mapNotNull { it.icon }
+    return DayMarks(
+        corners = marks.map { it.corner }.filter { it.isSpecified }.take(MaxCorners),
+        dots = marks.map { it.dot }.filter { it.isSpecified }.take(MaxDots),
+        outlines = marks.map { it.outline }.filter { it.isSpecified }.take(MaxOutlines),
+        fill = marks.firstOrNull { it.fill.isSpecified }?.fill ?: Color.Unspecified,
+        icons = if (icons.size <= 2) icons else icons.take(1),
+        text = when {
+            icons.size > 2 -> more(icons.size - 1)
+            icons.isNotEmpty() -> null
+            else -> marks.firstNotNullOfOrNull { it.text }
+        },
+        contentColour = marks.firstOrNull { it.contentColour.isSpecified }?.contentColour ?: Color.Unspecified,
+        description = marks.mapNotNull { it.description }.takeIf { it.isNotEmpty() }?.let(joined),
+    )
+}
+
+/** One day's [DayMarks], drawn over its cell's ground at the cell's top left. */
+private fun DrawScope.drawMarks(
+    mark: DayMarks,
     size: Float,
     ground: Color,
+    rtl: Boolean,
     cell: Path,
-    dogEar: Path,
-    ring: Outline,
-    painter: VectorPainter?,
-    iconSize: Float,
+    dogEars: List<Path>,
+    rings: List<Pair<Float, Outline>>,
+    painters: List<VectorPainter>,
     text: TextLayoutResult?,
     ringStroke: Float,
 ) {
-    if (mark.corner.isSpecified) clipPath(cell) { drawPath(dogEar, mark.corner) }
-    if (mark.dot.isSpecified) {
-        val radius = size * MarkDotShare
-        drawCircle(mark.dot, radius, Offset(size / 2f, size - radius - size * MarkDotLift))
+    mark.corners.forEachIndexed { k, colour -> clipPath(cell) { drawPath(dogEars[k], colour) } }
+    if (mark.dots.isNotEmpty()) {
+        // In a row, smaller the more there are, from the start side.
+        val radius = size * MarkDotShare * DotShrink[mark.dots.size - 1]
+        val pitch = radius * DotPitch
+        val y = size - size * MarkDotShare - size * MarkDotLift
+        val first = size / 2f - pitch * (mark.dots.size - 1) / 2f
+        mark.dots.forEachIndexed { k, colour ->
+            val along = first + pitch * k
+            drawCircle(colour, radius, Offset(if (rtl) size - along else along, y))
+        }
     }
-    if (mark.outline.isSpecified) {
-        val inset = MarkRingInset.toPx()
-        translate(inset, inset) { drawOutline(ring, mark.outline, style = Stroke(ringStroke)) }
+    mark.outlines.forEachIndexed { k, colour ->
+        val (inset, ring) = rings[k]
+        translate(inset, inset) { drawOutline(ring, colour, style = Stroke(ringStroke)) }
     }
     val content = mark.contentColour.takeIf { it.isSpecified } ?: contentColourFor(ground)
-    if (painter != null) {
-        val at = (size - iconSize) / 2f
-        translate(at, at) {
-            with(painter) { draw(Size(iconSize, iconSize), colorFilter = ColorFilter.tint(content)) }
+    fun icon(painter: VectorPainter, side: Float, centreX: Float) {
+        translate(centreX - side / 2f, (size - side) / 2f) {
+            with(painter) { draw(Size(side, side), colorFilter = ColorFilter.tint(content)) }
         }
-    } else if (text != null) {
-        drawText(
+    }
+    // The start half and the end half of the cell, whichever side the start is.
+    val startHalf = if (rtl) size * 3f / 4f else size / 4f
+    val endHalf = size - startHalf
+    when {
+        painters.size == 1 && text == null -> icon(painters[0], size * MarkIconShare, size / 2f)
+        painters.size == 2 -> {
+            val side = size * PairedIconShare
+            icon(painters[0], side, startHalf)
+            icon(painters[1], side, endHalf)
+        }
+        painters.size == 1 -> {
+            icon(painters[0], size * PairedIconShare, startHalf)
+            if (text != null) {
+                drawText(text, content, topLeft = Offset(endHalf - text.size.width / 2f, (size - text.size.height) / 2f))
+            }
+        }
+        text != null -> drawText(
             text,
             content,
             topLeft = Offset((size - text.size.width) / 2f, (size - text.size.height) / 2f),
@@ -899,8 +1013,11 @@ private fun DrawScope.drawMark(
 }
 
 /**
- * "Less", a cell of every shade, "More". Hidden from screen readers, which hear
- * the counts instead.
+ * "Less", the shades, "More" — as a small square of each, or one bar blended
+ * through them. Hidden from screen readers, which hear the counts instead.
+ *
+ * Its squares are 10dp whatever the cells are: a key to the shades, not a row of
+ * days — at the size of the cells it read as part of the grid.
  *
  * Laid out rather than a `Row`, so that in a width too narrow for all of it the
  * words go first and then the whole legend, rather than running past the
@@ -909,9 +1026,10 @@ private fun DrawScope.drawMark(
 @Composable
 private fun Legend(
     modifier: Modifier,
+    style: ActivityLegend,
     colours: ActivityCalendarColours,
-    cell: Dp,
     gap: Dp,
+    wordGap: Dp,
     shape: Shape,
     less: String,
     more: String,
@@ -922,11 +1040,22 @@ private fun Legend(
     Layout(
         content = {
             Text(less, colour = colours.label, style = Theme.typography.labelSmall, maxLines = 1)
-            colours.levels.forEach { shade ->
-                Canvas(Modifier.size(cell)) {
+            if (style == ActivityLegend.Gradient) {
+                val length = LegendSwatch * colours.levels.size + gap * (colours.levels.size - 1)
+                Canvas(Modifier.size(length, LegendSwatch)) {
                     val outline = shape.createOutline(size, layoutDirection, this)
-                    drawOutline(outline, shade)
+                    // From empty at the start, whichever side the start is.
+                    val stops = if (layoutDirection == LayoutDirection.Rtl) colours.levels.reversed() else colours.levels
+                    drawOutline(outline, Brush.horizontalGradient(stops))
                     if (edge != null) drawOutline(outline, edge.brush, style = Stroke(edge.width.toPx()))
+                }
+            } else {
+                colours.levels.forEach { shade ->
+                    Canvas(Modifier.size(LegendSwatch)) {
+                        val outline = shape.createOutline(size, layoutDirection, this)
+                        drawOutline(outline, shade)
+                        if (edge != null) drawOutline(outline, edge.brush, style = Stroke(edge.width.toPx()))
+                    }
                 }
             }
             Text(more, colour = colours.label, style = Theme.typography.labelSmall, maxLines = 1)
@@ -934,21 +1063,26 @@ private fun Legend(
         modifier = modifier.clearAndSetSemantics {},
     ) { measurables, constraints ->
         val space = gap.roundToPx()
+        val wordSpace = wordGap.roundToPx()
         val all = measurables.map { it.measure(Constraints()) }
         val swatches = all.subList(1, all.lastIndex)
         fun span(parts: List<Placeable>) =
             parts.sumOf { it.width } + space * (parts.size - 1).coerceAtLeast(0)
+        val words = all.first().width + all.last().width + (wordSpace - space) * 2 + space * 2
         val shown = when {
-            span(all) <= constraints.maxWidth -> all
+            span(swatches) + words <= constraints.maxWidth -> all
             span(swatches) <= constraints.maxWidth -> swatches
             else -> emptyList()
         }
+        val withWords = shown.size == all.size
+        val width = span(shown) + if (withWords) (wordSpace - space) * 2 else 0
         val height = shown.maxOfOrNull { it.height } ?: 0
-        layout(span(shown).coerceAtLeast(0), height) {
+        layout(width.coerceAtLeast(0), height) {
             var x = 0
-            shown.forEach {
-                it.placeRelative(x, (height - it.height) / 2)
-                x += it.width + space
+            shown.forEachIndexed { k, part ->
+                part.placeRelative(x, (height - part.height) / 2)
+                val word = withWords && (k == 0 || k == shown.lastIndex - 1)
+                x += part.width + if (word) wordSpace else space
             }
         }
     }
@@ -981,10 +1115,26 @@ private val OneDp: Dp = 1.dp
 /** A mark's parts, as shares of the cell they are drawn on. */
 private const val DogEarShare: Float = 0.42f
 private const val MarkIconShare: Float = 0.6f
+/** Two icons side by side, or one beside a count of the rest. */
+private const val PairedIconShare: Float = 0.42f
 private const val MarkDotShare: Float = 0.1f
 private const val MarkDotLift: Float = 0.1f
 private val MarkTextPadding: Dp = 2.dp
 private val MarkRingInset: Dp = 2.dp
+
+/** How many of each part one day draws: a corner each, a row of dots, a ring inside a ring. */
+private const val MaxCorners: Int = 4
+private const val MaxDots: Int = 4
+private const val MaxOutlines: Int = 2
+
+/** A dot's size with one, two, three and four in the row. */
+private val DotShrink: FloatArray = floatArrayOf(1f, 0.85f, 0.72f, 0.62f)
+
+/** From one dot's centre to the next, in radii. */
+private const val DotPitch: Float = 2.6f
+
+/** A legend's squares, and its bar's height. */
+private val LegendSwatch: Dp = 10.dp
 
 /** How far along from empty to full the first shade starts. */
 private const val LevelFloor: Float = 0.3f
