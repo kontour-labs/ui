@@ -164,16 +164,19 @@ fun AnimatedCounter(
      */
     warnBefore: Duration = Duration.ZERO,
     /**
-     * Whether a warning is felt as well as seen: one light tap as the digits
-     * start to shake, once per warning. Only matters with a [warnBefore].
+     * Whether a warning is felt as well as seen: a light tap as the digits start
+     * to shake, and a full one as the number they warned of lands — once each
+     * per warning. Only matters with a [warnBefore].
      *
      * On by default, because a number that warns is one the reader may be about
-     * to act on — a seat count, a time remaining — and the tap is what reaches a
+     * to act on — a seat count, a time remaining — and the taps are what reach a
      * reader who is not looking. It used to tap on *every* drop of such a
      * counter, including the ones that landed mid-wiggle, so a quick run of
-     * drops buzzed once each through a single warning; now the warning and the
-     * tap are one event. Under reduced motion, where nothing shakes, it taps at
-     * the drop instead.
+     * drops buzzed once each through a single warning; now a warning is felt
+     * where it starts and where it ends, however many drops it covers. A rise
+     * that cuts a warning short lands without the second tap: it is not the
+     * news the first one warned of. Under reduced motion, where nothing shakes,
+     * it taps once, at the drop.
      */
     hapticWarning: Boolean = true,
     contentDescription: String? = null,
@@ -218,19 +221,22 @@ fun AnimatedCounter(
             }
             // Down is the one direction worth reporting, and only on a counter
             // that warns: a number that falls there is a seat count or a time
-            // remaining the reader may be about to act on. Once per warning — a
-            // drop landing mid-wiggle is part of the warning already running.
-            // It used to report every fall on every counter: a seconds countdown
-            // buzzed once a second, and a `Stepper`'s own counter answered its
-            // minus button a second time.
-            if (felt) tap()
+            // remaining the reader may be about to act on. Light as the shaking
+            // starts, and the full tap as the number lands — once each per
+            // warning, since a drop landing mid-wiggle is part of the warning
+            // already running. It used to report every fall on every counter: a
+            // seconds countdown buzzed once a second, and a `Stepper`'s own
+            // counter answered its minus button a second time.
+            if (felt) tap.light()
             warning = true
             try {
                 withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }
             } finally {
                 warning = false
             }
-            shown = latest
+            val landed = latest
+            if (felt && landed < shown) tap()
+            shown = landed
         }
     }
 

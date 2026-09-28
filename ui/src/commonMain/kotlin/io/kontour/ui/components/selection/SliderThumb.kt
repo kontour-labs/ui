@@ -727,9 +727,10 @@ internal fun DrawScope.sliderValueLabel(
  * [LabelLingerTime] after it lets go.
  *
  * Asked for from a phone: the label vanished with the finger, so the number the
- * reader had just chosen went at the moment they lifted to read it. It stays a
- * second now, then fades as it always did — and an arrow key, which changes the
- * value with nothing held, [poke]s it up for the same second.
+ * reader had just chosen went at the moment they lifted to read it. It stays half
+ * a second now, then fades as it always did — and an arrow key, which changes the
+ * value with nothing held, [poke]s it up for the same half second. It was a
+ * whole second at first, which the same phone found too long.
  */
 @Stable
 internal class LabelLinger {
@@ -755,8 +756,8 @@ internal class LabelLinger {
     }
 }
 
-/** A second: long enough to read a number after lifting, short enough not to cover what is under it. */
-internal val LabelLingerTime: Duration = 1000.milliseconds
+/** Half a second: long enough to read a number after lifting, short enough not to cover what is under it. */
+internal val LabelLingerTime: Duration = 500.milliseconds
 
 /**
  * Remembers a [LabelLinger] for a slider held while [active]. The label is up

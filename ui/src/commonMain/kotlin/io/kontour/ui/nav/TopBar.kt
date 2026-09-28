@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyListState
 import io.kontour.ui.components.action.IconButton
@@ -261,7 +262,9 @@ private fun TitleLines(slots: ListItemScope, large: Boolean = false) {
     slots.supporting?.let { subtitle ->
         ProvideContentColour(Theme.colours.contentMuted) {
             ProvideTextStyle(Theme.typography.bodySmall) {
-                ContentSlot(maxLines = 1, content = subtitle)
+                // Ellipsised rather than cut: a centred title is judged on its
+                // heading alone, and the line under it made to fit.
+                ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = subtitle)
             }
         }
     }

@@ -65,7 +65,9 @@ class KnobEditTest {
         var value by mutableStateOf(40f)
         setContent {
             KontourTheme(locale = Locale("en-AU")) {
-                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, steps = 9, contentDescription = "Volume")
+                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, steps = 9, contentDescription = "Volume") {
+                    +"${value.toInt()}"
+                }
             }
         }
         typeInto("Volume", "47")
@@ -86,7 +88,7 @@ class KnobEditTest {
                     valueRange = 0f..100f,
                     onValueChangeFinished = { finished++ },
                     contentDescription = "Volume",
-                )
+                ) { +"${value.toInt()}" }
             }
         }
         typeInto("Volume", "loud")
@@ -110,7 +112,9 @@ class KnobEditTest {
             elsewhere = remember { FocusRequester() }
             KontourTheme(locale = Locale("en-AU")) {
                 Column {
-                    Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, contentDescription = "Volume")
+                    Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, contentDescription = "Volume") {
+                        +"${value.toInt()}"
+                    }
                     Box(Modifier.size(40.dp).focusRequester(elsewhere).focusable())
                 }
             }
@@ -127,7 +131,9 @@ class KnobEditTest {
         var value by mutableStateOf(40f)
         setContent {
             KontourTheme(locale = Locale("en-AU")) {
-                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, contentDescription = "Volume")
+                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, contentDescription = "Volume") {
+                    +"${value.toInt()}"
+                }
             }
         }
         val knob = onNodeWithContentDescription("Volume")
@@ -146,7 +152,9 @@ class KnobEditTest {
         var value by mutableStateOf(4f)
         setContent {
             KontourTheme(locale = Locale("de-DE")) {
-                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..10f, contentDescription = "Lautstärke")
+                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..10f, contentDescription = "Lautstärke") {
+                    +"$value"
+                }
             }
         }
         onNodeWithContentDescription("Lautstärke").performTouchInput { click(center) }
@@ -156,6 +164,25 @@ class KnobEditTest {
         field.performImeAction()
         waitForIdle()
         assertTrue(abs(value - 7.5f) < 0.001f, "7,5 typed by a German reader is seven and a half, was $value")
+    }
+
+    @Test
+    fun aKnobShowingNoFigureHasNothingToOpen() = runComposeUiTest {
+        var value by mutableStateOf(40f)
+        setContent {
+            KontourTheme(locale = Locale("en-AU")) {
+                Knob(value = value, onValueChange = { value = it }, valueRange = 0f..100f, contentDescription = "Volume")
+            }
+        }
+        val knob = onNodeWithContentDescription("Volume")
+        knob.performTouchInput { click(center) }
+        waitForIdle()
+        onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        knob.requestFocus()
+        knob.performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+        onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        assertEquals(40f, value)
     }
 
     @Test

@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
@@ -236,13 +237,11 @@ enum class SheetHeaderStyle {
     Centred,
 
     /**
-     * A large title, level with the controls — or, when something leads the
-     * header, on a line of its own under them.
+     * Two lines: the controls on the first, a large title on the second.
      *
      * For a sheet that *is* the destination rather than a panel over one — a
-     * whole trip, a form — where the title is what the user came for. It used to
-     * be two lines always, and a header whose only control was its close button
-     * carried a whole empty row above its title.
+     * whole trip, a form — where the title is what the user came for and the
+     * close button should not be sitting on its line competing with it.
      */
     Large,
 }
@@ -320,7 +319,9 @@ fun SheetHeader(
             slots.supporting?.let { supporting ->
                 ProvideContentColour(Theme.colours.contentMuted) {
                     ProvideTextStyle(Theme.typography.bodySmall) {
-                        ContentSlot(maxLines = 1, content = supporting)
+                        // Ellipsised rather than cut: a centred title is judged on
+                        // its heading alone, and the line under it made to fit.
+                        ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = supporting)
                     }
                 }
             }
@@ -362,24 +363,10 @@ fun SheetHeader(
             },
         )
 
-        // The large title on the controls' own line, level with them. It used to
-        // sit on a line of its own under them, which left a header with nothing
-        // but a close button a whole empty row above its title — "a massive
-        // forehead", as it was reported. It shares the line whenever nothing
-        // leads it; the title takes what the controls leave, and wraps onto a
-        // second line rather than truncate.
-        slots.leading == null -> Row(
-            modifier = modifier.fillMaxWidth().then(vertical).padding(start = start, end = end),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Title(textStyle = Theme.typography.titleLarge, modifier = Modifier.weight(1f))
-            Controls(this)
-        }
-
-        // Something leads it — a back button, a picture — and the title under the
-        // controls, where it gets the whole width and never has to truncate
-        // around a button: the controls own their line at both ends.
+        // Controls first, title under them. The title gets the whole width, so
+        // it is the one thing here that never has to truncate around a button.
+        // It shared the controls' line for a while when nothing led it, and was
+        // put back: the title on a line of its own is what the style is for.
         else -> Column(
             modifier = modifier.fillMaxWidth().then(vertical).padding(start = start, end = end),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),

@@ -90,9 +90,9 @@ circle, so resting and held are one shape at two lengths. The value's bubble is
 the same pill.
 
 **`valueLabel` puts the value above the head while it is held**, keeps it there
-for a second after the finger lifts — so the number just chosen is still there to
-read — and then fades it. An arrow key, which moves the value with nothing held,
-shows it for the same second:
+for half a second after the finger lifts — so the number just chosen is still
+there to read — and then fades it. An arrow key, which moves the value with
+nothing held, shows it for the same half second:
 
 ```kotlin
 Slider(

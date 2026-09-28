@@ -508,15 +508,15 @@ these change what an existing call does.
 - **A tap on a `Rating`'s current score clears it**, as does a drag carried off
   the start of the row or choosing the selected mark again from the keyboard.
   `allowZero = false` keeps the lowest score at one mark.
-- **A `Slider`'s value label stays a second after the finger lifts**, and an
+- **A `Slider`'s value label stays half a second after the finger lifts**, and an
   arrow key shows it briefly.
 - **A centred `TopBar` or `SheetHeader` whose title does not fit centred is laid
   out as the small style**, against the leading controls, instead of centred in
   what the controls left.
-- **A large `SheetHeader` with nothing leading puts its title on the controls'
-  line.** With a leading slot it is under them, as before.
-- **A warning `AnimatedCounter` taps once as the warning starts**, not once per
-  drop; `hapticWarning = false` turns it off.
+- **A centred `TopBar` or `SheetHeader` stays centred when only its subtitle is
+  too long**, which now ends in an ellipsis.
+- **A warning `AnimatedCounter` taps lightly as the warning starts and fully as
+  the number lands**, not once per drop; `hapticWarning = false` turns it off.
 - **A label-less `NavBar` centres its glyphs** in their touch targets, level with
   the marker.
 - **`PasswordField`'s reveal toggle answers like a toggle**, with the same haptic

@@ -45,7 +45,7 @@ same names — a sheet that is a screen should not need a second vocabulary.
 |---|---|---|
 | `Small` | One line, title leading | The default; a panel over something |
 | `Centred` | One line, title centred — or `Small`, where it cannot be | A control on both sides, where a leading title reads off-balance |
-| `Large` | A large title level with the controls; under them when something leads | A sheet that *is* the destination — a whole trip, a form |
+| `Large` | Two lines: controls, then a large title | A sheet that *is* the destination — a whole trip, a form |
 
 `Centred` centres on the **header**, not on the room its controls left over.
 Those are the same thing only when both sides are the same width, which is why a
@@ -55,17 +55,20 @@ own padding counts towards the centre too: it is wider at the start, where the
 title lines up with the sheet's content, and it used to sit outside the bar and
 move the middle 4dp towards the close button.
 
-A title too wide to sit in the middle without being squeezed is laid out
-**exactly as `Small` lays it out**, against the leading edge. It used to keep the
-centring on whatever room was left, and with two actions at one end that read as
-"not really centred" — so it is now centred on the header or not centred at all.
+**Only the title has to fit for it to be centred.** A supporting line under it is
+fitted to the width the title is centred in, and ends in an ellipsis if it is
+longer — the two used to be judged together, so a short title with a long
+subtitle was pushed to the leading edge by the subtitle. A title that is itself
+too wide to sit in the middle without being squeezed is laid out **exactly as
+`Small` lays it out**, against the leading edge, with its supporting line in
+full. It used to keep the centring on whatever room was left, and with two
+actions at one end that read as "not really centred" — so it is centred on the
+header or not centred at all.
 
-`Large` puts its title on the controls' line, level with them, where nothing leads
-the header — it used to sit on a line of its own under them, which left a header
-whose only control was its close button with a whole empty row above its title.
-The title takes what the controls leave and wraps to a second line rather than
-truncate. With a leading slot, it goes under the controls and gets the full
-width, so a long title never truncates around a button. There is no collapse-on-scroll, which is
+`Large` gives the title the full width, on a line of its own under the controls,
+so it is the one arrangement where a long title never truncates around a button.
+It shared the close button's line for a while when nothing led the header, and
+was put back. There is no collapse-on-scroll, which is
 the one thing a large top bar does and a sheet cannot: the sheet already answers
 that drag by moving between its detents, and two things responding to one gesture
 is a header fighting its own sheet.

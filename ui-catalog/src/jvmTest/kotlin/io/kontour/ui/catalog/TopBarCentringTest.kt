@@ -100,38 +100,72 @@ class TopBarCentringTest {
     }
 
     /**
-     * A large header with nothing leading puts its title on the close button's
-     * line, level with it, instead of on an empty row's worth of forehead below.
+     * A title that fits centred stays centred when the line under it does not:
+     * the subtitle is fitted to the title's width and ends in an ellipsis. The
+     * two used to be judged together, and a long subtitle pushed a short title to
+     * the leading edge — asked from a phone to "try a bit harder" to centre.
      */
     @Test
-    fun aLargeSheetHeaderSharesTheControlsLineUnlessSomethingLeadsIt() {
-        fun centres(leading: Boolean): Pair<Float, Float> {
-            var title = -1f
-            var close = -1f
-            runComposeUiTest {
-                setContent {
-                    KontourTheme {
-                        Box(Modifier.fillMaxSize().background(Color.White)) {
-                            SheetHeader(
-                                modifier = Modifier.width(BarWidth.dp),
-                                onClose = {},
-                                style = SheetHeaderStyle.Large,
-                            ) {
-                                +"Stops"
-                                if (leading) leading { +"←" }
-                            }
+    fun aLongSubtitleDoesNotStopTheTitleBeingCentred() {
+        var title = -1f
+        var subtitle = -1f
+        var subtitleEnd = -1f
+        var controlsStart = -1f
+        runComposeUiTest {
+            setContent {
+                KontourTheme {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        SheetHeader(
+                            modifier = Modifier.width(BarWidth.dp),
+                            onClose = {},
+                            actions = {
+                                IconButton(icon = Tabler.Outline.DotsVertical, contentDescription = "More", onClick = {})
+                            },
+                            style = SheetHeaderStyle.Centred,
+                        ) {
+                            +"Stops"
+                            supporting { +"Perth Busport, Elizabeth Quay and the Esplanade busway" }
                         }
                     }
                 }
-                title = onNodeWithText("Stops").fetchSemanticsNode().boundsInRoot.center.y
-                close = onNodeWithContentDescription("Close").fetchSemanticsNode().boundsInRoot.center.y
             }
-            return title to close
+            val t = onNodeWithText("Stops").fetchSemanticsNode().boundsInRoot
+            val s = onNodeWithText("Perth Busport", substring = true).fetchSemanticsNode().boundsInRoot
+            title = t.center.x
+            subtitle = s.center.x
+            subtitleEnd = s.right
+            controlsStart = onNodeWithContentDescription("More").fetchSemanticsNode().boundsInRoot.left
         }
-        val (alone, closeAlone) = centres(leading = false)
-        assertTrue(abs(alone - closeAlone) <= 1f, "a large title with nothing leading sat at ${alone}, its close at ${closeAlone}")
-        val (under, closeLed) = centres(leading = true)
-        assertTrue(under > closeLed + 12f, "with something leading, the large title should sit under the controls")
+        assertTrue(abs(title - BarCentre) <= 1f, "the title is centred at ${title}dp, the sheet at ${BarCentre}dp")
+        assertTrue(abs(subtitle - BarCentre) <= 1f, "the subtitle is centred at ${subtitle}dp, the sheet at ${BarCentre}dp")
+        assertTrue(subtitleEnd <= controlsStart, "the subtitle ends at ${subtitleEnd}dp, under the controls from ${controlsStart}dp")
+    }
+
+    /**
+     * A large header's title is on a line of its own under the controls, whatever
+     * leads it. It shared the close button's line for a while when nothing led,
+     * and was put back.
+     */
+    @Test
+    fun aLargeSheetHeaderPutsItsTitleUnderTheControls() {
+        var title = -1f
+        var close = -1f
+        runComposeUiTest {
+            setContent {
+                KontourTheme {
+                    Box(Modifier.fillMaxSize().background(Color.White)) {
+                        SheetHeader(
+                            modifier = Modifier.width(BarWidth.dp),
+                            onClose = {},
+                            style = SheetHeaderStyle.Large,
+                        ) { +"Stops" }
+                    }
+                }
+            }
+            title = onNodeWithText("Stops").fetchSemanticsNode().boundsInRoot.center.y
+            close = onNodeWithContentDescription("Close").fetchSemanticsNode().boundsInRoot.center.y
+        }
+        assertTrue(title > close + 12f, "a large title sat at ${title}, level with its close at ${close}")
     }
 
     /** Where the title starts, in dp, in a 400dp bar with a back button and one action. */

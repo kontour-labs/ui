@@ -1987,15 +1987,16 @@ class DetentHapticsTest {
 
     /**
      * A counter is not a control, and taps on a fall only where it was asked to
-     * warn of one: a countdown used to buzz every second.
+     * warn of one: a countdown used to buzz every second. Where it warns, lightly
+     * as the shaking starts, and fully as the number lands.
      */
     @Test
     fun aCounterTapsOnAFallOnlyWhereItWarns() {
-        fun fell(warnBefore: kotlin.time.Duration): List<FeedbackIntent> {
-            val felt = mutableListOf<FeedbackIntent>()
+        fun fell(warnBefore: kotlin.time.Duration): List<String> {
+            val felt = mutableListOf<String>()
             var value by mutableStateOf(10)
             Scene(width = 300, height = 200) {
-                Recording(felt) {
+                RecordingStrength(felt) {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
                         AnimatedCounter(value = value, warnBefore = warnBefore)
                     }
@@ -2004,43 +2005,69 @@ class DetentHapticsTest {
                 scene.frames(3)
                 value = 9
                 scene.frames(10)
+                // Past the warning, on the wall clock the hold waits on.
+                Thread.sleep(warnBefore.inWholeMilliseconds + 100)
+                scene.frames(10)
             }
             return felt
         }
         assertEquals(emptyList(), fell(kotlin.time.Duration.ZERO), "a plain counter falling buzzed")
-        assertEquals(listOf(FeedbackIntent.Tap), fell(kotlin.time.Duration.parse("1s")), "a warning counter falling did not")
+        assertEquals(
+            listOf("Tap light", "Tap"), fell(kotlin.time.Duration.parse("450ms")),
+            "a warning counter should tap lightly as it starts to shake, and fully as the number lands",
+        )
     }
 
     /**
-     * The warning and its tap are one event: drops landing mid-wiggle are part of
-     * the warning already running, and a quick run of them used to buzz once each.
-     * `hapticWarning = false` keeps the warning to the eye.
+     * The warning is felt where it starts and where it ends, and nowhere between:
+     * drops landing mid-wiggle are part of the warning already running, and a
+     * quick run of them used to buzz once each. `hapticWarning = false` keeps
+     * the warning to the eye.
      */
     @Test
-    fun aWarningTapsOnceHoweverManyDropsItCovers() {
-        fun fell(hapticWarning: Boolean): List<FeedbackIntent> {
-            val felt = mutableListOf<FeedbackIntent>()
+    fun aWarningTapsTwiceHoweverManyDropsItCovers() {
+        fun fell(hapticWarning: Boolean): List<String> {
+            val felt = mutableListOf<String>()
             var value by mutableStateOf(10)
             Scene(width = 300, height = 200) {
-                Recording(felt) {
+                RecordingStrength(felt) {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
-                        AnimatedCounter(value = value, warnBefore = kotlin.time.Duration.parse("1s"), hapticWarning = hapticWarning)
+                        AnimatedCounter(value = value, warnBefore = kotlin.time.Duration.parse("450ms"), hapticWarning = hapticWarning)
                     }
                 }
             }.use { scene ->
                 scene.frames(3)
-                // Three drops inside one second-long warning.
+                // Three drops inside one warning.
                 value = 9
                 scene.frames(4)
                 value = 8
                 scene.frames(4)
                 value = 7
                 scene.frames(4)
+                Thread.sleep(550)
+                scene.frames(10)
             }
             return felt
         }
-        assertEquals(listOf(FeedbackIntent.Tap), fell(hapticWarning = true), "one warning, three drops")
+        assertEquals(listOf("Tap light", "Tap"), fell(hapticWarning = true), "one warning, three drops")
         assertEquals(emptyList(), fell(hapticWarning = false), "a warning asked not to be felt was")
+    }
+
+    /** Records each report with whether it was played at part strength. */
+    @Composable
+    private fun RecordingStrength(into: MutableList<String>, content: @Composable () -> Unit) {
+        CompositionLocalProvider(
+            LocalFeedback provides object : FeedbackDispatcher {
+                override fun perform(intent: FeedbackIntent) {
+                    into += intent.name
+                }
+
+                override fun perform(intent: FeedbackIntent, scale: Float) {
+                    into += if (scale < 1f) "${intent.name} light" else intent.name
+                }
+            },
+            content = content,
+        )
     }
 
     /** A row picked up and put straight back landed nowhere new: its long press, and nothing else. */

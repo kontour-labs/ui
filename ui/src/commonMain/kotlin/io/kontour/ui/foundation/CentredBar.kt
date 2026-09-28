@@ -3,7 +3,13 @@ package io.kontour.ui.foundation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -54,6 +60,14 @@ import kotlin.math.max
  * measured at exactly the width it is centred in**, and one it has not is given
  * a range. [CentredBarTitle] reads that and centres its lines, or starts them.
  *
+ * ### Judged on the heading, not the line under it
+ *
+ * What has to fit centred is the title's first line — its heading. A supporting
+ * line under it is fitted to whatever the heading is centred in, and ends in an
+ * ellipsis if it is longer. The two used to be judged together, so a sheet
+ * header whose title fitted easily was pushed to the leading edge by a long
+ * subtitle under it — asked from a phone to "try a bit harder" to stay centred.
+ *
  * @param startInset Room at the leading edge, inside the bar, before the leading
  *   controls — padding that counts towards the centre. Padding put *around* the
  *   bar instead moves its centre when the two sides differ, which is how a sheet
@@ -93,7 +107,8 @@ internal fun CentredBar(
         val titleMeasurable = titleItems.first()
         // How wide the title would like to be, asked before anything is decided:
         // it is both the fallback width below and the test for whether the title
-        // can be centred at all.
+        // can be centred at all. A [CentredBarTitle] answers with its heading's
+        // width, not its widest line's — see above.
         val titleWish = titleMeasurable.maxIntrinsicWidth(constraints.maxHeight)
         val width = if (bounded) {
             constraints.maxWidth
@@ -164,10 +179,17 @@ internal fun CentredBar(
  * laid out exactly as the non-centred style lays it out: a title *and* its
  * supporting line starting at the leading edge, not a supporting line centred
  * under a title pushed against the controls.
+ *
+ * Its widest wish, asked by the bar, is its **first line's** — the heading's: the
+ * lines under it fit themselves to the width the heading is given.
  */
 @Composable
 internal fun CentredBarTitle(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Layout(content = content, modifier = modifier) { measurables, constraints ->
+    Layout(content = content, modifier = modifier, measurePolicy = CentredBarTitlePolicy)
+}
+
+private object CentredBarTitlePolicy : MeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
         val centre = constraints.hasFixedWidth
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val lines = measurables.map { it.measure(loose) }
@@ -176,7 +198,7 @@ internal fun CentredBarTitle(modifier: Modifier = Modifier, content: @Composable
         // the room it was given, as a full-width column was.
         val width = if (constraints.hasBoundedWidth) constraints.maxWidth else widest
         val height = lines.sumOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
-        layout(width, height) {
+        return layout(width, height) {
             var y = 0
             lines.forEach { line ->
                 line.placeRelative(if (centre) (width - line.width) / 2 else 0, y)
@@ -184,4 +206,16 @@ internal fun CentredBarTitle(modifier: Modifier = Modifier, content: @Composable
             }
         }
     }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables.firstOrNull()?.maxIntrinsicWidth(height) ?: 0
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables.firstOrNull()?.minIntrinsicWidth(height) ?: 0
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.sumOf { it.maxIntrinsicHeight(width) }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.sumOf { it.minIntrinsicHeight(width) }
 }

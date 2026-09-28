@@ -105,16 +105,17 @@ class SliderHeadTest {
     }
 
     /**
-     * The value shows while the thumb is held, stays a second after it is let go —
-     * asked for from a phone, where the number vanished at the moment the reader
-     * lifted their finger to read it — and then goes.
+     * The value shows while the thumb is held, stays half a second after it is let
+     * go — asked for from a phone, where the number vanished at the moment the
+     * reader lifted their finger to read it — and then goes. It was a second, which
+     * the same phone found too long.
      */
     @Test
-    fun aHeldThumbShowsItsValueWhichLingersASecondAfterRelease() {
+    fun aHeldThumbShowsItsValueWhichLingersHalfASecondAfterRelease() {
         val (held, lingering, gone) = labelInk(LayoutDirection.Ltr)
         assertTrue(held > 30, "a held thumb drew ${held}px of label above it, where it should show its value")
-        assertTrue(lingering > 30, "half a second after release the label had gone (${lingering}px); it should linger")
-        assertTrue(gone < 3, "the label was still drawn (${gone}px) a second and a half after the thumb was let go")
+        assertTrue(lingering > 30, "a quarter of a second after release the label had gone (${lingering}px); it should linger")
+        assertTrue(gone < 3, "the label was still drawn (${gone}px) a second after the thumb was let go")
     }
 
     /** An arrow key moves the value with nothing held; the label shows it, briefly. */
@@ -142,7 +143,7 @@ class SliderHeadTest {
         val atRest = inkNow()
         onNodeWithTag("slider").requestFocus()
         onNodeWithTag("slider").performKeyInput { pressKey(Key.DirectionRight) }
-        mainClock.advanceTimeBy(400)
+        mainClock.advanceTimeBy(250)
         val after = inkNow()
         mainClock.advanceTimeBy(2000)
         val later = inkNow()
@@ -191,9 +192,9 @@ class SliderHeadTest {
             scene.press(at)
             held = scene.frames(20).darkInkAbove(bounds, at.x)
             scene.release(at)
-            // Frames are 16ms apart: half a second, then a second and a half.
-            lingering = scene.frames(30).darkInkAbove(bounds, at.x)
-            gone = scene.frames(64).darkInkAbove(bounds, at.x)
+            // Frames are 16ms apart: a quarter of a second, then a second.
+            lingering = scene.frames(15).darkInkAbove(bounds, at.x)
+            gone = scene.frames(47).darkInkAbove(bounds, at.x)
         }
         return Triple(held, lingering, gone)
     }

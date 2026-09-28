@@ -149,6 +149,9 @@ import kotlin.math.roundToInt
  * Enter or Space on the focused knob opens the field, and assistive technology
  * gets it as an action.
  *
+ * Only a knob showing its figure opens: the field takes the figure's place, and
+ * a bare face gives no sign that a tap would do anything.
+ *
  * The field holds **the value itself**, in [valueRange]'s units. A readout that
  * shows something else — a 0 to 1 volume written as a percentage — would offer a
  * number the reader has not seen, so give such a knob the range it shows, `0f..100f`,
@@ -163,8 +166,8 @@ import kotlin.math.roundToInt
  *   colour, a gradient, or bands at values in the knob's own units; the face is
  *   `thumb` ringed in `thumbRing`, and the notch on it is `needle`.
  * @param stateDescription What a screen reader says for the value, from it.
- * @param editable Whether a tap on the face opens the value for typing. See
- *   "Typing a value" above.
+ * @param editable Whether a tap on the face opens the value for typing, where
+ *   [content] shows a figure. See "Typing a value" above.
  * @param content The readout, centred on the face: `+"40"` is the figure,
  *   `label("dB")` what it is of, and `value { +icon }` an icon. See
  *   [ReadoutScope].
@@ -231,7 +234,9 @@ fun Knob(
     // The readout, open for typing. Not saved across a configuration change: a
     // half-typed number is not worth restoring into a control the hand has left.
     var editing by remember { mutableStateOf(false) }
-    val canEdit = editable && enabled
+    // Only with a figure showing: the field takes the figure's place, and a
+    // face with nothing on it gives no sign that a tap would open anything.
+    val canEdit = editable && enabled && readout.value != null
     val knobFocus = remember { FocusRequester() }
 
     fun emit(fraction: Float, fromHand: Boolean) {
