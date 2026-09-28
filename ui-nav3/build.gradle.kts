@@ -29,7 +29,7 @@ dokka {
         failOnWarning = true
     }
     moduleName = "kontour-ui-nav3"
-    moduleVersion = version.toString()
+    moduleVersion = kontourDocsVersion()
 
     // Documented from common code. This module has no platform code of its own,
     // and Dokka's Android source set would need `:ui` *compiled* for Android —

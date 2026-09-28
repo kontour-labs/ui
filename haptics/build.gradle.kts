@@ -34,7 +34,7 @@ dokka {
         failOnWarning = true
     }
     moduleName = "kontour-haptics"
-    moduleVersion = version.toString()
+    moduleVersion = kontourDocsVersion()
 
     dokkaSourceSets.configureEach {
         includes.from("Module.md")
