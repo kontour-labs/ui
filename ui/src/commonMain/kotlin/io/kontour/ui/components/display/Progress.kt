@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -347,12 +348,23 @@ fun StepProgress(
      * settled row asks for no frames.
      */
     val chase = remember { Animatable(Float.NaN) }
+    // **Which step the chase is running for**, and nothing is drawn for any other.
+    //
+    // The step moves on in composition, and the chase is reset by an effect that
+    // runs after it — so for a frame the new step was drawn at the *old* step's
+    // phase, then blank while its fill ran, then its own bars from the start.
+    // Reported from a phone as the working animation flickering in and out when
+    // "Next step" is pressed mid-chase. Owned by a step, a phase cannot be drawn
+    // for the wrong one. Read in draw, so it costs no recomposition.
+    val chaseStep = remember { mutableIntStateOf(NoStep) }
     if (animating && !indeterminate) {
         LaunchedEffect(current, total) {
+            chaseStep.intValue = NoStep
             chase.snapTo(Float.NaN)
             snapshotFlow { filled.value }.first { abs(it - completed) < FillArrived }
             while (true) {
                 chase.snapTo(0f)
+                chaseStep.intValue = current
                 chase.animateTo(1f, tween(durationMillis = ChaseCycle, easing = LinearEasing))
             }
         }
@@ -413,7 +425,7 @@ fun StepProgress(
         // of redrawing it. Null when nothing is animating, which is the same
         // condition as `!animating` — see where it is created.
         val phase = sweep?.value ?: 0f
-        val chasePhase = if (animating && !indeterminate) chase.value else Float.NaN
+        val chasePhase = if (animating && !indeterminate && chaseStep.intValue == current) chase.value else Float.NaN
 
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
@@ -506,6 +518,9 @@ fun StepProgress(
         }
     }
 }
+
+/** No step's chase: before one has started, and between steps. */
+private const val NoStep = -1
 
 /**
  * How wide the travelling indeterminate band is, as a fraction of what it runs
