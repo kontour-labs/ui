@@ -46,13 +46,42 @@ import sys
 # adding a feature. `app` fell 50,000 in the same pass, from deleting 3,870
 # lines of hand-written gallery panels — a ratchet is allowed to tighten, and
 # this is the run where it did.
+#
+# Raised 2026-09-28 for 0.2.0, from CI's own measurement on `main` (57fec0e):
+# `app` 2,826,535 against 2,110,000, which is about +780,000 (+38%) on what it
+# measured on 09-09. The other four did not move, and are what `--update` would
+# write for them. The site builds here only in CI, so these are that run's
+# figures put through `--update`'s own rule, by hand.
+#
+# Not a dependency that arrived unasked. Navigation 3 and `navigationevent` came
+# in on purpose, for back, and `NavDisplay` is 38 KB of 10.5 MB of unoptimised
+# code. Read by function name in that code, the growth is this library's and
+# this site's own:
+#
+#   io.kontour.ui.components   2.05 MB  display 0.56, selection 0.41, date and
+#                                       time 0.36, lists 0.26: Gauge, Knob,
+#                                       Meter, Table, the four timelines and
+#                                       ActivityCalendar among them
+#   io.kontour.ui.demo         0.79 MB  a demo on every one of 118 pages
+#   io.kontour.ui.docs         0.77 MB  the site
+#   io.kontour.ui.catalog      0.43 MB  the gallery's shell, and its Back, frames
+#                                       and scroll-feel pages
+#   overlay, nav, sheet        0.90 MB  back handling, NavScope, in-place menus
+#   io.kontour.ui.contract     0.30 MB  the registry: specimens for pages
+#                                       without a demo, which none now lack
+#   io.kontour.ui.locale       0.08 MB  formats, plurals, pseudo-locales
+#
+# The registry is the one line here the site could shed: it is the fallback in
+# `Site.kt`'s `Specimens` for a page with no hand-written demo, and every
+# component page has one. That is a tightening worth having, and short of the
+# 38% by a long way.
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 2_110_000,
+    "app": 2_920_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 6_000_000,
+    "total": 6_810_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
