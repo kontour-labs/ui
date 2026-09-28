@@ -530,17 +530,19 @@ class TapFeedback internal constructor(
     private val floor: FeedbackFloor,
 ) {
     /** Reports a press, unless another light report has just been felt. */
-    operator fun invoke() {
-        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap)
-    }
+    operator fun invoke() = tap(light = false)
 
     /**
      * The same report at [LightTapScale] of its strength, through the same floor:
      * for something *starting* that a full tap will finish — a counter's warning,
      * before the number it warns of lands.
      */
-    internal fun light() {
-        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap, LightTapScale)
+    internal fun light() = tap(light = true)
+
+    // One call for both: a lighter tap is the same report at a strength, not a
+    // second place that asks for feedback. At 1 the effect is the tap's own.
+    private fun tap(light: Boolean) {
+        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap, if (light) LightTapScale else 1f)
     }
 }
 
