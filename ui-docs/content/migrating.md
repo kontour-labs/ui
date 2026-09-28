@@ -521,8 +521,13 @@ these change what an existing call does.
   the marker.
 - **`PasswordField`'s reveal toggle answers like a toggle**, with the same haptic
   as `IconToggleButton`.
+- **A tapped `SwipeActions` action ticks before it runs**, as a full swipe does, so
+  its `onAction` comes about 0.6s after the tap; `tapConfirmation = false` runs it
+  at once. A drag that starts on a revealed action now moves the row, and the row
+  gives past its last resting place instead of stopping dead.
 
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
+`SwipeActions(tapConfirmation)`;
 `AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with
 `IosHapticsRoute`.

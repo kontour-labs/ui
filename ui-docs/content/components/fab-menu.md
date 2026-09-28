@@ -120,7 +120,14 @@ the near-ink `outline`, since `outlineSubtle` equals `outline` at this tier. The
 trigger is a solid button and gains an edge only while disabled, as every
 floating action button does.
 
+Each item landing is felt as a soft tick, the wave of them running out from the
+button as the items do, a little softer each time — one pattern timed to the
+items' springs, so it arrives whole where separate taps this close together would
+be thinned. A phone that cannot play a pattern feels the first. Nothing plays on
+the way back, and the Haptics setting reaches it as it reaches every haptic.
+
 Under reduced motion the items appear where they rest and fade in together: no
-flight out of the button, no growth from half size and no stagger. Without an
+flight out of the button, no growth from half size and no stagger — and one tick
+as they arrive. Without an
 `expandedIcon`, the trigger's icon becomes a close glyph when the menu opens
 instead of turning, and no button here shrinks on a press.

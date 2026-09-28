@@ -520,7 +520,7 @@ public final class io/kontour/ui/components/display/AnimatedCounterDefaults {
 }
 
 public final class io/kontour/ui/components/display/AnimatedCounterKt {
-	public static final fun AnimatedCounter-2nlCOT8 (ILandroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;JLandroidx/compose/ui/text/TextStyle;Landroidx/compose/foundation/layout/Arrangement$Horizontal;JLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedCounter-oljHda8 (ILandroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;JLandroidx/compose/ui/text/TextStyle;Landroidx/compose/foundation/layout/Arrangement$Horizontal;JZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/AvatarKt {
@@ -1032,7 +1032,7 @@ public final class io/kontour/ui/components/display/StatesKt {
 public final class io/kontour/ui/components/display/TagKt {
 	public static final fun Badge-jB83MbM (Landroidx/compose/ui/Modifier;Ljava/lang/Integer;IJJLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 	public static final fun BadgedBox (Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Tag-FU0evQE (Landroidx/compose/ui/Modifier;Lio/kontour/ui/theme/Tone;JLandroidx/compose/ui/graphics/Shape;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Tag-gF0flNs (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/theme/Tone;JLandroidx/compose/ui/graphics/Shape;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TimelineColours {
@@ -1245,7 +1245,7 @@ public final class io/kontour/ui/components/list/SwipeActionsDefaults {
 }
 
 public final class io/kontour/ui/components/list/SwipeActionsKt {
-	public static final fun SwipeActions-V-95POc (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;FZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SwipeActions-cJHQLPU (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SwipeToDismiss-Yod850M (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberSwipeActionsState (Lio/kontour/ui/components/list/SwipeValue;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/SwipeActionsState;
 }
@@ -1388,7 +1388,7 @@ public final class io/kontour/ui/components/selection/RatingDefaults {
 }
 
 public final class io/kontour/ui/components/selection/RatingKt {
-	public static final fun Rating-pU6N4AM (FLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZIZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;FLio/kontour/ui/components/selection/RatingColours;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Rating-Vmd5ePE (FLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZIZZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;FLio/kontour/ui/components/selection/RatingColours;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/selection/SegmentedControlDefaults {
@@ -2154,6 +2154,7 @@ public abstract interface class io/kontour/ui/interaction/FeedbackDispatcher {
 	public static final field Companion Lio/kontour/ui/interaction/FeedbackDispatcher$Companion;
 	public abstract fun perform (Lio/kontour/ui/interaction/FeedbackIntent;)V
 	public fun perform (Lio/kontour/ui/interaction/FeedbackIntent;F)V
+	public fun perform (Lio/kontour/ui/interaction/FeedbackIntent;Ljava/util/List;)V
 	public fun sustain (Lio/kontour/ui/interaction/FeedbackIntent;)Lio/kontour/ui/interaction/SustainedFeedback;
 }
 
@@ -2163,6 +2164,7 @@ public final class io/kontour/ui/interaction/FeedbackDispatcher$Companion {
 
 public final class io/kontour/ui/interaction/FeedbackDispatcher$DefaultImpls {
 	public static fun perform (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;F)V
+	public static fun perform (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;Ljava/util/List;)V
 	public static fun sustain (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;)Lio/kontour/ui/interaction/SustainedFeedback;
 }
 

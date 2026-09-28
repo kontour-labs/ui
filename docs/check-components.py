@@ -647,7 +647,7 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 9
+MAX_HAPTIC_SITES = 10
 
 
 # A perform, or a sustain — a hold's rumble is feedback too, and the one place
@@ -689,6 +689,13 @@ def haptic_sites() -> list[str]:
     three direct `LongPress` performs (`Menu`, `Tooltip`, `ReorderableItem`)
     and a fourth that needed one (`ActivityCalendar`'s scrub), and a swipe's
     `Confirm` became one call for its two routes.
+
+    It went 9 to 10 for a FAB menu's items landing, asked for from a phone:
+    "haptics on fab menu when items settle into place". It is a run of one
+    intent timed to the springs, which is the one shape no ticker plays — the
+    items land closer together than the rate floor passes separate taps — so it
+    is a pattern, played through `FeedbackDispatcher.perform(intent, at)`, and
+    one call site.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of

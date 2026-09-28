@@ -1,5 +1,8 @@
 package io.kontour.ui.interaction
 
+import io.kontour.haptics.HapticCapability
+import io.kontour.haptics.hapticPattern
+import kotlin.time.Duration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
@@ -183,7 +186,11 @@ enum class FeedbackIntent {
      */
     Hold,
 
-    /** A gesture completed and the element settled. */
+    /**
+     * A gesture completed and the element settled — a dragged row landing in
+     * its new slot — or, as a run through `perform(intent, at)`, things arriving
+     * in their places one after another: a FAB menu's items.
+     */
     GestureEnd,
 
     /** A key or on-screen key was struck. */
@@ -386,6 +393,20 @@ fun interface FeedbackDispatcher {
     fun perform(intent: FeedbackIntent, scale: Float) = perform(intent)
 
     /**
+     * Plays [intent] once at each of [at], counted from now — a run of the same
+     * report timed to things arriving one after another, as a FAB menu's items
+     * land — as **one** pattern where the platform can play one, so the timing is
+     * the platform's and not a timer's, and a run closer than the rate floor
+     * allows still arrives whole. Each is a little softer than the one before.
+     *
+     * The default performs it once, so a dispatcher written before this existed,
+     * and every one-line test lambda, hears the run begin.
+     */
+    fun perform(intent: FeedbackIntent, at: List<Duration>) {
+        if (at.isNotEmpty()) perform(intent)
+    }
+
+    /**
      * Starts [intent] as feedback that lasts — a hold's rumble — and returns the
      * handle that follows its progress and stops it.
      *
@@ -482,6 +503,22 @@ private class DefaultFeedbackDispatcher(
 
     override fun perform(intent: FeedbackIntent, scale: Float) {
         if (level.allows(intent)) player.play(intent.defaultEffect.scaled(scale.coerceIn(0f, 1f)))
+    }
+
+    override fun perform(intent: FeedbackIntent, at: List<Duration>) {
+        if (at.isEmpty() || !level.allows(intent)) return
+        val primitive = intent.cascadePrimitive
+        // A device that cannot play a pattern of its own plays the run as its
+        // first: a burst of one-shots a few milliseconds apart is one buzz there.
+        if (primitive == null || at.size == 1 || player.capability.richness != HapticCapability.Richness.Rich) {
+            player.play(intent.defaultEffect)
+            return
+        }
+        player.play(
+            hapticPattern {
+                at.forEachIndexed { i, time -> at(time, primitive.fading(i)) }
+            },
+        )
     }
 
     override fun sustain(intent: FeedbackIntent): SustainedFeedback {

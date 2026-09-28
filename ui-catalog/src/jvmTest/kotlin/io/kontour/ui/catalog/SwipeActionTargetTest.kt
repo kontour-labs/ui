@@ -57,6 +57,9 @@ class SwipeActionTargetTest {
                         // Revealed from the first frame. `animateTo` would need
                         // frames to travel in and this test taps on frame four.
                         state = rememberSwipeActionsState(initialValue = SwipeValue.End),
+                        // Where a tap lands, not what it then does: with the tick on, the
+                        // action runs a third of a second later.
+                        tapConfirmation = false,
                         end = listOf(
                             SwipeAction(
                                 label = "Delete",

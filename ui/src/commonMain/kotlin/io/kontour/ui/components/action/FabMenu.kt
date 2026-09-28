@@ -1,6 +1,9 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.TargetBasedAnimation
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.AnimationVector1D
@@ -48,6 +51,8 @@ import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -292,6 +297,11 @@ fun FabMenu(
      */
     val fractions = remember(items.size) { List(items.size) { Animatable(0f) } }
 
+    // Each item landing, felt: one soft tick as each arrives, the wave of them
+    // running out from the button as the items do. Asked for from a phone — the
+    // menu was the one thing in the set that moved this much and said nothing.
+    val feedback = LocalFeedback.current
+
     val latestItems by rememberUpdatedState(items)
     val latestLayout by rememberUpdatedState(layout)
     val latestShowLabels by rememberUpdatedState(showLabels)
@@ -343,6 +353,17 @@ fun FabMenu(
                 )
             )
             launch { openness.animateTo(1f, motion.tweenFast()) }
+            val itemSpec = motion.springOrTween<Float>(motion.springDefault)
+            // The first landing is when a spring first reaches its place — the
+            // moment it reads as arrived, before the last of its settle — and
+            // each after it one stagger later. Played as one pattern from there,
+            // since the items land closer together than the rate floor lets
+            // separate taps through; one tick where nothing moves.
+            launch {
+                delay(landingTime(itemSpec))
+                val landings = if (motion.reduceMotion) listOf(Duration.ZERO) else List(fractions.size) { stagger * it }
+                feedback.perform(FeedbackIntent.GestureEnd, landings)
+            }
             // Nearest first, so the wave runs outward from the button it came
             // out of.
             fractions.forEachIndexed { index, fraction ->
@@ -356,7 +377,7 @@ fun FabMenu(
                     // travels furthest. The stagger already carries the sense of
                     // the menu unfolding; the bounce was a second opinion about
                     // the same thing.
-                    fraction.animateTo(1f, motion.springOrTween(motion.springDefault))
+                    fraction.animateTo(1f, itemSpec)
                 }
             }
         } else {
@@ -894,3 +915,20 @@ private const val HorizontalLabelAngle = 45f
  * own dimensions times this, and the two being equal is why one constant serves.
  */
 private const val DiagonalComponent = 0.70710678f
+
+/**
+ * How long [spec] takes to first reach the place it is going, from rest: the
+ * moment an item reads as arrived, which for a spring is well before the tail of
+ * its settle. Sampled rather than solved, so a theme that retunes its springs
+ * still lands its haptics on its items.
+ */
+internal fun landingTime(spec: AnimationSpec<Float>, reached: Float = 0.995f): Duration {
+    val animation = TargetBasedAnimation(spec, Float.VectorConverter, initialValue = 0f, targetValue = 1f)
+    val step = 2_000_000L
+    var nanos = 0L
+    while (nanos < animation.durationNanos) {
+        if (animation.getValueFromNanos(nanos) >= reached) return (nanos / 1_000_000L).milliseconds
+        nanos += step
+    }
+    return (animation.durationNanos / 1_000_000L).milliseconds
+}

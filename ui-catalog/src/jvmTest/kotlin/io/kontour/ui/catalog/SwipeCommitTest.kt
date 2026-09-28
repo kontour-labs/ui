@@ -461,6 +461,174 @@ class SwipeCommitTest {
     }
 
     /**
+     * A fast swipe short of the line stays open at its actions.
+     *
+     * Reported from a phone: swiped quickly, the action appeared at full size and
+     * then disappeared again. The drag lived on the row's content, which moves
+     * with the finger, and its release velocity was read from positions in that
+     * moving node — the finger barely moved under it and then jumped back on the
+     * up event, which read as a hard flick towards closed. So the row that had
+     * opened snapped shut.
+     */
+    @Test
+    fun aFastSwipeShortOfTheLineStaysOpen() {
+        var bounds = Rect.Zero
+        var frame: BufferedImage? = null
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(from = from, to = Offset(from.x - ShortOfTheLine, from.y), steps = FlickSteps)
+            frame = scene.frames(SettleFrames)
+        }
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(
+            outer > 0 && inner > 0,
+            "a fast swipe past the actions and short of the line settled with ${outer}px and ${inner}px " +
+                "of them showing — it should rest open, not snap shut",
+        )
+    }
+
+    /**
+     * Towards a side with no actions, the row gives under the finger and comes back
+     * — and never further out than it was let go.
+     *
+     * Reported from a phone: it "waits for your finger to lift before jumping
+     * briefly in that direction". The row was clamped at rest, and letting go
+     * started the settle spring with the finger's speed from a place the row had
+     * never left. Motion on: the give is switched off under reduced motion.
+     */
+    @Test
+    fun aDragTowardsAnEmptySideGivesAndComesBackWithoutAJump() {
+        var bounds = Rect.Zero
+        var held = 0
+        val after = mutableListOf<Int>()
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = listOf(SwipeAction(label = "Remove", icon = Tabler.Outline.Trash, onAction = {}, background = Outer)),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    Box(Modifier.fillMaxSize().background(Content))
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(100f, bounds.center.y)
+            val to = Offset(from.x + 200f, from.y)
+            scene.drag(from = from, to = to, steps = FlickSteps, release = false)
+            held = scene.frame().contentLeft(bounds)
+            scene.release(to)
+            repeat(SettleFrames) { after += scene.frame().contentLeft(bounds) }
+        }
+        val limit = 88 * 2
+        assertTrue(held in 8 until limit, "held 200px towards the empty side, the row gave ${held}px — it should give, and less than an action")
+        assertTrue(after.max() <= held + 1, "after letting go the row went out to ${after.max()}px, further than the ${held}px it was let go at")
+        assertEquals(0, after.last(), "the row did not come back to rest")
+    }
+
+    /**
+     * A tapped action shows the full swipe's tick before it runs, unless told not
+     * to — "exactly the same as the tick on full swipe", asked for from a phone.
+     */
+    @Test
+    fun aTappedActionTicksBeforeItRuns() {
+        val ticked = framesToRunOnTap(tapConfirmation = true)
+        val plain = framesToRunOnTap(tapConfirmation = false)
+        assertTrue(plain in 0..2, "with no confirmation a tapped action took $plain frames to run")
+        // Drawn at once under reduced motion, then held 320ms: twenty frames.
+        assertTrue(ticked >= 18, "with the tick a tapped action ran after $ticked frames — it should draw and hold first")
+    }
+
+    /**
+     * A drag that starts on a revealed action moves the row — asked for from a
+     * phone, where only the row's own content took a drag — and runs nothing.
+     */
+    @Test
+    fun aDragStartingOnARevealedActionMovesTheRow() {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frame: BufferedImage? = null
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.Neither) { ran = it },
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open(scene, bounds)
+            // On the outer action, at the screen edge, and back towards closed.
+            val onButton = Offset(Width - 60f, bounds.center.y)
+            scene.drag(from = onButton, to = Offset(onButton.x + 360f, onButton.y), steps = SlowSteps)
+            frame = scene.frames(SettleFrames)
+        }
+        assertEquals(null, ran, "a drag that started on an action ran it")
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(outer == 0 && inner == 0, "dragged closed from a revealed action, the row still shows ${outer}px and ${inner}px of them")
+    }
+
+    /** Opens the row at its two actions, slowly, and lets it settle. */
+    private fun open(scene: Scene, bounds: Rect) {
+        val from = Offset(Width - 20f, bounds.center.y)
+        scene.drag(from = from, to = Offset(from.x - 352f, from.y), steps = SlowSteps, release = false)
+        scene.frames(4)
+        scene.release(Offset(from.x - 352f, from.y))
+        scene.frames(SettleFrames)
+    }
+
+    private fun framesToRunOnTap(tapConfirmation: Boolean): Int {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frames = -1
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.Neither) { ran = it },
+                    tapConfirmation = tapConfirmation,
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open(scene, bounds)
+            scene.tap(Offset(Width - 60f, bounds.center.y))
+            for (i in 0 until 200) {
+                if (ran != null) {
+                    frames = i
+                    break
+                }
+                scene.frame()
+            }
+        }
+        assertEquals("Remove", ran, "tapping the revealed outer action ran nothing")
+        return frames
+    }
+
+    /** Where the row's content starts, from its colour along the middle of the row. */
+    private fun BufferedImage.contentLeft(row: Rect): Int {
+        val y = row.center.y.toInt()
+        for (x in 0 until width) {
+            val rgb = getRGB(x, y)
+            if ((rgb shr 8 and 0xFF) > 150 && (rgb shr 16 and 0xFF) < 100 && (rgb and 0xFF) < 100) return x
+        }
+        return -1
+    }
+
+    /**
      * Which action ran, or null if none did, after a drag [travel] px toward the
      * leading edge in [steps] moves — carried back to [backTo] px if given — and let
      * go of either at once or, with [settleBeforeRelease], after the finger has been
@@ -590,5 +758,8 @@ class SwipeCommitTest {
         /** Pure, so a pixel can be classified without knowing the theme. */
         val Outer = Color.Red
         val Inner = Color.Blue
+
+        /** The row's own content, where a test needs to find the row. */
+        val Content = Color.Green
     }
 }

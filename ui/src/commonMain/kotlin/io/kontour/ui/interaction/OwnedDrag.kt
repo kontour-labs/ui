@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,6 +14,8 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import kotlin.math.abs
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -294,8 +297,17 @@ private fun Modifier.ownedDrag(
     val currentEnd by rememberUpdatedState(onEnd)
     val currentRelease by rememberUpdatedState(onRelease)
     val currentAccepts by rememberUpdatedState(accepts)
+    // The velocity's positions are the finger's in the root, not in this node.
+    // **Not `change.position`**, which is local: a node that moves with its own
+    // drag — a swipe row, a toast — sees the finger stay put under it, and a
+    // release read from those positions was a flick of nothing, or the wrong
+    // way. Reported as a fast swipe that showed its action at full size and then
+    // snapped shut. Nor the sum of `positionChange()`: measured with a node
+    // moving under a steady 1000px/s swipe, that read 358px/s, because what
+    // the node's own moves hand back is not the finger's travel either.
+    val placement = remember { NodePlacement() }
 
-    return if (!enabled) this else this.pointerInput(enabled, interactionSource, claimsOn) {
+    return if (!enabled) this else this.onPlaced { placement.coordinates = it }.pointerInput(enabled, interactionSource, claimsOn) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -351,7 +363,7 @@ private fun Modifier.ownedDrag(
                         // stayed out of the way of.
                         if (press != null) {
                             change.consume()
-                            velocity.addPosition(change.uptimeMillis, change.position)
+                            velocity.addPosition(change.uptimeMillis, placement.inRoot(change.position))
                             currentRelease(velocity.calculateVelocity().let { Offset(it.x, it.y) })
                         }
                         break
@@ -378,9 +390,9 @@ private fun Modifier.ownedDrag(
                             delta = gathered
                         }
                         claim(change.position)
-                        velocity.addPosition(change.uptimeMillis, change.position)
+                        velocity.addPosition(change.uptimeMillis, placement.inRoot(change.position))
                     } else {
-                        velocity.addPosition(change.uptimeMillis, change.position)
+                        velocity.addPosition(change.uptimeMillis, placement.inRoot(change.position))
                     }
                     // Every change, both axes. See above: the cross-axis half is what
                     // the scroller would otherwise use to win the race, and a second
@@ -444,3 +456,16 @@ private fun Modifier.ownedDrag(
  * settling onto the glass.
  */
 private const val DirectionDecisionShare = 0.4f
+
+/**
+ * Where a dragging node is, for turning its local pointer positions into the
+ * root's. Read live — `localToRoot` walks the tree as it is laid out now, which
+ * is the layout the positions were localised against — so it is set once, when
+ * the node is first placed, and never needs to be state.
+ */
+private class NodePlacement {
+    var coordinates: LayoutCoordinates? = null
+
+    fun inRoot(local: Offset): Offset =
+        coordinates?.takeIf { it.isAttached }?.localToRoot(local) ?: local
+}

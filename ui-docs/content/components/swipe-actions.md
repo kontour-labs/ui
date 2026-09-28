@@ -68,6 +68,18 @@ the way out. A flick never commits on its own. It used to: judged by where the t
 a flick meant for the actions and thrown a little hard ran the action. That was
 *"on android, the swiping is still too fiddly"*.
 
+**The whole row drags, its buttons included.** A drag that starts on a revealed
+action moves the row as one on the row does — it used to do nothing, because the
+drag lived on the row's content and the buttons sit beside it. A tap on a button
+is still the button's: the drag takes the gesture only once it has moved.
+
+**Past the last place it can rest, the row gives.** Towards a side with no
+actions, or beyond a side's actions where there is no full swipe, the row follows
+the finger a little way, less for every pixel, and comes back when let go — from
+rest. It used to sit still until the finger lifted and then jump that way and
+back, which was the settle spring starting from the finger's speed at a place the
+row had never left. Under reduced motion it does not give.
+
 **A tap on a row that is showing its actions closes it**, and does not also reach
 the row's own click. A tap on one of the buttons runs that action and closes the
 row.
@@ -98,6 +110,13 @@ stroke begins about as it arrives, a tenth of a second after release rather than
 third. Only the action waits for the row to settle. It is optional: `fullSwipeConfirmation = false` runs the
 action the moment the row arrives, for a list where the row disappearing is
 confirmation enough. Under reduced motion the tick appears rather than draws.
+
+**A tapped action ticks too.** The button tapped turns its icon into the same
+check mark, drawn, holds it the same moment, and then the action runs and the row
+closes — where it used to run and fold away in the same instant, with nothing to
+say it had. While it ticks the row stays put. `tapConfirmation = false` runs a
+tapped action at once. An action run from a screen reader's actions menu runs at
+once either way.
 
 **A full swipe runs the outermost action**, which is the first one declared —
 the one at the screen edge, and the one that takes the strip at the point of no
@@ -155,7 +174,8 @@ answers the tier itself.
 
 Under [reduced motion](../tokens.md#motion) a row the app opens or puts back
 arrives at once, the outermost action takes over the strip at once past the
-point of no return, and a full swipe's tick appears whole instead of drawing
-itself; icons and labels fade without growing. A drag is untouched — the row
+point of no return, and a full swipe's or a tapped action's tick appears whole
+instead of drawing itself; icons and labels fade without growing. The give past
+the last resting place is off. A drag is untouched — the row
 follows the finger at every setting — and it settles after the finger lifts on a
 short tween rather than a spring.

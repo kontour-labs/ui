@@ -206,11 +206,15 @@ private val swipeActionCount = Knob.Choice("Actions", listOf(1, 2, 3), 1, name =
  */
 private val swipeConfirmation = Knob.Flag("Tick on full swipe", initial = true)
 
+/** The same tick for a tap on a revealed action, before it runs and the row closes. */
+private val swipeTapConfirmation = Knob.Flag("Tick on tap", initial = true)
+
 internal val SwipeActionsDemo = ComponentDemo(
     slug = "swipe-actions",
-    knobs = listOf(swipeActionCount, swipeConfirmation),
+    knobs = listOf(swipeActionCount, swipeConfirmation, swipeTapConfirmation),
 ) {
     val confirmation = this[swipeConfirmation]
+    val tapConfirmation = this[swipeTapConfirmation]
     // The first stays the full-swipe action whatever the count: a full swipe
     // runs the *first* action of the side, so moving it would change two things
     // at once.
@@ -247,6 +251,7 @@ internal val SwipeActionsDemo = ComponentDemo(
         SwipeActions(
             end = trailing.take(this@ComponentDemo[swipeActionCount]),
             fullSwipeConfirmation = confirmation,
+            tapConfirmation = tapConfirmation,
             start = listOf(
                 SwipeAction(
                     label = "Favourite",
@@ -259,6 +264,18 @@ internal val SwipeActionsDemo = ComponentDemo(
             ListItem(onClick = { echo("Perth Busport") }) {
                 +"Perth Busport"
                 supporting { +"Swipe either way" }
+            }
+        }
+        // Actions on one side only: the other way the row gives under the finger
+        // and comes back, rather than doing nothing until it is let go.
+        SwipeActions(
+            end = trailing.take(1),
+            fullSwipeConfirmation = confirmation,
+            tapConfirmation = tapConfirmation,
+        ) {
+            ListItem(onClick = { echo("Elizabeth Quay") }) {
+                +"Elizabeth Quay"
+                supporting { +"Actions on one side" }
             }
         }
         SwipeToDismiss(
