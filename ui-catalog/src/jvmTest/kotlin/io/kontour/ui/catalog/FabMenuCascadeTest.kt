@@ -18,7 +18,6 @@ import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -30,7 +29,9 @@ import kotlin.test.assertTrue
  *
  * And each tick on its own item: the first version worked the landings out in
  * advance and played them as one pattern, 28ms apart, which arrived as "a rumble
- * at the end once the last one lands".
+ * at the end once the last one lands". Then each one on the frame its item came
+ * to rest, which was felt "a bit delayed": a haptic takes a moment to reach the
+ * hand, so it is now asked for a little ahead.
  */
 @OptIn(ExperimentalTestApi::class)
 class FabMenuCascadeTest {
@@ -45,9 +46,14 @@ class FabMenuCascadeTest {
         run.felt.forEachIndexed { index, tick ->
             val landed = run.landedAt[index]
             assertTrue(landed >= 0, "item $index never came to rest")
+            // Asked for a little ahead of the landing, so that it reaches the
+            // hand as the item arrives — never after it, and not so early that it
+            // is felt while the item is still plainly in flight.
+            val ahead = landed - tick.atMillis
             assertTrue(
-                abs(tick.atMillis - landed) <= FrameMillis,
-                "item $index landed at ${landed}ms and was felt at ${tick.atMillis}ms",
+                ahead in FrameMillis..MostAheadMillis,
+                "item $index landed at ${landed}ms and was asked for at ${tick.atMillis}ms: " +
+                    "it should be a frame to ${MostAheadMillis}ms ahead of the landing, never behind it",
             )
         }
         val gaps = run.felt.zipWithNext { a, b -> b.atMillis - a.atMillis }
@@ -148,5 +154,8 @@ class FabMenuCascadeTest {
     private companion object {
         const val Items = 4
         const val FrameMillis = 17L
+
+        /** How far ahead of the landing a tick may be asked for: about what a haptic takes to be felt, and a frame. */
+        const val MostAheadMillis = 70L
     }
 }

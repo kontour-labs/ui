@@ -359,8 +359,9 @@ fun FabMenu(
                 launch {
                     delay(stagger * index)
                     // Each item felt as it lands: watched on its own animation,
-                    // so the tick comes on the frame it arrives rather than on a
-                    // schedule worked out in advance. They used to be one pattern
+                    // so the tick comes as it arrives rather than on a schedule
+                    // worked out in advance — asked for a little before it, so
+                    // it is felt on time (see `FabItemLanded`). They used to be one pattern
                     // computed from the spring, played from the first landing —
                     // which arrived as a single rumble once the last item had
                     // landed, and was reported as exactly that. Each a little
@@ -922,10 +923,15 @@ private const val HorizontalLabelAngle = 45f
 private const val DiagonalComponent = 0.70710678f
 
 /**
- * How far out an item is when it reads as landed: close enough that what is
- * left of its travel is the settle, not the movement.
+ * How far out an item is when its landing is played: 85% of the way, about 40ms
+ * ahead of where the eye has it arriving on `springDefault`.
+ *
+ * Ahead on purpose. A haptic reaches the hand a frame or two after it is asked
+ * for — the frame the value is observed in, and the actuator's own start — so a
+ * tick asked for as the item visibly stopped, at 97%, was felt after it had, and
+ * reported from a phone as "a bit delayed".
  */
-private const val FabItemLanded = 0.97f
+private const val FabItemLanded = 0.85f
 
 /** The [index]th item's landing, a little softer than the one before, to a floor. */
 internal fun landingStrength(index: Int): Float = (1f - 0.1f * index).coerceAtLeast(0.6f)
