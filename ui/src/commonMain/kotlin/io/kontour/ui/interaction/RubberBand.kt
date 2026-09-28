@@ -222,10 +222,10 @@ class RubberBand internal constructor() {
     ) {
         if (limit <= 0f || (velocity == 0f && past <= 0f)) return
         val sign = if (velocity > 0f) 1f else -1f
-        fun place(raw: Float) {
+        fun stretchTo(raw: Float) {
             offset = sign * limit * (1f - exp(-raw.coerceAtLeast(0f) / limit))
         }
-        place(past)
+        stretchTo(past)
         var peak = past.coerceAtLeast(0f)
         var peakAt = sinceNanos
         AnimationState(
@@ -237,7 +237,7 @@ class RubberBand internal constructor() {
             animationSpec = spec,
             sequentialAnimation = sinceNanos != AnimationConstants.UnspecifiedTime,
         ) {
-            place(value)
+            stretchTo(value)
             peak = value
             peakAt = lastFrameTimeNanos
             when {
@@ -259,7 +259,7 @@ class RubberBand internal constructor() {
                 targetValue = 0f,
                 animationSpec = back,
                 sequentialAnimation = peakAt != AnimationConstants.UnspecifiedTime,
-            ) { place(value) }
+            ) { stretchTo(value) }
         }
         offset = 0f
     }

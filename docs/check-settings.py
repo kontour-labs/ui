@@ -159,6 +159,8 @@ QUIET_FILL_ALLOWED = {
     "characters are the content and the monospace face is what sets them apart",
     "Skeleton.kt": "a placeholder, and deliberately faint — it stands in for "
     "content that is loading, is not interactive, and says so to a screen reader",
+    "Surfaces.kt": "`shimmer()`'s resting tone, the same loading placeholder "
+    "`Skeleton` draws with it",
     "TextButton.kt": "the tint is the hover and press wash on a text-only "
     "button; its label, at 7:1, is the control",
     "TimelineList.kt": "its rows are list rows, which draw the tier's edge "
