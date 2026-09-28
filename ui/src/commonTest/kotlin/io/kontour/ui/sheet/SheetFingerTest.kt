@@ -64,4 +64,38 @@ class SheetFingerTest {
         finger.lift(10)
         assertEquals(0f, finger.releaseVelocity(reported = 0f))
     }
+    /** A finger that only rolled off the glass threw nothing, however fast it left. */
+    @Test
+    fun aRollOffIsNoThrow() {
+        val finger = SheetFinger()
+        finger.down(0)
+        finger.move(16, 8f)
+        finger.move(32, 8f)
+        finger.move(48, 8f)
+        finger.lift(50)
+        assertEquals(0f, finger.throwOf(reported = 500f, atLeast = 28f), "24px of roll-off counted as a throw")
+    }
+
+    /** The run starts again where the finger turns: a pull up and a roll-off down is still a roll-off. */
+    @Test
+    fun theRunStartsAgainWhereTheFingerTurns() {
+        val finger = SheetFinger()
+        finger.down(0)
+        repeat(20) { finger.move(16L * (it + 1), -30f) }
+        finger.move(336, 8f)
+        finger.move(352, 8f)
+        finger.move(368, 8f)
+        finger.lift(370)
+        assertEquals(0f, finger.throwOf(reported = 500f, atLeast = 28f), "a roll-off after a pull up counted as a throw")
+    }
+
+    /** A flick that runs past the minimum is the throw it always was. */
+    @Test
+    fun aFlickThatRunsFarEnoughIsAThrow() {
+        val finger = SheetFinger()
+        finger.down(0)
+        repeat(4) { finger.move(16L * (it + 1), 8f) }
+        finger.lift(66)
+        assertEquals(500f, finger.throwOf(reported = 500f, atLeast = 28f))
+    }
 }

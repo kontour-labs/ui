@@ -233,6 +233,13 @@ closes the sheet in one, where it used to take one flick per detent. A throw of
 the sheet itself, by its handle or its surface, counts from 125dp/s and always
 moves it at least one detent the way it was thrown.
 
+**A finger rolling off the glass is not a throw.** A release only counts as one
+if the finger's last run in one direction was at least 14dp, a little past touch
+slop. A finger that leaves with a few pixels of travel at a few hundred pixels a
+second would otherwise move a full-height sheet a detent. The run starts again
+where the finger turns, so a roll-off after pulling a sheet up against its top
+is judged on the roll-off alone.
+
 **A sheet being pulled when the finger lets go owns the release**, as a sheet on
 an iPhone does. If the content has handed the drag to the sheet, the release
 belongs to the sheet: it carries on at the finger's speed, and it moves at least

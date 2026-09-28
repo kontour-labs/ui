@@ -630,10 +630,11 @@ fun BottomSheet(
     // In pixels here, because `SheetState` works in pixels throughout and the
     // nested-scroll callbacks have no density of their own.
     val flickVelocity = with(density) { SheetFlickVelocity.toPx() }
+    val minThrow = with(density) { SheetMinThrow.toPx() }
     // Remembered: a new connection on every composition was a nested-scroll node
     // updated on every composition, for an object that says the same thing.
-    val scrollConnection = remember(state, settleSpec, flickVelocity) {
-        state.nestedScrollConnection(settleSpec, flickVelocity)
+    val scrollConnection = remember(state, settleSpec, flickVelocity, minThrow) {
+        state.nestedScrollConnection(settleSpec, flickVelocity, minThrow)
     }
 
     // **One flick closes it.** A throw of the sheet itself lands where it was
@@ -644,18 +645,19 @@ fun BottomSheet(
     // Foundation's own snapping fling, which is what Compose's default is built
     // from, so it moves the sheet inside the drag it already holds.
     val handleFlick = with(density) { SheetHandleFlickVelocity.toPx() }
-    val fling = remember(state, settleSpec, handleFlick) {
+    val fling = remember(state, settleSpec, handleFlick, minThrow) {
         val snap = snapFlingBehavior(
             snapLayoutInfoProvider = SheetSnapping(state, handleFlick),
             decayAnimationSpec = exponentialDecay(),
             snapAnimationSpec = settleSpec,
         )
-        // The throw as the finger made it, where the platform's tracker lost it:
-        // see `SheetFinger`. Handed on as the fling's own velocity, so the snap
-        // both aims by it and starts at it.
+        // The throw as the finger made it, where the platform's tracker lost it,
+        // and no throw at all for a finger that only rolled off the glass: see
+        // `SheetFinger`. Handed on as the fling's own velocity, so the snap both
+        // aims by it and starts at it.
         object : FlingBehavior {
             override suspend fun ScrollScope.performFling(initialVelocity: Float): Float =
-                with(snap) { performFling(state.finger.releaseVelocity(initialVelocity)) }
+                with(snap) { performFling(state.finger.throwOf(initialVelocity, minThrow)) }
         }
     }
 

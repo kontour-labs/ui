@@ -1267,6 +1267,7 @@ class SheetState internal constructor(
     internal fun nestedScrollConnection(
         settleSpec: AnimationSpec<Float>,
         flickVelocity: Float,
+        minThrow: Float = 0f,
     ): NestedScrollConnection =
         object : NestedScrollConnection {
 
@@ -1327,7 +1328,7 @@ class SheetState internal constructor(
                 if (!restingAtADetent()) {
                     listScrolled = false
                     releasedBySheet = true
-                    settleWhereAimed(finger.releaseVelocity(available.y), settleSpec, flickVelocity, atLeastOne = true)
+                    settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity, atLeastOne = true)
                     releaseOvershoot(settleSpec)
                     return available
                 }
@@ -1657,6 +1658,17 @@ internal const val SheetProjectionSeconds: Float = 0.5f
  * object as knobs somebody is expected to reach for.
  */
 internal val SheetFlickVelocity: Dp = 300.dp
+
+/**
+ * How far a finger has to run one way for its release to count as a throw of
+ * the sheet: past touch slop, and a little more. See `SheetFinger.throwOf`.
+ *
+ * Between two measured gestures, which is where it has to be. Twenty-four
+ * pixels of roll-off at the scene's density — 12dp, most of it touch slop — must
+ * leave a full-height sheet where it is; thirty-two pixels at the same speed —
+ * 16dp, the gentlest flick the suite throws — must move it a detent.
+ */
+internal val SheetMinThrow: Dp = 14.dp
 
 /**
  * How fast a release of the sheet itself has to be to count as a flick: Compose's

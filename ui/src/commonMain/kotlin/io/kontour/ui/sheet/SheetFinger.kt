@@ -7,6 +7,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import kotlin.math.abs
 
 /**
  * Where the finger on a sheet has been lately, so a release can be judged by what
@@ -37,6 +38,8 @@ internal class SheetFinger {
     private var count = 0
     private var next = 0
     private var travelled = 0f
+    private var run = 0f
+    private var tracked = false
     private var lastMoveAt = 0L
     private var liftedAt = -1L
 
@@ -44,6 +47,8 @@ internal class SheetFinger {
         count = 0
         next = 0
         travelled = 0f
+        run = 0f
+        tracked = true
         liftedAt = -1L
         lastMoveAt = at
         add(at)
@@ -51,8 +56,28 @@ internal class SheetFinger {
 
     fun move(at: Long, dy: Float) {
         travelled += dy
+        // The finger's current run one way: it starts again where it turns.
+        run = if (run == 0f || (run > 0f) == (dy > 0f)) run + dy else dy
         lastMoveAt = at
         add(at)
+    }
+
+    /**
+     * What a release counts as, as [releaseVelocity] says — or no throw at all
+     * where the finger's last run one way was shorter than [atLeast].
+     *
+     * **A finger rolling off the glass is not a throw.** It leaves with a few
+     * pixels of travel at a few hundred pixels a second, which is fast enough to
+     * count as a flick and to move the sheet a detent — measured, a full-height
+     * sheet let go after twenty-four pixels of roll-off fell to half. What a
+     * roll-off does not have is distance: a deliberate flick of a sheet, even a
+     * gentle one, runs further than touch slop and a little more. And the run
+     * starts again where the finger turns, so a roll-off after pulling the sheet
+     * up against its top is judged on its own few pixels, not on the pull.
+     */
+    fun throwOf(reported: Float, atLeast: Float): Float {
+        if (tracked && abs(run) < atLeast) return 0f
+        return releaseVelocity(reported)
     }
 
     fun lift(at: Long) {
