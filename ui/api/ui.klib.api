@@ -899,7 +899,6 @@ final enum class io.kontour.ui.theme/Tone : kotlin/Enum<io.kontour.ui.theme/Tone
 
 abstract fun interface io.kontour.ui.interaction/FeedbackDispatcher { // io.kontour.ui.interaction/FeedbackDispatcher|null[0]
     abstract fun perform(io.kontour.ui.interaction/FeedbackIntent) // io.kontour.ui.interaction/FeedbackDispatcher.perform|perform(io.kontour.ui.interaction.FeedbackIntent){}[0]
-    open fun perform(io.kontour.ui.interaction/FeedbackIntent, kotlin.collections/List<kotlin.time/Duration>) // io.kontour.ui.interaction/FeedbackDispatcher.perform|perform(io.kontour.ui.interaction.FeedbackIntent;kotlin.collections.List<kotlin.time.Duration>){}[0]
     open fun perform(io.kontour.ui.interaction/FeedbackIntent, kotlin/Float) // io.kontour.ui.interaction/FeedbackDispatcher.perform|perform(io.kontour.ui.interaction.FeedbackIntent;kotlin.Float){}[0]
     open fun sustain(io.kontour.ui.interaction/FeedbackIntent): io.kontour.ui.interaction/SustainedFeedback // io.kontour.ui.interaction/FeedbackDispatcher.sustain|sustain(io.kontour.ui.interaction.FeedbackIntent){}[0]
 

@@ -71,30 +71,3 @@ internal val FeedbackIntent.defaultRumble: RumbleSpec?
 
 private val HoldRumble = RumbleSpec(from = 0.15f, to = 0.45f, sharpness = 0.2f)
 
-/**
- * What [FeedbackDispatcher.perform] plays at each point of a timed run of this
- * intent, where the platform plays a pattern: a primitive, since only those can
- * be scheduled inside one. `null` for an intent that is never a run, which plays
- * once instead.
- */
-internal val FeedbackIntent.cascadePrimitive: HapticEffect.Primitive?
-    get() = when (this) {
-        // Things settling into place one after another — a FAB menu's items —
-        // each the soft, low tick a reordered row lands with.
-        FeedbackIntent.GestureEnd -> HapticEffect.LowTick(strength = 0.6f)
-        FeedbackIntent.Tick -> HapticEffect.Tick(strength = 0.4f)
-        else -> null
-    }
-
-/** The [index]th of a run, a little softer than the one before: nine tenths each. */
-internal fun HapticEffect.Primitive.fading(index: Int): HapticEffect.Primitive {
-    var factor = 1f
-    repeat(index) { factor *= CascadeFalloff }
-    return when (this) {
-        is HapticEffect.LowTick -> HapticEffect.LowTick(strength * factor)
-        is HapticEffect.Tick -> HapticEffect.Tick(strength * factor)
-        else -> this
-    }
-}
-
-private const val CascadeFalloff = 0.9f

@@ -2185,7 +2185,6 @@ public abstract interface class io/kontour/ui/interaction/FeedbackDispatcher {
 	public static final field Companion Lio/kontour/ui/interaction/FeedbackDispatcher$Companion;
 	public abstract fun perform (Lio/kontour/ui/interaction/FeedbackIntent;)V
 	public fun perform (Lio/kontour/ui/interaction/FeedbackIntent;F)V
-	public fun perform (Lio/kontour/ui/interaction/FeedbackIntent;Ljava/util/List;)V
 	public fun sustain (Lio/kontour/ui/interaction/FeedbackIntent;)Lio/kontour/ui/interaction/SustainedFeedback;
 }
 
@@ -2195,7 +2194,6 @@ public final class io/kontour/ui/interaction/FeedbackDispatcher$Companion {
 
 public final class io/kontour/ui/interaction/FeedbackDispatcher$DefaultImpls {
 	public static fun perform (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;F)V
-	public static fun perform (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;Ljava/util/List;)V
 	public static fun sustain (Lio/kontour/ui/interaction/FeedbackDispatcher;Lio/kontour/ui/interaction/FeedbackIntent;)Lio/kontour/ui/interaction/SustainedFeedback;
 }
 

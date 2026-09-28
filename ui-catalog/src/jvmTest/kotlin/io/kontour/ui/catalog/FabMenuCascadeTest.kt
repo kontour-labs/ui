@@ -5,21 +5,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Star
-import io.kontour.haptics.HapticEffect
-import io.kontour.haptics.HapticRecord
-import io.kontour.haptics.RecordingHaptics
 import io.kontour.ui.components.action.FabMenu
-import io.kontour.ui.components.action.FabMenuDefaults
+import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalHaptics
-import io.kontour.ui.interaction.defaultEffect
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -28,46 +27,73 @@ import kotlin.test.assertTrue
  * A FAB menu's items landing are felt, one soft tick each as the wave of them runs
  * out from the button — asked for from a phone: "haptics on fab menu when items
  * settle into place".
+ *
+ * And each tick on its own item: the first version worked the landings out in
+ * advance and played them as one pattern, 28ms apart, which arrived as "a rumble
+ * at the end once the last one lands".
  */
 @OptIn(ExperimentalTestApi::class)
 class FabMenuCascadeTest {
 
+    private class Felt(val intent: FeedbackIntent, val scale: Float, val atMillis: Long)
+
     @Test
-    fun openingPlaysOnePatternWithAnEventPerItemTheStaggerApart() {
-        val (opening, _) = played(reduceMotion = false)
-        val pattern = opening.filterIsInstance<HapticRecord.PatternPlayed>().single().pattern
-        assertEquals(3, pattern.events.size, "one landing per item")
-        assertEquals(
-            listOf(0L, 1L, 2L).map { FabMenuDefaults.Stagger * it.toInt() },
-            pattern.events.map { it.at },
-            "the landings should be the stagger apart, as the items are",
+    fun eachItemIsFeltOnTheFrameItLands() {
+        val run = opened(reduceMotion = false)
+        assertEquals(Items, run.felt.size, "one landing per item: ${run.felt.map { it.atMillis }}")
+        assertTrue(run.felt.all { it.intent == FeedbackIntent.GestureEnd })
+        run.felt.forEachIndexed { index, tick ->
+            val landed = run.landedAt[index]
+            assertTrue(landed >= 0, "item $index never came to rest")
+            assertTrue(
+                abs(tick.atMillis - landed) <= FrameMillis,
+                "item $index landed at ${landed}ms and was felt at ${tick.atMillis}ms",
+            )
+        }
+        val gaps = run.felt.zipWithNext { a, b -> b.atMillis - a.atMillis }
+        assertTrue(
+            gaps.all { it >= 40 },
+            "landings felt ${gaps}ms apart run together into one buzz; they need to be told apart",
         )
-        val strengths = pattern.events.map { (it.primitive as HapticEffect.LowTick).strength }
+        val strengths = run.felt.map { it.scale }
         assertTrue(strengths.zipWithNext().all { (a, b) -> b < a }, "each landing should be softer than the last: $strengths")
-        assertEquals(1, opening.size, "the landings are one pattern, and nothing else plays: $opening")
     }
 
     @Test
     fun underReducedMotionItIsOneTick() {
-        val (opening, _) = played(reduceMotion = true)
-        assertEquals(listOf(HapticRecord.Played(FeedbackIntent.GestureEnd.defaultEffect)), opening)
+        assertEquals(1, opened(reduceMotion = true).felt.size)
     }
 
     @Test
     fun closingPlaysNothing() {
-        val (_, closing) = played(reduceMotion = false)
-        assertEquals(emptyList(), closing)
+        assertEquals(0, opened(reduceMotion = false).closing)
     }
 
-    /** What opening the menu played, and then what closing it did. */
-    private fun played(reduceMotion: Boolean): Pair<List<HapticRecord>, List<HapticRecord>> {
-        val player = RecordingHaptics()
+    private class Run(val felt: List<Felt>, val landedAt: List<Long>, val closing: Int)
+
+    /**
+     * What opening the menu was felt as, when each item came to rest, and how many
+     * reports closing it made.
+     */
+    private fun opened(reduceMotion: Boolean): Run {
+        val felt = mutableListOf<Felt>()
         val expanded = mutableStateOf(false)
-        var opening = emptyList<HapticRecord>()
+        var closing = 0
+        val landedAt = MutableList(Items) { -1L }
         runComposeUiTest {
+            var now = 0L
+            val recorder = object : FeedbackDispatcher {
+                override fun perform(intent: FeedbackIntent) {
+                    felt += Felt(intent, 1f, now)
+                }
+
+                override fun perform(intent: FeedbackIntent, scale: Float) {
+                    felt += Felt(intent, scale, now)
+                }
+            }
             setContent {
-                CompositionLocalProvider(LocalHaptics provides player) {
-                    KontourTheme(reduceMotion = reduceMotion) {
+                KontourTheme(reduceMotion = reduceMotion) {
+                    CompositionLocalProvider(LocalFeedback provides recorder) {
                         OverlayHost {
                             Box(Modifier.fillMaxSize()) {
                                 FabMenu(
@@ -76,7 +102,7 @@ class FabMenuCascadeTest {
                                     icon = Tabler.Outline.Plus,
                                     contentDescription = "Add",
                                 ) {
-                                    repeat(3) { item(Tabler.Outline.Star, "Nearby", onClick = {}) }
+                                    repeat(Items) { item(Tabler.Outline.Star, "Stop $it", onClick = {}) }
                                 }
                             }
                         }
@@ -84,16 +110,43 @@ class FabMenuCascadeTest {
                 }
             }
             waitForIdle()
-            player.clear()
+            mainClock.autoAdvance = false
+            val start = mainClock.currentTime
             expanded.value = true
-            mainClock.advanceTimeBy(1500)
-            waitForIdle()
-            opening = player.records
-            player.clear()
+            val tracks = List(Items) { mutableListOf<Pair<Long, Rect>>() }
+            repeat(90) {
+                // Stamped with the frame being produced, which is when anything
+                // performed while producing it is felt.
+                now = mainClock.currentTime + FrameMillis - 1 - start
+                mainClock.advanceTimeByFrame()
+                now = mainClock.currentTime - start
+                for (i in 0 until Items) {
+                    val node = onAllNodesWithContentDescription("Stop $i").fetchSemanticsNodes().firstOrNull() ?: continue
+                    tracks[i] += now to node.boundsInRoot
+                }
+            }
+            // Where each item finished, and the first frame it was within 3% of
+            // its travel of there — what the eye takes as landed.
+            for (i in 0 until Items) {
+                val track = tracks[i]
+                if (track.isEmpty()) continue
+                val end = track.last().second.center
+                val travel = track.maxOf { (it.second.center - end).getDistance() }.coerceAtLeast(1f)
+                landedAt[i] = track.firstOrNull { (it.second.center - end).getDistance() <= travel * 0.03f }?.first ?: -1L
+            }
+            mainClock.autoAdvance = true
+            val before = felt.size
             expanded.value = false
             mainClock.advanceTimeBy(1500)
             waitForIdle()
+            closing = felt.size - before
+            felt.subList(before, felt.size).clear()
         }
-        return opening to player.records
+        return Run(felt.toList(), landedAt, closing)
+    }
+
+    private companion object {
+        const val Items = 4
+        const val FrameMillis = 17L
     }
 }

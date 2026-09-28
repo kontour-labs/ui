@@ -517,6 +517,8 @@ these change what an existing call does.
   too long**, which now ends in an ellipsis.
 - **A warning `AnimatedCounter` taps lightly as the warning starts and fully as
   the number lands**, not once per drop; `hapticWarning = false` turns it off.
+- **A `FabMenu`'s items leave 50ms apart**, not 28ms, so each is felt as it
+  lands; `FabMenuDefaults.Stagger` says so.
 - **A label-less `NavBar` centres its glyphs** in their touch targets, level with
   the marker.
 - **`PasswordField`'s reveal toggle answers like a toggle**, with the same haptic

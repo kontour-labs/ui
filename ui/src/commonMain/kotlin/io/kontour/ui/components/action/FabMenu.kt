@@ -1,9 +1,6 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.TargetBasedAnimation
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.AnimationVector1D
@@ -20,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -56,6 +54,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
@@ -137,16 +136,16 @@ object FabMenuDefaults {
      * five things appearing: each item leaves a beat after the one before it, so
      * the eye follows a wave outward instead of being handed a finished menu.
      *
-     * Small, because the stagger accumulates — six items at 40ms is a quarter of
-     * a second before the last one has moved, and by then the first has settled
-     * and the menu feels slow. At 28ms a six-item menu is fully out in about
-     * 300ms including the spring.
+     * Small, because the stagger accumulates, and no smaller, because each item
+     * is felt as it lands: 28ms apart, the landings ran together into one
+     * rumble at the end. At 50ms each is its own tick, and a four-item menu is
+     * fully out in about a third of a second including the spring.
      *
      * Zero under `reduceMotion`, where the items simply fade: a sequence is
      * still movement, and staggering it draws the eye across the screen exactly
      * as the preference asks it not to.
      */
-    val Stagger: Duration = 28.milliseconds
+    val Stagger: Duration = 50.milliseconds
 
     /** How small an item starts before springing out to full size. */
     const val FromScale: Float = 0.55f
@@ -354,21 +353,24 @@ fun FabMenu(
             )
             launch { openness.animateTo(1f, motion.tweenFast()) }
             val itemSpec = motion.springOrTween<Float>(motion.springDefault)
-            // The first landing is when a spring first reaches its place — the
-            // moment it reads as arrived, before the last of its settle — and
-            // each after it one stagger later. Played as one pattern from there,
-            // since the items land closer together than the rate floor lets
-            // separate taps through; one tick where nothing moves.
-            launch {
-                delay(landingTime(itemSpec))
-                val landings = if (motion.reduceMotion) listOf(Duration.ZERO) else List(fractions.size) { stagger * it }
-                feedback.perform(FeedbackIntent.GestureEnd, landings)
-            }
             // Nearest first, so the wave runs outward from the button it came
             // out of.
             fractions.forEachIndexed { index, fraction ->
                 launch {
                     delay(stagger * index)
+                    // Each item felt as it lands: watched on its own animation,
+                    // so the tick comes on the frame it arrives rather than on a
+                    // schedule worked out in advance. They used to be one pattern
+                    // computed from the spring, played from the first landing —
+                    // which arrived as a single rumble once the last item had
+                    // landed, and was reported as exactly that. Each a little
+                    // softer than the one before; one tick where nothing moves.
+                    if (!motion.reduceMotion || index == 0) {
+                        launch {
+                            snapshotFlow { fraction.value }.first { it >= FabItemLanded }
+                            feedback.perform(FeedbackIntent.GestureEnd, landingStrength(index))
+                        }
+                    }
                     // `springDefault`, not `springBouncy`. Overshoot is a
                     // proportion of the distance travelled, so the same spring
                     // that reads as lively on a chip's 6dp tick reads as a
@@ -917,18 +919,10 @@ private const val HorizontalLabelAngle = 45f
 private const val DiagonalComponent = 0.70710678f
 
 /**
- * How long [spec] takes to first reach the place it is going, from rest: the
- * moment an item reads as arrived, which for a spring is well before the tail of
- * its settle. Sampled rather than solved, so a theme that retunes its springs
- * still lands its haptics on its items.
+ * How far out an item is when it reads as landed: close enough that what is
+ * left of its travel is the settle, not the movement.
  */
-internal fun landingTime(spec: AnimationSpec<Float>, reached: Float = 0.995f): Duration {
-    val animation = TargetBasedAnimation(spec, Float.VectorConverter, initialValue = 0f, targetValue = 1f)
-    val step = 2_000_000L
-    var nanos = 0L
-    while (nanos < animation.durationNanos) {
-        if (animation.getValueFromNanos(nanos) >= reached) return (nanos / 1_000_000L).milliseconds
-        nanos += step
-    }
-    return (animation.durationNanos / 1_000_000L).milliseconds
-}
+private const val FabItemLanded = 0.97f
+
+/** The [index]th item's landing, a little softer than the one before, to a floor. */
+internal fun landingStrength(index: Int): Float = (1f - 0.1f * index).coerceAtLeast(0.6f)
