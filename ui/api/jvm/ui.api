@@ -3084,7 +3084,7 @@ public final class io/kontour/ui/overlay/MenuKt {
 	public static final fun AnchoredDropdownMenu (ZLandroidx/compose/ui/geometry/Rect;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLio/kontour/ui/overlay/ScrimStyle;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ContextMenuArea (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun DropdownMenu (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLio/kontour/ui/overlay/ScrimStyle;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuActionRow (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuActionRow (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuDivider (Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuItem (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZZZZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuSectionHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
@@ -3092,7 +3092,7 @@ public final class io/kontour/ui/overlay/MenuKt {
 }
 
 public abstract interface class io/kontour/ui/overlay/MenuScope : androidx/compose/foundation/layout/ColumnScope {
-	public abstract fun actionRow (Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun actionRow (ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
 	public abstract fun divider (Landroidx/compose/runtime/Composer;I)V
 	public abstract fun item (Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;ZZZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
 	public abstract fun section (Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
@@ -3100,6 +3100,7 @@ public abstract interface class io/kontour/ui/overlay/MenuScope : androidx/compo
 }
 
 public final class io/kontour/ui/overlay/MenuScope$ComposeDefaultImpls {
+	public static final fun actionRow$default (ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/overlay/MenuScope;Landroidx/compose/runtime/Composer;II)V
 	public static final fun item$default (Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;ZZZLkotlin/jvm/functions/Function0;Lio/kontour/ui/overlay/MenuScope;Landroidx/compose/runtime/Composer;II)V
 	public static final fun submenu$default (Ljava/lang/String;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/overlay/MenuScope;Landroidx/compose/runtime/Composer;II)V
 }

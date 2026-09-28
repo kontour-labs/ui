@@ -525,7 +525,8 @@ these change what an existing call does.
   as `IconToggleButton`.
 - **On touch, a submenu opens in place**, over its own row in the same menu,
   instead of beside it. With a mouse or the keyboard it still opens beside it.
-  `MenuScope` gains `actionRow`, so a class implementing it must too.
+  `MenuScope` gains `actionRow(filled, content)`, so a class implementing it
+  must too.
 - **`DatePicker` and `DateRangePicker` are always six weeks tall**, so a
   five-week month has a blank week at the end, and **a sideways drag on either
   pages the month** — on a range picker, only a drag that starts off the days.

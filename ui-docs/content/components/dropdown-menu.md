@@ -57,13 +57,18 @@ DropdownMenu(visible = open, onDismissRequest = { open = false }) {
 ```
 
 Each is a button that closes the menu as it runs, and a hairline follows the
-row. Put it first. Outside the builder, `MenuActionRow { }` is the same row, and
-leaves closing to its actions.
+row. Put it first. The actions stand on the menu itself, and a press shows where
+each one is; `actionRow(filled = true)` sets each on a sunken ground of its own
+instead. Outside the builder, `MenuActionRow { }` is the same row, and leaves
+closing to its actions.
 
 **On touch a submenu opens in place.** A tap on its row opens it over the row,
-growing from the row's height, with the row kept on top pointing down: tap it
-to go back, or tap the menu around it. The menu under it dims and draws back a
-little, and a screen reader stops reaching it. Submenus nest the same way. Near
+growing from the row's height, with the row kept on top and its chevron turning
+to point down: tap it to go back, or tap the menu around it. The menu under it
+dims and draws back a little, and a screen reader stops reaching it. Going back,
+the submenu folds into its row and fades as it arrives, so what is left is the
+row itself; and the menu under it dims by a shade drawn over its rows, inside
+its shape, so its shadow stays round. Submenus nest the same way. Near
 the bottom of a menu too short to hold it, the submenu is moved up to fit. With a
 mouse or the keyboard a submenu opens beside its row instead, on hover or on
 Right — which is where a pointer is going, and where a phone has no room. Both
@@ -105,7 +110,8 @@ border and the dividers go from the faint `outlineSubtle` to the near-ink
 `outline`, and both thicken with the tier, as does the focus ring. Where a long
 menu shows a scrollbar, it stays at full ink rather than fading when idle.
 
-At high contrast the action row's cells take the tier's edge.
+At high contrast the action row's cells take the tier's edge, filled or not, as a
+ghost button does.
 
 Under reduced motion the menu, and any submenu, fades in where it opens instead
 of growing out of its anchor; a submenu opening in place fades in over its row,

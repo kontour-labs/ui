@@ -84,9 +84,12 @@ interface MenuScope : ColumnScope {
      *     action("Save", Tabler.Outline.Star) { save(stop) }
      * }
      * ```
+     *
+     * @param filled Sets each action on a ground of its own. Off by default: the
+     *   icons and their words stand on the menu, and the press shows where they are.
      */
     @Composable
-    fun actionRow(content: MenuActionRowScope.() -> Unit)
+    fun actionRow(filled: Boolean = false, content: MenuActionRowScope.() -> Unit)
 
     /**
      * A nested menu. On touch it opens in place, over its own row, with the row
@@ -168,9 +171,9 @@ internal class MenuScopeImpl(
     }
 
     @Composable
-    override fun actionRow(content: MenuActionRowScope.() -> Unit) {
+    override fun actionRow(filled: Boolean, content: MenuActionRowScope.() -> Unit) {
         val dismiss = onDismissRequest
-        MenuActionCells(MenuActionRowScope().apply(content).actions, Modifier) { action ->
+        MenuActionCells(MenuActionRowScope().apply(content).actions, Modifier, filled) { action ->
             // Close first, as `item` does.
             dismiss()
             action.onClick()

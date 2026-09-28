@@ -248,11 +248,15 @@ private val menuMatchAnchor = Knob.Flag("Match the anchor")
 /** A row of the most-used actions across the top, as an iOS menu has. */
 private val menuActionRow = Knob.Flag("Action row", initial = true)
 
+/** The action row's cells on grounds of their own, rather than on the menu's. */
+private val menuActionFilled = Knob.Flag("Filled actions")
+
 internal val DropdownMenuDemo = ComponentDemo(
     slug = "dropdown-menu",
-    knobs = listOf(menuMatchAnchor, menuActionRow),
+    knobs = listOf(menuMatchAnchor, menuActionRow, menuActionFilled),
 ) {
     val actionRow = this[menuActionRow]
+    val filled = this[menuActionFilled]
     var open by remember { mutableStateOf(false) }
     var order by remember { mutableStateOf(0) }
     // The builder collects rather than composes, so the callbacks are hoisted.
@@ -273,7 +277,7 @@ internal val DropdownMenuDemo = ComponentDemo(
                 matchAnchorWidth = this@ComponentDemo[menuMatchAnchor],
             ) {
                 if (actionRow) {
-                    actionRow {
+                    actionRow(filled = filled) {
                         action("Share", Tabler.Outline.Share) { echo("Share") }
                         action("Copy", Tabler.Outline.Copy) { echo("Copy stop ID") }
                         action("Save", Tabler.Outline.Star) { echo("Save") }

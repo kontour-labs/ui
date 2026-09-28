@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.stateDescription
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
@@ -59,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -436,13 +439,16 @@ private fun MenuSurface(
 ) {
     val reduced = Theme.motion.reduceMotion
     val covered = dimmedBy() > 0f
+    val dim = Theme.colours.scrim
     OverlaySurface(
         modifier = modifier
+            // Drawn back a little, and no more: a layer's alpha would composite
+            // the panel offscreen, cut to its own box, and square off the
+            // shadow round it — which is how it was reported. The dimming is
+            // drawn over the rows instead, inside the panel's shape.
             .graphicsLayer {
-                val dim = dimmedBy()
-                alpha = 1f - LevelDim * dim
                 if (!reduced) {
-                    scaleX = 1f - LevelRecede * dim
+                    scaleX = 1f - LevelRecede * dimmedBy()
                     scaleY = scaleX
                 }
             }
@@ -477,7 +483,13 @@ private fun MenuSurface(
         // `Combobox`, the context menu and every submenu get it without knowing
         // it exists.
         val scroll = rememberScrollState()
-        Box {
+        Box(
+            Modifier.drawWithContent {
+                drawContent()
+                val level = dimmedBy()
+                if (level > 0f) drawRect(dim, alpha = LevelDim * level)
+            }
+        ) {
             Column(
                 modifier = Modifier
                     .verticalScroll(scroll)
@@ -517,8 +529,30 @@ private fun MenuLevelSurface(
     dimmedBy: () -> Float,
 ) {
     val reduced = Theme.motion.reduceMotion
+    // The chevron turns from pointing along the row to pointing down as the
+    // level opens, and back as it closes, so at rest it is the row's own.
+    val turn = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -90f else 90f
     MenuSurface(
-        modifier = Modifier.graphicsLayer { if (reduced) alpha = level.progress.value },
+        modifier = Modifier
+            // Faded in over the first part of its growth, and out over the last
+            // of its closing, so it leaves as the row it grew from rather than as
+            // a panel of its own dropped on the frame it lands — the snap reported
+            // on tapping out of one. Under reduced motion the fade is the whole
+            // of it.
+            //
+            // A faded layer is drawn offscreen, cut to its own box, which would
+            // cut the level's shadow square as it faded. So the layer is made
+            // bigger than the level by room for the shadow, and the level laid
+            // out as its own size inside it.
+            .layout { measurable, constraints ->
+                val room = LevelShadowRoom.roundToPx()
+                val placeable = measurable.measure(constraints.offset(2 * room, 2 * room))
+                layout(placeable.width - 2 * room, placeable.height - 2 * room) { placeable.place(-room, -room) }
+            }
+            .graphicsLayer {
+                alpha = if (reduced) level.progress.value else (level.progress.value / LevelFadeShare).coerceIn(0f, 1f)
+            }
+            .padding(LevelShadowRoom),
         shape = shape,
         dimmedBy = dimmedBy,
     ) {
@@ -527,16 +561,30 @@ private fun MenuLevelSurface(
             modifier = Modifier.semantics { stateDescription = level.expandedLabel },
         ) {
             level.header(this)
-            trailing { +SystemIcons.ChevronDown }
+            trailing {
+                val slot = this
+                Box(Modifier.graphicsLayer { rotationZ = turn * level.progress.value.coerceIn(0f, 1f) }) {
+                    with(slot) { +SystemIcons.ChevronForward }
+                }
+            }
         }
         MenuDivider()
         MenuScopeImpl(this, onDismissRequest).(level.content)()
     }
 }
 
-/** How far a level under an open one fades, and how far it draws back. */
-private const val LevelDim: Float = 0.45f
+/**
+ * How much of the scrim a level under an open one is dimmed by, and how far it
+ * draws back.
+ */
+private const val LevelDim: Float = 0.7f
 private const val LevelRecede: Float = 0.03f
+
+/** How much of a level's growth it fades in over, and of its closing it fades out over. */
+private const val LevelFadeShare: Float = 0.3f
+
+/** Room round a fading level for its shadow, which the fade would otherwise cut off. */
+private val LevelShadowRoom = 32.dp
 
 /**
  * The submenus open in place over a menu, innermost last. Provided by the menu's
@@ -989,13 +1037,17 @@ private fun InPlaceSubMenuRow(
  * walk along it.
  */
 @Composable
-fun MenuActionRow(modifier: Modifier = Modifier, content: MenuActionRowScope.() -> Unit) {
-    MenuActionCells(MenuActionRowScope().apply(content).actions, modifier) { it.onClick() }
+fun MenuActionRow(modifier: Modifier = Modifier, filled: Boolean = false, content: MenuActionRowScope.() -> Unit) {
+    MenuActionCells(MenuActionRowScope().apply(content).actions, modifier, filled) { it.onClick() }
 }
 
-/** The cells of an action row, each running [run] with its action. */
+/**
+ * The cells of an action row, each running [run] with its action — on a sunken
+ * ground of its own when [filled], and on the menu's otherwise, which is the
+ * default: asked for from a phone as the buttons having "no background".
+ */
 @Composable
-internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, run: (MenuAction) -> Unit) {
+internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, filled: Boolean, run: (MenuAction) -> Unit) {
     require(actions.size in 1..MaxActions) {
         "A menu's action row holds two to four actions, not ${actions.size}: past four each word has too " +
             "little of the menu's width to be read, and one is an item."
@@ -1041,7 +1093,8 @@ internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, run:
                         .weight(1f)
                         .minimumTouchTarget(fill = true)
                         .clip(cellShape)
-                        .background(colours.surfaceSunken)
+                        .then(if (filled) Modifier.background(colours.surfaceSunken) else Modifier)
+                        // Edged at the enhanced tier either way, as a ghost button is.
                         .optionalBorder(edge, cellShape)
                         .focusRequester(cells[index])
                         .onFocusChanged { if (it.isFocused) focused = index else if (focused == index) focused = -1 }
