@@ -89,7 +89,9 @@ The month and year above the grid cross-fade with it, each as visible as its mon
 is in view, so the title is already the new month when the swipe lands. And
 landing is the end of the same movement: the month that slid in is the one that
 stays, rather than being drawn again — it used to hand over to the arrows'
-crossing, which showed the old month for a frame first.
+crossing, which showed the old month for a frame first. A swipe that catches the
+last one before it has settled carries on from the month it was going to, so
+quick swipes go on month after month.
 
 **A sideways scroll pages the month** — a trackpad's two-finger swipe, a mouse's
 tilt wheel, or shift and the wheel — which is how everything else pages on a

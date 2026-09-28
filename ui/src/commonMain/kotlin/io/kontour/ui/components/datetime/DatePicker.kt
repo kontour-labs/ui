@@ -929,10 +929,18 @@ private fun CalendarFrame(
                 }
             } finally {
                 // All at once: measured from the month now in view, which is at 0.
-                base = navigation.visibleMonth
-                held = 0f
-                settling = false
-                settle.snapTo(0f)
+                // Only if it is still this settle's to finish. A swipe that caught
+                // it has taken the months over from where they were, and this
+                // running later — a cancelled coroutine's `finally` does not run
+                // until after the new swipe has begun — put them back where the
+                // settle had started: every quick second swipe began on the old
+                // month again, and a run of them went back and forth between two.
+                if (settleJob === coroutineContext[Job]) {
+                    base = navigation.visibleMonth
+                    held = 0f
+                    settling = false
+                    settleJob = null
+                }
             }
         }
     }
@@ -1109,17 +1117,26 @@ private fun CalendarFrame(
                     claimsOn = DragClaim.Direction,
                     accepts = { at -> drag?.startsOnDay(at) != true },
                     onStart = {
-                        settleJob?.cancel()
-                        // Caught mid-settle, it carries on from where it was —
-                        // measured from the month now in view, which a swipe that
-                        // had already landed has changed.
+                        // Caught mid-settle, the swipe takes the months over from
+                        // where they are, measured from whichever month is most in
+                        // view — so a quick second swipe carries on from the month
+                        // the first was taking it to, as a paging list does, rather
+                        // than from the one it left.
+                        val interrupted = settleJob
+                        settleJob = null
+                        interrupted?.cancel()
                         val width = pageWidth.toFloat()
-                        held = if (settling) {
-                            settle.value + (monthIndex(navigation.visibleMonth) - monthIndex(base)) * width
+                        if (settling && width > 0f) {
+                            val pages = (-settle.value / width).roundToInt()
+                            val nearest = base.plus(pages, DateTimeUnit.MONTH)
+                            held = settle.value + pages * width
+                            base = nearest
+                            if (nearest != navigation.visibleMonth) navigation.jumpTo(nearest)
                         } else {
-                            0f
+                            held = 0f
+                            base = navigation.visibleMonth
                         }
-                        base = navigation.visibleMonth
+                        settling = false
                         swiping = true
                         pageTicker.reset()
                         pageTicker.at(monthIndex(navigation.visibleMonth))

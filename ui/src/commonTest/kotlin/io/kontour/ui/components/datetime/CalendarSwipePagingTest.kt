@@ -174,6 +174,33 @@ class CalendarSwipePagingTest {
         )
     }
 
+    /**
+     * A second swipe caught mid-settle carries on from the month the first was
+     * taking it to: two quick swipes are two months. It used to start again from
+     * the month the first had left, so a quick run of them went back and forth
+     * between the same two — "it just keeps repeating between two months".
+     */
+    @Test
+    fun quickSwipesKeepGoing() = runComposeUiTest {
+        val navigation = single(LocalDate(2026, 6, 1))
+        val width = gridWidth()
+        val on = centreOf("17")
+        mainClock.autoAdvance = false
+        repeat(3) {
+            onRoot().performTouchInput {
+                down(on)
+                repeat(6) { moveBy(Offset(-width * 0.45f / 6f, 0f), delayMillis = 16) }
+                up()
+            }
+            // Caught well before it has settled.
+            repeat(3) { mainClock.advanceTimeByFrame() }
+        }
+        mainClock.autoAdvance = true
+        mainClock.advanceTimeBy(1000)
+        waitForIdle()
+        assertEquals(LocalDate(2026, 9, 1), navigation.visibleMonth, "three quick swipes left from June should reach September")
+    }
+
     /** A short quick flick pages, however little of the way it went. */
     @Test
     fun aFlickPages() = runComposeUiTest {
