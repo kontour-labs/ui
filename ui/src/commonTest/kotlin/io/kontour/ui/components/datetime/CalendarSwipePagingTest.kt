@@ -21,12 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -95,6 +97,81 @@ class CalendarSwipePagingTest {
         }
         mainClock.advanceTimeBy(1000)
         assertEquals(LocalDate(2026, 6, 1), navigation.visibleMonth, "a swipe right past a third should show June again")
+    }
+
+    /**
+     * Landing on a month is the end of the same movement: no frame after the
+     * swipe lets go shows the month it left in the grid. It used to hand over to
+     * the crossing, which drew the old month for a frame — "it flickers back to
+     * the old month before the month/year at the top changes".
+     */
+    @Test
+    fun landingDoesNotFlickerBackToTheOldMonth() = runComposeUiTest {
+        val navigation = single(LocalDate(2026, 6, 1))
+        val width = gridWidth()
+        val juneSeventeenth = centreOf("17")
+        val grid = onAllNodesWithText("1").onFirst().fetchSemanticsNode().boundsInRoot.left - 4f
+        val gridEnd = grid + width + 8f
+        mainClock.autoAdvance = false
+        onRoot().performTouchInput {
+            down(juneSeventeenth)
+            repeat(20) { moveBy(Offset(-width * 0.45f / 20f, 0f), delayMillis = 40) }
+            moveBy(Offset.Zero, delayMillis = 200)
+            up()
+        }
+        var landedAt = -1
+        repeat(60) { frame ->
+            mainClock.advanceTimeByFrame()
+            if (navigation.visibleMonth == LocalDate(2026, 6, 1)) return@repeat
+            if (landedAt < 0) landedAt = frame
+            // June's 17th is a Wednesday, July's a Friday: a 17 in June's place,
+            // inside the grid, is June drawn again.
+            val june = onAllNodesWithText("17").fetchSemanticsNodes().map { it.boundsInRoot.center }.filter {
+                it.x in grid..gridEnd && abs(it.x - juneSeventeenth.x) < 2f && abs(it.y - juneSeventeenth.y) < 2f
+            }
+            assertTrue(june.isEmpty(), "on frame $frame, after landing on July, June's 17th was drawn in the grid again")
+        }
+        mainClock.autoAdvance = true
+        assertTrue(landedAt >= 0, "the swipe never landed")
+    }
+
+    /**
+     * The month and year cross-fade with the swipe, so the title is the new month
+     * by the time the swipe lands rather than changing after it.
+     */
+    @Test
+    fun theTitleCrossFadesWithTheSwipe() = runComposeUiTest {
+        single(LocalDate(2026, 6, 1))
+        val width = gridWidth()
+        val title = onAllNodesWithText("June 2026").onFirst().fetchSemanticsNode().boundsInRoot
+        fun header(): List<Int> {
+            val pixels = onRoot().captureToImage().toPixelMap()
+            val left = (title.left - 60f).toInt().coerceAtLeast(0)
+            val right = (title.right + 60f).toInt().coerceAtMost(pixels.width - 1)
+            return buildList {
+                for (y in title.top.toInt()..title.bottom.toInt()) for (x in left..right) add(pixels[x, y].hashCode())
+            }
+        }
+        fun differ(a: List<Int>, b: List<Int>) = a.zip(b).count { (p, q) -> p != q }
+        val june = header()
+        onRoot().performTouchInput {
+            down(centreOf("17"))
+            repeat(10) { moveBy(Offset(-width * 0.5f / 10f, 0f), delayMillis = 40) }
+        }
+        waitForIdle()
+        val halfway = header()
+        onRoot().performTouchInput {
+            moveBy(Offset(-width * 0.2f, 0f), delayMillis = 40)
+            moveBy(Offset.Zero, delayMillis = 200)
+            up()
+        }
+        mainClock.advanceTimeBy(1000)
+        val july = header()
+        assertTrue(differ(june, july) > 20, "the title did not change from June to July")
+        assertTrue(
+            differ(halfway, june) > 20 && differ(halfway, july) > 20,
+            "halfway through the swipe the title was one month or the other, not on its way between them",
+        )
     }
 
     /** A short quick flick pages, however little of the way it went. */

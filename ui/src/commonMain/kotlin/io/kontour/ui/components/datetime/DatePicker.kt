@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -64,6 +65,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -630,14 +632,36 @@ private fun MonthAndYearButton(
     formats: LocaleFormats,
     chooserIcon: ImageVector?,
     onOpen: () -> Unit,
+    peeking: Boolean = false,
+    placeOf: (LocalDate) -> Float = { 0f },
 ) {
     val title = @Composable {
-        Text(
-            text = formats.monthAndYear(navigation.visibleMonth),
-            style = Theme.typography.titleMedium,
-            // Paging is silent otherwise: the grid changes but nothing says so.
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
+        // While a swipe is pulling the months across, the title fades from this
+        // month to the one coming in, each as visible as its grid is in view — so
+        // it has already become the new month when the swipe lands, rather than
+        // changing after it.
+        Box(contentAlignment = Alignment.Center) {
+            val shown = navigation.visibleMonth
+            Text(
+                text = formats.monthAndYear(shown),
+                style = Theme.typography.titleMedium,
+                // Paging is silent otherwise: the grid changes but nothing says so.
+                modifier = Modifier
+                    .graphicsLayer { alpha = if (peeking) (1f - abs(placeOf(shown))).coerceIn(0f, 1f) else 1f }
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            if (peeking) {
+                for (month in listOf(shown.minus(1, DateTimeUnit.MONTH), shown.plus(1, DateTimeUnit.MONTH))) {
+                    Text(
+                        text = formats.monthAndYear(month),
+                        style = Theme.typography.titleMedium,
+                        modifier = Modifier
+                            .graphicsLayer { alpha = (1f - abs(placeOf(month))).coerceIn(0f, 1f) }
+                            .clearAndSetSemantics {},
+                    )
+                }
+            }
+        }
     }
 
     if (chooserIcon == null) {
@@ -821,9 +845,6 @@ private fun CalendarFrame(
     var settling by remember { mutableStateOf(false) }
     var swiping by remember { mutableStateOf(false) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
-    // The month a swipe landed on, which it has already slid in: the crossing's
-    // own slide would be a second arrival.
-    var swiped by remember { mutableStateOf<LocalDate?>(null) }
     var pageWidth by remember { mutableIntStateOf(0) }
     // Landing on a month is a resting place, as a carousel's page is.
     val pageTicker = rememberDetentTicker(FeedbackIntent.Snap)
@@ -833,6 +854,33 @@ private fun CalendarFrame(
     val following = !motion.reduceMotion && (swiping || settling)
 
     fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
+
+    // The month the swipe's offset is measured from: the one in view when it
+    // began, until the swipe is over and the month it landed on takes its place.
+    var base by remember { mutableStateOf(navigation.visibleMonth) }
+
+    /**
+     * Where [month] is, in pages from the middle, while a swipe is showing the
+     * months side by side: 0 in view, ±1 a page either side, positive towards the
+     * reading's end.
+     *
+     * **By which month it is**, not by which slot it was composed in. A swipe
+     * lands by changing the month and the offset together, and composition and
+     * layout take changes in different phases: placed by slot, the frame layout
+     * saw the new offset before composition had put the new month in the middle,
+     * it drew the old month there — the reported flicker back to it on landing.
+     * Placed by identity, a month is where it belongs whichever caught up first.
+     *
+     * Read where it is used — the grid's placement and the title's cross-fade —
+     * so a frame of the swipe recomposes nothing.
+     */
+    val placeOf: (LocalDate) -> Float = remember {
+        { month ->
+            val width = pageWidth.toFloat()
+            val pulled = if (width <= 0f) 0f else (if (settling) settle.value else held) / width
+            pulled + (monthIndex(month) - monthIndex(base))
+        }
+    }
 
     /** Lets go at [velocity], in the reading direction: on to a month, or back. */
     fun release(velocity: Float) {
@@ -847,8 +895,8 @@ private fun CalendarFrame(
             else -> 0
         }
         val landing = when (towards) {
-            1 -> navigation.visibleMonth.minus(1, DateTimeUnit.MONTH)
-            -1 -> navigation.visibleMonth.plus(1, DateTimeUnit.MONTH)
+            1 -> base.minus(1, DateTimeUnit.MONTH)
+            -1 -> base.plus(1, DateTimeUnit.MONTH)
             else -> null
         }
         if (motion.reduceMotion) {
@@ -856,6 +904,7 @@ private fun CalendarFrame(
                 navigation.jumpTo(landing)
                 pageTicker.at(monthIndex(landing))
             }
+            base = navigation.visibleMonth
             return
         }
         settling = true
@@ -870,23 +919,22 @@ private fun CalendarFrame(
                     initialVelocity = velocity,
                 )
                 if (landing != null) {
-                    swiped = landing
+                    // The month the swipe brought in becomes the month where it
+                    // already is — see `placeOf` — and stays the swipe's own for a
+                    // frame, so composition has it in the middle before the
+                    // crossing takes over.
                     navigation.jumpTo(landing)
                     pageTicker.at(monthIndex(landing))
+                    withFrameNanos {}
                 }
             } finally {
-                settle.snapTo(0f)
+                // All at once: measured from the month now in view, which is at 0.
+                base = navigation.visibleMonth
+                held = 0f
                 settling = false
+                settle.snapTo(0f)
             }
         }
-    }
-    LaunchedEffect(swiped) {
-        if (swiped == null) return@LaunchedEffect
-        // Long enough for the crossing to have read it, and no longer: a later
-        // arrow press back to the same month slides as it should.
-        withFrameNanos {}
-        withFrameNanos {}
-        swiped = null
     }
 
     // A month changing under a finger that is still down — a header arrow pressed
@@ -971,6 +1019,8 @@ private fun CalendarFrame(
                         formats = formats,
                         chooserIcon = chooserIcon,
                         onOpen = { chooserOpen = true },
+                        peeking = following,
+                        placeOf = placeOf,
                     )
                 },
             ) {
@@ -1060,8 +1110,16 @@ private fun CalendarFrame(
                     accepts = { at -> drag?.startsOnDay(at) != true },
                     onStart = {
                         settleJob?.cancel()
-                        // Caught mid-settle, it carries on from where it was.
-                        held = if (settling) settle.value else 0f
+                        // Caught mid-settle, it carries on from where it was —
+                        // measured from the month now in view, which a swipe that
+                        // had already landed has changed.
+                        val width = pageWidth.toFloat()
+                        held = if (settling) {
+                            settle.value + (monthIndex(navigation.visibleMonth) - monthIndex(base)) * width
+                        } else {
+                            0f
+                        }
+                        base = navigation.visibleMonth
                         swiping = true
                         pageTicker.reset()
                         pageTicker.at(monthIndex(navigation.visibleMonth))
@@ -1081,15 +1139,19 @@ private fun CalendarFrame(
         val shown = navigation.visibleMonth
         Layout(
             content = {
+        if (following) {
+            // Under a finger, three months side by side, each keyed by what it
+            // is: when a swipe lands, the month it brought in is the same
+            // composition moving to the middle, not a new one drawn over the old.
+            key(shown) { content(shown) }
+            val before = shown.minus(1, DateTimeUnit.MONTH)
+            val after = shown.plus(1, DateTimeUnit.MONTH)
+            key(before) { content(before) }
+            key(after) { content(after) }
+        } else {
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {
-                // Already slid in, under the finger.
-                if (targetState == swiped) {
-                    return@AnimatedContent (
-                        EnterTransition.None togetherWith ExitTransition.None
-                        ) using SizeTransform(clip = false) { _, _ -> snap() }
-                }
                 // **Cut rather than slid while the chooser is up.**
                 //
                 // A drum turned through a year jumps the calendar once per row
@@ -1143,27 +1205,23 @@ private fun CalendarFrame(
         ) { month ->
             content(month)
         }
-                // The months either side, only while a swipe is showing them.
-                if (following) {
-                    val before = shown.minus(1, DateTimeUnit.MONTH)
-                    val after = shown.plus(1, DateTimeUnit.MONTH)
-                    key(before) { content(before) }
-                    key(after) { content(after) }
-                }
+        }
             },
             modifier = if (following) Modifier.clipToBounds() else Modifier,
         ) { measurables, constraints ->
             val placeables = measurables.map { it.measure(constraints) }
             val current = placeables.first()
             layout(current.width, placeables.maxOf { it.height }) {
-                // Read here, in placement, so a frame of the swipe moves the
-                // months and recomposes nothing.
-                val shift = if (following) (if (settling) settle.value else held).roundToInt() else 0
-                // Relative, so right to left the month before is on the right.
-                current.placeRelative(shift, 0)
-                if (placeables.size == 3) {
-                    placeables[1].placeRelative(shift - current.width, 0)
-                    placeables[2].placeRelative(shift + current.width, 0)
+                if (following && placeables.size == 3) {
+                    // Read here, in placement, so a frame of the swipe moves the
+                    // months and recomposes nothing. Relative, so right to left
+                    // the month before is on the right.
+                    val months = listOf(shown, shown.minus(1, DateTimeUnit.MONTH), shown.plus(1, DateTimeUnit.MONTH))
+                    placeables.forEachIndexed { i, month ->
+                        month.placeRelative((placeOf(months[i]) * current.width).roundToInt(), 0)
+                    }
+                } else {
+                    current.placeRelative(0, 0)
                 }
             }
         }

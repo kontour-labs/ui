@@ -85,6 +85,12 @@ on to the next at the finger's speed, landing with a snap felt as well as seen.
 Short of that it comes back. Right to left it runs the other way. A drag that sets
 off up or down is the page's, so a picker in a scrolling page still scrolls.
 
+The month and year above the grid cross-fade with it, each as visible as its month
+is in view, so the title is already the new month when the swipe lands. And
+landing is the end of the same movement: the month that slid in is the one that
+stays, rather than being drawn again — it used to hand over to the arrows'
+crossing, which showed the old month for a frame first.
+
 **A sideways scroll pages the month** — a trackpad's two-finger swipe, a mouse's
 tilt wheel, or shift and the wheel — which is how everything else pages on a
 desktop. One swipe is one month, however long its momentum runs; a vertical scroll
