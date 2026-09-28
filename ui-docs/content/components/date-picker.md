@@ -79,6 +79,12 @@ leaves it out. The same goes for [`DateRangePicker`](date-range-picker.md). A
 [`CalendarMonth`](calendar-month.md) on its own has no header: the month it shows
 is the caller's to change.
 
+**A swipe pages the month.** Drag the grid sideways and the months follow the
+finger side by side; let go past a third of the way, or with a flick, and it goes
+on to the next at the finger's speed, landing with a snap felt as well as seen.
+Short of that it comes back. Right to left it runs the other way. A drag that sets
+off up or down is the page's, so a picker in a scrolling page still scrolls.
+
 **A sideways scroll pages the month** — a trackpad's two-finger swipe, a mouse's
 tilt wheel, or shift and the wheel — which is how everything else pages on a
 desktop. One swipe is one month, however long its momentum runs; a vertical scroll
@@ -87,9 +93,14 @@ way and so does the scroll.
 
 ### It needs its whole month
 
-A month grid is up to six rows of dates plus a header, and it has nowhere to put
-the sixth row in a window shorter than about 400dp — a phone turned sideways is
-360. **Put it somewhere that scrolls.**
+**Every month is six weeks tall**, with blank weeks at the end of a shorter one.
+Months are four, five or six weeks, and a picker as tall as each changed height by
+a row when it paged — which, in a scrolling page, moved the page: reported from a
+phone as a picker that "randomly scrolls up sometimes when changing month". A
+[`CalendarMonth`](calendar-month.md) on its own is still as tall as its weeks.
+
+So it has nowhere to put its sixth row in a window shorter than about 400dp — a
+phone turned sideways is 360. **Put it somewhere that scrolls.**
 
 ---
 
@@ -119,7 +130,7 @@ it opens the chooser, gain the edge every ghost button takes at this tier, and t
 thicker. The wheels take the tier as [`WheelPicker`](wheel-picker.md) does.
 
 Under reduced motion a new month fades in where the old one was rather than
-sliding a third of the calendar's width, the calendar takes its new height at
-once between a five-week and a six-week month, and the chooser fades in place
-rather than scaling up. The today button's flash pulses a colour in the day at
+sliding a third of the calendar's width, and the chooser fades in place rather
+than scaling up. A swipe leaves the months where they are, and a swipe past the
+line fades the next one in, as the arrows do. The today button's flash pulses a colour in the day at
 every setting, which is not movement.

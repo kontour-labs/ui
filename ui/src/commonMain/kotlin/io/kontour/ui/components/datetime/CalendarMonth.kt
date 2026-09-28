@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -309,7 +310,9 @@ fun CalendarMonth(
         }
 
         val cells = leadingBlanks + daysInMonth
-        val rows = (cells + 6) / 7
+        // At least as many weeks as the picker round it asks for — six, so every
+        // month is the same height. See `LocalCalendarRows`.
+        val rows = maxOf((cells + 6) / 7, LocalCalendarRows.current)
 
         // The weeks. The hit test is derived from the grid rather than from each
         // cell's reported bounds: the columns are seven equal weights and every
@@ -459,6 +462,18 @@ internal fun rememberCalendarDrag(): CalendarDragState {
 }
 
 private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year && month == first.month
+
+/**
+ * The fewest weeks a month draws, blank ones at the end making up the rest.
+ *
+ * A date picker sets six, which every month fits. Months are four, five or six
+ * weeks, so a picker that drew each as tall as it was changed height by a week
+ * when it paged — and in a scrolling page, a picker changing height under the
+ * header is the page moving. Reported from a phone as a date picker that
+ * "randomly scrolls up sometimes when changing month". A month on its own, a
+ * `CalendarMonth` a caller lays out, is as tall as its weeks.
+ */
+internal val LocalCalendarRows = staticCompositionLocalOf { 0 }
 
 /** How strong today's flash is at its brightest: enough to find the day, not to read as a selection. */
 private const val TodayFlashAlpha: Float = 0.45f

@@ -521,6 +521,9 @@ these change what an existing call does.
   the marker.
 - **`PasswordField`'s reveal toggle answers like a toggle**, with the same haptic
   as `IconToggleButton`.
+- **`DatePicker` and `DateRangePicker` are always six weeks tall**, so a
+  five-week month has a blank week at the end, and **a sideways drag on either
+  pages the month** — on a range picker, only a drag that starts off the days.
 - **A tapped `SwipeActions` action ticks before it runs**, as a full swipe does, so
   its `onAction` comes about 0.6s after the tap; `tapConfirmation = false` runs it
   at once. A drag that starts on a revealed action now moves the row, and the row

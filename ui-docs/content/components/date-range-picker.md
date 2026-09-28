@@ -46,6 +46,11 @@ rather than as the finger drawing it.
 Dragging is never the *only* way to reach a range. Both ends can be tapped, which
 is what makes the gesture safe to offer: see the accessibility note below.
 
+**A swipe pages the month — from anywhere a range cannot start**: the blanks
+before and after the days, the weekday initials, the margins. A drag from a day is
+the range, so it cannot also be the page. The months follow the finger as on
+[`DatePicker`](date-picker.md), and every month is six weeks tall, as there.
+
 **A sideways scroll pages the month**, and the header's calendar glyph brings it
 back to today and flashes the day, as on
 [`DatePicker`](date-picker.md#the-header-is-the-way-out-of-paging).
@@ -112,7 +117,8 @@ is solid where the standard tier fades it, and that ring and today's thicken wit
 the tier.
 
 Under reduced motion a new month fades in where the old one was rather than
-sliding a third of the way across, and a tapped end's fill arrives without its
+sliding a third of the way across, a swipe fades the next month in rather than
+carrying it under the finger, and a tapped end's fill arrives without its
 overshoot. A drag is left alone — the band and its moving end follow the finger
 at every setting — but the end no longer leans toward the finger between days,
 as a slider's detents stop pulling.

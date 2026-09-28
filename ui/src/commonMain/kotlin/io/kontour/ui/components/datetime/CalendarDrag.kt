@@ -7,7 +7,10 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag as followPointer
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -334,6 +337,17 @@ internal class CalendarDragState internal constructor(
     private var dwelling: Job? = null
     private var releasing: Job? = null
 
+    /**
+     * Whether a press at [at] is on a day a range can start from — and so is this
+     * drag's, rather than a swipe to the next month's, which a range picker takes
+     * from everywhere else: the blanks, the weekday initials, the margins.
+     */
+    fun startsOnDay(at: Offset): Boolean {
+        val grid = geometry() ?: return false
+        val cells = grid.cellsAt(at)
+        return grid.isDay(cells) && grid.dateAt(grid.nearestIndex(cells))?.let(isSelectable) == true
+    }
+
     fun start(at: Offset) {
         val grid = geometry() ?: return
         val cells = grid.cellsAt(at)
@@ -572,16 +586,26 @@ internal val LocalCalendarDrag = staticCompositionLocalOf<CalendarDragState?> { 
 internal fun Modifier.calendarDragInput(drag: CalendarDragState): Modifier =
     onSizeChanged { drag.width = it.width.toFloat() }
         .pointerInput(drag) {
-            try {
-                // `detectDragGestures` waits for touch slop, so a tap still belongs
-                // to the cell it landed on and the two never argue over one press.
-                detectDragGestures(
-                    onDragStart = { drag.start(it) },
-                    onDragEnd = { drag.end() },
-                    onDragCancel = { drag.end() },
-                ) { change, _ -> drag.move(change.position) }
-            } finally {
-                drag.end()
+            // Waits for touch slop, so a tap still belongs to the cell it landed on
+            // and the two never argue over one press. And **only from a day**: a
+            // press anywhere else is left alone, unconsumed, for the swipe that
+            // pages the month. `detectDragGestures` took every drag there was,
+            // and consumed it whether or not it started a range.
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (!drag.startsOnDay(down.position)) return@awaitEachGesture
+                try {
+                    val moved = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                        ?: return@awaitEachGesture
+                    drag.start(down.position)
+                    drag.move(moved.position)
+                    followPointer(moved.id) { change ->
+                        drag.move(change.position)
+                        change.consume()
+                    }
+                } finally {
+                    drag.end()
+                }
             }
         }
 

@@ -12,6 +12,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,6 +34,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +49,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -55,6 +60,8 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -71,13 +78,19 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.motion.enterOrFade
 import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.time.Clock
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
@@ -274,6 +287,15 @@ private const val TodayFlashOutMillis: Int = 170
 
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2
+
+/** How far a swipe has to go to page, as a share of the calendar's width. */
+private const val SwipeCommitShare: Float = 1f / 3f
+
+/** How fast a swipe has to be moving, when let go, to page however short it was. */
+private val MonthFlick = 400.dp
+
+/** Weeks in the tallest month, and so in every month a picker draws. */
+private const val CalendarWeeks: Int = 6
 
 /** A scroll quiet for this long has ended, and the next one is a new swipe. */
 private const val ScrollQuietMillis: Long = 250L
@@ -786,6 +808,87 @@ private fun CalendarFrame(
     // Later months come in from the end the reading runs towards.
     val towardsEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
 
+    // **A swipe pages the month**, asked for from a phone: "allow scrolling
+    // between month when swiping the blank space". The months follow the finger
+    // side by side, and letting go past a third of the way, or with a flick, goes
+    // on to the next one at the finger's speed; short of that they come back.
+    //
+    // `held` is how far they have been pulled, in the reading direction: positive
+    // towards its end, which brings the month before in from the start.
+    val swipeScope = rememberCoroutineScope()
+    var held by remember { mutableFloatStateOf(0f) }
+    val settle = remember { Animatable(0f) }
+    var settling by remember { mutableStateOf(false) }
+    var swiping by remember { mutableStateOf(false) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    // The month a swipe landed on, which it has already slid in: the crossing's
+    // own slide would be a second arrival.
+    var swiped by remember { mutableStateOf<LocalDate?>(null) }
+    var pageWidth by remember { mutableIntStateOf(0) }
+    // Landing on a month is a resting place, as a carousel's page is.
+    val pageTicker = rememberDetentTicker(FeedbackIntent.Snap)
+    val flickPx = with(LocalDensity.current) { MonthFlick.toPx() }
+    // Under reduced motion the months stay where they are and a swipe past the
+    // line cross-fades, as the arrows do.
+    val following = !motion.reduceMotion && (swiping || settling)
+
+    fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
+
+    /** Lets go at [velocity], in the reading direction: on to a month, or back. */
+    fun release(velocity: Float) {
+        swiping = false
+        val from = held
+        held = 0f
+        val width = pageWidth.toFloat()
+        val towards = when {
+            width <= 0f -> 0
+            from > width * SwipeCommitShare || (velocity > flickPx && from > 0f) -> 1
+            from < -width * SwipeCommitShare || (velocity < -flickPx && from < 0f) -> -1
+            else -> 0
+        }
+        val landing = when (towards) {
+            1 -> navigation.visibleMonth.minus(1, DateTimeUnit.MONTH)
+            -1 -> navigation.visibleMonth.plus(1, DateTimeUnit.MONTH)
+            else -> null
+        }
+        if (motion.reduceMotion) {
+            if (landing != null) {
+                navigation.jumpTo(landing)
+                pageTicker.at(monthIndex(landing))
+            }
+            return
+        }
+        settling = true
+        settleJob = swipeScope.launch {
+            try {
+                settle.snapTo(from)
+                settle.animateTo(
+                    targetValue = towards * width,
+                    // Critically damped: an overshoot would show the month beyond,
+                    // which is not there.
+                    animationSpec = spring(dampingRatio = 1f, stiffness = motion.springSnappy.stiffness),
+                    initialVelocity = velocity,
+                )
+                if (landing != null) {
+                    swiped = landing
+                    navigation.jumpTo(landing)
+                    pageTicker.at(monthIndex(landing))
+                }
+            } finally {
+                settle.snapTo(0f)
+                settling = false
+            }
+        }
+    }
+    LaunchedEffect(swiped) {
+        if (swiped == null) return@LaunchedEffect
+        // Long enough for the crossing to have read it, and no longer: a later
+        // arrow press back to the same month slides as it should.
+        withFrameNanos {}
+        withFrameNanos {}
+        swiped = null
+    }
+
     // A month changing under a finger that is still down — a header arrow pressed
     // with another finger, or a dwell on a month arrow — is read as a move: the
     // drag carries on in the new month, from where the finger is.
@@ -944,15 +1047,49 @@ private fun CalendarFrame(
             Modifier
                 .fillMaxWidth()
                 .sidewaysScrollPages(navigation, rtl = LocalLayoutDirection.current == LayoutDirection.Rtl)
+                .onSizeChanged { pageWidth = it.width }
+                // Sideways only: a drag that sets off up or down is the page's.
+                // And in a range picker only from where a range cannot start — a
+                // blank, the weekday initials, the margins — since a drag from a
+                // day is the range.
+                .horizontalDragOwning(
+                    enabled = true,
+                    interactionSource = null,
+                    scope = swipeScope,
+                    claimsOn = DragClaim.Direction,
+                    accepts = { at -> drag?.startsOnDay(at) != true },
+                    onStart = {
+                        settleJob?.cancel()
+                        // Caught mid-settle, it carries on from where it was.
+                        held = if (settling) settle.value else 0f
+                        swiping = true
+                        pageTicker.reset()
+                        pageTicker.at(monthIndex(navigation.visibleMonth))
+                    },
+                    onDelta = { delta -> held += delta * towardsEnd },
+                    onEnd = { if (swiping) release(0f) },
+                    onRelease = { velocity -> release(velocity * towardsEnd) },
+                )
                 .then(if (drag != null) Modifier.calendarDragInput(drag) else Modifier)
         ) {
         CompositionLocalProvider(
             LocalCalendarDrag provides drag,
             LocalTodayFlash provides { todayFlash.value },
+            // Every month six weeks tall, so paging never changes the height.
+            LocalCalendarRows provides CalendarWeeks,
         ) {
+        val shown = navigation.visibleMonth
+        Layout(
+            content = {
         AnimatedContent(
             targetState = navigation.visibleMonth,
             transitionSpec = {
+                // Already slid in, under the finger.
+                if (targetState == swiped) {
+                    return@AnimatedContent (
+                        EnterTransition.None togetherWith ExitTransition.None
+                        ) using SizeTransform(clip = false) { _, _ -> snap() }
+                }
                 // **Cut rather than slid while the chooser is up.**
                 //
                 // A drum turned through a year jumps the calendar once per row
@@ -1005,6 +1142,30 @@ private fun CalendarFrame(
             label = "calendarMonth",
         ) { month ->
             content(month)
+        }
+                // The months either side, only while a swipe is showing them.
+                if (following) {
+                    val before = shown.minus(1, DateTimeUnit.MONTH)
+                    val after = shown.plus(1, DateTimeUnit.MONTH)
+                    key(before) { content(before) }
+                    key(after) { content(after) }
+                }
+            },
+            modifier = if (following) Modifier.clipToBounds() else Modifier,
+        ) { measurables, constraints ->
+            val placeables = measurables.map { it.measure(constraints) }
+            val current = placeables.first()
+            layout(current.width, placeables.maxOf { it.height }) {
+                // Read here, in placement, so a frame of the swipe moves the
+                // months and recomposes nothing.
+                val shift = if (following) (if (settling) settle.value else held).roundToInt() else 0
+                // Relative, so right to left the month before is on the right.
+                current.placeRelative(shift, 0)
+                if (placeables.size == 3) {
+                    placeables[1].placeRelative(shift - current.width, 0)
+                    placeables[2].placeRelative(shift + current.width, 0)
+                }
+            }
         }
         }
         }
