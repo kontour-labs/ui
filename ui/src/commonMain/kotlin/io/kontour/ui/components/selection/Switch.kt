@@ -79,6 +79,12 @@ private const val ThumbStretch = 1.25f
 private const val ThumbSquash = 0.2f
 
 /**
+ * How quickly a press's stretch gives way to the squash when the thumb meets the
+ * end: all of it by a quarter of the way into a full squash.
+ */
+private const val PressGivesWay = 4f
+
+/**
  * The speed, in track-fractions per second, at which the stretch is full.
  *
  * `springSnappy` carries the thumb across its whole travel in about a fifth of
@@ -591,7 +597,21 @@ fun Switch(
         } else {
             (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f)
         }
-        val thumbWidth = stretchedWidth + (thumbPx * (1f - ThumbSquash) - stretchedWidth) * pull
+        // **Against the wall the press gives way, at once.** Squashed from the
+        // stretched width, a thumb pushed into the end was still half a press:
+        // held 20dp past it, 1.25x wide and 0.8x squashed met in the middle and
+        // the thumb came out barely narrower than at rest. And the press stretch
+        // is a bouncy spring, so a thumb swiped into the end the instant it was
+        // touched hit the wall *before* that spring had grown — and then grew,
+        // wider by an eighth, while the finger pushed it into the wall. Reported
+        // as the head staying "a wide pill when you hit the end", until dragged
+        // further. The stretch belongs to a thumb in flight; the moment the band
+        // takes up it hands over to the thumb's resting width, gone by a quarter
+        // of the way into the squash, so what the press spring is doing does not
+        // reach a thumb against the wall at all.
+        val give = (pull * PressGivesWay).coerceIn(0f, 1f)
+        val againstWall = stretchedWidth + (thumbPx - stretchedWidth) * give
+        val thumbWidth = againstWall + (thumbPx * (1f - ThumbSquash) - againstWall) * pull
         // Pinned against whichever end was pushed into: on the right, the lost
         // width comes off the left edge.
         val left = reached + if (band.offset > 0f) stretchedWidth - thumbWidth else 0f
