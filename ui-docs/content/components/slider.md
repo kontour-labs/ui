@@ -23,14 +23,96 @@ is round again the moment nothing is straining it, and a continuous drag keeps
 it round throughout, because a thumb pinned to the finger is not straining
 against anything. Each step crossed on a stepped slider fires a tick haptic, so a
 user changing a value without looking can feel the detents — which is most of the
-point of having steps.
+point of having steps. A continuous slider has a texture instead: faint grains as
+it moves, closer and firmer the faster it goes, and nothing while it is still.
 
-**The dots are opt-in.** `steps` no longer draws them; `showTicks` does. A row of
-dots turns a slider into a diagram of its own implementation, and on a short
+**The marks are opt-in.** `steps` no longer draws them; `showTicks` does. A row
+of marks turns a slider into a diagram of its own implementation, and on a short
 track with many steps they merge into a dashed line that reads as texture rather
 than as information. The detent is still there either way — the thumb still
 resists and still ticks. Turn them on where the count is small and *is* the
 point: five ratings, four zoom levels.
+
+**They are bars, and they used to be dots.** A dot on a track shares the track's
+own axis, so it can only ever differ from it in colour — which made them hard to
+pick out at any size worth drawing. A bar *crosses* the track, which is a
+difference in shape, and it stays legible when the two colours are close.
+
+`minorTicks` puts marks **between** the steps, drawn at half height:
+`steps = 4, minorTicks = 1` is a mark every half step with the halves short.
+They are graduations rather than detents — the value still lands on a step — and
+they are shorter rather than fainter, so the coarse scale stays readable at a
+glance without taking the fine one below the contrast floor. Worth it on a scale
+somebody reads a position off; noise on one with many steps already.
+
+**Push past either end and the thumb squashes against it.** A slider that stops
+dead at its limit has a boundary the finger cannot feel — the gesture simply
+stops answering, which reads as the control having broken rather than as having
+finished. The part of the push the clamp refused goes into a rubber band, at
+diminishing returns, and comes back as the thumb shortening along the axis of the
+push with its leading edge pinned to the wall. It springs back on release, and it
+comes home by **narrowing** the rest of the way rather than out through the
+full-width capsule it was let go from: letting go unwinds the band and the press
+growth at once, so there is nothing in the return that is wider than the thumb
+you were holding.
+
+**It gives a fifth of itself, and it stays a capsule doing it.** This is the
+control the depth was reported on, twice. It grew at first, which was the wrong
+shape entirely: the band was summed into the stretch that makes a thumb reach
+toward where it is trying to get to, and at an end stop there is nowhere it is
+trying to get to — so the thumb elongated backwards, away from the stop it had
+just run into. Then it squashed far too hard. The target was a fraction off the
+thumb's *resting* diameter while the thumb being squashed is the one under your
+finger, which is half as wide again: 45dp held, against 24 at rest. A quarter off
+the latter is an 18dp target, so a full push took 60% of the thumb and turned a
+handle into a sliver, where a switch gave 25% for the same gesture and the same
+constant.
+
+Measured off the thumb's own width and at a fifth rather than a quarter, a full
+push leaves 36dp against the 30 it is tall. It narrows, and it is still a capsule
+at the bottom of the push — which is the point rather than a shortfall. A thumb
+only becomes an egg once it is narrower than it is tall, and this one would have
+to give up a third of itself to get there. A third is not a bit of deformation.
+
+The shape of the squash is [`Switch`](switch.md)'s to explain, because a switch's
+thumb rests as a circle and is the shape at its most visible: the end against the
+wall keeps that circle and only the free side eases in. Under reduced motion a
+slider's thumb does not squash at all: it stops at the end as it is. `Switch` gives the same fraction of itself by the same rule;
+`SegmentedControl`'s thumb is a whole segment wide, can never approach a circle,
+and keeps its own smaller fraction for a reason [its own page](segmented-control.md)
+has.
+
+**The head is the switch's pill**: a circle at rest, and a pill whose round ends
+meet its straight sides G2-continuously once it lengthens under the finger —
+drawn from `Shapes.pill`, the shape `Switch`'s track and thumb use. On a square box
+that shape has no straight run for its smoothing to ease into and is exactly a
+circle, so resting and held are one shape at two lengths. The value's bubble is
+the same pill.
+
+**`valueLabel` puts the value above the head while it is held**, keeps it there
+for half a second after the finger lifts — so the number just chosen is still
+there to read — and then fades it. An arrow key, which moves the value with
+nothing held, shows it for the same half second:
+
+```kotlin
+Slider(
+    value = volume,
+    onValueChange = { volume = it },
+    valueLabel = { "${(it * 100).roundToInt()}%" },
+)
+```
+
+It is drawn outside the slider's bounds, so the control's size and hit area are
+the same with or without it — give it room above, or a clipping parent (a card,
+the top of a scroller) will cut the bubble. Off unless given, since most sliders
+sit beside a number that already says what they are set to. `RangeSlider` takes
+the same, over whichever thumb the finger has — and after it lifts, over the
+thumb that moved last.
+
+**Running into either end of the range is reported once**, as a haptic, for as
+long as the finger stays against it — trembling there included; backing off
+properly and pushing again reports again.
+It is the one report a thumb under a finger cannot make for itself.
 
 **Pass `stateDescription`.** Without it the announcement is a bare percentage,
 which is rarely what the number means.
@@ -87,3 +169,12 @@ always are: "Speed" is what it is, "62 km/h" is what it says.
 Increment and decrement come from `ProgressBarRangeInfo` and `setProgress`, so
 the slider is adjustable without a drag. `steps` makes those increments
 meaningful — a continuous slider moves by an arbitrary fraction.
+
+At high contrast the track under the fill becomes `inactive`, the not-yet half of
+a pair, a stepped slider's ticks are cut into it in the page's colour, and the
+ring round the thumb and the focus ring thicken with the tier.
+
+Under reduced motion the thumb does not grow while it is held, a stepped one
+moves from step to step instead of leaning after the finger, a push past either
+end no longer squashes it, and the value bubble fades in without growing. A tap
+still carries the thumb to its new value, over a short tween with no overshoot.

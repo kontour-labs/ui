@@ -1,33 +1,47 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.withFrameNanos
+import io.kontour.ui.a11y.highContrast
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,27 +49,40 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.foundation.Surface
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.Surface
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
+/** What a [Carousel] takes by default. */
 object CarouselDefaults {
     /**
      * How far into the next page a drag has to reach before letting go commits.
@@ -83,6 +110,18 @@ object CarouselDefaults {
      * refusing to move.
      */
     const val SnapThreshold: Float = 0.25f
+
+    /**
+     * How much of the next page [CarouselStyle.Hero] shows beside the current one:
+     * none, unless a theme says otherwise.
+     *
+     * A getter onto `ComponentDefaults.carouselHeroPeek` rather than a constant,
+     * because how much of the next picture to show is a brand's decision and not
+     * a fact about carousels — a row of wide landscapes wants less of it than a
+     * row of book covers.
+     */
+    val HeroPeek: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.carouselHeroPeek
 }
 
 /**
@@ -95,7 +134,7 @@ object CarouselDefaults {
 @Stable
 class CarouselState internal constructor(
     val listState: LazyListState,
-    private val pageCount: () -> Int,
+    private val pageCountOf: () -> Int,
 ) {
     /**
      * The page currently settled, or the one a drag is closest to.
@@ -135,8 +174,9 @@ class CarouselState internal constructor(
         if (pitch <= 0f) first.index.toFloat() else first.index + (-first.offset) / pitch
     }
 
-    val count: Int
-        get() = pageCount().also {
+    /** How many pages there are, from the lambda [rememberCarouselState] was given. */
+    val pageCount: Int
+        get() = pageCountOf().also {
             // Checked here rather than at each reader, because both `Carousel`
             // and `PageIndicator` take the count from this one property and one
             // of them sizes a `FloatArray` with it — so a negative count reached
@@ -149,15 +189,36 @@ class CarouselState internal constructor(
             }
         }
 
+    /** Moves to [page] at once, clamped to the pages there are. */
     suspend fun scrollToPage(page: Int) {
-        listState.animateScrollToItem(page.coerceIn(0, (count - 1).coerceAtLeast(0)))
+        listState.scrollToItem(page.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
     }
+
+    /**
+     * Slides to [page], clamped to the pages there are. What a dot or an arrow does.
+     *
+     * Moves at once under reduced motion: a page sliding the width of the
+     * carousel, with no finger on it, is exactly the movement the setting asks
+     * to be spared.
+     */
+    suspend fun animateScrollToPage(page: Int) {
+        val target = page.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+        if (reduceMotion) listState.scrollToItem(target) else listState.animateScrollToItem(target)
+    }
+
+    /** The theme's setting, kept current by [rememberCarouselState]; a state holder cannot read the theme. */
+    internal var reduceMotion: Boolean = false
 }
 
+/**
+ * Remembers a [CarouselState]. [pageCount] is read whenever it is needed, so a
+ * carousel whose pages load in keeps its count current without a new state.
+ */
 @Composable
 fun rememberCarouselState(pageCount: () -> Int): CarouselState {
     val listState = rememberLazyListState()
-    return remember(listState) { CarouselState(listState, pageCount) }
+    val reduceMotion = Theme.motion.reduceMotion
+    return remember(listState) { CarouselState(listState, pageCount) }.also { it.reduceMotion = reduceMotion }
 }
 
 /**
@@ -169,7 +230,7 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * Carousel(carousel, contentDescription = "Stop photos") { page ->
  *     AspectRatioBox(16f / 9f) { Image(photos[page]) }
  * }
- * PageIndicator(carousel, onPageSelect = { carousel.scrollToPage(it) })
+ * PageIndicator(carousel, onPageClick = { carousel.animateScrollToPage(it) })
  * ```
  *
  * ### The swipe is a shortcut, not the route
@@ -180,14 +241,46 @@ fun rememberCarouselState(pageCount: () -> Int): CarouselState {
  * how many is showing.
  *
  * That still leaves a sighted mouse user with nothing to click, which is what
- * [PageIndicator] is for — give it `onPageSelect` and its dots become targets.
+ * [PageIndicator] is for — give it `onPageClick` and its dots become targets.
  * A carousel with a decorative indicator and no arrows is operable by exactly
  * one input method, and the app has four.
  *
  * @param contentDescription What the set of pages *is* — "Stop photos". Required:
  *   "1 of 5" without it is a count of nothing.
  * @param pageSpacing The gap between pages. Part of the snap distance, so it
- *   belongs here rather than in the caller's own padding.
+ *   belongs here rather than in the caller's own padding — and in
+ *   [CarouselStyle.Hero] it is the gap between the two boxes, which is the one
+ *   place in the layout a reader can see it.
+ * @param peek How much of the next page [CarouselStyle.Hero] shows beside the
+ *   current one, and read by nothing else. **None by default**, from
+ *   `ComponentDefaults.carouselHeroPeek`.
+ *
+ *   **Zero is one page at a time**: the frame holds the hero and nothing else, and
+ *   [pageSpacing] opens between the two boxes only while a swipe is in flight —
+ *   there being nothing for a gap to separate at rest. Every other value reserves
+ *   the gap *and* the peek, so the frame is `[hero][gap][peek]`.
+ *
+ *   **A third of the carousel is the ceiling worth designing to** — past that the
+ *   "next" box competes with the page being looked at, and a hero carousel with
+ *   two heroes in it is a two-column list. It is not clamped, and cannot sensibly
+ *   be: the strip's own slots are a peek apart, so a peek narrowed after the fact
+ *   would put every box out of step with the slot it is measured in. What an
+ *   over-wide one costs is the hero, down to a floor of a third of the frame.
+ * @param parallax How much of the strip's travel the *content* of a page being
+ *   left behind keeps, from `0` for none of it to `1` for all of it. Read only by
+ *   [CarouselStyle.Hero].
+ *
+ *   The box of a page on its way out is pinned to the frame's start and closes
+ *   over its own content — so at `0` the picture holds still and is taken away,
+ *   and at `1` it travels with the strip and slides out under a shrinking window.
+ *   Around `0.2` to `0.3` gives it a drift behind the closing edge without it
+ *   arriving from off screen. **The page arriving drifts by the same share**, in
+ *   from the end as its box opens, so both pictures move together; at `0` it holds
+ *   still, end-aligned in a box whose leading edge wipes across it.
+ *
+ *   **Ignored under reduced motion**, which is the whole of what that preference
+ *   can sensibly take away here — boxes trading width is the style, and a picture
+ *   drifting underneath the one closing over it is the embellishment on top.
  */
 @Composable
 fun Carousel(
@@ -195,15 +288,126 @@ fun Carousel(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    style: CarouselStyle = CarouselStyle.Slide,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     pageSpacing: Dp = Theme.spacing.xs,
+    peek: Dp = CarouselDefaults.HeroPeek,
+    parallax: Float = 0f,
     previousLabel: String = Theme.strings.previous,
     nextLabel: String = Theme.strings.next,
     content: @Composable (page: Int) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val count = state.count
+    val count = state.pageCount
     val current = state.currentPage
+    val formats = Theme.formats
+    val position = Theme.strings.itemOfCount(formats.quantity(current + 1), formats.quantity(count))
+    val direction = LocalLayoutDirection.current
+    val hero = style == CarouselStyle.Hero
+    val density = LocalDensity.current
+    val gapPx = with(density) { pageSpacing.toPx() }
+    val peekPx = with(density) { peek.coerceAtLeast(0.dp).toPx() }
+
+    // Coerced rather than required: this is the kind of number a caller animates or
+    // reads from a setting, and a carousel that throws at `1.02` on one frame of a
+    // spring is worse than one that draws `1`.
+    val drift = if (Theme.motion.reduceMotion) 0f else parallax.coerceIn(0f, 1f)
+
+    /**
+     * How far apart the slots are, which for a hero carousel is **less than a
+     * slot**.
+     *
+     * A page's slot is the whole frame, and the strip is compressed by a peek's
+     * width — a negative spacing — so consecutive slots start `V - S` apart, which
+     * is the pitch `L + G` the geometry needs. Two things fall out of it and both
+     * were fought for the length of a rewrite.
+     *
+     * A box can never be wider than the slot it is measured in. `Placeable.width`
+     * is the measured size *coerced into the constraints*, and a layout that
+     * reports more than it was given is centred inside what it was given — so with
+     * slots a hero wide, the last page's full-frame box came out 120px narrower
+     * and 60px to the left. Measured, and the reason the slot is not `L`.
+     *
+     * And the last page can reach the start of the viewport with no extra padding
+     * at the end of the strip. The maximum scroll is `(N-1)` pitches exactly, which
+     * is where the last slot's left edge lands — where uniform `L`-wide slots fall a
+     * gap and a peek short and the carousel spends every fling at the end fighting a
+     * position it cannot reach.
+     */
+    val spacing = when {
+        !hero -> pageSpacing
+        // Nothing to separate at rest, so the gap is not reserved in the frame: the
+        // slots are a whole frame *plus* a gap apart, which puts the next page
+        // entirely off screen until a swipe brings it in. One page at a time.
+        peek <= 0.dp -> pageSpacing
+        else -> -peek
+    }
+
+    // One tick per page crossed **under a finger**, and none for a page reached
+    // any other way.
+    //
+    // A carousel's pages are detents in the strictest sense — the card snaps to
+    // one and rests there — and the eye is on the card rather than on a counter,
+    // which is the case the policy names. What it must not do is report a page
+    // arrived at by `scrollToPage`: the accessibility actions, the indicator's
+    // dots and an autoplay all call it, and a carousel that buzzes when a dot is
+    // clicked is buzzing for something the reader is already watching.
+    //
+    // So the same distinction a sheet draws, from the same kind of signal: the
+    // list's own interaction source for a touch scroll, and the pointer drag's
+    // for the desktop path, which does not go through the list at all.
+    val dragInteractions = remember { MutableInteractionSource() }
+    var dragging by remember { mutableStateOf(false) }
+    LaunchedEffect(state.listState, dragInteractions) {
+        var held = 0
+        merge(
+            state.listState.interactionSource.interactions,
+            dragInteractions.interactions,
+        ).collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> held++
+                is DragInteraction.Stop, is DragInteraction.Cancel -> held--
+            }
+            dragging = held > 0
+        }
+    }
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
+    LaunchedEffect(state) {
+        // The fling a release starts is still the hand's gesture, as a wheel's and
+        // a knob's spin are: a short flick onto the next card — the commonest
+        // thing anyone does to a carousel — used to say nothing, because the
+        // finger was already up when the page changed. So a release waits for the
+        // settle to finish and reports where it landed, if that is a page it had
+        // not already reported. A page changed in code arms nothing and is silent.
+        var settle: Job? = null
+        snapshotFlow { dragging to state.currentPage }.collect { (byHand, page) ->
+            if (byHand) {
+                settle?.cancel()
+                settle = null
+                ticker.at(page)
+            } else if (settle == null) {
+                settle = launch {
+                    // A frame for the fling to begin, then the end of it.
+                    withFrameNanos { }
+                    snapshotFlow { state.listState.isScrollInProgress }.first { !it }
+                    ticker.at(state.currentPage)
+                    ticker.reset()
+                    settle = null
+                }
+            }
+        }
+    }
+
+    // **The first and last page refuse to go further, and say nothing about it.**
+    //
+    // There was a whole `NestedScrollConnection` here for one report — the part
+    // of a drag the list declined, which is the only signal that separates "the
+    // finger asked for more page and got none" from "page one is merely
+    // showing". It went, and so did the connection, which existed for nothing
+    // else — end stops are for a range's ends, and a strip that will not move
+    // under a finger has already said so by not moving. The per-page tick above
+    // stays — a card snapping to the next one while the eye is on the card is
+    // exactly what a detent is.
 
     LazyRow(
         modifier = modifier
@@ -226,10 +430,14 @@ fun Carousel(
                             state.listState.dispatchRawDelta(-delta)
                         },
                         orientation = Orientation.Horizontal,
+                        // The row scrolls the other way in right to left, so a
+                        // drag towards the next page is a drag to the right.
+                        reverseDirection = direction == LayoutDirection.Rtl,
+                        interactionSource = dragInteractions,
                         // `currentPage` is the page nearest the viewport centre,
                         // so this settles on whichever one the drag left showing
                         // — the same answer the fling behaviour would give.
-                        onDragStopped = { scope.launch { state.scrollToPage(state.currentPage) } },
+                        onDragStopped = { scope.launch { state.animateScrollToPage(state.currentPage) } },
                     )
                 } else {
                     Modifier
@@ -238,11 +446,11 @@ fun Carousel(
             .semantics {
                 isTraversalGroup = true
                 this.contentDescription = contentDescription
-                stateDescription = "${current + 1} of $count"
+                stateDescription = position
                 customActions = listOf(
                     CustomAccessibilityAction(previousLabel) {
                         if (current > 0) {
-                            scope.launch { state.scrollToPage(current - 1) }
+                            scope.launch { state.animateScrollToPage(current - 1) }
                             true
                         } else {
                             false
@@ -250,7 +458,7 @@ fun Carousel(
                     },
                     CustomAccessibilityAction(nextLabel) {
                         if (current < count - 1) {
-                            scope.launch { state.scrollToPage(current + 1) }
+                            scope.launch { state.animateScrollToPage(current + 1) }
                             true
                         } else {
                             false
@@ -261,35 +469,301 @@ fun Carousel(
         state = state.listState,
         userScrollEnabled = enabled,
         contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(pageSpacing),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
         // Snapping rather than free scroll: a carousel that stops between two
         // pages is showing neither, and the indicator below it is then lying
         // whatever it says.
         flingBehavior = firmSnapFlingBehaviour(state.listState),
     ) {
         items(count) { page ->
-            Box(Modifier.fillParentMaxWidth()) { content(page) }
+            // **The slot is always the same width**, whatever the box inside it is
+            // doing. The `LazyRow` measures the pitch from the items it places, and
+            // `CarouselState.pagePosition` measures it again from two of them, so an
+            // item that reported the width of a shrinking box would move the
+            // arithmetic the shrinking is derived from.
+            Box(Modifier.fillParentMaxWidth()) {
+                if (hero) {
+                    Box(
+                        Modifier
+                            .heroPage(
+                                state = state,
+                                page = page,
+                                count = count,
+                                gap = gapPx,
+                                peek = peekPx,
+                                drift = drift,
+                                shape = Theme.shapes.container,
+                            )
+                    ) { content(page) }
+                } else {
+                    content(page)
+                }
+            }
         }
     }
 }
+
+/** How a [Carousel] gets from one page to the next. */
+enum class CarouselStyle {
+    /**
+     * The pages are a strip, and the strip slides under the viewport.
+     *
+     * What a carousel is by default and what a finger expects: the outgoing page
+     * leaves to one side at exactly the speed the incoming one arrives from the
+     * other, and halfway through you are looking at half of each.
+     */
+    Slide,
+
+    /**
+     * Two boxes side by side, trading width as you swipe.
+     *
+     * The page you are on is most of the frame; the next one is a narrow box
+     * beside it with a gap between them, and a swipe hands the width from one to
+     * the other. Material's hero carousel, and the arrangement a row of pictures
+     * wants: what the eye follows is a photograph getting bigger, with the next
+     * one already there to say the row continues.
+     *
+     * Right for pages that are **one picture each**. Wrong for pages with
+     * structure — a form, a list — because a page is measured once at the hero's
+     * width and masked down to whatever it currently has, so its content is
+     * cropped rather than reflowed. That is the trade, and it is deliberate: a
+     * page that re-laid-out sixty times a second while a finger moved is what a
+     * carousel of text would cost.
+     *
+     * `peek` is how much of the next page shows; the gap between the two boxes is
+     * `pageSpacing`. Everything else — the gesture, the snap, the page the
+     * indicator names, what a screen reader is told — is the same as [Slide].
+     */
+    Hero,
+}
+
+/**
+ * One hero page's box: how wide it is, and how far it sits from its own slot.
+ *
+ * Both in pixels, and both derived from `d` — how many pages ahead of the
+ * viewport this one is, fractionally. Null for a page with no box at all.
+ */
+private class HeroBox(val width: Float, val shift: Float)
+
+/**
+ * The whole of the hero layout, as a table.
+ *
+ * With `V` the frame, `S` the peek, `G` the gap, `L` the hero and `P = L + G` the
+ * pitch — which is the pitch the `LazyRow` already uses, because a slot is the whole
+ * frame and the arrangement pulls the next one back into it by whatever the frame
+ * reserves. `L` and `P` come from [heroMetrics], which is also where a zero peek is
+ * dealt with:
+ *
+ * | `d` | width | shift |
+ * |---|---|---|
+ * | `d < 0` | `L + d·P` | `-d·P` |
+ * | `d >= 0` | `min(L, V - d·P)` | `0` |
+ * | `d >= 0`, last page | `V - d·P` | `0` |
+ *
+ * Nothing is drawn where the width comes out at zero or less.
+ *
+ * Every box sits inside its own slot, which is what keeps `Placeable.width` from
+ * coercing it — see the carousel's `spacing`.
+ *
+ * **Every box is exactly as visible as its own slot**, and that is the constraint
+ * the table is built around rather than a happy accident. A `LazyRow` composes the
+ * pages whose slots meet the viewport and no others, so a box pulled in from a
+ * slot that is still outside it is a box that is not there: the first version of
+ * this shifted the far page inward from `d = 2`, and for most of a swipe the
+ * frame's end was a strip of background — measured as an eleven-pixel hole two
+ * frames into a drag. Here the leaving box's right edge *is* its slot's right
+ * edge and the arriving box's left edge *is* its slot's left edge, so a page has a
+ * box precisely when the row has composed it.
+ *
+ * What the arithmetic gives back is exact tiling. Consecutive boxes are always `G`
+ * apart — `(P - fP) - (L - fP) = P - L = G`, with the `f` cancelling — and the
+ * boxes and their gaps cover `[0, V]` with nothing left over at either end, at
+ * every fraction of every swipe. With a zero peek `L` is `V`, so the one box at rest
+ * *is* the frame and the pair in flight covers all of it but the gap between them.
+ * `CarouselHeroTest` sweeps both.
+ *
+ * The one shift in the table is what makes a leaving page *shrink into* the start
+ * edge rather than slide out through it: its box is pinned at zero while its width
+ * runs out, so the picture holds still and is taken away rather than travelling.
+ * Written as a placement and in reading order, so a right-to-left row is free.
+ *
+ * **The last page grows to the whole frame**, which is the `L` cap dropped: there is
+ * no page after it to fill the gap and the peek, and the end of a row of pictures
+ * being one picture is the only honest thing for it to look like. With a zero peek
+ * the cap is already the frame, so the last page is like every other one.
+ */
+private fun heroBoxOf(
+    d: Float,
+    frame: Float,
+    metrics: HeroMetrics,
+    last: Boolean,
+): HeroBox? {
+    if (frame <= 0f) return null
+    val width = if (d < 0f) metrics.hero + d * metrics.pitch else frame - d * metrics.pitch
+    val capped = if (d < 0f || last) width else minOf(width, metrics.hero)
+    if (capped <= 0f) return null
+    return HeroBox(width = capped, shift = if (d < 0f) -d * metrics.pitch else 0f)
+}
+
+/** The hero's own width and how far apart the slots are, both in pixels. */
+private class HeroMetrics(val hero: Float, val pitch: Float)
+
+/**
+ * The two numbers the style is derived from, taken from the frame and nothing else.
+ *
+ * A slot is the whole frame — `fillParentMaxWidth` inside a `LazyRow` is the
+ * viewport less the content padding — and the arrangement pulls the next slot back
+ * into it, so nothing here has to measure the viewport. The pitch must match that
+ * arrangement exactly or every box is out of step with the slot it is measured in;
+ * see the carousel's own `spacing`, which is this `gap - reserve`.
+ *
+ * **The gap is reserved in the frame only when there is a peek to separate.** With
+ * a peek the frame is `[hero][gap][peek]`, so the reserve is both. With none, there
+ * is nothing beside the hero at rest and the hero is the whole frame: slots are a
+ * frame *plus* a gap apart, the next page is entirely off screen until a swipe
+ * brings it in, and the gap becomes something that opens between two boxes in
+ * flight rather than a strip of background standing at the frame's end. That is
+ * what `peek = 0.dp` means, and without it a zero peek drew a hero one gap short of
+ * the frame with the gap left over at the edge.
+ *
+ * The floor on the hero is for a peek and a gap that between them leave nothing —
+ * a mistake no arithmetic here can rescue, since the slots are already that far
+ * apart. What it buys is a carousel that is visibly wrong rather than blank, which
+ * at least says which number to change. The pitch is left alone by it: the pitch is
+ * the arrangement's, not this function's to correct.
+ */
+private fun heroMetrics(frame: Float, gap: Float, peek: Float): HeroMetrics {
+    val reserve = if (peek > 0f) gap + peek else 0f
+    return HeroMetrics(
+        hero = (frame - reserve).coerceAtLeast(frame / 3f),
+        pitch = frame - reserve + gap,
+    )
+}
+
+
+private fun Modifier.heroPage(
+    state: CarouselState,
+    page: Int,
+    count: Int,
+    gap: Float,
+    peek: Float,
+    drift: Float,
+    shape: Shape,
+): Modifier = this
+    .layout { measurable, constraints ->
+        // The shift, applied by *placing* the box rather than by translating it, so
+        // the clip below and everything it gates — drawing, hit-testing — move with
+        // it. `placeRelative` and not `place`: every number in `heroBoxOf` is in
+        // reading order, and a right-to-left row then comes out right with no
+        // `LayoutDirection` anywhere in the geometry. The wipe before this needed one
+        // because it worked in physical draw coordinates.
+        val frame = constraints.maxWidth.toFloat()
+        val box = heroBoxOf(
+            d = page - state.pagePosition,
+            frame = frame,
+            metrics = heroMetrics(frame, gap, peek),
+            last = page == count - 1,
+        )
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) {
+            placeable.placeRelative(box?.shift?.roundToInt() ?: 0, 0)
+        }
+    }
+    .clip(shape)
+    .layout { measurable, constraints ->
+        val frame = constraints.maxWidth
+        val last = page == count - 1
+        val metrics = heroMetrics(frame.toFloat(), gap, peek)
+        // Measured **once**, at the width this page's box can reach: the hero's for
+        // every page but the last, whose box grows to the whole frame because
+        // nothing follows it. Re-measuring to the box's current width instead would
+        // reflow the page's content on every frame of a drag, which is the cost a
+        // carousel of pictures must not pay — and the reason the docs say this style
+        // crops rather than reflows.
+        val natural = if (last) frame else metrics.hero.roundToInt().coerceIn(0, frame)
+        val placeable = measurable.measure(
+            constraints.copy(minWidth = natural, maxWidth = natural)
+        )
+        val box = heroBoxOf(
+            d = page - state.pagePosition,
+            frame = frame.toFloat(),
+            metrics = metrics,
+            last = last,
+        )
+        val width = box?.width?.roundToInt()?.coerceIn(0, natural) ?: 0
+        layout(width, placeable.height) {
+            // **The content's own share of the travel, which is the parallax.**
+            //
+            // The box of a page on its way out is pinned to the frame's start by the
+            // shift above, and its content is pinned with it — the box closes over a
+            // picture that holds still. Handing the content back `drift` of that
+            // shift hands it back that much of the strip's travel: at `1` it slides
+            // out with the strip under a shrinking window, which is the "slide seen
+            // through a moving window" the wipe's own `parallax` named.
+            //
+            // No clamp is needed. The content is the hero's width and the box is
+            // `hero - shift` wide, so the slack behind it is exactly the shift and a
+            // fraction of the shift cannot uncover the box's far edge. Every other
+            // box has no shift, so this is zero and the content travels with its box
+            // — which is the strip's own motion, and has nothing to drift against.
+            //
+            // `placeRelative`, so the content sits at the reading start of its window
+            // and drifts in reading order. In a right-to-left row that is the right
+            // edge, which is also the crop a mirrored carousel wants — where `place`
+            // was showing it the left one.
+            //
+            // **And a page on its way in holds still too**, end-aligned in its box.
+            // Its box is at the strip's position and its content used to be at the
+            // box's start, so the picture rode in with the strip — and swiping back,
+            // rode out with it. Reported: "it still sometimes looks like the photo
+            // slides in and out … it should look like the photo doesn't move, but
+            // instead the boxes just wipe". End-aligned, the picture's end edge is
+            // the box's, and while the box is still growing that is the frame's own
+            // end — so the picture stands where it will rest and the box's leading
+            // edge sweeps across it. With a zero peek, the default, that is true of
+            // the whole swipe. With a peek the box stops growing at the hero's width
+            // a gap and a peek short of home, and covers that last stretch sliding.
+            //
+            // Not placed at zero width: an empty box draws nothing and hit-tests
+            // nothing, which is what a page off the end of the frame should be.
+            //
+            // **Parallax moves both.** With a drift, the arriving picture gives back
+            // the same share of the strip's travel the leaving one keeps: it starts
+            // that far toward the end and closes the distance as its box opens, so
+            // the two pictures drift together behind the wipe instead of one drifting
+            // and one standing still. At `0` it is end-aligned and holds still; at `1`
+            // it is start-aligned and rides in with its box.
+            if (width > 0) {
+                val shift = box?.shift ?: 0f
+                val x = if (shift > 0f) {
+                    -drift * shift
+                } else {
+                    -(natural - width) * (1f - drift)
+                }
+                placeable.placeRelative(x.roundToInt(), 0)
+            }
+        }
+    }
 
 /**
  * Which page of how many, as a row of dots.
  *
  * ```kotlin
- * PageIndicator(carousel, onPageSelect = { scope.launch { carousel.scrollToPage(it) } })
+ * PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
  * ```
  *
- * **Pass `onPageSelect` unless something else can change the page.** Without it
+ * **Pass `onPageClick` unless something else can change the page.** Without it
  * the dots are decoration and the carousel is swipe-only — see the note on
- * [Carousel]. With it each dot is a `Role.RadioButton` with a real touch target,
- * which is a pointer route and an assistive-tech route in one.
+ * [Carousel]. With it each dot is a `Role.RadioButton` naming the page it goes
+ * to, and the whole strip becomes one full-height target that sends a tap to the
+ * nearest dot: a pointer route and an assistive-tech route, kept separate so
+ * neither has to pay for the other's shape.
  *
- * The current dot **widens** rather than only changing colour. Colour alone
- * fails WCAG 1.4.1, and at this size — a few pixels of tinted circle — it is the
- * hardest place in the system to see a tint difference.
+ * The current page is drawn **wider** than the rest rather than only tinted.
+ * Colour alone fails WCAG 1.4.1, and at this size — a few pixels of tinted
+ * circle — it is the hardest place in the system to see a tint difference.
  *
- * @param onPageSelect `null` makes the dots decorative, and hides them from the
+ * @param onPageClick `null` makes the dots decorative, and hides them from the
  *   accessibility tree entirely: the carousel already announces "3 of 5", and a
  *   screen reader walking five unlabelled dots after it is noise.
  */
@@ -298,19 +772,19 @@ fun PageIndicator(
     state: CarouselState,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onPageSelect: ((Int) -> Unit)? = null,
-    style: PageIndicatorStyle = PageIndicatorStyle.Dots,
+    onPageClick: ((Int) -> Unit)? = null,
+    style: PageIndicatorStyle = PageIndicatorStyle.Pill,
     activeColour: Color = Theme.colours.primary,
-    inactiveColour: Color = Theme.colours.outlineStrong,
-    label: (Int, Int) -> String = Theme.strings.pageOfCount,
+    inactiveColour: Color = Theme.colours.inactive,
+    pageDescription: (page: Int, count: Int) -> String = PageIndicatorDefaults.pageDescription(),
     /**
      * Glyphs for a step-back and step-forward button either side of the dots.
      *
-     * Both optional and independent, like every other icon in the library: the
-     * design system ships no icon set, so a component that draws one has chosen
-     * for you.
+     * Both optional and independent, like every decorative icon in the library:
+     * the design system ships no icon set beyond the few glyphs its controls
+     * cannot do without, so a component that draws one has chosen for you.
      *
-     * They need [onPageSelect] — it is the only way this has of moving the
+     * They need [onPageClick] — it is the only way this has of moving the
      * carousel — and they disable themselves at the ends rather than wrapping
      * around. A carousel is a row you can see the edges of; a "next" that jumps
      * back to the first page is a different control.
@@ -325,11 +799,11 @@ fun PageIndicator(
     nextLabel: String = Theme.strings.next,
 ) {
     if (previousIcon == null && nextIcon == null) {
-        PageDots(state, modifier, enabled, onPageSelect, style, activeColour, inactiveColour, label)
+        PageDots(state, modifier, enabled, onPageClick, style, activeColour, inactiveColour, pageDescription)
         return
     }
 
-    val count = state.count
+    val count = state.pageCount
     val current = state.currentPage
 
     Row(
@@ -341,8 +815,8 @@ fun PageIndicator(
             IconButton(
                 icon = previousIcon,
                 contentDescription = previousLabel,
-                onClick = { onPageSelect?.invoke(current - 1) },
-                enabled = enabled && onPageSelect != null && current > 0,
+                onClick = { onPageClick?.invoke(current - 1) },
+                enabled = enabled && onPageClick != null && current > 0,
                 size = ButtonSize.Small,
             )
         }
@@ -351,19 +825,19 @@ fun PageIndicator(
             state = state,
             modifier = Modifier,
             enabled = enabled,
-            onPageSelect = onPageSelect,
-            style = style,
+            onPageClick = onPageClick,
+            requestedStyle = style,
             activeColour = activeColour,
             inactiveColour = inactiveColour,
-            label = label,
+            label = pageDescription,
         )
 
         if (nextIcon != null) {
             IconButton(
                 icon = nextIcon,
                 contentDescription = nextLabel,
-                onClick = { onPageSelect?.invoke(current + 1) },
-                enabled = enabled && onPageSelect != null && current < count - 1,
+                onClick = { onPageClick?.invoke(current + 1) },
+                enabled = enabled && onPageClick != null && current < count - 1,
                 size = ButtonSize.Small,
             )
         }
@@ -383,55 +857,145 @@ private fun PageDots(
     state: CarouselState,
     modifier: Modifier,
     enabled: Boolean,
-    onPageSelect: ((Int) -> Unit)?,
-    style: PageIndicatorStyle,
+    onPageClick: ((Int) -> Unit)?,
+    requestedStyle: PageIndicatorStyle,
     activeColour: Color,
     inactiveColour: Color,
     label: (Int, Int) -> String,
 ) {
-    val count = state.count
+    // A worm rests as a row of identical dots, which says where you are only
+    // by colour. At the enhanced tier that is not enough, so it rests the way
+    // `Pill` does — the current dot widened — and still travels like a worm.
+    val style = if (highContrast() && requestedStyle == PageIndicatorStyle.Worm) PageIndicatorStyle.Pill else requestedStyle
+    val count = state.pageCount
     val current = state.currentPage
-    val worm = style == PageIndicatorStyle.Worm
+    // Both of the styles that draw a pill *over* the dots rather than widening
+    // one of them. What separates them is only how long that pill is at rest.
+    val travels = style != PageIndicatorStyle.Dots
 
-    // Where each dot ended up, so the worm can be drawn between two of them.
+    // Where each dot ended up, so the pill can be drawn between two of them.
     //
     // Measured rather than derived from the dot size and the gap, because those
-    // are not the pitch: with `onPageSelect` every dot is wrapped in a 48dp
-    // touch target and sits three times further from its neighbour than it looks.
+    // need not be the pitch.
     val dotCentre = remember(count) { FloatArray(count) }
+    // And how wide each one ended up, which is the other half of its box.
+    //
+    // The pill is drawn as the **hull of the two dots it spans**, so it needs
+    // both. Reported rather than derived for the same reason the centres are:
+    // one dot in the row is a different width from the rest and which one that is
+    // changes under a spring, so the only figure that is certainly right is the
+    // one the layout just produced.
+    val dotWidth = remember(count) { FloatArray(count) }
     val dotRadius = with(LocalDensity.current) { PageIndicatorDefaults.DotSize.toPx() / 2f }
-    val position = if (worm) state.pagePosition else 0f
+    // The gesture below outlives the composition that installed it, so the
+    // handler has to be read at tap time rather than captured.
+    val select = rememberUpdatedState(onPageClick)
 
     Row(
         modifier = modifier
-            .then(if (onPageSelect != null) Modifier.selectableGroup() else Modifier)
+            .then(if (onPageClick != null) Modifier.selectableGroup() else Modifier)
             .then(
-                if (worm && count > 0) {
+                if (onPageClick != null) {
+                    // **One target over the whole strip, rather than one per dot.**
+                    //
+                    // Reported as the indicator being too spread out, and it was:
+                    // `minimumTouchTarget` on each dot reserves 48dp of row apiece
+                    // on Android, so five 8dp dots held 264dp to show 40dp of ink
+                    // and sat nearly four times further apart than they looked.
+                    //
+                    // Reserved once, on the strip, `fill = true`: the row becomes
+                    // a full-height band the width of the dots, and the tap goes
+                    // to whichever dot centre is nearest the finger. Every pixel
+                    // of the band belongs to some page, so nothing is lost by the
+                    // dots no longer each owning a box — a 14dp-wide slice of a
+                    // 48dp-tall band is an easier thing to hit than an 8dp circle,
+                    // which is what the eye was aiming at all along.
+                    //
+                    // `fill` rather than the centring default because the dot
+                    // centres are measured in the row's own space: filled, the
+                    // reserved band *is* the row, so the x a tap arrives at and
+                    // the x `reportBox` recorded are the same number. Centred,
+                    // they would differ by half the slack and only on the axis
+                    // where there is any — and a coordinate that is right except
+                    // on narrow strips is the kind that is found on a phone.
+                    //
+                    // The trade is honest and written down under
+                    // `page-indicator.md`: a slice is narrower than WCAG 2.5.8's
+                    // 24dp, and the exact route — the `onClick` in each dot's
+                    // semantics below — is unaffected by how wide anything is.
+                    Modifier
+                        .minimumTouchTarget(fill = true)
+                        .pointerCursor(enabled = enabled)
+                        .then(
+                            if (enabled && count > 0) {
+                                Modifier.pointerInput(count) {
+                                    detectTapGestures { at ->
+                                        var nearest = 0
+                                        var best = Float.MAX_VALUE
+                                        for (page in 0 until count) {
+                                            val x = dotCentre[page]
+                                            val away = kotlin.math.abs(x - at.x)
+                                            if (away < best) {
+                                                best = away
+                                                nearest = page
+                                            }
+                                        }
+                                        select.value?.invoke(nearest)
+                                    }
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (travels && count > 0) {
                     Modifier.drawWithContent {
                         drawContent()
-                        val at = position.coerceIn(0f, (count - 1).toFloat())
+                        // Read here, its only use: the pill follows every frame
+                        // of a swipe, and read in composition that recomposed
+                        // the whole row of dots for each of them.
+                        val at = state.pagePosition.coerceIn(0f, (count - 1).toFloat())
                         val from = at.toInt().coerceIn(0, count - 1)
                         val to = (from + 1).coerceAtMost(count - 1)
                         val fraction = at - from
                         val a = dotCentre[from]
                         val b = dotCentre[to]
+                        if (a == 0f && b == 0f) return@drawWithContent
                         // The leading edge goes first and the trailing edge
                         // catches up, so the pill is at its longest halfway
                         // between the two dots. Both ends arriving together
                         // would just be a dot sliding.
-                        val lead = a + (b - a) * (fraction * 2f).coerceAtMost(1f)
-                        val trail = a + (b - a) * (fraction * 2f - 1f).coerceAtLeast(0f)
-                        if (a == 0f && b == 0f) return@drawWithContent
+                        val ahead = (fraction * 2f).coerceAtMost(1f)
+                        val behind = (fraction * 2f - 1f).coerceAtLeast(0f)
+                        val lead = a + (b - a) * ahead
+                        val trail = a + (b - a) * behind
+                        // **The pill is the hull of the two dots' own boxes**,
+                        // read at the same fractions its two ends are — so each
+                        // end is as thick as the dot it is currently over.
+                        //
+                        // It used to be a fixed resting length centred on a
+                        // point, and that was reported: a `Pill` rests over a dot
+                        // the row has widened to `ActiveWidth`, and a length
+                        // picked independently of that either hangs past it —
+                        // leaving half a gap on each side where every other gap
+                        // is whole — or has to be capped short of it, which is
+                        // the same unevenness with the pill as the small one.
+                        // Taken from the boxes, it rests *exactly* on the widened
+                        // dot at every spacing, and it can never leave the row.
+                        val wa = dotWidth[from]
+                        val wb = dotWidth[to]
+                        val leadHalf = (wa + (wb - wa) * ahead) / 2f
+                        val trailHalf = (wa + (wb - wa) * behind) / 2f
+                        val left = minOf(lead - leadHalf, trail - trailHalf)
+                        val right = maxOf(lead + leadHalf, trail + trailHalf)
                         drawRoundRect(
                             color = activeColour,
-                            topLeft = Offset(
-                                minOf(lead, trail) - dotRadius,
-                                (size.height - dotRadius * 2f) / 2f,
-                            ),
-                            size = Size(
-                                kotlin.math.abs(lead - trail) + dotRadius * 2f,
-                                dotRadius * 2f,
-                            ),
+                            topLeft = Offset(left, (size.height - dotRadius * 2f) / 2f),
+                            size = Size(right - left, dotRadius * 2f),
                             cornerRadius = CornerRadius(dotRadius),
                         )
                     }
@@ -440,7 +1004,7 @@ private fun PageDots(
                 }
             )
             .semantics {
-                if (onPageSelect == null) {
+                if (onPageClick == null) {
                     // Decorative. The carousel above already says "3 of 5"; five
                     // more unlabelled nodes saying nothing is the noise that
                     // makes people turn a screen reader off.
@@ -451,9 +1015,16 @@ private fun PageDots(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { page ->
-            val active = page == current && !worm
+            // **Which page you are on, and which dot is drawn wide, are two
+            // questions now.** They were one, and a worm answered the second
+            // "none of them" — so it answered the first that way too, and a
+            // screen reader heard a row of page buttons with none of them
+            // current. Every style has a current page; only [Worm] declines to
+            // widen a dot for it, which is what makes a worm a worm.
+            val selected = page == current
+            val wide = selected && style != PageIndicatorStyle.Worm
             val width by animateDpAsState(
-                targetValue = if (active) {
+                targetValue = if (wide) {
                     PageIndicatorDefaults.ActiveWidth
                 } else {
                     PageIndicatorDefaults.DotSize
@@ -469,30 +1040,39 @@ private fun PageDots(
                         .height(PageIndicatorDefaults.DotSize)
                         .clip(Theme.shapes.capsule),
                     shape = Theme.shapes.capsule,
-                    // Under a worm every dot is a track, and the pill on top is
-                    // the only thing that says which page this is.
-                    colour = if (active) activeColour else inactiveColour,
+                    // Under a travelling style every dot is a track, and the pill
+                    // drawn over them is what says which page this is.
+                    containerColour = if (wide) activeColour else inactiveColour,
                     content = {},
                 )
             }
 
-            if (onPageSelect == null) {
-                Box(Modifier.reportCentre(dotCentre, page)) { dot() }
+            if (onPageClick == null) {
+                Box(Modifier.reportBox(dotCentre, dotWidth, page)) { dot() }
             } else {
                 Box(
                     modifier = Modifier
-                        .reportCentre(dotCentre, page)
-                        .minimumTouchTarget()
-                        .pointerCursor(enabled = enabled)
-                        .selectable(
-                            selected = active,
-                            onClick = { onPageSelect(page) },
-                            enabled = enabled,
-                            role = androidx.compose.ui.semantics.Role.RadioButton,
-                            indication = null,
-                            interactionSource = null,
-                        )
-                        .semantics { this.contentDescription = label(page, count) },
+                        .reportBox(dotCentre, dotWidth, page)
+                        // **Semantics, and no touch target of its own.** The
+                        // strip's `pointerInput` above owns the pointer route and
+                        // picks the nearest dot to where the finger landed; what
+                        // is left here is what a screen reader needs, which was
+                        // never the part that took up room. `onClick` in the
+                        // semantics tree is a real action — TalkBack and
+                        // VoiceOver activate the focused node, not a rectangle —
+                        // so the two routes are independent and only one of them
+                        // costs layout.
+                        .semantics {
+                            this.contentDescription = label(page, count)
+                            this.role = Role.RadioButton
+                            this.selected = selected
+                            if (enabled) {
+                                onClick {
+                                    onPageClick(page)
+                                    true
+                                }
+                            }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     dot()
@@ -507,8 +1087,10 @@ enum class PageIndicatorStyle {
     /**
      * The current dot widens into a pill and the others stay round.
      *
-     * The default, and the right one when the indicator is also the control —
-     * every dot keeps its own footprint, so every dot keeps its own target.
+     * Nothing travels: the old page's dot narrows and the new one widens, which
+     * is two things changing rather than one thing moving. Right where the
+     * indicator is never the *subject* of a gesture — a stepper's position, a
+     * wizard — and where a swipe's midpoint is not worth drawing.
      */
     Dots,
 
@@ -521,11 +1103,54 @@ enum class PageIndicatorStyle {
      * *middle* of a swipe rather than only its ends: the pill is at its longest
      * exactly halfway between two pages. That needs a fractional page position,
      * which is why [CarouselState.pagePosition] exists.
+     *
+     * The pill contracts to a *dot* at each end, so at rest this looks exactly
+     * like an indicator with no current page at all — and no dot is widened to
+     * make up for it, which is what keeps the row evenly spaced. [Pill] is the
+     * same travel over a row that does widen one, and is the default for that
+     * reason.
      */
     Worm,
+
+    /**
+     * Both of the above: round dots, and a pill over the current one that
+     * stretches to the next as the page travels.
+     *
+     * **The default.** [Dots] shows where you are and says nothing about the
+     * journey; [Worm] shows the journey and, at rest, nothing about where you
+     * are — the pill is a dot like all the others until something moves. This
+     * rests like the first and travels like the second, which is the only one of
+     * the three that is legible in both states.
+     *
+     * It also fixes something [Worm] gets wrong and this one cannot: under a
+     * worm every dot is drawn inactive and **no dot reports as selected**, so a
+     * screen reader hears a row of page buttons with none of them current. The
+     * pill is drawn on top of the dots rather than in place of them, so the
+     * selection is a fact about a dot again.
+     *
+     * Its layout **is** [Dots]': the row widens the current dot to `ActiveWidth`
+     * exactly as that style does, and the pill at rest is that dot's own box. So
+     * the gaps are the one gap everywhere, the two styles are the same width, and
+     * switching between them moves nothing.
+     */
+    Pill,
 }
 
+/** What a [PageIndicator] takes by default. */
 object PageIndicatorDefaults {
+    /**
+     * How a dot is announced — "Page 2 of 5", in the reader's words and digits.
+     * `page` counts from zero, as the carousel's does.
+     */
+    @Composable
+    fun pageDescription(): (page: Int, count: Int) -> String {
+        val strings = Theme.strings
+        val formats = Theme.formats
+        return remember(strings, formats) {
+            { page, count -> strings.pageOfCount(formats.quantity(page + 1), formats.quantity(count)) }
+        }
+    }
+
     val DotSize: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorDotSize
 
@@ -545,8 +1170,14 @@ object PageIndicatorDefaults {
 
 
 /** Records this dot's centre, relative to the indicator row, for the worm. */
-private fun Modifier.reportCentre(into: FloatArray, index: Int): Modifier =
-    onGloballyPositioned { into[index] = it.positionInParent().x + it.size.width / 2f }
+private fun Modifier.reportBox(
+    centres: FloatArray,
+    widths: FloatArray,
+    index: Int,
+): Modifier = onGloballyPositioned {
+    centres[index] = it.positionInParent().x + it.size.width / 2f
+    widths[index] = it.size.width.toFloat()
+}
 
 /**
  * A snap with no coast in it.

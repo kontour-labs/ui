@@ -12,7 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.components.list.ListGroup
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.listGroup
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.DropdownMenu
@@ -36,16 +36,16 @@ class DslBehaviourTest {
     @Test
     fun aGroupRoundsItsFirstAndLastRows() = runComposeUiTest {
         assertEquals(
-            listOf(ListItemPosition.First, ListItemPosition.Middle, ListItemPosition.Last),
+            listOf(GroupPosition.First, GroupPosition.Middle, GroupPosition.Last),
             positionsFromGroup(3),
         )
     }
 
-    /** One row is [ListItemPosition.Only] — all four corners, not just the outside ones. */
+    /** One row is [GroupPosition.Only] — all four corners, not just the outside ones. */
     @Test
     fun aGroupOfOneRoundsEveryCorner() {
         runComposeUiTest {
-            assertEquals(listOf(ListItemPosition.Only), positionsFromGroup(1))
+            assertEquals(listOf(GroupPosition.Only), positionsFromGroup(1))
         }
     }
 
@@ -53,7 +53,7 @@ class DslBehaviourTest {
     fun aGroupOfTwoHasNoMiddle() {
         runComposeUiTest {
             assertEquals(
-                listOf(ListItemPosition.First, ListItemPosition.Last),
+                listOf(GroupPosition.First, GroupPosition.Last),
                 positionsFromGroup(2),
             )
         }
@@ -70,7 +70,7 @@ class DslBehaviourTest {
      */
     @Test
     fun theLazyBuilderNumbersRowsAcrossElements() = runComposeUiTest {
-        val seen = mutableListOf<ListItemPosition>()
+        val seen = mutableListOf<GroupPosition>()
 
         setContent {
             KontourTheme {
@@ -87,7 +87,7 @@ class DslBehaviourTest {
         waitForIdle()
 
         assertEquals(
-            listOf(ListItemPosition.First, ListItemPosition.Middle, ListItemPosition.Last),
+            listOf(GroupPosition.First, GroupPosition.Middle, GroupPosition.Last),
             seen,
         )
     }
@@ -95,7 +95,7 @@ class DslBehaviourTest {
     /** Two rows per element still number 0…5, not 0…1 three times over. */
     @Test
     fun theLazyBuilderNumbersSeveralRowsPerElement() = runComposeUiTest {
-        val seen = mutableListOf<ListItemPosition>()
+        val seen = mutableListOf<GroupPosition>()
 
         setContent {
             KontourTheme {
@@ -111,12 +111,12 @@ class DslBehaviourTest {
 
         assertEquals(
             listOf(
-                ListItemPosition.First,
-                ListItemPosition.Middle,
-                ListItemPosition.Middle,
-                ListItemPosition.Middle,
-                ListItemPosition.Middle,
-                ListItemPosition.Last,
+                GroupPosition.First,
+                GroupPosition.Middle,
+                GroupPosition.Middle,
+                GroupPosition.Middle,
+                GroupPosition.Middle,
+                GroupPosition.Last,
             ),
             seen,
         )
@@ -189,8 +189,8 @@ class DslBehaviourTest {
 @OptIn(ExperimentalTestApi::class)
 private fun androidx.compose.ui.test.ComposeUiTest.positionsFromGroup(
     count: Int,
-): List<ListItemPosition> {
-    val seen = mutableListOf<ListItemPosition>()
+): List<GroupPosition> {
+    val seen = mutableListOf<GroupPosition>()
 
     setContent {
         KontourTheme {

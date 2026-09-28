@@ -137,14 +137,14 @@ private fun StateBlock(
             }
         }
 
-        slots.supporting?.let { supporting ->
+        slots.message?.let { message ->
             // Long lines are hard to read centred; cap the measure.
             Box(Modifier.widthIn(max = 320.dp)) {
                 ProvideContentColour(Theme.colours.contentMuted) {
                     ProvideTextStyle(
                         Theme.typography.bodyMedium.copy(textAlign = TextAlign.Center)
                     ) {
-                        ContentSlot(content = supporting)
+                        ContentSlot(content = message)
                     }
                 }
             }

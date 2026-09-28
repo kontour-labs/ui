@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.FileOff
+import com.composables.icons.tabler.outline.FileText
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.LayoutGrid
 import com.composables.icons.tabler.outline.Menu2
@@ -45,8 +47,10 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.CardVariant
 import io.kontour.ui.components.list.ListGroup
@@ -54,12 +58,14 @@ import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.contract.componentRegistry
 import io.kontour.ui.demo.DemoCard
 import io.kontour.ui.demo.componentDemos
+import io.kontour.ui.foundation.SelectableText
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
-import io.kontour.ui.nav.ModalNavDrawer
-import io.kontour.ui.nav.NavDrawer
-import io.kontour.ui.nav.NavDrawerScope
+import io.kontour.ui.nav.NavScope
+import io.kontour.ui.nav.NavigationSuiteScaffold
+import io.kontour.ui.nav.NavigationSuiteType
+import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
@@ -69,7 +75,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.theme.Theme
-import androidx.compose.foundation.isSystemInDarkTheme
+import io.kontour.ui.theme.deviceInDarkTheme
 
 /**
  * The documentation site.
@@ -80,23 +86,22 @@ import androidx.compose.foundation.isSystemInDarkTheme
  *
  * ### Built out of the library it documents
  *
- * `Scaffold`, `TopBar`, `NavDrawer`, `ModalNavDrawer` — not a hand-rolled `Row`
+ * `Scaffold`, `TopBar` and `NavigationSuiteScaffold` — not a hand-rolled `Row`
  * with a hardcoded breakpoint, which is what this was. Dogfooding is the honest
  * reason and there is a practical one too: the site is the largest real
  * application of these components anybody has written, so a component that is
  * awkward here is a component that is awkward.
  *
- * **Not `NavigationSuiteScaffold`**, though it looks like the obvious fit. That
- * takes a flat `List<NavItem>` of three to five icon destinations with a
- * travelling indicator, and this index is a hundred pages in eleven families.
- * Using it would mean either inventing four fake top-level destinations — giving
- * a drawer of four beside a drawer of a hundred — or flattening a tree into a
- * list, which its own KDoc argues against. `NavDrawerScope` is a tree, which is
- * what this is.
+ * The index is a hundred pages in eleven families: a `NavScope` tree of
+ * sections and groups, drawn as a sidebar beside the content where there is
+ * room and as a modal rail behind the menu button where there is not.
  */
 @Composable
 fun Site(settings: CatalogSettings = rememberCatalogSettings()) {
-    val systemDark = isSystemInDarkTheme()
+    // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
+    // *and* reports its appearance to the host, and on iOS those are the
+    // same property. See `deviceInDarkTheme`.
+    val systemDark = deviceInDarkTheme()
     val route = rememberRoute()
 
     // Outside the theme, exactly as `Catalog` does it: font scale is a platform
@@ -137,15 +142,13 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
     // than a `>= Medium` comparison written out at the call site. A threshold
     // spelled as a comparison is a threshold that drifts when somebody moves it.
     val besideContent = windowSizeClass.width.hasRoomBeside
-    var indexOpen by remember { mutableStateOf(false) }
+    val suite = rememberNavigationSuiteState()
     var settingsOpen by remember { mutableStateOf(false) }
 
-    // A drawer still open over the page you just chose is a drawer you have to
-    // dismiss before you can read anything.
+    // The modal rail closes itself a frame after a page is chosen from it.
     LaunchedEffect(route) {
-        indexOpen = false
-        // And a family you have just navigated into is one you can see the
-        // inside of, whatever you last did to its chevron.
+        // A family you have just navigated into is one you can see the inside
+        // of, whatever you last did to its chevron.
         //
         // Not tidiness: a collapsed group composes none of its rows, and the
         // selection pill is driven by the selected row *reporting* its bounds.
@@ -171,7 +174,7 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
                         IconButton(
                             icon = Tabler.Outline.Menu2,
                             contentDescription = "Components",
-                            onClick = { indexOpen = true },
+                            onClick = suite::showModal,
                         )
                     }
                 },
@@ -230,32 +233,22 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
             }
         },
     ) { padding ->
-        Row(Modifier.fillMaxSize().padding(padding)) {
-            if (besideContent) {
-                NavDrawer(
-                    width = IndexWidth,
-                    header = { IndexSearchHeader() },
-                    modifier = Modifier.fillMaxHeight(),
-                ) {
-                    indexItems(route)
-                }
-                VerticalDivider(Modifier.fillMaxHeight())
-            }
-            Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
-        }
-    }
-
-    // Below Medium the index is a modal drawer behind the menu button. It used
-    // to be nothing at all: the sidebar simply was not rendered under 600dp and
-    // no menu replaced it, so a reader who arrived on a component page from a
-    // search engine had no route to any other page in the site.
-    if (!besideContent) {
-        ModalNavDrawer(
-            visible = indexOpen,
-            onDismissRequest = { indexOpen = false },
+        // Beside the content where there is room; below that, a modal rail
+        // behind the menu button. It used to be nothing at all under 600dp, so
+        // a reader who arrived on a page from a search engine had no route to
+        // any other page in the site.
+        NavigationSuiteScaffold(
+            destinations = { indexItems(route) },
+            modifier = Modifier.fillMaxSize().padding(padding),
+            state = suite,
+            type = if (besideContent) NavigationSuiteType.ExpandedRail else NavigationSuiteType.ModalRail,
+            railExpandedWidth = IndexWidth,
             header = { IndexSearchHeader() },
         ) {
-            indexItems(route)
+            Row(Modifier.fillMaxSize()) {
+                if (besideContent) VerticalDivider(Modifier.fillMaxHeight())
+                Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
+            }
         }
     }
 }
@@ -280,7 +273,7 @@ private fun Content(route: Route, settings: CatalogSettings) {
     }
 }
 
-/** The search field the drawer keeps above its destinations. */
+/** The search field the index keeps above its destinations. */
 @Composable
 private fun IndexSearchHeader() {
     val search = rememberTextFieldState()
@@ -293,9 +286,9 @@ private fun IndexSearchHeader() {
 }
 
 /**
- * The filter, hoisted out of the drawer.
+ * The filter, hoisted out of the index.
  *
- * There are two drawers — permanent and modal — and only ever one on screen, so
+ * The index is a sidebar or a modal rail, and only ever one on screen, so
  * holding the query in either would lose it at the breakpoint. It is small and
  * it is genuinely site-wide state.
  */
@@ -311,13 +304,13 @@ private var indexQuery by mutableStateOf("")
  * that does nothing. An explicit `false` is a different thing from no entry, so
  * the map stores which and the reader always wins.
  *
- * Hoisted for the same reason as [indexQuery]: two drawers, one on screen.
+ * Hoisted for the same reason as [indexQuery]: two surfaces, one on screen.
  */
 private var familyOpen by mutableStateOf(emptyMap<String, Boolean>())
 
 /** Every page, by family, filtered as you type. */
 @Composable
-private fun NavDrawerScope.indexItems(current: Route) {
+private fun NavScope.indexItems(current: Route) {
     val matching = remember(indexQuery) {
         if (indexQuery.isBlank()) {
             docPagesByFamily
@@ -344,12 +337,14 @@ private fun NavDrawerScope.indexItems(current: Route) {
             return@forEach
         }
         group(
-            label = family.name,
             // A search reveals its hits whatever the reader last did to a
             // chevron, otherwise typing a name and getting nothing back is the
             // behaviour, and it looks like the search is broken.
             expanded = searching || (familyOpen[family.name] ?: family.holds(current)),
             onExpandedChange = { familyOpen = familyOpen + (family.name to it) },
+            key = "family:${family.name}",
+            icon = null,
+            header = { +family.name },
         ) {
             indexFamily(family, current)
         }
@@ -358,7 +353,7 @@ private fun NavDrawerScope.indexItems(current: Route) {
 
 /** One family's rows: its own page, then its components. */
 @Composable
-private fun NavDrawerScope.indexFamily(family: DocFamily, current: Route) {
+private fun NavScope.indexFamily(family: DocFamily, current: Route) {
     // The family's own page first, where it has one — the "which one" table and
     // the prose that is about the family rather than any component in it. Round
     // 16 gave those pages routes; before that they were the only part of the
@@ -379,20 +374,18 @@ private fun DocFamily.holds(route: Route): Boolean =
     route is Route.Doc && (index?.path == route.path || pages.any { it.path == route.path })
 
 /**
- * One destination.
- *
- * `label` is the drawer's selection-indicator key, so two entries sharing one
- * would collide. A page's first symbol is unique across the tree —
- * `check-components.py` rule 2 keeps it that way — and a guide has no symbols,
- * so it falls back to its title, which is also unique.
+ * One destination, keyed by its path: unique across the tree, where a label is
+ * not — every family's "Overview" row shares one.
  */
 @Composable
-private fun NavDrawerScope.indexItem(page: DocPage, current: Route, label: String? = null) {
+private fun NavScope.indexItem(page: DocPage, current: Route, label: String? = null) {
     item(
-        label = label ?: page.indexLabel,
         selected = current == Route.Doc(page.path),
+        onClick = { navigate(Route.Doc(page.path)) },
+        key = page.path,
+        icon = null,
     ) {
-        navigate(Route.Doc(page.path))
+        +(label ?: page.indexLabel)
     }
 }
 
@@ -417,7 +410,7 @@ private fun Home() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .padding(PagePadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
@@ -484,7 +477,7 @@ internal val DocPage.shortSummary: String
  */
 @Composable
 private fun LiveTag() {
-    Tag(tone = TagTone.Accent) { +"LIVE" }
+    Tag(tone = Tone.Accent) { +"LIVE" }
 }
 
 /** Two lines of supporting text at the narrowest width the index is drawn at. */
@@ -494,7 +487,7 @@ private const val SummaryLength = 130
  * What to put at the top of the page, and in the index.
  *
  * A component page is named by what it documents — "NavBar / NavRail /
- * NavDrawer" is better than "Nav surfaces". A guide is named by its title, with
+ * ModalNavRail" is better than "Nav surfaces". A guide is named by its title, with
  * the markdown taken out: `dsls.md` is called "Slots, and the `+` that keeps
  * them short", whose only backticked run is `+`, so reading symbols off it gave
  * a page headed "+" — and, while there was a page-level *API reference* button,
@@ -511,10 +504,8 @@ private val DocPage.heading: String
 /**
  * The name in the sidebar.
  *
- * The *first* symbol rather than all of them: `nav-surfaces` documents three,
- * and "NavBar / NavRail / NavDrawer" wraps to three lines in a 280dp drawer.
- * It is also the drawer's selection-indicator key, so it has to be unique —
- * `check-components.py` rule 2 is what keeps it so.
+ * The *first* symbol rather than all of them: a page that documents three
+ * would wrap to three lines in a 280dp sidebar.
  */
 private val DocPage.indexLabel: String
     get() = if (kind == DocKind.Component) symbols.firstOrNull() ?: plainTitle else plainTitle
@@ -554,7 +545,7 @@ private fun DocPageView(path: String) {
         Box(Modifier.fillMaxSize(), Alignment.Center) {
             EmptyState {
                 +"No page called “$path”"
-                supporting { +"It may have been renamed. The index lists every page." }
+                message { +"It may have been renamed. The index lists every page." }
                 leading { +Tabler.Outline.FileOff }
                 action {
                     Button(onClick = { navigate(Route.Home) }, variant = ButtonVariant.Secondary) {
@@ -579,42 +570,71 @@ private fun DocPageView(path: String) {
         // phone shows about ten of them. Shaping is the most expensive thing the
         // renderer does and it was being done for thirty times more text than
         // anybody could see.
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PagePadding(),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        ) {
-            item {
-                Text(text = page.heading, style = Theme.typography.displaySmall)
-            }
-            // No "Edit this page". The markdown behind these pages is a build
-            // input — the site's routing table, family tree and demo binding
-            // as much as its prose — and sending a reader to a file in a
-            // repository is the same mistake as the screenshots that used to
-            // sit at the top of every one of them: it treats the repository as
-            // a second place to read the documentation, and it is not one.
-            item { Specimens(page) }
+        //
+        // The whole page is one selection region: the title, the prose, the
+        // code and the parameter tables can be selected and copied, and a
+        // selection runs across blocks. It wraps the list rather than each
+        // block because a region per block would stop a drag at every
+        // paragraph. What a lazy list has not composed cannot be selected, so a
+        // selection reaches as far as the window does; "Open as text" is for
+        // the rest, and for the browser's find-in-page, which a canvas cannot
+        // offer.
+        SelectableText(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PagePadding(),
+                flingBehavior = ScrollDefaults.flingBehavior(),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            ) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+                        Text(text = page.heading, style = Theme.typography.displaySmall)
+                        // The page's Markdown, which `docs/lay-out-site.py` writes
+                        // beside the app: plain text a browser can search and an
+                        // agent can read. Relative, so it resolves under whatever
+                        // path the site is served from.
+                        TextButton(onClick = { openExternal(page.textUrl) }) {
+                            +Tabler.Outline.FileText
+                            +"Open as text"
+                        }
+                    }
+                }
+                // No "Edit this page". The markdown behind these pages is a build
+                // input — the site's routing table, family tree and demo binding
+                // as much as its prose — and sending a reader to a file in a
+                // repository is the same mistake as the screenshots that used to
+                // sit at the top of every one of them: it treats the repository as
+                // a second place to read the documentation, and it is not one.
+                //
+                // Out of the selection: the demos are things to press and drag,
+                // and a drag across a slider that selected the page instead would
+                // be a demo that does not work.
+                item { DisableSelection { Specimens(page) } }
 
-            // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
-            //
-            // It was written the other way round. `fillMaxWidth` fixes the
-            // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
-            // [0, 760] against a minimum of W — so on any window wider than
-            // 760dp the cap was discarded and the line ran the full width. On a
-            // 1600px display that is a 1600px measure, which is exactly what the
-            // comment on `ProseWidth` says it prevents. Written outside, the
-            // ceiling is in place before anything fills to it.
-            //
-            // The sidebar two hundred lines up has always had it in this order,
-            // which is why that one worked.
-            prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                // `widthIn` outside `fillMaxWidth`, and the order is the whole fix.
+                //
+                // It was written the other way round. `fillMaxWidth` fixes the
+                // constraints at [W, W] first, and `widthIn(max = 760)` then coerces
+                // [0, 760] against a minimum of W — so on any window wider than
+                // 760dp the cap was discarded and the line ran the full width. On a
+                // 1600px display that is a 1600px measure, which is exactly what the
+                // comment on `ProseWidth` says it prevents. Written outside, the
+                // ceiling is in place before anything fills to it.
+                //
+                // The sidebar two hundred lines up has always had it in this order,
+                // which is why that one worked.
+                prose(page.blocks, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
 
-            item {
-                ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                item {
+                    ApiSection(page, Modifier.widthIn(max = ProseWidth).fillMaxWidth())
+                }
             }
         }
     }
 }
+
+/** Where `docs/lay-out-site.py` mirrors this page as Markdown, relative to the site. */
+internal val DocPage.textUrl: String get() = "md/$path.md"
 
 /**
  * The component itself, running, above its prose.
@@ -625,7 +645,7 @@ private fun DocPageView(path: String) {
  * the specimen *is* the picture, and it can be pressed.
  *
  * Nothing shows for a component the registry does not carry; several are
- * genuinely not specimens — `DateTimeFormats` is a set of formats.
+ * genuinely not specimens — `LocaleFormats` is a set of formats.
  */
 @Composable
 private fun Specimens(page: DocPage) {
@@ -689,13 +709,13 @@ private fun Specimens(page: DocPage) {
  * 320, not the 280 it was, and the collapsible index is why.
  *
  * A component's rows sit one nest level inside their family's chevron, which is
- * `NavDrawerDefaults.NestIndent` — 24dp — off the leading edge, and
- * `NavDrawerItem` draws its label at `maxLines = 1`: it truncates rather than
+ * `NavRailDefaults.NestIndent` — 24dp — off the leading edge, and a rail row
+ * draws its label at `maxLines = 1`: it truncates rather than
  * wrapping. At 280 that ate the tail of the longest names in the tree, and
  * `ExtendedFloatingActionButton` came out as "ExtendedFloatingActionButt".
  *
  * Widening here rather than shrinking `NestIndent`, which is a library token
- * every drawer in every consumer draws against. This is the site's own measure.
+ * every rail in every consumer draws against. This is the site's own measure.
  *
  * Kept below `SiteRenderTest.IndexWidth`, which is where that test starts
  * looking for a page's own ink — if the index grew past it, a page with an empty

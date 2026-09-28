@@ -3,17 +3,18 @@
 | | |
 |---|---|
 | [`WindowSizeClass` / `WindowSizeClassProvider`](window-size-class.md) | Compact / medium / expanded / large, from a measured window |
-| `WindowAdaptiveInfo` | Size class *and* input modality, together |
+| [`WindowAdaptiveInfo`](window-size-class.md) | Size class *and* input modality, together |
 | [`Scaffold`](scaffold.md) | Top bar, bottom bar, FAB, and the padding for the content |
 | [`ListDetailPaneScaffold`](pane-scaffold.md) | Two panes when there is room, one at a time when there is not |
 | [`SupportingPaneScaffold`](pane-scaffold.md) | Content with a helper pane, or a sheet when narrow |
+| [Navigation 3 scenes](../navigation3.md) | Both pane scaffolds, driven by a Navigation 3 back stack |
 | [`AspectRatioBox`](aspect-ratio-box.md) | Reserves a media slot before its content loads |
+| [`Modifier.pointerCursor`](modifier-pointer-cursor.md) | The mouse cursor over a component, named for what it is |
 | `Motion.fadeThrough` / `sharedAxis` / `containerTransform` | Transition presets |
 | [`PageTransition`](page-transition.md) | Whole-page changes, carrying shared elements across |
 | `Modifier.revealOnScroll` | Fades content in the first time it appears |
 | `Modifier.parallax` | Scroll-linked drift |
 | `Modifier.shimmer` | The travelling highlight behind a skeleton |
-| [`GlassSurface`](glass-surface.md) | Translucent panel for a bar over content |
 | `Modifier.atmosphere` | The radial glow both websites use behind a hero |
 | `Modifier.edgeVignette` | Soft falloff at the edges of a scrolling page |
 
@@ -63,11 +64,10 @@ exists to remove. The full list of what reduced motion changes is with the
 ## There is no portable backdrop blur — for a floating bar
 Compose's `Modifier.blur` blurs a layer's *own* content, not what is behind it,
 and there is no common equivalent of CSS's `backdrop-filter` or iOS's
-`UIVisualEffectView`. So `GlassSurface` draws a translucent tint and a hairline
-edge — most of what reads as glass — and offers real frosting only via a
-`backdrop` slot that composes the background **twice**. Fine for a static image;
-not for the live map a floating bar actually sits over, which is why it is not
-the default.
+`UIVisualEffectView`. The only way to frost a bar over live content is to
+compose that content **twice**, once blurred behind the bar — fine for a static
+image, not for the live map a floating bar actually sits over. So the library has
+no frosted bar: bars and rails are painted.
 
 **A modal is not the same problem, and does blur properly.** The wall above is
 about a bar that is a sibling *above* live content: there is no single node that

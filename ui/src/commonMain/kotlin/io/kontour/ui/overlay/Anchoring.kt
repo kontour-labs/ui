@@ -1,8 +1,10 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,9 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -26,8 +30,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
+import kotlin.math.roundToInt
 
 /**
  * Which side of its anchor an overlay prefers to sit on.
@@ -40,10 +46,77 @@ import io.kontour.ui.theme.Theme
 enum class OverlaySide { Top, Bottom, Start, End }
 
 /** How an overlay lines up along the edge it sits on. */
-enum class OverlayAlignment { Start, Center, End }
+enum class OverlayAlignment { Start, Centre, End }
 
 /** [OverlaySide] once the layout direction has been applied. */
 internal enum class ResolvedSide { Above, Below, Left, Right }
+
+/** [side] with the layout direction applied. */
+internal fun resolvedSide(side: OverlaySide, isRtl: Boolean): ResolvedSide = when (side) {
+    OverlaySide.Top -> ResolvedSide.Above
+    OverlaySide.Bottom -> ResolvedSide.Below
+    OverlaySide.Start -> if (isRtl) ResolvedSide.Right else ResolvedSide.Left
+    OverlaySide.End -> if (isRtl) ResolvedSide.Left else ResolvedSide.Right
+}
+
+/** The other candidate: the side an overlay flips to when this one has no room. */
+internal val ResolvedSide.opposite: ResolvedSide
+    get() = when (this) {
+        ResolvedSide.Above -> ResolvedSide.Below
+        ResolvedSide.Below -> ResolvedSide.Above
+        ResolvedSide.Left -> ResolvedSide.Right
+        ResolvedSide.Right -> ResolvedSide.Left
+    }
+
+/**
+ * What an anchored overlay keeps clear of each container edge, beyond its margin.
+ *
+ * The container an overlay is measured in is the [OverlayHost], which fills the
+ * window and applies **no insets at all** — deliberately, since the components that
+ * need them apply their own. So without this, the room below an anchor near the
+ * bottom of a phone included the navigation bar, and a popover asked to open below
+ * such an anchor found "room" underneath the system's own chrome.
+ *
+ * Physical edges rather than start and end, because this is compared against
+ * physical coordinates: `positionAnchored` works in the container's own space and
+ * mirrors *alignment* for RTL, not the container.
+ */
+@Immutable
+internal data class AnchorInsets(
+    val left: Int = 0,
+    val top: Int = 0,
+    val right: Int = 0,
+    val bottom: Int = 0,
+) {
+    internal companion object {
+        /** No window chrome to avoid, which is every platform but a phone. */
+        val None = AnchorInsets()
+    }
+}
+
+/**
+ * How much room there is beside [anchor] on [s], before any content is measured.
+ *
+ * **Independent of the content**, which is the property the whole fix rests on: it
+ * can be worked out *before* measuring, so the content can be given the better
+ * side's room as its budget rather than the whole container's and then be moved to
+ * make it fit.
+ */
+internal fun roomBeside(
+    anchor: Rect,
+    containerSize: IntSize,
+    s: ResolvedSide,
+    gap: Int,
+    margin: Int,
+    insets: AnchorInsets = AnchorInsets.None,
+): Int = when (s) {
+    ResolvedSide.Above -> (anchor.top - margin - insets.top - gap).toInt()
+    ResolvedSide.Below ->
+        (containerSize.height - margin - insets.bottom - anchor.bottom - gap).toInt()
+    ResolvedSide.Left -> (anchor.left - margin - insets.left - gap).toInt()
+    ResolvedSide.Right ->
+        (containerSize.width - margin - insets.right - anchor.right - gap).toInt()
+}
 
 @Immutable
 internal data class AnchoredPlacement(
@@ -66,15 +139,44 @@ internal data class AnchoredPlacement(
  *    overlay that must be clipped should at least be clipped at the end nobody
  *    reads first.
  * 2. **Shift.** Slide along the other axis until the whole thing is inside the
- *    container, keeping [margin] clear of the edges.
+ *    container, keeping [margin] and [insets] clear of the edges.
  *
  * Shifting is deliberately not constrained by the anchor: a menu aligned to the
  * start of a button in the far corner slides until it fits, ending up no longer
  * aligned with that button. That is correct. Alignment is a preference; being on
  * screen is not.
  *
+ * ### What fixes "Bottom did not mean bottom"
+ *
+ * Reported from a phone: *"setting it to 'bottom' on android doesn't seem to make
+ * it not show on the top side"*. Two mechanisms can do that and only one of them
+ * is the documented flip.
+ *
+ * The other is this function's clamp, reached through a content size that was
+ * measured against the wrong thing. `shift` bounds the overlay to the container,
+ * and on the side's *own* axis that bound can be tighter than the anchor: with a
+ * container 800 tall, an anchor bottom at 400 and content 600 high, both sides have
+ * 381 of room, neither fits, `resolved` stays `Below` — and then `y` is clamped from
+ * 411 down to 192, which is above `anchor.top`. The panel is drawn entirely above
+ * its anchor while reporting `Below`, so `arrowPath` puts the pointer on the panel's
+ * top edge, aimed away from the control it belongs to.
+ *
+ * **The fix is upstream of this function**: `AnchoredOverlayLayout` budgets the
+ * content to `roomBeside` the better side *before* measuring it, so content that can
+ * fit does fit, and the clamp has nothing left to do. See [Constraints.withinSideRoom].
+ *
+ * Guaranteeing it here as well — a third correction pushing the overlay back onto
+ * its side whatever the shift decided — was tried and reverted, and the reason is
+ * worth keeping. An anchor can be the whole container: a `DropdownMenu` inside a
+ * `Box(Modifier.fillMaxSize())` has no room on any side, gets no budget, and would
+ * then be pinned to `anchor.bottom + gap` — off the bottom of the window, with its
+ * items unreachable. A panel that overlaps its anchor is readable and a panel that
+ * is off screen is not, so when nothing fits, being on screen wins.
+ *
  * @param gap Distance between the anchor and the overlay.
  * @param margin Minimum distance from the container's edges.
+ * @param insets What the container's own edges are occupied by — a status bar, a
+ *   navigation bar, a keyboard — on top of [margin]. See [AnchorInsets].
  */
 internal fun positionAnchored(
     anchor: Rect,
@@ -85,26 +187,15 @@ internal fun positionAnchored(
     gap: Int,
     margin: Int,
     isRtl: Boolean,
+    insets: AnchorInsets = AnchorInsets.None,
+    /** A side to stay on whatever the room says — an overlay on its way out. */
+    keepSide: ResolvedSide? = null,
 ): AnchoredPlacement {
-    val preferred = when (side) {
-        OverlaySide.Top -> ResolvedSide.Above
-        OverlaySide.Bottom -> ResolvedSide.Below
-        OverlaySide.Start -> if (isRtl) ResolvedSide.Right else ResolvedSide.Left
-        OverlaySide.End -> if (isRtl) ResolvedSide.Left else ResolvedSide.Right
-    }
-    val opposite = when (preferred) {
-        ResolvedSide.Above -> ResolvedSide.Below
-        ResolvedSide.Below -> ResolvedSide.Above
-        ResolvedSide.Left -> ResolvedSide.Right
-        ResolvedSide.Right -> ResolvedSide.Left
-    }
+    val preferred = resolvedSide(side, isRtl)
+    val opposite = preferred.opposite
 
-    fun roomOn(s: ResolvedSide): Int = when (s) {
-        ResolvedSide.Above -> (anchor.top - margin - gap).toInt()
-        ResolvedSide.Below -> (containerSize.height - margin - anchor.bottom - gap).toInt()
-        ResolvedSide.Left -> (anchor.left - margin - gap).toInt()
-        ResolvedSide.Right -> (containerSize.width - margin - anchor.right - gap).toInt()
-    }
+    fun roomOn(s: ResolvedSide): Int =
+        roomBeside(anchor, containerSize, s, gap, margin, insets)
 
     fun needsOn(s: ResolvedSide): Int = when (s) {
         ResolvedSide.Above, ResolvedSide.Below -> contentSize.height
@@ -112,18 +203,19 @@ internal fun positionAnchored(
     }
 
     val resolved = when {
+        keepSide != null -> keepSide
         roomOn(preferred) >= needsOn(preferred) -> preferred
         roomOn(opposite) >= needsOn(opposite) -> opposite
         roomOn(opposite) > roomOn(preferred) -> opposite
         else -> preferred
     }
 
-    fun shift(value: Int, size: Int, extent: Int): Int {
-        val max = extent - margin - size
+    fun shift(value: Int, size: Int, extent: Int, lead: Int, trail: Int): Int {
+        val max = extent - trail - size
         // A container too small to hold the content at all: pin to the leading
         // edge rather than letting the clamp invert and push it off-screen.
-        if (max < margin) return margin
-        return value.coerceIn(margin, max)
+        if (max < lead) return lead
+        return value.coerceIn(lead, max)
     }
 
     return when (resolved) {
@@ -131,13 +223,13 @@ internal fun positionAnchored(
             val leading = if (isRtl) {
                 when (alignment) {
                     OverlayAlignment.Start -> anchor.right - contentSize.width
-                    OverlayAlignment.Center -> anchor.center.x - contentSize.width / 2f
+                    OverlayAlignment.Centre -> anchor.center.x - contentSize.width / 2f
                     OverlayAlignment.End -> anchor.left
                 }
             } else {
                 when (alignment) {
                     OverlayAlignment.Start -> anchor.left
-                    OverlayAlignment.Center -> anchor.center.x - contentSize.width / 2f
+                    OverlayAlignment.Centre -> anchor.center.x - contentSize.width / 2f
                     OverlayAlignment.End -> anchor.right - contentSize.width
                 }
             }
@@ -147,8 +239,20 @@ internal fun positionAnchored(
                 anchor.bottom + gap
             }
             AnchoredPlacement(
-                x = shift(leading.toInt(), contentSize.width, containerSize.width),
-                y = shift(y.toInt(), contentSize.height, containerSize.height),
+                x = shift(
+                    value = leading.toInt(),
+                    size = contentSize.width,
+                    extent = containerSize.width,
+                    lead = margin + insets.left,
+                    trail = margin + insets.right,
+                ),
+                y = shift(
+                    value = y.toInt(),
+                    size = contentSize.height,
+                    extent = containerSize.height,
+                    lead = margin + insets.top,
+                    trail = margin + insets.bottom,
+                ),
                 side = resolved,
             )
         }
@@ -156,7 +260,7 @@ internal fun positionAnchored(
         ResolvedSide.Left, ResolvedSide.Right -> {
             val top = when (alignment) {
                 OverlayAlignment.Start -> anchor.top
-                OverlayAlignment.Center -> anchor.center.y - contentSize.height / 2f
+                OverlayAlignment.Centre -> anchor.center.y - contentSize.height / 2f
                 OverlayAlignment.End -> anchor.bottom - contentSize.height
             }
             val x = if (resolved == ResolvedSide.Left) {
@@ -165,8 +269,20 @@ internal fun positionAnchored(
                 anchor.right + gap
             }
             AnchoredPlacement(
-                x = shift(x.toInt(), contentSize.width, containerSize.width),
-                y = shift(top.toInt(), contentSize.height, containerSize.height),
+                x = shift(
+                    value = x.toInt(),
+                    size = contentSize.width,
+                    extent = containerSize.width,
+                    lead = margin + insets.left,
+                    trail = margin + insets.right,
+                ),
+                y = shift(
+                    value = top.toInt(),
+                    size = contentSize.height,
+                    extent = containerSize.height,
+                    lead = margin + insets.top,
+                    trail = margin + insets.bottom,
+                ),
                 side = resolved,
             )
         }
@@ -199,9 +315,10 @@ internal fun overlayConstraints(
     container: IntSize,
     margin: Int,
     minWidth: Int,
+    insets: AnchorInsets = AnchorInsets.None,
 ): Constraints {
-    val maxWidth = container.width.lessMargin(margin)
-    val maxHeight = container.height.lessMargin(margin)
+    val maxWidth = container.width.lessEdges(margin * 2 + insets.left + insets.right)
+    val maxHeight = container.height.lessEdges(margin * 2 + insets.top + insets.bottom)
     return Constraints(
         minWidth = if (maxWidth == Constraints.Infinity) minWidth else minWidth.coerceIn(0, maxWidth),
         maxWidth = maxWidth,
@@ -209,9 +326,77 @@ internal fun overlayConstraints(
     )
 }
 
-/** This extent less a margin on each side, or [Constraints.Infinity] if it had none. */
-private fun Int.lessMargin(margin: Int): Int =
-    if (this == Constraints.Infinity) Constraints.Infinity else (this - margin * 2).coerceAtLeast(0)
+/**
+ * [overlayConstraints], further bounded to the room the overlay will actually be
+ * placed in.
+ *
+ * **This is the half of the popover fix that stops the problem happening**, rather
+ * than the half that stops it being drawn wrongly. Content used to be measured
+ * against the whole container less its margins, and then placed beside an anchor
+ * that might have a fraction of that beside it. A tall panel therefore reported
+ * "does not fit below" whatever was actually below it, went through the flip, found
+ * the other side did not fit either, and was clamped — which on a phone, where the
+ * window is half a desktop's height and every touch target is twice as tall, is the
+ * common case rather than the corner one.
+ *
+ * [room] is `roomBeside` the better of the two candidate sides, which is knowable
+ * without the content. Anything the content does within that budget fits on the
+ * side it is given, so the flip decides on real numbers and the clamp never bites.
+ *
+ * **The panel has to be able to scroll**, or this loses content instead of placing
+ * it. That is not a caveat, it is the other half: the first version of this bounded
+ * the panel and nothing else, and what a reader got was a popover with its last
+ * lines cut off — reported in those words. `MenuPanel` already scrolled;
+ * `PopoverPanel` does now.
+ *
+ * A [room] of zero or less means the caller found no side worth budgeting to, and
+ * the container's own bound stands — which is what this did before any of it.
+ * `positionAnchored`'s clamp then keeps the overlay on screen, and being readable on
+ * top of its anchor beats being correctly placed and a sliver. See
+ * [AnchoredOverlayDefaults.MinimumPanel] for where that line is drawn.
+ */
+internal fun Constraints.withinSideRoom(room: Int, vertical: Boolean): Constraints {
+    if (room <= 0) return this
+    return if (vertical) {
+        if (!hasBoundedHeight) return this
+        copy(maxHeight = maxHeight.coerceAtMost(room).coerceAtLeast(minHeight))
+    } else {
+        if (!hasBoundedWidth) return this
+        // `minWidth` wins where the two disagree: a select's menu matching the
+        // width of its field is a promise this must not quietly break, and
+        // `Constraints` throws rather than clamping if it did.
+        copy(maxWidth = maxWidth.coerceAtMost(room).coerceAtLeast(minWidth))
+    }
+}
+
+/** Numbers every anchored overlay shares. */
+internal object AnchoredOverlayDefaults {
+    /**
+     * How little room a side may have and still be the side the overlay opens on.
+     *
+     * **This is the whole of "`Bottom` should mean bottom".** Measured on the
+     * popover demo at a Pixel's size: the panel is about 88dp and a trigger 130dp
+     * from the bottom edge has about 90dp under it, which would be enough — except
+     * that the margin, the gap and the arrow want twenty more than there are. So it
+     * flipped, for the sake of twenty pixels, and was reported as `Bottom` not
+     * meaning bottom.
+     *
+     * With the panel bounded to its side and able to scroll, that case opens below
+     * and scrolls the last sliver, which is what was asked for. What the floor is
+     * still for is the case where there is no side at all: a `DropdownMenu` declared
+     * inside a `Box(Modifier.fillMaxSize().padding(24.dp))` leaves *twelve pixels*
+     * beside it, and a panel bounded to twelve pixels is a strip with its rows
+     * unreachable. Two of the library's own menu tests found that within a minute.
+     *
+     * 64dp is a panel's own vertical padding and a line of text — the point below
+     * which there is nothing a reader could act on, whether or not it scrolls.
+     */
+    val MinimumPanel: Dp = 64.dp
+}
+
+/** This extent less what the edges take, or [Constraints.Infinity] if it had none. */
+private fun Int.lessEdges(edges: Int): Int =
+    if (this == Constraints.Infinity) Constraints.Infinity else (this - edges).coerceAtLeast(0)
 
 /** This extent, or [fallback] when there is no extent to speak of. */
 private fun Int.orContent(fallback: Int): Int =
@@ -226,6 +411,20 @@ private fun Int.orContent(fallback: Int): Int =
  */
 fun Modifier.anchorBounds(onBounds: (Rect?) -> Unit): Modifier =
     onGloballyPositioned { onBounds(if (it.isAttached) it.boundsInRoot() else null) }
+
+/**
+ * Reads [bounds] in a scope of its own and hands the result to [content].
+ *
+ * An anchor's bounds change on every frame its trigger scrolls, and the
+ * composable that owns the trigger is the wrong place to read them: it
+ * recomposes, every frame, for the sake of a menu that is usually closed. Read
+ * here, only this and the overlay it wraps do — in the same pass, the same
+ * frame, with the same value.
+ */
+@Composable
+internal fun WithAnchor(bounds: () -> Rect?, content: @Composable (Rect?) -> Unit) {
+    content(bounds())
+}
 
 /**
  * Captures the bounds of this composable's *parent*, in root coordinates.
@@ -258,12 +457,21 @@ internal fun Modifier.parentBounds(onBounds: (Rect?) -> Unit): Modifier =
  */
 private val ArrowOverlap: Dp = 1.dp
 
+/**
+ * The window insets an anchored overlay keeps clear of, when they are not the
+ * window's own — which is only ever a test: a desktop scene has no status bar or
+ * home indicator to report, and the cases worth testing are the ones a phone has.
+ */
+internal val LocalOverlaySafeArea = compositionLocalOf<WindowInsets?> { null }
+
 /** A pointer showing which element an overlay belongs to. */
 @Immutable
-data class ArrowSpec(
+internal data class ArrowSpec(
     val colour: Color,
     val width: Dp = 14.dp,
     val height: Dp = 7.dp,
+    /** An outline round the arrow, where the panel it belongs to has one. */
+    val edge: BorderStroke? = null,
 )
 
 /** Carries the arrow geometry from the measure pass to the draw pass. */
@@ -286,6 +494,18 @@ private class ArrowPath {
  */
 private class AnchorMemory {
     var last: Rect? = null
+}
+
+/**
+ * The side an overlay was last placed on while it was showing, and what it was
+ * measured against there — held so it can leave from where it was.
+ *
+ * Plain rather than snapshot state, for [AnchorMemory]'s reason: written in the
+ * measure pass that reads it.
+ */
+private class PlacedSide {
+    var side: ResolvedSide? = null
+    var constraints: Constraints? = null
 }
 
 /**
@@ -327,6 +547,14 @@ internal fun AnchoredOverlayLayout(
     minWidth: Dp = Dp.Unspecified,
     /** How small the whole thing starts. A tooltip can afford more than a menu. */
     fromScale: Float = 0.9f,
+    /**
+     * The least room a side may have and still be the side it opens on — capped,
+     * on the axis the panel opens along, at the panel's own natural size, so a
+     * panel that fits whole in less still opens where it was asked to. See
+     * [AnchoredOverlayDefaults.MinimumPanel] for the default and a menu's
+     * `MenuMinimumRoom` for why a list wants more.
+     */
+    minimumPanel: Dp = AnchoredOverlayDefaults.MinimumPanel,
     content: @Composable () -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -334,6 +562,17 @@ internal fun AnchoredOverlayLayout(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val geometry = remember { ArrowPath() }
     val anchorMemory = remember { AnchorMemory() }
+    val placedSide = remember { PlacedSide() }
+    val leaving = LocalOverlayLeaving.current
+    // The host applies no insets of its own, so without this the room "below" an
+    // anchor near the bottom of a phone includes the navigation bar. The keyboard
+    // is in there for the same reason a dialog includes it: a popover is as likely
+    // to hold a text field.
+    //
+    // Held as the `WindowInsets` rather than resolved here, so the pixels are read
+    // in the measure pass and an animating keyboard re-places the overlay instead of
+    // recomposing it.
+    val safeArea = LocalOverlaySafeArea.current ?: WindowInsets.allEdges
 
     val gapPx = with(density) { gap.roundToPx() }
     val marginPx = with(density) { margin.roundToPx() }
@@ -343,6 +582,8 @@ internal fun AnchoredOverlayLayout(
     val minWidthPx = with(density) {
         if (minWidth == Dp.Unspecified) 0 else minWidth.roundToPx()
     }
+    val minimumPanelPx = with(density) { minimumPanel.roundToPx() }
+    val defaultPanelPx = with(density) { AnchoredOverlayDefaults.MinimumPanel.roundToPx() }
 
     // The appearance transform lives here rather than on the panel inside, for
     // two reasons. The arrow is drawn by *this* node, so a panel scaling in its
@@ -361,7 +602,10 @@ internal fun AnchoredOverlayLayout(
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
-                if (path != null && arrow != null) drawPath(path, arrow.colour)
+                if (path != null && arrow != null) {
+                    drawPath(path, arrow.colour)
+                    arrow.edge?.let { drawPath(path, it.brush, style = Stroke(it.width.toPx())) }
+                }
             },
         content = content,
     ) { measurables, constraints ->
@@ -369,19 +613,93 @@ internal fun AnchoredOverlayLayout(
         // The arrow takes up part of the gap, so the surface sits back far
         // enough for the tip to reach the anchor instead of overlapping it.
         val effectiveGap = gapPx + arrowHeightPx.toInt()
+        // **Only the part of each inset that reaches into this host.** The insets
+        // are the window's, and a host is not always the window: the catalog's
+        // stages, a card with its own host, a pane. Taking a phone's 47dp status
+        // bar and 34dp home indicator off the edges of a 260dp card half-way down
+        // the page left less than the 64dp floor on either side of an anchor in
+        // its middle, and the panel was shifted back up over the control it was
+        // meant to point at — reported as the popover appearing in the wrong
+        // place. An edge that is further from the window's than the inset is deep
+        // has nothing to keep clear of.
+        val fromRoot = host.edgesFromRoot
+        val insets = AnchorInsets(
+            left = (safeArea.getLeft(this, layoutDirection) - fromRoot.left).coerceAtLeast(0),
+            top = (safeArea.getTop(this) - fromRoot.top).coerceAtLeast(0),
+            right = (safeArea.getRight(this, layoutDirection) - fromRoot.right).coerceAtLeast(0),
+            bottom = (safeArea.getBottom(this) - fromRoot.bottom).coerceAtLeast(0),
+        )
 
-        val placeables = measurables.map {
-            it.measure(overlayConstraints(container, marginPx, minWidthPx))
+        // **The anchor is read before the content is measured**, which is the whole
+        // of the popover fix. The room beside an anchor does not depend on the
+        // content, so it can be a budget — and a budget is the difference between
+        // "measure against the window and then find somewhere to put it" and
+        // "measure against the space it is going in".
+        //
+        // Falls back to the last real anchor rather than to the origin — see
+        // `AnchorMemory`.
+        val anchorRect = anchorInRoot()?.also { anchorMemory.last = it } ?: anchorMemory.last
+        val anchorInHost = (anchorRect ?: Rect.Zero).translate(-host.originInRoot)
+
+        val preferred = resolvedSide(side, isRtl)
+        val vertical = preferred == ResolvedSide.Above || preferred == ResolvedSide.Below
+
+        // **The side that was asked for, if it is a side at all.**
+        //
+        // Budgeting to the *better* of the two was the first version, and it left
+        // `side` as weak as it was: a panel sized to the roomier side still does not
+        // fit the preferred one, so it still flips. Taking the preferred side's own
+        // room is what makes the preference hold — the panel is bounded to it, fits
+        // there by construction, and scrolls whatever did not.
+        //
+        // The fallbacks are in order of how much they give up: the opposite side, and
+        // then nothing at all, which is the container's own bound and the behaviour
+        // this has always had.
+        // A floor above the default is a caller asking for *enough to use*, and
+        // enough to use can never be more than the whole panel: a two-item menu
+        // that fits in the room below opens below, whatever the floor says. Read
+        // as an intrinsic, before measuring, because the room it decides is what
+        // the panel is measured against — and only when it can matter, since
+        // intrinsics are a second walk of the content.
+        val floor = if (minimumPanelPx > defaultPanelPx) {
+            val natural = measurables.maxOfOrNull { measurable ->
+                val across = overlayConstraints(container, marginPx, minWidthPx, insets)
+                if (vertical) {
+                    measurable.maxIntrinsicHeight(across.maxWidth)
+                } else {
+                    measurable.maxIntrinsicWidth(across.maxHeight)
+                }
+            } ?: 0
+            minOf(minimumPanelPx, natural).coerceAtLeast(defaultPanelPx)
+        } else {
+            minimumPanelPx
         }
+        val preferredRoom =
+            roomBeside(anchorInHost, container, preferred, effectiveGap, marginPx, insets)
+        val oppositeRoom =
+            roomBeside(anchorInHost, container, preferred.opposite, effectiveGap, marginPx, insets)
+        val room = when {
+            preferredRoom >= floor -> preferredRoom
+            oppositeRoom >= floor -> oppositeRoom
+            else -> 0
+        }
+
+        // **Leaving from where it was.** Reported on a combobox: it opens above the
+        // field when the keyboard leaves no room below, and tapping elsewhere closes
+        // the keyboard and the menu together — so for the length of the menu's exit
+        // the room below came back, the flip undid itself, and the menu jumped back
+        // under the field on its way out. Once an overlay is leaving it keeps the
+        // side it was on and the size it had there, and still follows its anchor,
+        // which may be moving as the keyboard goes.
+        val keptSide = if (leaving()) placedSide.side else null
+        val measuredAgainst = placedSide.constraints.takeIf { keptSide != null }
+            ?: overlayConstraints(container, marginPx, minWidthPx, insets).withinSideRoom(room, vertical)
+        val placeables = measurables.map { it.measure(measuredAgainst) }
         val contentSize = IntSize(
             placeables.maxOfOrNull { it.width } ?: 0,
             placeables.maxOfOrNull { it.height } ?: 0,
         )
 
-        // Falls back to the last real anchor rather than to the origin — see
-        // `AnchorMemory`.
-        val anchorRect = anchorInRoot()?.also { anchorMemory.last = it } ?: anchorMemory.last
-        val anchorInHost = (anchorRect ?: Rect.Zero).translate(-host.originInRoot)
         val placement = positionAnchored(
             anchor = anchorInHost,
             contentSize = contentSize,
@@ -391,7 +709,13 @@ internal fun AnchoredOverlayLayout(
             gap = effectiveGap,
             margin = marginPx,
             isRtl = isRtl,
+            insets = insets,
+            keepSide = keptSide,
         )
+        if (keptSide == null) {
+            placedSide.side = placement.side
+            placedSide.constraints = measuredAgainst
+        }
 
         val width = container.width.orContent(contentSize.width).coerceAtLeast(1)
         val height = container.height.orContent(contentSize.height).coerceAtLeast(1)
@@ -537,7 +861,7 @@ internal fun OverlaySurface(
         modifier = modifier,
         shape = shape,
         propagateMinConstraints = propagateMinConstraints,
-        colour = colour,
+        containerColour = colour,
         contentColour = contentColour,
         border = if (border) {
             BorderStroke(Theme.sizing.borderWidth, Theme.colours.outlineSubtle)
@@ -549,6 +873,19 @@ internal fun OverlaySurface(
     )
 }
 
-/** Records where the host sits, so root-space anchors can be made host-local. */
+/**
+ * Records where the host sits, so root-space anchors can be made host-local and
+ * window insets host-sized.
+ */
 internal fun Modifier.trackHostOrigin(state: OverlayHostState): Modifier =
-    onGloballyPositioned { state.originInRoot = it.positionInRoot() }
+    onGloballyPositioned { coordinates ->
+        val origin = coordinates.positionInRoot()
+        state.originInRoot = origin
+        val root = coordinates.findRootCoordinates().size
+        state.edgesFromRoot = AnchorInsets(
+            left = origin.x.roundToInt().coerceAtLeast(0),
+            top = origin.y.roundToInt().coerceAtLeast(0),
+            right = (root.width - origin.x - coordinates.size.width).roundToInt().coerceAtLeast(0),
+            bottom = (root.height - origin.y - coordinates.size.height).roundToInt().coerceAtLeast(0),
+        )
+    }

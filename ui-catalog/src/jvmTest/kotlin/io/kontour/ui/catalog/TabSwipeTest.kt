@@ -46,7 +46,7 @@ class TabSwipeTest {
                     .fillMaxSize()
                     .background(Color.LightGray)
                     .reportBounds { bounds = it }
-                    .tabSwipe(selected = tab, count = 3, onSelectedChange = { tab = it })
+                    .tabSwipe(selectedIndex = tab, count = 3, onSelectedIndexChange = { tab = it })
             )
         }.use { scene ->
             scene.frames(3)
@@ -71,7 +71,7 @@ class TabSwipeTest {
                     .fillMaxSize()
                     .background(Color.LightGray)
                     .reportBounds { bounds = it }
-                    .tabSwipe(selected = tab, count = 3, onSelectedChange = { tab = it })
+                    .tabSwipe(selectedIndex = tab, count = 3, onSelectedIndexChange = { tab = it })
             )
         }.use { scene ->
             scene.frames(3)
@@ -95,9 +95,9 @@ class TabSwipeTest {
                     .background(Color.LightGray)
                     .reportBounds { bounds = it }
                     .tabSwipe(
-                        selected = tab,
+                        selectedIndex = tab,
                         count = 4,
-                        onSelectedChange = { tab = it; seen += it },
+                        onSelectedIndexChange = { tab = it; seen += it },
                     )
             )
         }.use { scene ->
@@ -120,7 +120,7 @@ class TabSwipeTest {
                     .fillMaxSize()
                     .background(Color.LightGray)
                     .reportBounds { bounds = it }
-                    .tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it })
+                    .tabSwipe(selectedIndex = tab, count = 2, onSelectedIndexChange = { tab = it })
             )
         }.use { scene ->
             scene.frames(3)
@@ -141,7 +141,7 @@ class TabSwipeTest {
                 Modifier
                     .fillMaxSize()
                     .reportBounds { bounds = it }
-                    .tabSwipe(selected = tab, count = 3, onSelectedChange = { tab = it })
+                    .tabSwipe(selectedIndex = tab, count = 3, onSelectedIndexChange = { tab = it })
             ) {
                 Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState())) {
                     repeat(8) { index ->

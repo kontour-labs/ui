@@ -12,8 +12,10 @@ var departAt by remember { mutableStateOf(LocalTime(8, 15)) }
 TimePicker(value = departAt, onValueChange = { departAt = it }, minuteStep = 5)
 ```
 
-AM/PM appears as a third wheel on a 12-hour clock, which is a
-[`DateTimeFormats`](date-time-formats.md) decision rather than a parameter.
+A day period appears as a third wheel on a 12-hour clock — before the time
+where the locale writes it there, as Korean and Japanese do — which is a
+[`LocaleFormats`](locale-formats.md) decision rather than a parameter. So is
+what sits between the hour and the minute (`.` in Finnish), and the digits.
 
 ---
 
@@ -27,3 +29,12 @@ value rather than only that something scrolled.
 
 `minuteStep` is worth setting. At the default of 1 the minute wheel has sixty
 stops, which is sixty announcements to cross by swipe.
+
+At high contrast the band behind each wheel's chosen row takes the tier's edge,
+and the rows either side stay legible: they fade to no less than 0.6 of the ink,
+where the standard tier takes them down to 0.2.
+
+Under reduced motion the wheels still turn under the finger and settle on the
+nearest row when it lets go, because a drag is never touched. A value set from
+code puts the drum straight on it at every setting, and a tap on a row above or
+below the band puts it there at once.

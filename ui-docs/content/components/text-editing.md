@@ -28,7 +28,6 @@ hoisting round-tripped through a recomposition.
 | [`MultiSelect`](multi-select.md) | Any number of a fixed set | `ChipGroup` of `FilterChip`, when they fit on screen |
 | [`Combobox`](combobox.md) | One of a *long* fixed set | `SearchField`, for free text |
 | [`rememberImeChain`](ime-chain.md) | Wiring a form's Next and Done | — |
-| [`TextSelectionToolbar`](text-toolbar.md) | Adding items to the text-selection toolbar | — |
 
 ---
 
@@ -60,15 +59,12 @@ password halfway down a form.
 ---
 
 ## Text selection toolbar
-Every platform keeps its own. A selection toolbar is a system surface carrying
-"Look Up", "Translate", "Share", the user's keyboard extensions and their
-configured text replacements, and the library used to replace it on desktop and
-web with four buttons of its own — which was the wrong trade.
-
-`TextSelectionToolbar` is now only for **adding** to it. With no actions it
-installs nothing; with actions it has to draw the toolbar itself, because no
-platform lets Compose append an item to theirs. See
-[`TextSelectionToolbar`](text-toolbar.md).
+Every platform keeps its own, and the library draws none. On a phone the toolbar
+is a system surface carrying "Look Up", "Translate", "Share", the user's keyboard
+extensions and their configured text replacements; on desktop and the web it is
+Compose's own. A right click or a secondary press in a field opens the library's
+context menu — Cut, Copy, Paste, Select all, in the theme's words — through the
+`OverlayHost`.
 
 ---
 
@@ -107,7 +103,7 @@ InputTransformation.limit(10)
 stored:
 
 ```kotlin
-phoneMask()   // stored "0412345678"  displayed "0412 345 678"
+phoneMask(PhoneFormat.AustralianMobile)   // stored "0412345678"  displayed "0412 345 678"
 cardMask()
 timeMask()
 ```

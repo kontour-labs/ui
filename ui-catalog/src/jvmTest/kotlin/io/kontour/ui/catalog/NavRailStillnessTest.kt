@@ -3,6 +3,7 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,9 +13,11 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
-import io.kontour.ui.nav.NavItem
-import io.kontour.ui.nav.NavDrawer
+import io.kontour.ui.nav.NavColours
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavScope
+import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -62,14 +65,27 @@ import kotlin.test.assertTrue
  * and the indicator is transparent so the accent pill is not counted as ink —
  * both for the same reasons as [NavRailGrowthTest], which measures the other
  * half of this: that the labels do not arrive before there is room for them.
+ *
+ * The selected content is asked for in the accent explicitly. It used to be
+ * `accent.onContainer` whatever the marker was; it is worked out from the
+ * marker's colour now, so a transparent marker would leave the selected icon
+ * the plain content colour and nothing on the rail violet to find.
  */
 class NavRailStillnessTest {
 
-    private val items = listOf(
-        NavItem(label = "Nearby", icon = Tabler.Outline.MapPin, onClick = {}),
-        NavItem(label = "Routes", icon = Tabler.Outline.Bus, onClick = {}),
-        NavItem(label = "Saved", icon = Tabler.Outline.Star, onClick = {}),
+    /** No marker, and the selected destination in the accent. */
+    @Composable
+    private fun unmarked(): NavColours = NavDefaults.colours(
+        indicator = Color.Transparent,
+        selectedContent = Theme.colours.accent.onContainer,
     )
+
+    @Composable
+    private fun NavScope.items() {
+        item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+        item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+        item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+    }
 
     @Test
     fun theIconsHoldStillWhileTheRailGrows() {
@@ -79,12 +95,10 @@ class NavRailStillnessTest {
         Scene(width = 800, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
                 NavRail(
-                    items = items,
-                    selectedIndex = 0,
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
-                    indicatorColour = Color.Transparent,
-                )
+                    colours = unmarked(),
+                ) { items() }
             }
         }.use { scene ->
             leadingEdges += scene.frames(8).iconLeadingEdge()
@@ -117,56 +131,49 @@ class NavRailStillnessTest {
     }
 
     /**
-     * A drawer puts its icons where the rail it replaces puts them.
+     * A fixed sidebar puts its icons where the rail it replaces puts them.
      *
-     * `NavigationSuiteScaffold` swaps one composable for the other at 840dp,
+     * `NavigationSuiteScaffold` swaps one surface for the other at 840dp,
      * destroying one subtree and building the other — there is no animation to
      * hide a discrepancy behind, so the only thing that can make the swap
-     * unremarkable is the two surfaces agreeing. `NavRailDefaults.ExpandedWidth`
-     * already equals `NavDrawerDefaults.Width` for exactly this reason, and its
-     * own doc says so: *"lining the two up is what stops the switch between them
-     * reading as a jump."* The icon's x was the part nobody had lined up — 44dp
-     * in a rail against 40dp in a drawer.
+     * unremarkable is the two surfaces agreeing. The icon's x was the part
+     * nobody had lined up — 44dp in a rail against 40dp in a drawer.
+     *
+     * The drawer this compared against is gone: the sidebar is
+     * `NavRail(expanded = true)` with no toggle, which is what the scaffold puts
+     * up at `ExpandedRail`. It is the same component as the expandable rail now,
+     * so what is left to catch is the toggle — present in one and absent in the
+     * other — shifting the rows sideways as well as down.
      */
     @Test
-    fun aDrawerPutsItsIconsWhereTheRailDoes() {
+    fun aFixedSidebarPutsItsIconsWhereTheRailDoes() {
         var rail = -1
-        var drawer = -1
+        var sidebar = -1
 
         Scene(width = 800, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
                 NavRail(
-                    items = items,
-                    selectedIndex = 0,
                     expanded = true,
                     onExpandedChange = {},
-                    indicatorColour = Color.Transparent,
-                )
+                    colours = unmarked(),
+                ) { items() }
             }
         }.use { scene -> rail = scene.frames(30).iconLeadingEdge() }
 
         Scene(width = 800, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
-                NavDrawer(indicatorColour = Color.Transparent) {
-                    items.forEachIndexed { index, destination ->
-                        item(
-                            label = destination.label,
-                            icon = destination.icon,
-                            selected = index == 0,
-                            onClick = destination.onClick,
-                        )
-                    }
-                }
+                NavRail(expanded = true, colours = unmarked()) { items() }
             }
-        }.use { scene -> drawer = scene.frames(30).iconLeadingEdge() }
+        }.use { scene -> sidebar = scene.frames(30).iconLeadingEdge() }
 
-        assertTrue(rail >= 0 && drawer >= 0, "rail=$rail drawer=$drawer — one of " +
+        assertTrue(rail >= 0 && sidebar >= 0, "rail=$rail sidebar=$sidebar — one of " +
             "them drew nothing in the accent")
         assertTrue(
-            kotlin.math.abs(rail - drawer) <= Tolerance,
-            "the rail's selected icon starts at ${rail / Density}dp and the " +
-                "drawer's at ${drawer / Density}dp. They are the two surfaces the " +
-                "window size class swaps between, and the swap is not animated.",
+            kotlin.math.abs(rail - sidebar) <= Tolerance,
+            "the expandable rail's selected icon starts at ${rail / Density}dp and " +
+                "the fixed sidebar's at ${sidebar / Density}dp. They are the two " +
+                "surfaces the window size class swaps between, and the swap is not " +
+                "animated.",
         )
     }
 
@@ -183,14 +190,16 @@ class NavRailStillnessTest {
     /**
      * Whether this pixel is the accent the selected destination is drawn in.
      *
-     * Blue, and decisively so. The magenta page is as blue as it is red and
-     * every other glyph on the rail is a grey, so nothing else here comes close.
+     * Violet, and decisively so: blue well over red, and both well over green.
+     * The magenta page is as red as it is blue, and every other glyph on the
+     * rail is a grey, so nothing else here comes close. The selected icon is
+     * `accent.onContainer`, `#542482` in light, because [unmarked] asks for it.
      */
     private fun isAccent(rgb: Int): Boolean {
         val r = (rgb shr 16) and 0xFF
         val g = (rgb shr 8) and 0xFF
         val b = rgb and 0xFF
-        return b > 120 && b - r > 60 && b - g > 60
+        return b > 100 && b - r > 30 && b - g > 60
     }
 
     private companion object {

@@ -1,7 +1,8 @@
 # `SheetHeader`
 
-The title row a sheet needs: a label, optional supporting text, an actions slot,
-and the drag handle above them.
+The title row a sheet needs: a label, optional supporting text and an actions
+slot. The [`DragHandle`](drag-handle.md) above it is the sheet's, not the
+header's.
 
 <!--sample:SheetHeaderBasics-->
 ```kotlin
@@ -43,19 +44,31 @@ same names — a sheet that is a screen should not need a second vocabulary.
 | `SheetHeaderStyle` | Shape | For |
 |---|---|---|
 | `Small` | One line, title leading | The default; a panel over something |
-| `Centred` | One line, title centred | A control on both sides, where a leading title reads off-balance |
+| `Centred` | One line, title centred — or `Small`, where it cannot be | A control on both sides, where a leading title reads off-balance |
 | `Large` | Two lines: controls, then a large title | A sheet that *is* the destination — a whole trip, a form |
 
 `Centred` centres on the **header**, not on the room its controls left over.
 Those are the same thing only when both sides are the same width, which is why a
 weighted title in a row drifts left when the only control is a close button — the
-same defect the top bar had, fixed once in the layout both share. A title too
-wide to sit in the middle without being squeezed keeps its width and gives up the
-centring, because a centred title that breaks mid-word is worse than an
-off-centre one.
+same defect the top bar had, fixed once in the layout both share. The header's
+own padding counts towards the centre too: it is wider at the start, where the
+title lines up with the sheet's content, and it used to sit outside the bar and
+move the middle 4dp towards the close button.
 
-`Large` gives the title the full width, so it is the one arrangement where a long
-title never truncates around a button. There is no collapse-on-scroll, which is
+**Only the title has to fit for it to be centred.** A supporting line under it is
+fitted to the width the title is centred in, and ends in an ellipsis if it is
+longer — the two used to be judged together, so a short title with a long
+subtitle was pushed to the leading edge by the subtitle. A title that is itself
+too wide to sit in the middle without being squeezed is laid out **exactly as
+`Small` lays it out**, against the leading edge, with its supporting line in
+full. It used to keep the centring on whatever room was left, and with two
+actions at one end that read as "not really centred" — so it is centred on the
+header or not centred at all.
+
+`Large` gives the title the full width, on a line of its own under the controls,
+so it is the one arrangement where a long title never truncates around a button.
+It shared the close button's line for a while when nothing led the header, and
+was put back. There is no collapse-on-scroll, which is
 the one thing a large top bar does and a sheet cannot: the sheet already answers
 that drag by moving between its detents, and two things responding to one gesture
 is a header fighting its own sheet.
@@ -75,3 +88,11 @@ genuinely cannot be closed from inside, which should be paired with
 
 Actions in the `actions` slot are ordinary buttons and need their own
 `contentDescription` when they are icons.
+
+At high contrast the close button, a ghost, gains an outline in the colour of
+its glyph, and the title and supporting line take the enhanced scheme's colours.
+Nothing else about the header changes.
+
+Under reduced motion the close button keeps its tonal wash and loses its
+press-shrink. The default close hides the sheet by the sheet's own rule, which
+under reduced motion is a fade where it rests.

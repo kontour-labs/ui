@@ -13,14 +13,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ArrowBigUp
-import com.composables.icons.tabler.outline.Backspace
-import com.composables.icons.tabler.outline.Command
-import com.composables.icons.tabler.outline.CornerDownLeft
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowBarToRight
+import com.composables.icons.tabler.outline.ArrowBigUp
+import com.composables.icons.tabler.outline.ArrowBigUpLine
+import com.composables.icons.tabler.outline.Backspace
+import com.composables.icons.tabler.outline.ChevronsDown
+import com.composables.icons.tabler.outline.ChevronsUp
+import com.composables.icons.tabler.outline.Command
+import com.composables.icons.tabler.outline.CornerDownLeft
+import com.composables.icons.tabler.outline.Space
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
@@ -29,10 +34,21 @@ import io.kontour.ui.theme.SquircleShape
 import io.kontour.ui.theme.Theme
 
 /**
+ * A keycap's own corner, for the same reason a checkbox has one.
+ *
+ * [KbdDefaults.Height] and [KbdDefaults.MinWidth] are both 20dp, so a
+ * single-character key is a 20dp square — and once
+ * [io.kontour.ui.theme.Shapes.extraSmall] became 10dp, that square was a circle.
+ * A keycap that is round is not a keycap; the whole point of the component is
+ * that it looks like the thing on the keyboard.
+ */
+private val KbdShape = SquircleShape(6.dp)
+
+/**
  * A key cap — one key, or one accelerator.
  *
  * ```kotlin
- * Kbd { +"${KbdDefaults.Command}S" }
+ * Kbd { +"${KbdGlyphs.Command}S" }
  * Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
  *     Kbd { +"Ctrl" }
  *     Kbd { +"K" }
@@ -54,17 +70,6 @@ import io.kontour.ui.theme.Theme
  *   several of these in a row with a gap than as one long cap. Kept to one line:
  *   a key cap that wraps is not a key cap.
  */
-/**
- * A keycap's own corner, for the same reason a checkbox has one.
- *
- * [KbdDefaults.Height] and [KbdDefaults.MinWidth] are both 20dp, so a
- * single-character key is a 20dp square — and once
- * [io.kontour.ui.theme.Shapes.extraSmall] became 10dp, that square was a circle.
- * A keycap that is round is not a keycap; the whole point of the component is
- * that it looks like the thing on the keyboard.
- */
-private val KbdShape = SquircleShape(6.dp)
-
 @Composable
 fun Kbd(
     modifier: Modifier = Modifier,
@@ -134,11 +139,26 @@ fun Kbd(
  * Compose exposes no ink bounds, only advance boxes — so the only way to centre
  * one exactly is to draw it ourselves. These land within a quarter of a point.
  *
- * **Four, not sixteen.** These are the keys Tabler actually draws. There is no
- * ⌥, ⌃, ⎋, ⇥, ⇪, ⌦, ⇞ or ⇟ in the set, and there is no point adding a
- * hand-drawn one just to complete a table: the characters render, and the ones
- * this covers are the ones that go wrong most visibly because they are the ones
- * on every shortcut.
+ * **Nine, not sixteen, and it used to be four.** These are the keys Tabler
+ * actually draws, and the list was short by five because four of them are filed
+ * under names that do not read like a key: a tab is an `ArrowBarToRight`, caps
+ * lock an `ArrowBigUpLine`, and the two page keys are `ChevronsUp` and
+ * `ChevronsDown`. Checked against the artifact rather than against memory, which
+ * is how the old claim — "there is no ⇥, ⇪, ⇞ or ⇟ in the set" — turned out
+ * to be about the search rather than about the set.
+ *
+ * The five that arrived are also, exactly, five of the nine `KbdDefaults`
+ * characters the bundled JetBrains Mono subset cannot draw, because upstream
+ * does not draw them either — see `Typography`. Those fall back to whatever
+ * face the platform has, which is the inconsistency bundling a font was meant
+ * to remove, so for them an icon is not a preference but the only way to get
+ * the library's own type on a key cap.
+ *
+ * **⌦ and ⎋ remain characters and nothing else.** Tabler draws no forward
+ * delete and no escape under any name, and a hand-drawn one to complete a table
+ * is still not worth it. ⌥ and ⌃ stay characters too, but for the opposite
+ * reason: the subset *does* carry them, so they render in the library's own
+ * mono already.
  *
  * ```kotlin
  * Kbd { +KbdIcons.Command; +"K" }
@@ -148,7 +168,7 @@ fun Kbd(
  * the better answer in two cases: a platform whose own font sets the glyph well,
  * and a cap sitting in running text, where a stroke icon at
  * `Theme.sizing.iconSmall` is lighter than the type around it. Pick one and use
- * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdDefaults.Option}"`
+ * it throughout — a row that mixes `KbdIcons.Command` with `"${KbdGlyphs.Option}"`
  * is two weights in one shortcut.
  *
  * Declared the same way as `SystemIcons`, one top-level `get()` each, so the
@@ -167,27 +187,50 @@ object KbdIcons {
 
     /** ⌫ — backspace, the one that deletes backwards. */
     val Backspace: ImageVector get() = Tabler.Outline.Backspace
+
+    /** ⇥ — tab. Filed under the arrow it draws rather than the key it is. */
+    val Tab: ImageVector get() = Tabler.Outline.ArrowBarToRight
+
+    /** ⇪ — caps lock: the shift arrow with the line under it. */
+    val CapsLock: ImageVector get() = Tabler.Outline.ArrowBigUpLine
+
+    /** ⇞ — page up. */
+    val PageUp: ImageVector get() = Tabler.Outline.ChevronsUp
+
+    /** ⇟ — page down. */
+    val PageDown: ImageVector get() = Tabler.Outline.ChevronsDown
+
+    /** ␣ — the space bar, where a blank cap would read as a mistake. */
+    val Space: ImageVector get() = Tabler.Outline.Space
 }
 
+/** A [Kbd]'s size, when the caller does not give one. */
 object KbdDefaults {
     /** Square-ish for a single character, so a row of caps lines up. */
     val MinWidth: Dp = 20.dp
     val Height: Dp = 20.dp
+}
 
-    /**
-     * The glyphs a keyboard prints on its own keys.
-     *
-     * Named rather than pasted. Every one of these is a character most keyboards
-     * cannot type and most people cannot describe — ⌥ is "option" or "alt"
-     * depending on who is asking, and half the internet writes ⌃ as `^`. A
-     * call site with `KbdDefaults.Option` in it says which key it means; one
-     * with a literal says only what somebody's clipboard had at the time.
-     *
-     * They are the *Unicode* glyphs, so they render from the platform's own
-     * fonts and match what is printed on the key. Which key an app should show
-     * is its own business — a Mac writes ⌘S and Windows writes Ctrl+S for the
-     * same command — and that decision belongs above the design system.
-     */
+/**
+ * The glyphs a keyboard prints on its own keys.
+ *
+ * Named rather than pasted. Every one of these is a character most keyboards
+ * cannot type and most people cannot describe — ⌥ is "option" or "alt"
+ * depending on who is asking, and half the internet writes ⌃ as `^`. A call site
+ * with `KbdGlyphs.Option` in it says which key it means; one with a literal says
+ * only what somebody's clipboard had at the time.
+ *
+ * They are the *Unicode* glyphs, so they render from the platform's own fonts
+ * and match what is printed on the key. Which key an app should show is its own
+ * business — a Mac writes ⌘S and Windows writes Ctrl+S for the same command —
+ * and that decision belongs above the design system.
+ *
+ * An object of their own rather than members of [KbdDefaults], which is where a
+ * default goes: these are not defaults of anything, they are the vocabulary a
+ * caller writes a key cap in — [KbdIcons]' counterpart.
+ */
+object KbdGlyphs {
+    /** ⌘ — command. */
     const val Command: String = "\u2318"
 
     /** ⌥ — option on a Mac, alt elsewhere. */

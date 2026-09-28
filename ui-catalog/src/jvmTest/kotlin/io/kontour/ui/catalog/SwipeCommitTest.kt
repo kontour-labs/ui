@@ -1,0 +1,765 @@
+package io.kontour.ui.catalog
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Archive
+import com.composables.icons.tabler.outline.Trash
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.SwipeAction
+import io.kontour.ui.components.list.SwipeActions
+import java.awt.image.BufferedImage
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * What it takes to run a swipe action, and which action a full swipe runs.
+ *
+ * Reported twice, from two phones, about the same gesture: on Android *"the
+ * swiping is still too fiddly"* — a flick aimed at the actions ran one — and on iOS
+ * *"the swipe is way too hard to do"* — a deliberate drag across the row did not.
+ * Both came from deciding a commit by how the finger was *moving* when it let go.
+ *
+ * ### A point of no return instead
+ *
+ * The commit is now a place on the row, not a speed: a little way past the actions
+ * and at least half the row. Released past it, the row commits at any speed;
+ * released short of it, it never does, however hard it was thrown. A buzz marks the
+ * line and the outermost action visibly takes the strip there, so the user can see
+ * and feel the decision before they make it.
+ *
+ * ### The numbers
+ *
+ * Two 88dp actions at this scene's density of 2 reveal at 352px, and the point of
+ * no return is `max(352 + 96, 0.55 · 600)` = 448px. `Scene` timestamps its pointer
+ * events off the frame clock and renders a frame per move, so a move is 16ms and
+ * the velocity is the step size times 62.5 px/s.
+ */
+class SwipeCommitTest {
+
+    /**
+     * Carried past the point of no return, the row commits — slowly or thrown.
+     *
+     * The slow one is the iOS report: it is the gesture a person makes when they
+     * mean it, and the old rule wanted it thrown as well.
+     */
+    @Test
+    fun aDragPastThePointOfNoReturnCommitsAtAnySpeed() {
+        assertEquals(
+            "Remove",
+            swipe(steps = SlowSteps, settleBeforeRelease = true),
+            "a drag carried past the point of no return and let go of gently ran " +
+                "nothing. Past the line, letting go is the decision; how fast the " +
+                "finger was moving is not.",
+        )
+        assertEquals(
+            "Remove",
+            swipe(steps = FlickSteps),
+            "the same travel, flicked, did not run the action",
+        )
+    }
+
+    /**
+     * Thrown hard but let go of short of the line, it only opens.
+     *
+     * The Android report: a flick aimed at the actions carried on to run one.
+     * 400px in four moves is 6,250px/s — as hard as a thumb throws — and lands past
+     * the actions and short of the 448px line.
+     */
+    @Test
+    fun aFlickShortOfThePointOfNoReturnOnlyReveals() {
+        assertEquals(
+            null,
+            swipe(steps = FlickSteps, travel = ShortOfTheLine),
+            "a hard flick let go of short of the point of no return ran the action. " +
+                "A flick opens or closes the actions; only the line commits.",
+        )
+    }
+
+    /**
+     * Over the line and back again, and nothing runs.
+     *
+     * The line is where the decision is made, so it has to be undoable: a user who
+     * feels the buzz and changes their mind backs off it.
+     */
+    @Test
+    fun backingOffThePointOfNoReturnCancelsTheCommit() {
+        assertEquals(
+            null,
+            swipe(steps = SlowSteps, backTo = ShortOfTheLine, settleBeforeRelease = true),
+            "the row was carried past the point of no return and brought back short " +
+                "of it before letting go, and the action still ran",
+        )
+    }
+
+    /**
+     * And it is the outermost action a full swipe runs, not the first to opt in.
+     *
+     * Order runs edge-inward, so the first declared action is the one at the screen
+     * edge — the one the row is sliding onto, and the one a full swipe visibly
+     * becomes. `fullSwipe` used to pick the action as well as enable the
+     * gesture, so a row whose *inner* action set it committed the inner one, against
+     * the component's own documented convention.
+     */
+    @Test
+    fun aFullSwipeRunsTheOutermostActionEvenWhenAnInnerOneOptedIn() {
+        assertEquals(
+            "Remove",
+            swipe(steps = SlowSteps, optIn = OptIn.InnerOnly),
+            "the inner action opted in and the outer one did not, and the swipe ran " +
+                "the inner one. A full swipe is the action at the screen edge " +
+                "arriving and taking the row; there is only one action it can mean.",
+        )
+    }
+
+    /** A side where nothing opted in still has no full swipe at all. */
+    @Test
+    fun aSideWithNoOptInStillCannotBeCommitted() {
+        assertEquals(null, swipe(steps = SlowSteps, optIn = OptIn.Neither))
+        assertEquals(null, swipe(steps = FlickSteps, optIn = OptIn.Neither))
+    }
+
+    /**
+     * At the point of no return, the outermost action takes the strip.
+     *
+     * Counted rather than sampled at a point. The buttons are internal, have no
+     * semantics of their own and move every frame, so what is observable is ink: how
+     * much of the vacated strip is the outer action's colour and how much is the
+     * inner one's. Short of the line, two actions of equal width share it; past it,
+     * the inner one has folded into the outer.
+     *
+     * Held rather than released, so the measurement is of the gesture rather than of
+     * what it committed to. Under reduced motion, so the takeover is a cut and the
+     * frame after the line already shows it.
+     */
+    @Test
+    fun atThePointOfNoReturnTheOutermostActionTakesTheStrip() {
+        val (shortOuter, shortInner) = heldAt(ShortOfTheLine)
+        assertTrue(
+            shortOuter > 0 && shortInner > shortOuter / 2,
+            "held short of the point of no return, the outer action holds " +
+                "${shortOuter}px of the strip and the inner one ${shortInner}px. " +
+                "Short of the line they share it.",
+        )
+        val (outer, inner) = heldAt(Travel)
+        assertTrue(
+            outer > shortOuter && inner == 0,
+            "held past the point of no return, the outer action holds ${outer}px of " +
+                "the strip and the inner one still ${inner}px. Past the line the " +
+                "action that will run is the only one showing.",
+        )
+    }
+
+    /** Each action's ink with the row held [travel] px open, not released. */
+    private fun heldAt(travel: Float): Pair<Int, Int> {
+        var bounds = Rect.Zero
+        var frame: BufferedImage? = null
+
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(
+                from = from,
+                to = Offset(from.x - travel, from.y),
+                steps = SlowSteps,
+                release = false,
+            )
+            frame = scene.frames(2)
+            scene.release(Offset(from.x - travel, from.y))
+        }
+        return requireNotNull(frame).inkOf(bounds)
+    }
+
+    /**
+     * Through the whole of a full swipe the outermost action holds the strip: the
+     * others stay folded away on the way out, during the tick and on the way back.
+     *
+     * "If there's multiple actions, swiping should cause the outermost action to get
+     * triggered and fill the width, and the other one/two actions should be
+     * collapsed." They were collapsed while the finger was past the line and opened
+     * back up the moment it let go, because the takeover followed the finger alone.
+     */
+    @Test
+    fun theOthersStayFoldedAwayUntilAFullSwipeIsDone() {
+        var bounds = Rect.Zero
+        val inner = mutableListOf<Int>()
+        var ran: String? = null
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            scene.frames(4)
+            scene.release(to)
+            repeat(SettleFrames * 2) { inner += scene.frame().inkOf(bounds).second }
+        }
+        assertEquals("Remove", ran, "the full swipe ran nothing")
+        assertTrue(
+            inner.all { it == 0 },
+            "after letting go past the point of no return the inner action came back into " +
+                "view (${inner.filter { it > 0 }.size} frames, up to ${inner.max()}px) — the " +
+                "outermost is supposed to keep the strip until the row is home",
+        )
+    }
+
+    /**
+     * The tick comes before the action, and only when it is asked for.
+     *
+     * "It stays at the end for just that little bit too long. Maybe we could take
+     * advantage of that, and have the icon get swapped for a checkmark … a bit
+     * longer … optional." Counted in frames from letting go to the action running.
+     */
+    @Test
+    fun aFullSwipeTicksBeforeItRunsUnlessToldNotTo() {
+        val ticked = framesToRun(confirmation = true)
+        val plain = framesToRun(confirmation = false)
+        assertTrue(plain in 0..30, "with no confirmation the action took $plain frames to run")
+        assertTrue(
+            ticked > plain + 15,
+            "with the tick the action ran after $ticked frames against $plain without — the " +
+                "row is supposed to hold at the edge long enough to show it",
+        )
+    }
+
+    /**
+     * The icon starts turning into the tick as the row goes, not after it has
+     * settled.
+     *
+     * "Please reduce the time between when the swipe/flick finishes, and when the
+     * tick animation starts. It feels too long." It waited for the spring to settle
+     * to within a hair of the edge — a third of a second after letting go, about
+     * twenty frames, when the row had looked home for half of that. Read off the
+     * icon's own ink: the dark on the action's red, which holds steady while the
+     * row is held and changes the moment the icon starts to leave. The label is
+     * in the same ink and does not change, so the count moves by the icon alone.
+     */
+    @Test
+    fun theTickStartsAsTheRowGoes() {
+        var bounds = Rect.Zero
+        val ink = ArrayList<Int>()
+        var held = 0
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            held = scene.frames(8).inkIn(bounds)
+            scene.release(to)
+            repeat(TickWithinFrames * 3) { ink += scene.frame().inkIn(bounds) }
+        }
+        val turning = ink.indexOfFirst { kotlin.math.abs(it - held) > held * 0.15f }
+        assertTrue(held > 0, "no icon ink on the action while the row was held open")
+        assertTrue(
+            turning in 0..TickWithinFrames,
+            "the icon began turning into the tick $turning frames after letting go (ink ${ink.take(24)} " +
+                "against $held held) — it should set off with the row, within $TickWithinFrames",
+        )
+    }
+
+    /**
+     * Dark pixels inside the action's red strip on the row's band: the icon, the
+     * tick and the label, and not the row sliding away beside it.
+     */
+    private fun BufferedImage.inkIn(row: Rect): Int {
+        var n = 0
+        for (y in row.top.toInt() + 4 until row.bottom.toInt() - 4) {
+            val red = (0 until width).filter {
+                val rgb = getRGB(it, y)
+                (rgb shr 16 and 0xFF) > 150 && (rgb shr 8 and 0xFF) < 100 && (rgb and 0xFF) < 100
+            }
+            if (red.isEmpty()) continue
+            for (x in red.first()..red.last()) {
+                val rgb = getRGB(x, y)
+                if ((rgb shr 16 and 0xFF) < 120) n++
+            }
+        }
+        return n
+    }
+
+    private fun framesToRun(confirmation: Boolean): Int {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frames = -1
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    fullSwipeConfirmation = confirmation,
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val to = Offset(from.x - Travel, from.y)
+            scene.drag(from = from, to = to, steps = SlowSteps, release = false)
+            scene.frames(4)
+            scene.release(to)
+            for (i in 0 until 200) {
+                scene.frame()
+                if (ran != null) {
+                    frames = i
+                    break
+                }
+            }
+        }
+        return frames
+    }
+
+    /**
+     * A full swipe runs the action **and puts the row back**.
+     *
+     * Reported after the first version of the settle shipped: *"when you swipe it all
+     * the way to the left/right, it just stays there instead of resetting"*. The row
+     * was parked mid-strip with nothing having run.
+     *
+     * One cause. A spring handed the release's velocity overshoots its target, and
+     * the committed anchor is the end of the draggable's range, so `scrollBy` clamps
+     * there and consumes nothing for the rest of the excursion. The settle tracked
+     * the animation's own value through that, banking the refused pixels, and the
+     * return leg paid them back out of the offset. `AnchoredDraggableState` only
+     * adopts an anchor when the offset is within half a pixel of it, so landing tens
+     * of pixels short meant no `settledValue`, no action and no reset.
+     *
+     * Two assertions, because either one alone passes on the defect: the action ran,
+     * *and* there is no action ink left on screen.
+     *
+     * **Motion on, unlike everything else in this file**, and that is the assertion
+     * rather than an oversight. `springOrTween` gives a *tween* under reduced motion,
+     * a tween does not overshoot, and without an overshoot there is nothing to clamp
+     * and nothing to bank. Written with `reduceMotion = true` the first time, this
+     * test passed against the defect it was written for.
+     */
+    @Test
+    fun aFullSwipeRunsTheActionAndPutsTheRowBack() {
+        var ran: String? = null
+        var bounds = Rect.Zero
+        var frame: BufferedImage? = null
+
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            // All the way across, thrown.
+            scene.drag(
+                from = from,
+                to = Offset(20f, from.y),
+                steps = FlickSteps,
+            )
+            frame = scene.frames(SettleFrames * 2)
+        }
+
+        assertEquals("Remove", ran, "a full swipe ran nothing at all")
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(
+            outer == 0 && inner == 0,
+            "the action ran and the row is still showing ${outer}px of one action " +
+                "and ${inner}px of the other — it stayed where the swipe left it " +
+                "instead of going back",
+        )
+    }
+
+    /**
+     * An ordinary flick from rest reveals.
+     *
+     * The smallest case of the Android report: one action, a 150px flick at
+     * 1,172px/s, well short of the line. It opens the action and nothing runs.
+     */
+    @Test
+    fun anOrdinaryFlickFromRestRevealsRatherThanCommitting() {
+        var ran: String? = null
+        var bounds = Rect.Zero
+
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = listOf(
+                        SwipeAction(
+                            label = "Remove",
+                            icon = Tabler.Outline.Trash,
+                            onAction = { ran = "Remove" },
+                            background = Outer,
+                        )
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(
+                from = from,
+                to = Offset(from.x - ShortFlick, from.y),
+                steps = ShortFlickSteps,
+            )
+            scene.frames(SettleFrames)
+        }
+
+        assertEquals(
+            null,
+            ran,
+            "a 150px flick deleted the row. It is a flick, and it is nowhere near " +
+                "far enough to be aimed at a commit 600px away.",
+        )
+    }
+
+    /**
+     * A fast swipe short of the line stays open at its actions.
+     *
+     * Reported from a phone: swiped quickly, the action appeared at full size and
+     * then disappeared again. The drag lived on the row's content, which moves
+     * with the finger, and its release velocity was read from positions in that
+     * moving node — the finger barely moved under it and then jumped back on the
+     * up event, which read as a hard flick towards closed. So the row that had
+     * opened snapped shut.
+     */
+    @Test
+    fun aFastSwipeShortOfTheLineStaysOpen() {
+        var bounds = Rect.Zero
+        var frame: BufferedImage? = null
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(from = from, to = Offset(from.x - ShortOfTheLine, from.y), steps = FlickSteps)
+            frame = scene.frames(SettleFrames)
+        }
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(
+            outer > 0 && inner > 0,
+            "a fast swipe past the actions and short of the line settled with ${outer}px and ${inner}px " +
+                "of them showing — it should rest open, not snap shut",
+        )
+    }
+
+    /**
+     * Towards a side with no actions, the row gives under the finger and comes back
+     * — and never further out than it was let go.
+     *
+     * Reported from a phone: it "waits for your finger to lift before jumping
+     * briefly in that direction". The row was clamped at rest, and letting go
+     * started the settle spring with the finger's speed from a place the row had
+     * never left. Motion on: the give is switched off under reduced motion.
+     */
+    @Test
+    fun aDragTowardsAnEmptySideGivesAndComesBackWithoutAJump() {
+        var bounds = Rect.Zero
+        var held = 0
+        val after = mutableListOf<Int>()
+        Scene(width = Width, height = Height) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = listOf(SwipeAction(label = "Remove", icon = Tabler.Outline.Trash, onAction = {}, background = Outer)),
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    Box(Modifier.fillMaxSize().background(Content))
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(100f, bounds.center.y)
+            val to = Offset(from.x + 200f, from.y)
+            scene.drag(from = from, to = to, steps = FlickSteps, release = false)
+            held = scene.frame().contentLeft(bounds)
+            scene.release(to)
+            repeat(SettleFrames) { after += scene.frame().contentLeft(bounds) }
+        }
+        val limit = 88 * 2
+        assertTrue(held in 8 until limit, "held 200px towards the empty side, the row gave ${held}px — it should give, and less than an action")
+        assertTrue(after.max() <= held + 1, "after letting go the row went out to ${after.max()}px, further than the ${held}px it was let go at")
+        assertEquals(0, after.last(), "the row did not come back to rest")
+    }
+
+    /**
+     * A tapped action shows the full swipe's tick before it runs, unless told not
+     * to — "exactly the same as the tick on full swipe", asked for from a phone.
+     */
+    @Test
+    fun aTappedActionTicksBeforeItRuns() {
+        val ticked = framesToRunOnTap(tapConfirmation = true)
+        val plain = framesToRunOnTap(tapConfirmation = false)
+        assertTrue(plain in 0..2, "with no confirmation a tapped action took $plain frames to run")
+        // Drawn at once under reduced motion, then held 320ms: twenty frames.
+        assertTrue(ticked >= 18, "with the tick a tapped action ran after $ticked frames — it should draw and hold first")
+    }
+
+    /**
+     * A drag that starts on a revealed action moves the row — asked for from a
+     * phone, where only the row's own content took a drag — and runs nothing.
+     */
+    @Test
+    fun aDragStartingOnARevealedActionMovesTheRow() {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frame: BufferedImage? = null
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.Neither) { ran = it },
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open(scene, bounds)
+            // On the outer action, at the screen edge, and back towards closed.
+            val onButton = Offset(Width - 60f, bounds.center.y)
+            scene.drag(from = onButton, to = Offset(onButton.x + 360f, onButton.y), steps = SlowSteps)
+            frame = scene.frames(SettleFrames)
+        }
+        assertEquals(null, ran, "a drag that started on an action ran it")
+        val (outer, inner) = requireNotNull(frame).inkOf(bounds)
+        assertTrue(outer == 0 && inner == 0, "dragged closed from a revealed action, the row still shows ${outer}px and ${inner}px of them")
+    }
+
+    /** Opens the row at its two actions, slowly, and lets it settle. */
+    private fun open(scene: Scene, bounds: Rect) {
+        val from = Offset(Width - 20f, bounds.center.y)
+        scene.drag(from = from, to = Offset(from.x - 352f, from.y), steps = SlowSteps, release = false)
+        scene.frames(4)
+        scene.release(Offset(from.x - 352f, from.y))
+        scene.frames(SettleFrames)
+    }
+
+    private fun framesToRunOnTap(tapConfirmation: Boolean): Int {
+        var bounds = Rect.Zero
+        var ran: String? = null
+        var frames = -1
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.Neither) { ran = it },
+                    tapConfirmation = tapConfirmation,
+                    modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            open(scene, bounds)
+            scene.tap(Offset(Width - 60f, bounds.center.y))
+            for (i in 0 until 200) {
+                if (ran != null) {
+                    frames = i
+                    break
+                }
+                scene.frame()
+            }
+        }
+        assertEquals("Remove", ran, "tapping the revealed outer action ran nothing")
+        return frames
+    }
+
+    /** Where the row's content starts, from its colour along the middle of the row. */
+    private fun BufferedImage.contentLeft(row: Rect): Int {
+        val y = row.center.y.toInt()
+        for (x in 0 until width) {
+            val rgb = getRGB(x, y)
+            if ((rgb shr 8 and 0xFF) > 150 && (rgb shr 16 and 0xFF) < 100 && (rgb and 0xFF) < 100) return x
+        }
+        return -1
+    }
+
+    /**
+     * Which action ran, or null if none did, after a drag [travel] px toward the
+     * leading edge in [steps] moves — carried back to [backTo] px if given — and let
+     * go of either at once or, with [settleBeforeRelease], after the finger has been
+     * still long enough that it carries no speed.
+     */
+    private fun swipe(
+        steps: Int,
+        optIn: OptIn = OptIn.OuterOnly,
+        travel: Float = Travel,
+        backTo: Float? = null,
+        settleBeforeRelease: Boolean = false,
+    ): String? {
+        var ran: String? = null
+        var bounds = Rect.Zero
+
+        Scene(width = Width, height = Height, reduceMotion = true) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(optIn) { ran = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            val out = Offset(from.x - travel, from.y)
+            scene.drag(from = from, to = out, steps = steps, release = false)
+            var end = out
+            if (backTo != null) {
+                end = Offset(from.x - backTo, from.y)
+                repeat(steps) { step ->
+                    val t = (step + 1).toFloat() / steps
+                    scene.move(Offset(out.x + (end.x - out.x) * t, from.y))
+                    scene.frame()
+                }
+            }
+            // Past the velocity tracker's 40ms "the finger has stopped" horizon.
+            if (settleBeforeRelease) scene.frames(4)
+            scene.release(end)
+            scene.frames(SettleFrames)
+        }
+        return ran
+    }
+
+    /**
+     * Two trailing actions, declared edge-inward: `Remove` at the screen edge and
+     * `Archive` against the row.
+     */
+    private fun twoActions(optIn: OptIn, onRun: (String) -> Unit = {}): List<SwipeAction> =
+        listOf(
+            SwipeAction(
+                label = "Remove",
+                icon = Tabler.Outline.Trash,
+                onAction = { onRun("Remove") },
+                background = Outer,
+                fullSwipe = optIn == OptIn.OuterOnly,
+            ),
+            SwipeAction(
+                label = "Archive",
+                icon = Tabler.Outline.Archive,
+                onAction = { onRun("Archive") },
+                background = Inner,
+                fullSwipe = optIn == OptIn.InnerOnly,
+            ),
+        )
+
+    /** How many pixels of the row's band are each action's colour. */
+    private fun BufferedImage.inkOf(row: Rect): Pair<Int, Int> {
+        var outer = 0
+        var inner = 0
+        val top = row.top.toInt() + 4
+        val bottom = row.bottom.toInt() - 4
+        for (y in top until bottom) {
+            for (x in 0 until width) {
+                val rgb = getRGB(x, y)
+                val r = rgb shr 16 and 0xFF
+                val g = rgb shr 8 and 0xFF
+                val b = rgb and 0xFF
+                if (r > 150 && g < 100 && b < 100) outer++
+                if (b > 150 && r < 100 && g < 100) inner++
+            }
+        }
+        return outer to inner
+    }
+
+    private enum class OptIn { OuterOnly, InnerOnly, Neither }
+
+    private companion object {
+        const val Width = 600
+        const val Height = 200
+        const val RowHeight = 60
+
+        /** Past the 448px point of no return with room to spare. */
+        const val Travel = 520f
+
+        /** Past the 352px reveal, short of the 448px point of no return. */
+        const val ShortOfTheLine = 400f
+
+        /** 130px a move at 16ms: 8125px/s, well past any definition of a flick. */
+        const val FlickSteps = 4
+
+        /**
+         * 13px a move: 812px/s, a hand moving. Let go of mid-move that is just over
+         * the 800px/s this component counts as a flick, so the cases that mean a
+         * gentle release let the finger come to rest first.
+         */
+        const val SlowSteps = 40
+
+        /** A flick that is genuinely one and is genuinely short. 1172px/s. */
+        const val ShortFlick = 150f
+        const val ShortFlickSteps = 8
+
+        /**
+         * Enough for a full swipe to reach the edge, draw its tick, hold it and run
+         * — about 45 frames of that is the tick — and for the row to come home.
+         */
+        const val SettleFrames = 90
+
+        /** From letting go to the icon starting to turn: a hundred-odd milliseconds. */
+        const val TickWithinFrames = 8
+
+        /** Pure, so a pixel can be classified without knowing the theme. */
+        val Outer = Color.Red
+        val Inner = Color.Blue
+
+        /** The row's own content, where a test needs to find the row. */
+        val Content = Color.Green
+    }
+}

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,9 +23,11 @@ import io.kontour.ui.theme.Theme
  * Draws an icon, tinted to the surrounding content colour, at its true
  * proportions.
  *
- * The design system ships **no icon set**. Components take an [ImageVector] or
- * a [Painter], so the choice of icon library stays an application decision and
- * `:ui` does not drag a few hundred kilobytes of glyphs into every consumer.
+ * The design system ships **no icon set** — only the handful of glyphs its own
+ * controls draw when nobody passes one, in `SystemIcons`. Components take an
+ * [ImageVector] or a [Painter], so the choice of icon library stays an
+ * application decision and `:ui` does not drag a few hundred kilobytes of
+ * glyphs into every consumer.
  *
  * ```
  * Icon(FontAwesome.Solid.Search, contentDescription = "Search")
@@ -128,7 +131,12 @@ private fun IconBox(
     drawSize: DpSize,
 ) {
     val resolvedTint = if (tint == Color.Unspecified) Theme.colours.content else tint
-    val tintFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    // Remembered: a tint filter is a native object, built afresh on every
+    // composition of every icon — which, under an animated content colour, is
+    // every frame of every icon in a button, tab or chip changing state.
+    val tintFilter = remember(tint, resolvedTint) {
+        if (tint == Color.Unspecified) null else ColorFilter.tint(resolvedTint)
+    }
 
     val semantics = if (contentDescription != null) {
         Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }
@@ -139,7 +147,15 @@ private fun IconBox(
     }
 
     Box(
-        modifier = modifier.then(semantics).size(boxSize),
+        modifier = modifier
+            .then(semantics)
+            .size(boxSize)
+            // A rounded square of the icon's own size, when the subtree is
+            // standing in for content that has not arrived. On the box rather
+            // than on the glyph: an icon's ink fills a different fraction of its
+            // box for every glyph in a set, so redacting the ink would give a
+            // row of placeholders that are all slightly different sizes.
+            .redacted(),
         contentAlignment = Alignment.Center,
     ) {
         Image(

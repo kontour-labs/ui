@@ -1,6 +1,8 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.InternalComposeUiApi
@@ -13,6 +15,7 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.scene.ComposeScenePointer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.theme.KontourTheme
@@ -40,22 +43,57 @@ class Scene(
     val density: Float = 2f,
     reduceMotion: Boolean = false,
     darkTheme: Boolean = false,
+    /**
+     * How long a frame is. 16ms by default; 8ms is a 120Hz phone, whose frames
+     * a motion has to look right at as well — and a bug in how two animations
+     * hand over is a bug in timing, which is exactly what this changes.
+     */
+    private val frameNanos: Long = 16_000_000L,
     content: @Composable () -> Unit,
 ) : AutoCloseable {
+
+    /**
+     * The reader's type size, changeable **while the scene is running**.
+     *
+     * The missing half of the font-scale sweep, and the reason it was missing is
+     * that `Density(density)` takes one argument: every scene in the repository
+     * ran at a font scale of exactly 1, so nothing here could reproduce a defect
+     * that needs the type size to change *under* something.
+     *
+     * A `Density` is not only a dp-to-pixel ratio. Compose's pointer input reads
+     * one, and `SuspendingPointerInputModifierNode` **resets its handler** when
+     * that density changes — which cancels whatever gesture was in flight. A
+     * control that does its own bookkeeping in `onEnd` therefore has a way to
+     * never reach it, and a Text size control is the one screen in an app that
+     * can do it to itself by being used.
+     */
+    private val fontScale = mutableStateOf(1f)
 
     private val scene = ImageComposeScene(
         width = width,
         height = height,
         density = Density(density),
     ) {
-        KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+        CompositionLocalProvider(LocalDensity provides Density(density, fontScale.value)) {
+            KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+        }
+    }
+
+    /**
+     * Changes the type size, as the reader would, mid-composition.
+     *
+     * Takes effect on the next rendered frame. See [fontScale] for what that
+     * costs a gesture that is already running.
+     */
+    fun typeScale(scale: Float) {
+        fontScale.value = scale
     }
 
     private var nanos = 0L
 
     /** Renders the next frame, 16ms on from the last. */
     fun frame(): BufferedImage {
-        nanos += FrameNanos
+        nanos += frameNanos
         val png = requireNotNull(scene.render(nanos).encodeToData(EncodedImageFormat.PNG)) {
             "Skia failed to encode a frame"
         }.bytes
@@ -86,7 +124,7 @@ class Scene(
      * printed was the blur diluted by two image codecs.
      */
     fun advance() {
-        nanos += FrameNanos
+        nanos += frameNanos
         scene.render(nanos).close()
     }
 
@@ -115,14 +153,14 @@ class Scene(
      * passed. Returns the frame that satisfied it, or null if none did.
      *
      * For the one thing a frame count cannot express: a component that times
-     * itself out with `delay`. This scene's clock is [FrameNanos] per rendered
+     * itself out with `delay`. This scene's clock is [frameNanos] per rendered
      * frame and `delay` runs on the wall clock, and the two have no fixed
      * relationship — a frame here costs about 45ms of real time on a throttled
      * container and rather less on a CI runner, so "render 95 frames" means
      * 3.6 seconds on one machine and under 1.5 on another.
      *
      * `ToastStackTest` was written believing 95 frames was two seconds, waiting
-     * for a toast whose `durationMillis` is 1,500. It passed on the machine it
+     * for a toast whose `duration` is 1.5 seconds. It passed on the machine it
      * was written on and began failing on CI the day `:ui-catalog` grew enough
      * other tests to change what it was sharing a runner with.
      *
@@ -233,7 +271,7 @@ class Scene(
      */
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
     fun touch(type: PointerEventType, fingers: List<Touch>) {
-        nanos += FrameNanos
+        nanos += frameNanos
         scene.sendPointerEvent(
             eventType = type,
             pointers = fingers.map {
@@ -248,6 +286,26 @@ class Scene(
         )
     }
 
+    /**
+     * A trackpad's two-finger pan at [at]: [PointerEventType.PanStart], a
+     * [PointerEventType.PanMove] by [offset] pixels, or [PointerEventType.PanEnd].
+     *
+     * What a Mac's trackpad arrives as in Compose, rather than a scroll — pixels
+     * that follow the fingers. The same opt-in as [touch], for the same reason.
+     */
+    @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
+    fun pan(type: PointerEventType, at: Offset, offset: Offset = Offset.Zero) {
+        nanos += frameNanos
+        scene.sendPointerEvent(
+            eventType = type,
+            pointers = listOf(
+                ComposeScenePointer(id = PointerId(0), position = at, pressed = false, type = PointerType.Mouse),
+            ),
+            timeMillis = nanos / 1_000_000L,
+            panGestureOffset = offset,
+        )
+    }
+
     private fun send(type: PointerEventType, at: Offset, pointer: PointerType) {
         scene.sendPointerEvent(
             eventType = type,
@@ -259,9 +317,6 @@ class Scene(
 
     override fun close() = scene.close()
 
-    private companion object {
-        const val FrameNanos = 16_000_000L
-    }
 }
 
 /** Reports this node's bounds in root pixels, for aiming a gesture at it. */

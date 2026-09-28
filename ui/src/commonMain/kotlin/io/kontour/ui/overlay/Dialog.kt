@@ -1,5 +1,8 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,6 +42,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.StateScope
 import io.kontour.ui.components.display.stateSlots
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -46,6 +50,7 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.Feedback
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.CompletableDeferred
 
@@ -53,8 +58,11 @@ import kotlinx.coroutines.CompletableDeferred
  * A modal dialog.
  *
  * ```
- * Dialog(visible = showing, onDismissRequest = { showing = false }) {
- *     Text("Delete this favourite?", style = Theme.typography.titleMedium)
+ * Dialog(
+ *     visible = showing,
+ *     onDismissRequest = { showing = false },
+ *     title = { +"Filter departures" },
+ * ) {
  *     …
  * }
  * ```
@@ -64,6 +72,9 @@ import kotlinx.coroutines.CompletableDeferred
  * sliding, because a dialog has no direction to come from — it is not somewhere
  * else on the screen, it is *on top of* the screen.
  *
+ * @param title A heading above the content, in `titleLarge` as an [AlertDialog]'s
+ *   is, and announced as a heading: `title = { +"Filter departures" }`. The
+ *   body below it is any column of content.
  * @param dismissible Pass `false` for a decision the user must actually
  *   make. Use sparingly: a dialog that cannot be escaped is a trap, and most
  *   "are you sure" prompts are safe to cancel by tapping away.
@@ -73,6 +84,11 @@ fun Dialog(
     visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
     key: Any = remember { Any() },
     dismissible: Boolean = true,
     dismissLabel: String = Theme.strings.dismiss,
@@ -82,6 +98,7 @@ fun Dialog(
      * ignore, and a confirmation with a text field in it is common.
      */
     windowInsets: WindowInsets = WindowInsets.allEdges,
+    title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -94,6 +111,7 @@ fun Dialog(
     val latestModifier by rememberUpdatedState(modifier)
     val latestInsets by rememberUpdatedState(windowInsets)
     val body by rememberUpdatedState(content)
+    val latestTitle by rememberUpdatedState(title)
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -105,6 +123,10 @@ fun Dialog(
                     // the form behind it. The default, said out loud.
                     trapFocus = true,
                     dismissOnOutside = dismissible,
+                    // Back takes the same answer as a tap outside. A dialog that
+                    // may not be dismissed still takes the gesture — it dims the
+                    // page — and refuses it; see `OverlayHostState.backTarget`.
+                    dismissOnBack = dismissible,
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,
                     content = {
@@ -140,7 +162,7 @@ fun Dialog(
                                         .widthIn(max = 400.dp)
                                         .semantics { dialog() },
                                     shape = Theme.shapes.panel,
-                                    colour = Theme.colours.surfaceRaised,
+                                    containerColour = Theme.colours.surfaceRaised,
                                     border = contrastEdge(),
                                     shadow = Theme.elevation.overlay,
                                 ) {
@@ -166,11 +188,13 @@ fun Dialog(
                                     // room, and only then starts scrolling.
                                     Column(
                                         modifier = Modifier
-                                            .verticalScroll(rememberScrollState())
+                                            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
                                             .padding(Theme.spacing.lg),
                                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-                                        content = body,
-                                    )
+                                    ) {
+                                        latestTitle?.let { OverlayTitle(Theme.typography.titleLarge, it) }
+                                        body()
+                                    }
                                 }
                             }
                         }
@@ -249,9 +273,19 @@ fun AlertDialog(
     dismissible: Boolean = true,
     content: StateScope.() -> Unit,
 ) {
+    // Once per question: not again when the screen is recreated with the same
+    // question up, and again for a second question asked in the same dialog —
+    // it used to be keyed on `visible` alone, which did both of those wrong.
     val feedback = Feedback
-    LaunchedEffect(visible) {
-        if (visible && destructive && hapticWarning) feedback.perform(FeedbackIntent.Warn)
+    val question = LocalAlertQuestion.current
+    var warned by rememberSaveable(question) { mutableStateOf(false) }
+    LaunchedEffect(visible, question) {
+        if (!visible) {
+            warned = false
+        } else if (destructive && hapticWarning && !warned) {
+            warned = true
+            feedback.perform(FeedbackIntent.Warn)
+        }
     }
 
     // Reuses the state block's regions: a title, a body under it, and an action
@@ -264,13 +298,9 @@ fun AlertDialog(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         dismissible = dismissible,
+        title = slots.title,
     ) {
-        slots.title?.let { title ->
-            ProvideTextStyle(Theme.typography.titleLarge) {
-                ContentSlot(content = title)
-            }
-        }
-        slots.supporting?.let { message ->
+        slots.message?.let { message ->
             ProvideContentColour(Theme.colours.contentMuted) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {
                     ContentSlot(content = message)
@@ -352,7 +382,7 @@ fun AlertDialog(
  * A confirmation you can `await`.
  *
  * ```
- * val confirmations = rememberConfirmationController()
+ * val confirmations = rememberConfirmHostState()
  * ConfirmHost(confirmations)
  *
  * // anywhere with a coroutine scope:
@@ -364,12 +394,14 @@ fun AlertDialog(
  * The imperative shape matters more than it looks. A caller that has to hoist a
  * `showingDialog` flag, render a dialog, and thread the result back through a
  * callback ends up scattering one decision across three places. Suspending until
- * the user answers keeps it in one expression — which is the ergonomics
- * `admin/src/lib/modal.svelte.ts` already provides on the web, where it returns
- * a promise.
+ * the user answers keeps it in one expression, the way a promise-returning
+ * confirm does on the web.
+ *
+ * Named as the other hosts' states are — `ToastHostState`, `OverlayHostState` —
+ * and dismissed the same way.
  */
 @Stable
-class ConfirmationController {
+class ConfirmHostState internal constructor() {
     internal var pending: PendingConfirmation? by mutableStateOf(null)
         private set
 
@@ -382,8 +414,9 @@ class ConfirmationController {
         val result: CompletableDeferred<Boolean>,
     )
 
-    /** Shows a confirmation and suspends until the user answers. */
     /**
+     * Shows a confirmation and suspends until the user answers.
+     *
      * @param confirmLabel `null` — the default — takes the theme's word for it.
      *   Resolved where the dialog is drawn rather than here, because this is a
      *   plain state holder: a `suspend fun` on a controller has no composition
@@ -418,28 +451,49 @@ class ConfirmationController {
         }
     }
 
+    /**
+     * Answers whatever is being asked with "no", as the user would by cancelling.
+     * Nothing happens if nothing is being asked.
+     */
+    fun dismiss() {
+        answer(false)
+    }
+
     internal fun answer(value: Boolean) {
         pending?.result?.complete(value)
     }
 }
 
+/** Remembers a [ConfirmHostState], to hand to one [ConfirmHost] and to `confirm` on. */
 @Composable
-fun rememberConfirmationController(): ConfirmationController = remember { ConfirmationController() }
+fun rememberConfirmHostState(): ConfirmHostState = remember { ConfirmHostState() }
 
-/** Renders whatever [controller] is currently asking. Install once, near the root. */
+/** Renders whatever [state] is currently asking. Install once, near the root. */
 @Composable
-fun ConfirmHost(controller: ConfirmationController) {
-    val pending = controller.pending
+fun ConfirmHost(state: ConfirmHostState, modifier: Modifier = Modifier) {
+    val pending = state.pending
 
-    AlertDialog(
-        visible = pending != null,
-        confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
-        cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
-        destructive = pending?.destructive == true,
-        onConfirm = { controller.answer(true) },
-        onDismissRequest = { controller.answer(false) },
-    ) {
-        +pending?.title.orEmpty()
-        pending?.message?.let { message -> supporting { +message } }
+    // Each question its own, so a destructive one asked straight after another
+    // — in a dialog that never closed between them — still warns.
+    CompositionLocalProvider(LocalAlertQuestion provides pending) {
+        AlertDialog(
+            visible = pending != null,
+            confirmLabel = pending?.let { it.confirmLabel ?: Theme.strings.confirm },
+            cancelLabel = pending?.let { it.cancelLabel ?: Theme.strings.cancel },
+            destructive = pending?.destructive == true,
+            onConfirm = { state.answer(true) },
+            onDismissRequest = { state.answer(false) },
+            modifier = modifier,
+        ) {
+            +pending?.title.orEmpty()
+            pending?.message?.let { text -> message { +text } }
+        }
     }
 }
+
+/**
+ * Which question an [AlertDialog] is asking, for a host that asks one after
+ * another without closing it: a new one is a new destructive warning. Null — one
+ * question for the dialog's life — everywhere else.
+ */
+private val LocalAlertQuestion = staticCompositionLocalOf<Any?> { null }

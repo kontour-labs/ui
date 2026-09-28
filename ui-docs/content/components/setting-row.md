@@ -34,3 +34,9 @@ consequence there ("Uses more data") rather than in a tooltip.
 
 `position` is visual only; it rounds the corners and announces nothing. Grouping
 is expressed by [`ListSection`](list-section.md).
+
+At high contrast the row gains an edge round its sunken fill, as every
+`ListItem` does, and its focus ring is drawn thicker.
+
+A press is a tonal wash without a shrink at every setting, and nothing else in
+the row moves, so reduced motion changes nothing here.

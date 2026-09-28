@@ -7,6 +7,7 @@ import android.os.Build
 import android.view.View
 import android.view.Window
 import android.view.WindowInsetsController
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
@@ -72,3 +73,13 @@ private fun Window.setLightSystemBars(light: Boolean) {
         }
     }
 }
+
+/**
+ * The system's own flag, read straight.
+ *
+ * No loop to break here: [platformReportAppearance] above sets the status and
+ * navigation bars' **icon tint**, and `isSystemInDarkTheme()` reads
+ * `Configuration.uiMode`, which nothing in this file touches.
+ */
+@Composable
+internal actual fun platformSystemDark(): Boolean = isSystemInDarkTheme()

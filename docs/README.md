@@ -35,8 +35,8 @@ a `Dp` radius, or a duration. It reads `Theme.colours.surface`,
 `Theme.shapes.medium`, `Theme.motion.default`. That indirection is what makes a
 theme swappable, a contrast tier possible, and reduced motion automatic.
 
-**2. Components describe intent, not mechanism.** A button asks for
-`FeedbackIntent.Confirm`, not a haptic constant. A sheet asks for
+**2. Components describe intent, not mechanism.** A switch asks for
+`FeedbackIntent.ToggleOn`, not a haptic constant. A sheet asks for
 `Theme.motion.springGentle`, not a stiffness of 300. The platform-specific and
 preference-specific translation happens once, in one place.
 
@@ -67,10 +67,12 @@ Two halves, split by who is reading.
 
 ### Using it — you are building a screen
 
-**[kontour-labs.github.io/ui](https://kontour-labs.github.io/ui/)** — every
-component with a demo you can operate, a compiled example, a generated parameter
-table, and the guides: installing, tokens, theming, accessibility, the `+`
-vocabulary, overlays and sheets.
+**[docs.kontour.io/ui](https://docs.kontour.io/ui/)** — every component with a
+demo you can operate, a compiled example, a generated parameter table, and the
+guides: installing, tokens, theming, accessibility, the `+` vocabulary, overlays
+and sheets. Private, behind Cloudflare Access: people sign in with GitHub, and
+agents read the Markdown mirror at `/ui/llms.txt` with a service token
+([`agents.md`](../ui-docs/content/agents.md)).
 
 The source is [`ui-docs/content/`](../ui-docs/content), and it is markdown that
 reads on GitHub too. It lives inside `:ui-docs` rather than here because that is
@@ -95,16 +97,32 @@ That is what the rest of this directory is.
 |---|---|
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
 | [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
+| [`building/hosting.md`](building/hosting.md) | Where the site is served, what is uploaded, and the one-time Cloudflare and GitHub set-up |
+| [`lay-out-site.py`](lay-out-site.py) | The site as it is uploaded: preloads, the Markdown mirror and `llms.txt`, and Cloudflare's `_headers` and `_redirects` |
 | [`check-links.py`](check-links.py) | Every link in the repository resolves |
-| [`check-components.py`](check-components.py) | Eighteen rules over the pages: a page per component, an example, a demo, an index entry, a parameter explained, and prose written for a reader |
+| [`check-components.py`](check-components.py) | Twenty-three rules over the pages: a page per component, an example, a demo the gallery renders, an index entry, a parameter explained, and prose written for a reader |
 | [`check-api-links.py`](check-api-links.py) | Every "API reference" link points at a page the reference published |
 | [`sync-samples.py`](sync-samples.py) | The examples on the pages are the code `:ui-samples` compiles |
 | [`generate-doc-pages.py`](generate-doc-pages.py) | The content, turned into the Kotlin the site renders |
 | [`doctree.py`](doctree.py) | Where the pages live and what families there are — imported by the three above |
+| [`pull-device-corners.py`](pull-device-corners.py) | The per-device corner table, the check that it matches the data it was generated from, and the check that every codename it names is a device Google lists |
 
 Every example on a documentation page is compiled: they live in
 [`ui-samples/`](../ui-samples) and the pages hold checked copies, so one that no
 longer works fails the build.
+
+`pull-device-corners.py` is the one script with a network mode, and it is split
+so that only the refresh needs one:
+
+```sh
+python3 docs/pull-device-corners.py          # compare the table to the JSON
+python3 docs/pull-device-corners.py --write  # regenerate the Kotlin from the JSON
+python3 docs/pull-device-corners.py --pull   # re-fetch from LineageOS
+```
+
+`device-corners.json` is checked in and is what the table is built from, so the
+default mode gates a contributor's tree with no token and no rate limit. Re-run
+`--pull` when a new phone should be in it.
 
 ## Status
 
@@ -118,7 +136,7 @@ longer works fails the build.
 | 5 | Date and time | core built |
 | 6 | Text editing | core built |
 | 7 | Display and content | core built |
-| 8 | Collections | done — `DataTable`/`TreeList` deliberately skipped |
+| 8 | Collections | done — `TreeList` deliberately skipped |
 | 9 | Overlays | done, with `Select`, `Combobox`, `MultiSelect` and the text toolbar |
 | 10 | Sheets | done |
 | 11 | Navigation | done |
@@ -139,6 +157,8 @@ longer works fails the build.
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
+          :ui:compileIosMainKotlinMetadata \
+          :ui-catalog:compileIosMainKotlinMetadata \
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py

@@ -54,11 +54,10 @@ class RadioGroupYieldTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
                 RadioGroup(
                     options = listOf("Train", "Bus"),
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    value = selected,
+                    onValueChange = { selected = it },
                     modifier = Modifier.reportBounds { bounds = it },
-                    label = { it },
-                )
+                ) { option -> +option }
             }
         }.use { scene ->
             val settled = scene.frames(30)

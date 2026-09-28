@@ -4,8 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -13,9 +14,9 @@ import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavDrawer
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavScope
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
@@ -70,26 +71,42 @@ class NavIndicationShapeTest {
     /**
      * High enough that only [Ink] itself counts.
      *
-     * The nav bar's marker carries an elevation shadow, which is soft, spreads
-     * well outside the shape and has no equivalent in a press wash — at a low
-     * threshold it measured a 40dp circle as 47x45dp, which is the shadow rather
-     * than the shape. Swept against the real `accent.container` fill, the window
-     * between "past the shadow" and "past the fill as well" was 14 to 17, which
-     * is four values wide and would break the day a colour token moved. So the
-     * marker is painted [Ink] instead — the same trick `NavRailGrowthTest` uses
-     * with magenta, for the same reason — and the threshold sits in the middle of
-     * nothing.
+     * The nav bar's marker used to carry an elevation shadow, which is soft,
+     * spreads well outside the shape and has no equivalent in a press wash — at
+     * a low threshold it measured a 40dp circle as 47x45dp, which is the shadow
+     * rather than the shape. Swept against the real `accent.container` fill, the
+     * window between "past the shadow" and "past the fill as well" was 14 to 17,
+     * which is four values wide and would break the day a colour token moved. So
+     * the marker is painted [Ink] instead — the same trick `NavRailGrowthTest`
+     * uses with magenta, for the same reason — and the threshold sits in the
+     * middle of nothing.
+     *
+     * The marker casts no shadow now (the bar is the raised thing, not the
+     * marker inside it), so the high threshold is no longer needed to get past
+     * one; it is kept because it still costs nothing and still ignores the
+     * antialiasing on the label and the icon's selected-colour change.
      */
     private val Marker = 90
 
     /** Black, so the marker's fill cannot be confused with its own shadow. */
     private val Ink = Color.Black
 
-    private val items = listOf(
-        NavItem(label = "Places", icon = Tabler.Outline.MapPin, onClick = {}),
-        NavItem(label = "Routes", icon = Tabler.Outline.Bus, onClick = {}),
-        NavItem(label = "Saved", icon = Tabler.Outline.Star, onClick = {}),
-    )
+    /** The marker's colours: [Ink] for the marker, the defaults for the rest. */
+    @Composable
+    private fun inked() = NavDefaults.colours(indicator = Ink)
+
+    /**
+     * Three destinations, the one at [selected] current, or none at -1.
+     *
+     * [pressed] goes on the first, which is the one both the press and the
+     * selection land on.
+     */
+    @Composable
+    private fun NavScope.items(selected: Int, pressed: Modifier) {
+        item(selected == 0, {}, key = "places", icon = Tabler.Outline.MapPin, modifier = pressed) { +"Places" }
+        item(selected == 1, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+        item(selected == 2, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+    }
 
     /**
      * The bounding box of everything that differs between two renders.
@@ -130,40 +147,43 @@ class NavIndicationShapeTest {
      * Renders resting, pressed and selected, and reports the wash's box and the
      * marker's box.
      *
-     * @param pressAt Where to put the finger, in pixels of the rendered image.
+     * The finger goes on the middle of whatever the content hangs the modifier
+     * it is handed on — the first destination — rather than at a fixed point:
+     * where a bar's first circle lands depends on its style's padding, and a
+     * press that missed it would measure nothing at all.
      */
     private fun boxes(
         width: Int,
         height: Int,
-        pressAt: Offset,
-        content: @androidx.compose.runtime.Composable (selected: Int) -> Unit,
+        content: @Composable (selected: Int, pressed: Modifier) -> Unit,
     ): Pair<IntArray, IntArray> {
         // Nothing selected, nothing pressed. Both differences are taken from
         // this, so anything the row draws for itself cancels out.
-        val resting = Scene(width, height) { content(-1) }.use {
+        val resting = Scene(width, height) { content(-1, Modifier) }.use {
             it.frames(6)
         }
 
-        val pressed = Scene(width, height) { content(-1) }.use { scene ->
+        var target = Rect.Zero
+        val pressed = Scene(width, height) { content(-1, Modifier.reportBounds { target = it }) }.use { scene ->
             scene.frames(6)
-            scene.press(pressAt)
+            require(target.width > 0f) { "the destination to press never reported where it is" }
+            scene.press(target.center)
             // The wash fades in on `motion.tweenFast`, so this has to be long
             // enough for it to arrive at full alpha and short enough that the
             // press has not become a long press.
             scene.frames(12)
         }
 
-        val selected = Scene(width, height) { content(0) }.use {
+        val selected = Scene(width, height) { content(0, Modifier) }.use {
             it.frames(12)
         }
 
         // Two thresholds, and the asymmetry is the point rather than a fudge.
         // A press wash is a few percent of alpha, so it needs a low one. A marker
-        // is a solid fill of `accent.container` — but the nav bar's also carries
-        // an elevation shadow, which is soft, spreads well outside the shape, and
-        // is not something a wash has an equivalent of. At threshold 3 the marker
-        // measured 47x45dp for a 40dp circle: the shadow, not the shape. `Marker`
-        // is above anything the shadow reaches and far below the fill.
+        // is a solid fill — and the nav bar's used to carry an elevation shadow
+        // as well, which at threshold 3 measured 47x45dp for a 40dp circle: the
+        // shadow, not the shape. `Marker` is above anything a shadow reaches and
+        // far below the fill.
         val wash = requireNotNull(difference(resting, pressed, Wash)) {
             "pressing drew nothing at all — no wash to compare"
         }
@@ -191,23 +211,17 @@ class NavIndicationShapeTest {
     }
 
     @Test
-    fun aDrawerRowIsHighlightedInTheShapeItsMarkerWillTake() {
-        // The docs sidebar, which is exactly this: `NavDrawer` with
-        // `NavDrawerItem` rows, per `Site.kt`.
-        val (wash, marker) = boxes(width = 700, height = 400, pressAt = Offset(350f, 70f)) { selected ->
+    fun aSidebarRowIsHighlightedInTheShapeItsMarkerWillTake() {
+        // The docs sidebar, which was `NavDrawer` with `NavDrawerItem` rows. The
+        // drawer is gone: a sidebar is a `NavRail` fixed at its expanded width.
+        val (wash, marker) = boxes(width = 700, height = 400) { selected, pressed ->
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                NavDrawer(
-                    width = 320.dp,
-                    indicatorColour = Ink,
-                    modifier = Modifier.width(320.dp),
-                ) {
-                    items.forEachIndexed { index, item ->
-                        item(label = item.label, selected = index == selected) {}
-                    }
+                NavRail(expanded = true, expandedWidth = 320.dp, colours = inked()) {
+                    items(selected, pressed)
                 }
             }
         }
-        assertAgree(wash, marker, "NavDrawer")
+        assertAgree(wash, marker, "NavRail(expanded = true)")
     }
 
     @Test
@@ -217,9 +231,9 @@ class NavIndicationShapeTest {
         // It is also the one round 26 broke: stage 1b moved the glyph's own shape
         // to `pill` and left the travelling marker on `capsule`, which stage 1c
         // then capped at 18dp. A rounded square travelling between circles.
-        val (wash, marker) = boxes(width = 600, height = 200, pressAt = Offset(100f, 40f)) { selected ->
+        val (wash, marker) = boxes(width = 600, height = 200) { selected, pressed ->
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                NavBar(items = items, selectedIndex = selected, indicatorColour = Ink)
+                NavBar(colours = inked()) { items(selected, pressed) }
             }
         }
         assertAgree(wash, marker, "NavBar")
@@ -227,14 +241,13 @@ class NavIndicationShapeTest {
 
     @Test
     fun aRailRowIsHighlightedInTheShapeItsMarkerWillTake() {
-        val (wash, marker) = boxes(width = 600, height = 500, pressAt = Offset(100f, 100f)) { selected ->
+        // Collapsed, which is what this always measured: a rail given
+        // `expanded = true` with no toggle used to ignore it. The rows are the
+        // same rows at every width now, so this is the icon-only end of the
+        // sidebar case above.
+        val (wash, marker) = boxes(width = 600, height = 500) { selected, pressed ->
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                NavRail(
-                    items = items,
-                    selectedIndex = selected,
-                    expanded = true,
-                    indicatorColour = Ink,
-                )
+                NavRail(colours = inked()) { items(selected, pressed) }
             }
         }
         assertAgree(wash, marker, "NavRail")

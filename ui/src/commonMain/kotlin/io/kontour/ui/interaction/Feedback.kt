@@ -5,9 +5,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import io.kontour.haptics.Haptics
+import io.kontour.haptics.scaled
 
 /**
  * What just happened, from the user's point of view.
@@ -21,8 +20,35 @@ import androidx.compose.ui.platform.LocalHapticFeedback
  * `LongPress` because that was the constant everyone knew about.
  */
 enum class FeedbackIntent {
-    /** A value changed: a toggle flipped, a radio selected, a chip filtered. */
+    /**
+     * A value was chosen. Nothing in the library performs it: a toggle reports
+     * [ToggleOn] or [ToggleOff], a radio, a segment or a swatch a [Tap], and a row
+     * that changes place a [Snap]. Kept for a dispatcher or a component of your
+     * own that has a choice to report and no better word for it.
+     */
     Selection,
+
+    /**
+     * A control acknowledged a press.
+     *
+     * **Not [Selection], and the four levels are why.** "A detent crossed under
+     * a finger" and "the thing you pressed answered you" are different enough
+     * that somebody should be able to keep one and drop the other, and an intent
+     * that means both cannot be filtered apart.
+     *
+     * **This used to claim to be "the lightest thing the device can do", and it
+     * was not.** Below Android 14 it and [Tick] were the same `VirtualKey` pulse;
+     * on Android 14 and up it was *lighter* than [Tick]; on iOS the two were the
+     * same generator. Three platforms, three different orderings, from one
+     * sentence that read like a policy. [FeedbackFeel] is where the ordering
+     * lives now, and a press is [FeedbackFeel.Medium] — a step above the texture
+     * of a detent going past, because a control answering is one event and a
+     * detent is a stream of them.
+     *
+     * Shares [Tick]'s rate floor rather than having its own. A hand feels one
+     * rattle, not one per component.
+     */
+    Tap,
 
     /**
      * A discrete step was crossed: a slider tick, a picker detent, a segment.
@@ -38,6 +64,45 @@ enum class FeedbackIntent {
      * could not otherwise tell. The doc was the thing that was wrong.
      */
     Tick,
+
+    /**
+     * A control without steps is being dragged: a slider or a knob moving
+     * continuously under a finger.
+     *
+     * A texture rather than a detent — there is nothing to cross, so what it
+     * reports is the movement itself: faint grains a little way apart, closer and
+     * firmer the faster the value is moving, and nothing while it is still. Each
+     * grain is performed at a strength of its own
+     * ([FeedbackDispatcher.perform] with a strength), which is how the speed
+     * reaches the hand. Rate-limited with [Tick], and dropped under
+     * [HapticsLevel.Reduced], with the rest of the running commentary.
+     */
+    Scrub,
+
+    /**
+     * A drag passed a place the thing will come to rest: a sheet's detent, a
+     * carousel's page, a tab, a segment, a row's new slot.
+     *
+     * Where [Tick] is a texture — a slider has a hundred of them — this is a
+     * step, a few large ones, and it is felt as one: Android's own pair is
+     * `SEGMENT_FREQUENT_TICK` and `SEGMENT_TICK`, and this is the second. Not
+     * rate-limited, for the reason [Selection] never was: a row the hand did not
+     * feel move is a row the eye has to go looking for.
+     */
+    Snap,
+
+    /**
+     * A switch, a checkbox or a filter turned **on** by a press.
+     *
+     * Its own intent rather than a [Tap] because on and off are different
+     * events, and feel it — Android 14 has a constant for each. A switch
+     * *dragged* across its middle reports a [DragThreshold] instead, which is
+     * what that moment is.
+     */
+    ToggleOn,
+
+    /** The same, turned **off** — softer than [ToggleOn]. */
+    ToggleOff,
 
     /** An action succeeded. Sparingly — not on every button. */
     Confirm,
@@ -69,22 +134,166 @@ enum class FeedbackIntent {
      * What has changed is *what letting go will do*, and nothing on screen
      * necessarily said so first.
      *
-     * This used to name a sheet snapping too, and no sheet performs it. The
-     * reason is worth keeping rather than the claim: `SheetState.targetDetent`
-     * is exactly the right signal — it "changes the instant a drag passes the
-     * threshold" — but nothing distinguishes that from the same field changing
-     * because code called `animateTo`. A sheet that buzzes when it is opened
-     * programmatically is worse than one that is silent, so this waits for a
-     * drag signal the sheet does not currently expose.
+     * Coming back out of it is [DragThresholdBack], which is softer: the thing
+     * letting go would have done is off again, and that matters less than it
+     * being on. A sheet passing its detents is a [Snap], not this.
      */
     DragThreshold,
 
-    /** A gesture completed and the element settled. */
+    /**
+     * A drag came back out of a [DragThreshold]: letting go will no longer do
+     * what it would have. Softer than going in — Android 14's pair is
+     * `GESTURE_THRESHOLD_ACTIVATE` and `…_DEACTIVATE`, and this is the second.
+     */
+    DragThresholdBack,
+
+    /**
+     * A drag ran into the end of its range: a slider, a knob or a colour track
+     * pushed against its stop. A dull knock rather than a click, because a wall
+     * is not a choice.
+     */
+    Limit,
+
+    /**
+     * Two parts of one control met: a range slider's thumb brought up against
+     * the other one.
+     *
+     * Lighter than a [Limit], because it is not a wall — the other thumb gives,
+     * and is shoved along — but a meeting the hand should feel happen, once, and
+     * not again until the two have come apart. Not rate-limited, so the step
+     * that brought them together cannot swallow it; dropped under
+     * [HapticsLevel.Reduced], where the shove on screen is the report.
+     */
+    Bump,
+
+    /**
+     * A hold is under way: keep holding and something will happen.
+     *
+     * Not performed but *sustained* — [FeedbackDispatcher.sustain], through a
+     * [HoldFeedback] — as a faint, continuous rumble that builds as the hold
+     * nears its end, so the hand knows the wait is counting and not stuck. The
+     * first use is a date range's handle held past the month's first or last
+     * day, where the month pages when the ring fills, with a [DragThreshold] as
+     * it does. Dropped under [HapticsLevel.Reduced] with the other intents that
+     * report progress rather than an outcome.
+     *
+     * It used to be a pulse of the lightest tick every 70ms, which is the
+     * nearest Compose's feedback constants came to a rumble and was felt as a
+     * rattle.
+     */
+    Hold,
+
+    /**
+     * A gesture completed and the element settled — a dragged row landing in
+     * its new slot, or each of a FAB menu's items arriving in its place.
+     */
     GestureEnd,
 
     /** A key or on-screen key was struck. */
     KeyPress,
 }
+
+/**
+ * What the hand gets: three pulses of increasing weight, and two rhythms.
+ *
+ * A [FeedbackIntent] says what *happened*. This says how much of the hand that is
+ * worth — and it exists because nothing did, so each platform's own actual chose a
+ * constant per intent independently and the orderings disagreed. Reported from a
+ * phone in those words: *"all the haptics feel heavy, there doesn't seem to be the
+ * concept of a soft interaction for anything"*. On Android below 14 that was
+ * literally true — [FeedbackIntent.Tick] and [FeedbackIntent.Tap] were the same
+ * `VirtualKey` click, which is the platform's *middle* weight, so every detent in
+ * the library was firing at the weight a button press wants.
+ *
+ * **The three weights are a scale and are declared lightest first.** The two
+ * rhythms are not on it: asking whether [Danger] is heavier than [Heavy] has no
+ * answer, because one is a bigger pulse and the other is several beats that mean
+ * something. That is the whole reason this type is not called a weight.
+ *
+ * Which intent gets which is [FeedbackIntent.feel]. The theme's own dispatcher
+ * no longer plays feels — it plays [FeedbackIntent.defaultEffect], one effect per
+ * intent from the `:haptics` module, which is finer than five tiers can be — but
+ * the tiers are still the policy in words, and a dispatcher of your own that
+ * wants only a weight can still ask for one.
+ */
+enum class FeedbackFeel {
+    /**
+     * A texture going past: a detent crossed, a row of a drum, a slider's grain.
+     *
+     * The tier that did not exist. It arrives in *streams* — a flung wheel
+     * crosses a row every 8ms — which is why it is also the tier the shared rate
+     * floor gates. See [DetentTicker].
+     */
+    Light,
+
+    /** A control answering, or what letting go will do changing. One event. */
+    Medium,
+
+    /** A threshold held long enough to mean something. */
+    Heavy,
+
+    /** It worked. A rhythm, not a pulse. */
+    Success,
+
+    /** It was refused, or it is about to be irreversible. A rhythm. */
+    Danger,
+}
+
+/**
+ * How hard [this] should feel. The one place the assignment lives.
+ *
+ * Public because replacing [LocalFeedback] with your own dispatcher is a supported
+ * thing to do, and a dispatcher that cannot ask how hard an intent is meant to be
+ * has to re-derive the whole policy from the intent names.
+ *
+ * The four arguable rows, written down because they were argued:
+ *
+ * - [FeedbackIntent.Tick] is lighter than [FeedbackIntent.Tap]. A detent is a
+ *   surface going past under a finger and a press is the control answering once.
+ * - [FeedbackIntent.DragThreshold] is a press rather than a thud. It is the most
+ *   consequential moment in a gesture, but a switch's midpoint can be crossed
+ *   back and forth under one finger and the heaviest tier would be too much for
+ *   that.
+ * - [FeedbackIntent.Snap] is a press. A resting place passed — a row visibly
+ *   changing place, a card, a sheet's detent — is a change, not a texture, which
+ *   is also what keeps the drop ([FeedbackIntent.GestureEnd]) lighter than the
+ *   reorders it follows.
+ * - [FeedbackIntent.Warn] and [FeedbackIntent.Reject] share [FeedbackFeel.Danger],
+ *   which is the sharing the two have always had, stated once instead of as two
+ *   coincidental branches. They remain two intents so a consumer can pull them
+ *   apart.
+ */
+val FeedbackIntent.feel: FeedbackFeel
+    get() = when (this) {
+        FeedbackIntent.Tick -> FeedbackFeel.Light
+        FeedbackIntent.Scrub -> FeedbackFeel.Light
+        FeedbackIntent.Bump -> FeedbackFeel.Light
+        // A dragged row's landing: softer than the reorders it follows.
+        FeedbackIntent.GestureEnd -> FeedbackFeel.Light
+        // A rumble is a stream of the faintest pulse the platform has.
+        FeedbackIntent.Hold -> FeedbackFeel.Light
+        // Performed by nothing in the library. Assigned anyway, because an intent
+        // without a feel is one a replacement dispatcher cannot place — and the
+        // `when` is exhaustive, which is what stops the next intent being added
+        // without this decision being made.
+        FeedbackIntent.KeyPress -> FeedbackFeel.Light
+
+        FeedbackIntent.ToggleOff -> FeedbackFeel.Light
+        FeedbackIntent.DragThresholdBack -> FeedbackFeel.Light
+
+        FeedbackIntent.Tap -> FeedbackFeel.Medium
+        FeedbackIntent.Snap -> FeedbackFeel.Medium
+        FeedbackIntent.ToggleOn -> FeedbackFeel.Medium
+        FeedbackIntent.Selection -> FeedbackFeel.Medium
+        FeedbackIntent.DragThreshold -> FeedbackFeel.Medium
+        FeedbackIntent.Limit -> FeedbackFeel.Medium
+
+        FeedbackIntent.LongPress -> FeedbackFeel.Heavy
+
+        FeedbackIntent.Confirm -> FeedbackFeel.Success
+        FeedbackIntent.Reject -> FeedbackFeel.Danger
+        FeedbackIntent.Warn -> FeedbackFeel.Danger
+    }
 
 /**
  * How much physical feedback the theme asks for.
@@ -97,32 +306,59 @@ enum class FeedbackIntent {
  * It is a real setting rather than a debug switch. Continuous feedback is the
  * kind most likely to be unwelcome: a slider ticking through forty detents is
  * delightful once and wearing on a long form, and some users find it actively
- * unpleasant. [Essential] keeps the feedback that reports an *outcome* and drops
+ * unpleasant. [Reduced] keeps the feedback that reports an *outcome* and drops
  * the feedback that reports *progress*.
  */
 enum class HapticsLevel {
-    /** Every intent. The default. */
-    Full,
-
-    /**
-     * Outcomes only — a confirmation, a refusal, a threshold crossed, a long
-     * press. The continuous ones ([FeedbackIntent.Tick],
-     * [FeedbackIntent.Selection], [FeedbackIntent.KeyPress]) are dropped, so a
-     * drag still reports arriving somewhere without buzzing the whole way there.
-     */
-    Essential,
-
     /** Nothing. For a kiosk, a test, or a user who has asked for silence. */
     Off,
+
+    /**
+     * Outcomes only — a confirmation, a refusal, a threshold crossed either
+     * way, an end stop, a long press. The ones that report *progress* — a press
+     * answered ([FeedbackIntent.Tap], [FeedbackIntent.ToggleOn],
+     * [FeedbackIntent.ToggleOff]), a detent or a resting place going past
+     * ([FeedbackIntent.Tick], [FeedbackIntent.Snap], [FeedbackIntent.Selection]),
+     * a slider's texture ([FeedbackIntent.Scrub]), two thumbs meeting
+     * ([FeedbackIntent.Bump]), a key, a hold's rumble, a drop settling
+     * ([FeedbackIntent.GestureEnd]) — are dropped, so a drag still reports
+     * arriving somewhere without buzzing the whole way there.
+     *
+     * This was called `Essential` and is the same set, less the new
+     * [FeedbackIntent.Tap].
+     */
+    Reduced,
+
+    /**
+     * Everything a control does under a finger. **The default.**
+     *
+     * Taps, detents, thresholds and outcomes. What it leaves out is
+     * [FeedbackIntent.KeyPress], which is the one intent nothing in the library
+     * performs and the only one that is decorative rather than reporting
+     * something a reader could not otherwise tell.
+     */
+    Standard,
+
+    /** Every intent, [FeedbackIntent.KeyPress] included. */
+    Full,
     ;
 
     internal fun allows(intent: FeedbackIntent): Boolean = when (this) {
         Full -> true
         Off -> false
-        Essential -> when (intent) {
+        Standard -> intent != FeedbackIntent.KeyPress
+        Reduced -> when (intent) {
+            FeedbackIntent.Tap,
+            FeedbackIntent.ToggleOn,
+            FeedbackIntent.ToggleOff,
             FeedbackIntent.Tick,
+            FeedbackIntent.Scrub,
+            FeedbackIntent.Snap,
             FeedbackIntent.Selection,
             FeedbackIntent.KeyPress,
+            FeedbackIntent.Hold,
+            FeedbackIntent.GestureEnd,
+            FeedbackIntent.Bump,
             -> false
 
             else -> true
@@ -133,13 +369,67 @@ enum class HapticsLevel {
 /**
  * Performs physical feedback for a [FeedbackIntent].
  *
- * Obtained from [LocalFeedback]; on platforms without haptics — desktop, web —
- * the underlying platform handler is already a no-op, so components do not need
- * to check.
+ * Obtained from [LocalFeedback]; on a device without haptics the player
+ * underneath plays nothing, so components do not need to check.
  */
 @Stable
 fun interface FeedbackDispatcher {
+    /** Plays [intent] once. */
     fun perform(intent: FeedbackIntent)
+
+    /**
+     * Plays [intent] once at [scale] times its usual strength, 0 to 1 — a
+     * [FeedbackIntent.Scrub] grain, firmer the faster the drag. The same factor
+     * `HapticEffect.scaled` takes.
+     *
+     * The default ignores the scale and performs it as usual, so a dispatcher
+     * written before this existed, and every one-line test lambda, still hears
+     * each grain.
+     */
+    fun perform(intent: FeedbackIntent, scale: Float) = perform(intent)
+
+    /**
+     * Starts [intent] as feedback that lasts — a hold's rumble — and returns the
+     * handle that follows its progress and stops it.
+     *
+     * The default performs it once and returns [SustainedFeedback.None], so a
+     * dispatcher written before this existed, and every one-line test lambda,
+     * still hears a hold begin. Components go through [HoldFeedback] rather than
+     * calling this, which is what guarantees the stop.
+     */
+    fun sustain(intent: FeedbackIntent): SustainedFeedback {
+        perform(intent)
+        return SustainedFeedback.None
+    }
+
+    companion object {
+        /**
+         * A dispatcher that does nothing, as `Haptics.None` is a player that
+         * plays nothing.
+         *
+         * For tests, for screenshot rendering, and for honouring an in-app
+         * "haptics off" setting.
+         */
+        val None: FeedbackDispatcher = FeedbackDispatcher { }
+    }
+}
+
+/** Feedback that lasts, started by [FeedbackDispatcher.sustain]. */
+@Stable
+interface SustainedFeedback {
+    /** How far through it is, 0 to 1 — a rumble builds with it. */
+    fun update(progress: Float)
+
+    /** Ends it. Ending twice is fine. */
+    fun stop()
+
+    companion object {
+        /** Feedback that was never going to last: nothing to update, nothing to stop. */
+        val None: SustainedFeedback = object : SustainedFeedback {
+            override fun update(progress: Float) = Unit
+            override fun stop() = Unit
+        }
+    }
 }
 
 /**
@@ -164,107 +454,132 @@ val Feedback: FeedbackDispatcher
     @Composable @ReadOnlyComposable get() = LocalFeedback.current
 
 /**
- * The default mapping from intent to platform haptic.
+ * The theme's dispatcher: each intent's [FeedbackIntent.defaultEffect], played on
+ * [player], if [level] allows it.
  *
- * ### What each constant actually does, per platform
+ * **This used to hand Compose a `HapticFeedbackType`**, by way of five weights,
+ * and that was as fine as it could get: Compose's feedback is the platform's
+ * fixed constants, so there was no softer tick than the lightest constant, no
+ * strength at all, and no rumble — the dwell's was a tick every 70ms. The
+ * `:haptics` module plays the platforms' own tuned effects at a strength, and
+ * continuously where they can, so the policy here is one effect per intent
+ * instead of one of five tiers.
  *
- * Measured rather than assumed, because the names are Android's and two of them
- * turn out to be unreachable on most of the devices this library runs on. The
- * web column is the `navigator.vibrate` pattern in milliseconds; iOS is the
- * generator `CupertinoHapticFeedback` routes to; the Android column is the API
- * level the `HapticFeedbackConstants` value was added in.
- *
- * | Intent | Constant | Web | iOS | Android |
- * |---|---|---|---|---|
- * | [FeedbackIntent.Tick] | `VirtualKey` | 0, 20ms | light impact | 5 |
- * | [FeedbackIntent.Selection] | `ContextClick` | 12ms | medium impact | 23 |
- * | [FeedbackIntent.DragThreshold] | `GestureThresholdActivate` | 12ms | light impact | **34** |
- * | [FeedbackIntent.LongPress] | `LongPress` | 0, 30ms | medium impact | 3 |
- * | [FeedbackIntent.GestureEnd] | `GestureEnd` | 12ms | light impact | 30 |
- * | [FeedbackIntent.Confirm] | `Confirm` | 18, 32, 36ms | notification, success | 30 |
- * | [FeedbackIntent.Reject], [FeedbackIntent.Warn] | `Reject` | 18, 28, 18, 28, 18ms | notification, error | 30 |
- * | [FeedbackIntent.KeyPress] | `KeyboardTap` | 6ms | **nothing** | 8 |
- *
- * ### Why [FeedbackIntent.Tick] moved off `SegmentFrequentTick`
- *
- * Because it was never felt. `SegmentFrequentTick` is 6ms on the web, and **a
- * vibration motor needs roughly 10–20ms to spin up far enough to be felt at
- * all** — so every detent in the library issued a pulse that reached nothing.
- * Measured on the built site with `docs/measure-web.mjs --vibration`: a stepped
- * slider dragged across its range produced `3 x [6]`, eighteen milliseconds of
- * motor time for a whole gesture. Meanwhile `LongPress` is 30ms and was being
- * felt, which is exactly the shape the report took — the long presses are
- * enjoyed and the detents do nothing.
- *
- * It is not better on the other two. `SegmentFrequentTick` and `SegmentTick`
- * are the *same* `selectionChanged()` generator on iOS, so the two intents were
- * indistinguishable there; and both are `HapticFeedbackConstants` added in API
- * 34, so on any Android below 14 they do nothing whatsoever.
- *
- * `VirtualKey` is the one constant that is above the motor floor on the web, a
- * distinct generator from [FeedbackIntent.Selection] on iOS, and available back
- * to API 5 on Android.
- *
- * ### There is no lighter tier that is still felt
- *
- * The wheel picker wants a *finer* tick than a slider does, and the obvious
- * shape for that is a second intent mapped to something lighter. There is
- * nothing to map it to: below `VirtualKey` the web patterns are 12ms and 6ms,
- * and 6ms is the silence this whole change is about. A "light" intent would
- * reintroduce the bug on the one component that fires most often.
- *
- * So the wheel gets the same tick as everything else and is quietened by
- * **rate** instead — see [DetentTicker]. On the web an intensity scale does not
- * exist; there is felt and not felt.
- *
- * ### The gaps this leaves, named rather than hidden
- *
- * [FeedbackIntent.DragThreshold] is still on an API-34 constant, so a pull-to-
- * refresh threshold is silent on Android 13 and below. It is 12ms on the web and
- * light impact on iOS, so it clears the floor on the two platforms this round
- * measured; the Android gap is real and unfixed. [FeedbackIntent.KeyPress] does
- * nothing at all on iOS and is 6ms on the web, which is to say it is decorative
- * — nothing in the library performs it.
+ * The level filter still runs first, so a dropped intent reaches no player at
+ * all; the rate floor still lives in the helpers that stream.
  */
 @Composable
 internal fun rememberDefaultFeedbackDispatcher(
-    level: HapticsLevel = HapticsLevel.Full,
-): FeedbackDispatcher {
-    val haptics: HapticFeedback = LocalHapticFeedback.current
-    // No `expect`/`actual` here, deliberately, and it is worth writing down
-    // because the shape of the code invites one. `HapticFeedbackType` is a
-    // *common* Compose type, and each platform's `LocalHapticFeedback` already
-    // resolves it natively: on iOS `CupertinoHapticFeedback` routes these onto
-    // `UIImpactFeedbackGenerator`, `UISelectionFeedbackGenerator.selectionChanged`
-    // and `UINotificationFeedbackGenerator` with Success and Error types. The
-    // names below read as Android's `HapticFeedbackConstants` because that is
-    // where the vocabulary came from, not because that is where it goes. A
-    // platform seam added here would duplicate the toolkit's, and would be worse
-    // than it.
-    return remember(haptics, level) {
-        FeedbackDispatcher { intent ->
-            if (!level.allows(intent)) return@FeedbackDispatcher
-            haptics.performHapticFeedback(
-                when (intent) {
-                    FeedbackIntent.Selection -> HapticFeedbackType.ContextClick
-                    FeedbackIntent.Tick -> HapticFeedbackType.VirtualKey
-                    FeedbackIntent.Confirm -> HapticFeedbackType.Confirm
-                    FeedbackIntent.Reject -> HapticFeedbackType.Reject
-                    FeedbackIntent.Warn -> HapticFeedbackType.Reject
-                    FeedbackIntent.LongPress -> HapticFeedbackType.LongPress
-                    FeedbackIntent.DragThreshold -> HapticFeedbackType.GestureThresholdActivate
-                    FeedbackIntent.GestureEnd -> HapticFeedbackType.GestureEnd
-                    FeedbackIntent.KeyPress -> HapticFeedbackType.KeyboardTap
-                }
-            )
+    level: HapticsLevel = HapticsLevel.Standard,
+    player: Haptics = rememberHaptics(),
+): FeedbackDispatcher = remember(player, level) { DefaultFeedbackDispatcher(player, level) }
+
+private class DefaultFeedbackDispatcher(
+    private val player: Haptics,
+    private val level: HapticsLevel,
+) : FeedbackDispatcher {
+
+    override fun perform(intent: FeedbackIntent) {
+        if (level.allows(intent)) player.play(intent.defaultEffect)
+    }
+
+    override fun perform(intent: FeedbackIntent, scale: Float) {
+        if (level.allows(intent)) player.play(intent.defaultEffect.scaled(scale.coerceIn(0f, 1f)))
+    }
+
+    override fun sustain(intent: FeedbackIntent): SustainedFeedback {
+        if (!level.allows(intent)) return SustainedFeedback.None
+        val rumble = intent.defaultRumble ?: return super.sustain(intent)
+        val playing = player.startRumble(rumble.intensityAt(0f), rumble.sharpness)
+        return object : SustainedFeedback {
+            override fun update(progress: Float) = playing.update(rumble.intensityAt(progress), rumble.sharpness)
+            override fun stop() = playing.stop()
         }
     }
 }
 
 /**
- * A dispatcher that does nothing.
+ * A press acknowledged, rate-limited, ready to call from a click handler.
  *
- * For tests, for screenshot rendering, and for honouring an in-app "haptics off"
- * setting.
+ * ```kotlin
+ * val tap = rememberTapFeedback()
+ * Checkbox(checked = on, onCheckedChange = { tap(); onCheckedChange(it) })
+ * ```
+ *
+ * **One helper rather than a `perform` at each site**, and the reason is not
+ * tidiness. Every light haptic in a composition shares one rate floor, so a
+ * chip row answering three taps in quick succession is one tick and not three;
+ * putting the call behind a single function is what makes that true by
+ * construction rather than by each caller remembering. It is also the only
+ * reason a dozen components can report a tap without the audit's ceiling on
+ * haptic call sites moving, which is a ceiling worth keeping.
+ *
+ * Silent at [HapticsLevel.Reduced] and below, which is the level's whole point.
  */
-val NoFeedback: FeedbackDispatcher = FeedbackDispatcher { }
+@Composable
+fun rememberTapFeedback(): TapFeedback {
+    val feedback = LocalFeedback.current
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, floor) { TapFeedback(feedback, floor) }
+}
+
+/** What [rememberTapFeedback] hands back: call it to acknowledge a press. */
+@Stable
+class TapFeedback internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val floor: FeedbackFloor,
+) {
+    /** Reports a press, unless another light report has just been felt. */
+    operator fun invoke() {
+        if (floor.claim(FeedbackIntent.Tap)) feedback.perform(FeedbackIntent.Tap)
+    }
+}
+
+/**
+ * A toggle answered, rate-limited like a tap: call it with the value the control
+ * is changing *to*.
+ *
+ * ```kotlin
+ * val toggled = rememberToggleFeedback()
+ * Checkbox(checked = on, onCheckedChange = { toggled(it); onCheckedChange(it) })
+ * ```
+ *
+ * [FeedbackIntent.ToggleOn] or [FeedbackIntent.ToggleOff], through the same
+ * shared floor as [rememberTapFeedback] — a hand running down a column of
+ * checkboxes feels one rattle, not one per box — and silent at
+ * [HapticsLevel.Reduced] and below.
+ */
+@Composable
+fun rememberToggleFeedback(): ToggleFeedback {
+    val feedback = LocalFeedback.current
+    val floor = LocalFeedbackFloor.current
+    return remember(feedback, floor) { ToggleFeedback(feedback, floor) }
+}
+
+/** What [rememberToggleFeedback] hands back: call it with the value being changed to. */
+@Stable
+class ToggleFeedback internal constructor(
+    private val feedback: FeedbackDispatcher,
+    private val floor: FeedbackFloor,
+) {
+    /** Reports a toggle turning [on] or off, rate-limited like a tap. */
+    operator fun invoke(on: Boolean) {
+        val intent = if (on) FeedbackIntent.ToggleOn else FeedbackIntent.ToggleOff
+        if (floor.claim(intent)) feedback.perform(intent)
+    }
+}
+
+/**
+ * A press held to its long-press threshold, ready to call from a gesture
+ * handler: [FeedbackIntent.LongPress], which no level short of `Off` drops.
+ *
+ * One helper for the four places that report one — a context menu, a touch
+ * tooltip, a row picked up to reorder, a calendar scrubbed — for the reason the
+ * tap helper gives: one call site, rather than one each.
+ */
+@Composable
+internal fun rememberLongPressFeedback(): () -> Unit {
+    val feedback = LocalFeedback.current
+    return remember(feedback) { { feedback.perform(FeedbackIntent.LongPress) } }
+}
+

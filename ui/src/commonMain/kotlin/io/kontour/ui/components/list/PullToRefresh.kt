@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.motion.scrollSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -36,17 +39,19 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberDetentTicker
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -56,6 +61,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
+/** What a [PullToRefresh] takes by default. */
 object PullToRefreshDefaults {
     /** How far the user has to pull before letting go refreshes. */
     val Threshold: Dp = 80.dp
@@ -82,8 +88,19 @@ object PullToRefreshDefaults {
      * screen, and growing in is what stops it.
      */
     const val GrowthShare: Float = 0.4f
+
+    /**
+     * The page kept between the indicator and each edge of the gap it sits in:
+     * the container's top, and the list coming away from it.
+     */
+    val Clearance: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.xs
 }
 
+/**
+ * The pull behind a [PullToRefresh]: how far it has come, and whether letting
+ * go would refresh. Made by [rememberPullToRefreshState].
+ */
 @Stable
 class PullToRefreshState internal constructor(
     private val thresholdPx: Float,
@@ -94,8 +111,16 @@ class PullToRefreshState internal constructor(
     /** How far through the gesture the user is, 0 to 1 and beyond. */
     val progress: Float get() = if (thresholdPx <= 0f) 0f else offset / thresholdPx
 
-    /** True once a release would trigger a refresh. */
-    val willRefresh: Boolean get() = progress >= 1f
+    /**
+     * True once a release would trigger a refresh.
+     *
+     * Latched with a little slack on the way back — a tenth of the threshold — so a finger resting on the line does not flip it, and its
+     * haptic with it, every frame. It was `progress >= 1f`, and the threshold
+     * report is not rate-limited. The release reads the same latch, so what the
+     * hand was told is what letting go does.
+     */
+    var willRefresh: Boolean by mutableStateOf(false)
+        private set
 
     /**
      * Pulls the indicator down by [delta] pixels, returning what it consumed.
@@ -120,6 +145,9 @@ class PullToRefreshState internal constructor(
             delta
         }
         offset = (offset + resisted).coerceAtLeast(0f)
+        val line = if (willRefresh) 1f - PullSlack else 1f
+        val past = progress >= line
+        if (past != willRefresh) willRefresh = past
         return offset - previous
     }
 
@@ -127,10 +155,14 @@ class PullToRefreshState internal constructor(
     fun release(): Boolean {
         val triggered = willRefresh
         offset = 0f
+        willRefresh = false
         return triggered
     }
 }
 
+/**
+ * Remembers a [PullToRefreshState] that refreshes once pulled [threshold] down.
+ */
 @Composable
 fun rememberPullToRefreshState(
     threshold: Dp = PullToRefreshDefaults.Threshold,
@@ -176,17 +208,24 @@ fun PullToRefresh(
 ) {
     val density = LocalDensity.current
     val motion = Theme.motion
-    val feedback = LocalFeedback.current
     val refresh by rememberUpdatedState(onRefresh)
 
-    var crossedThreshold by remember { mutableStateOf(false) }
+    // The one moment worth a haptic: it is what tells the user that letting go
+    // now will do something — and, softer, that backing off means it will not.
+    // A release is neither: the indicator going home is the refresh starting
+    // (or not), so a release re-arms silently instead of reporting a way back
+    // the finger never took. A release is told apart by the pull being gone at
+    // once, where a finger backing off leaves it just short of the threshold.
+    val threshold = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     LaunchedEffect(state.willRefresh) {
-        if (state.willRefresh && !crossedThreshold) {
-            // The one moment worth a haptic: it is what tells the user that
-            // letting go now will do something.
-            feedback.perform(FeedbackIntent.DragThreshold)
+        when {
+            state.willRefresh -> threshold.at(1)
+            state.offset > 0f -> threshold.at(0)
+            else -> {
+                threshold.reset()
+                threshold.at(0)
+            }
         }
-        crossedThreshold = state.willRefresh
     }
 
     // Read through `State` rather than captured.
@@ -291,14 +330,24 @@ fun PullToRefresh(
      */
     val pullDrag = rememberDraggableState { delta -> state.drag(delta) }
 
-    val indicatorOffset by animateFloatAsState(
+    // Held as the state and read where it is used — the content's offset, the
+    // indicator's placement and its layer — rather than in composition, where
+    // every frame of the spring home after a release recomposed the whole
+    // container, list and all, to move it.
+    val indicatorOffset = animateFloatAsState(
         targetValue = when {
             refreshing -> with(density) { PullToRefreshDefaults.Threshold.toPx() }
             else -> state.offset
         },
-        animationSpec = motion.springOrTween(motion.springDefault),
+        // The list's way home once the refresh is done is content travelling
+        // with no finger on it, so under reduced motion it is there at once.
+        animationSpec = motion.scrollSpec(),
         label = "pullToRefresh",
     )
+    val indicatorShown by remember(indicatorOffset) { derivedStateOf { indicatorOffset.value > 0.5f } }
+    // Read in composition, not in the semantics block below, so the label
+    // changes when the latch does: the block is only re-run when it is rebuilt.
+    val releaseToRefresh = state.willRefresh
 
     Box(
         modifier
@@ -328,11 +377,11 @@ fun PullToRefresh(
         // your finger is actually on — and it is what iOS does.
         //
         // In a layer, so the list is not re-laid-out on every frame of a drag.
-        Box(Modifier.offsetY(indicatorOffset)) {
+        Box(Modifier.offsetY { indicatorOffset.value }) {
             content()
         }
 
-        if (indicatorOffset > 0.5f || refreshing) {
+        if (indicatorShown || refreshing) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -340,20 +389,30 @@ fun PullToRefresh(
                     // the content's top edge: at rest there is no gap and no
                     // indicator, and at full pull it sits in the middle of the
                     // space the list has vacated.
-                    .offsetY((indicatorOffset - with(density) { IndicatorSize.toPx() }) / 2f)
+                    //
+                    // Unchanged by the overlap fix, which is the point of it. A
+                    // 40dp circle centred in a gap shorter than 40dp hangs out of
+                    // both ends — over the content below and above the container's
+                    // own top edge, where `Surface`'s clip cuts it. Moving it does
+                    // not help: there is nowhere in a 20dp gap to put a 40dp
+                    // circle. So the circle is *sized* to the gap instead, in
+                    // `RefreshIndicator`'s own layer, and this expression stays the
+                    // one honest thing it always was — the middle of the space.
+                    .offsetY { (indicatorOffset.value - IndicatorSize.toPx()) / 2f }
                     .semantics {
                         liveRegion = LiveRegionMode.Polite
                         contentDescription = when {
                             refreshing -> refreshingLabel
-                            state.willRefresh -> releaseLabel
+                            releaseToRefresh -> releaseLabel
                             else -> pullLabel
                         }
                     },
             ) {
                 RefreshIndicator(
-                    progress = state.progress,
+                    progress = { state.progress },
                     refreshing = refreshing,
                     reduceMotion = motion.reduceMotion,
+                    gap = { indicatorOffset.value },
                 )
             }
         }
@@ -384,8 +443,14 @@ private val IndicatorSize = 40.dp
  * threshold is as visible as ever, without the spin.
  */
 @Composable
-private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion: Boolean) {
-    val pull = progress.coerceIn(0f, 1f)
+private fun RefreshIndicator(
+    /** Read in the layer and the arc's drawing, never in composition. */
+    progress: () -> Float,
+    refreshing: Boolean,
+    reduceMotion: Boolean,
+    /** The drawn gap, read in the layer. */
+    gap: () -> Float,
+) {
 
     // The fade needs room around the circle, or it cuts the circle's own shadow
     // into a square.
@@ -402,6 +467,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
     // for the buffer, not for the layout. Same fix as `overlayAppearance`, and
     // `Shadow.bleed` is where the two get the number from.
     val room = Theme.elevation.high.bleed
+    val clearance = PullToRefreshDefaults.Clearance
 
     Box(
         modifier = Modifier
@@ -423,19 +489,68 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 // The growth is still there — a stray one-pixel drag must not
                 // flash a control — it just finishes early, leaving the rest of
                 // the gesture to the arc alone.
+                val pull = progress().coerceIn(0f, 1f)
                 val grown = (pull / PullToRefreshDefaults.GrowthShare).coerceAtMost(1f)
-                val scale = if (refreshing) 1f else grown
+                val appearing = if (refreshing) 1f else grown
+
+                // **And never wider than the gap it is revealed in.**
+                //
+                // Reported as: *"I don't want the circle to overlap the content at
+                // any point. It should appear slightly higher of where it is, but
+                // without being cut off."* Both halves of that were happening at
+                // once, and they are the same arithmetic. The circle is centred in
+                // the gap, so a gap of `G` puts its edges at `G/2 ± 20dp` — below
+                // the content's top edge whenever `G` is under 40dp, and *above*
+                // the container's own top edge by the same amount, where
+                // `Surface`'s clip shaves it.
+                //
+                // There is no position that fixes it: a 40dp circle does not fit in
+                // a 20dp gap. Sizing it to the gap does, exactly — the drawn height
+                // is `min(40dp, G)`, so both edges reduce to the same condition and
+                // both are satisfied by construction. What a reader sees is a circle
+                // growing out of the top edge as the list comes away from it, which
+                // is the "slightly higher" the report asked for.
+                //
+                // A **cap** on the growth above rather than a second factor
+                // multiplied into it. That one is about not flashing a control on a
+                // one-pixel drag and finishes at four tenths of the threshold; this
+                // one is geometry. Multiplying them would shrink the indicator
+                // everywhere the two ramps overlap, for no reason — the bound only
+                // needs the drawn size to be under the gap, and the lower of the two
+                // already is. Above 40dp of gap this is 1 and the indicator is
+                // exactly the size it has always been.
+                //
+                // Read off the *drawn* gap rather than `progress`, which leads it by
+                // a spring's worth of lag on a fast pull — and a bound that trails
+                // what it is bounding is not a bound.
+                //
+                // **With page above and below it.** Sized to the gap exactly, the
+                // circle's bottom edge rested on the list's top edge for the first
+                // 40dp of every pull, and was reported as needing "a little bit more
+                // gap between the top of the list when the user first starts
+                // pulling". So it fits the gap less a clearance at each end — it is
+                // smaller while the gap is short, and the same 40dp once there is
+                // room — and it is never touching the list it came out from under.
+                val fits = ((gap() - 2f * clearance.toPx()) / IndicatorSize.toPx()).coerceIn(0f, 1f)
+                val scale = minOf(appearing, fits)
+
                 scaleX = scale
                 scaleY = scale
-                alpha = scale
+                // Not scaled by `fits`. The fade is the control announcing itself
+                // and the bound is geometry; multiplying them would make a
+                // half-emerged circle half transparent as well as half sized, which
+                // is the "no ink at all" the growth share was widened to fix.
+                alpha = appearing
             }
             .padding(room),
     ) {
     Surface(
         modifier = Modifier.size(IndicatorSize),
         shape = Theme.shapes.pill,
-        colour = Theme.colours.surfaceRaised,
+        containerColour = Theme.colours.surfaceRaised,
         shadow = Theme.elevation.high,
+        // A raised disc over the list is 1.00:1 at the enhanced tier.
+        border = contrastEdge(),
         contentAlignment = Alignment.Center,
     ) {
         if (refreshing) {
@@ -469,8 +584,10 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
             // is the one thing that makes a growing arc read as turning rather
             // than as unrolling from a fixed point.
             val colour = LocalContentColour.current
+            // Half a line heavier than a strong border, at either tier.
+            val arcStroke = Theme.sizing.borderWidthStrong + 0.5.dp
             Canvas(Modifier.size(Theme.sizing.iconMedium)) {
-                val stroke = PullStroke.toPx()
+                val stroke = arcStroke.toPx()
                 val inset = stroke / 2f
                 // The length the spinner will open at, so the swap is not a
                 // step. Under reduced motion the spinner holds `RestingSweep`
@@ -478,6 +595,7 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
                 // — matching `OpeningSweep` there would have handed a 190°
                 // arc over to a 90° one.
                 val full = if (reduceMotion) SpinnerDefaults.RestingSweep else PullSweep
+                val pull = progress().coerceIn(0f, 1f)
                 val sweep = pull * full
                 val head = PullHead + if (reduceMotion) 0f else pull * PullTurn
                 drawArc(
@@ -494,9 +612,6 @@ private fun RefreshIndicator(progress: Float, refreshing: Boolean, reduceMotion:
     }
     }
 }
-
-/** Matches [Spinner]'s stroke at the same size, so the swap is not a step. */
-private val PullStroke = 2.5.dp
 
 /** Where the pull arc's head sits before the finger moves: twelve o'clock. */
 private const val PullHead = -90f
@@ -515,8 +630,8 @@ private const val PullTurn = 300f
  */
 private const val PullSweep = 270f
 
-private fun Modifier.offsetY(y: Float): Modifier =
-    offset { IntOffset(0, y.roundToInt()) }
+private fun Modifier.offsetY(y: Density.() -> Float): Modifier =
+    offset { IntOffset(0, y().roundToInt()) }
 
 /**
  * The row at the end of a list that loads the next page.
@@ -524,7 +639,7 @@ private fun Modifier.offsetY(y: Float): Modifier =
  * ```kotlin
  * item {
  *     LoadMore(
- *         state = uiState.paging,
+ *         status = uiState.paging,
  *         onLoadMore = viewModel::loadNextPage,
  *         onRetry = viewModel::loadNextPage,
  *     )
@@ -538,30 +653,36 @@ private fun Modifier.offsetY(y: Float): Modifier =
  */
 @Composable
 fun LoadMore(
-    state: LoadMoreState,
+    status: LoadMoreStatus,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Whether coming into view asks for more, and whether the retry answers.
+     * Off for a list that cannot load right now — offline, say — where the foot
+     * should still say where it is.
+     */
+    enabled: Boolean = true,
     onRetry: () -> Unit = onLoadMore,
     loadingLabel: String = Theme.strings.loadingMore,
-    errorLabel: String = Theme.strings.loadMoreFailed,
+    errorMessage: String = Theme.strings.loadMoreFailed,
     retryLabel: String = Theme.strings.retry,
     endLabel: String? = null,
 ) {
     val load by rememberUpdatedState(onLoadMore)
 
-    LaunchedEffect(state) {
-        if (state == LoadMoreState.Idle) load()
+    LaunchedEffect(status, enabled) {
+        if (enabled && status == LoadMoreStatus.Idle) load()
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // Polite, and for the state changes rather than for the spinner.
+            // Polite, and for the status changes rather than for the spinner.
             //
             // This is the foot of an infinite list: the user scrolls, something
             // loads, and either more rows arrive or it fails. Without a live
             // region none of that is announced — the failure in particular, which
-            // is the state a user on a train actually meets and the one where the
+            // is the status a user on a train actually meets and the one where the
             // retry button they need has appeared silently below them.
             //
             // `PullToRefresh` above has had one since it was written; this half
@@ -570,25 +691,25 @@ fun LoadMore(
             .padding(Theme.spacing.md),
         contentAlignment = Alignment.Center,
     ) {
-        when (state) {
-            LoadMoreState.Idle, LoadMoreState.Loading -> Spinner(
+        when (status) {
+            LoadMoreStatus.Idle, LoadMoreStatus.Loading -> Spinner(
                 size = Theme.sizing.iconLarge,
                 contentDescription = loadingLabel,
             )
 
-            LoadMoreState.Error -> Column(
+            LoadMoreStatus.Error -> Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             ) {
                 Text(
-                    text = errorLabel,
+                    text = errorMessage,
                     style = Theme.typography.bodySmall,
                     colour = Theme.colours.contentMuted,
                 )
-                Button(onClick = onRetry, variant = ButtonVariant.Ghost) { +retryLabel }
+                Button(onClick = onRetry, enabled = enabled, variant = ButtonVariant.Ghost) { +retryLabel }
             }
 
-            LoadMoreState.End -> if (endLabel != null) {
+            LoadMoreStatus.End -> if (endLabel != null) {
                 Text(
                     text = endLabel,
                     style = Theme.typography.bodySmall,
@@ -600,7 +721,7 @@ fun LoadMore(
 }
 
 /** What [LoadMore] should be doing. */
-enum class LoadMoreState {
+enum class LoadMoreStatus {
     /** Not started. Coming into view triggers a load. */
     Idle,
 
@@ -613,3 +734,11 @@ enum class LoadMoreState {
     /** Nothing left to load. */
     End,
 }
+
+/**
+ * How far back under the threshold, as a share of it, a pull that has passed it
+ * must come before letting go stops refreshing: 8dp at the default. A finger held
+ * on the line trembles, and without the slack the threshold's report chattered
+ * with it.
+ */
+private const val PullSlack = 0.1f

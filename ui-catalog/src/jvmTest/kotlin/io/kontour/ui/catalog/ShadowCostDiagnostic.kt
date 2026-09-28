@@ -95,6 +95,25 @@ import kotlin.test.assertTrue
  * build that way, on a tree where nothing about shadows had changed. The floor
  * is a real one now, and a row under it is skipped and said so rather than
  * scored.
+ *
+ * ### What this cannot see, and it is not a small set
+ *
+ * A software rasteriser. Every number below is a CPU drawing pixels, so a cost
+ * that is *pixel work* comes out at roughly what a phone would pay for it, and a
+ * cost that is an **architectural penalty on a GPU** comes out at nothing like
+ * it. The clearest case is a non-rectangular clip: here it is a mask, which is
+ * more pixel work; on a GPU it is `saveLayer`, a full offscreen surface and a
+ * masked composite, which on a tiled mobile GPU is a known cliff.
+ *
+ * That is not hypothetical. `overlayBackdrop` clipped the entire application to
+ * a squircle on every frame a sheet was open, for three rounds, and this suite
+ * priced it as unremarkable throughout. It was found by reading the source after
+ * a phone reported 58.3ms to open a sheet.
+ *
+ * So read these as *relative* numbers about composition, layout and draw
+ * **counts**, which are the same on any machine. For what a frame costs, the
+ * showcase has a `Frames` page whose arms switch on the device — see
+ * `FramesPage`.
  */
 class ShadowCostDiagnostic {
 

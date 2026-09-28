@@ -1,25 +1,41 @@
 package io.kontour.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.intl.Locale
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
+import io.kontour.ui.foundation.textSelectionColours
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberInputModalityState
 import io.kontour.ui.input.trackInputModality
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.HapticsLevel
+import io.kontour.ui.interaction.FeedbackFloor
+import io.kontour.ui.interaction.LocalFeedbackFloor
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.rememberDefaultFeedbackDispatcher
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.ScriptTypography
+import io.kontour.ui.locale.forLocale
+import io.kontour.ui.locale.layoutDirection
+import io.kontour.ui.locale.platformLocale
+import io.kontour.ui.locale.rememberLocaleFormats
+import io.kontour.ui.motion.FingerTrail
+import io.kontour.ui.motion.catchRestedFlicks
+import io.kontour.ui.platform.platformLosesRestedFlicks
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.platform.platformReportAppearance
+import io.kontour.ui.platform.platformSystemDark
 
 /**
  * The design system's tokens, for reading inside a composable.
@@ -40,8 +56,30 @@ import io.kontour.ui.platform.platformReportAppearance
  * component contract test that ships alongside it.
  */
 object Theme {
+    /**
+     * The scheme in effect, which during a cross-fade is not the one the local
+     * carries.
+     *
+     * See [ThemeFadeState]. The static local holds the fade's **target** so that
+     * providing it costs one whole-subtree invalidation per theme change rather
+     * than one per frame; the frames in between come off a handle whose identity
+     * does not move, and reading them here is a snapshot read, so a composable
+     * that reads a colour recomposes and one that does not is left alone.
+     *
+     * The handle applies only while the value the local carries is the same
+     * object it was installed against. Anything else — `ProvideTokens`, or a
+     * caller providing `LocalColourScheme` directly — was set closer and wins.
+     */
     val colours: ColourScheme
-        @Composable @ReadOnlyComposable get() = LocalColourScheme.current
+        @Composable @ReadOnlyComposable get() {
+            val provided = LocalColourScheme.current
+            val fading = LocalThemeFade.current
+            return if (fading != null && fading.targetColours === provided) {
+                fading.fade.colours
+            } else {
+                provided
+            }
+        }
 
     val typography: Typography
         @Composable @ReadOnlyComposable get() = LocalTypography.current
@@ -52,8 +90,17 @@ object Theme {
     val spacing: Spacing
         @Composable @ReadOnlyComposable get() = LocalSpacing.current
 
+    /** @see colours — the elevation scale travels with the scheme and resolves the same way. */
     val elevation: Elevation
-        @Composable @ReadOnlyComposable get() = LocalElevation.current
+        @Composable @ReadOnlyComposable get() {
+            val provided = LocalElevation.current
+            val fading = LocalThemeFade.current
+            return if (fading != null && fading.targetElevation === provided) {
+                fading.fade.elevation
+            } else {
+                provided
+            }
+        }
 
     val motion: Motion
         @Composable @ReadOnlyComposable get() = LocalMotion.current
@@ -76,7 +123,43 @@ object Theme {
      */
     val strings: Strings
         @Composable @ReadOnlyComposable get() = LocalStrings.current
+
+    /**
+     * How this reader writes everything that is not words: numbers, dates,
+     * times, lists and plurals. See [LocaleFormats].
+     *
+     * Built for [locale] by `KontourTheme`, and what every component that puts
+     * a number or a date on screen reads — so a caller writing their own should
+     * read it too, and a German reader gets `1.234` from both.
+     */
+    val formats: LocaleFormats
+        @Composable @ReadOnlyComposable get() = LocalLocaleFormats.current
+
+    /** The locale [formats] is written for. */
+    val locale: Locale
+        @Composable @ReadOnlyComposable get() = LocalLocaleFormats.current.locale
 }
+
+/**
+ * Whether the **device** is set to dark, which is not `isSystemInDarkTheme()`.
+ *
+ * Public because the difference is a trap for any application that offers a dark
+ * switch of its own, and this library makes that trap: [KontourTheme] tells the
+ * host what appearance it is drawing, and on iOS the only property that says so
+ * is also the one Compose Multiplatform reads its system theme back out of. An
+ * app that reports dark and then asks `isSystemInDarkTheme()` what the device is
+ * set to gets `true`, whatever the phone says.
+ *
+ * So an application with a **"follow the device" setting** should resolve it
+ * through this and not through Compose's own. An application that simply follows
+ * the system and has no switch can use either; there is no override installed to
+ * read back.
+ *
+ * `io.kontour.ui.platform.platformSystemDark` has the mechanism and the reason
+ * per platform.
+ */
+@Composable
+fun deviceInDarkTheme(): Boolean = platformSystemDark()
 
 /**
  * Installs the design system.
@@ -101,9 +184,17 @@ object Theme {
  * mid-session sees the change immediately. Pass an explicit value to let an
  * in-app setting win.
  *
+ * [contrast] and [reduceMotion] are the reader's, not the screen's, so a
+ * **nested** theme inherits them from the one around it rather than asking the
+ * platform again. A screen that forces dark with `KontourTheme(darkTheme = true)`
+ * keeps the in-app "Reduce motion" the reader turned on above it.
+ *
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
- * @param contrast Which contrast tier to render at. Follows the system by default.
- * @param reduceMotion Whether to damp animation. Follows the system by default.
+ * @param contrast Which contrast tier to render at. Follows the enclosing theme,
+ *   or the system at the root.
+ * @param reduceMotion Whether to damp animation. Follows the enclosing theme, or
+ *   the system at the root. It wins over a custom [motion]'s own
+ *   `reduceMotion`, which is set to match.
  * @param backdropBlur Whether a modal blurs the content behind it as well as
  *   dimming it. On by default. Turning it off costs the app a texture and
  *   nothing else — the shapes, the scrim, the motion and the layout are the same
@@ -125,21 +216,40 @@ object Theme {
  */
 @Composable
 fun KontourTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    contrast: ContrastLevel = if (platformPrefersHighContrast()) ContrastLevel.High else ContrastLevel.Standard,
-    reduceMotion: Boolean = platformPrefersReducedMotion(),
+    darkTheme: Boolean = deviceInDarkTheme(),
+    contrast: ContrastLevel = KontourThemeDefaults.contrast(),
+    reduceMotion: Boolean = KontourThemeDefaults.reduceMotion(),
     backdropBlur: Boolean = true,
     /**
      * Whether a change of scheme cross-fades rather than cutting.
      *
-     * On, because every other state change in the library animates and switching
-     * to dark mode is the largest one there is. See `animatedColorScheme` for
-     * what it costs: the scheme feeds a static composition local, so the fade
-     * recomposes the whole application for its duration. That is the right trade
-     * for a rare, deliberate change and the wrong one for anything frequent, so
-     * an app driving [colours] from something that moves should turn it off.
+     * **Off**, and this reverses the decision twice over, so it is worth the
+     * paragraph. It was off, then on — *"the alternative to a half-animated swap
+     * is not a clean cut, it is every colour on screen changing between two
+     * frames, which on a device reads as a glitch"* — and it is off again now,
+     * on the report that switching dark mode is *"ridiculously laggy"* on
+     * Android and on the reader's own verdict once they had seen both:
+     * *"it's already not visible on iOS, and I think it looks fine."*
+     *
+     * The cost is what makes that verdict easy to act on. Measured by
+     * `ThemeFadeCostDiagnostic` at twenty cards: a resting frame is 5.83ms and a
+     * fading one 20.52, and with no shadows at all the same pair is 1.54 and
+     * 9.53 — so more than half of a fading frame is blurred silhouettes being
+     * re-rasterised for a change nobody was looking at. Sixteen of those frames
+     * is what a switch used to cost, and `FirstThemeSwitchCostDiagnostic` puts
+     * the first one at 805ms of frame time against 298 by the fourth.
+     *
+     * Nothing about the mechanism is deleted, because a scheme driven by
+     * something an app animates itself may well want it: pass `true` and the
+     * fade is exactly what it was. What it costs then is a frame's work for
+     * every composable that reads a colour, for the fade's duration — see
+     * `animatedTheme`. It used to cost the whole application recomposing once
+     * per frame, because the scheme fed a static composition local directly; it
+     * feeds that local the fade's *target* now and the frames go through a
+     * handle that tracks its readers, so the difference is between "everything,
+     * a dozen times" and "the things that are changing colour".
      */
-    animateThemeChanges: Boolean = true,
+    animateThemeChanges: Boolean = false,
     colours: ColourScheme = remember(darkTheme, contrast) { kontourColourScheme(darkTheme, contrast) },
     typography: Typography = rememberDefaultTypography(),
     shapes: Shapes = remember { Shapes() },
@@ -161,16 +271,44 @@ fun KontourTheme(
     componentDefaults: ComponentDefaults = remember { ComponentDefaults() },
     strings: Strings = remember { Strings() },
     /**
+     * The reader's locale: the device's, followed live, at the root; the
+     * enclosing theme's in a nested one.
+     *
+     * Pass one to run the app in a language other than the device's — an
+     * in-app language setting — and [formats] follow it. A locale written in the
+     * other direction from the device's sets the layout direction too, so
+     * `Locale("ar")` on an English phone lays out right to left.
+     */
+    locale: Locale = KontourThemeDefaults.locale(),
+    /**
+     * How numbers, dates, times and lists are written. The platform's for
+     * [locale] by default; `LocaleFormats.english()` for pictures that must not
+     * change between machines; or an app's own, delegating to either.
+     */
+    formats: LocaleFormats = KontourThemeDefaults.formats(locale),
+    /**
+     * What the type scale does for [locale]'s script: faces of the app's own for
+     * scripts the bundled ones do not cover, and — by default — tracking,
+     * leading and italics made safe for scripts that are not Latin. See
+     * [ScriptTypography].
+     */
+    scriptTypography: ScriptTypography = ScriptTypography(),
+    /**
      * How much physical feedback the app gives. See [HapticsLevel].
      *
      * Separate from [feedback], which decides what each intent *feels like*.
      * This decides how many of them fire at all, and is the one an app is likely
      * to want to put behind a user-facing setting.
      */
-    haptics: HapticsLevel = HapticsLevel.Full,
-    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(haptics),
+    hapticsLevel: HapticsLevel = HapticsLevel.Standard,
+    feedback: FeedbackDispatcher = rememberDefaultFeedbackDispatcher(hapticsLevel),
     content: @Composable () -> Unit,
 ) {
+    val feedbackFloor = remember { FeedbackFloor() }
+    // Every style told its locale, and fitted to its script: an Arabic label
+    // with Latin tracking comes apart, and a Hindi one at Latin leading loses
+    // the tops of its vowel signs.
+    val localisedTypography = remember(typography, locale, scriptTypography) { typography.forLocale(locale, scriptTypography) }
     // A nested KontourTheme — a screen forcing dark mode, say — re-provides the
     // token locals but must not install a second modality tracker: two Boxes
     // observing the same pointer stream is wasted work, and the inner one would
@@ -185,12 +323,27 @@ fun KontourTheme(
     // would have been less code to animate the scheme alone, which is what this
     // did: the shadows then cut to their dark-mode strength on the fade's first
     // frame and waited there for the surfaces to catch up.
-    val faded = if (animateThemeChanges) {
-        animatedTheme(colours, elevation, motion)
-    } else {
-        ThemeFade(colours, elevation)
+    // A custom motion scale is the app's *timing*; whether to damp it is the
+    // reader's, and the reader said so in `reduceMotion`. A `Motion` built with
+    // `kontourMotion(false)` and passed in beside `reduceMotion = true` used to
+    // animate at full amplitude, because every helper reads the scale's own flag.
+    val resolvedMotion = remember(motion, reduceMotion) {
+        if (motion.reduceMotion == reduceMotion) motion else motion.copy(reduceMotion = reduceMotion)
     }
-    val resolvedColours = faded.colours
+
+    val faded = if (animateThemeChanges) {
+        animatedTheme(colours, elevation, resolvedMotion, contrast)
+    } else {
+        null
+    }
+    // Written before the content composes, and read by `Theme.colours` from
+    // anywhere below. A plain field rather than snapshot state on purpose:
+    // nothing should recompose because the *target* was re-stated, and it is
+    // set on every composition of this function, which is the only place the
+    // static locals below are provided from.
+    faded?.targetColours = colours
+    faded?.targetElevation = elevation
+    val resolvedColours = faded?.fade?.colours ?: colours
 
     // The host's chrome — Android's status and navigation bars, iOS's status
     // bar, a browser's scrollbars and address bar — takes its colours from a
@@ -208,32 +361,67 @@ fun KontourTheme(
     if (!alreadyTracking) platformReportAppearance(colours.isDark)
 
     CompositionLocalProvider(
-        LocalColourScheme provides resolvedColours,
-        LocalTypography provides typography,
+        // **The target, not the frame.** This is a static local, so providing it
+        // invalidates everything below — which is right for a theme change and
+        // ruinous once a fade provides a new scheme sixty times a second. The
+        // frames go through `LocalThemeFade`, which never changes identity, and
+        // `Theme.colours` puts the two back together.
+        LocalColourScheme provides colours,
+        LocalTypography provides localisedTypography,
         LocalShapes provides shapes,
         LocalSpacing provides spacing,
-        LocalElevation provides faded.elevation,
-        LocalMotion provides motion,
+        LocalElevation provides elevation,
+        LocalThemeFade provides faded,
+        LocalMotion provides resolvedMotion,
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalLocaleFormats provides formats,
         LocalContrastLevel provides contrast,
         LocalBackdropBlur provides backdropBlur,
         LocalContentColour provides resolvedColours.content,
-        LocalTextStyle provides typography.bodyMedium,
+        LocalTextStyle provides localisedTypography.bodyMedium,
+        // The target's, like the scheme itself: a selection is not something to
+        // repaint on every frame of a fade. `TextField` draws the same pair.
+        LocalTextSelectionColors provides remember(colours) { colours.textSelectionColours() },
         LocalFeedback provides feedback,
+        // One floor per theme, so every light haptic under it shares a rate
+        // limit. A floor per component is a floor per component, and a hand does
+        // not feel components.
+        LocalFeedbackFloor provides feedbackFloor,
     ) {
-        if (alreadyTracking) {
-            content()
+        // Only where the app has chosen a locale written the other way from the
+        // device's: the platform already lays its own locale out, and an app
+        // that set the direction itself — a right-to-left preview, say — keeps it.
+        val direction = locale.layoutDirection
+        if (direction != platformLocale().layoutDirection && direction != LocalLayoutDirection.current) {
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                ThemeContent(alreadyTracking, content)
+            }
         } else {
-            val modality = rememberInputModalityState()
-            CompositionLocalProvider(
-                LocalInputModality provides modality.current,
-                LocalInputModalityInstalled provides true,
+            ThemeContent(alreadyTracking, content)
+        }
+    }
+}
+
+@Composable
+private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Unit) {
+    if (alreadyTracking) {
+        content()
+    } else {
+        val modality = rememberInputModalityState()
+        CompositionLocalProvider(
+            LocalInputModality provides modality.current,
+            LocalInputModalityInstalled provides true,
+        ) {
+            // Once, at the outermost theme: see `catchRestedFlicks`.
+            val trail = remember { FingerTrail() }
+            Box(
+                Modifier
+                    .trackInputModality(modality)
+                    .then(if (platformLosesRestedFlicks) Modifier.catchRestedFlicks(trail) else Modifier)
             ) {
-                Box(Modifier.trackInputModality(modality)) {
-                    content()
-                }
+                content()
             }
         }
     }
@@ -241,9 +429,61 @@ fun KontourTheme(
 
 /**
  * Whether an ancestor [KontourTheme] has already installed the input-modality
- * tracker. Lets nested themes re-provide tokens without duplicating the tracker.
+ * tracker. Lets nested themes re-provide tokens without duplicating the tracker,
+ * and is how a nested theme knows there is a reader's choice above it to inherit.
  */
 internal val LocalInputModalityInstalled = staticCompositionLocalOf { false }
+
+/**
+ * What a [KontourTheme] takes by default: the reader's settings, from the theme
+ * around it or, at the root, from the platform.
+ *
+ * A nested theme used to read the platform again, so an app with an in-app
+ * "High contrast" switch lost it the moment one screen wrapped itself in a theme
+ * of its own to force dark. These are what a nested theme inherits instead, and
+ * what an app passes to keep one setting while changing another.
+ */
+object KontourThemeDefaults {
+    /** The contrast tier the enclosing [KontourTheme] chose, or the platform's at the root. */
+    @Composable
+    fun contrast(): ContrastLevel =
+        if (LocalInputModalityInstalled.current) {
+            LocalContrastLevel.current
+        } else if (platformPrefersHighContrast()) {
+            ContrastLevel.High
+        } else {
+            ContrastLevel.Standard
+        }
+
+    /** Whether the enclosing theme reduces motion, or the platform's setting at the root. */
+    @Composable
+    fun reduceMotion(): Boolean =
+        if (LocalInputModalityInstalled.current) {
+            LocalMotion.current.reduceMotion
+        } else {
+            platformPrefersReducedMotion()
+        }
+
+    /**
+     * The enclosing theme's locale, or the device's at the root: a reader's
+     * language, like their contrast, is not something a screen forcing dark mode
+     * means to change.
+     */
+    @Composable
+    fun locale(): Locale =
+        if (LocalInputModalityInstalled.current) LocalLocaleFormats.current.locale else platformLocale()
+
+    /**
+     * The enclosing theme's formats when [locale] is the one they were built for —
+     * an app's own formats, or the fixed English a test pins, survive a nested
+     * theme — and the platform's for [locale] otherwise.
+     */
+    @Composable
+    fun formats(locale: Locale): LocaleFormats {
+        val enclosing = if (LocalInputModalityInstalled.current) LocalLocaleFormats.current else null
+        return if (enclosing != null && enclosing.locale == locale) enclosing else rememberLocaleFormats(locale)
+    }
+}
 
 private const val NOT_IN_THEME =
     "No KontourTheme found. Wrap your app in KontourTheme { … } — components " +
@@ -264,8 +504,13 @@ private const val NOT_IN_THEME =
  * the wrong trade and is the right one here — a token change *is* a change to
  * everything below it, and a tracking local would pay for read bookkeeping on
  * every `Theme.spacing` in the library to avoid a recomposition that has to
- * happen anyway. `animateThemeChanges` is where the cost shows up, and
- * `KontourTheme`'s KDoc says so at the parameter.
+ * happen anyway.
+ *
+ * It holds because what this carries changes **once** per theme change. A fade
+ * used to provide a new scheme per frame through here, which is a dozen full-app
+ * recompositions in a row and was measured on a phone as a 99.9ms peak; the
+ * frames go through [LocalThemeFade] now and this carries the fade's target. See
+ * `Theme.colours`, which is where a reader meets the two.
  *
  * ### They throw rather than defaulting
  *
@@ -274,6 +519,21 @@ private const val NOT_IN_THEME =
  * fix.
  */
 val LocalColourScheme = staticCompositionLocalOf<ColourScheme> { error(NOT_IN_THEME) }
+
+/**
+ * The fade [LocalColourScheme] is the target of, or null when nothing is fading.
+ *
+ * Internal, and it stays internal: [LocalColourScheme] is public so that a
+ * caller can *provide* a scheme for a subtree, and this is the mechanism by
+ * which a provided one is recognised and obeyed rather than something anybody
+ * needs to hand a value to. Providing the scheme is still the whole public
+ * story; `Theme.colours` is where the two meet.
+ *
+ * Null rather than throwing, unlike every local beside it, because a theme with
+ * `animateThemeChanges = false` legitimately has no fade and the absence is the
+ * answer rather than a mistake.
+ */
+internal val LocalThemeFade = staticCompositionLocalOf<ThemeFadeState?> { null }
 
 /** @see LocalColourScheme */
 val LocalTypography = staticCompositionLocalOf<Typography> { error(NOT_IN_THEME) }
@@ -300,6 +560,15 @@ val LocalComponentDefaults = staticCompositionLocalOf<ComponentDefaults> { error
 val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
 
 /**
+ * The formats in use; read through [Theme.formats].
+ *
+ * Tracking rather than static, unlike the token locals: a locale changes while
+ * an app runs — the reader changes their language, or their clock — and only the
+ * dates and numbers on screen need to be written again, not the whole tree.
+ */
+val LocalLocaleFormats = compositionLocalOf<LocaleFormats> { error(NOT_IN_THEME) }
+
+/**
  * Change some tokens for a subtree, and **inherit the rest**.
  *
  * ```
@@ -310,17 +579,18 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  *
  * ### Why this is not `KontourTheme` nested inside itself
  *
- * A nested [KontourTheme] does not inherit. Every parameter it is not given
- * re-runs its *default*, and those defaults read the platform rather than the
+ * A nested [KontourTheme] inherits only the reader's two settings, `contrast`
+ * and `reduceMotion`. Every other parameter it is not given re-runs its
+ * *default*, and those defaults build fresh tokens rather than reading the
  * enclosing theme — so
  *
  * ```
  * KontourTheme(strings = german) {
- *     KontourTheme(darkTheme = true) { … }   // ← all 47 strings are English again
+ *     KontourTheme(darkTheme = true) { … }   // ← every string is English again
  * }
  * ```
  *
- * silently reverts the strings, resets `HapticsLevel.Off` to `Full`, and throws
+ * silently reverts the strings, resets `HapticsLevel.Off` to `Standard`, and throws
  * away a custom `spacing`, `sizing` or `motion` with them. Nothing errors and
  * nothing looks wrong until somebody reads the German build. `ProvideTokens`
  * defaults every parameter to *the value already in scope*, so an argument you
@@ -336,9 +606,10 @@ val LocalStrings = staticCompositionLocalOf<Strings> { error(NOT_IN_THEME) }
  * `Icon` in the subtree, because `LocalContentColour` is derived from the scheme
  * at the point [KontourTheme] provides it and is not re-derived by providing the
  * scheme again. Half the subtree changes. Nothing errors. The same trap sits
- * under `LocalTextStyle`, derived from `typography.bodyMedium`.
+ * under `LocalTextStyle`, derived from `typography.bodyMedium`, and under
+ * `LocalTextSelectionColors`, derived from the accent.
  *
- * So this re-provides both — but only where they have not been *narrowed*. A
+ * So this re-provides all three — but only where they have not been *narrowed*. A
  * `Surface` sets `LocalContentColour` to the colour that reads on the ground it
  * just painted, and that ground is still painted in the outgoing palette, so its
  * narrowing is not stale and must survive. The test is equality with the
@@ -364,13 +635,25 @@ fun ProvideTokens(
     sizing: Sizing = LocalSizing.current,
     componentDefaults: ComponentDefaults = LocalComponentDefaults.current,
     strings: Strings = LocalStrings.current,
+    formats: LocaleFormats = LocalLocaleFormats.current,
     content: @Composable () -> Unit,
 ) {
-    val outgoingColours = LocalColourScheme.current
+    // What is actually in effect above, which mid-fade is not what the local
+    // carries — see `Theme.colours`. The test below is "was this inherited from
+    // the theme", and comparing against the fade's target instead would answer
+    // no on every frame of one.
+    val outgoingColours = Theme.colours
+    // And what will be in effect below: a caller who did not change the scheme
+    // has not stopped the fade, so the ink goes on fading with it.
+    val incomingColours = if (colours === LocalColourScheme.current) outgoingColours else colours
     val outgoingTypography = LocalTypography.current
 
     val contentColour = LocalContentColour.current
     val textStyle = LocalTextStyle.current
+    // Compared with the scheme's target, which is what `KontourTheme` derived it
+    // from — not the frame of a fade `outgoingColours` may be.
+    val selectionColours = LocalTextSelectionColors.current
+    val inheritedSelection = selectionColours == LocalColourScheme.current.textSelectionColours()
 
     CompositionLocalProvider(
         LocalColourScheme provides colours,
@@ -382,10 +665,17 @@ fun ProvideTokens(
         LocalSizing provides sizing,
         LocalComponentDefaults provides componentDefaults,
         LocalStrings provides strings,
+        LocalLocaleFormats provides formats,
         LocalContentColour provides
-            if (contentColour == outgoingColours.content) colours.content else contentColour,
+            if (contentColour == outgoingColours.content) {
+                incomingColours.content
+            } else {
+                contentColour
+            },
         LocalTextStyle provides
             if (textStyle == outgoingTypography.bodyMedium) typography.bodyMedium else textStyle,
+        LocalTextSelectionColors provides
+            if (inheritedSelection) colours.textSelectionColours() else selectionColours,
         content = content,
     )
 }

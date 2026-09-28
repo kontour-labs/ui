@@ -13,17 +13,17 @@ prose that is about the family rather than any one of them.
 
 | Family | | |
 |---|---|---|
-| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` |
-| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `TriStateCheckbox` `RadioButton` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` `ColourSwatchPicker` |
-| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` `TextSelectionToolbar` `rememberImeChain` |
-| [**Date and time**](components/date-time.md) | Calendars and clocks | `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` `DateTimeFormats` |
-| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Spinner` `Skeleton` `EmptyState` `Banner` `Callout` `Timeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `PageIndicator` `Kbd` |
-| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` |
-| [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavItem` `NavBar` `NavRail` `NavDrawer` `ModalNavDrawer` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
+| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `TextButton` `TextIconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` |
+| [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `TriStateCheckbox` `RadioButton` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` `ColourSwatchPicker` `ColourPicker` `Knob` |
+| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` `rememberImeChain` |
+| [**Date and time**](components/date-time.md) | Calendars and clocks | `ActivityCalendar` `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` `LocaleFormats` |
+| [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Spinner` `Skeleton` `Redacted` `EmptyState` `Banner` `Callout` `Timeline` `TimelineList` `BranchTimeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `PageIndicator` `Kbd` `Gauge` `Meter` `ChatBubble` |
+| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` `Table` |
+| [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavScope` `NavBar` `NavRail` `ModalNavRail` `NavSearch` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Toast` `LoadingOverlay` `CommandPalette` |
-| [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `SheetHeader` `DragHandle` |
-| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `GlassSurface` `PageTransition` `Motion.*` |
-| [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` |
+| [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `ModalSideSheet` `SheetHeader` `DragHandle` |
+| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `Modifier.pointerCursor` `PageTransition` `Motion.*` |
+| [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `SelectableText` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` `Modifier.clearFocusOnTap` |
 
 Cross-cutting reading:
 [tokens](tokens.md) ·
@@ -51,7 +51,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Stat` vs `KeyValueList` vs `SettingRow` | [`KeyValueList`](components/key-value-list.md) |
 | `EmptyState` vs `ErrorState` | [`EmptyState`](components/empty-state.md) |
 | `Pagination` vs `LoadMore` | [navigation](components/pagination.md) |
-| The five sheet entry points | [sheets](components/sheets.md) |
+| The six sheet entry points | [sheets](components/sheets.md) |
 
 ---
 
@@ -66,7 +66,7 @@ Listed so the shape of the finished system is visible.
 **Selection, remaining** — `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
-calendar for range selection across month boundaries
+calendar that shows several months at once
 
 **Text editing, remaining** — `OtpField`, `TagInput`, `CurrencyField`
 
@@ -74,5 +74,5 @@ calendar for range selection across month boundaries
 
 ### Deliberately not being built
 
-`CodeBlock`, `Gauge`, `DataTable` and `TreeList` are admin-web patterns with no
-usage in the mobile app, and are not being built on spec.
+`CodeBlock` and `TreeList` are admin-web patterns with no usage in the mobile
+app, and are not being built on spec.

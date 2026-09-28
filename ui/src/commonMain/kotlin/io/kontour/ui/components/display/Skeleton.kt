@@ -1,5 +1,6 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -19,9 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -70,15 +74,51 @@ fun Skeleton(
      */
     angle: Float = 0f,
 ) {
+    Box(
+        modifier
+            .clearAndSetSemantics { }
+            .clip(shape)
+            .skeletonFill(angle)
+    )
+}
+
+/**
+ * The shimmer itself, as a modifier that fills whatever it is put on.
+ *
+ * Extracted when redaction arrived. [Skeleton] is a *box* you draw instead of
+ * your content; `Modifier.redacted` draws the same surface over content that
+ * is already there and already the right shape. Those are two components' worth
+ * of arrangement and one drawing, and the drawing is this.
+ *
+ * It fills its whole node and paints **behind** content rather than over it,
+ * which is what lets a caller clip it to something — a shape, a path of text
+ * line boxes — and get the shimmer in that shape for free.
+ */
+@Composable
+internal fun Modifier.skeletonFill(
+    angle: Float = 0f,
+    /**
+     * The ground the placeholder is drawn in, and `Unspecified` to derive one.
+     *
+     * [Skeleton] passes nothing and gets `surfaceSunken`, which is right for a
+     * block drawn on a page. **Redaction cannot use that**, and the specimen
+     * said so plainly: a redacted `ListItem` draws its bars in `surfaceSunken`
+     * on a container that is already `surfaceSunken`, so two rows came out as
+     * two flat slabs with nothing in them. A placeholder has to contrast with
+     * whatever it happens to be sitting on, and only the caller knows that.
+     */
+    base: Color = Color.Unspecified,
+    highlight: Color = Color.Unspecified,
+): Modifier {
     val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
 
-    val base = colours.surfaceSunken
-    val highlight = if (colours.isDark) {
-        colours.outline
-    } else {
+    val base = if (base.isSpecified) base else colours.surfaceSunken
+    val highlight = when {
+        highlight.isSpecified -> highlight
+        colours.isDark -> colours.outline
         // Lighter than the base rather than darker: a dark band reads as content.
-        colours.surface
+        else -> colours.surface
     }
 
     // Not registered under reduced motion, where the branch below does not draw
@@ -99,11 +139,8 @@ fun Skeleton(
         )
     }
 
-    Box(
-        modifier
-            .clearAndSetSemantics { }
-            .clip(shape)
-            .then(
+    return this
+        .then(
                 if (reduceMotion) {
                     Modifier.background(base)
                 } else {
@@ -117,38 +154,47 @@ fun Skeleton(
                         // wrong and a diagonal wipe either stops short of the
                         // far corner or spends half its time off the edge.
                         val radians = angle * PI.toFloat() / 180f
-                        val dx = cos(radians)
+                        // Start to end: in right to left the band travels leftwards.
+                        val dx = cos(radians) * if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
                         val dy = sin(radians)
                         val span = abs(size.width * dx) + abs(size.height * dy)
                         val bandWidth = span * BandShare
                         val travel = span + bandWidth
                         val centre = Offset(size.width / 2f, size.height / 2f)
+                        // Measured from the centre outwards, so the band enters
+                        // one edge and leaves the other whatever the angle. At 0°
+                        // this is `-bandWidth + travel * sweep` offset from the
+                        // left edge, which is what it was.
+                        //
+                        // Built once, where the sweep starts, and moved along its
+                        // axis each frame rather than rebuilt there: a new
+                        // gradient is a new shader, and a loading screen is a
+                        // dozen of these animating at once.
+                        val head = -span / 2f - bandWidth
+                        val band = Brush.linearGradient(
+                            colorStops = arrayOf(
+                                0f to base,
+                                0.5f to highlight,
+                                1f to base,
+                            ),
+                            start = centre + Offset(dx * head, dy * head),
+                            end = centre + Offset(
+                                dx * (head + bandWidth),
+                                dy * (head + bandWidth),
+                            ),
+                        )
 
                         onDrawBehind {
-                            // Measured from the centre outwards, so the band
-                            // enters one edge and leaves the other whatever the
-                            // angle. At 0° this is `-bandWidth + travel * sweep`
-                            // offset from the left edge, which is what it was.
-                            val head = -span / 2f - bandWidth + travel * (sweep?.value ?: 0f)
-                            drawRect(
-                                brush = Brush.linearGradient(
-                                    colorStops = arrayOf(
-                                        0f to base,
-                                        0.5f to highlight,
-                                        1f to base,
-                                    ),
-                                    start = centre + Offset(dx * head, dy * head),
-                                    end = centre + Offset(
-                                        dx * (head + bandWidth),
-                                        dy * (head + bandWidth),
-                                    ),
-                                ),
-                            )
+                            val along = travel * (sweep?.value ?: 0f)
+                            val x = dx * along
+                            val y = dy * along
+                            translate(x, y) {
+                                drawRect(brush = band, topLeft = Offset(-x, -y), size = size)
+                            }
                         }
                     }
                 }
             )
-    )
 }
 
 /**
@@ -197,7 +243,7 @@ fun SkeletonText(
 fun SkeletonListItem(
     modifier: Modifier = Modifier,
     showLeading: Boolean = true,
-    supportingLine: Boolean = true,
+    showSupportingLine: Boolean = true,
 ) {
     Row(
         modifier
@@ -214,7 +260,7 @@ fun SkeletonListItem(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Skeleton(Modifier.fillMaxWidth(0.55f).height(14.dp), shape = Theme.shapes.capsule)
-            if (supportingLine) {
+            if (showSupportingLine) {
                 Skeleton(Modifier.fillMaxWidth(0.8f).height(12.dp), shape = Theme.shapes.capsule)
             }
         }

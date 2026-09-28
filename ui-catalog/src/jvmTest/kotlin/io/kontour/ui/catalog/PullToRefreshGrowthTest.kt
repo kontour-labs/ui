@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.list.PullToRefresh
+import io.kontour.ui.components.list.PullToRefreshState
 import io.kontour.ui.components.list.rememberPullToRefreshState
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -57,9 +56,20 @@ import kotlin.test.assertTrue
  */
 class PullToRefreshGrowthTest {
 
+    /**
+     * Measured where the circle is first allowed its full size, not at half a pull.
+     *
+     * The circle now keeps `PullToRefreshDefaults.Clearance` of page above and below
+     * it — asked for, as "a little bit more gap between the top of the list when
+     * the user first starts pulling" — so until the gap is the circle plus both
+     * clearances, 56dp of an 80dp pull, it is smaller *by geometry*. That is not
+     * the defect this test is for, and at half a pull it is unavoidable. What this
+     * guards is the compounding: once the size is not bounded, the ink has to be
+     * the sweep's share of the arc and no less.
+     */
     @Test
-    fun theArcIsHalfDrawnAtHalfAPull() {
-        val half = arcInk(fraction = 0.5f)
+    fun theArcIsInStepWithThePullOnceTheCircleIsWhole() {
+        val half = arcInk(fraction = WholeAt)
         val full = arcInk(fraction = 1f)
 
         // Only the full pull is guarded. Half a pull drawing *nothing* is not a
@@ -71,22 +81,39 @@ class PullToRefreshGrowthTest {
         )
         val share = half.toFloat() / full
         assertTrue(
-            share >= MinShare,
-            "at half a pull the arc carried ${half}px of ink against ${full}px at a " +
-                "full one, which is ${(share * 100).toInt()}% of it. The sweep is " +
-                "linear in the pull, so half a pull is meant to be half an arc — " +
+            share >= WholeAt * MinShare / 0.5f,
+            "at ${(WholeAt * 100).toInt()}% of a pull the arc carried ${half}px of ink against " +
+                "${full}px at a full one, which is ${(share * 100).toInt()}% of it. The sweep " +
+                "is linear in the pull, so this is meant to be that share of an arc — " +
                 "anything much under that is the indicator still growing while the " +
                 "arc is, and the two multiply.",
         )
     }
 
-    /** How much arc ink is on screen at [fraction] of the way to the threshold. */
+    /**
+     * How much arc ink is on screen at [fraction] of the way to the threshold.
+     *
+     * **Driven through `PullToRefreshState.drag` rather than by a finger**, which is
+     * what that method is public for. It used to press and move, and a gesture's
+     * first eighteen-odd pixels go to touch slop — so "half a pull" was really
+     * thirty-nine hundredths of one, and the ratio this test reports was an
+     * underestimate of itself. The constant below is meticulous about resistance and
+     * says nothing about slop, which is exactly the kind of arithmetic that is right
+     * until something else measures the same pixels.
+     *
+     * What exposed it was the indicator gaining a geometric bound — it may not be
+     * drawn wider than the gap it sits in — which bites below 40dp of gap and so
+     * bit at 0.39 of a pull and not at 0.5. The gesture is covered by
+     * `PullToRefreshGestureTest`; what this test is about is ink at two points on
+     * the pull, and the points may as well be the ones it names.
+     */
     private fun arcInk(fraction: Float): Int {
-        var bounds = Rect.Zero
+        var state: PullToRefreshState? = null
         var ink = 0
 
         Scene(width = 400, height = 600) {
             val pull = rememberPullToRefreshState()
+            state = pull
             val rows = rememberLazyListState()
             // As in `PullToRefreshArcTest`: an opaque ground, or the gap the pull
             // opens reads as ink and swamps the three hundred pixels of ring.
@@ -95,7 +122,7 @@ class PullToRefreshGrowthTest {
                 refreshing = false,
                 onRefresh = {},
                 state = pull,
-                modifier = Modifier.fillMaxSize().reportBounds { bounds = it },
+                modifier = Modifier.fillMaxSize(),
             ) {
                 LazyColumn(
                     state = rows,
@@ -106,17 +133,10 @@ class PullToRefreshGrowthTest {
             }
         }.use { scene ->
             scene.frames(4)
-            require(bounds.height > 0f) { "the container never reported a size" }
-
-            val from = Offset(bounds.center.x, bounds.top + 40f)
-            val travel = ThresholdTravel * fraction
-            scene.press(from)
-            repeat(Steps) { step ->
-                scene.move(Offset(from.x, from.y + travel * (step + 1) / Steps))
-                scene.frame()
-            }
-            ink = scene.frames(6).darkInk()
-            scene.release(Offset(from.x, from.y + travel))
+            requireNotNull(state).drag(ThresholdTravel * fraction)
+            // The drawn gap is a spring chasing the state's, and both the indicator's
+            // position and its bound are read off the drawn one.
+            ink = scene.frames(SettleFrames).darkInk()
         }
         return ink
     }
@@ -132,15 +152,16 @@ class PullToRefreshGrowthTest {
     }
 
     private companion object {
-        const val Steps = 24
+        /** Long enough for the gap's spring to arrive at what it was told. */
+        const val SettleFrames = 90
 
         /**
-         * Finger travel that puts the pull exactly on its threshold.
+         * The pull that puts the indicator exactly on its threshold.
          *
          * `Threshold` is 80dp at a scene density of 2, and `Resistance` applies
-         * **outward past the threshold only** (`PullToRefresh.kt:103`) — so
+         * **outward past the threshold only** (`PullToRefresh.kt:117`) — so
          * everything up to it is one-to-one and this is 160, not the 400 that
-         * dividing by the resistance gives. That first guess put both fractions
+         * dividing by the resistance gives. An earlier guess put both fractions
          * past the threshold, where `pull` is clamped, and the two frames came
          * back byte-identical at 299px each: a ratio of exactly 1.00, which is
          * what an instrument that never varied its input reports.
@@ -148,12 +169,19 @@ class PullToRefreshGrowthTest {
         const val ThresholdTravel = 160f
 
         /**
-         * How much of the full arc has to be drawn at half a pull.
+         * How much of the full arc has to be drawn at half a pull, were the circle
+         * whole there; scaled to [WholeAt] where it is used.
          *
          * Half is the target and the bar is a little under it, because the arc
          * has round caps: a short arc keeps both of them, so its ink does not
          * fall quite in proportion to its angle. The defect is nearer a quarter.
          */
         const val MinShare = 0.42f
+
+        /**
+         * The first share of a pull at which the circle may be its full 40dp: the
+         * circle plus 8dp of clearance at each end, over the 80dp threshold.
+         */
+        const val WholeAt = 0.7f
     }
 }

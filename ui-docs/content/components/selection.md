@@ -13,8 +13,10 @@ Controls that record a choice.
 | [`Chip`](chip.md) | One of a *set* of small choices | `Button`, when there is only one |
 | [`SegmentedControl`](segmented-control.md) | Two to four short options, switched often | `RadioGroup`, beyond four or with long labels |
 | [`ColourSwatchPicker`](colour-swatch-picker.md) | A choice made by looking | `Select`, for anything nameable |
+| [`ColourPicker`](colour-picker.md) | Any colour, or a set of them | `ColourSwatchPicker`, when the set is all there is |
 | [`Slider`](slider.md) | A value in a continuous range | A `NumberField`, when the exact figure matters |
 | [`RangeSlider`](range-slider.md) | A band — two values on one track | Two `Slider`s, which cannot stop each other crossing |
+| [`Knob`](knob.md) | A value set by turning a dial | A `Slider`, when there is a line's worth of room |
 | [`Stepper`](stepper.md) | A small exact count | A `Slider`, when the number is approximate |
 | [`Rating`](rating.md) | A score out of five | A `Slider`, when the scale is not a score |
 

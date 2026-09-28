@@ -21,6 +21,7 @@ import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.components.action.FabMenu
+import io.kontour.ui.components.action.FabMenuDefaults
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
@@ -373,8 +374,8 @@ class FabMenuTest {
         /** Long enough for the last item's spring to settle. */
         const val SettleMillis = 3000L
 
-        /** One spring in, three staggers out. */
-        const val StaggerSampleMillis = 60L
+        /** Just after the third item has left: two staggers and a frame. */
+        val StaggerSampleMillis = FabMenuDefaults.Stagger.inWholeMilliseconds * 2 + FrameMillis
 
         /** Sub-pixel: two items on one axis should be exactly aligned. */
         const val Tolerance = 1f

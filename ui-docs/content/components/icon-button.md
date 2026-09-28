@@ -2,7 +2,7 @@
 
 <!--sample:IconButtonBasics-->
 ```kotlin
-IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
+IconButton(icon = Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
 ```
 
 `contentDescription` is **required and non-null**. There is no visible text to
@@ -52,3 +52,15 @@ vocabulary — "muted"/"unmuted" reads better than "on"/"off".
 The touch target is `Theme.sizing.minTouchTarget` regardless of the icon size, so
 a small icon button is still a full-size target. That is enforced by a modifier
 rather than by remembering, and asserted by the contract suite.
+
+At high contrast a ghost icon button — the default — gains a ring in its own
+content colour, drawn at the tier's thicker strong border, and a disabled one of
+any variant gains one in `outline`. A checked `IconToggleButton` keeps its accent
+tint and is edged in the accent, as every selection is at this tier; a struck
+one stays a ghost and takes the ghost's ring, and its slash thickens with the
+tier's strong border. The focus ring thickens too.
+
+Under reduced motion a press keeps its tonal wash and loses its shrink,
+`rotation` turns without overshooting, and a toggle's slash is drawn across in
+`fast` rather than `default`. The cross-fade between `icon` and `checkedIcon`
+still grows the new glyph from 70% inside the button, at every setting.

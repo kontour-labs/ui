@@ -1,7 +1,11 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.bidiIsolated
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -10,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -24,6 +30,9 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -31,42 +40,55 @@ import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.input.focusRing
+import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
 
-/** The meaning a [Tag] carries. Maps to the scheme's status tones. */
-enum class TagTone { Neutral, Accent, Success, Warning, Danger, Info }
 
 /**
- * A small, non-interactive label — a status, a category, a route number.
+ * A small label — a status, a category, a route number.
  *
  * ```
- * Tag(tone = TagTone.Success) { +"Live" }
- * Tag(colour = routeColor) { +"960" }          // colour straight out of a GTFS feed
+ * Tag(tone = Tone.Success) { +"Live" }
+ * Tag(containerColour = routeColour) { +"960" } // colour straight out of a GTFS feed
+ * Tag(onClick = { openRoute(960) }) { +"960" }   // a label that leads to what it labels
  * ```
  *
- * Not a [io.kontour.ui.components.selection.Chip]. A chip is something the user
- * can act on; a tag is something the interface is telling them. If it can be
- * tapped, it is a chip.
+ * Not a [io.kontour.ui.components.selection.Chip]. A chip is a choice or an
+ * action among others; a tag is something the interface is telling the reader.
+ * An [onClick] makes a tag a way *to* what it labels — a route number that opens
+ * the route, a category that lists everything in it — and it stays a label to
+ * look at: same size, same colours, a press and a focus ring added. On a touch
+ * screen it reserves the platform's touch target around itself, so a clickable
+ * tag takes more room in a row than a plain one.
  *
  * ### Arbitrary colours
  *
  * Transit feeds supply their own route colours, and they are not drawn from any
- * palette — a route can be pale yellow or near-black. Passing [colour] resolves
+ * palette — a route can be pale yellow or near-black. Passing [containerColour] resolves
  * the label with [contentColourFor], which picks whichever of light or dark reads
  * better on it. That is the whole reason this component exists rather than
  * callers styling a `Surface` themselves: the one thing they would get wrong is
  * the case where the feed hands them a colour nobody designed for.
  *
- * @param colour An explicit background. Overrides [tone]. The label colour is
+ * @param containerColour An explicit background. Overrides [tone]. The label colour is
  *   derived, not guessed.
+ * @param onClick What a press does, or `null`, the default, for a tag that is only
+ *   a label. Announced as a button with its text.
+ * @param enabled Whether a clickable tag takes presses. A disabled one keeps its
+ *   colours and dims its text.
  */
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
-    tone: TagTone = TagTone.Neutral,
-    colour: Color = Color.Unspecified,
+    enabled: Boolean = true,
+    tone: Tone = Tone.Neutral,
+    containerColour: Color = Color.Unspecified,
     shape: Shape = Theme.shapes.control,
+    onClick: (() -> Unit)? = null,
     /**
      * Overrides what the tag announces.
      *
@@ -75,12 +97,17 @@ fun Tag(
      * should expand — "PU" reading as "Perth Underground".
      */
     contentDescription: String? = null,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
-    val container = if (colour != Color.Unspecified) colour else tagContainerFor(tone)
-    val contentColour = if (colour != Color.Unspecified) {
+    val container = if (containerColour != Color.Unspecified) containerColour else tagContainerFor(tone)
+    val clickable = onClick != null
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val contentColour = if (clickable && !enabled) {
+        Theme.colours.contentDisabled
+    } else if (containerColour != Color.Unspecified) {
         contentColourFor(
-            background = colour,
+            background = containerColour,
             light = Theme.colours.onPrimary.takeIf { !Theme.colours.isDark } ?: Theme.colours.content,
             dark = Theme.colours.content.takeIf { !Theme.colours.isDark } ?: Theme.colours.onPrimary,
         )
@@ -90,6 +117,12 @@ fun Tag(
 
     Row(
         modifier = modifier
+            // Target first, then the visuals, as a chip does: reserve the room a
+            // finger needs, and draw the tag inside it.
+            .then(
+                if (clickable) Modifier.minimumTouchTarget().focusRing(interactions, shape, enabled = enabled)
+                else Modifier
+            )
             // Merged rather than described: a tag used to build its own
             // `contentDescription` from its `label`, and with the label in a slot
             // there is no string to build one from. Merging is the better answer
@@ -107,6 +140,19 @@ fun Tag(
             .then(
                 contrastEdge(tagBorderFor(tone))
                     ?.let { Modifier.border(it, shape) } ?: Modifier
+            )
+            .then(
+                if (onClick != null) {
+                    Modifier.pointerCursor(enabled = enabled).clickable(
+                        interactionSource = interactions,
+                        indication = kontourIndication(shape),
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                }
             )
             .padding(horizontal = 8.dp, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -150,29 +196,38 @@ fun Badge(
     modifier: Modifier = Modifier,
     count: Int? = null,
     max: Int = 9,
-    colour: Color = Theme.colours.danger.solid,
+    containerColour: Color = Theme.colours.danger.solid,
     contentColour: Color = Theme.colours.danger.onSolid,
     contentDescription: String? = null,
 ) {
+    val strings = Theme.strings
+    val formats = Theme.formats
+    // Isolated, so `99+` stays `99+` inside a right-to-left line rather than
+    // reading `+99` — the plus is a neutral and would take the line's direction.
     val label = when {
         count == null -> null
-        count > max -> "$max+"
-        else -> count.toString()
+        count > max -> bidiIsolated(strings.cappedCount(formats.quantity(max)))
+        else -> formats.integer(count)
     }
 
     val announcement = contentDescription ?: when {
-        count == null -> "New"
-        count > max -> "More than $max"
-        else -> "$count"
+        count == null -> strings.new
+        count > max -> strings.moreThan(formats.quantity(max))
+        else -> strings.newCount(formats.quantity(count))
     }
 
+    // At the enhanced tier a ring of the page's colour round the badge, so a red
+    // dot straddling a black icon is a dot on the icon rather than part of it.
+    val ring = if (highContrast()) BorderStroke(Theme.sizing.borderWidth, Theme.colours.background) else null
+    val round = Theme.shapes.pill
     if (label == null) {
         Box(
             modifier
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
-                .clip(Theme.shapes.pill)
-                .background(colour)
+                .clip(round)
+                .background(containerColour)
+                .optionalBorder(ring, round)
         )
     } else {
         Box(
@@ -180,7 +235,8 @@ fun Badge(
                 .semantics { this.contentDescription = announcement }
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                 .clip(Theme.shapes.capsule)
-                .background(colour)
+                .background(containerColour)
+                .optionalBorder(ring, Theme.shapes.capsule)
                 .padding(horizontal = 5.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -244,6 +300,7 @@ fun BadgedBox(
     }
 }
 
+/** What a [Badge] takes by default. */
 object BadgeDefaults {
     /**
      * How much of the badge hangs past the corner, as a fraction of itself.
@@ -256,33 +313,33 @@ object BadgeDefaults {
 
 @Composable
 @ReadOnlyComposable
-private fun tagContainerFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.surfaceSunken
-    TagTone.Accent -> Theme.colours.accent.container
-    TagTone.Success -> Theme.colours.success.container
-    TagTone.Warning -> Theme.colours.warning.container
-    TagTone.Danger -> Theme.colours.danger.container
-    TagTone.Info -> Theme.colours.info.container
+private fun tagContainerFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.surfaceSunken
+    Tone.Accent -> Theme.colours.accent.container
+    Tone.Success -> Theme.colours.success.container
+    Tone.Warning -> Theme.colours.warning.container
+    Tone.Danger -> Theme.colours.danger.container
+    Tone.Info -> Theme.colours.info.container
 }
 
 @Composable
 @ReadOnlyComposable
-private fun tagBorderFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.outline
-    TagTone.Accent -> Theme.colours.accent.solid
-    TagTone.Success -> Theme.colours.success.border
-    TagTone.Warning -> Theme.colours.warning.border
-    TagTone.Danger -> Theme.colours.danger.border
-    TagTone.Info -> Theme.colours.info.border
+private fun tagBorderFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.outline
+    Tone.Accent -> Theme.colours.accent.solid
+    Tone.Success -> Theme.colours.success.border
+    Tone.Warning -> Theme.colours.warning.border
+    Tone.Danger -> Theme.colours.danger.border
+    Tone.Info -> Theme.colours.info.border
 }
 
 @Composable
 @ReadOnlyComposable
-private fun tagContentFor(tone: TagTone): Color = when (tone) {
-    TagTone.Neutral -> Theme.colours.contentMuted
-    TagTone.Accent -> Theme.colours.accent.onContainer
-    TagTone.Success -> Theme.colours.success.onContainer
-    TagTone.Warning -> Theme.colours.warning.onContainer
-    TagTone.Danger -> Theme.colours.danger.onContainer
-    TagTone.Info -> Theme.colours.info.onContainer
+private fun tagContentFor(tone: Tone): Color = when (tone) {
+    Tone.Neutral -> Theme.colours.contentMuted
+    Tone.Accent -> Theme.colours.accent.onContainer
+    Tone.Success -> Theme.colours.success.onContainer
+    Tone.Warning -> Theme.colours.warning.onContainer
+    Tone.Danger -> Theme.colours.danger.onContainer
+    Tone.Info -> Theme.colours.info.onContainer
 }

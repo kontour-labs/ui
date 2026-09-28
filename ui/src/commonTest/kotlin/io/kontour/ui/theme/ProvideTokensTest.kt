@@ -19,9 +19,9 @@ import kotlin.test.assertNotEquals
  *
  * Two failures live here, and only the first is obvious.
  *
- * **A nested [KontourTheme] does not inherit.** Every parameter it is not given
- * re-runs its default, and those defaults read the *platform*, not the enclosing
- * theme. So a screen forcing dark mode inside a German app gets 47 English
+ * **A nested [KontourTheme] does not inherit** — except the reader's contrast
+ * and reduced motion. Every other parameter it is not given re-runs its
+ * default, and those defaults build fresh tokens, not the enclosing theme's. So a screen forcing dark mode inside a German app gets 47 English
  * strings back, and `theming.md` recommended exactly that pattern. That is the
  * defect [ProvideTokens] exists to make un-writable, and
  * [aNestedThemeStillSwallowsWhatItIsNotGiven] pins the old behaviour so the
@@ -77,6 +77,53 @@ class ProvideTokensTest {
         )
     }
 
+    /**
+     * The reader's two settings are the exception, and inherit.
+     *
+     * Contrast and reduced motion are what the *reader* asked for — often through
+     * an in-app switch, since not every platform exposes both. A screen that
+     * wraps itself in a theme to force dark is making a decision about the
+     * screen, and used to throw the reader's away with it.
+     */
+    @Test
+    fun aNestedThemeKeepsTheReadersContrastAndMotion() {
+        var contrast: ContrastLevel? = null
+        var reduce: Boolean? = null
+        var sizing: Sizing? = null
+        runComposeUiTest {
+            setContent {
+                KontourTheme(contrast = ContrastLevel.High, reduceMotion = true) {
+                    KontourTheme(darkTheme = true) {
+                        contrast = LocalContrastLevel.current
+                        reduce = Theme.motion.reduceMotion
+                        sizing = Theme.sizing
+                    }
+                }
+            }
+            waitForIdle()
+        }
+        assertEquals(ContrastLevel.High, contrast, "a nested theme dropped the reader's contrast tier")
+        assertEquals(true, reduce, "a nested theme dropped the reader's reduced motion")
+        assertEquals(kontourSizing(ContrastLevel.High), sizing, "the inherited tier did not reach the line weights")
+    }
+
+    @Test
+    fun aCustomMotionScaleFollowsTheReadersSetting() {
+        var reduce: Boolean? = null
+        var fast: Int? = null
+        runComposeUiTest {
+            setContent {
+                KontourTheme(reduceMotion = true, motion = kontourMotion(false).copy(fast = 123)) {
+                    reduce = Theme.motion.reduceMotion
+                    fast = Theme.motion.fast
+                }
+            }
+            waitForIdle()
+        }
+        assertEquals(true, reduce, "a Motion built for full motion ignored reduceMotion = true")
+        assertEquals(123, fast, "the custom scale's timing was replaced rather than kept")
+    }
+
     @Test
     fun theHandRolledVersionIsTheDefectThisFunctionRemoves() {
         val hand = readInside { inner ->
@@ -114,7 +161,7 @@ class ProvideTokensTest {
     @Test
     fun aSurfacesOwnContentColourIsNotOverwritten() {
         val seen = readInside { inner ->
-            Surface(colour = Kontour.primary, contentColour = Kontour.onPrimary) {
+            Surface(containerColour = Kontour.primary, contentColour = Kontour.onPrimary) {
                 ProvideTokens(colours = Other, content = inner)
             }
         }

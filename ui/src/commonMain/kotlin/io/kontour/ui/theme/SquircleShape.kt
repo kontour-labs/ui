@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.PI
@@ -72,31 +73,34 @@ class SquircleShape(
     val smoothing: Float = DefaultSmoothing,
 ) : CornerBasedShape(topStart, topEnd, bottomEnd, bottomStart) {
 
-    /**
-     * The last few paths this shape built, newest overwriting oldest.
-     *
-     * One entry was enough while a shape instance belonged to one component. It
-     * is not now that the semantic tokens alias the scale — `Shapes.container`
-     * *is* `Shapes.medium`, one object shared by every card, row, menu, popover
-     * and drawer on screen. Two containers at different sizes evicted each
-     * other, so both rebuilt their path on every draw, and building one is four
-     * corners of trigonometry and twelve cubic segments.
-     *
-     * Written round-robin rather than least-recently-used: with a handful of
-     * live sizes the two orders keep the same set, and a plain cursor has no
-     * bookkeeping to get wrong. Not synchronised — a shape is used from the
-     * thread that draws it, and the worst a race can do here is rebuild a path
-     * that had already been built.
-     */
-    private val cache = arrayOfNulls<CachedPath>(CacheEntries)
-    private var cursor = 0
-
     override fun copy(
         topStart: CornerSize,
         topEnd: CornerSize,
         bottomEnd: CornerSize,
         bottomStart: CornerSize,
     ): CornerBasedShape = SquircleShape(topStart, topEnd, bottomEnd, bottomStart, smoothing)
+
+    /**
+     * The same corners, drawn on a different curve.
+     *
+     * [copy] is `CornerBasedShape`'s own override and its signature is the four
+     * corners, so it cannot carry a fifth argument — which is right, because
+     * every derived shape in the library (`inset`, `outset`, `atLeast`,
+     * `lerpCorners`, `topCornersOnly`, `rampedFrom`) wants the receiver's own
+     * smoothing and gets it. This is the one case that does not: a shape sitting
+     * inside a device's bezel takes the bezel's curve. See `DeviceCorners`.
+     *
+     * **Returns `this` when nothing changes**, which is load-bearing rather than
+     * tidy. The caller is a `remember` key and a `SquirclePaths` cache slot, so
+     * a new-but-equal instance for every device the table does not name would
+     * double the shape count for no drawn difference.
+     */
+    fun withSmoothing(smoothing: Float): SquircleShape =
+        if (smoothing == this.smoothing) {
+            this
+        } else {
+            SquircleShape(topStart, topEnd, bottomEnd, bottomStart, smoothing)
+        }
 
     override fun createOutline(
         size: Size,
@@ -118,18 +122,11 @@ class SquircleShape(
         val bottomRight = if (ltr) bottomEnd else bottomStart
         val bottomLeft = if (ltr) bottomStart else bottomEnd
 
-        for (entry in cache) {
-            // Null means the cache has not filled yet, and it fills in order, so
-            // there is nothing past the first hole to look at.
-            if (entry == null) break
-            if (entry.matches(size, topLeft, topRight, bottomRight, bottomLeft)) {
-                return Outline.Generic(entry.path)
-            }
-        }
+        val cached = SquirclePaths.find(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)
+        if (cached != null) return Outline.Generic(cached)
 
         val path = buildPath(size, topLeft, topRight, bottomRight, bottomLeft)
-        cache[cursor] = CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, path)
-        cursor = (cursor + 1) % cache.size
+        SquirclePaths.put(size, topLeft, topRight, bottomRight, bottomLeft, smoothing, path)
         return Outline.Generic(path)
     }
 
@@ -140,40 +137,7 @@ class SquircleShape(
         bottomRight: Float,
         bottomLeft: Float,
     ): Path {
-        val w = size.width
-        val h = size.height
-        val ceiling = min(w, h) / 2f
-
-        // Clamp to the half-dimension first so the budgets below are computed from
-        // radii that could actually be drawn.
-        val tl = topLeft.coerceIn(0f, ceiling)
-        val tr = topRight.coerceIn(0f, ceiling)
-        val br = bottomRight.coerceIn(0f, ceiling)
-        val bl = bottomLeft.coerceIn(0f, ceiling)
-
-        // Budgets in travel order: the edge this corner is entered along, then
-        // the one it leaves along. Top-left is entered up the left edge, which it
-        // shares with bottom-left, and left along the top edge, shared with
-        // top-right.
-        val corners = listOf(
-            Corner(
-                Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl,
-                share(tl, bl, h), share(tl, tr, w),
-            ),
-            Corner(
-                Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr,
-                share(tr, tl, w), share(tr, br, h),
-            ),
-            Corner(
-                Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br,
-                share(br, tr, h), share(br, bl, w),
-            ),
-            Corner(
-                Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl,
-                share(bl, br, w), share(bl, tl, h),
-            ),
-        )
-
+        val corners = corners(size, topLeft, topRight, bottomRight, bottomLeft)
         val path = Path()
         val params = corners.map { params(it) }
 
@@ -191,6 +155,75 @@ class SquircleShape(
         appendCorner(path, corners[0], params[0])
         path.close()
         return path
+    }
+
+    /**
+     * The four corners in travel order, clockwise from the top-left, each with its
+     * radius and its budget on the two edges it touches. What the path is drawn
+     * from, and what [reaches] measures, so the two cannot disagree.
+     */
+    private fun corners(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): List<Corner> {
+        val w = size.width
+        val h = size.height
+        val ceiling = min(w, h) / 2f
+
+        // Clamp to the half-dimension first so the budgets below are computed from
+        // radii that could actually be drawn.
+        val tl = topLeft.coerceIn(0f, ceiling)
+        val tr = topRight.coerceIn(0f, ceiling)
+        val br = bottomRight.coerceIn(0f, ceiling)
+        val bl = bottomLeft.coerceIn(0f, ceiling)
+
+        // Budgets in travel order: the edge this corner is entered along, then
+        // the one it leaves along. Top-left is entered up the left edge, which it
+        // shares with bottom-left, and left along the top edge, shared with
+        // top-right.
+        return listOf(
+            Corner(
+                Offset(0f, 0f), Offset(0f, -1f), Offset(1f, 0f), tl,
+                share(tl, bl, h), share(tl, tr, w),
+            ),
+            Corner(
+                Offset(w, 0f), Offset(1f, 0f), Offset(0f, 1f), tr,
+                share(tr, tl, w), share(tr, br, h),
+            ),
+            Corner(
+                Offset(w, h), Offset(0f, 1f), Offset(-1f, 0f), br,
+                share(br, tr, h), share(br, bl, w),
+            ),
+            Corner(
+                Offset(0f, h), Offset(-1f, 0f), Offset(0f, -1f), bl,
+                share(bl, br, w), share(bl, tl, h),
+            ),
+        )
+    }
+
+    /**
+     * How far each corner's curve runs along its two edges, for the visual radii
+     * [createOutline] is handed — which is where the edge stops being straight.
+     */
+    internal fun reaches(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+    ): CornerReaches {
+        val params = corners(size, topLeft, topRight, bottomRight, bottomLeft).map { params(it) }
+        // Each corner is entered along one edge and left along the other, so which
+        // of its two sides is the horizontal one alternates around the ring.
+        return CornerReaches(
+            topLeft = Offset(params[0].outgoing.p, params[0].incoming.p),
+            topRight = Offset(params[1].incoming.p, params[1].outgoing.p),
+            bottomRight = Offset(params[2].outgoing.p, params[2].incoming.p),
+            bottomLeft = Offset(params[3].incoming.p, params[3].outgoing.p),
+        )
     }
 
     /**
@@ -391,16 +424,6 @@ class SquircleShape(
          */
         const val DefaultSmoothing: Float = 0.6f
 
-        /**
-         * How many distinct sizes one shape instance remembers a path for.
-         *
-         * Four covers what a screen actually holds — a card, a list row, a menu
-         * and a popover are four sizes, and everything else on screen repeats
-         * one of them. A miss is a rebuild, so a larger cache only helps a
-         * screen that already has more distinct containers than it has room to
-         * show.
-         */
-        private const val CacheEntries = 4
     }
 }
 
@@ -428,6 +451,59 @@ fun SquircleShape(
     CornerSize(bottomStart),
     smoothing,
 )
+
+/**
+ * How far each corner's curve runs along its two edges, in px from the corner's
+ * point, with the corners in visual order: [Offset.x] along the horizontal edge,
+ * [Offset.y] along the vertical one. Past it, the edge is straight.
+ */
+internal class CornerReaches(
+    val topLeft: Offset,
+    val topRight: Offset,
+    val bottomRight: Offset,
+    val bottomLeft: Offset,
+)
+
+/**
+ * Where this shape's edges stop being straight, drawn at [size].
+ *
+ * For a [SquircleShape], the reach its path is built from — smoothing included,
+ * so a little over the radius wherever there is room. For any other corner shape,
+ * the radius. Both see the corners as the outline does: scaled down in pairs when
+ * two on one side would overlap, and swapped start for end right to left.
+ */
+internal fun CornerBasedShape.cornerReaches(
+    size: Size,
+    density: Density,
+    layoutDirection: LayoutDirection,
+): CornerReaches {
+    var topStart = topStart.toPx(size, density)
+    var topEnd = topEnd.toPx(size, density)
+    var bottomEnd = bottomEnd.toPx(size, density)
+    var bottomStart = bottomStart.toPx(size, density)
+    // The same scaling CornerBasedShape.createOutline does before it hands the
+    // radii to the shape.
+    val minDimension = size.minDimension
+    if (topStart + bottomStart > minDimension) {
+        val scale = minDimension / (topStart + bottomStart)
+        topStart *= scale
+        bottomStart *= scale
+    }
+    if (topEnd + bottomEnd > minDimension) {
+        val scale = minDimension / (topEnd + bottomEnd)
+        topEnd *= scale
+        bottomEnd *= scale
+    }
+    val ltr = layoutDirection == LayoutDirection.Ltr
+    val topLeft = if (ltr) topStart else topEnd
+    val topRight = if (ltr) topEnd else topStart
+    val bottomRight = if (ltr) bottomEnd else bottomStart
+    val bottomLeft = if (ltr) bottomStart else bottomEnd
+
+    if (this is SquircleShape) return reaches(size, topLeft, topRight, bottomRight, bottomLeft)
+    fun radius(r: Float) = r.coerceIn(0f, minDimension).let { Offset(it, it) }
+    return CornerReaches(radius(topLeft), radius(topRight), radius(bottomRight), radius(bottomLeft))
+}
 
 private const val DEG = PI / 180.0
 private const val RAD = 180.0 / PI
@@ -488,12 +564,131 @@ private class CachedPath(
     private val topRight: Float,
     private val bottomRight: Float,
     private val bottomLeft: Float,
+    private val smoothing: Float,
     val path: Path,
 ) {
-    fun matches(size: Size, topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float): Boolean =
+    fun matches(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Boolean =
         this.size == size &&
             this.topLeft == topLeft &&
             this.topRight == topRight &&
             this.bottomRight == bottomRight &&
-            this.bottomLeft == bottomLeft
+            this.bottomLeft == bottomLeft &&
+            this.smoothing == smoothing
+}
+
+/**
+ * Every squircle path built lately, for the whole process rather than per shape.
+ *
+ * ### Why it cannot belong to the instance
+ *
+ * It did, four entries deep, and that was already tight: the semantic tokens
+ * alias the scale — `Shapes.container` **is** `Shapes.medium`, one object shared
+ * by every card, row, menu, popover and drawer on screen — so four distinct
+ * sizes is an ordinary page rather than a busy one.
+ *
+ * What it could not cover at all is a **derived** shape. `inset`, `outset`,
+ * `atLeast` and `lerpCorners` all go through `copy`, which is a new
+ * `SquircleShape` with an empty cache, and nine call sites build one *in
+ * composition* without remembering it. Every recomposition therefore threw the
+ * cache away and rebuilt the path — four corners of trigonometry and twelve
+ * cubic segments — and two of those sites do it on every frame of an animation
+ * with the result feeding a `graphicsLayer` shadow, which re-rasterises the blur
+ * with it.
+ *
+ * Keyed on what a path *is* rather than on who asked for it, two instances that
+ * resolve to the same corners share one entry, so a fresh `copy` of a shape
+ * already on screen is free. The `remember`s at those call sites are still worth
+ * having and are still there; this is what makes forgetting one cost a lookup
+ * instead of a rebuild.
+ *
+ * ### Direct-mapped, not searched
+ *
+ * One slot per hash, collisions evict. A miss costs a rebuild, which is what the
+ * old cache paid on every miss anyway, and the lookup stays a single array read
+ * however large this grows — where a linear scan would put the cost of the cache
+ * on the page that needs it least.
+ *
+ * Not synchronised, which is the same trade the per-instance array made: a shape
+ * is used from the thread that draws it, entries are immutable once written, and
+ * the worst a race can do is rebuild a path that had already been built.
+ *
+ * ### One `Path` handed to several callers
+ *
+ * As before. Two cards of the same size shared an object under the old cache
+ * too; what is new is that two cards of the same size with *different* shape
+ * instances do. Nothing in the library mutates a path it did not build —
+ * `backdropGround` copies into its own through `addOutline`, which is the one
+ * place that takes an outline apart.
+ */
+private object SquirclePaths {
+
+    /**
+     * Enough for a page, and a power of two so the mask below is the modulo.
+     *
+     * A screen holds a few dozen distinct container sizes once list rows, menus,
+     * chips and badges are counted. 128 entries is a few kilobytes of references
+     * against a rebuild each, which is the cheapest thing in this file to be
+     * generous with.
+     */
+    private const val Capacity = 128
+
+    private val entries = arrayOfNulls<CachedPath>(Capacity)
+
+    fun find(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Path? {
+        val entry = entries[slot(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)]
+        return entry?.takeIf {
+            it.matches(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)
+        }?.path
+    }
+
+    fun put(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+        path: Path,
+    ) {
+        entries[slot(size, topLeft, topRight, bottomRight, bottomLeft, smoothing)] =
+            CachedPath(size, topLeft, topRight, bottomRight, bottomLeft, smoothing, path)
+    }
+
+    /**
+     * The bits of a float rather than the float, so `-0f` and `0f` do not collide
+     * with each other's entries and a `NaN` cannot make every lookup a hit.
+     */
+    private fun slot(
+        size: Size,
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+    ): Int {
+        var hash = size.width.toRawBits()
+        hash = hash * 31 + size.height.toRawBits()
+        hash = hash * 31 + topLeft.toRawBits()
+        hash = hash * 31 + topRight.toRawBits()
+        hash = hash * 31 + bottomRight.toRawBits()
+        hash = hash * 31 + bottomLeft.toRawBits()
+        hash = hash * 31 + smoothing.toRawBits()
+        // Folded, because the low bits of a multiply-by-31 chain over float bits
+        // are far less varied than the high ones and the mask only keeps the low.
+        return (hash xor (hash ushr 16)) and (Capacity - 1)
+    }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
@@ -81,7 +82,7 @@ fun <T> ColourSwatchPicker(
     swatchLabel: (T) -> String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    swatchSize: Dp = 40.dp,
+    swatchSize: Dp = ColourSwatchPickerDefaults.SwatchSize,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(Theme.spacing.xs),
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(Theme.spacing.xs),
     automaticIcon: ImageVector? = null,
@@ -115,6 +116,7 @@ private fun Swatch(
     size: Dp,
     automaticIcon: ImageVector?,
 ) {
+    val tap = rememberTapFeedback()
     val scheme = Theme.colours
     val motion = Theme.motion
     val interactions = remember { MutableInteractionSource() }
@@ -174,6 +176,8 @@ private fun Swatch(
                 enabled = enabled,
                 role = Role.RadioButton,
                 onClick = {
+                    // A radio: pressing the swatch already chosen changes nothing.
+                    if (!selected) tap()
                     onSelectedChange()
                 },
             ),
@@ -200,4 +204,10 @@ private fun Swatch(
             )
         }
     }
+}
+
+/** What a [ColourSwatchPicker] takes by default. */
+object ColourSwatchPickerDefaults {
+    /** A swatch's diameter, and its touch target's width. */
+    val SwatchSize: Dp = 40.dp
 }

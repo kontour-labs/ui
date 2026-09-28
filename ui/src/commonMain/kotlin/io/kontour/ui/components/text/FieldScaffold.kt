@@ -1,5 +1,7 @@
 package io.kontour.ui.components.text
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -12,7 +14,14 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -22,21 +31,33 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.AnimatedSlot
 import io.kontour.ui.theme.Theme
+import kotlinx.coroutines.flow.collectLatest
+
+/** The gap between a field's label, its frame and its message. */
+private val FieldStackGap = 6.dp
 
 /**
  * The frame every form control shares: label above, bordered box, helper or
@@ -53,9 +74,6 @@ import io.kontour.ui.theme.Theme
  * @param content Fills the box between the leading slots and the trailing slot.
  *   Give it `Modifier.weight(1f)` unless the control is meant to hug its value.
  */
-/** The gap between a field's label, its frame and its message. */
-private val FieldStackGap = 6.dp
-
 @Composable
 internal fun FieldScaffold(
     modifier: Modifier,
@@ -85,6 +103,21 @@ internal fun FieldScaffold(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     frameModifier: Modifier = Modifier,
+    /**
+     * Called when the frame is pressed somewhere nothing else claimed.
+     *
+     * The frame is a good deal bigger than the thing you can type in. A field is
+     * `max(52dp, text + 24dp)` tall and the input inside it is one line of
+     * `bodyMedium`, so on a single-line field roughly the top and bottom third
+     * of what looks like the text box does nothing at all when pressed — and
+     * neither does the horizontal padding, because the input only fills the
+     * weighted area between the slots. A box that looks like one target and
+     * behaves like a smaller one centred inside it is the report this answers.
+     *
+     * Null leaves the frame inert, which is right for a field whose frame is
+     * already a control: `Select`'s whole frame opens a menu.
+     */
+    onFrameTap: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val motion = Theme.motion
@@ -130,17 +163,37 @@ internal fun FieldScaffold(
         label = "fieldLabel",
     )
 
+    // **The whole field into view, not only the caret.**
+    //
+    // Foundation brings the *cursor* into view when a field takes focus and when
+    // the keyboard shrinks the viewport around it — so the text line was always
+    // visible, and the rest of the field was not: the bottom of the frame, and the
+    // supporting or error line under it, sat behind the keyboard. Reported as "it
+    // should move the screen up so the bottom of the field is visible, not just the
+    // bottom of the text". So the scaffold asks for itself — label, frame and
+    // message — on focus, and again each time the keyboard's height changes while
+    // it is focused, since that is what shrinks the space it has to be seen in.
+    //
+    // In the scaffold, so `Select`, `Combobox` and `MultiSelect` have it too.
+    val requester = remember { BringIntoViewRequester() }
+    val keyboard = WindowInsets.ime
+    val density = LocalDensity.current
+    LaunchedEffect(focused) {
+        if (!focused) return@LaunchedEffect
+        snapshotFlow { keyboard.getBottom(density) }.collectLatest { requester.bringIntoView() }
+    }
+
     // No `verticalArrangement`: the message slot carries the gap above it, so a
     // field that stops being in error loses the message *and* its gap over the
     // same animation. With `spacedBy` the gap went in one frame at the end —
     // the vertical case of the snap `AnimatedSlot` documents.
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().bringIntoViewRequester(requester)) {
         if (label != null) {
             Text(
                 // The one label that does not reach `contentScope`: a field
                 // takes its label as a `String` rather than a slot, because the
                 // control below it needs the same text as its accessible name.
-                text = if (Theme.componentDefaults.uppercaseLabels) label.uppercase() else label,
+                text = if (Theme.componentDefaults.uppercaseLabels) Theme.formats.uppercase(label) else label,
                 // Visible, but not a node of its own. Every control that goes
                 // through this scaffold takes the label as its accessible *name*
                 // — see `TextField` and `SelectFrame` — so leaving this
@@ -163,6 +216,7 @@ internal fun FieldScaffold(
                 .background(containerColour, shape)
                 .border(borderWidth, borderColour, shape)
                 .then(frameModifier)
+                .then(if (onFrameTap != null) Modifier.frameTap(onFrameTap) else Modifier)
                 // Each side is padded for what is actually on it. A glyph does
                 // not fill its own box, so an icon padded like text reads as
                 // further in than the text beside it — see
@@ -218,11 +272,13 @@ internal fun FieldScaffold(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (leadingIcon != null) {
+                    val parts = LocalFieldParts.current
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
                         tint = if (enabled) colours.label else colours.contentDisabled,
                         size = Theme.sizing.iconMedium,
+                        modifier = if (parts != null) Modifier.onPlaced(parts.icon) else Modifier,
                     )
                 }
 
@@ -258,8 +314,9 @@ internal fun FieldScaffold(
             visible = errorMessage != null || supporting != null,
             gap = FieldStackGap,
             orientation = Orientation.Vertical,
-            enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast()),
-            exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast()),
+            // Under reduced motion the line takes its room at once and fades.
+            enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+            exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
         ) {
             // Crossfaded, not swapped. The slot already animates open and
             // shut; what it did not do was change *between* two messages, so a
@@ -306,9 +363,54 @@ internal fun FieldScaffold(
                 Text(
                     text = message,
                     style = Theme.typography.bodySmall,
-                    colour = if (isError) colours.error else colours.helper,
+                    colour = if (isError) colours.error else colours.supporting,
                 )
             }
         }
     }
 }
+
+/**
+ * A press on the frame that nothing inside it wanted.
+ *
+ * The pass discipline is the whole of it, and it is the same one
+ * `OverlayHost.clearFocusOnTap` uses at the other end of the tree — worth
+ * matching, because the two have to agree or a press on a field's padding
+ * focuses it and is then immediately cleared by the host above.
+ *
+ * Down on **Initial**, so nothing can hide the gesture from this node. Release
+ * on **Main**, by which point every child has had its chance: a trailing
+ * `IconButton`, the text input's own caret placement, a leading affordance. If
+ * one of them took it, `isConsumed` says so and this stands down.
+ *
+ * And it **consumes** when it acts, which the host's rule does not. That is the
+ * difference between the two: clearing focus is what happens when a press
+ * belonged to nobody, so it must not claim it; this press belonged to the
+ * field, and saying so is what stops the host clearing the focus it just asked
+ * for.
+ */
+private fun Modifier.frameTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val release = waitForUpOrCancellation()
+        if (release != null && !release.isConsumed) {
+            release.consume()
+            onTap()
+        }
+    }
+}
+
+/**
+ * Where a field's parts were placed, for something that has to draw its way into
+ * them: a search pill carrying its icon and its word into the field it opens.
+ *
+ * A composition local rather than parameters because the field is several layers
+ * down from whoever wants to know, and nothing but that one morph does.
+ */
+internal class FieldParts(
+    val icon: (LayoutCoordinates) -> Unit,
+    /** The box the field starts its text in, which is where its placeholder sits too. */
+    val text: (LayoutCoordinates) -> Unit,
+)
+
+internal val LocalFieldParts = staticCompositionLocalOf<FieldParts?> { null }

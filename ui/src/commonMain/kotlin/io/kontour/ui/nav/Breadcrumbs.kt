@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
@@ -17,6 +18,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextDecoration
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -24,6 +27,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /** One step in a [Breadcrumbs] trail. */
@@ -46,7 +50,7 @@ data class Crumb(
  * )
  * ```
  *
- * For a deep tree the user navigates around — the admin panel, chiefly. On a
+ * For a deep tree the user navigates around — a web app's settings, chiefly. On a
  * phone a back button says the same thing in far less room, which is why this
  * has no mobile counterpart in the app.
  *
@@ -65,7 +69,7 @@ fun Breadcrumbs(
 ) {
     Row(
         modifier = modifier
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
             .semantics { }
             .padding(vertical = Theme.spacing.xxs),
         horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
@@ -105,26 +109,35 @@ private fun CrumbLabel(crumb: Crumb, isCurrent: Boolean) {
         return
     }
 
-    Text(
-        text = crumb.label,
-        modifier = Modifier
-            .semantics { role = Role.Button }
-            .minimumTouchTarget()
-            .focusRing(interactions, shape)
-            .clip(shape)
-            .pointerCursor()
-            .clickable(
-                interactionSource = interactions,
-                // A crumb is a link-sized button; nothing else here answers the tap.
-                indication = kontourIndication(
-                    shape,
-                    io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
-                ),
-                onClick = onClick,
-            )
-            .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-        style = Theme.typography.bodySmall,
-        colour = colours.contentMuted,
-        maxLines = 1,
-    )
+    DisableSelection {
+        Text(
+            text = crumb.label,
+            modifier = Modifier
+                .semantics { role = Role.Button }
+                .minimumTouchTarget()
+                .focusRing(interactions, shape)
+                .clip(shape)
+                .pointerCursor()
+                .clickable(
+                    interactionSource = interactions,
+                    // A crumb is a link-sized button; nothing else here answers the tap.
+                    indication = kontourIndication(
+                        shape,
+                        io.kontour.ui.components.action.ButtonDefaults.SmallPressScale,
+                    ),
+                    onClick = onClick,
+                )
+                .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
+            // Underlined at the enhanced tier. A crumb you can follow and the
+            // one you are on differ in colour — `contentMuted` against
+            // `content` — and at that tier both are near-black.
+            style = if (highContrast()) {
+                Theme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline)
+            } else {
+                Theme.typography.bodySmall
+            },
+            colour = colours.contentMuted,
+            maxLines = 1,
+        )
+    }
 }

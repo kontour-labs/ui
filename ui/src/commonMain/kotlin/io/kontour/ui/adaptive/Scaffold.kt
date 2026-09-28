@@ -14,12 +14,14 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
 
 /** Which corner a [Scaffold]'s floating action button sits in. */
-enum class FabPosition { Start, Center, End }
+enum class FabPosition { Start, Centre, End }
 
+/** What a [Scaffold] takes by default. */
 object ScaffoldDefaults {
     /** Gap between the FAB and the edges, or the bottom bar. */
     val FabMargin: Dp = 16.dp
@@ -32,7 +34,7 @@ object ScaffoldDefaults {
  * ```kotlin
  * Scaffold(
  *     topBar = { TopBar { +"Favourites" } },
- *     floatingActionButton = { FloatingActionButton(Tabler.Outline.Plus, "Add", ::add) },
+ *     floatingActionButton = { FloatingActionButton(icon = Tabler.Outline.Plus, contentDescription = "Add", onClick = ::add) },
  * ) { padding ->
  *     LazyColumn(contentPadding = padding) { … }
  * }
@@ -45,7 +47,7 @@ object ScaffoldDefaults {
  * `LazyColumn` wants it as `contentPadding`, a `Column` wants it as `padding`,
  * and applying it to the wrong one clips the scroll.
  *
- * [contentWindowInsets] defaults to `safeDrawing`. The padding handed to the
+ * [windowInsets] defaults to `safeDrawing`. The padding handed to the
  * content is the **larger** of the bar and the inset on each edge, not their
  * sum — a top bar already sits under the status bar and has padded itself for
  * it, so adding both insets the content twice. `ScaffoldGeometryTest` measures
@@ -64,18 +66,36 @@ fun Scaffold(
     fabPosition: FabPosition = FabPosition.End,
     containerColour: Color = Theme.colours.background,
     contentColour: Color = Theme.colours.content,
-    contentWindowInsets: WindowInsets = WindowInsets.safeDrawing,
+    windowInsets: WindowInsets = WindowInsets.safeDrawing,
+    /**
+     * Whether pressing the screen somewhere nothing wanted takes focus off the
+     * field that has it.
+     *
+     * On, because "I tapped away from the text box and the keyboard stayed up"
+     * is the behaviour nobody asks for. `OverlayHost` has carried this rule for
+     * a while and is bounded by its own box, so an app whose root is a
+     * `Scaffold` and not a host had it nowhere — see
+     * [io.kontour.ui.input.clearFocusOnTap], which is the rule itself and can go
+     * on any root.
+     *
+     * Off for a screen that manages focus itself.
+     */
+    clearFocusOnTap: Boolean = true,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
-    val insets = contentWindowInsets.asPaddingValues()
+    val insets = windowInsets.asPaddingValues()
     val insetTop = insets.calculateTopPadding()
     val insetBottom = insets.calculateBottomPadding()
     val insetStart = insets.calculateStartPadding(direction)
     val insetEnd = insets.calculateEndPadding(direction)
     val fabMargin = ScaffoldDefaults.FabMargin
 
-    Surface(modifier = modifier.fillMaxSize(), colour = containerColour, contentColour = contentColour) {
+    Surface(
+        modifier = modifier.fillMaxSize().clearFocusOnTap(clearFocusOnTap),
+        containerColour = containerColour,
+        contentColour = contentColour,
+    ) {
         SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
             val width = constraints.maxWidth
             val height = constraints.maxHeight
@@ -113,7 +133,7 @@ fun Scaffold(
                     val marginPx = fabMargin.roundToPx()
                     val x = when (fabPosition) {
                         FabPosition.Start -> insetStart.roundToPx() + marginPx
-                        FabPosition.Center -> (width - placeable.width) / 2
+                        FabPosition.Centre -> (width - placeable.width) / 2
                         FabPosition.End -> width - placeable.width -
                             insetEnd.roundToPx() - marginPx
                     }
@@ -121,7 +141,8 @@ fun Scaffold(
                     // there is not. A FAB behind the navigation bar is a FAB
                     // nobody can press.
                     val bottomClearance = maxOf(bottomHeight, insetBottom.roundToPx())
-                    placeable.place(x, height - placeable.height - bottomClearance - marginPx)
+                    // Relative: `End` is the end of the line, which is the left in right-to-left.
+                    placeable.placeRelative(x, height - placeable.height - bottomClearance - marginPx)
                 }
             }
         }

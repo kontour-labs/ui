@@ -34,7 +34,10 @@ data class SpringToken(val dampingRatio: Float, val stiffness: Float) {
  * spinning are. So when it is set, durations collapse toward [fast] and
  * transition presets swap movement for opacity — the interface still
  * communicates that something changed, it just stops flying around to say so.
- * Continuous looping motion (marquee, indeterminate spinners) stops entirely.
+ * A marquee stops. A spinner keeps turning, with its breathing stilled: loading
+ * is information, and an indicator that stopped would look like one that had
+ * hung. For the movements the helpers here cannot shrink, see
+ * `io.kontour.ui.motion.enterOrFade`, `exitOrFade`, `scrollSpec` and `sizeSpec`.
  *
  * @property reduceMotion Whether the user has asked for reduced motion, at the
  *   OS level or through an in-app setting.

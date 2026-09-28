@@ -10,7 +10,7 @@ LazyColumn {
             onClick = { openStop(stop.name) },
             // Rounds the outside corners of the group and leaves the seams
             // square, so a run of rows reads as one block.
-            position = ListItemPosition.of(index, stops.size),
+            position = GroupPosition.of(index, stops.size),
         ) {
             leading { +Tabler.Outline.Bus }
             +stop.name
@@ -26,7 +26,7 @@ The builder is `ListItemScope`, and the bare `+` is the row's headline — see
 `leading` and `trailing` are the other slots.
 
 **A group of rows is one object, not a stack of cards.** Only the outside corners
-of a group round; the ones facing a neighbour get a hairline. `ListItemPosition`
+of a group round; the ones facing a neighbour get a hairline. `GroupPosition`
 carries that, and `of(index, count)` gets the one-item case right — which is the
 case a three-item example in a catalog never exercises and every settings screen
 with a single row hits immediately.
@@ -61,3 +61,11 @@ one is the control. That is the rule that runs through
 `label`, `supporting` and `overline` merge into one announcement in reading
 order. `leading` and `trailing` icons take `null` unless they carry meaning the
 text does not.
+
+At high contrast every row takes an edge in the scheme's `outline`, because its
+sunken ground is too close to the page to say where a row ends, and a selected
+row also takes an accent outline round its tint. The focus ring is thicker and a
+press's wash stronger.
+
+Reduced motion changes nothing here, because nothing moves: a row never shrinks
+when pressed, at any setting, and the tonal wash is the whole of its feedback.

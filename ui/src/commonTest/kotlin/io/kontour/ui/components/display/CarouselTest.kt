@@ -41,7 +41,7 @@ class CarouselTest {
 
     @Composable
     private fun Harness(
-        onPageSelect: ((Int) -> Unit)? = null,
+        onPageClick: ((Int) -> Unit)? = null,
         pages: Int = 4,
     ) {
         KontourTheme {
@@ -58,8 +58,8 @@ class CarouselTest {
                 PageIndicator(
                     state = carousel,
                     modifier = Modifier.testTag("dots"),
-                    onPageSelect = onPageSelect?.let { select ->
-                        { page -> scope.launch { carousel.scrollToPage(page) }; select(page) }
+                    onPageClick = onPageClick?.let { select ->
+                        { page -> scope.launch { carousel.animateScrollToPage(page) }; select(page) }
                     },
                 )
             }
@@ -99,7 +99,7 @@ class CarouselTest {
     }
 
     /**
-     * `onPageSelect` turns the dots into targets; without it they are silent.
+     * `onPageClick` turns the dots into targets; without it they are silent.
      *
      * This is the pointer route. A carousel whose indicator is decoration and
      * whose only other affordance is a drag is operable by exactly one input
@@ -107,7 +107,7 @@ class CarouselTest {
      */
     @Test
     fun dotsAreTargetsOnlyWhenTheyCanChangeThePage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = null, pages = 4) }
+        setContent { Harness(onPageClick = null, pages = 4) }
         waitForIdle()
 
         onNodeWithTag("dots").assert(
@@ -120,7 +120,7 @@ class CarouselTest {
     @Test
     fun dotsBecomePressableWhenGivenAHandler() = runComposeUiTest {
         val selected = mutableListOf<Int>()
-        setContent { Harness(onPageSelect = { selected += it }, pages = 4) }
+        setContent { Harness(onPageClick = { selected += it }, pages = 4) }
         waitForIdle()
 
         onNodeWithContentDescription("Page 3 of 4").performClick()
@@ -138,7 +138,7 @@ class CarouselTest {
      */
     @Test
     fun everyDotNamesItsPage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = {}, pages = 4) }
+        setContent { Harness(onPageClick = {}, pages = 4) }
         waitForIdle()
 
         for (page in 1..4) {
@@ -146,10 +146,18 @@ class CarouselTest {
         }
     }
 
-    /** Every dot is its own target, so there are as many as there are pages. */
+    /**
+     * One clickable node per page, and no more.
+     *
+     * The *target* is one band over the whole strip now rather than one box per
+     * dot — `PageIndicatorStripTest` is where that is measured — but the semantics
+     * are still per page, and this is what says the two did not get confused with
+     * each other. A strip that took the gesture and forgot to leave a node behind
+     * would be reachable by finger and invisible to a reader.
+     */
     @Test
     fun thereIsOneDotPerPage() = runComposeUiTest {
-        setContent { Harness(onPageSelect = {}, pages = 4) }
+        setContent { Harness(onPageClick = {}, pages = 4) }
         waitForIdle()
 
         onAllNodes(hasClickAction()).assertCountEquals(4)

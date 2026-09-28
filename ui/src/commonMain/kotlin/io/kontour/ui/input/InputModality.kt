@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -61,20 +61,31 @@ enum class InputModality {
  * Defaults to [InputModality.Touch] — the conservative choice, since assuming
  * touch only costs a mouse user some extra padding, whereas assuming mouse
  * gives a touch user targets too small to hit.
+ *
+ * Tracked per reader rather than static. It changes whenever the hand moves
+ * between a mouse, the keyboard and the screen, and a static local answers a
+ * change by recomposing everything under the theme — the whole app, for the
+ * few dozen controls that draw a hover or a focus ring differently.
  */
-val LocalInputModality = staticCompositionLocalOf { InputModality.Touch }
+val LocalInputModality = compositionLocalOf { InputModality.Touch }
 
 /** Mutable holder behind [LocalInputModality]. Created by [rememberInputModalityState]. */
 @Stable
-class InputModalityState internal constructor(initial: InputModality) {
-    var current: InputModality by mutableStateOf(initial)
+class InputModalityState internal constructor(initialModality: InputModality) {
+    var current: InputModality by mutableStateOf(initialModality)
         internal set
 }
 
+/**
+ * Remembers an [InputModalityState] starting at [initialModality].
+ *
+ * `KontourTheme` keeps the app's own; one made here is for a subtree that
+ * tracks its own modality with [trackInputModality].
+ */
 @Composable
 fun rememberInputModalityState(
-    initial: InputModality = InputModality.Touch,
-): InputModalityState = remember { InputModalityState(initial) }
+    initialModality: InputModality = InputModality.Touch,
+): InputModalityState = remember { InputModalityState(initialModality) }
 
 /**
  * Watches pointer and key events and keeps [state] up to date.

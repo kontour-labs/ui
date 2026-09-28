@@ -20,6 +20,21 @@ import androidx.compose.ui.text.TextStyle
 val LocalContentColour = compositionLocalOf { Color.Unspecified }
 
 /**
+ * The colour of the ground content is drawn on: the container of the nearest
+ * opaque [Surface].
+ *
+ * For content that paints a ground of its own and has to be the same colour as
+ * what it sits on — a page in a navigation stack, a top bar — so that inside a
+ * sheet it is the sheet's colour rather than the window's, and nothing draws an
+ * edge where it ends and the sheet's own padding begins.
+ *
+ * `Color.Unspecified` outside any surface; read it with
+ * `takeOrElse { Theme.colours.background }`. A translucent surface leaves it
+ * as it was, since what shows through is still the ground beneath.
+ */
+val LocalContainerColour = compositionLocalOf { Color.Unspecified }
+
+/**
  * The text style inherited by [Text] when none is passed.
  *
  * Set to `Theme.typography.bodyMedium` at the theme root. Components that

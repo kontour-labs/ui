@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.input.focusRing
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -27,8 +29,8 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.Feedback
-import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.rememberToggleFeedback
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.interaction.kontourIndication
@@ -88,6 +90,12 @@ fun SelectionRow(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
+    // A row answers its press as the control in it would: it owns the click,
+    // and the control inside, handed a null callback, stays silent. It used to
+    // be silent too, so a checkbox in a row said nothing where the same checkbox
+    // alone answered.
+    val tap = rememberTapFeedback()
+    val toggled = rememberToggleFeedback()
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.container
@@ -105,6 +113,8 @@ fun SelectionRow(
         Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).selectable(
             selected = selected,
             onClick = {
+                // A radio row answers only a change, like a bare radio button.
+                if (!selected) tap()
                 onSelectedChange(true)
             },
             enabled = enabled,
@@ -118,6 +128,7 @@ fun SelectionRow(
         else -> Modifier.pointerCursor(enabled = enabled).toggleable(
             value = selected,
             onValueChange = { now ->
+                toggled(now)
                 onSelectedChange(now)
             },
             enabled = enabled,
@@ -146,56 +157,67 @@ fun SelectionRow(
         LocalRowInteractionSource provides interactions,
         LocalRowToggle provides rowToggle,
     ) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .then(selectionModifier)
-                .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val labelColour = if (enabled) colours.content else colours.contentDisabled
-            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
-
-            slots.leading?.let { leading ->
-                Box(contentAlignment = Alignment.Center) {
-                    ProvideContentColour(muted) {
-                        ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
-                    }
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+        DisableSelection {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    // The row is the control, so the row shows where the keyboard is.
+                    .focusRing(interactions, shape, enabled = enabled && onSelectedChange != null)
+                    .clip(shape)
+                    .then(selectionModifier)
+                    .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                slots.overline?.let { overline ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.labelSmall) {
-                            ContentSlot(maxLines = 1, content = overline)
-                        }
-                    }
-                }
-                slots.label?.let { label ->
-                    ProvideContentColour(labelColour) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 2, content = label)
-                        }
-                    }
-                }
-                slots.supporting?.let { supporting ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodySmall) {
-                            ContentSlot(maxLines = 2, content = supporting)
-                        }
-                    }
-                }
-            }
+                val labelColour = if (enabled) colours.content else colours.contentDisabled
+                val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-            slots.trailing?.let { trailing ->
-                Box(contentAlignment = Alignment.Center) {
-                    ContentSlot(content = trailing)
+                slots.leading?.let { leading ->
+                    Box(contentAlignment = Alignment.Center) {
+                        ProvideContentColour(muted) {
+                            ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    slots.overline?.let { overline ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.labelSmall) {
+                                ContentSlot(maxLines = 1, content = overline)
+                            }
+                        }
+                    }
+                    slots.label?.let { label ->
+                        ProvideContentColour(labelColour) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 2, content = label)
+                            }
+                        }
+                    }
+                    slots.supporting?.let { supporting ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(maxLines = 2, content = supporting)
+                            }
+                        }
+                    }
+                }
+
+                slots.trailing?.let { trailing ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // A value — "4 min", "Kilometres" — in the row's muted
+                        // body style, dimming with the row. A control in the slot
+                        // sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 1, content = trailing)
+                            }
+                        }
+                    }
                 }
             }
         }

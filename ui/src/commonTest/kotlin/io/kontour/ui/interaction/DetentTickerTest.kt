@@ -35,7 +35,7 @@ class DetentTickerTest {
         // crossing is reported.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, floor = FeedbackFloor(clock))
 
         ticker.at(0f)
         repeat(9) { step ->
@@ -58,7 +58,7 @@ class DetentTickerTest {
         // 20ms of motor time each that is a motor that never stops.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, floor = FeedbackFloor(clock))
 
         ticker.at(0f)
         repeat(60) { row ->
@@ -85,7 +85,7 @@ class DetentTickerTest {
         // it exists for.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, floor = FeedbackFloor(clock))
 
         ticker.at(0f)
         clock += 100.milliseconds
@@ -109,7 +109,7 @@ class DetentTickerTest {
         // drag that starts on a detent has not crossed one.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, floor = FeedbackFloor(clock))
 
         ticker.at(4f)
 
@@ -127,7 +127,7 @@ class DetentTickerTest {
         // hand, whatever they are to the code.
         val clock = TestTimeSource()
         val recorder = Recorder()
-        val ticker = DetentTicker(recorder, clock)
+        val ticker = DetentTicker(recorder, floor = FeedbackFloor(clock))
 
         ticker.at(0f)
         clock += 100.milliseconds
@@ -144,5 +144,32 @@ class DetentTickerTest {
             "a second gesture starting 20ms after the first one ticked should " +
                 "still be inside the floor, but ${recorder.intents.size} ticks fired",
         )
+    }
+
+    /** A threshold's way back is its own, softer report; a detent feels the same both ways. */
+    @Test
+    fun aCrossingBackPerformsTheWayBack() {
+        val clock = TestTimeSource()
+        val recorder = Recorder()
+        val floor = FeedbackFloor(clock)
+        val threshold = DetentTicker(recorder, FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack, floor)
+        val detent = DetentTicker(recorder, floor = floor)
+
+        threshold.at(0)
+        threshold.at(1)
+        threshold.at(0)
+        threshold.at(1)
+        assertEquals(
+            listOf(FeedbackIntent.DragThreshold, FeedbackIntent.DragThresholdBack, FeedbackIntent.DragThreshold),
+            recorder.intents,
+        )
+
+        recorder.intents.clear()
+        detent.at(3)
+        clock += 200.milliseconds
+        detent.at(2)
+        clock += 200.milliseconds
+        detent.at(3)
+        assertEquals(listOf(FeedbackIntent.Tick, FeedbackIntent.Tick), recorder.intents, "a detent went back as something else")
     }
 }

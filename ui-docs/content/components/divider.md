@@ -1,7 +1,7 @@
 # `HorizontalDivider` / `VerticalDivider`
 
-Decorative rules. Both are `clearAndSetSemantics {}`, because a line is not
-something a screen reader should announce.
+Decorative rules. Both carry an empty semantics node — nothing to announce —
+because a line is not something a screen reader should read out.
 
 <!--sample:DividerBasics-->
 ```kotlin
@@ -35,3 +35,9 @@ stopping on one is noise.
 If a divider is doing something a reader needs to know about — separating two
 *groups* rather than two rows — the grouping is what should be expressed, with a
 heading or a `ListSection`, and the rule is still just a rule.
+
+At high contrast a divider is drawn at `dividerThickness`, which goes from 1dp to
+2dp, in the enhanced scheme's `outline`, which is near-ink. A `thickness` or
+`colour` passed explicitly stays as given.
+
+Nothing about a divider moves, so reduced motion changes nothing.

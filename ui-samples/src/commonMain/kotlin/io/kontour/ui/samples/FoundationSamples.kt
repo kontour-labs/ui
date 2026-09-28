@@ -1,14 +1,19 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,36 +23,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.Clock
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.Scaffold
-import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.WindowSizeClassProvider
+import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
-import io.kontour.ui.components.text.TextSelectionToolbar
-import io.kontour.ui.components.text.TextToolbarAction
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Scrim
+import io.kontour.ui.foundation.SelectableText
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.VerticalDivider
-import io.kontour.ui.motion.GlassSurface
-import io.kontour.ui.motion.atmosphere
+import io.kontour.ui.foundation.markdownText
+import io.kontour.ui.foundation.richText
+import io.kontour.ui.input.Cursor
+import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 
 @Composable
 fun TextBasics() {
@@ -60,13 +69,51 @@ fun TextBasics() {
     )
 
     // The `AnnotatedString` overload is why there are two: a route number in
-    // the accent colour inside a sentence, without a second component and
-    // without breaking the line box.
+    // the accent's text colour inside a sentence, without a second component
+    // and without breaking the line box.
     Text(
-        buildAnnotatedString {
-            append("The ")
-            withStyle(SpanStyle(color = Theme.colours.accent.solid)) { append("950") }
-            append(" leaves in 4 minutes.")
+        richText {
+            +"The "
+            tone(Tone.Accent, "950")
+            +" leaves in 4 minutes."
+        },
+    )
+}
+
+@Composable
+fun RichTextBasics() {
+    // Each verb draws from the theme: the bold the type scale ships, the mono
+    // face on the sunken ground, a tone's own text colour.
+    Text(
+        richText {
+            +"The "; bold("950"); +" is running "; tone(Tone.Warning, "12 minutes late"); +". "
+            +"Scan at the "; code("SmartRider"); +" reader as usual. "
+            link("Replacement buses") { replacements() }
+        },
+    )
+
+    // A string that already carries its emphasis — a translated one, most of
+    // all, where another language puts the bold word somewhere else.
+    Text(
+        markdownText(
+            "Services on the **Midland** line are *suspended* until 6pm. " +
+                "[Timetables](https://transperth.wa.gov.au)",
+        ),
+    )
+}
+
+@Composable
+fun RichTextIcons() {
+    // `+icon` for an icon the words beside it already explain: it wraps with
+    // them, takes their size and colour, and a screen reader skips it.
+    Text(richText { +Tabler.Outline.Clock; +" Every 15 minutes until 7pm" })
+
+    // `icon(…)` for one that says something they do not. Its description is
+    // read in its place in the sentence. Inside a tone, it takes the tone.
+    Text(
+        richText {
+            +"Route 950 "
+            tone(Tone.Warning) { icon(Tabler.Outline.AlertTriangle, "disrupted"); +" 12 minutes late" }
         },
     )
 }
@@ -85,7 +132,7 @@ fun IconBasics() {
 fun SurfaceBasics() {
     // No colour argument on either child: the surface set `LocalContentColour`
     // from its own background, and both resolve against it.
-    Surface(colour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+    Surface(containerColour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
         Column(Modifier.padding(Theme.spacing.md)) {
             Text("Perth Underground")
             Icon(Tabler.Outline.Star, contentDescription = null)
@@ -183,19 +230,6 @@ fun WindowSizeClassBasics() {
 }
 
 @Composable
-fun GlassSurfaceBasics() {
-    Box(Modifier.fillMaxSize().atmosphere()) {
-        Screen()
-        GlassSurface(
-            modifier = Modifier.align(Alignment.BottomCenter).padding(Theme.spacing.md),
-            shape = Theme.shapes.pill,
-        ) {
-            Text("Live departures", modifier = Modifier.padding(Theme.spacing.md))
-        }
-    }
-}
-
-@Composable
 fun AspectRatioBoxBasics() {
     // The space is reserved before the photo arrives, so nothing below it moves
     // when it does — which is the whole point.
@@ -207,6 +241,32 @@ fun AspectRatioBoxBasics() {
             .background(Theme.colours.surfaceSunken),
     ) {
         Screen()
+    }
+}
+
+@Composable
+fun PointerCursors() {
+    var listWidth by remember { mutableStateOf(280.dp) }
+    val density = LocalDensity.current
+
+    Row(Modifier.fillMaxWidth().height(200.dp)) {
+        Box(Modifier.width(listWidth).fillMaxHeight()) { Screen() }
+        // Named for what the pointer is over, not for a picture. A desktop
+        // draws a sideways double arrow here, an Android tablet its own, and a
+        // platform with neither falls back to the hand rather than to nothing.
+        Box(
+            Modifier
+                .width(8.dp)
+                .fillMaxHeight()
+                .pointerCursor(Cursor.ResizeColumn)
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        listWidth += with(density) { delta.toDp() }
+                    },
+                    orientation = Orientation.Horizontal,
+                ),
+        )
+        Box(Modifier.weight(1f).fillMaxHeight()) { Screen() }
     }
 }
 
@@ -223,20 +283,6 @@ fun ImeChainBasics() {
 }
 
 @Composable
-fun TextToolbarBasics() {
-    // Wrap the part of the app that has something to add to a text selection.
-    // With no actions, Android and iOS keep their own toolbar and this installs
-    // nothing; desktop and the web have none to keep, so the host's draws instead.
-    TextSelectionToolbar(
-        actions = listOf(
-            TextToolbarAction("Plan a trip") { /* open the planner */ },
-        ),
-    ) {
-        Screen()
-    }
-}
-
-@Composable
 fun KbdBasics() {
     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         // The icon rather than the "⌘" character. A character lands wherever
@@ -245,5 +291,25 @@ fun KbdBasics() {
         Kbd { +KbdIcons.Command }
         Kbd { +"K" }
         Text("opens the command palette", style = Theme.typography.bodySmall)
+    }
+}
+
+@Composable
+fun SelectableTextBasics() {
+    SelectableText {
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            Text("Replacement buses", style = Theme.typography.titleMedium)
+            Text("Midland line, Saturday 14 June, 6am to 10pm. Buses leave from stand 4.")
+            Button(onClick = { plan() }) { +"Plan around it" }
+        }
+    }
+}
+
+@Composable
+fun ClearFocusOnTapBasics() {
+    val origin = rememberTextFieldState()
+
+    Box(Modifier.fillMaxSize().clearFocusOnTap()) {
+        TextField(state = origin, label = "Origin")
     }
 }

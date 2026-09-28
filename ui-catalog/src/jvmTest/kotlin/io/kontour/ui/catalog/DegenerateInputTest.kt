@@ -99,7 +99,7 @@ class DegenerateInputTest {
      */
     @Test
     fun aStepperOverAnEmptyRangeSaysSo() = refuses("Stepper(range = 0 until 0)", "Stepper", "range") {
-        Stepper(value = 0, onValueChange = {}, contentDescription = "Bags", range = 0 until 0)
+        Stepper(value = 0, onValueChange = {}, contentDescription = "Bags", valueRange = 0 until 0)
     }
 
     /**
@@ -116,7 +116,7 @@ class DegenerateInputTest {
             value = 1,
             onValueChange = {},
             contentDescription = "Anything",
-            range = 0..Int.MAX_VALUE,
+            valueRange = 0..Int.MAX_VALUE,
         )
     }
 
@@ -184,9 +184,9 @@ class DegenerateInputTest {
     fun aWheelPickerWithNoRowHeightSaysSo() = refuses("WheelPicker(itemHeight = 0.dp)", "WheelPicker", "itemHeight") {
         WheelPicker(
             items = listOf("one", "two", "three"),
-            selected = 0,
-            onSelectedChange = {},
-            label = { it },
+            selectedIndex = 0,
+            onSelectedIndexChange = {},
+            itemLabel = { it },
             itemHeight = 0.dp,
         )
     }
@@ -196,9 +196,9 @@ class DegenerateInputTest {
     fun aWheelPickerWithNoItemsDraws() = survives("WheelPicker(items = emptyList())") {
         WheelPicker(
             items = emptyList<String>(),
-            selected = 0,
-            onSelectedChange = {},
-            label = { it },
+            selectedIndex = 0,
+            onSelectedIndexChange = {},
+            itemLabel = { it },
         )
     }
 

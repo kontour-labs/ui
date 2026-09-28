@@ -35,3 +35,10 @@ other than scroll — but whatever drives it, the name has to stay stable.
 
 It floats over content. Anything scrolling underneath needs bottom padding to
 match, or the last row can never be read.
+
+At high contrast an enabled button keeps its filled `primary` ground and takes a
+thicker focus ring; a disabled one, a flat well with no shadow, takes an edge in
+the scheme's `outline`.
+
+Under reduced motion the button takes its collapsed or expanded width at once and
+the label fades, and a press does not shrink the button; the tonal wash remains.

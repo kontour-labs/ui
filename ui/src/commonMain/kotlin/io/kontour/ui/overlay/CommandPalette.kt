@@ -1,6 +1,9 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,13 +45,16 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.ListItemPosition
-import io.kontour.ui.components.list.shape
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.motion.scrollToItem
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
+import kotlin.time.Duration
 
 /**
  * One thing a [CommandPalette] can run.
@@ -61,7 +67,7 @@ import io.kontour.ui.theme.inset
 data class Command(
     val id: String,
     val label: String,
-    val onRun: () -> Unit,
+    val onAction: () -> Unit,
     val icon: ImageVector? = null,
     val shortcut: String? = null,
     val group: String? = null,
@@ -77,8 +83,8 @@ data class Command(
  *     visible = paletteOpen,
  *     onDismissRequest = { paletteOpen = false },
  *     commands = listOf(
- *         Command("plan", "Plan a trip", onRun = ::plan, shortcut = "⌘P"),
- *         Command("saved", "Saved trips", onRun = ::openSaved, keywords = listOf("favourites")),
+ *         Command("plan", "Plan a trip", onAction = ::plan, shortcut = "⌘P"),
+ *         Command("saved", "Saved trips", onAction = ::openSaved, keywords = listOf("favourites")),
  *     ),
  * )
  * ```
@@ -102,8 +108,9 @@ data class Command(
  * keystroke the user is looking at the top of the results, not at wherever they
  * had arrowed to before the list changed under them.
  *
- * @param filter Decides what a query matches. The default is case-insensitive
- *   over the label and [Command.keywords].
+ * @param matches Decides whether a command answers a query, in `Combobox`'s
+ *   order: the command, then the query. The default, [commandMatches], is
+ *   case-insensitive over the label and [Command.keywords].
  */
 @Composable
 fun CommandPalette(
@@ -111,6 +118,11 @@ fun CommandPalette(
     onDismissRequest: () -> Unit,
     commands: List<Command>,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
     key: Any = remember { Any() },
     query: TextFieldState = rememberTextFieldState(),
     placeholder: String = Theme.strings.commandPalettePlaceholder,
@@ -137,15 +149,17 @@ fun CommandPalette(
      * but a palette that is the only way through a required step is a real case.
      */
     dismissible: Boolean = true,
-    filter: (String, Command) -> Boolean = ::commandMatches,
+    matches: (Command, String) -> Boolean = CommandPaletteDefaults.matches(),
 ) {
     val host = LocalOverlayHost.current
     val latestModifier by rememberUpdatedState(modifier)
     val latestCommands by rememberUpdatedState(commands)
-    val latestFilter by rememberUpdatedState(filter)
+    val latestMatches by rememberUpdatedState(matches)
     val latestDismiss by rememberUpdatedState(onDismissRequest)
     val latestTopInset by rememberUpdatedState(topInset)
     val latestDismissible by rememberUpdatedState(dismissible)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val dismissLabel = Theme.strings.dismiss
 
     LaunchedEffect(visible, key) {
         if (visible) {
@@ -155,7 +169,8 @@ fun CommandPalette(
                     layer = OverlayLayer.Dialog,
                     scrim = ScrimStyle.Dimmed,
                     dismissOnOutside = latestDismissible,
-                    dismissLabel = "Dismiss",
+                    dismissOnBack = latestDismissible,
+                    dismissLabel = dismissLabel,
                     trapFocus = true,
                     onDismiss = { latestDismiss() },
                     content = {
@@ -176,7 +191,7 @@ fun CommandPalette(
                                 modifier = latestModifier.padding(top = latestTopInset),
                                 query = query,
                                 commands = latestCommands,
-                                filter = latestFilter,
+                                matches = latestMatches,
                                 placeholder = placeholder,
                                 emptyLabel = emptyLabel,
                                 width = width,
@@ -199,7 +214,7 @@ private fun PaletteBody(
     modifier: Modifier,
     query: TextFieldState,
     commands: List<Command>,
-    filter: (String, Command) -> Boolean,
+    matches: (Command, String) -> Boolean,
     placeholder: String,
     emptyLabel: String,
     width: Dp,
@@ -208,8 +223,8 @@ private fun PaletteBody(
     dismissible: Boolean,
 ) {
     val text = query.text.toString()
-    val matches = remember(text, commands) {
-        if (text.isBlank()) commands else commands.filter { filter(text, it) }
+    val found = remember(text, commands) {
+        if (text.isBlank()) commands else commands.filter { matches(it, text) }
     }
 
     var highlighted by remember { mutableIntStateOf(0) }
@@ -241,15 +256,18 @@ private fun PaletteBody(
     // The house guard, from `Menu` and `Select`; this call site never had it.
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
 
-    // Keep the highlighted row on screen when the arrows walk past the fold.
+    // Keep the highlighted row on screen when the arrows walk past the fold —
+    // at once under reduced motion, where a list sliding under the keyboard's
+    // cursor is movement nobody's hand made.
+    val motion = Theme.motion
     LaunchedEffect(highlighted) {
-        if (matches.isNotEmpty()) listState.animateScrollToItem(highlighted.coerceIn(matches.indices))
+        if (found.isNotEmpty()) listState.scrollToItem(highlighted.coerceIn(found.indices), motion)
     }
 
     fun run(index: Int) {
-        val command = matches.getOrNull(index) ?: return
+        val command = found.getOrNull(index) ?: return
         if (!command.enabled) return
-        command.onRun()
+        command.onAction()
         onDismissRequest()
     }
 
@@ -262,19 +280,19 @@ private fun PaletteBody(
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
                     Key.DirectionDown -> {
-                        if (matches.isNotEmpty()) {
-                            highlighted = (highlighted + 1) % matches.size
+                        if (found.isNotEmpty()) {
+                            highlighted = (highlighted + 1) % found.size
                         }
                         true
                     }
 
                     Key.DirectionUp -> {
-                        if (matches.isNotEmpty()) {
+                        if (found.isNotEmpty()) {
                             // `+ size` before the modulo: Kotlin's `%` keeps the
                             // sign of the left operand, so `-1 % 5` is `-1` and
                             // arrowing up from the first row lands out of bounds
                             // rather than at the last.
-                            highlighted = (highlighted - 1 + matches.size) % matches.size
+                            highlighted = (highlighted - 1 + found.size) % found.size
                         }
                         true
                     }
@@ -301,8 +319,10 @@ private fun PaletteBody(
                 }
             },
         shape = Theme.shapes.panel,
-        colour = Theme.colours.surface,
+        containerColour = Theme.colours.surface,
         shadow = Theme.elevation.overlay,
+        // On the dimmed layer a dialog sits on, and edged as one is.
+        border = contrastEdge(),
     ) {
         // One gap, one derived corner. The field and the rows sat at their own
         // default radii inside the panel's — a 26dp capsule and a 22dp container
@@ -311,7 +331,10 @@ private fun PaletteBody(
         // rather than one panel. `inset` is the rule the shape scale exists for:
         // an inner radius is its container's less the gap between them.
         val gap = Theme.spacing.xs
-        val inner = Theme.shapes.panel.inset(gap)
+        val panel = Theme.shapes.panel
+        // Remembered: see `SquirclePaths`. A fresh `copy` per composition is a
+        // fresh modifier for the node that clips to it.
+        val inner = remember(panel, gap) { panel.inset(gap) }
 
         Column(
             modifier = Modifier.padding(gap),
@@ -326,10 +349,10 @@ private fun PaletteBody(
                 // a quarter-second lag between the key and the result is the
                 // whole difference between this feeling instant and feeling
                 // broken. The debounce exists for fields that hit the network.
-                debounceMillis = 0L,
+                debounce = Duration.ZERO,
             )
 
-            if (matches.isEmpty()) {
+            if (found.isEmpty()) {
                 Text(
                     text = emptyLabel,
                     style = Theme.typography.bodyMedium,
@@ -345,11 +368,12 @@ private fun PaletteBody(
                 // each command look like its own card in a pile of cards.
                 LazyColumn(
                     state = listState,
+                    flingBehavior = ScrollDefaults.flingBehavior(),
                     modifier = Modifier.heightIn(max = maxHeight),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    itemsIndexed(matches, key = { _, command -> command.id }) { index, command ->
-                        val position = ListItemPosition.of(index, matches.size)
+                    itemsIndexed(found, key = { _, command -> command.id }) { index, command ->
+                        val position = GroupPosition.of(index, found.size)
                         ListItem(
                             onClick = { run(index) },
                             enabled = command.enabled,
@@ -358,7 +382,7 @@ private fun PaletteBody(
                             // The group's own corner rather than the default,
                             // so the rows are concentric with the panel too and
                             // not only with each other.
-                            shape = position.shape(inner, ListItemDefaults.InnerCorner),
+                            shape = position.shape(inner, ListItemDefaults.InnerCorner, Orientation.Vertical),
                         ) {
                             command.icon?.let { icon -> leading { +icon } }
                             +command.label
@@ -371,15 +395,27 @@ private fun PaletteBody(
     }
 }
 
-/** Case-insensitive over the label and [Command.keywords]. */
-fun commandMatches(query: String, command: Command): Boolean {
-    val needle = query.trim().lowercase()
+/**
+ * Over the label and [Command.keywords], with case and accents folded the way
+ * [formats]' language folds them — `cafe` finds `Café`. English's folding when
+ * none are given.
+ */
+fun commandMatches(command: Command, query: String, formats: LocaleFormats = LocaleFormats.english()): Boolean {
+    val needle = formats.foldForSearch(query.trim())
     if (needle.isEmpty()) return true
-    if (command.label.lowercase().contains(needle)) return true
-    return command.keywords.any { it.lowercase().contains(needle) }
+    if (formats.foldForSearch(command.label).contains(needle)) return true
+    return command.keywords.any { formats.foldForSearch(it).contains(needle) }
 }
 
+/** What a [CommandPalette] takes by default. */
 object CommandPaletteDefaults {
+    /** [commandMatches] in this reader's language, remembered while the formats hold. */
+    @Composable
+    fun matches(): (Command, String) -> Boolean {
+        val formats = Theme.formats
+        return remember(formats) { { command, query -> commandMatches(command, query, formats) } }
+    }
+
     /** Wide enough for a command and its shortcut, narrow enough to read. */
     val Width: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.commandPaletteWidth

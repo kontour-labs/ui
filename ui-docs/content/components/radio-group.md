@@ -6,11 +6,13 @@ var mode by remember { mutableStateOf(Mode.Fastest) }
 
 RadioGroup(
     options = Mode.entries,
-    selected = mode,
-    onSelectedChange = { mode = it },
-    label = { it.displayName },
-    supporting = { it.explanation },
-)
+    value = mode,
+    onValueChange = { mode = it },
+) { option ->
+    +option.displayName
+    leading { +option.icon }
+    supporting { +option.explanation }
+}
 ```
 
 **Use `RadioGroup` rather than loose buttons.** Owning the selection there is
@@ -19,7 +21,16 @@ reader announce "option 2 of 5". It also makes the invalid states — two
 selected, or none — unrepresentable.
 
 It is generic in the option type, so the caller keeps their own enum or data
-class and supplies `label` rather than mapping to strings and back.
+class rather than mapping to strings and back, and fills each row through the
+same `ListItemScope` vocabulary every other row in the library uses — `+` for
+the label, `leading {}` for an icon, `supporting {}` for the line underneath.
+
+That slot replaced a `label: (T) -> String` with a `supporting: ((T) -> String?)?`
+beside it, which was two thirds of the scope reimplemented as parameters and
+could not hold the third: **an option could not carry an icon at all.** The
+`trailing` slot is not yours — the group fills it with the radio button after
+your block runs, because that button is what makes the row an option rather
+than a list row.
 
 **Reach for a `RadioGroup` above a [`Select`](select.md)** when
 there are three or four options and room to show them. A select hides its
@@ -42,3 +53,11 @@ there is exactly one of them.
 
 `supporting` is part of the option's announcement. Put the consequence of the
 choice there rather than in a footnote below the group.
+
+At high contrast each button's ring is drawn at `borderWidthStrong`, which
+thickens with the tier, in the enhanced scheme's colours. The rows draw no line
+of their own, so nothing else changes.
+
+Under reduced motion the dot still grows and shrinks, including the third of the
+way it moves while a press is held, but over a short tween without the spring's
+overshoot. The row never shrinks on a press, at any setting.

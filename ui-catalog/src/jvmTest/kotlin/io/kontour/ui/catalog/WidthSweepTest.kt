@@ -149,7 +149,11 @@ abstract class WidthSweepTest(private val shard: Int) {
             val frame = scene.frames(Frames)
             if (box.width <= 0f && width > 0) return "reported no bounds at ${width}dp"
 
-            val ink = frame.inkBounds() ?: return if (width >= DrawsFrom) {
+            // Faint only when nothing clears the usual bar: a placeholder is
+            // drawn a shade off the page on purpose, and is measured by that
+            // shade rather than reported as blank. Anything with real ink is
+            // measured exactly as before.
+            val ink = frame.inkBounds() ?: frame.inkBounds(FaintTolerance) ?: return if (width >= DrawsFrom) {
                 "drew nothing at ${width}dp"
             } else {
                 null
@@ -197,14 +201,14 @@ abstract class WidthSweepTest(private val shard: Int) {
     }
 
     /** The horizontal extent of everything drawn, or `null` for a blank frame. */
-    private fun BufferedImage.inkBounds(): IntRange? {
+    private fun BufferedImage.inkBounds(tolerance: Int = InkTolerance): IntRange? {
         val page = getRGB(1, 1)
         var left = -1
         var right = -1
         for (x in 0 until width) {
             var inked = false
             for (y in 0 until height) {
-                if (differsFrom(getRGB(x, y), page)) {
+                if (differsFrom(getRGB(x, y), page, tolerance)) {
                     inked = true
                     break
                 }
@@ -217,12 +221,18 @@ abstract class WidthSweepTest(private val shard: Int) {
         return if (left < 0) null else left..right
     }
 
-    private fun differsFrom(a: Int, b: Int): Boolean =
-        kotlin.math.abs((a shr 16 and 0xFF) - (b shr 16 and 0xFF)) > 12 ||
-            kotlin.math.abs((a shr 8 and 0xFF) - (b shr 8 and 0xFF)) > 12 ||
-            kotlin.math.abs((a and 0xFF) - (b and 0xFF)) > 12
+    private fun differsFrom(a: Int, b: Int, tolerance: Int): Boolean =
+        kotlin.math.abs((a shr 16 and 0xFF) - (b shr 16 and 0xFF)) > tolerance ||
+            kotlin.math.abs((a shr 8 and 0xFF) - (b shr 8 and 0xFF)) > tolerance ||
+            kotlin.math.abs((a and 0xFF) - (b and 0xFF)) > tolerance
 
     internal companion object {
+        /** How far a channel must move to count as ink: past a soft shadow's tail. */
+        const val InkTolerance = 12
+
+        /** A placeholder's shade: a skeleton is a few levels off the page by design. */
+        const val FaintTolerance = 3
+
         /**
          * The ladder.
          *

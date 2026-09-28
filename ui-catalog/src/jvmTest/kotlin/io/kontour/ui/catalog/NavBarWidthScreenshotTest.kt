@@ -15,7 +15,6 @@ import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
-import io.kontour.ui.nav.NavItem
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.AfterTest
@@ -23,11 +22,13 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * All three nav bar styles, at a width that spans and a width that does not.
+ * Every nav bar style, at a width that spans and a width that does not.
  *
  * Item 28, and it needs two pictures because it is one claim about two ends of
  * the size range: *"on narrow windows all three should span the width, less
  * padding, with items evenly spaced; on wide windows they should not fill."*
+ * There were three styles then; `Free` has gone, and the claim holds for the
+ * two that are left.
  *
  * ### Why this is a new golden rather than a registry entry
  *
@@ -39,7 +40,7 @@ import kotlin.test.assertTrue
  *
  * ### What to look for
  *
- * In the **compact** frame, all three bars use the full width and their three
+ * In the **compact** frame, both bars use the full width and their three
  * destinations are evenly spaced across it. In the **expanded** frame none of
  * them fills: the destinations sit together in the middle, and `Floating`'s pill
  * is only as wide as the items inside it rather than stretched edge to edge.
@@ -88,15 +89,11 @@ class NavBarWidthScreenshotTest {
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
                 ) {
                     for (style in NavBarStyle.entries) {
-                        NavBar(
-                            items = listOf(
-                                NavItem("Nearby", Tabler.Outline.MapPin, onClick = {}),
-                                NavItem("Routes", Tabler.Outline.Bus, onClick = {}),
-                                NavItem("Saved", Tabler.Outline.Star, onClick = {}),
-                            ),
-                            selectedIndex = 0,
-                            style = style,
-                        )
+                        NavBar(style = style) {
+                            item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+                            item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                            item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+                        }
                     }
                 }
             }

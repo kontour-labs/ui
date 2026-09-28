@@ -1,7 +1,13 @@
 package io.kontour.ui.demo.theme
 
+import io.kontour.ui.locale.PseudoLocalised
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import io.kontour.haptics.TracingHaptics
+import io.kontour.ui.interaction.LocalHaptics
+import io.kontour.ui.interaction.rememberHaptics
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.ComponentDefaults
@@ -144,34 +150,56 @@ fun DemoThemeProvider(
     )
     val reduceMotion = settings.reduceMotion ?: systemReduceMotion
 
-    // A theme swap fades its colours and snaps its geometry.
+    // Every haptic either surface plays is counted on its way to the platform, so
+    // the haptics page can show how far a request got when a phone goes quiet —
+    // wherever in the app it went quiet. A map lookup per haptic.
+    val player = rememberHaptics()
+    val traced = remember(player) { player as? TracingHaptics ?: TracingHaptics(player) }
+    CompositionLocalProvider(LocalHaptics provides traced) {
+        ThemedContent(settings, dark, tier, reduceMotion, content)
+    }
+}
+
+@Composable
+private fun ThemedContent(
+    settings: CatalogSettings,
+    dark: Boolean,
+    tier: ContrastLevel,
+    reduceMotion: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val theme = settings.theme
+    // A theme change cuts, colours and all, and it does so by taking
+    // `KontourTheme`'s default rather than by naming it here.
     //
-    // **This reverses a decision, on evidence.** It used to cut: `swapping` was
-    // computed here and passed as `animateThemeChanges = !swapping`, on the
-    // reasoning that `animatedTheme` interpolates the scheme and the elevation
-    // and nothing else — so across a swap the corners and the typeface would
-    // change on the first frame while the palette drifted for 220ms after them,
-    // and "a half-animated transition reads as broken".
+    // **Third position on this, and the reader settled it.** It cut at first, on
+    // the reasoning that `animatedTheme` interpolates the scheme and the
+    // elevation and nothing else — so across a swap the corners and the typeface
+    // would change on the first frame while the palette drifted for 220ms after
+    // them, and "a half-animated transition reads as broken". Then it faded, on
+    // a phone: the alternative to a half-animated swap looked like *every colour
+    // on screen changing between two frames*, and half of a large change
+    // animating seemed to beat none of it.
     //
-    // The premise is still true: there is no `lerp(Shapes)` or `lerp(Typography)`
-    // anywhere in this repository and a font family is a discrete resource, so
-    // token interpolation genuinely cannot carry them. What was wrong is the
-    // conclusion, and a phone is what showed it: the alternative to a
-    // half-animated swap is not a clean cut, it is **every colour on screen
-    // changing between two frames**, which on a device reads as a glitch rather
-    // than as a decision. Half of a large change animating beats none of it.
+    // What decided it in the end was the cost and then the eye. Switching dark
+    // mode was reported *"ridiculously laggy"* on Android; measured, more than
+    // half of a fading frame is shadows being re-rasterised
+    // (`ThemeFadeCostDiagnostic`), and the first switch of a session costs 805ms
+    // of frame time against 298 by the fourth
+    // (`FirstThemeSwitchCostDiagnostic`). Shown both, the reader's answer was
+    // *"it's already not visible on iOS, and I think it looks fine"* — so the
+    // fade goes, everywhere, and an app that wants one asks for it.
     //
-    // The geometry snapping is also what keeps the frame affordable — see
-    // `lerpTheme`, where the elevation now steps at the midpoint for the same
-    // reason. What is not attempted is a `Crossfade` of two rendered trees,
-    // which *would* carry the shapes and the type: `OverlayHost`, the toast host
-    // state, every scroll position and every `SheetState` live inside the
-    // content lambda, so the incoming tree would get fresh `remember` slots —
-    // closing an open sheet and jumping every scrolled page back to the top.
+    // What was never attempted is a `Crossfade` of two rendered trees, which
+    // *would* carry the shapes and the type: `OverlayHost`, the toast host state,
+    // every scroll position and every `SheetState` live inside the content
+    // lambda, so the incoming tree would get fresh `remember` slots — closing an
+    // open sheet and jumping every scrolled page back to the top.
     KontourTheme(
         darkTheme = dark,
         contrast = tier,
         reduceMotion = reduceMotion,
+        hapticsLevel = settings.haptics,
         colours = theme.colours(dark, tier),
         typography = theme.typography(),
         shapes = theme.shapes,
@@ -179,6 +207,8 @@ fun DemoThemeProvider(
         motion = theme.motion(reduceMotion),
         sizing = theme.sizing(tier),
         componentDefaults = theme.componentDefaults,
-        content = content,
-    )
+    ) {
+        val pseudo = settings.pseudoLocale
+        if (pseudo != null) PseudoLocalised(pseudo, content) else content()
+    }
 }

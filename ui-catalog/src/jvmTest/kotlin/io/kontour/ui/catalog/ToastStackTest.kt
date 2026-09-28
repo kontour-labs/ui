@@ -12,11 +12,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
 import io.kontour.ui.overlay.ToastPosition
-import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.theme.Tone
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
@@ -24,6 +25,8 @@ import kotlin.time.TimeSource
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Toasts stack, and each one runs its own clock.
@@ -66,11 +69,11 @@ class ToastStackTest {
         // head of the queue for ever, and nothing queued behind it was ever
         // drawn — its timer had not even started.
         val both = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = ToastTone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, duration = Duration.INFINITE)
             toasts.show("Saved for offline")
         }
         val pinnedOnly = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", tone = ToastTone.Danger, durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", tone = Tone.Danger, duration = Duration.INFINITE)
         }
 
         assertTrue(
@@ -104,7 +107,7 @@ class ToastStackTest {
         // the entry animation cannot eat the whole duration on a slow machine —
         // and `pinnedAlone` below is what catches it if it ever does.
         val pinnedAlone = heightAfter { toasts ->
-            toasts.show("Couldn't reach the timetable", durationMillis = 0)
+            toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
         }
 
         var withBoth = 0
@@ -116,8 +119,8 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
-                    toasts.show("Saved", durationMillis = 3_000)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
+                    toasts.show("Saved", duration = 3_000.milliseconds)
                 }
             }
         }.use { scene ->
@@ -143,7 +146,7 @@ class ToastStackTest {
         assertTrue(
             settled.stackHeight() > 0,
             "the stack emptied entirely — the pinned toast went too, and a " +
-                "`durationMillis = 0` toast is supposed to stay until dismissed",
+                "`duration = Duration.INFINITE` toast is supposed to stay until dismissed",
         )
     }
 
@@ -223,6 +226,58 @@ class ToastStackTest {
         )
     }
 
+    /**
+     * A stack aligned to the end sits in the corner, and one aligned to the start
+     * in the other.
+     *
+     * A toast is capped at `ToastDefaults.MaxWidth`, so on a wide window the only
+     * placement there was put it in the middle of the bottom edge — as far as it
+     * could be from the corner where desktop platforms have taught people to look
+     * for a notification. On a phone the cap never binds and alignment changes
+     * nothing at all, which is why this scene is a desktop window's width.
+     */
+    @Test
+    fun aStackAlignedToTheEndSitsInTheCorner() {
+        val centred = assertNotNull(surfaceColumns(OverlayAlignment.Centre), "a centred stack drew nothing")
+        val end = assertNotNull(surfaceColumns(OverlayAlignment.End), "an end-aligned stack drew nothing")
+        val start = assertNotNull(surfaceColumns(OverlayAlignment.Start), "a start-aligned stack drew nothing")
+
+        val middle = WideScene / 2
+        assertTrue(
+            abs((centred.first + centred.last) / 2 - middle) <= Slack,
+            "the default stack spans $centred in a ${WideScene}px window; it should be centred",
+        )
+        assertTrue(
+            end.first > middle && WideScene - end.last < WideScene / 8,
+            "an end-aligned stack spans $end in a ${WideScene}px window — it belongs " +
+                "against the right edge, and it is where the centred one was",
+        )
+        assertTrue(
+            start.last < middle && start.first < WideScene / 8,
+            "a start-aligned stack spans $start — it belongs against the left edge",
+        )
+    }
+
+    /** Which columns of a wide window the toast stack's surface occupies. */
+    private fun surfaceColumns(alignment: OverlayAlignment): IntRange? {
+        var columns: IntRange? = null
+        Scene(width = WideScene, height = SceneHeight) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts, alignment = alignment)
+                LaunchedEffect(Unit) { toasts.show("Saved for offline", duration = Duration.INFINITE) }
+            }
+        }.use { scene ->
+            val image = scene.frames(24)
+            val inked = (0 until image.width).filter { x ->
+                (0 until image.height).any { y -> isSurface(image.getRGB(x, y)) }
+            }
+            if (inked.isNotEmpty()) columns = inked.first()..inked.last()
+        }
+        return columns
+    }
+
     /** How far down the window the topmost toast surface begins. */
     private fun topmostSurface(position: ToastPosition, statusBar: Int = 0): Int {
         var row = -1
@@ -236,7 +291,7 @@ class ToastStackTest {
                     windowInsets = WindowInsets(top = statusBar, bottom = statusBar),
                 )
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 0)
+                    toasts.show("Saved for offline", duration = Duration.INFINITE)
                 }
             }
         }.use { scene ->
@@ -262,7 +317,7 @@ class ToastStackTest {
             val toasts = remember { ToastHostState() }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
-                ToastHost(toasts, showClose = showClose)
+                ToastHost(toasts, showDismiss = showClose)
                 LaunchedEffect(Unit) { shown(toasts) }
             }
         }.use { scene ->
@@ -307,10 +362,10 @@ class ToastStackTest {
                     // Pinned, so the frame is settled rather than mid-timer, and
                     // short-then-long because that is the reported order: the
                     // short one is the one that used to stretch.
-                    toasts.show("Saved", durationMillis = 0)
+                    toasts.show("Saved", duration = Duration.INFINITE)
                     toasts.show(
                         "Couldn't reach the timetable service just now",
-                        durationMillis = 0,
+                        duration = Duration.INFINITE,
                     )
                 }
             }
@@ -366,11 +421,11 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts, maxVisible = maxVisible)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 2_500)
+                    toasts.show("Saved for offline", duration = 2_500.milliseconds)
                     // Pinned and newest, so it is the one card the window has
                     // room for, and the stack never empties out from under the
                     // measurement.
-                    toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
                 }
             }
         }.use { scene ->
@@ -402,6 +457,16 @@ class ToastStackTest {
      * is only being *read* at the front. So one that reaches the front with a few
      * hundred milliseconds left is promoted and gone in the same breath.
      *
+     * ### How it reaches the front
+     *
+     * By the one in front being sent away by the app, with `dismissCurrent`. The
+     * stack leaves oldest first now (`afterOneIsSwipedTheRestLeaveOldestFirstAndApart`
+     * in `ToastOrderTest`), so a *shorter* toast in front — the way this used to be
+     * set up — waits for the older one behind it and never promotes it. Sent away
+     * in code rather than by hand, because a hand-clear also buys the others time
+     * (`clearingOneByHandBuysTheOthersTime`), and three fifths of 5,000 is what a
+     * clear at that point would top it up to anyway: the two would be one number.
+     *
      * ### Measured as two emptying times, not one
      *
      * `delay` is the wall clock and this harness renders a 16ms frame in about
@@ -409,47 +474,28 @@ class ToastStackTest {
      * container. Both figures below come out of the same harness on the same
      * machine, and it is their *difference* that is the claim.
      *
-     * ### Why the durations are 5,000 and 3,400 and not 4,000 and 3,800
-     *
-     * The first version of this test used a 200ms gap, and it failed reporting
-     * 4,006ms against 3,994ms — no top-up at all. The gap was the fault, not the
-     * fix. **Promotion happens when the toast in front is *removed*, not when it
-     * expires**, and removal is the far end of an exit animation: about 200ms of
-     * frame time, which is a dozen frames, which is over half a second of real
-     * time here. The toast behind expired before it ever reached the front.
-     *
-     * That is the whole reason the numbers are what they are, and it is also why
-     * the floor makes the result *insensitive* to that lag: whatever remains at
-     * promotion, the answer is the floor. It would take an exit lasting more than
-     * 1,600ms to put this back in a race.
-     *
      * ### What the two bounds separate
      *
-     * The 3,400ms toast is removed at about 4,000ms, so the 5,000ms one is
-     * promoted with roughly 1,000ms left and three fifths of 5,000 is 3,000. A
-     * **restart** — the other behaviour on the table, and the one this host was
-     * rewritten to stop being — would hand it a fresh 5,000 and empty at about
-     * `alone + 4,000`, with a stack of four taking four full durations to clear.
-     *
-     * Measured, not predicted. Against the fix the two runs are 6,710ms and
-     * 4,838ms, a difference of **1,872ms**; with the top-up disabled they are
-     * 4,992ms and 4,821ms, a difference of **171ms**. The bounds are set either
-     * side of that, and clear of the 4,000 a restart would produce.
+     * The one in front is sent away at 3,400ms and removed at about 4,000ms —
+     * **promotion happens when the toast in front is *removed***, the far end of
+     * its exit animation — so the 5,000ms one is promoted with roughly 1,000ms
+     * left, and three fifths of 5,000 is 3,000. A **restart** — the other
+     * behaviour on the table, and the one this host was rewritten to stop being —
+     * would hand it a fresh 5,000 and empty at about `alone + 4,000`, with a stack
+     * of four taking four full durations to clear. Without the floor it empties
+     * with the toast alone.
      */
     @Test
     fun aToastPromotedWithLittleTimeLeftIsToppedUpToAFloor() {
         val alone = emptiesAfter("one 5,000ms toast, never promoted") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 5_000)
+            toasts.show("Saved for offline", duration = 5_000.milliseconds)
         }
-        val promoted = emptiesAfter("a 5,000ms toast behind a 3,400ms one") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 5_000)
-            toasts.show("Route updated", durationMillis = 3_400)
-        }
+        val promoted = promotedAfter(sentAwayAt = 3_400)
 
         assertTrue(
             promoted > alone + 1_000,
             "the stack emptied ${promoted}ms after it appeared with the 5,000ms " +
-                "toast waiting behind a 3,400ms one, against ${alone}ms for that " +
+                "toast promoted at about 4,000ms, against ${alone}ms for that " +
                 "same toast on its own — a difference of ${promoted - alone}ms, so " +
                 "the promoted one was not topped up at all. It reached the front " +
                 "with about a second left and went almost immediately",
@@ -462,6 +508,40 @@ class ToastStackTest {
                 "of three fifths does. It is being restarted on promotion, which " +
                 "makes a stack of four take four durations to clear",
         )
+    }
+
+    /**
+     * How long a 5,000ms toast took to empty the stack, from the frame it first had
+     * ink in, with a pinned one in front of it sent away by the app at
+     * [sentAwayAt] — which promotes it without counting as a clear.
+     */
+    private fun promotedAfter(sentAwayAt: Long): Long {
+        var send by mutableStateOf(false)
+        var elapsed = 0L
+        var emptied: BufferedImage? = null
+
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved for offline", duration = 5_000.milliseconds)
+                    toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
+                }
+                LaunchedEffect(send) { if (send) toasts.dismissCurrent() }
+            }
+        }.use { scene ->
+            val appeared = scene.renderUntil(timeoutMillis = 3_000) { it.stackHeight() > 0 }
+            assertNotNull(appeared, "no toast was drawn at all")
+            val mark = TimeSource.Monotonic.markNow()
+            scene.renderUntil(timeoutMillis = sentAwayAt) { false }
+            send = true
+            emptied = scene.renderUntil(timeoutMillis = 20_000) { it.stackHeight() == 0 }
+            elapsed = mark.elapsedNow().inWholeMilliseconds
+        }
+        assertNotNull(emptied, "the stack never emptied")
+        return elapsed
     }
 
     /**
@@ -559,6 +639,40 @@ class ToastStackTest {
      * The widest row of the band above the front card, once per frame, while the
      * pill behind it leaves. Paired with the width that band rests at.
      */
+    /**
+     * The pill shrinks **on the spot**, and gets small enough to see it happen.
+     *
+     * The arm above only asks that it be drawn narrower than it was at rest. That
+     * passed while the pill was pivoting on the edge facing the front card, and it
+     * passed by a hair: the visible sliver of a pill is `toastPeek` — 12dp, 24px
+     * here — and an edge pivot spends the whole of the shrink walking the pill's
+     * top edge down through it. At the old two-thirds target the sliver ran out at
+     * the same moment the shrink did, so a reader saw a band go from 24px to
+     * nothing while the pill itself had barely narrowed. Reported as pills
+     * "disappearing", and asked for instead: shrinking on the spot, toward each
+     * pill's own centre.
+     *
+     * About the centre, the top edge covers half as much ground for the same
+     * shrink — 36px of a 72px pill at the new one-third target — so the sliver
+     * survives long enough for the pill to be *seen* at a third of its width. Half
+     * is the line: an edge-pivoted pill cannot be drawn there at all, because its
+     * ink is gone by the time it is two thirds as wide.
+     */
+    @Test
+    fun aLeavingPillIsSeenAtHalfItsWidth() {
+        val (resting, widths) = pillExitWidths()
+        val small = widths.filter { it > 0 && it <= resting / 2 }
+
+        assertTrue(
+            small.isNotEmpty(),
+            "across the pill's exit the band above the front card measured " +
+                "$widths, against ${resting}px at rest — it was never drawn at half " +
+                "its width while still being drawn at all. That is a pill whose " +
+                "visible sliver ran out before its shrink did, which is the " +
+                "vanishing that was reported.",
+        )
+    }
+
     private fun pillExitWidths(): Pair<Int, List<Int>> {
         var go by mutableStateOf(false)
         var pillId = 0L
@@ -574,8 +688,8 @@ class ToastStackTest {
                     // Pinned, both of them, so nothing expires under the
                     // measurement and the only thing that moves is the one this
                     // dismisses.
-                    pillId = toasts.show("Saved", durationMillis = 0)
-                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    pillId = toasts.show("Saved", duration = Duration.INFINITE)
+                    toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(go) { if (go) toasts.dismiss(pillId) }
             }
@@ -619,7 +733,7 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    cardId = toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    cardId = toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(go) { if (go) toasts.dismiss(cardId) }
             }
@@ -706,16 +820,23 @@ class ToastStackTest {
      * dismissed in. Each pixel of pull now moves it less than the last, easing up
      * to `RubberBand` of its own height and stopping.
      *
-     * ### And the pills come too
+     * ### And the pills lean without coming too
      *
-     * Reported alongside it: the stack came apart under a finger, because `swipe`
-     * belonged to the card being dragged and every pill behind it stayed where it
-     * was. It is owned by the stack now and every card reads it, so the top and
-     * bottom of the stack move by the same amount — which is what the second
-     * assertion here is.
+     * Three positions, two of them reported. `swipe` once belonged to the card being
+     * dragged and every pill behind it stayed put — *"the stack came apart under a
+     * finger"*. Then the stack owned it and every card read the whole of it, so the
+     * top and bottom moved together — *"when you drag away the main tooltip, the
+     * secondary ones shouldn't move with it. They should just get pulled slightly in
+     * the direction that the user is dragging, but they should still be anchored to
+     * the main position."*
+     *
+     * So the last assertion here is the only one that changed, and it now asks for
+     * the middle: the top of the stack moves **with** the finger and **much less
+     * than** the card. Both halves matter. Zero is the first report and parity is
+     * the second, and only a number strictly between them is neither.
      */
     @Test
-    fun theWrongWayRubberBandsAndTakesTheStackWithIt() {
+    fun theWrongWayRubberBandsAndThePillsLean() {
         val (topTravel, bottomTravel, series) = wrongWayTravel()
 
         assertTrue(
@@ -735,11 +856,18 @@ class ToastStackTest {
                 "`2, 19, 19, 19 …`. A band has to be a function of the whole pull.",
         )
         assertTrue(
-            abs(topTravel - bottomTravel) <= 4,
+            topTravel > 0,
             "the bottom of the stack travelled ${bottomTravel}px under the finger " +
-                "and the top only ${topTravel}px. The pills are being left " +
-                "behind: a stack is one object, and half of it following a drag " +
-                "while the other half stays put says it is not.",
+                "and the top did not move at all. The pills are being left behind: " +
+                "a stack is one object, and half of it ignoring a drag entirely " +
+                "says it is not.",
+        )
+        assertTrue(
+            topTravel * 2 < bottomTravel,
+            "the bottom of the stack travelled ${bottomTravel}px and the top " +
+                "${topTravel}px, which is most of the way with it. The pills are " +
+                "meant to be pulled *slightly* and to stay anchored where the eye " +
+                "left them, so that letting go returns one thing rather than four.",
         )
     }
 
@@ -766,7 +894,7 @@ class ToastStackTest {
     @Test
     fun clearingOneByHandBuysTheOthersTime() {
         val alone = emptiesAfter("one 4,000ms toast, nothing cleared") { toasts ->
-            toasts.show("Saved for offline", durationMillis = 4_000)
+            toasts.show("Saved for offline", duration = 4_000.milliseconds)
         }
         val afterClearing = clearedAfter()
 
@@ -811,7 +939,7 @@ class ToastStackTest {
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
                     repeat(3) {
-                        val id = toasts.show("Toast number $it", durationMillis = 0)
+                        val id = toasts.show("Toast number $it", duration = Duration.INFINITE)
                         if (it == 0) deepest = id
                     }
                 }
@@ -840,7 +968,7 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    repeat(4) { toasts.show("Toast number $it", durationMillis = 0) }
+                    repeat(4) { toasts.show("Toast number $it", duration = Duration.INFINITE) }
                 }
             }
         }.use { scene ->
@@ -884,9 +1012,9 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    toasts.show("Saved for offline", durationMillis = 4_000)
+                    toasts.show("Saved for offline", duration = 4_000.milliseconds)
                     // Pinned and in front, so it is only ever gone by hand.
-                    pinned = toasts.show("Couldn't reach the timetable", durationMillis = 0)
+                    pinned = toasts.show("Couldn't reach the timetable", duration = Duration.INFINITE)
                 }
                 LaunchedEffect(clear) { if (clear) toasts.dismiss(pinned) }
             }
@@ -915,6 +1043,76 @@ class ToastStackTest {
      * reported a single jump, `243 -> 262`, for the nine-frame travel this file
      * measures elsewhere. Same mistake `BackdropBlurTest` records; the same fix.
      */
+    /**
+     * A finger on the stack holds every clock in it.
+     *
+     * Reported with the lean: *"if the user is dragging a tooltip, it should pause
+     * the timer on all of them"*. The clock is one `LaunchedEffect` per toast keyed
+     * on its id and had no notion of a gesture at all, so a reader holding the stack
+     * still in order to read it watched it expire under their thumb.
+     *
+     * ### Two halves, and the second is what makes the first mean anything
+     *
+     * A toast that is still there after a hold could be a toast whose clock is
+     * paused or a toast whose clock never started. So this holds past the duration,
+     * lets go, and insists it goes *then* — a paused clock is one that resumes.
+     *
+     * ### Real time, not frames
+     *
+     * The clock is `TimeSource.Monotonic` and `Scene` advances 16ms of *frame* time
+     * per render, with no fixed relationship between the two. `renderUntil` takes a
+     * deadline in the same units the component uses, and its returning null — never
+     * satisfied — is the assertion here rather than a failure to observe.
+     *
+     * The gesture has to **move**: `freeDragOwning` claims on `DragClaim.Movement`,
+     * so a press that never travels is deliberately left alone for the close button
+     * and the action, and never reports a drag at all. Twenty pixels is far short of
+     * `SwipeAway` and does not dismiss.
+     */
+    @Test
+    fun aFingerOnTheStackHoldsEveryClockInIt() {
+        var settled = 0
+        var wentWhileHeld: BufferedImage? = null
+        var wentAfterRelease: BufferedImage? = null
+
+        Scene(width = 600, height = 400) {
+            val toasts = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(toasts)
+                LaunchedEffect(Unit) {
+                    toasts.show("Saved", duration = HeldDuration.toLong().milliseconds)
+                }
+            }
+        }.use { scene ->
+            val arrived = scene.frames(12)
+            settled = arrived.stackHeight()
+            assertTrue(settled > 10, "no toast arrived to hold: ${settled}px of stack")
+
+            val on = Offset(300f, (arrived.stackTop() + arrived.stackBottom()) / 2f)
+            scene.press(on)
+            scene.move(on + Offset(20f, 0f))
+            wentWhileHeld = scene.renderUntil(timeoutMillis = HoldMillis) {
+                it.stackHeight() < settled - 10
+            }
+            scene.release(on + Offset(20f, 0f))
+            wentAfterRelease = scene.renderUntil { it.stackHeight() < settled - 10 }
+        }
+
+        assertTrue(
+            wentWhileHeld == null,
+            "the toast expired while a finger was on it. It was held for " +
+                "${HoldMillis}ms against a ${HeldDuration}ms duration, which is " +
+                "long enough that a clock still running has run out.",
+        )
+        assertTrue(
+            wentAfterRelease != null,
+            "the toast never went after the finger lifted, so the clock was not " +
+                "paused — it was stopped, and the hold has eaten the toast's whole " +
+                "life rather than suspending it.",
+        )
+    }
+
     private fun BufferedImage.stackTop(): Int =
         (0 until height).firstOrNull { y -> rowHasToast(y) } ?: height
 
@@ -1014,8 +1212,8 @@ class ToastStackTest {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 ToastHost(toasts)
                 LaunchedEffect(Unit) {
-                    repeat(4) { toasts.show("Saved for offline", durationMillis = 0) }
-                    toasts.show("Couldn't reach the timetable service", durationMillis = 0)
+                    repeat(4) { toasts.show("Saved for offline", duration = Duration.INFINITE) }
+                    toasts.show("Couldn't reach the timetable service", duration = Duration.INFINITE)
                 }
             }
         }.use { scene -> image = scene.frames(60) }
@@ -1090,7 +1288,7 @@ class ToastStackTest {
             val toasts = remember { ToastHostState() }
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
-                ToastHost(toasts, showClose = showClose)
+                ToastHost(toasts, showDismiss = showClose)
                 LaunchedEffect(Unit) { shown(toasts) }
             }
         }.use { scene ->
@@ -1146,6 +1344,9 @@ class ToastStackTest {
     private companion object {
         const val SceneHeight = 400
 
+        /** A desktop window: wide enough that a capped toast has room either side. */
+        const val WideScene = 2000
+
         /**
          * How many frames of a toast's exit to sample.
          *
@@ -1189,6 +1390,16 @@ class ToastStackTest {
 
         /** How many rows of identical width count as a pill's straight side. */
         const val PlateauRows = 4
+
+        /**
+         * A toast's life, and a hold comfortably longer than it.
+         *
+         * Long enough that settling the entry animation cannot eat it on a slow
+         * machine — the hazard `eachToastKeepsItsOwnClock` above is written around
+         * — and short enough that the whole case is a few seconds.
+         */
+        const val HeldDuration = 3_000
+        const val HoldMillis = 5_000L
 
         /** A plausible status bar in this scene's pixels. */
         const val StatusBar = 72

@@ -1,10 +1,25 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -14,8 +29,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
+import io.kontour.ui.components.display.skeletonFill
 import io.kontour.ui.theme.Theme
 
 /**
@@ -66,36 +86,49 @@ fun Text(
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    BasicText(
-        text = text,
-        modifier = modifier,
-        style = resolveTextStyle(
-            style = style,
-            colour = colour,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            fontWeight = fontWeight,
-            fontFamily = fontFamily,
-            letterSpacing = letterSpacing,
-            textDecoration = textDecoration,
-            textAlign = textAlign,
-            lineHeight = lineHeight,
-        ),
-        onTextLayout = onTextLayout,
-        overflow = overflow,
-        softWrap = softWrap,
-        maxLines = maxLines,
-        minLines = minLines,
-    )
+    val redaction = rememberTextRedaction()
+
+    // A redacted string is still here, so it can measure like the real one —
+    // and must not be handed over by a selection around it.
+    ExcludeFromSelection(redaction.redacted) {
+        BasicText(
+            text = text,
+            modifier = modifier.then(redaction.modifier),
+            style = resolveTextStyle(
+                style = style,
+                colour = colour,
+                fontSize = fontSize,
+                fontStyle = fontStyle,
+                fontWeight = fontWeight,
+                fontFamily = fontFamily,
+                letterSpacing = letterSpacing,
+                textDecoration = textDecoration,
+                textAlign = textAlign,
+                lineHeight = lineHeight,
+            ),
+            onTextLayout = redaction.layoutCallback(onTextLayout),
+            overflow = overflow,
+            softWrap = softWrap,
+            maxLines = maxLines,
+            minLines = minLines,
+        )
+    }
 }
 
 /**
  * Draws styled text.
  *
  * The [AnnotatedString] overload, for text with mixed styling, inline content,
- * or clickable spans. Prefer building the string with `buildAnnotatedString` and
- * `LinkAnnotation` for links, so the platform gets real link semantics rather
- * than a tap handler a screen reader cannot see.
+ * or links. Build the string with [richText] — or [markdownText], for a string
+ * that already carries its emphasis — rather than `buildAnnotatedString` at the
+ * call site: the spans come from the theme, and a link's listener keeps the
+ * string equal to itself between compositions, which a lambda written inline
+ * does not, and an unequal string is laid out again every time.
+ *
+ * @param inlineContent What stands in for each `appendInlineContent` placeholder
+ *   in [text], by its id — a key cap, a badge, anything that has to wrap with the
+ *   words around it. Icons put in with [RichTextScope.icon] need nothing here:
+ *   this draws them. An entry here with the same id wins.
  */
 @Composable
 fun Text(
@@ -114,30 +147,51 @@ fun Text(
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
     minLines: Int = 1,
+    inlineContent: Map<String, InlineTextContent> = emptyMap(),
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    BasicText(
-        text = text,
-        modifier = modifier,
-        style = resolveTextStyle(
-            style = style,
-            colour = colour,
-            fontSize = fontSize,
-            fontStyle = fontStyle,
-            fontWeight = fontWeight,
-            fontFamily = fontFamily,
-            letterSpacing = letterSpacing,
-            textDecoration = textDecoration,
-            textAlign = textAlign,
-            lineHeight = lineHeight,
-        ),
-        onTextLayout = onTextLayout,
-        overflow = overflow,
-        softWrap = softWrap,
-        maxLines = maxLines,
-        minLines = minLines,
+    val redaction = rememberTextRedaction()
+    val resolved = resolveTextStyle(
+        style = style,
+        colour = colour,
+        fontSize = fontSize,
+        fontStyle = fontStyle,
+        fontWeight = fontWeight,
+        fontFamily = fontFamily,
+        letterSpacing = letterSpacing,
+        textDecoration = textDecoration,
+        textAlign = textAlign,
+        lineHeight = lineHeight,
     )
+
+    // The icons `richText` put in, drawn without the caller writing the map.
+    // Checked before anything is remembered, so a string without one — nearly
+    // every string — costs a scan of its annotations and nothing else. The
+    // colour goes in as state, read by each icon as it draws: a map rebuilt
+    // for a new colour would be new placeholders, and the text laid out again.
+    val content = if (text.hasStringAnnotations(InlineIcons.Tag, 0, text.length)) {
+        val textColour = rememberUpdatedState(resolved.color)
+        remember(text, inlineContent) {
+            InlineIcons.contentFor(text, textColour).orEmpty() + inlineContent
+        }
+    } else {
+        inlineContent
+    }
+
+    ExcludeFromSelection(redaction.redacted) {
+        BasicText(
+            text = text,
+            modifier = modifier.then(redaction.modifier),
+            style = resolved,
+            onTextLayout = redaction.layoutCallback(onTextLayout),
+            overflow = overflow,
+            softWrap = softWrap,
+            maxLines = maxLines,
+            minLines = minLines,
+            inlineContent = content,
+        )
+    }
 }
 
 @Composable
@@ -213,3 +267,177 @@ private fun resolveTextStyle(
 }
 
 private val Color.isSpecified: Boolean get() = this != Color.Unspecified
+
+/**
+ * One bar per line of text, in place of the glyphs.
+ *
+ * ### Why this lives in `Text` and not in `Modifier.redacted`
+ *
+ * A modifier sees a node's size and nothing else, so the best it can do over a
+ * paragraph is one rectangle the shape of the whole block — which is not what a
+ * paragraph looks like and is exactly the tell that gives a hand-drawn skeleton
+ * away. Lines have different lengths, the last one is short, and a centred
+ * heading's bars are centred too.
+ *
+ * `TextLayoutResult` knows all of that, and this library owns `Text`, so the one
+ * place that can draw it properly is here. The bars come from the real layout of
+ * the real string: a label that wraps to two lines redacts as two bars without
+ * anybody saying so.
+ *
+ * ### How it draws
+ *
+ * The line boxes become a clip path, and [skeletonFill] paints the whole node
+ * through it — so the shimmer sweeps across the bars as one surface rather than
+ * each bar running its own. `drawWithContent { }` after it is what stops the
+ * glyphs: the fill draws behind, so it has already painted by the time the chain
+ * reaches there.
+ *
+ * Bars are inset vertically against the line box, which is taller than the ink
+ * by the font's leading; without that a redacted single line is visibly fatter
+ * than the text it replaces and a paragraph's bars touch each other.
+ */
+@Composable
+private fun rememberTextRedaction(): TextRedaction {
+    val redacted = LocalRedacted.current
+
+    // The **line boxes**, not the `TextLayoutResult` they came from.
+    //
+    // This is the whole of why the first version hung. `onTextLayout` runs on
+    // every layout pass; storing its result in state that composition reads
+    // means every layout schedules a recomposition, and a recomposition
+    // re-lays out. That terminates only if the second write is equal to the
+    // first — and `TextLayoutResult` carries a fresh `MultiParagraph` each
+    // time, so it never is. The loop ran until the test harness gave up after
+    // a minute.
+    //
+    // A list of `Rect` is value-equal, so the second write is a no-op and the
+    // whole thing settles after one extra pass. It is also all the drawing
+    // needs.
+    val bars = remember { mutableStateOf(emptyList<Rect>()) }
+    val boxes = bars.value
+
+    val shape = remember(boxes) {
+        if (boxes.isEmpty()) {
+            null
+        } else {
+            object : Shape {
+                override fun createOutline(
+                    size: Size,
+                    layoutDirection: LayoutDirection,
+                    density: Density,
+                ): Outline {
+                    val path = Path()
+                    for (box in boxes) {
+                        val radius = box.height / 2f
+                        path.addRoundRect(
+                            RoundRect(
+                                left = box.left,
+                                top = box.top,
+                                right = box.right,
+                                bottom = box.bottom,
+                                radiusX = radius,
+                                radiusY = radius,
+                            )
+                        )
+                    }
+                    return Outline.Generic(path)
+                }
+            }
+        }
+    }
+
+    val density = LocalDensity.current
+    val onLayout: (TextLayoutResult) -> Unit = remember(density, redacted) {
+        { result ->
+            if (!redacted) {
+                if (bars.value.isNotEmpty()) bars.value = emptyList()
+            } else {
+                val inset = with(density) { BarInset.toPx() }
+                val next = buildList {
+                    for (line in 0 until result.lineCount) {
+                        val top = result.getLineTop(line) + inset
+                        val bottom = result.getLineBottom(line) - inset
+                        if (bottom <= top) continue
+                        add(
+                            Rect(
+                                left = result.getLineLeft(line),
+                                top = top,
+                                right = result.getLineRight(line),
+                                bottom = bottom,
+                            )
+                        )
+                    }
+                }
+                if (next != bars.value) bars.value = next
+            }
+        }
+    }
+
+    val fill = when {
+        !redacted -> Modifier
+        shape != null -> Modifier.clip(shape).then(redactedFill()).drawWithContent { }
+        // First pass: the layout has not been reported yet, so there is nothing
+        // to draw bars from. Draw nothing at all rather than the glyphs — a
+        // frame of readable text in the middle of a loading screen is the one
+        // outcome worse than a frame of blank space.
+        else -> Modifier.drawWithContent { }
+    }
+
+    // Out of redaction there is no layout callback to empty the bars (see
+    // [TextRedaction.layoutCallback]), so they are emptied here — for the next
+    // time the text is redacted, which must start from nothing drawn rather than
+    // from the bars of whatever string was there before.
+    if (!redacted && boxes.isNotEmpty()) {
+        SideEffect { bars.value = emptyList() }
+    }
+
+    return TextRedaction(
+        modifier = if (redacted) Modifier.clearAndSetSemantics { }.then(fill) else fill,
+        redacted = redacted,
+        onLayout = onLayout,
+    )
+}
+
+/** What [rememberTextRedaction] hands back: a modifier, and a layout to feed it. */
+@Immutable
+private class TextRedaction(
+    val modifier: Modifier,
+    val redacted: Boolean,
+    val onLayout: (TextLayoutResult) -> Unit,
+) {
+    /**
+     * The callback to hand `BasicText`: the same instance from one composition
+     * to the next wherever it can be.
+     *
+     * `BasicText` compares its `onTextLayout` by identity, and a new one throws
+     * away the paragraph it had shaped and lays the text out again. A lambda
+     * written inline here captured this wrapper, which is new every composition
+     * — so every `Text` under an animated colour, every frame, re-shaped its
+     * string for nothing. [onLayout] is remembered; this passes it through as it
+     * is.
+     *
+     * Plain text with nobody listening gets no callback at all, which is what
+     * lets `BasicText` take its string fast path. The only thing the callback
+     * did there was empty the bars once redaction ended — and [rememberTextRedaction]
+     * does that itself now.
+     */
+    @Composable
+    fun layoutCallback(caller: ((TextLayoutResult) -> Unit)?): ((TextLayoutResult) -> Unit)? {
+        val own = onLayout
+        return when {
+            caller == null && !redacted -> null
+            caller == null -> own
+            else -> remember(own, caller) { { result -> own(result); caller(result) } }
+        }
+    }
+}
+
+/**
+ * How far a bar is inset from its line box, top and bottom.
+ *
+ * A line box is taller than the ink in it by the font's leading, so a bar drawn
+ * to the box is fatter than the text it stands for and a paragraph's bars touch.
+ * Two dp is enough to part them at body sizes without making a headline's bar
+ * look starved.
+ */
+private val BarInset: Dp = 2.dp

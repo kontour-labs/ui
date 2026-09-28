@@ -7,23 +7,34 @@
 # was in a different workflow. Merging them is what makes the reference a thing
 # built once by the job that publishes it.
 #
-# Five jobs, and they are separate because they fail for different reasons and at
-# different speeds:
+# Jobs, separate because they fail for different reasons and at different speeds:
 #
-#   guard    decides whether main has to re-prove what a pull request already did
+#   changes  decides what a push to main has to run, from the files it changed
 #   test     the one that catches a regression
 #   targets  the one that catches a component compiling on the JVM and nowhere else
 #   site     the documentation site and the API reference, and the slowest thing here
-#   deploy   publishes the site to GitHub Pages
+#   deploy   uploads the site to Cloudflare Pages, docs.kontour.io/ui
 #   publish  uploads the library to GitHub Packages, for a release only
+#   renders  contact sheets of every page, when somebody asks
 #
 # `deploy` needs only `site`, deliberately: a library regression should not take
 # the documentation offline, and a broken page should not block a release.
+#
+# ### When it runs
+#
+# Pushes to `main`, `v*` tags, and by hand. **Not** on pull requests or on
+# pushes to any other branch. The repository is private, so every minute here
+# is billed, and a pull request's run was about 17 minutes of `test` alone on a
+# public 4-core runner — more on the 2-core runners a private repository gets.
+# A branch that wants the checks before it merges asks for them: Actions → CI →
+# Run workflow, on that branch. That run is the whole suite and never deploys.
+#
+# Branch protection must therefore not require status checks from pull
+# requests, or every merge waits for a check that never starts.
 
 name: CI
 
 on:
-  pull_request:
   push:
     branches: [main]
     tags: ['v*']
@@ -39,109 +50,155 @@ on:
       renders:
         description: >-
           Draw every page of the site at four widths and upload the contact
-          sheets. Off by default and never runs on a pull request: it is 488
-          renders and it used to be 90% of this workflow's bill.
+          sheets. Off by default: it is 488 renders and it used to be 90% of
+          this workflow's bill.
         type: boolean
         required: false
         default: false
 
-# Read-only by default. The two jobs that write say so themselves, which is
-# tighter than the arrangement this replaced: `pages.yml` granted `pages: write`
-# to its build job as well as to its deploy.
+# Read-only by default. The one job that writes to GitHub, `publish`, says so
+# itself. `deploy` writes to Cloudflare with its own token and needs nothing
+# here.
 permissions:
   contents: read
 
-# A superseded pull request run is cancelled; a superseded push is not. The last
-# push to land should be the one that ends up published, and cancelling a deploy
-# in flight can leave a newer build racing an older one.
+# Never cancelled. The last push to land should be the one that ends up
+# published, and cancelling a deploy in flight can leave a newer build racing an
+# older one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
-  # Has this exact tree already passed?
+  # What this push has to run, from the files it changed.
   #
-  # Merging a pull request produces a commit whose *tree* is byte-for-byte the
-  # branch head's, whenever main has not moved underneath it — and that is true
-  # of a merge commit, a squash and a rebase alike. So the work `test` and
-  # `targets` would do on main is work that has already been done, on the same
-  # bytes, minutes earlier.
+  # Replaces `guard`, which asked whether main's tree was byte-for-byte a pull
+  # request head that had already passed. With no pull request runs there is
+  # nothing to have passed, and the question becomes a smaller one: what could
+  # this change have broken?
   #
-  # This is the property a merge queue gives you, arrived at from the other
-  # direction: rather than testing the merge result before it lands, notice
-  # afterwards that the result is identical to something already tested. It is
-  # weaker in one way — main is briefly unverified if the check is wrong — and
-  # the answer to that is that every path out of here that cannot *prove* the
-  # trees match settles on `false` and runs everything. A direct push, a
-  # conflicted merge, main having moved, a missing run, a failed API call: all
-  # of them run the full suite.
-  guard:
-    name: Decide what to re-run
+  #   library  `ui/`, `ui-nav3/`, `haptics/`: their suites, and every target
+  #   targets  those, `ui-catalog/` and `showcase/`: the compile of every target
+  #   catalog  those that draw it, `ui-catalog/` included: the screenshot suite
+  #   docs     anything the site or its pages are made from: `:ui-docs`, the
+  #            samples, the site and its deploy
+  #
+  # The Python checks run on every push whatever this says: they are seconds,
+  # and one of them holds the README's counts. Anything this cannot answer for
+  # certain runs everything — a tag, a manual run, a first push, a force-push, a
+  # failed API call, a change past what the API lists, and a change to the
+  # build or to this file, which change what every job means.
+  changes:
+    name: Decide what to run
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
     outputs:
-      settled: ${{ steps.decide.outputs.settled }}
+      library: ${{ steps.decide.outputs.library }}
+      targets: ${{ steps.decide.outputs.targets }}
+      catalog: ${{ steps.decide.outputs.catalog }}
+      docs: ${{ steps.decide.outputs.docs }}
     steps:
       - id: decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
         run: |
           set -uo pipefail
 
-          settle() {
-            echo "settled=$1" >> "$GITHUB_OUTPUT"
-            echo "$2"
-            echo "$2" >> "$GITHUB_STEP_SUMMARY"
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          everything() {
+            for kind in library targets catalog docs; do echo "$kind=true" >> "$GITHUB_OUTPUT"; done
+            say "$1 Running everything."
             exit 0
           }
 
-          [ "$EVENT" = push ] || settle false "A $EVENT event proves nothing about main. Running everything."
-          [ "$REF" = refs/heads/main ] || settle false "$REF is not main. Running everything."
+          [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ] || everything "A $EVENT on $REF."
+          [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] ||
+            everything "No previous main to compare with."
 
-          head=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[0].head.sha' 2>/dev/null)
-          [ -n "${head:-}" ] && [ "$head" != null ] ||
-            settle false "No pull request produced $SHA. Running everything."
+          compare=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" 2>/dev/null) ||
+            everything "Could not compare ${BEFORE:0:7} with ${SHA:0:7}."
+          [ "$(jq -r .status <<<"$compare")" = ahead ] ||
+            everything "main did not move forwards from ${BEFORE:0:7}."
+          [ "$(jq '.files | length' <<<"$compare")" -lt 300 ] ||
+            everything "More files changed than the API lists."
 
-          landed=$(gh api "repos/$REPO/git/commits/$SHA" --jq .tree.sha 2>/dev/null) ||
-            settle false "Could not read the tree of $SHA. Running everything."
-          reviewed=$(gh api "repos/$REPO/git/commits/$head" --jq .tree.sha 2>/dev/null) ||
-            settle false "Could not read the tree of $head. Running everything."
-          [ "$landed" = "$reviewed" ] ||
-            settle false "main's tree is $landed and ${head:0:7}'s is $reviewed — main moved under it. Running everything."
+          # A rename counts at both ends.
+          changed=$(jq -r '.files[] | .filename, (.previous_filename // empty)' <<<"$compare")
 
-          passed=$(gh api \
-            "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$head&status=success" \
-            --jq '.workflow_runs | length' 2>/dev/null)
-          [ "${passed:-0}" -gt 0 ] ||
-            settle false "No successful CI run for ${head:0:7}. Running everything."
+          grep -qE '^(\.github/|gradle/|buildSrc/|gradlew|[^/]*\.gradle\.kts$|gradle\.properties$)' <<<"$changed" &&
+            everything "The build or this workflow changed."
 
-          settle true "${head:0:7} passed CI and its tree is exactly what landed ($landed). Building the site and deploying only."
+          touched() { grep -qE "$1" <<<"$changed" && echo true || echo false; }
+          library=$(touched '^(ui|ui-nav3|haptics)/')
+          targets=$(touched '^(ui|ui-nav3|haptics|ui-catalog|showcase)/')
+          catalog=$(touched '^(ui|ui-nav3|haptics|ui-catalog)/')
+          docs=$(touched '^(ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|docs)/')
+          {
+            echo "library=$library"
+            echo "targets=$targets"
+            echo "catalog=$catalog"
+            echo "docs=$docs"
+          } >> "$GITHUB_OUTPUT"
+          say "$(wc -l <<<"$changed") paths since ${BEFORE:0:7}: library $library, targets $targets, catalog $catalog, docs $docs."
 
+  # Every gated job reads `changes` the same way: run when it says so, *or*
+  # when it did not succeed. A failed dependency skips its dependants by
+  # default, and a skipped test job is the one direction this must never fail
+  # in — so `!cancelled()`, and a `changes` that failed means everything.
   test:
     name: Test
-    needs: guard
-    if: ${{ !cancelled() && needs.guard.outputs.settled != 'true' }}
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    env:
+      LIBRARY: ${{ needs.changes.result != 'success' || needs.changes.outputs.library == 'true' }}
+      CATALOG: ${{ needs.changes.result != 'success' || needs.changes.outputs.catalog == 'true' }}
+      DOCS: ${{ needs.changes.result != 'success' || needs.changes.outputs.docs == 'true' }}
     steps:
       - uses: actions/checkout@v4
 
+      # First, because they are seconds and they run on every push. A
+      # README-only change runs nothing else, and one of these is what holds
+      # the README's counts.
+      - name: Check the docs' links resolve
+        run: python3 docs/check-links.py
+
+      # Ten rules over the documentation: a page per public component, an index
+      # entry, an interactive demo, a compiled example, accessibility notes, and
+      # a README whose component count is the tree's.
+      - name: Check every component has a page
+        run: python3 docs/check-components.py
+
+      # The source patterns that break high contrast, reduced motion and
+      # localisation one call site at a time, each with a named allow-list.
+      - name: Check components honour the reader's settings
+        run: python3 docs/check-settings.py
+      - name: Check every string has its English for translators
+        run: python3 docs/export-strings.py --check
+
+      # The Markdown mirror agents read, without building the site: every page
+      # mirrored, `llms.txt` listing each exactly once.
+      - name: Check the text mirror
+        run: python3 docs/lay-out-site.py --text-only --out build/text-mirror
+
       - uses: actions/setup-java@v4
+        if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
         with:
           distribution: temurin
           java-version: '21'
 
       - uses: gradle/actions/setup-gradle@v4
+        if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
 
       # The Android SDK is preinstalled on the runner and Gradle finds it through
       # ANDROID_HOME. `local.properties` is a developer file and is gitignored,
       # so nothing here may rely on it.
       - name: Check the Android SDK is present
+        if: env.LIBRARY == 'true'
         run: test -d "${ANDROID_HOME:?ANDROID_HOME is unset}/platforms"
 
       # Unit tests, the structural guards, the screenshot goldens and every page
@@ -164,31 +221,50 @@ jobs:
       # `checkDocSamples` whether the copy on the page is still the code that was
       # compiled — but nothing about that needs its own process.
       #
+      # `checkKotlinAbi` holds each library's public API to the dump checked in
+      # under its `api/` directory. A change it catches is either a mistake or a
+      # deliberate break, and a deliberate one is `updateKotlinAbi` and a line in
+      # `ui-docs/content/migrating.md` in the same commit.
+      #
       # Naming tasks rather than running `check` is why `checkScreenshotAssertions`
       # has to be listed: `:ui-catalog:check` never runs here. Its sibling
       # `checkGoldenOrphans` does not, because it is a finalizer of
       # `:ui-catalog:jvmTest` and arrives with it.
+      #
+      # Assembled from what `changes` found, in three groups: the libraries'
+      # own suites, the catalog's screenshots, and what the documentation is
+      # checked by. Still one invocation, for the reason above.
       - name: Test
+        if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
         run: |
-          ./gradlew --no-daemon \
-            :ui:jvmTest \
-            :ui:checkNoMaterial \
-            :ui:checkApiConventions \
-            :ui:checkKdocSamples \
-            :ui-catalog:jvmTest \
-            :ui-catalog:checkScreenshotAssertions \
-            :ui-docs:jvmTest \
-            :ui-samples:compileKotlinJvm \
-            :ui-samples:checkDocSamples
+          tasks=()
+          if [ "$LIBRARY" = true ]; then
+            tasks+=(
+              :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions :ui:checkKotlinAbi
+              :ui-nav3:checkKotlinAbi :haptics:checkKotlinAbi :ui:checkKdocSamples
+              :ui-nav3:jvmTest :ui-nav3:checkNoMaterial :haptics:jvmTest :haptics:checkNoCompose
+            )
+          fi
+          if [ "$CATALOG" = true ]; then
+            tasks+=(:ui-catalog:jvmTest :ui-catalog:checkScreenshotAssertions)
+          fi
+          if [ "$DOCS" = true ]; then
+            tasks+=(:ui-docs:jvmTest :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples)
+          fi
+          # Last, because `--tests` filters the task named before it.
+          if [ "$LIBRARY" = true ]; then
+            tasks+=(:ui:testAndroidHostTest --tests "io.kontour.ui.input.*")
+          fi
+          echo "${tasks[*]}"
+          ./gradlew --no-daemon "${tasks[@]}"
 
-      - name: Check the docs' links resolve
-        run: python3 docs/check-links.py
-
-      # Ten rules over the documentation: a page per public component, an index
-      # entry, an interactive demo, a compiled example, accessibility notes, and
-      # a README whose component count is the tree's.
-      - name: Check every component has a page
-        run: python3 docs/check-components.py
+      # A real window under a real pointer: the one cursor check that reaches the
+      # screen. It needs a display, which the runner does not have until
+      # `xvfb-run` gives it one — so it is its own task, and never part of the
+      # headless `jvmTest` above.
+      - name: Test the cursors on a real window
+        if: env.LIBRARY == 'true'
+        run: xvfb-run -a ./gradlew --no-daemon :ui:jvmOnScreenTest
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
@@ -199,6 +275,7 @@ jobs:
           name: screenshot-diffs
           path: ui-catalog/build/screenshot-diffs/
           if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload test reports
         if: failure()
@@ -209,11 +286,12 @@ jobs:
             ui/build/reports/tests/
             ui-catalog/build/reports/tests/
           if-no-files-found: ignore
+          retention-days: 7
 
   targets:
     name: Compile every target
-    needs: guard
-    if: ${{ !cancelled() && needs.guard.outputs.settled != 'true' }}
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.targets == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -265,6 +343,15 @@ jobs:
             :ui:compileKotlinIosSimulatorArm64 \
             :ui-catalog:compileKotlinIosArm64 \
             :ui-catalog:compileKotlinIosSimulatorArm64 \
+            :ui-nav3:compileKotlinJs \
+            :ui-nav3:compileKotlinWasmJs \
+            :ui-nav3:compileKotlinIosArm64 \
+            :ui-nav3:compileKotlinIosSimulatorArm64 \
+            :haptics:compileKotlinJs \
+            :haptics:compileKotlinWasmJs \
+            :haptics:compileKotlinIosArm64 \
+            :haptics:compileKotlinIosSimulatorArm64 \
+            :haptics:assemble \
             :showcase:android:assembleDebug \
             :ui:assemble
 
@@ -311,16 +398,17 @@ jobs:
 
   # The documentation site, and the API reference it serves under `/api/`.
   #
-  # The slowest thing in the repository — a Compose/Wasm bundle plus binaryen —
-  # and it runs on pull requests too. A site built only on `main` makes the
-  # deploy the first place it is ever compiled, so the first anyone hears of a
-  # broken page is after it has landed. The build runs everywhere; only the
-  # deploy is gated.
+  # The slowest thing in the repository — a Compose/Wasm bundle plus binaryen.
+  # It runs whenever anything the site is made from changed, and on every manual
+  # run, so a branch that asks for the checks finds out whether its pages build
+  # before it lands. Only the deploy is limited to `main`.
   #
   # Dokka lives here rather than in `targets` because this is the job that
   # *uses* it. It was in both, generating the same HTML twice a run.
   site:
     name: Build the site
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.docs == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -387,7 +475,7 @@ jobs:
       # `[Link]` to a symbol that no longer exists fails the build. That is a
       # class of KDoc defect nothing else here can see.
       - name: Build the API reference
-        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml
+        run: ./gradlew --no-daemon :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 
       # Only here, and only in this order: it compares the paths the site
       # derived when it was built against the pages the reference published a
@@ -398,50 +486,66 @@ jobs:
       - name: Check the API reference links
         run: python3 docs/check-api-links.py
 
-      # Site at the root, reference under `/api/`, preloads generated from what
-      # the build produced. In `docs/lay-out-site.py` rather than inline here,
-      # because this used to be thirty lines of shell that only existed on a
-      # runner — so the arrangement a reader is actually served could not be
-      # produced, inspected or measured anywhere else, and `docs/measure-web.mjs`
-      # pointed at the raw distribution was measuring a page nobody gets.
+      # The site, the reference under `api/`, the Markdown mirror under `md/`
+      # with `llms.txt`, preloads generated from what the build produced — and
+      # then the upload, with all of that under `ui/` and Cloudflare's own files
+      # at the root. In `docs/lay-out-site.py` rather than inline here, because
+      # this used to be thirty lines of shell that only existed on a runner — so
+      # the arrangement a reader is actually served could not be produced,
+      # inspected or measured anywhere else.
       - name: Lay the site out
-        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html
+        run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --deploy dist
 
-      - uses: actions/upload-pages-artifact@v3
+      # A day, because `deploy` reads it minutes later and nothing else does.
+      # Artifact storage is billed on a private repository, and this is about
+      # forty megabytes a push. The reference used to be uploaded again on its
+      # own for 90 days; it is served at `/ui/api/` now.
+      - uses: actions/upload-artifact@v4
         with:
-          path: site
-
-      # The reference on its own, for anyone who wants to read it without the
-      # site around it.
-      - name: Upload the API reference
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-reference
-          path: ui/build/dokka/html/
+          name: docs-upload
+          path: dist
           if-no-files-found: error
+          retention-days: 1
 
+  # Cloudflare Pages, Direct Upload, behind Cloudflare Access — see
+  # `ui-docs/content/agents.md` for how an agent gets in.
+  #
+  # Only from `main`: a manual run on a branch builds the site to prove it
+  # builds, and does not replace what is published.
+  #
+  # Direct Upload replaces the *whole* Pages project with each deployment, and
+  # `docs.kontour.io` is meant to hold more than this library's documentation
+  # one day. While it is the only thing there, this upload is the whole site;
+  # when a second library's documentation arrives, the upload has to be
+  # assembled from both, or each deploy deletes the other's.
+  #
+  # The project name is a repository variable, so the host can be moved without
+  # a commit; unset, it is `kontour-docs`.
   deploy:
     name: Deploy
     needs: site
-    # A pull request builds the site to prove it still builds; it does not
-    # replace what is published.
-    if: github.event_name != 'pull_request'
+    if: ${{ !cancelled() && needs.site.result == 'success' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: docs-upload
+          path: dist
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy dist
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'kontour-docs' }}
+            --branch=main
+            --commit-hash=${{ github.sha }}
 
   publish:
     name: Publish
-    # Only a release, so `guard` never settles it — a tag push is not a pull
-    # request merge, and `test` and `targets` therefore always run first.
+    # Only a release, and `changes` runs everything for a tag or a manual run,
+    # so `test` and `targets` always run in full first.
     if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
     needs: [test, targets]
     # Ubuntu, not macOS. This job used to run on `macos-14` on the belief that
@@ -479,7 +583,7 @@ jobs:
         run: |
           ./gradlew --no-daemon --quiet \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            :ui:coordinate
+            :ui:coordinate :ui-nav3:coordinate :haptics:coordinate
 
       # On a tag this takes no version argument and so cannot disagree with the
       # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual

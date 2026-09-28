@@ -7,9 +7,9 @@ Every action in the app, by name, from the keyboard.
 var open by remember { mutableStateOf(false) }
 val commands = remember {
     listOf(
-        Command("plan", "Plan a trip", onRun = { plan() }, shortcut = "P"),
-        Command("saved", "Saved trips", onRun = { nearby() }, keywords = listOf("favourites")),
-        Command("offline", "Download for offline", onRun = { save() }, enabled = false),
+        Command("plan", "Plan a trip", onAction = { plan() }, shortcut = "P"),
+        Command("saved", "Saved trips", onAction = { nearby() }, keywords = listOf("favourites")),
+        Command("offline", "Download for offline", onAction = { save() }, enabled = false),
     )
 }
 
@@ -36,3 +36,12 @@ Being keyboard-first is the point of the component, which makes the same warning
 as the context menu load-bearing: **a command reachable only from the palette is
 unreachable on a phone**, where there is no keyboard shortcut to open it. The
 palette is an accelerator over actions that already exist.
+
+At high contrast each result row and the search field take an outline, and the
+highlighted row takes an accent one as well: the `selectionEdge()` a selected
+[`ListItem`](list-item.md) has. The panel takes an edge too, as a
+[`Dialog`](dialog.md) on the same dimmed layer does.
+
+Under reduced motion the palette fades in where it rests instead of settling
+from a slightly larger scale, and arrowing past the last visible row brings the
+highlight into view at once rather than scrolling to it.

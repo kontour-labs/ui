@@ -2,6 +2,7 @@ package io.kontour.ui.components.list
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.Orientation
+import io.kontour.ui.foundation.GroupPosition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,20 +16,20 @@ class ListItemPositionTest {
     fun aLoneItemRoundsEveryCorner() {
         // The case a three-item catalog example never exercises, and the one
         // every settings screen with a single row hits immediately.
-        assertEquals(ListItemPosition.Only, ListItemPosition.of(0, 1))
+        assertEquals(GroupPosition.Only, GroupPosition.of(0, 1))
     }
 
     @Test
     fun theEndsOfAGroupRoundOutward() {
-        assertEquals(ListItemPosition.First, ListItemPosition.of(0, 3))
-        assertEquals(ListItemPosition.Middle, ListItemPosition.of(1, 3))
-        assertEquals(ListItemPosition.Last, ListItemPosition.of(2, 3))
+        assertEquals(GroupPosition.First, GroupPosition.of(0, 3))
+        assertEquals(GroupPosition.Middle, GroupPosition.of(1, 3))
+        assertEquals(GroupPosition.Last, GroupPosition.of(2, 3))
     }
 
     @Test
     fun aPairHasNoMiddle() {
-        assertEquals(ListItemPosition.First, ListItemPosition.of(0, 2))
-        assertEquals(ListItemPosition.Last, ListItemPosition.of(1, 2))
+        assertEquals(GroupPosition.First, GroupPosition.of(0, 2))
+        assertEquals(GroupPosition.Last, GroupPosition.of(1, 2))
     }
 
     @Test
@@ -40,7 +41,7 @@ class ListItemPositionTest {
     fun listPositionsMatchesTheIndexedForm() {
         val count = 5
         assertEquals(
-            List(count) { ListItemPosition.of(it, count) },
+            List(count) { GroupPosition.of(it, count) },
             listPositions(count),
         )
     }

@@ -36,7 +36,7 @@ class StepperWidthTest {
                         value = value,
                         onValueChange = {},
                         contentDescription = "Bags",
-                        range = range,
+                        valueRange = range,
                         format = format,
                         modifier = Modifier.onGloballyPositioned {
                             width = it.size.width.toFloat()

@@ -1,9 +1,12 @@
 package io.kontour.ui.a11y
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import io.kontour.ui.theme.ColourScheme
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
@@ -21,19 +24,19 @@ import kotlin.math.min
  */
 object ContrastThreshold {
     /** AA body text, and any text below 18pt / 14pt-bold. */
-    const val BODY_TEXT = 4.5f
+    const val BodyText = 4.5f
 
     /** AA large text — 18pt and up, or 14pt bold and up. */
-    const val LARGE_TEXT = 3.0f
+    const val LargeText = 3.0f
 
     /** AA non-text: the boundary of an interactive control, focus indicators, icons. */
-    const val NON_TEXT = 3.0f
+    const val NonText = 3.0f
 
     /** AAA body text. What [io.kontour.ui.theme.ContrastLevel.High] targets. */
-    const val BODY_TEXT_ENHANCED = 7.0f
+    const val BodyTextEnhanced = 7.0f
 
     /** AAA large text. */
-    const val LARGE_TEXT_ENHANCED = 4.5f
+    const val LargeTextEnhanced = 4.5f
 }
 
 /**
@@ -61,7 +64,7 @@ fun contrastRatio(foreground: Color, background: Color): Float {
 fun meetsContrast(
     foreground: Color,
     background: Color,
-    threshold: Float = ContrastThreshold.BODY_TEXT,
+    threshold: Float = ContrastThreshold.BodyText,
 ): Boolean = contrastRatio(foreground, background) >= threshold
 
 /**
@@ -93,7 +96,7 @@ fun meetsContrast(
  * words on it", which is what the token split exists to make possible.
  */
 fun brandIsSafeForText(scheme: ColourScheme): Boolean =
-    meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BODY_TEXT)
+    meetsContrast(scheme.brand, scheme.background, ContrastThreshold.BodyText)
 
 /**
  * Picks whichever of [light] or [dark] reads better on [background].
@@ -103,7 +106,7 @@ fun brandIsSafeForText(scheme: ColourScheme): Boolean =
  * label has to stay legible whatever arrives.
  *
  * ```
- * val labelColour = contentColourFor(routeColor)   // white on a dark route, ink on a yellow one
+ * val labelColour = contentColourFor(routeColour) // white on a dark route, ink on a yellow one
  * ```
  */
 fun contentColourFor(
@@ -149,3 +152,49 @@ fun highContrast(): Boolean = LocalContrastLevel.current == ContrastLevel.High
 @ReadOnlyComposable
 fun contrastEdge(colour: Color = Theme.colours.outline): BorderStroke? =
     if (highContrast()) BorderStroke(Theme.sizing.borderWidth, colour) else null
+
+/**
+ * An edge for a **selection**, at [ContrastLevel.High] only.
+ *
+ * ```kotlin
+ * Box(
+ *     Modifier
+ *         .background(Theme.colours.accent.container, shape)
+ *         .then(selectionEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
+ * )
+ * ```
+ *
+ * [contrastEdge]'s sibling for the other kind of quiet fill. A selection is
+ * marked with `accent.container`, a tint chosen to sit *near* the page — 1.25:1
+ * from it in the enhanced light tier — so what the reader sees as "selected" is
+ * a shade they may not be able to see at all. A grey line round it would say
+ * "this is a box"; this says "this is the chosen one", in the accent, at
+ * `borderWidth`. It clears 3:1 against the tint and every ground in both
+ * enhanced schemes, which `StatePairContrastTest` holds.
+ *
+ * Returns `null` at the standard tier, where the tint and the label's weight
+ * already carry it, so nothing there changes.
+ */
+@Composable
+@ReadOnlyComposable
+fun selectionEdge(colour: Color = Theme.colours.accent.solid): BorderStroke? =
+    if (highContrast()) BorderStroke(Theme.sizing.borderWidth, colour) else null
+
+/**
+ * The track under a fill, at the tier in effect.
+ *
+ * At the standard tier a track is faint by design — [standard], usually
+ * `outline` or `surfaceSunken` — and the near-black fill beside it carries the
+ * value. At the enhanced tier the fill has to be told apart from what it has
+ * not reached, not merely seen, so the track becomes
+ * [io.kontour.ui.theme.ColourScheme.inactive]: 3:1 from `primary`, 4.5:1 on the
+ * page.
+ */
+@Composable
+@ReadOnlyComposable
+internal fun trackAtTier(standard: Color): Color =
+    if (highContrast()) Theme.colours.inactive else standard
+
+/** [border] when there is a [stroke], and nothing when there is not. */
+internal fun Modifier.optionalBorder(stroke: BorderStroke?, shape: Shape): Modifier =
+    if (stroke != null) this.border(stroke, shape) else this

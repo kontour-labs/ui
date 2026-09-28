@@ -43,6 +43,17 @@ that is the point and a supporting one that qualifies it — filters beside
 results, a legend beside a map. Where a list-detail pair swaps focus, this one
 tucks the supporting pane away.
 
+**The supporting pane slides in and out from the trailing edge**, and the main
+pane widens to meet it rather than jumping. Its content is laid out at its full
+width and clipped while it moves, so it slides rather than squeezing, and
+`supporting` goes on being called until it has gone. On a compact window it is a
+sheet that rises and falls the same way.
+
+**No pane starts again when the layout changes.** Each is the same composable in
+every arrangement, moved rather than rebuilt, so a list keeps its scroll position
+when the window crosses the two-pane breakpoint and the main pane keeps whatever
+it holds while the supporting pane opens and closes. Both used to reset.
+
 ---
 
 ## Accessibility
@@ -53,9 +64,21 @@ The resize handle is a control, not a decoration. It reports
 from a screen reader without the drag gesture.
 
 On a compact window there is one pane, and `onBack` is what returns from the
-detail to the list. Wire it to the platform back handler as well as to any
-visible button: a phone user who opened a detail and cannot get back to the list
-is stuck, and the back gesture is the thing they will try first.
+detail to the list. The scaffold calls it for back itself — the system gesture,
+iOS's edge swipe, Escape — and the detail follows a gesture while it runs, so
+the list is uncovered under the hand. Call it from any visible back button too:
+a phone user who opened a detail and cannot get back to the list is stuck.
 
 Give each pane a heading at its top. Two panes side by side with no headings are
 one long run of content to anyone navigating by structure.
+
+At high contrast the rule between two panes takes the tier's thicker
+`dividerThickness`, and so does the resize handle's line, which is three times
+that under a pointer. On a compact window the supporting pane is a modal sheet,
+which takes the tier's edge.
+
+Under reduced motion the supporting pane takes its width at once and fades in,
+rather than sliding in while the main pane narrows to meet it, and it goes at once
+when it closes. On a compact window the list and the detail cross-fade rather
+than sliding, a back gesture seeks that fade instead of moving the page, and the
+supporting pane's sheet fades where it rests.

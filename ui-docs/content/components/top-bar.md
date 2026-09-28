@@ -1,7 +1,10 @@
 # `TopBar`
 
 Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
-`Large`.
+`Large`. `Centred` centres the title on the bar where it fits — the title alone
+decides, and a subtitle under it is fitted to the same width with an ellipsis —
+and where the controls leave it too little room it is laid out exactly as
+`Small`, against the leading controls — never centred in what was left over.
 
 <!--sample:TopBarCollapsing-->
 ```kotlin
@@ -40,3 +43,13 @@ The back button carries `backLabel`. Action icons need their own
 `windowInsets` defaults to the top edge, so the bar is not under the status bar
 on an iOS PWA. `collapseProgress` animates the title and changes nothing about
 what is announced.
+
+At high contrast the bar takes the enhanced scheme's colours and adds no edge of
+its own — it is the page's ground by default — and the rule `showDivider` draws
+under it thickens with the tier. The back button is a ghost
+[`IconButton`](icon-button.md), so it gains a ring there.
+
+Reduced motion leaves the large title's collapse as it is: it is driven by the
+scroll position rather than by a clock, so it moves only as the content under it
+does, and the title slides a few pixels as it fades. The back button keeps its
+press wash and loses its shrink.

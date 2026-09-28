@@ -29,12 +29,17 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetDetent
+import io.kontour.ui.sheet.SheetEdgeMorph
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.sheet.SheetHeaderStyle
+import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.sheet.rememberSheetState
@@ -53,14 +58,16 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(420.dp)
+            // Tall enough that a sheet at `Half` still leaves the page behind it
+            // readable, and a modal sheet's content is not cut off on a phone.
+            .height(520.dp)
             .border(
                 width = Theme.sizing.borderWidth,
                 color = Theme.colours.outline,
                 shape = Theme.shapes.medium,
             )
             .clip(Theme.shapes.medium),
-        colour = Theme.colours.surface,
+        containerColour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken)) {
@@ -86,7 +93,12 @@ private fun Departures() {
         ),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
-        repeat(5) { index ->
+        // Enough rows that the sheet's full height is a step above `Half` in the
+        // 520dp frame, which is the step the expand-to-edge morph runs across. Five
+        // left the content a few dp taller than `Half`, and the morph looked like a
+        // snap — which the sheet now guards against itself, but a demo of the step
+        // should have one.
+        repeat(8) { index ->
             Text(
                 "${950 + index} to Elizabeth Quay — ${4 + index * 7} min",
                 style = Theme.typography.bodyMedium,
@@ -95,7 +107,46 @@ private fun Departures() {
     }
 }
 
-internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
+/**
+ * Flush to the window's edges, or floating clear of them.
+ *
+ * Worth a knob rather than a second demo because the two are the same sheet: the
+ * detents, the drag, the peek anchor and the floating controls are all unchanged,
+ * and what moves is three edges and four corners.
+ */
+private val sheetPresentation =
+    Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
+
+/**
+ * Where the sheet sits once the card is wider than the sheet's 640dp cap.
+ *
+ * **Does nothing on a phone, and that is the feature.** Below the cap the sheet
+ * is the card, and there is nowhere for it to go; the knob moves something only
+ * in a window wide enough for the cap to bind, which on this page means the
+ * desktop catalog. A reader on a phone pressing it and seeing no change is being
+ * shown the rule that a phone is untouched.
+ */
+private val sheetAlignment =
+    Knob.Choice("Align", OverlayAlignment.entries.toList(), OverlayAlignment.Centre)
+
+/**
+ * Whether a floating sheet becomes an edge sheet as it is pulled up to its top
+ * detent — the default — or stays a floating panel at every size.
+ *
+ * Does nothing at `Edge`, which is what the morph arrives at. Drag the sheet from
+ * Half to its full height with this on and the margins close up as it goes.
+ */
+private val sheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
+
+/** Which end of the sheet's own top edge the floating controls gather at. */
+private val sheetControlsAlignment =
+    Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
+
+internal val BottomSheetDemo = ComponentDemo(
+    slug = "bottom-sheet",
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment),
+) {
+    val presentation = this[sheetPresentation]
     val sheet = rememberSheetState(
         detents = listOf(
             SheetDetent.Hidden,
@@ -112,6 +163,10 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
     Screen {
         BottomSheet(
             state = sheet,
+            presentation = presentation,
+            edgeMorph = if (this@ComponentDemo[sheetEdgeMorph]) SheetEdgeMorph() else null,
+            alignment = this@ComponentDemo[sheetAlignment],
+            floatingControlsAlignment = this@ComponentDemo[sheetControlsAlignment],
             floatingControls = {
                 IconButton(
                     icon = Tabler.Outline.CurrentLocation,
@@ -121,20 +176,29 @@ internal val BottomSheetDemo = ComponentDemo(slug = "bottom-sheet") {
                 )
             },
         ) {
-            SheetHeader(
-                modifier = Modifier.sheetPeekAnchor(),
-                actions = {
-                    IconButton(
-                        icon = Tabler.Outline.Star,
-                        contentDescription = "Add to favourites",
-                        onClick = { echo("Favourited") },
-                    )
-                },
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
+            // Always there: it is what the peek detent is peeking *at*.
+            part {
+                SheetHeader(
+                    modifier = Modifier.sheetPeekAnchor(),
+                    actions = {
+                        IconButton(
+                            icon = Tabler.Outline.Star,
+                            contentDescription = "Add to favourites",
+                            onClick = { echo("Favourited") },
+                        )
+                    },
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
             }
-            Departures()
+            // And the board, below it. The peek is anchored to the header, so the
+            // board starts exactly at the sheet's edge — it is drawn, off the
+            // bottom of the window, and a drag uncovers it at the speed of the
+            // finger rather than announcing itself at a detent. `from` says which
+            // size it belongs to, which is what keeps a screen reader out of it
+            // until the sheet is that size.
+            part(from = SheetDetent.Half) { Departures() }
         }
     }
 }
@@ -164,7 +228,7 @@ private val sheetOpen = Knob.Flag("Open", initial = true)
 
 internal val ModalBottomSheetDemo = ComponentDemo(
     slug = "modal-bottom-sheet",
-    knobs = listOf(sheetOpen, sheetDismissible),
+    knobs = listOf(sheetOpen, sheetDismissible, sheetAlignment),
 ) {
     // Keyed on the knob, so toggling it *resets* the sheet rather than fighting
     // it. The sheet has two inputs — the knob and its own dismissal — and one
@@ -183,6 +247,7 @@ internal val ModalBottomSheetDemo = ComponentDemo(
         ModalBottomSheet(
             visible = open,
             onDismissRequest = { open = false },
+            alignment = this@ComponentDemo[sheetAlignment],
             dismissible = dismissible,
         ) {
             SheetHeader {
@@ -213,8 +278,46 @@ internal val ModalBottomSheetDemo = ComponentDemo(
 
 private val sheetSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSide.Start)
 
+/**
+ * The non-modal side sheet: a rail beside a page that stays usable.
+ *
+ * The button on the page is still pressable with the rail open — which is the
+ * whole difference from the modal sheet below, and the thing to try.
+ */
 internal val SideSheetDemo = ComponentDemo(
     slug = "side-sheet",
+    knobs = listOf(sheetSide),
+) {
+    var open by remember { mutableStateOf(true) }
+    val side = this[sheetSide]
+    Screen {
+        // On the side the rail is not, so it stays pressable with the rail open —
+        // which is the difference from the modal sheet, and the thing to try.
+        Button(
+            onClick = { open = !open; echo(if (open) "Filters shown" else "Filters hidden") },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+            modifier = Modifier
+                .align(if (side == SheetSide.Start) Alignment.BottomEnd else Alignment.BottomStart)
+                .padding(Theme.spacing.md),
+        ) { +(if (open) "Hide" else "Filters") }
+
+        SideSheet(
+            visible = open,
+            side = side,
+            width = 180.dp,
+            paneTitle = "Filters",
+        ) {
+            // No scrim and no back gesture: the app owns `visible`, so the header's
+            // close button is how the rail goes away.
+            SheetHeader(onClose = { open = false }) { +"Filters" }
+            FilterBody()
+        }
+    }
+}
+
+internal val ModalSideSheetDemo = ComponentDemo(
+    slug = "modal-side-sheet",
     knobs = listOf(sheetSide, sheetDismissible),
 ) {
     var open by remember { mutableStateOf(false) }
@@ -227,7 +330,7 @@ internal val SideSheetDemo = ComponentDemo(
             modifier = Modifier.align(Alignment.Center),
         ) { +"Filters" }
 
-        SideSheet(
+        ModalSideSheet(
             visible = open,
             onDismissRequest = { open = false },
             side = side,
@@ -238,18 +341,24 @@ internal val SideSheetDemo = ComponentDemo(
             // The header's own close button is the way out when the scrim is
             // not one — `onClose` defaults to `closeEnclosingSheet()`.
             SheetHeader { +"Filters" }
-            Column(
-                modifier = Modifier.padding(horizontal = Theme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            ) {
-                Text("Only show routes that", style = Theme.typography.labelMedium)
-                Text(
-                    "run in the next hour",
-                    style = Theme.typography.bodySmall,
-                    colour = Theme.colours.contentMuted,
-                )
-            }
+            FilterBody()
         }
+    }
+}
+
+/** What both side sheet demos hold. */
+@Composable
+private fun FilterBody() {
+    Column(
+        modifier = Modifier.padding(horizontal = Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+    ) {
+        Text("Only show routes that", style = Theme.typography.labelMedium)
+        Text(
+            "run in the next hour",
+            style = Theme.typography.bodySmall,
+            colour = Theme.colours.contentMuted,
+        )
     }
 }
 
@@ -290,9 +399,28 @@ internal val SheetHeaderDemo = ComponentDemo(
     }
 }
 
+internal val DragHandleDemo = ComponentDemo(slug = "drag-handle") {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        // No `LocalSheetState`, so this is the resting pill rather than the
+        // draggable one — a handle is drawn by the sheet, not dragged on its own.
+        DragHandle(state = null)
+        Text(
+            "Drawn by a sheet, not draggable on its own",
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
 internal val sheetDemos = listOf(
     BottomSheetDemo,
     ModalBottomSheetDemo,
     SideSheetDemo,
+    ModalSideSheetDemo,
     SheetHeaderDemo,
+    DragHandleDemo,
 )

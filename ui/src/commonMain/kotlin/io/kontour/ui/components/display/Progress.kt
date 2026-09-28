@@ -1,5 +1,9 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.mirrorInRtl
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -12,13 +16,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -26,7 +35,10 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
+import kotlinx.coroutines.flow.first
 
 /**
  * A horizontal progress bar.
@@ -43,6 +55,11 @@ import io.kontour.ui.theme.Theme
  * user nothing except "still working", and after a few seconds that reads as
  * "stuck".
  *
+ * **Indeterminate is two bars chasing each other**: a long one sweeping out and
+ * a short one after it, each speeding up and slowing down — Material's timing,
+ * reported as wanted over the single band at an even speed, which read as a
+ * loading bar from another decade.
+ *
  * Under reduced motion the indeterminate sweep stops and the bar shows a static
  * partial fill — still visibly "in progress", without the looping travel.
  */
@@ -52,8 +69,8 @@ fun LinearProgress(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
-    height: Dp = 6.dp,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
+    height: Dp = ProgressDefaults.LinearHeight,
 ) {
     val motion = Theme.motion
 
@@ -71,7 +88,7 @@ fun LinearProgress(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = BandTravel, easing = LinearEasing),
+                animation = tween(durationMillis = ChaseCycle, easing = LinearEasing),
             ),
             label = "linearSweep",
         )
@@ -89,6 +106,8 @@ fun LinearProgress(
         modifier
             .fillMaxWidth()
             .height(height)
+            // Fills from the start of the line, which is the right in right to left.
+            .mirrorInRtl()
             .semantics {
                 if (contentDescription != null) this.contentDescription = contentDescription
                 progressBarRangeInfo = if (progress != null) {
@@ -115,22 +134,11 @@ fun LinearProgress(
                 cornerRadius = radius,
             )
         } else {
-            // A fixed-width band travelling the full track, entering and leaving
-            // off the ends so it never appears to bounce.
-            val bandWidth = size.width * BandFraction
-            val travel = size.width + bandWidth
-            val left = -bandWidth + travel * (sweep?.value ?: 0f)
-            drawRoundRect(
-                color = colour,
-                topLeft = Offset(left.coerceAtLeast(0f), 0f),
-                size = Size(
-                    width = (bandWidth + minOf(left, 0f))
-                        .coerceAtMost(size.width - left.coerceAtLeast(0f))
-                        .coerceAtLeast(0f),
-                    height = size.height,
-                ),
-                cornerRadius = radius,
-            )
+            // Two bars chasing along the track, each cut to the track rather than
+            // clipped, so its ends stay round as it enters and leaves.
+            chasingBars(sweep?.value ?: 0f) { from, to ->
+                drawCapsule(colour, size.width * from, size.width * to)
+            }
         }
     }
 }
@@ -148,10 +156,10 @@ fun CircularProgress(
     progress: Float?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    size: Dp = 40.dp,
+    size: Dp = ProgressDefaults.CircularSize,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
-    strokeWidth: Dp = 4.dp,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
+    strokeWidth: Dp = ProgressDefaults.CircularStrokeWidth,
 ) {
     // Indeterminate is the [Spinner], not a second sweep of the same arc.
     //
@@ -228,10 +236,13 @@ fun CircularProgress(
  *   walks one lit segment along the row rather than claiming a position; it is
  *   not the same as `1`, which says the first step is under way.
  * @param working Whether [current] is *itself* still going. The step's position
- *   is known and its progress within that step is not, so the segment carries a
- *   travelling band instead of a fill — the same band [LinearProgress] runs
- *   indeterminate, at the width of one segment. Ignored when [current] is
- *   `null`, which is already animating.
+ *   is known and its progress within that step is not, so the segment carries
+ *   [LinearProgress]'s two chasing bars instead of a fill, at the width of one
+ *   segment. When [current] moves on, the step just finished fills first and
+ *   only then do the bars start in the next one, from its start — asked for
+ *   from a phone: "the current step fills up before the indeterminate animation
+ *   moves to the next step". Ignored when [current] is `null`, which is already
+ *   animating.
  */
 @Composable
 fun StepProgress(
@@ -241,19 +252,31 @@ fun StepProgress(
     contentDescription: String? = null,
     working: Boolean = false,
     colour: Color = Theme.colours.primary,
-    trackColour: Color = Theme.colours.outline,
-    height: Dp = 4.dp,
-    gap: Dp = 4.dp,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
+    height: Dp = ProgressDefaults.StepHeight,
+    gap: Dp = ProgressDefaults.StepGap,
 ) {
     if (total <= 0) return
     val motion = Theme.motion
+    val strings = Theme.strings
+    val formats = Theme.formats
     val indeterminate = current == null
 
-    val animated by animateFloatAsState(
-        targetValue = (current ?: 0).coerceIn(0, total).toFloat(),
+    // The steps drawn full: those before a working step, or up to and including
+    // the current one. A step that is working is not done, so it is not filled
+    // — it carries the bars — and when it is done the fill runs across it
+    // before the bars start in the next.
+    val completed = when {
+        current == null -> 0
+        working -> (current - 1).coerceIn(0, total)
+        else -> current.coerceIn(0, total)
+    }
+    val filled = animateFloatAsState(
+        targetValue = completed.toFloat(),
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "stepProgress",
     )
+    val animated by filled
 
     // Two different unknowns, and they animate differently.
     //
@@ -300,15 +323,12 @@ fun StepProgress(
         animationSpec = motion.tweenDefault(),
         label = "stepMelt",
     )
-    val sweep = if (animating) {
+    val sweep = if (animating && indeterminate) {
         rememberInfiniteTransition(label = "stepSweep").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = if (indeterminate) StepWalkPerSegment * total else BandTravel,
-                    easing = LinearEasing,
-                ),
+                animation = tween(durationMillis = ChaseCycle, easing = LinearEasing),
             ),
             label = "stepSweepValue",
         )
@@ -316,15 +336,49 @@ fun StepProgress(
         null
     }
 
+    /**
+     * The working step's chase: where it is in its cycle, or NaN before it has
+     * started.
+     *
+     * Its own loop rather than the transition above, because it has to *wait*:
+     * on a step moving on, the fill runs across the step just finished, and only
+     * once it has arrived do the bars enter the new one — from the start of
+     * their cycle, not from wherever a shared clock had got to. Keyed on the step,
+     * so each one starts afresh; and only composed while a step is working, so a
+     * settled row asks for no frames.
+     */
+    val chase = remember { Animatable(Float.NaN) }
+    // **Which step the chase is running for**, and nothing is drawn for any other.
+    //
+    // The step moves on in composition, and the chase is reset by an effect that
+    // runs after it — so for a frame the new step was drawn at the *old* step's
+    // phase, then blank while its fill ran, then its own bars from the start.
+    // Reported from a phone as the working animation flickering in and out when
+    // "Next step" is pressed mid-chase. Owned by a step, a phase cannot be drawn
+    // for the wrong one. Read in draw, so it costs no recomposition.
+    val chaseStep = remember { mutableIntStateOf(NoStep) }
+    if (animating && !indeterminate) {
+        LaunchedEffect(current, total) {
+            chaseStep.intValue = NoStep
+            chase.snapTo(Float.NaN)
+            snapshotFlow { filled.value }.first { abs(it - completed) < FillArrived }
+            while (true) {
+                chase.snapTo(0f)
+                chaseStep.intValue = current
+                chase.animateTo(1f, tween(durationMillis = ChaseCycle, easing = LinearEasing))
+            }
+        }
+    }
+
     Canvas(
         modifier
             .fillMaxWidth()
             .height(height)
+            .mirrorInRtl()
             .semantics {
                 this.contentDescription = contentDescription ?: when {
-                    indeterminate -> "In progress"
-                    working -> "Step $current of $total, in progress"
-                    else -> "Step $current of $total"
+                    indeterminate -> strings.inProgress
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
                 }
                 // `Indeterminate` rather than a made-up position: a screen reader
                 // saying "step 0 of 4" would be stating something the caller
@@ -332,8 +386,11 @@ fun StepProgress(
                 progressBarRangeInfo = if (indeterminate) {
                     ProgressBarRangeInfo.Indeterminate
                 } else {
+                    // The step it is on, as `LinearProgress` reports its value —
+                    // not the fill on its way there, which re-ran these semantics
+                    // on every frame of the spring for a number between steps.
                     ProgressBarRangeInfo(
-                        current = animated,
+                        current = current.coerceIn(0, total).toFloat(),
                         range = 0f..total.toFloat(),
                         steps = total - 1,
                     )
@@ -368,6 +425,7 @@ fun StepProgress(
         // of redrawing it. Null when nothing is animating, which is the same
         // condition as `!animating` — see where it is created.
         val phase = sweep?.value ?: 0f
+        val chasePhase = if (animating && !indeterminate && chaseStep.intValue == current) chase.value else Float.NaN
 
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
@@ -432,32 +490,28 @@ fun StepProgress(
             // carrying the band's full 24 rows of ink instead of a tip's one or
             // two. `LinearProgress` has always avoided it by shrinking the rect
             // rather than cutting it, and that is what this does now.
-            if (animating && (indeterminate || busy)) {
-                val bandWidth = segmentWidth * BandFraction
-                val bandLeft = if (indeterminate) {
-                    // One band crossing the whole row, occluded where it passes
-                    // over a gap. Not one band per segment: a band confined to
-                    // a segment is off the end of it at both ends of its
-                    // travel, so the row went dark for a frame or two at every
-                    // segment boundary — four blinks a cycle rather than the
-                    // one at the end of it that `LinearProgress` also has.
-                    -bandWidth + (size.width + bandWidth) * phase
-                } else {
-                    left - bandWidth + (segmentWidth + bandWidth) * phase
-                }
+            val chasing = when {
+                !animating -> false
+                indeterminate -> true
+                // Waiting for the fill before it: nothing yet.
+                else -> busy && !chasePhase.isNaN()
+            }
+            if (chasing) {
+                // Across the whole row when it is indeterminate — occluded where
+                // they pass over a gap, and not a chase per segment, which went
+                // dark at every boundary — or inside the one working segment.
+                val spanLeft = if (indeterminate) 0f else left
+                val span = if (indeterminate) size.width else segmentWidth
                 // The segment's own bounds, widened by however far it has
-                // melted into its neighbours: while the row is one bar the band
-                // has to be able to cross the joins, or it blinks at each one.
+                // melted into its neighbours: while the row is one bar the bars
+                // have to be able to cross the joins, or they blink at each one.
                 val limitLeft = left - reachStart
                 val limitRight = left + segmentWidth + reachEnd
-                val visibleLeft = bandLeft.coerceAtLeast(limitLeft)
-                val visibleRight = (bandLeft + bandWidth).coerceAtMost(limitRight)
-                if (visibleRight > visibleLeft) {
-                    drawRoundRect(
-                        color = colour,
-                        topLeft = Offset(visibleLeft, 0f),
-                        size = Size(visibleRight - visibleLeft, size.height),
-                        cornerRadius = radius,
+                chasingBars(if (indeterminate) phase else chasePhase) { from, to ->
+                    drawCapsule(
+                        colour,
+                        (spanLeft + span * from).coerceAtLeast(limitLeft),
+                        (spanLeft + span * to).coerceAtMost(limitRight),
                     )
                 }
             }
@@ -465,18 +519,105 @@ fun StepProgress(
     }
 }
 
+/** No step's chase: before one has started, and between steps. */
+private const val NoStep = -1
+
 /**
  * How wide the travelling indeterminate band is, as a fraction of what it runs
  * inside.
  *
- * Shared by [LinearProgress], which runs it across the whole track, and by
- * [StepProgress]'s `working`, which confines it to one segment. One number
- * because they are meant to read as the same animation at two scales.
+ * Shared by [LinearProgress], which runs it across the whole track, by
+ * [StepProgress]'s `working`, which confines it to one segment, and by the
+ * timelines' rail, which runs it along the leg ahead of the traveller. One
+ * number because they are meant to read as the same animation at three scales.
  */
-private const val BandFraction = 0.35f
+internal const val BandFraction = 0.35f
 
 /** How long that band takes to cross, whatever it is crossing. */
-private const val BandTravel = 1400
+internal const val BandTravel = 1400
 
-/** How long the indeterminate walk rests on each step. */
-private const val StepWalkPerSegment = 320
+/**
+ * The two bars of an indeterminate [LinearProgress], and of [StepProgress]'s
+ * melted row and working segment, at [phase] of their cycle: each as the stretch
+ * of the track it covers, 0 to 1, handed to [bar] if it is showing.
+ *
+ * Material's keyframes: a long bar whose front sweeps out fast and whose back
+ * follows late, then a short one after it that is quicker still. Each end eases
+ * on its own curve, so the bars stretch and shrink as they go rather than
+ * sliding at a fixed width — which is what makes it read as working rather than
+ * as a loop.
+ */
+internal inline fun chasingBars(phase: Float, bar: (from: Float, to: Float) -> Unit) {
+    val time = phase * ChaseCycle
+    for (line in ChaseLines) {
+        val front = line.front.at(time)
+        val back = line.back.at(time)
+        if (front > back) bar(back, front)
+    }
+}
+
+/**
+ * A bar from [left] to [right], round at both ends however short it is.
+ *
+ * A rounded rect narrower than it is tall has no room for its corners — Skia
+ * scales them down, and a sliver comes out square. The chase grows each bar from
+ * nothing and shrinks it back, so there is always a sliver somewhere: drawn as
+ * a circle that wide instead, it arrives as a point, swells to a dot and
+ * stretches into a bar.
+ */
+internal fun DrawScope.drawCapsule(colour: Color, left: Float, right: Float) {
+    val width = right - left
+    if (width <= 0f) return
+    if (width >= size.height) {
+        drawRoundRect(
+            color = colour,
+            topLeft = Offset(left, 0f),
+            size = Size(width, size.height),
+            cornerRadius = CornerRadius(size.height / 2f),
+        )
+    } else {
+        drawCircle(colour, radius = width / 2f, center = Offset(left + width / 2f, size.height / 2f))
+    }
+}
+
+/** One end of a chasing bar: when it starts, how long it takes and how it eases. */
+internal class ChaseEnd(private val delay: Int, private val duration: Int, private val easing: Easing) {
+    fun at(time: Float): Float = easing.transform(((time - delay) / duration).coerceIn(0f, 1f))
+}
+
+internal class ChaseLine(val front: ChaseEnd, val back: ChaseEnd)
+
+/** One chase, both bars. */
+internal const val ChaseCycle: Int = 1800
+
+internal val ChaseLines: List<ChaseLine> = listOf(
+    ChaseLine(
+        front = ChaseEnd(0, 750, CubicBezierEasing(0.2f, 0f, 0.8f, 1f)),
+        back = ChaseEnd(333, 850, CubicBezierEasing(0.4f, 0f, 1f, 1f)),
+    ),
+    ChaseLine(
+        front = ChaseEnd(1000, 567, CubicBezierEasing(0f, 0f, 0.65f, 1f)),
+        back = ChaseEnd(1267, 533, CubicBezierEasing(0.1f, 0f, 0.45f, 1f)),
+    ),
+)
+
+/** How close the fill has to be to a step before the bars start in the next. */
+private const val FillArrived: Float = 0.02f
+
+/** What the progress indicators take by default. */
+object ProgressDefaults {
+    /** A [LinearProgress] bar's thickness. */
+    val LinearHeight: Dp = 6.dp
+
+    /** A [CircularProgress] ring's diameter. */
+    val CircularSize: Dp = 40.dp
+
+    /** A [CircularProgress] ring's stroke. */
+    val CircularStrokeWidth: Dp = 4.dp
+
+    /** A [StepProgress] segment's thickness. */
+    val StepHeight: Dp = 4.dp
+
+    /** The space between [StepProgress] segments. */
+    val StepGap: Dp = 4.dp
+}

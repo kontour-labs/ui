@@ -66,8 +66,8 @@ class TimelineLoadingTest {
                         nodeColour = Color.Black,
                         modifier = Modifier.height(120.dp).reportBounds { bounds = it },
                     ) {
-                        Text("Perth Station")
-                        Text("08:12 — Platform 3")
+                        +"Perth Station"
+                        supporting { +"08:12 — Platform 3" }
                     }
                 }
             }

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import io.kontour.ui.components.display.KbdDefaults
+import io.kontour.ui.components.display.KbdGlyphs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -82,10 +83,10 @@ class MonoTypefaceTest {
     fun theModifierSymbolsComeFromTheBundle() {
         val letter = widths("M") { it.mono }.single()
         val symbols = listOf(
-            "Command" to KbdDefaults.Command,
-            "Option" to KbdDefaults.Option,
-            "Shift" to KbdDefaults.Shift,
-            "Control" to KbdDefaults.Control,
+            "Command" to KbdGlyphs.Command,
+            "Option" to KbdGlyphs.Option,
+            "Shift" to KbdGlyphs.Shift,
+            "Control" to KbdGlyphs.Control,
         )
         val measured = widths(*symbols.map { it.second }.toTypedArray()) { it.mono }
         val wrong = symbols.map { it.first }.zip(measured).filter { it.second != letter }

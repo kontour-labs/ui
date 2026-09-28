@@ -1,8 +1,13 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.layout.LayoutScopeMarker
@@ -19,7 +24,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.theme.Theme
 
 /**
@@ -34,7 +41,7 @@ import io.kontour.ui.theme.Theme
  * ```
  *
  * The buttons sit flush and only the outside corners round, the same treatment
- * [io.kontour.ui.components.list.ListItemPosition] gives a group of rows. That is
+ * [io.kontour.ui.foundation.GroupPosition] gives a group of rows. That is
  * the whole visual idea: three separate buttons say "three things", one joined
  * group says "one thing, three ways".
  *
@@ -97,72 +104,104 @@ fun ButtonGroup(
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            actions.forEachIndexed { index, action ->
-                val position = ButtonGroupPosition.of(index, actions.size)
-                val enabledHere = enabled && action.enabled
-
-                if (action.icon != null && action.content == null) {
-                    IconButton(
-                        icon = action.icon,
-                        contentDescription = action.contentDescription.orEmpty(),
-                        onClick = action.onClick,
-                        enabled = enabledHere,
-                        variant = variant,
-                        size = size,
-                        shape = position.shape(shape),
-                        interactionSource = action.interactionSource,
-                    )
-                } else {
-                    Button(
-                        onClick = action.onClick,
-                        enabled = enabledHere,
-                        variant = variant,
-                        size = size,
-                        shape = position.shape(shape),
-                        interactionSource = action.interactionSource,
-                        content = action.content ?: {},
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Where a button sits in its group, and therefore which corners round. */
-enum class ButtonGroupPosition {
-    Only, First, Middle, Last;
-
-    companion object {
-        fun of(index: Int, count: Int): ButtonGroupPosition = when {
-            count <= 1 -> Only
-            index == 0 -> First
-            index == count - 1 -> Last
-            else -> Middle
+            GroupedButtons(actions, enabled, size, variant, shape, Orientation.Horizontal)
         }
     }
 }
 
 /**
- * The group's outside corners round; the ones facing a neighbour go square.
+ * A [ButtonGroup] stacked top to bottom, for a cluster that lives down the side
+ * of something — a map's zoom controls, a canvas's tools.
  *
- * `start`/`end` rather than left/right, so the first button rounds the corners
- * the reader starts from in either direction. A group built with left and right
- * is a group whose seams are on the wrong side in Arabic.
+ * ```kotlin
+ * VerticalButtonGroup {
+ *     item(onClick = ::zoomIn, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+ *     item(onClick = ::zoomOut, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+ * }
+ * ```
+ *
+ * The same rule turned on its side: only the top of the first button and the
+ * bottom of the last round, and the seams run across. Every button takes the
+ * width of the widest, so a column of labelled buttons is one straight-sided
+ * shape rather than a ragged stack. The first action is at the top in either
+ * layout direction — reading order down a column does not mirror.
+ *
+ * @param size Applied to every button, so a group cannot end up ragged.
+ * @param variant Applied to every button. `Tertiary` by default, as for
+ *   [ButtonGroup].
+ * @param shape The group's outside corners; the ones facing a neighbour take
+ *   [ButtonGroupDefaults.InnerCorner].
  */
-fun ButtonGroupPosition.shape(
-    shape: CornerBasedShape,
-    square: Dp = ButtonGroupDefaults.InnerCorner,
-): Shape {
-    val flat = CornerSize(square)
-    return when (this) {
-        ButtonGroupPosition.Only -> shape
-        ButtonGroupPosition.First -> shape.copy(topEnd = flat, bottomEnd = flat)
-        ButtonGroupPosition.Middle ->
-            shape.copy(topStart = flat, topEnd = flat, bottomStart = flat, bottomEnd = flat)
-
-        ButtonGroupPosition.Last -> shape.copy(topStart = flat, bottomStart = flat)
+@Composable
+fun VerticalButtonGroup(
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: ButtonSize = ButtonSize.Medium,
+    variant: ButtonVariant = ButtonVariant.Tertiary,
+    shape: CornerBasedShape = Theme.shapes.control,
+    content: ButtonGroupScope.() -> Unit,
+) {
+    val actions = buttonGroupActions(content)
+    // The group owns the touch target here too, across rather than down: see
+    // [ButtonGroup] for why the buttons must not each reserve it.
+    CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
+        Column(
+            modifier = modifier
+                .semantics { isTraversalGroup = true }
+                .width(IntrinsicSize.Max)
+                .defaultMinSize(minWidth = Theme.sizing.minTouchTarget),
+            verticalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.Seam),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            GroupedButtons(actions, enabled, size, variant, shape, Orientation.Vertical)
+        }
     }
 }
+
+/** The buttons of a group, each shaped for where it sits along [orientation]. */
+@Composable
+private fun GroupedButtons(
+    actions: List<ButtonGroupAction>,
+    enabled: Boolean,
+    size: ButtonSize,
+    variant: ButtonVariant,
+    shape: CornerBasedShape,
+    orientation: Orientation,
+) {
+    // Down a column every button stretches to the widest; along a row each keeps
+    // its own width.
+    val each = if (orientation == Orientation.Vertical) Modifier.fillMaxWidth() else Modifier
+    actions.forEachIndexed { index, action ->
+        val position = GroupPosition.of(index, actions.size)
+        val enabledHere = enabled && action.enabled
+
+        if (action.icon != null && action.content == null) {
+            IconButton(
+                icon = action.icon,
+                contentDescription = action.contentDescription.orEmpty(),
+                onClick = action.onClick,
+                modifier = each,
+                enabled = enabledHere,
+                variant = variant,
+                size = size,
+                shape = position.shape(shape, ButtonGroupDefaults.InnerCorner, orientation),
+                interactionSource = action.interactionSource,
+            )
+        } else {
+            Button(
+                onClick = action.onClick,
+                modifier = each,
+                enabled = enabledHere,
+                variant = variant,
+                size = size,
+                shape = position.shape(shape, ButtonGroupDefaults.InnerCorner, orientation),
+                interactionSource = action.interactionSource,
+                content = action.content ?: {},
+            )
+        }
+    }
+}
+
 
 /** One collected action. */
 internal class ButtonGroupAction(
@@ -180,7 +219,7 @@ internal class ButtonGroupAction(
  * A builder rather than a plain row of `Button`s, because the shape of each one
  * depends on how many there are — which is not known until they have all been
  * declared. Passing `position` by hand at each call site is the arithmetic
- * `ListItemPosition.of` exists to remove, and it goes wrong the same way: a
+ * `GroupPosition.of` exists to remove, and it goes wrong the same way: a
  * group with two rounded buttons in the middle reads as a rendering fault.
  *
  * The lambda is plain Kotlin, so a `@Composable` helper has to be hoisted above
@@ -194,13 +233,18 @@ internal class ButtonGroupAction(
 class ButtonGroupScope internal constructor() {
     internal val actions = mutableListOf<ButtonGroupAction>()
 
-    /** An icon-only action. `contentDescription` is required, as ever. */
+    /**
+     * An icon-only action. `contentDescription` is required, as ever.
+     *
+     * The action comes last, as it does on every other scope's shorthand, so
+     * it can trail: `item("Zoom in", Tabler.Outline.Plus) { zoomIn() }`.
+     */
     fun item(
-        onClick: () -> Unit,
         contentDescription: String,
         icon: ImageVector,
         enabled: Boolean = true,
         interactionSource: MutableInteractionSource? = null,
+        onClick: () -> Unit,
     ) {
         actions += ButtonGroupAction(
             onClick = onClick,
@@ -233,6 +277,7 @@ class ButtonGroupScope internal constructor() {
 internal fun buttonGroupActions(content: ButtonGroupScope.() -> Unit): List<ButtonGroupAction> =
     ButtonGroupScope().apply(content).actions
 
+/** What a [ButtonGroup] takes by default. */
 object ButtonGroupDefaults {
     /**
      * The gap between two joined buttons.

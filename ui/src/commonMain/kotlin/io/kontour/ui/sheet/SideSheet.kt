@@ -1,5 +1,7 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,14 +19,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -33,7 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEvent
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.ArrowLeft
 import com.composables.icons.tabler.outline.ArrowRight
@@ -42,12 +45,18 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.motion.BackPan
+import io.kontour.ui.motion.rememberSwipeBackInput
+import io.kontour.ui.motion.swipeBack
+import io.kontour.ui.overlay.BackdropStyle
+import io.kontour.ui.overlay.LocalOverlayBack
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
-import io.kontour.ui.overlay.BackdropStyle
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.overlay.rememberDirectBack
+import androidx.compose.ui.graphics.Shape
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mirrorHorizontally
 import kotlin.math.roundToInt
@@ -56,10 +65,12 @@ import kotlin.math.roundToInt
 enum class SheetSide { Start, End }
 
 /**
- * A sheet that slides in from the side.
+ * A sheet that slides in from the side and takes over the screen until it is dealt
+ * with: a scrim behind it, focus held inside it, dismissed by a tap outside, by back,
+ * or by its own close button.
  *
  * ```kotlin
- * SideSheet(visible = filtersOpen, onDismissRequest = { filtersOpen = false }) {
+ * ModalSideSheet(visible = filtersOpen, onDismissRequest = { filtersOpen = false }) {
  *     SheetHeader { +"Filters" }
  *     …
  * }
@@ -72,16 +83,23 @@ enum class SheetSide { Start, End }
  * instead.
  *
  * Slides rather than dragging through detents. A side sheet has one useful
- * position — open — and a horizontal drag on a wide screen usually means
- * something else was intended. Dismissal is the scrim, the close button or a
- * back gesture.
+ * position — open. Dismissal is the scrim, the close button, a back gesture, or
+ * dragging the sheet towards its own edge, on every platform: it follows the
+ * finger, closes past half or on a flick, and slides back if let go short. The
+ * drag yields to anything inside that moves sideways first, and closes the
+ * sheet even when a stack inside it has somewhere to go back to — the sheet is
+ * what the finger is on.
+ *
+ * Flush to its side, the top and the bottom, at one width. It could float clear
+ * of its edges and be dragged out to the whole window for a while, and both were
+ * taken out again: asked for, tried, and not wanted.
  *
  * @param side Which edge it enters from, following the layout direction.
  *   [SheetSide.End] is the default: the sheet is supplementary to the content,
  *   and supplementary things belong on the trailing side.
  */
 @Composable
-fun SideSheet(
+fun ModalSideSheet(
     visible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -96,6 +114,10 @@ fun SideSheet(
      * rather than a panel.
      */
     width: Dp = SideSheetDefaults.Width,
+    /**
+     * The corners facing the content are rounded and the ones against the window's
+     * edge are square. Mirrored for a sheet on the physical left.
+     */
     shape: CornerBasedShape = Theme.shapes.sideSheet,
     containerColour: Color = Theme.colours.surfaceRaised,
     contentColour: Color = Theme.colours.content,
@@ -175,6 +197,15 @@ fun SideSheet(
                     BackdropStyle.None
                 },
                 dismissOnOutside = dismissible,
+                // Back dismisses, as a tap outside does. A gesture slides it out
+                // by its own slide: under predictive back from either edge, and
+                // under swipe back — iOS, which does swipe a side sheet away —
+                // from the far edge of the screen. A drag on the sheet towards
+                // its own edge closes it on every platform. `onBack` is the
+                // arrow for a sheet pushed from another; a stack that should
+                // answer the back gesture itself goes inside the sheet, and goes
+                // back first — to the platform's gesture, not to the drag.
+                dismissOnBack = dismissible,
                 dismissLabel = dismissLabel,
                 onDismiss = { dismiss() },
                 content = {
@@ -188,6 +219,8 @@ fun SideSheet(
                         paneTitle = latestPaneTitle,
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
+                        progress = LocalOverlayProgress.current,
+                        swipeAway = dismissible,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -200,6 +233,90 @@ fun SideSheet(
     }
 }
 
+/**
+ * A panel from the side that shares the screen with the page beside it.
+ *
+ * ```kotlin
+ * Box(Modifier.fillMaxSize()) {
+ *     DepartureList()
+ *     SideSheet(visible = filtersOpen, paneTitle = "Filters") {
+ *         SheetHeader(onClose = { filtersOpen = false }) { +"Filters" }
+ *         …
+ *     }
+ * }
+ * ```
+ *
+ * The side sheet's counterpart of [BottomSheet], where [ModalSideSheet] is the
+ * counterpart of [ModalBottomSheet]. Nothing behind it is dimmed, blocked or taken
+ * out of the keyboard's reach: the list beside a filter rail is still the list, and
+ * a change to a filter is seen in it as it is made. For a sheet that owns the
+ * screen until it is answered, use [ModalSideSheet].
+ *
+ * **It lives in your layout**, not in the [io.kontour.ui.overlay.OverlayHost]: put
+ * it in a `Box` over the content it sits beside, and it fills that box and places
+ * itself against the side it belongs to. Where it is not, the page underneath gets
+ * every touch and every click.
+ *
+ * **The app owns [visible].** There is no scrim to tap and no back gesture to
+ * catch, so nothing here asks to be closed; give the sheet's header an `onClose`
+ * that sets `visible` to false. It slides in and out on its own spring, and is not
+ * composed at all once it has slid away.
+ *
+ * Everything else is [ModalSideSheet]'s: flush to its side, the top and the
+ * bottom, at one width.
+ */
+@Composable
+fun SideSheet(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    side: SheetSide = SheetSide.End,
+    /** See [ModalSideSheet]. */
+    width: Dp = SideSheetDefaults.Width,
+    /** See [ModalSideSheet]. */
+    shape: CornerBasedShape = Theme.shapes.sideSheet,
+    containerColour: Color = Theme.colours.surfaceRaised,
+    contentColour: Color = Theme.colours.content,
+    /** See [ModalSideSheet]. */
+    onBack: (() -> Unit)? = null,
+    backLabel: String = Theme.strings.back,
+    paneTitle: String? = null,
+    /** See [ModalSideSheet]. */
+    windowInsets: WindowInsets = WindowInsets.allEdges,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val motion = Theme.motion
+    // Its own motion rather than the overlay host's, since it is not in the host:
+    // the same spring a sheet settles on, and a tween under reduced motion.
+    val shown by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springGentle),
+        label = "sideSheet",
+    )
+    // Read through a lambda, in placement, so sliding re-places the sheet without
+    // recomposing it.
+    val progress = rememberUpdatedState(shown)
+
+    // Not composed once it has slid away: a sheet that is not there should not be
+    // in the assistive tree, nor holding its content's state against the next time.
+    if (!visible && shown <= 0f) return
+
+    SideSheetPanel(
+        modifier = modifier,
+        side = side,
+        width = width,
+        shape = shape,
+        containerColour = containerColour,
+        contentColour = contentColour,
+        paneTitle = paneTitle,
+        onBack = onBack,
+        backLabel = backLabel,
+        windowInsets = windowInsets,
+        progress = { progress.value },
+        content = content,
+    )
+}
+
+/** What [SideSheet] and [ModalSideSheet] take by default. */
 object SideSheetDefaults {
     /** Wide enough for a column of content with padding on both sides. */
     val Width: Dp
@@ -218,49 +335,93 @@ private fun SideSheetPanel(
     onBack: (() -> Unit)?,
     backLabel: String,
     windowInsets: WindowInsets,
+    // How far in the sheet has slid, 0 to 1. Driven from outside in both
+    // directions — by the overlay host for a modal sheet, by the sheet's own
+    // animation for one that is not — because a panel that set its own `appeared`
+    // flag on first composition could only ever run 0 -> 1, which is why nothing in
+    // the library animated *out*.
+    progress: () -> Float,
+    // Whether back may swipe it away: a modal sheet that may be dismissed.
+    swipeAway: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val motion = Theme.motion
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    // Driven by the host, in both directions — a panel that set its own
-    // `appeared` flag on first composition could only ever run 0 -> 1, which is
-    // why nothing in the library animated *out*.
-    val progress = LocalOverlayProgress.current
 
     // Physical edge, once the layout direction has been applied.
     val fromRight = (side == SheetSide.End) != isRtl
     val alignment = if (fromRight) Alignment.CenterEnd else Alignment.CenterStart
     val travel = with(density) { width.toPx() }
+    // Under reduced motion the panel fades where it will rest instead of
+    // sliding the width of itself across the window: the host's progress
+    // becomes its opacity.
+    val fadeInPlace = Theme.motion.reduceMotion
+
+    // Swiped away towards its own edge. The gesture that does it is the one
+    // whose finger moves that way — from the left edge for a sheet on the
+    // right — so the host's edge swipe closes it too under swipe back, and the
+    // host follows it by the sheet's own slide. The sheet also takes that drag
+    // itself, anywhere on it, after anything inside that moves sideways, on
+    // every platform: straight to its own entry, never to a stack inside it.
+    val back = LocalOverlayBack.current
+    val awayEdge = if (fromRight) NavigationEvent.EDGE_LEFT else NavigationEvent.EDGE_RIGHT
+    // Only ever set, never cleared: a sheet that is not swiped away — the
+    // non-modal one, laid out inside some other overlay — is not the entry's
+    // own panel, and must not clear what that panel said.
+    SideEffect { if (swipeAway) back?.swipeAwayEdge = awayEdge }
+    val direct = if (swipeAway) rememberDirectBack(back) else null
+    val drag = if (direct != null) {
+        val pan = remember(fromRight) {
+            BackPan(rightwards = fromRight, edge = awayEdge, pass = PointerEventPass.Main, startsAt = { _, _, _ -> true })
+        }
+        Modifier.swipeBack(pan, rememberSwipeBackInput(direct))
+    } else {
+        Modifier
+    }
+
+    // A drag moves the panel at every setting: what follows a finger follows it.
+    // Once one has, the rest of that close — or the way back, if it was let go
+    // short — slides too, rather than jumping to rest and fading from there.
+    val dragged = remember { mutableStateOf(false) }
+    if (fadeInPlace && back != null) {
+        LaunchedEffect(back) {
+            snapshotFlow { back.following to progress() }.collect { (following, shown) ->
+                if (following) dragged.value = true else if (shown >= 1f) dragged.value = false
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .align(alignment)
                 .width(width)
                 .fillMaxHeight()
+                // Read in placement, so opening and closing re-place the sheet
+                // without measuring or recomposing it.
                 .offset {
-                    val hidden = travel * (1f - progress().coerceIn(0f, 1f))
-                    IntOffset(
-                        x = (if (fromRight) hidden else -hidden).roundToInt(),
-                        y = 0,
-                    )
+                    val slides = !fadeInPlace || dragged.value
+                    val hidden = if (slides) travel * (1f - progress().coerceIn(0f, 1f)) else 0f
+                    IntOffset(x = (if (fromRight) hidden else -hidden).roundToInt(), y = 0)
                 }
+                .then(
+                    if (fadeInPlace) {
+                        Modifier.graphicsLayer { alpha = if (dragged.value) 1f else progress().coerceIn(0f, 1f) }
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(drag)
+                .then(modifier)
                 .semantics {
                     isTraversalGroup = true
                     if (paneTitle != null) this.paneTitle = paneTitle
                 }
         ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                // Mirrored for a start-side sheet, so the rounded edge is always
-                // the one facing the content rather than the window edge.
-                shape = if (fromRight) shape else shape.mirrorHorizontally(),
-                colour = containerColour,
-                contentColour = contentColour,
-                border = contrastEdge(),
-                shadow = Theme.elevation.overlay,
-            ) {
+            // Mirrored for a start-side sheet, so the rounded edge is always the
+            // one facing the content rather than the window edge.
+            val panelShape = if (fromRight) shape else shape.mirrorHorizontally()
+            PanelGround(panelShape, containerColour, contentColour) {
                 CompositionLocalProvider(LocalSheetState provides null) {
                     Column(
                         // Inside the surface, so the sheet's colour still runs
@@ -293,4 +454,23 @@ private fun SideSheetPanel(
             }
         }
     }
+}
+
+/** The side sheet's ground: a raised panel. */
+@Composable
+private fun PanelGround(
+    shape: Shape,
+    containerColour: Color,
+    contentColour: Color,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        shape = shape,
+        containerColour = containerColour,
+        contentColour = contentColour,
+        border = contrastEdge(),
+        shadow = Theme.elevation.overlay,
+        content = content,
+    )
 }

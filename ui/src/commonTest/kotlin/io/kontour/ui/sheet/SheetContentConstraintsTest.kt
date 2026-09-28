@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Constraints
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -126,6 +128,83 @@ class SheetContentConstraintsTest {
                 "the sheet offered its content maxHeight = $offered in a window " +
                     "$window px tall; it has to be finite and no taller than the room " +
                     "the sheet actually has",
+            )
+        }
+    }
+
+    /**
+     * And the room it actually has is the window less the gap above it.
+     *
+     * The reported defect, and the reason this is a second test rather than a
+     * tighter assertion on the one above: `offered in 1..window` was satisfied at
+     * the very top of its range, by `offered == window`, which is exactly the
+     * number that is wrong.
+     *
+     * No detent puts a sheet's top edge above `SheetTopGap`, and `sheetTopInset`
+     * shifts the content column down by at least that much — so a column measured
+     * against the whole window has its bottom edge that far *below* the window's.
+     * A `verticalScroll` inside sizes its viewport to the measurement, so its last
+     * rows sit off-screen at the end of the scroll range and cannot be reached.
+     * Reported from a phone on the catalog's Display settings panel.
+     *
+     * There is no status bar in a test host, so the gap is the whole of the
+     * reservation here. The inset half of the same arithmetic is measured in
+     * `SheetSafeAreaTest`, which can pass one in by hand.
+     *
+     * `dragHandle = null`, because the content sits in a `Column` and a `Column`
+     * hands each child what is left after the ones before it — so with a handle
+     * present this reads the ceiling less the handle's 24px and becomes a test of
+     * the handle's height, which is the trap the test below this one records.
+     */
+    @Test
+    fun theContentIsOfferedTheWindowLessTheGapAboveTheSheet() {
+        runComposeUiTest {
+            var window = -1
+            var offered = -1
+            var gap = -1
+
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    gap = with(LocalDensity.current) { SheetTopGap.roundToPx() }
+                    Box(
+                        Modifier
+                            .requiredSize(360.dp, 500.dp)
+                            .layout { measurable, constraints ->
+                                window = constraints.maxHeight
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                            }
+                    ) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            ModalBottomSheet(
+                                visible = true,
+                                onDismissRequest = {},
+                                dragHandle = null,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .layout { measurable, constraints ->
+                                            offered = constraints.maxHeight
+                                            val placeable = measurable.measure(constraints)
+                                            layout(placeable.width, placeable.height) {
+                                                placeable.place(0, 0)
+                                            }
+                                        }
+                                        .height(2000.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+
+            assertEquals(
+                window - gap, offered,
+                "the sheet offered its content $offered px in a $window px window " +
+                    "with a ${gap}px gap above it. Measured against the whole window, " +
+                    "the column's bottom edge lands ${gap}px below the window's and " +
+                    "the end of a scroller inside it cannot be reached.",
             )
         }
     }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The one thing this library asks of an app: the vibrator, for composition
+  primitives and rumbles. A normal permission — granted at install, never
+  prompted for. An app that removes it (tools:node="remove") still gets the
+  system's own feedback constants, which need none.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.VIBRATE" />
+</manifest>

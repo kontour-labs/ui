@@ -57,9 +57,9 @@ class InfiniteWheelDragTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     WheelPicker(
                         items = (0..23).toList(),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
-                        label = { it.toString().padStart(2, '0') },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
+                        itemLabel = { it.toString().padStart(2, '0') },
                         infinite = true,
                         modifier = Modifier.reportBounds { bounds = it },
                     )
@@ -98,9 +98,9 @@ class InfiniteWheelDragTest {
                 Box(Modifier.fillMaxSize().background(Color.White)) {
                     WheelPicker(
                         items = (0..23).toList(),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
-                        label = { it.toString().padStart(2, '0') },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
+                        itemLabel = { it.toString().padStart(2, '0') },
                         itemHeight = 40.dp,
                         infinite = true,
                         modifier = Modifier.reportBounds { bounds = it },
@@ -143,9 +143,9 @@ class InfiniteWheelDragTest {
                     Box(Modifier.fillMaxWidth().height(60.dp))
                     WheelPicker(
                         items = (0..23).toList(),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
-                        label = { it.toString().padStart(2, '0') },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
+                        itemLabel = { it.toString().padStart(2, '0') },
                         infinite = true,
                     )
                     Box(Modifier.fillMaxWidth().height(2000.dp))

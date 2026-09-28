@@ -42,11 +42,13 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
-import io.kontour.ui.nav.ModalNavDrawer
+import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavExpandPlacement
+import io.kontour.ui.nav.NavigationSuiteType
 import io.kontour.ui.nav.NavSearch
 import io.kontour.ui.nav.NavigationSuiteScaffold
 import io.kontour.ui.nav.Pagination
@@ -55,6 +57,11 @@ import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberNavSearchState
+import io.kontour.ui.nav.rememberNavigationSuiteState
+import io.kontour.ui.sheet.SheetSide
+import io.kontour.ui.components.display.Badge
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.composables.icons.tabler.outline.Route
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
@@ -87,157 +94,277 @@ private fun Frame(height: Dp, content: @Composable () -> Unit) {
     }
 }
 
-@Composable
-private fun destinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
-    NavItem("Home", Tabler.Outline.Home, { onSelectedChange(0) }),
-    NavItem("Map", Tabler.Outline.Map, { onSelectedChange(1) }),
-    NavItem("Plan", Tabler.Outline.Calendar, { onSelectedChange(2) }, badge = 2),
-    NavItem("Profile", Tabler.Outline.User, { onSelectedChange(3) }),
+/** One demo destination. */
+private class Destination(val key: String, val label: String, val icon: ImageVector, val badge: Int? = null)
+
+/**
+ * The destinations the demos draw. Nine, because the rail's overflow is only
+ * shown by more destinations than a 300dp rail is tall; the bar takes four.
+ */
+private val allDestinations = listOf(
+    Destination("home", "Home", Tabler.Outline.Home),
+    Destination("map", "Map", Tabler.Outline.Map),
+    Destination("plan", "Plan", Tabler.Outline.Calendar, badge = 2),
+    Destination("profile", "Profile", Tabler.Outline.User),
+    Destination("nearby", "Nearby", Tabler.Outline.Pin),
+    Destination("search", "Search", Tabler.Outline.Search),
+    Destination("alerts", "Alerts", Tabler.Outline.Bell),
+    Destination("saved", "Saved", Tabler.Outline.Star),
+    Destination("tickets", "Tickets", Tabler.Outline.Ticket),
 )
 
-/**
- * More destinations than the rail is tall enough for.
- *
- * Four fit in 300dp with room to spare, and a rail that fits is a rail that
- * never scrolls — so the fix for the overflowing rail was demonstrated by a
- * case that could not overflow. Nine is past the edge at this height, which is
- * the point of it.
- */
+/** The first [count] demo destinations, in whichever surface this is. */
 @Composable
-private fun manyDestinations(selected: Int, onSelectedChange: (Int) -> Unit) = listOf(
-    NavItem("Home", Tabler.Outline.Home, { onSelectedChange(0) }),
-    NavItem("Map", Tabler.Outline.Map, { onSelectedChange(1) }),
-    NavItem("Plan", Tabler.Outline.Calendar, { onSelectedChange(2) }, badge = 2),
-    NavItem("Nearby", Tabler.Outline.Pin, { onSelectedChange(3) }),
-    NavItem("Search", Tabler.Outline.Search, { onSelectedChange(4) }),
-    NavItem("Alerts", Tabler.Outline.Bell, { onSelectedChange(5) }),
-    NavItem("Saved", Tabler.Outline.Star, { onSelectedChange(6) }),
-    NavItem("Tickets", Tabler.Outline.Ticket, { onSelectedChange(7) }),
-    NavItem("Profile", Tabler.Outline.User, { onSelectedChange(8) }),
-)
+private fun NavScope.destinations(here: String, onChange: (String) -> Unit, count: Int = 4) {
+    allDestinations.take(count).forEach { d ->
+        item(
+            selected = here == d.key,
+            onClick = { onChange(d.key) },
+            key = d.key,
+            icon = d.icon,
+            badge = d.badge?.let { n -> { Badge(count = n) } },
+        ) { +d.label }
+    }
+}
 
-private val barLabels = Knob.Flag("Labels", initial = true)
+/** A section and a group, as a sidebar would hold them. */
+@Composable
+private fun NavScope.tree(here: String, onChange: (String) -> Unit, groupOpen: Boolean, onGroupOpen: (Boolean) -> Unit) {
+    item(here == "home", { onChange("home") }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+    section("Travel") {
+        item(here == "map", { onChange("map") }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+        group(
+            expanded = groupOpen,
+            onExpandedChange = onGroupOpen,
+            key = "routes",
+            icon = Tabler.Outline.Route,
+            header = { +"Routes" },
+        ) {
+            item(here == "950", { onChange("950") }, key = "950", icon = null) { +"950" }
+            item(here == "998", { onChange("998") }, key = "998", icon = null) { +"998" }
+        }
+    }
+    divider()
+    item(here == "profile", { onChange("profile") }, key = "profile", icon = Tabler.Outline.User) { +"Profile" }
+}
+
+/** Something behind a bar, so a floating one is seen to float. */
+@Composable
+private fun PageBehind() {
+    Column(
+        Modifier.fillMaxSize().padding(Theme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+    ) {
+        repeat(6) { row ->
+            Box(
+                Modifier
+                    .fillMaxWidth(if (row % 2 == 0) 0.9f else 0.6f)
+                    .height(14.dp)
+                    .clip(Theme.shapes.capsule)
+                    .background(if (row % 3 == 0) Theme.colours.accent.solid else Theme.colours.outline)
+            )
+        }
+    }
+}
+
+private val barStyle = Knob.Choice("Style", NavBarStyle.entries.toList(), NavBarStyle.Floating)
+private val barLabels = Knob.Flag("Labels")
 
 /**
- * Free, Docked or Floating.
- *
- * The bar arrived with three of these and the demo showed one, so two thirds of
- * what the page describes could not be looked at. `NavBarDefaults.arrangementFor`
- * reads the same value, so switching it moves the items as well as the surface.
- */
-private val barStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), NavBarStyle.Free)
-
-/**
- * A vertical fade from transparent to the page colour behind the whole row.
- *
- * `Free` circles carry their own elevation, which separates them from a map and
- * not from a photograph. The fade is *drawn*, not laid out — it reaches 128dp up
- * the screen without the bar measuring a pixel taller — so the demo shows it
- * over content rather than over the frame's own ground.
- */
-/**
- * Swaps the bar's floating action for a [NavSearch].
- *
- * The arrangement Round 12 built and only the gallery ever drew: a search field
- * that lives *in* the navigation surface and expands in place, rather than a
- * button that opens a screen. It sizes itself to the bar, so seeing it in the
- * bar is the only way to see what it does.
+ * A search in the middle of the bar, where a map app keeps it: a pill that opens
+ * a field over the screen, sized to the bar rather than to its slot.
  */
 private val barSearch = Knob.Flag("Search in the bar")
 
-private val barBackdrop = Knob.Flag("Backdrop")
+/**
+ * Where an expanded search panel goes, which is a choice about thumbs. Does
+ * nothing visible until the pill is tapped, which is why it is a knob rather
+ * than a sentence.
+ */
+private val barSearchPlacement =
+    Knob.Choice("Panel", NavExpandPlacement.entries.toList(), NavExpandPlacement.AboveKeyboard)
 
-internal val NavSurfacesDemo = ComponentDemo(
-    slug = "nav-surfaces",
-    knobs = listOf(barStyle, barLabels, barBackdrop, barSearch),
+internal val NavBarDemo = ComponentDemo(
+    slug = "nav-bar",
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement),
 ) {
-    var selected by remember { mutableStateOf(1) }
-    var expanded by remember { mutableStateOf(false) }
-    val navSearch = rememberNavSearchState()
-    val labels = this[barLabels]
-    val style = this[barStyle]
-    val backdrop = this[barBackdrop]
-
-    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        Text("NavBar", style = Theme.typography.labelMedium)
-        Frame(height = 150.dp) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                NavBar(
-                    items = destinations(selected) { selected = it },
-                    selectedIndex = selected.coerceAtMost(3),
-                    style = style,
-                    showLabels = labels,
-                    backdrop = backdrop,
-                    action = {
-                        // The bar's action slot takes either. A floating action
-                        // is the common case; `NavSearch` is what goes there
-                        // when searching *is* the primary action, and it sizes
-                        // itself to the surface rather than to the slot.
-                        if (this@ComponentDemo[barSearch]) {
-                            NavSearch(
-                                state = navSearch,
-                                placeholder = "Search stops",
-                                searchIcon = Tabler.Outline.Search,
-                                onSearch = { echo("Search: $it") },
-                            )
-                        } else {
-                            FloatingActionButton(
-                                icon = Tabler.Outline.Search,
-                                contentDescription = "Search",
-                                onClick = { echo("Search") },
-                                size = FabSize.Small,
-                            )
-                        }
-                    },
-                )
-            }
-        }
-        Text("NavRail — nine destinations in 300dp", style = Theme.typography.labelMedium)
-        Frame(height = 300.dp) {
-            NavRail(
-                items = manyDestinations(selected) { selected = it },
-                selectedIndex = selected,
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-            )
-        }
-    }
-}
-
-internal val NavItemDemo = ComponentDemo(slug = "nav-item") {
-    var selected by remember { mutableStateOf(0) }
-    // `NavItem` is a model rather than a component — a label, an icon, a
-    // callback and an optional badge — so the demo is the surfaces reading it.
-    Frame(height = 150.dp) {
+    var here by remember { mutableStateOf("map") }
+    val search = rememberNavSearchState()
+    val withSearch = this[barSearch]
+    val placement = this[barSearchPlacement]
+    Frame(height = 160.dp) {
+        PageBehind()
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             NavBar(
-                items = destinations(selected) { selected = it },
-                selectedIndex = selected,
-            )
+                style = this@ComponentDemo[barStyle],
+                showLabels = this@ComponentDemo[barLabels],
+            ) {
+                val first = allDestinations.take(if (withSearch) 2 else 4)
+                first.forEach { d ->
+                    item(here == d.key, { here = d.key }, key = d.key, icon = d.icon) { +d.label }
+                }
+                if (withSearch) {
+                    slot(weight = 1f) {
+                        NavSearch(
+                            state = search,
+                            placement = placement,
+                            placeholder = "Search stops",
+                            searchIcon = Tabler.Outline.Search,
+                            onSearch = { echo("Search: $it") },
+                        )
+                    }
+                    allDestinations.subList(2, 4).forEach { d ->
+                        item(here == d.key, { here = d.key }, key = d.key, icon = d.icon) { +d.label }
+                    }
+                }
+            }
         }
     }
 }
 
-internal val NavigationSuiteScaffoldDemo = ComponentDemo(slug = "navigation-suite-scaffold") {
-    var selected by remember { mutableStateOf(1) }
-    // Its own `WindowSizeClassProvider`, so the scaffold picks bar, rail or
-    // drawer from the size of *this box* rather than of the reader's browser.
-    // That is the whole component: one call, three surfaces.
+private val railExpanded = Knob.Flag("Expanded")
+private val railToggle = Knob.Flag("Toggle", initial = true)
+private val railTree = Knob.Flag("Sections and groups")
+private val railAlignment = Knob.Choice(
+    "Items",
+    listOf(Alignment.Top, Alignment.CenterVertically),
+    name = { if (it == Alignment.Top) "Top" else "Centred" },
+)
+
+internal val NavRailDemo = ComponentDemo(
+    slug = "nav-rail",
+    knobs = listOf(railExpanded, railToggle, railTree, railAlignment),
+) {
+    var here by remember { mutableStateOf("map") }
+    var expanded by remember { mutableStateOf(false) }
+    var groupOpen by remember { mutableStateOf(true) }
+    val fixed = this[railExpanded]
+    val toggle = this[railToggle]
+    val tree = this[railTree]
+    Frame(height = 320.dp) {
+        NavRail(
+            expanded = if (toggle) expanded else fixed,
+            onExpandedChange = if (toggle) ({ expanded = it }) else null,
+            itemAlignment = this@ComponentDemo[railAlignment],
+        ) {
+            if (tree) {
+                tree(here, { here = it }, groupOpen, { groupOpen = it })
+            } else {
+                // More than a 320dp rail is tall: it scrolls rather than squashing.
+                destinations(here, { here = it }, count = 9)
+            }
+        }
+    }
+}
+
+private val modalSide = Knob.Choice("Side", SheetSide.entries.toList(), SheetSide.Start)
+
+internal val ModalNavRailDemo = ComponentDemo(slug = "modal-nav-rail", knobs = listOf(modalSide)) {
+    var open by remember { mutableStateOf(false) }
+    var here by remember { mutableStateOf("map") }
+    var groupOpen by remember { mutableStateOf(true) }
+    Frame(height = 400.dp) {
+        PageBehind()
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Button(onClick = { open = true }, variant = ButtonVariant.Secondary) { +"Open the rail" }
+        }
+        ModalNavRail(
+            visible = open,
+            onDismissRequest = { open = false },
+            side = this@ComponentDemo[modalSide],
+        ) {
+            tree(here, { here = it }, groupOpen, { groupOpen = it })
+        }
+    }
+}
+
+internal val NavScopeDemo = ComponentDemo(slug = "nav-scope") {
+    var here by remember { mutableStateOf("map") }
+    var groupOpen by remember { mutableStateOf(false) }
+    // One set of destinations, drawn by a bar and by a rail. The group is a menu
+    // in the bar and a disclosure in the wide rail.
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        Frame(height = 120.dp) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                NavBar { tree(here, { here = it }, groupOpen, { groupOpen = it }) }
+            }
+        }
+        Frame(height = 320.dp) {
+            NavRail(expanded = true) { tree(here, { here = it }, groupOpen, { groupOpen = it }) }
+        }
+    }
+}
+
+private val searchPlacement =
+    Knob.Choice("Panel", NavExpandPlacement.entries.toList(), NavExpandPlacement.AboveKeyboard)
+
+internal val NavSearchDemo = ComponentDemo(slug = "nav-search", knobs = listOf(searchPlacement)) {
+    var here by remember { mutableStateOf("map") }
+    var railOpen by remember { mutableStateOf(false) }
+    val search = rememberNavSearchState()
+    val placement = this[searchPlacement]
+    // The same search in a bar, where it is a pill, and in a rail, where it is a
+    // pill until the rail is wide enough to type in and then the field itself.
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        Frame(height = 140.dp) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                NavBar {
+                    destinations(here, { here = it }, count = 2)
+                    slot(weight = 1f) {
+                        NavSearch(state = search, placement = placement, searchIcon = Tabler.Outline.Search)
+                    }
+                }
+            }
+        }
+        Frame(height = 300.dp) {
+            NavRail(
+                expanded = railOpen,
+                onExpandedChange = { railOpen = it },
+                header = { NavSearch(state = search, placement = placement, searchIcon = Tabler.Outline.Search) },
+            ) {
+                destinations(here, { here = it })
+            }
+        }
+    }
+}
+
+/**
+ * Which surface the scaffold shows. The scaffold's whole job is picking one from
+ * the window's width, and this overrides that — `ModalRail` is never picked
+ * automatically, and the others are only seen here without a tablet.
+ */
+private val suiteType =
+    Knob.Choice("Surface", NavigationSuiteType.entries.toList(), NavigationSuiteType.Bar)
+private val suiteBarStyle = Knob.Choice("Bar style", NavBarStyle.entries.toList(), NavBarStyle.Floating)
+private val suiteExpandable = Knob.Flag("Rail expands", initial = true)
+
+internal val NavigationSuiteScaffoldDemo = ComponentDemo(
+    slug = "navigation-suite-scaffold",
+    knobs = listOf(suiteType, suiteBarStyle, suiteExpandable),
+) {
+    val type = this[suiteType]
+    var here by remember { mutableStateOf("map") }
+    val suite = rememberNavigationSuiteState()
+    // Its own `WindowSizeClassProvider`, so the scaffold reads the size of this
+    // box rather than of the reader's browser.
     Frame(height = 320.dp) {
         WindowSizeClassProvider(Modifier.fillMaxSize()) {
             NavigationSuiteScaffold(
-                items = destinations(selected) { selected = it },
-                selectedIndex = selected,
+                destinations = { destinations(here, { here = it }) },
+                state = suite,
+                type = type,
+                barStyle = this@ComponentDemo[suiteBarStyle],
+                railExpandable = this@ComponentDemo[suiteExpandable],
             ) { contentPadding ->
                 Box(
-                    Modifier.fillMaxSize().padding(bottom = contentPadding),
+                    Modifier.fillMaxSize().padding(contentPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        "content",
-                        style = Theme.typography.eyebrow,
-                        colour = Theme.colours.contentSubtle,
-                    )
+                    if (type == NavigationSuiteType.ModalRail) {
+                        Button(onClick = suite::showModal, variant = ButtonVariant.Secondary) { +"Destinations" }
+                    } else {
+                        Text("content", style = Theme.typography.eyebrow, colour = Theme.colours.contentSubtle)
+                    }
                 }
             }
         }
@@ -290,10 +417,10 @@ private fun OverflowMenu(echo: (String) -> Unit) {
             alignment = OverlayAlignment.End,
         ) {
             // The rows dismiss the menu themselves — see `MenuScopeImpl.item`.
-            item("Pin this stop", icon = Tabler.Outline.Pin) { echo("Pin this stop") }
-            item("Alert settings", icon = Tabler.Outline.Bell) { echo("Alert settings") }
+            item("Pin this stop", leadingIcon = Tabler.Outline.Pin) { echo("Pin this stop") }
+            item("Alert settings", leadingIcon = Tabler.Outline.Bell) { echo("Alert settings") }
             divider()
-            item("Remove stop", icon = Tabler.Outline.Trash, destructive = true) {
+            item("Remove stop", leadingIcon = Tabler.Outline.Trash, destructive = true) {
                 echo("Remove stop")
             }
         }
@@ -407,38 +534,15 @@ internal val PaginationDemo = ComponentDemo(slug = "pagination", knobs = listOf(
     }
 }
 
-internal val ModalNavDrawerDemo = ComponentDemo(slug = "nav-drawer") {
-    var open by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf(1) }
-    val pages = listOf("Home", "Map", "Plan", "Profile")
-    Frame(height = 300.dp) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Button(onClick = { open = true }, variant = ButtonVariant.Secondary) {
-                +"Open the drawer"
-            }
-        }
-        ModalNavDrawer(visible = open, onDismissRequest = { open = false }) {
-            section("Travel") {
-                pages.take(3).forEachIndexed { index, page ->
-                    item(page, selected = index == selected) {
-                        selected = index
-                        open = false
-                    }
-                }
-            }
-            divider()
-            item("Profile", selected = selected == 3) { selected = 3; open = false }
-        }
-    }
-}
-
 internal val navigationDemos = listOf(
-    NavSurfacesDemo,
-    NavItemDemo,
+    NavScopeDemo,
+    NavBarDemo,
+    NavRailDemo,
+    ModalNavRailDemo,
+    NavSearchDemo,
     NavigationSuiteScaffoldDemo,
     TopBarDemo,
     TabBarDemo,
     BreadcrumbsDemo,
     PaginationDemo,
-    ModalNavDrawerDemo,
 )

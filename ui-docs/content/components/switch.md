@@ -17,6 +17,44 @@ its 2dp of clearance on both sides the whole way, growing into whichever side ha
 the room. At either end that is all behind it, so the stretch trails the way give
 should.
 
+Pushed past the end it squashes, and it squashes **on one side**. The end against
+the wall keeps the circle the thumb rests as — so it stays exactly concentric with
+the track's end arc, 2dp the whole way round, which is what the padding is for —
+and the free side eases in to a shallower curve. A ball pressed into a wall does
+not go pointy where it is touching.
+
+The join between the two is the hard part, and it is why the free side is not
+simply a shallower ellipse butted onto the cap: two arcs like that share a tangent
+but not a curvature, and the step is visible as a kink at the widest row.
+
+**So the ease begins before the join**, not at it. Matching curvature at a point
+costs nothing if the curvature is then allowed to rocket away from it — which is
+what an ease starting at the join does, going from the cap's own value to four
+times it within a few percent of the outline. The cap is exact for three fifths of
+its quarter turn and the outline eases from there on a curve whose first *and*
+second derivatives vanish at both ends, so the curvature leaves the cap's value
+with zero slope and settles onto the free ellipse the same way. Curvature-
+continuous to look at, not only on paper.
+
+It costs thirteen thousandths of a dp of the cap's circularity over the eased
+part — a fiftieth of a pixel, and inward, so it takes nothing off the clearance
+the cap is concentric for.
+
+Squashed, the thumb is inside the circle it rests as at every point, so it never
+comes closer to the track than a resting thumb does.
+
+**It gives a fifth of itself** — 4.8dp off a 24dp thumb — and a
+[`Slider`](slider.md)'s thumb gives the same fifth of *its* own width. It was a
+quarter, which read correctly here and far too deep there: the slider was
+measuring it off the thumb's resting diameter while squashing the much wider thumb
+under the finger, so one constant came out at 60% on one control and 25% on the
+other. Both take it off the width they are drawn at now, and the depth came down
+with the fix — *"it only really needs to deform a bit"*. A switch's thumb rests as
+a circle, so it is an egg from the first pixel of squash; a slider's is half as
+wide again while you hold it, so it narrows and stays a capsule. The same fraction
+of two different shapes, which is the consistency worth having — matching what the
+deformation *looks* like would mean two rules.
+
 **The stretch is the travel, not a second animation about it.** It is taken from
 how fast the thumb is going, so it grows as the thumb sets off, is widest where
 the thumb is quickest, and is gone by the time it arrives — one movement. Driven
@@ -34,14 +72,64 @@ not — the answer is not *no* fill but a fill dark enough. It is
 `outlineStrong`, the token that exists to bound an interactive control at the 3:1
 WCAG asks for, and it is checked against every ground a switch can land on.
 
+**The track's colour is the thumb's position, not a tween about it.** It used to
+be a 150ms crossfade fired by the commit, which on a tap roughly coincided with
+the travel and on a *drag* could not: the thumb follows your finger one to one,
+so a slow drag holds it anywhere it likes, and the track behind it stayed one
+colour and then repainted itself the instant the midpoint went by, whatever the
+finger was doing. Interpolated from the position instead, a drag half way across
+is a track half way across, and a tap crossfades on the position spring's own
+timing — the same correction the thumb's stretch already had. The blend is
+through Oklab, so the middle of grey to a saturated primary is a colour rather
+than a muddy step. Enabled to disabled is still a tween: that is the one change
+the thumb's position cannot express.
+
+**The track is a squircle, like every other pill in the library.** It was the one
+that was not — it named `Theme.shapes.control`, the same token a `Button` takes,
+and then drew plain circular corners into a canvas, which is what "switches don't
+have that same smoothing factor as things like buttons" turned out to mean. It
+draws the shape's own outline now. The thumb stays a true circle, and that is the
+shape scale's answer rather than an exception to it: a square at capsule radius
+saturates on both edges, so `SquircleShape` returns a circle for it — the same as
+an `IconButton`, an `Avatar` or a radio ring.
+
+**And the track names `Theme.shapes.pill` rather than `Theme.shapes.control`,
+because the thumb cannot be capped.** The thumb is drawn at half its own height —
+12dp on a 24dp thumb, a number rather than a token, because a draw call has no
+shape to consult. (A rounded rect while it is at least as wide as it is tall, and
+an egg once a squash takes it narrower; the cap's radius is the same either way.)
+The track was reading the capped rule, so a theme
+setting `capsuleCap = 10.dp` brought the 28dp track down to 10 and left the thumb
+at 12, where concentricity wants the track to be the thumb *plus* the 2dp of
+padding around it — 14. Reported as switches no longer being concentric in a
+theme that squares its controls off, and that was exactly it. `pill` is the same
+rule uncapped, so the two now track each other at whatever cap a theme picks. In
+the default theme nothing moves: the cap is 18dp and half of 28 is 14, so it was
+never reached here anyway.
+
 ---
 
-**Drag the thumb.** A switch is the most draggable-looking control there is, and
-a drag that stops short of the middle springs back rather than toggling. Wherever
+**Drag the thumb, and it goes over at the midpoint.** A switch is the most
+draggable-looking control there is, and the crossing is the commit: the state
+changes under your finger rather than when you lift it. Drag back across and it
+changes back. A drag that stops short springs home and reports nothing. Wherever
 the finger lets go, that is where the spring starts from — there is one position
 for the thumb, not a drag position and a separate resting animation that have to
 agree. It works inside a `SelectionRow` too, where the row still owns the tap —
 the row publishes its own toggle for the switch to drag against.
+
+**The thumb tracks your finger one to one.** It briefly did not — it leaned
+against you, using the ticked slider's `SliderDefaults.DetentPull` — and that is
+right on a slider and wrong here. A slider's thumb crosses most of a screen, so
+travelling 45% of the way reads as strain. This track is **20dp**: the same
+ratio moves the thumb 9dp while your finger moves 20 and then jumps it at the
+midpoint, which reads as a control that is not keeping up, and then a glitch.
+
+Crossing the midpoint fires `FeedbackIntent.DragThreshold` — what letting go
+will do has just changed, and nothing on screen said so first — and crossing
+back fires the softer `DragThresholdBack`. **Tapping** a switch reports which
+way it went, `ToggleOn` or `ToggleOff`, and the two feel different;
+[the haptics policy](../theming.md#what-the-library-buzzes-for) has the split.
 
 ---
 
@@ -57,3 +145,8 @@ the row is the target — a bare switch has no name.
 
 The thumb stretches while it moves and does not under reduced motion. Nothing
 about the announcement changes.
+
+At high contrast the thumb carries its state as a mark as well as a position: a
+check when on and a dash when off, each in the colour of its end of the track.
+The off track is `inactive`, 3:1 from the on track, and the focus ring is drawn
+thicker.

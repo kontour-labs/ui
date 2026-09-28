@@ -76,6 +76,23 @@ fun Scrim(
     dismissLabel: String? = null,
     colour: Color = Theme.colours.scrim,
     onScrollRequest: (() -> Unit)? = null,
+) = ScrimLayer(fraction, onDismissRequest, modifier, dismissLabel, colour, onScrollRequest, blocks = true)
+
+/**
+ * [Scrim], and whether it stands in the way at all.
+ *
+ * [blocks] false is a scrim that is only drawn: an overlay's on its way out,
+ * which dims what is behind it as it goes and no longer keeps a finger off it.
+ */
+@Composable
+internal fun ScrimLayer(
+    fraction: () -> Float,
+    onDismissRequest: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    dismissLabel: String? = null,
+    colour: Color = Theme.colours.scrim,
+    onScrollRequest: (() -> Unit)? = null,
+    blocks: Boolean = true,
 ) {
     val animated by animateColorAsState(
         targetValue = colour,
@@ -91,12 +108,36 @@ fun Scrim(
                 if (f > 0f) drawRect(animated.copy(alpha = animated.alpha * f))
             }
             .then(
-                if (onScrollRequest != null) {
+                if (blocks && onScrollRequest != null) {
                     Modifier.pointerInput(onScrollRequest) {
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
-                                if (event.type == PointerEventType.Scroll) onScrollRequest()
+                                // **A scroll something else used is not a scroll at
+                                // the scrim.**
+                                //
+                                // This fires because the page behind cannot scroll
+                                // while a scrim is over it, so a scroll here means
+                                // "close this and let me read what is underneath".
+                                // A scroll the overlay's *own* panel consumed means
+                                // the opposite, and the scrim is `fillMaxSize` so it
+                                // is in the hit path for every pointer over that
+                                // panel too.
+                                //
+                                // It cost nothing until anchored panels were bounded
+                                // to their own side and given scrollers to cope —
+                                // from which point scrolling a popover closed it
+                                // mid-gesture.
+                                //
+                                // A panel with nothing left to scroll consumes
+                                // nothing, so an overlay whose content fits still
+                                // dismisses exactly as it always did.
+                                if (
+                                    event.type == PointerEventType.Scroll &&
+                                    event.changes.none { it.isConsumed }
+                                ) {
+                                    onScrollRequest()
+                                }
                             }
                         }
                     }
@@ -105,7 +146,9 @@ fun Scrim(
                 }
             )
             .then(
-                if (onDismissRequest != null) {
+                if (!blocks) {
+                    Modifier
+                } else if (onDismissRequest != null) {
                     Modifier
                         .pointerInput(onDismissRequest) {
                             detectTapGestures { onDismissRequest() }

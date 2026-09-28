@@ -1,5 +1,7 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.text.PhoneFormat
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Eye
-import com.composables.icons.tabler.outline.EyeOff
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Train
@@ -32,6 +33,8 @@ import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.TextFieldVariant
+import io.kontour.ui.components.text.rememberImeChain
+import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
 private val fieldVariant =
@@ -49,6 +52,7 @@ private val fieldError = Knob.Flag("Error")
  */
 private val fieldReadOnly = Knob.Flag("Read-only")
 private val fieldEnabled = Knob.Flag("Enabled", initial = true)
+
 
 internal val TextFieldDemo = ComponentDemo(
     slug = "text-field",
@@ -88,8 +92,7 @@ internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
     TextArea(
         state = state,
         label = "What went wrong?",
-        minLines = 3,
-        maxLines = 6,
+        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 6),
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -105,10 +108,15 @@ private val numberNegative = Knob.Flag("Negatives")
 // difference is what the keyboard and the manager do.
 private val passwordIsNew = Knob.Flag("Sign-up field")
 
+/**
+ * The character just typed shows for a moment before it becomes a dot, the way
+ * a phone's own password fields do. Off masks every character as it arrives.
+ */
+private val passwordRevealLast = Knob.Flag("Show last typed", initial = true)
 
 internal val SpecialisedFieldsDemo = ComponentDemo(
     slug = "specialised-fields",
-    knobs = listOf(numberDecimal, numberNegative, passwordIsNew),
+    knobs = listOf(numberDecimal, numberNegative, passwordIsNew, passwordRevealLast),
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -117,7 +125,8 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
         PasswordField(
             state = rememberTextFieldState("hunter2"),
             label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
-            isNewPassword = this@ComponentDemo[passwordIsNew],
+            newPassword = this@ComponentDemo[passwordIsNew],
+            revealLastTyped = this@ComponentDemo[passwordRevealLast],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -126,11 +135,15 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
             label = "Email",
             modifier = Modifier.fillMaxWidth(),
         )
+        // An Australian app, so an Australian mobile's grouping. The field
+        // guesses no country by default: a mask for the wrong one is worse
+        // than none.
         PhoneField(
             state = rememberTextFieldState("0412345678"),
             label = "Mobile",
             supporting = "Masked for display; stored as digits",
             modifier = Modifier.fillMaxWidth(),
+            format = PhoneFormat.AustralianMobile,
         )
         // The two knobs are the field: what it *will not* accept is the whole
         // of what a number field is, and both refusals are silent — a rejected
@@ -226,6 +239,32 @@ internal val ComboboxDemo = ComponentDemo(slug = "combobox") {
     }
 }
 
+internal val ImeChainDemo = ComponentDemo(slug = "ime-chain") {
+    val from = rememberTextFieldState("Perth Underground")
+    val to = rememberTextFieldState()
+    val chain = rememberImeChain("from", "to")
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        TextField(
+            state = from,
+            label = "From",
+            imeChain = chain["from"],
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TextField(
+            state = to,
+            label = "To",
+            placeholder = "Where to?",
+            imeChain = chain["to"],
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "The first field's action key says Next; the last one says Done.",
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
 internal val textEditingDemos = listOf(
     TextFieldDemo,
     SearchFieldDemo,
@@ -234,4 +273,5 @@ internal val textEditingDemos = listOf(
     SelectDemo,
     MultiSelectDemo,
     ComboboxDemo,
+    ImeChainDemo,
 )

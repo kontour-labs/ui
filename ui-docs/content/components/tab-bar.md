@@ -106,7 +106,7 @@ TabBar {
     Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
     Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
 }
-Box(Modifier.tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it })) {
+Box(Modifier.tabSwipe(selectedIndex = tab, count = 2, onSelectedIndexChange = { tab = it })) {
     when (tab) { 0 -> Departures(); else -> RouteMap() }
 }
 ```
@@ -138,3 +138,10 @@ three.
 A tab bar changes what is below it. Where that content is a separate scrolling
 region, give it a heading so a user who has switched tabs can find where they
 have arrived.
+
+At high contrast the travelling pill takes an accent outline, `selectionEdge()`,
+round its tint. A scrolling bar's scrollbar stays at full ink when idle rather
+than half, and the focus ring and the rule `showDivider` draws are thicker.
+
+Under reduced motion the pill does not slide between tabs: it fades out and
+fades up on the tab chosen. A tab's press is a tonal wash at every setting.

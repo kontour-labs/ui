@@ -1,20 +1,26 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.theme.ProvideTokens
+import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateOrder
+import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Plane
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
-import io.kontour.ui.components.datetime.DateTimeFormats
-import io.kontour.ui.components.datetime.LocalDateTimeFormats
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
+import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -25,8 +31,8 @@ fun DatePickerBasics() {
     var travelDate by remember { mutableStateOf<LocalDate?>(null) }
 
     DatePicker(
-        selected = travelDate,
-        onSelectedChange = { travelDate = it },
+        value = travelDate,
+        onValueChange = { travelDate = it },
         today = LocalDate(2026, 6, 12),
         // Timetables do not go back, so neither does the picker.
         isDateSelectable = { it >= LocalDate(2026, 6, 12) },
@@ -43,7 +49,7 @@ fun DateRangePickerBasics() {
     DateRangePicker(
         start = start,
         end = end,
-        onRangeSelected = { from, to -> start = from; end = to },
+        onRangeChange = { from, to -> start = from; end = to },
         today = LocalDate(2026, 6, 12),
     )
 }
@@ -63,6 +69,40 @@ fun TimeFieldBasics() {
     // A read-only field that opens a picker — `onClick`, not `onValueChange`.
     // Typing a time into a text field is how you get 25:61.
     TimeField(value = departAt, onClick = { start() }, label = "Leave at")
+}
+
+@Composable
+fun ActivityCalendarBasics() {
+    var picked by remember { mutableStateOf<LocalDate?>(null) }
+
+    // A year to today, a shade a day. Point at a day, long-press it or reach it
+    // with the arrow keys to see its count; tap it to pick it.
+    ActivityCalendar(
+        activity = tripsByDay,
+        end = LocalDate(2026, 6, 5),
+        today = LocalDate(2026, 6, 5),
+        selected = picked,
+        onDayClick = { picked = it },
+    )
+}
+
+@Composable
+fun ActivityCalendarMarks() {
+    val holiday = Theme.colours.warning.solid
+    // A mark draws on a day as well as its shade — a folded corner, an icon, a
+    // count spelled out — and says in words what it means, for the tooltip and
+    // the screen reader, which cannot see a corner. A day can have several.
+    ActivityCalendar(
+        activity = tripsByDay,
+        end = LocalDate(2026, 6, 5),
+        marksFor = { date, count ->
+            listOfNotNull(
+                ActivityMark(corner = holiday, description = "Public holiday").takeIf { date in publicHolidays },
+                flights[date]?.let { ActivityMark(icon = Tabler.Outline.Plane, description = it) },
+                ActivityMark(text = "$count").takeIf { count >= 10 },
+            )
+        },
+    )
 }
 
 @Composable
@@ -86,9 +126,9 @@ fun WheelPickerBasics() {
 
     WheelPicker(
         items = platforms,
-        selected = index,
-        onSelectedChange = { index = it },
-        label = { it },
+        selectedIndex = index,
+        onSelectedIndexChange = { index = it },
+        itemLabel = { it },
     )
 }
 
@@ -100,15 +140,18 @@ fun RelativeTimeTextBasics() {
 }
 
 @Composable
-fun DateTimeFormatsBasics() {
-    // Provided once, near the root. Every date and time component below reads
-    // it, so 12-hour clocks and a Sunday week start are one decision rather
-    // than a parameter on nine call sites.
-    CompositionLocalProvider(
-        LocalDateTimeFormats provides DateTimeFormats(
-            is24Hour = false,
-            dayFirst = false,
-            firstDayOfWeek = DayOfWeek.SUNDAY,
+fun LocaleFormatsBasics() {
+    // Changed once, near the root. Every date and time component below reads
+    // `Theme.formats`, so a 12-hour clock and a Sunday week start are one
+    // decision rather than a parameter on nine call sites.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(
+                hourCycle = HourCycle.H12,
+                dateOrder = DateOrder.MonthDayYear,
+                firstDayOfWeek = DayOfWeek.SUNDAY,
+            ),
         ),
     ) {
         Screen()

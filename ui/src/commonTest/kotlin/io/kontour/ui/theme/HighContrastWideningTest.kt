@@ -65,10 +65,10 @@ class HighContrastWideningTest {
      *
      * `brand` and `focusRing` default to `accent.solid` in this pair rather than
      * to a constant — unlike the standard pair, where both are `Palette` symbols
-     * that merely *happen* to equal the default accent's solid. So rewriting the
+     * (and light's `brand` is not even its accent). So rewriting the
      * high-contrast factories "to match the standard pair" silently changes
      * behaviour for anyone who passes an accent: they used to get their own tone
-     * as the brand and the focus ring, and would start getting the library's blue.
+     * as the brand and the focus ring, and would start getting the library's violet.
      *
      * A no-argument comparison cannot see that, because at the default the two
      * formulations agree. This is the arm that can, and it is the reason the
@@ -93,7 +93,7 @@ class HighContrastWideningTest {
                 Probe.solid, scheme.brand,
                 "$tier: brand stopped following accent.solid. It must not become a " +
                     "constant — brand is the one token the contrast walk exempts, so " +
-                    "a caller who set an accent and silently got the library's blue " +
+                    "a caller who set an accent and silently got the library's violet " +
                     "has nothing that would tell them.",
             )
             assertEquals(
@@ -127,7 +127,7 @@ class HighContrastWideningTest {
             "light.background" to (highContrastLightColourScheme(background = Ink).background == Ink),
             "light.surface" to (highContrastLightColourScheme(surface = Ink).surface == Ink),
             "light.surfaceSunken" to (highContrastLightColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
-            "light.surfaceTrack" to (highContrastLightColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
+            "light.surfaceIndicator" to (highContrastLightColourScheme(surfaceIndicator = Ink).surfaceIndicator == Ink),
             "light.surfaceRaised" to (highContrastLightColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "light.surfaceInverse" to (highContrastLightColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "light.onSurfaceInverse" to (highContrastLightColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -156,7 +156,7 @@ class HighContrastWideningTest {
             "dark.background" to (highContrastDarkColourScheme(background = Ink).background == Ink),
             "dark.surface" to (highContrastDarkColourScheme(surface = Ink).surface == Ink),
             "dark.surfaceSunken" to (highContrastDarkColourScheme(surfaceSunken = Ink).surfaceSunken == Ink),
-            "dark.surfaceTrack" to (highContrastDarkColourScheme(surfaceTrack = Ink).surfaceTrack == Ink),
+            "dark.surfaceIndicator" to (highContrastDarkColourScheme(surfaceIndicator = Ink).surfaceIndicator == Ink),
             "dark.surfaceRaised" to (highContrastDarkColourScheme(surfaceRaised = Ink).surfaceRaised == Ink),
             "dark.surfaceInverse" to (highContrastDarkColourScheme(surfaceInverse = Ink).surfaceInverse == Ink),
             "dark.onSurfaceInverse" to (highContrastDarkColourScheme(onSurfaceInverse = Ink).onSurfaceInverse == Ink),
@@ -212,7 +212,7 @@ class HighContrastWideningTest {
             differ("background", a.background, b.background),
             differ("surface", a.surface, b.surface),
             differ("surfaceSunken", a.surfaceSunken, b.surfaceSunken),
-            differ("surfaceTrack", a.surfaceTrack, b.surfaceTrack),
+            differ("surfaceIndicator", a.surfaceIndicator, b.surfaceIndicator),
             differ("surfaceRaised", a.surfaceRaised, b.surfaceRaised),
             differ("surfaceInverse", a.surfaceInverse, b.surfaceInverse),
             differ("onSurfaceInverse", a.onSurfaceInverse, b.onSurfaceInverse),
@@ -304,11 +304,11 @@ class HighContrastWideningTest {
 
 private fun legacyHighContrastLight(
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueStrong,
+        solid = Palette.VioletStrong,
         onSolid = Palette.White,
-        container = Palette.BlueTintLightHc,
-        onContainer = Palette.BlueDeeper,
-        border = Palette.BlueStrong,
+        container = Palette.VioletTintLightHc,
+        onContainer = Palette.VioletDeeper,
+        border = Palette.VioletStrong,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -327,7 +327,7 @@ private fun legacyHighContrastLight(
     // which is what stops high contrast collapsing into one colour.
     code = CodeColours(
         plain = Palette.Black,
-        keyword = Palette.BlueDeeper,
+        keyword = Palette.VioletDeeper,
         literal = Palette.GreenOnLight,
         comment = Palette.GreyHcMuted,
     ),
@@ -339,7 +339,9 @@ private fun legacyHighContrastLight(
     contentDisabled = Palette.GreyHcDisabled,
     outline = Palette.GreyHcOutline,
     outlineStrong = Palette.GreyHcMuted,
-    outlineSubtle = Palette.GreyHcOutlineSubtle,
+    // Moved in the high-contrast audit: a menu's border was 3.03:1 on the page.
+    outlineSubtle = Palette.GreyHcOutline,
+    inactive = Palette.GreyHcInactive,
     primary = Palette.Black,
     accent = accent,
     brand = brand,
@@ -376,22 +378,34 @@ private fun legacyHighContrastLight(
 
 private fun legacyHighContrastDark(
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLightHc,
-        onSolid = Palette.BlueHcOnLight,
-        container = Palette.BlueTintDarkHc,
-        onContainer = Palette.BluePaleHc,
-        border = Palette.BlueLightHc,
+        solid = Palette.VioletLightHc,
+        onSolid = Palette.VioletHcOnLight,
+        container = Palette.VioletTintDarkHc,
+        onContainer = Palette.VioletPaleHc,
+        border = Palette.VioletLightHc,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
 ): ColourScheme = darkColourScheme(
+    // The one line that is not in the pasted original, and it is here because
+    // the original could not have had it. Both dark factories defaulted their
+    // segmented ground to `Palette.Black`, so the body had nothing to override
+    // and the field fell through identically. `surfaceIndicator` replaced that
+    // ground with the thumb's own fill and the two tiers now hold *different*
+    // values on purpose — 1.59:1 in plain dark, 1.94:1 here — so falling
+    // through would compare this tier against the other one's.
+    //
+    // Stated rather than deleted: the widening this file proves is still
+    // exactly as transcribed, and a reviewer diffing against `git show` should
+    // find this line and no other.
+    surfaceIndicator = Palette.InkHcIndicator,
     scrim = Color(0xC2000000),
     overlayHover = Color(0x24FFFFFF),
     overlayPressed = Color(0x47FFFFFF),
     overlayDragged = Color(0x54FFFFFF),
     code = CodeColours(
         plain = Palette.White,
-        keyword = Palette.BlueLightHc,
+        keyword = Palette.VioletLightHc,
         literal = Palette.GreenPale,
         comment = Palette.SlateHcMuted,
     ),
@@ -407,7 +421,8 @@ private fun legacyHighContrastDark(
     contentDisabled = Palette.SlateHcDisabled,
     outline = Palette.SlateHcOutline,
     outlineStrong = Palette.SlateHcOutlineStrong,
-    outlineSubtle = Palette.SlateHcOutlineSubtle,
+    outlineSubtle = Palette.SlateHcOutline,
+    inactive = Palette.SlateHcInactive,
     primary = Palette.White,
     onPrimary = Palette.Black,
     accent = accent,

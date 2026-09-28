@@ -1,51 +1,75 @@
 # `SideSheet`
 
-A panel from the leading or trailing edge — filters, detail, anything that
-belongs beside the content rather than over it.
+A panel from the side that shares the screen with the page beside it — a filter
+rail beside a list, an inspector beside a canvas. Nothing behind it is dimmed or
+blocked, so a filter changed in the sheet is seen taking effect as it is made.
 
 <!--sample:SideSheetBasics-->
 ```kotlin
-var open by remember { mutableStateOf(false) }
+var filtersOpen by remember { mutableStateOf(true) }
 
-SideSheet(
-    visible = open,
-    onDismissRequest = { open = false },
-    side = SheetSide.End,
-    // Given a back arrow, the sheet becomes a second level rather than a
-    // dead end — the filters open, and closing them returns to the list.
-    onBack = { open = false },
-) {
-    SheetHeader { +"Filters" }
-    Column(
-        modifier = Modifier.padding(horizontal = Theme.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-    ) {
-        Text("Only show routes that run in the next hour")
+Box(Modifier.fillMaxSize()) {
+    // The list stays the list: nothing is dimmed or blocked, so a filter
+    // changed in the sheet is seen taking effect beside it.
+    Departures()
+
+    SideSheet(visible = filtersOpen, paneTitle = "Filters") {
+        // No scrim to tap and no back gesture to catch — the app owns
+        // `visible`, so the header's close button is how it goes away.
+        SheetHeader(onClose = { filtersOpen = false }) { +"Filters" }
+        Column(
+            modifier = Modifier.padding(horizontal = Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        ) {
+            Text("Only show routes that run in the next hour")
+        }
     }
 }
 ```
+
+It is to [`ModalSideSheet`](modal-side-sheet.md) what
+[`BottomSheet`](bottom-sheet.md) is to [`ModalBottomSheet`](modal-bottom-sheet.md).
+For a sheet that owns the screen until it is answered, use the modal one.
+
+**It lives in your layout**, not in the `OverlayHost`: put it in a `Box` over the
+content it sits beside, and it fills that box and places itself against its side.
+Everywhere it is not, the page underneath gets every touch and every click.
+
+**The app owns `visible`.** There is no scrim to tap and no back gesture to catch,
+so nothing here asks to be closed — give the sheet's header an `onClose` that sets
+`visible` to false. It slides in and out on its own spring — under reduced
+motion it fades where it rests instead — and is not composed at all once it has
+gone.
 
 `side` is `SheetSide.Start` or `SheetSide.End`, and start/end rather than
 left/right because the whole library lays out by direction: in a right-to-left
 locale a start sheet comes from the right, which is what a reader of that locale
 expects.
 
-For destinations rather than content, `ModalNavDrawer` is the same motion with a
-navigation model attached — a sheet full of links is a drawer wearing the wrong
-component.
+---
+
+## One width, flush to its side
+
+A side sheet is **flush to its side, the top and the bottom**, with only the
+corners facing the content rounded, at the width it was given. It could float
+clear of its edges and be dragged out to the whole window for a while; both were
+taken out again, asked for and tried and not wanted. A panel that needs more room
+is a different layout — a pane — rather than a sheet that grows.
 
 ---
 
 ## Accessibility
 
-Pass **`paneTitle`** — the same reasoning as [`BottomSheet`](bottom-sheet.md),
-and the same default of none.
+**Focus is not trapped.** The sheet is beside the page rather than over it, and a
+keyboard or switch user moves between the two as a pointer does — trapping focus
+in a rail would lock them out of the list it is filtering. It is a traversal group,
+so its controls are read together rather than interleaved with the page's.
 
-`onBack` adds a labelled back button (`backLabel`) rather than relying on the
-platform gesture, which is what makes a sheet that is a second *level* legible
-as one: filters open, and going back returns to the list rather than closing
-everything.
+Pass **`paneTitle`**, so a screen reader announces the region by name when focus
+enters it — the same reasoning as [`BottomSheet`](bottom-sheet.md), and the same
+default of none.
 
-`side` is `SheetSide.Start` / `End`, not left and right, so the sheet follows the
-layout direction. A sheet pinned to the left is a sheet that slides in from the
-wrong edge in Arabic.
+At high contrast the panel takes an edge: its raised ground is barely apart from
+the page's at that tier, and its shadow does not change between tiers.
+
+Under reduced motion it does not slide. It fades in and out where it rests.

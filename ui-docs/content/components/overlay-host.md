@@ -1,6 +1,6 @@
 # `OverlayHost`
 
-*Also on this page: `ScrimStyle`.*
+*Also on this page: `ScrimStyle`, `BackdropStyle`.*
 
 Where everything that draws over the screen actually renders. Installed once, at
 the root, inside the theme.
@@ -27,6 +27,22 @@ whole page, scrim and all. Both are correct and only one is usually wanted.
 lets pointers through, `Transparent` blocks without dimming — which is what a
 menu wants, so a tap outside closes it without the screen going grey — and
 `Dimmed` does both.
+
+`BackdropStyle` says what happens to the content *behind* an entry, past dimming
+it: `None` leaves it alone, `Blur` softens it, `Scale` insets it by
+`BackdropDefaults.Inset` the way one card slides under another, and
+`BlurAndScale` does both. It is a property of `OverlayEntry` rather than a
+parameter of a component, because **components derive it** — `Dialog` and
+`Popover` take the default, which follows the scrim: blur for anything that dims,
+nothing for anything that does not. A dropdown sits over content the reader is
+still using and has no business softening it.
+
+**A backdrop needs a dimmed scrim.** The host only takes one from an entry that
+dims, because the scrim and the recede are one movement and half of it is worse
+than neither. Set `backdrop` on an undimmed entry and nothing happens.
+
+The blur is not free — see [the overlay guide](../overlays.md) for what it costs
+per frame, and why sheets recede rather than blur.
 
 The stack, the queue, back handling and focus order are in
 [the overlay guide](../overlays.md).
@@ -60,3 +76,20 @@ The scrim is not decoration. Where an overlay is dismissible it carries an
 overlay passes — so "tap outside to close" exists for someone who cannot tap
 outside. Where it is not, the scrim still consumes input, so taps cannot reach
 content the user can no longer see.
+
+**Once an overlay is dismissed, the page is the reader's again at once**, while
+the overlay is still animating away. Its scrim fades without taking taps, focus
+and screen readers go back to the page, and back goes past it. That includes a
+sheet sliding down, a FAB menu folding and a search panel going back into its
+pill. An entry that animates its own exit (`managesOwnExit`) is removed the
+moment it calls `hide`, with no fade of the host's on top.
+
+At high contrast a dimmed scrim is darker, because what it separates from is
+higher contrast too. The host draws no edge of its own; each panel in it takes
+the tier on its own page.
+
+Under [reduced motion](../tokens.md#motion) the host brings an entry in on a
+short tween rather than a spring, and a dialog, menu, popover or tooltip fades in
+where it will sit rather than scaling into place. `Scale` and `BlurAndScale` stop
+insetting the page, while the dimming and the blur stay. A back gesture still
+drives an entry's exit with the finger.

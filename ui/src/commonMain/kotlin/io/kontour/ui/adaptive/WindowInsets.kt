@@ -45,7 +45,7 @@ val WindowInsets.Companion.bottomEdges: WindowInsets
 /**
  * [edges], limited to the leading side and the top and bottom.
  *
- * What a [io.kontour.ui.nav.NavRail] or [io.kontour.ui.nav.NavDrawer] clears.
+ * What a [io.kontour.ui.nav.NavRail] or a [io.kontour.ui.nav.ModalNavRail] clears.
  * `Start`, not `Left`: the rail moves to the right edge under RTL and has to
  * clear whatever is there instead.
  */

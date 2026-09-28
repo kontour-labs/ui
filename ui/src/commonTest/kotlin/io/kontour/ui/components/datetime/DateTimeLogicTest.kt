@@ -1,5 +1,10 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.locale.LocaleFormats
+import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateTimeConventions
+import io.kontour.ui.locale.DateStyle
+import io.kontour.ui.locale.DateOrder
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -97,11 +102,11 @@ class RelativeTimeFormatTest {
     }
 }
 
-class DateTimeFormatsTest {
+class TimeConventionsTest {
 
     @Test
     fun twentyFourHourTimePadsTheHour() {
-        val formats = DateTimeFormats(is24Hour = true)
+        val formats = LocaleFormats.english(DateTimeConventions(hourCycle = HourCycle.H23))
         assertEquals("09:05", formats.time(LocalTime(9, 5)))
         assertEquals("00:00", formats.time(LocalTime(0, 0)))
         assertEquals("23:59", formats.time(LocalTime(23, 59)))
@@ -110,7 +115,7 @@ class DateTimeFormatsTest {
     @Test
     fun twelveHourTimeHandlesBothMidnightAndNoon() {
         // The two values every 12-hour implementation gets wrong.
-        val formats = DateTimeFormats(is24Hour = false)
+        val formats = LocaleFormats.english(DateTimeConventions(hourCycle = HourCycle.H12))
         assertEquals("12:00 am", formats.time(LocalTime(0, 0)))
         assertEquals("12:00 pm", formats.time(LocalTime(12, 0)))
         assertEquals("1:05 pm", formats.time(LocalTime(13, 5)))
@@ -120,20 +125,22 @@ class DateTimeFormatsTest {
     @Test
     fun dateOrderFollowsThePreference() {
         val date = LocalDate(2026, 6, 5)
-        assertEquals("5 Jun 2026", DateTimeFormats(dayFirst = true).dateShort(date))
-        assertEquals("Jun 5, 2026", DateTimeFormats(dayFirst = false).dateShort(date))
+        val dayFirst = LocaleFormats.english(DateTimeConventions(dateOrder = DateOrder.DayMonthYear))
+        val monthFirst = LocaleFormats.english(DateTimeConventions(dateOrder = DateOrder.MonthDayYear))
+        assertEquals("5 Jun 2026", dayFirst.date(date, DateStyle.Medium))
+        assertEquals("Jun 5, 2026", monthFirst.date(date, DateStyle.Medium))
     }
 
     @Test
     fun weekStartsWhereThePreferenceSaysItDoes() {
-        val monday = DateTimeFormats(firstDayOfWeek = DayOfWeek.MONDAY)
+        val monday = LocaleFormats.english(DateTimeConventions(firstDayOfWeek = DayOfWeek.MONDAY))
         assertEquals(listOf("M", "T", "W", "T", "F", "S", "S"), monday.weekdayInitials())
-        assertEquals(0, monday.columnOf(DayOfWeek.MONDAY))
-        assertEquals(6, monday.columnOf(DayOfWeek.SUNDAY))
+        assertEquals(0, monday.conventions.columnOf(DayOfWeek.MONDAY))
+        assertEquals(6, monday.conventions.columnOf(DayOfWeek.SUNDAY))
 
-        val sunday = DateTimeFormats(firstDayOfWeek = DayOfWeek.SUNDAY)
+        val sunday = monday.startingOn(DayOfWeek.SUNDAY)
         assertEquals(listOf("S", "M", "T", "W", "T", "F", "S"), sunday.weekdayInitials())
-        assertEquals(0, sunday.columnOf(DayOfWeek.SUNDAY))
-        assertEquals(1, sunday.columnOf(DayOfWeek.MONDAY))
+        assertEquals(0, sunday.conventions.columnOf(DayOfWeek.SUNDAY))
+        assertEquals(1, sunday.conventions.columnOf(DayOfWeek.MONDAY))
     }
 }

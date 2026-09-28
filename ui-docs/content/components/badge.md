@@ -35,3 +35,9 @@ unconnected things.
 
 Counts above `max` render as "9+" visually. Give the real number in the
 description where it matters.
+
+At high contrast a badge gains a ring of the page's colour, at `borderWidth`, so
+a red dot on a black icon reads as a dot on the icon rather than part of it.
+
+Nothing about a badge moves, so reduced motion changes nothing: a new count
+replaces the old one without a transition.

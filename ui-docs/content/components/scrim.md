@@ -38,3 +38,12 @@ correct for a confirmation that must be answered.
 rather than an accessibility one, but it has an accessibility consequence worth
 knowing: the scrim does not recompose as it dims, so nothing is re-announced
 while a sheet is dragged.
+
+At high contrast the enhanced scheme's `scrim` is darker than the standard
+tier's, in light and in dark, because what it separates is higher contrast too.
+Nothing else about it changes.
+
+Nothing about a scrim moves. It is as dark as the thing in front of it has
+arrived, so under reduced motion it fades in step with that thing's own fade, and
+a change of colour when another overlay opens above it takes `fast` rather than
+`default`.

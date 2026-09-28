@@ -10,6 +10,7 @@ reason `:ui` has a `jvm()` target it never ships to.
           :ui:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
+python3 docs/check-settings.py
 ```
 
 | Gate | Asks |
@@ -17,14 +18,16 @@ python3 docs/check-components.py
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
+| [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
 | [`EverythingRespondsTest`](#everythingrespondstest) | Does every control in the catalog do something? |
 | [Screenshot goldens](#screenshot-goldens) | Did anything change how it looks? |
 | [`:ui-samples`](#the-examples-compile) | Do the documentation's examples still compile? |
 | [`checkDocSamples`](#the-examples-compile) | Is the copy on the page the code that was compiled? |
 | [`check-links.py`](#the-documentation-is-checked-too) | Does every link in the repository resolve? |
-| [`checkKdocSamples`](#the-examples-compile) | Does a KDoc snippet name a parameter that exists? |
+| [`checkKdocSamples`](#the-examples-compile) | Does a KDoc or page snippet name parameters and scope calls that exist? |
 | [`dokkaGenerateHtml`](#the-api-reference-is-a-gate) | Does every `[Link]` in the KDoc resolve? |
 | [`check-components.py`](#every-component-has-a-page) | Does every public component have a page, an index entry, a demo and an example? |
+| [`check-settings.py`](#every-component-honours-the-readers-settings) | Does any source pattern break high contrast, reduced motion or the reader's locale? |
 | [`SiteRenderTest`](#the-site-is-drawn-and-looked-at) | Does every page of the site draw, at every window width? |
 
 Per-target compilation runs only in CI
@@ -40,44 +43,61 @@ broken, and `commonMain` will not tell you which.
 
 ### What CI actually runs, and what it does not run twice
 
-One workflow, six jobs. It was two workflows, which is how the API reference
+One workflow, seven jobs. It was two workflows, which is how the API reference
 came to be generated twice on every commit: `ci.yml` built it in `targets` and
 uploaded it as an artifact, and `pages.yml` built it again because a workflow
 cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
 the one that publishes it under `/api/`.
 
+**It runs on pushes to `main`, on `v*` tags, and by hand — never on a pull
+request or a push to another branch.** The repository is private, so every
+minute is billed, and a pull request's run was 17 minutes of `test` alone on
+the 4-core runner public repositories get. A branch that wants the checks
+before it lands asks for them: Actions → CI → Run workflow, on that branch.
+That run is the whole suite and never deploys. Branch protection must not
+require status checks, or every merge waits for one that never starts.
+
 | Job | Runs on | For |
 |---|---|---|
-| `guard` | every event | Decides whether main has to re-prove what a pull request already did |
-| `test` | unless `guard` settles it | The suite above, plus the Python checks |
-| `targets` | unless `guard` settles it | Every target compiled |
-| `site` | every event | The Wasm bundle and the API reference — the slowest thing here |
-| `deploy` | not on a pull request | GitHub Pages |
+| `changes` | every run | Decides what a push to `main` has to run, from the paths it changed |
+| `test` | every run | The Python checks always; the Gradle suites `changes` asks for |
+| `targets` | a change to a library, the catalog or a host | Every target compiled |
+| `site` | a change to anything the site is made from | The Wasm bundle, the API reference and the text mirror — the slowest thing here |
+| `deploy` | `main` only | Cloudflare Pages, `docs.kontour.io/ui` |
 | `publish` | a `v*` tag, or a manual version | GitHub Packages |
+| `renders` | a manual run that asks | Contact sheets of every page |
 
 `deploy` needs only `site`, deliberately: a library regression should not take
 the documentation offline, and a broken page should not block a release.
 
-#### The guard
+#### What a push runs
 
-Merging a pull request produces a commit whose **tree** is byte-for-byte the
-branch head's, whenever main has not moved underneath it — and that holds for a
-merge commit, a squash and a rebase alike. So the work `test` and `targets`
-would do on main is work already done, on the same bytes, minutes earlier.
-`guard` compares the two tree SHAs through the API and asks whether that head
-has a successful CI run; if both hold, main builds the site and deploys and does
-nothing else.
+`changes` compares the push with the `main` before it, through the API, and
+sorts the paths:
 
-This is what a merge queue gives you, arrived at from the other direction:
-rather than testing the merge result before it lands, notice afterwards that the
-result is identical to something already tested.
+| Group | Paths | Runs |
+|---|---|---|
+| library | `ui/`, `ui-nav3/`, `haptics/` | Their suites, ABI and convention checks, and the on-screen cursor test |
+| targets | the library's, `ui-catalog/`, `showcase/` | `targets` |
+| catalog | the library's, `ui-catalog/` | The screenshot suite |
+| docs | the library's, `ui-catalog/`, `ui-samples/`, `ui-docs/`, `docs/` | `:ui-docs`, the samples, `site` and `deploy` |
 
-Every path out of it that cannot *prove* the trees match settles on "run
-everything" — a direct push, a conflicted merge, main having moved, a missing
-run, a failed API call, and the guard job itself failing. That last one is why
-the two gated jobs read `!cancelled() && …` rather than a bare condition: a
-failed dependency skips its dependants by default, which is the one direction
-this must never fail in.
+So a page edited in `ui-docs/content` is the Python checks, `:ui-docs:jvmTest`,
+the samples and the site — about twelve minutes — and a change to a component is
+everything. A README-only push is the Python checks, which are what hold the
+README's counts.
+
+Anything it cannot answer for certain runs everything: a tag, a manual run, a
+first push, a force-push, a failed API call, a change longer than the API lists
+(300 paths), and a change to the build (`gradle/`, `buildSrc/`, the root build
+files) or to the workflow itself. So does `changes` failing: the gated jobs read
+`!cancelled() && (changes did not succeed || it asked)` rather than a bare
+condition, because a failed dependency skips its dependants by default, and a
+skipped test job is the one direction this must never fail in.
+
+It replaced `guard`, which asked whether `main`'s tree was byte-for-byte a pull
+request head that had already passed — a merge queue arrived at from the other
+direction. With no pull request runs there is nothing to have passed.
 
 #### What is cached
 
@@ -166,7 +186,32 @@ everything that is not a slot — where a **builder** counts as a slot, because
 in even though it carries no `@Composable`.
 
 It also refuses four parameter names outright, each with the reason:
-`supportingText`, `headline`, `isEnabled`, `onDismiss`.
+`supportingText`, `headline`, `isEnabled`, `onDismiss` — and the rest of the
+eighteen rules in [`contributing.md`](contributing.md#the-shape-of-a-component):
+no English in a default or an announcement, no default a caller cannot write,
+time as a `Duration`, `show<Part>` for a switch, `initial<What>` for a starting
+value, no two KDoc blocks in a row, a KDoc on everything a caller holds or
+starts from, and no lambda parameter shadowing its function's own.
+
+## `checkKotlinAbi`
+
+```sh
+./gradlew :ui:checkKotlinAbi :ui-nav3:checkKotlinAbi :haptics:checkKotlinAbi
+```
+
+Compares each library's public API — the JVM class files and the klibs for iOS,
+JS and Wasm — with the dump checked in under the module's `api/` directory, and
+fails on any difference. `updateKotlinAbi` rewrites the dump.
+
+The Kotlin plugin's own validator, with one filter: the Compose compiler's
+`ComposableSingletons` holders are left out, because they are public in the
+bytecode and named by a hash of each lambda, so any edit to a default slot would
+otherwise fail the check without the API having moved.
+
+The point is the diff. A rename that reaches a consumer shows up as a pair of
+lines a reviewer reads, rather than as a build that breaks after a release —
+and a deliberate one comes with its line in
+[`migrating.md`](../../ui-docs/content/migrating.md).
 
 ## `EverythingRespondsTest`
 
@@ -612,7 +657,7 @@ nothing left to compare.
 
 `--screenshot` fires after every gesture's 1.5s sample **and** the idle window.
 On the toast page that is roughly 4.3 seconds from the tap that raises the
-toast, against a `ToastDefaults.Duration` of 2,500ms — so the shutter opens
+toast, against a `ToastDefaults.DisplayDuration` of 2,500ms — so the shutter opens
 after the toast has expired, whatever the gesture did. Three runs at 5px, 60px
 up and 60px down came back **byte-identical**: the same empty page, agreeing
 with itself for the wrong reason.
@@ -644,7 +689,7 @@ Two changes, both aimed at the same thing — make the subject outlive the
 measurement:
 
 * raise the toast that carries an action, so the clock is
-  `DurationWithAction` (5,000ms) rather than `Duration` (2,500ms);
+  `DisplayDurationWithAction` (5,000ms) rather than `DisplayDuration` (2,500ms);
 * pass `--film` with a single frame, which swaps both 1.5s settles for
   `FILM_SETTLE_MS` and brings the whole run from tap to shutter down to about
   2.1 seconds.
@@ -726,7 +771,7 @@ also what stopped a guess being written down as a cause.
 
 ## A wrong sentence in this repository is a wrong assumption in the next round
 
-`TextSelectionToolbar`'s KDoc and `text-toolbar.md` both said Compose falls back
+`TextSelectionToolbar`'s KDoc and `text-toolbar.md` (both since removed, with the toolbar) both said Compose falls back
 to "nothing recognisable in a browser". Round 26 repeated that claim in a new
 KDoc, on the strength of the old one, and only a canary build caught it: the
 fallback is a perfectly visible toolbar, a rounded pill reading
@@ -1253,10 +1298,14 @@ these pages are not examples: a signature under discussion, a fragment with an
 ellipsis, a shell command. Requiring every one to compile would mean inventing a
 context for each, and the useful examples would drown in the scaffolding.
 
-`:ui:checkKdocSamples` still covers the snippets inside KDoc, which the compiler
-cannot see. It parses rather than compiles, so it only catches a wrong or
-missing argument name — the weaker check, kept for the place the strong one
-cannot reach.
+`:ui:checkKdocSamples` covers what the compiler cannot see: the snippets
+inside KDoc, and the unmarked `kotlin` fences in these pages. It parses rather
+than compiles, so it catches three things only — a wrong or missing argument
+name on a component or a `Modifier` extension, and a builder lambda calling
+another scope's member (`supporting { }` inside a `Banner`, whose scope says
+`message`). The weaker check, kept for the places the strong one cannot reach;
+it is what found `DatePicker(selected = …)` still on the date picker page after
+the rename.
 
 ### The API reference is a gate
 
@@ -1370,7 +1419,7 @@ The three ceilings say quite different things, and the numbers are the point:
 
 | | Ceiling | Reads as |
 |---|---|---|
-| `MAX_WITHOUT_DEMO` | 1 | `DateTimeFormats` is a set of patterns; there is nothing to press |
+| `MAX_WITHOUT_DEMO` | 1 | `LocaleFormats` writes numbers and dates; there is nothing to press |
 | `MAX_WITHOUT_SAMPLE` | 0 | reached — every page shows compiled code |
 | `MAX_WITHOUT_ACCESSIBILITY` | 0 | reached, in the round the ceiling arrived at 102 |
 
@@ -1402,6 +1451,38 @@ Rule 8 is the cheapest of the ten and the only one pointing this direction.
 Rules 1-4 ask whether everything in the library has a page; this asks whether the
 page is about anything, which catches a component renamed in `:ui` whose page
 kept the old spelling. Nothing here could detect that before.
+
+### Every component honours the reader's settings
+
+```sh
+python3 docs/check-settings.py
+```
+
+Three settings the reader chooses and a component has to answer to without
+being asked: high contrast, reduced motion, and where they are. Each has suites
+that render and measure — the contract suite at both tiers, the reduced-motion
+sweep, the pseudo-locale sweep. This is the other half: the source patterns
+that break each promise one reasonable call site at a time.
+
+| Rule | What it finds |
+|---|---|
+| H1 | A quiet ground (`surfaceSunken`, `surfaceRaised`, `accent.container`) in a file with no edge and no read of the tier |
+| H2 | An ink faded with `copy(alpha = …)` in a file that never reads the tier |
+| H3 | A ring, tick or hairline drawn from a constant rather than from `Sizing` |
+| H4 | `ButtonColours(…)` built by hand, skipping the variant's high-contrast edge |
+| H5 | A `Sizing` token nothing reads |
+| M | Movement — a transform, a slide or scale transition, an animated scroll, a spec-less `animateTo` — in a *function* that never reads `reduceMotion` |
+| L1 | An English phrase assembled in a component, or a list joined with an English comma |
+| L2 | `uppercase()` or `lowercase()` with no locale |
+| L3 | A number put on screen with `toString()` |
+| L4 | A table of month or weekday names |
+| L5 | Absolute placement in a file that never asks which way the layout runs |
+
+Every rule has a named allow-list, each entry with its reason, and a ceiling on
+what is left that only goes down. An exemption the detector no longer finds is
+a failure too, so the list cannot outlive its code. Rule M was rule 24 of
+`check-components.py`, and it moved because counting per file had let one read
+of `reduceMotion` excuse every transform beside it.
 
 ### The parameter tables are generated
 

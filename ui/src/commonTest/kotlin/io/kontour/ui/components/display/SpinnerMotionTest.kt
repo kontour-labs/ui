@@ -18,14 +18,17 @@ import kotlin.test.assertTrue
  */
 class SpinnerMotionTest {
 
+    private val rotationMillis = SpinnerDefaults.RotationDuration.inWholeMilliseconds
+    private val breatheMillis = SpinnerDefaults.BreatheDuration.inWholeMilliseconds
+
     /** Enough of them to cover several full cycles of both periods. */
     private val samples = (0..4000).map { it * 5L }
 
     private fun rotation(ms: Long): Float =
-        360f * (ms % SpinnerDefaults.RotationMillis) / SpinnerDefaults.RotationMillis
+        360f * (ms % rotationMillis) / rotationMillis
 
     private fun sweep(ms: Long): Float =
-        spinnerSweep((ms % SpinnerDefaults.BreatheMillis).toFloat() / SpinnerDefaults.BreatheMillis)
+        spinnerSweep((ms % breatheMillis).toFloat() / breatheMillis)
 
     @Test
     fun theArcIsNeverAPointAndNeverAClosedRing() {

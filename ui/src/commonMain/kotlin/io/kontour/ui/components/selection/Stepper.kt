@@ -1,9 +1,11 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.locale.rememberIntegerFormat
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +20,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
@@ -33,7 +36,7 @@ import io.kontour.ui.theme.Theme
  * Stepper(
  *     value = adults,
  *     onValueChange = { adults = it },
- *     range = 1..9,
+ *     valueRange = 1..9,
  *     contentDescription = "Adults",
  * )
  * ```
@@ -42,7 +45,7 @@ import io.kontour.ui.theme.Theme
  * is wide. A stepper is for a count someone knows exactly and will change by one
  * or two; nobody taps `+` thirty times.
  *
- * The buttons disable individually at each end of [range] rather than the whole
+ * The buttons disable individually at each end of [valueRange] rather than the whole
  * control disabling or the value silently refusing to move. A `+` that looks
  * live and does nothing is the defect this shape exists to avoid — and it is
  * announced, not just drawn, because "unavailable" is the thing a screen-reader
@@ -64,7 +67,7 @@ import io.kontour.ui.theme.Theme
  * arrows. Give it the room, or use a
  * [Select][io.kontour.ui.components.text.Select] of the plausible counts.
  *
- * @param range The inclusive bounds. `value` outside it is clamped for display,
+ * @param valueRange The inclusive bounds. `value` outside it is clamped for display,
  *   which keeps a bad initial value visible rather than silently corrected.
  * @param step How much each press moves the value.
  * @param contentDescription Names the whole control. Required: `+` and `−` say
@@ -78,11 +81,11 @@ fun Stepper(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    range: IntRange = 0..99,
+    valueRange: IntRange = 0..99,
     step: Int = 1,
     size: ButtonSize = ButtonSize.Medium,
     valueWidth: Dp = StepperDefaults.ValueWidth,
-    format: (Int) -> String = { it.toString() },
+    format: (Int) -> String = rememberIntegerFormat(),
     decrementLabel: String = Theme.strings.decrease,
     incrementLabel: String = Theme.strings.increase,
     /**
@@ -98,19 +101,19 @@ fun Stepper(
     interactionSource: MutableInteractionSource? = null,
 ) {
     // `0 until seatsAvailable` is empty on a full flight, and `coerceIn` throws
-    // on an empty range from composition, where nothing can catch it and the
+    // on an empty valueRange from composition, where nothing can catch it and the
     // message is about coercion rather than about a stepper. The most ordinary
     // empty state a counter has, so it gets the loudest possible answer.
-    require(!range.isEmpty()) {
-        "Stepper was given an empty range ($range). A stepper needs at least one value " +
-            "it can show; a range computed as `0 until count` is empty whenever the " +
+    require(!valueRange.isEmpty()) {
+        "Stepper was given an empty valueRange ($valueRange). A stepper needs at least one value " +
+            "it can show; a valueRange computed as `0 until count` is empty whenever the " +
             "count is zero, which is usually a sign the control should not be on screen " +
             "at all."
     }
 
-    val shown = value.coerceIn(range)
-    val canDecrement = enabled && shown - step >= range.first
-    val canIncrement = enabled && shown + step <= range.last
+    val shown = value.coerceIn(valueRange)
+    val canDecrement = enabled && shown - step >= valueRange.first
+    val canIncrement = enabled && shown + step <= valueRange.last
 
     // The value cell is as wide as the *widest value this stepper can show*,
     // not as wide as the value it is showing.
@@ -121,23 +124,23 @@ fun Stepper(
     // reserve the right amount, because only `format` knows how wide a value
     // gets.
     //
-    // Sampled rather than exhaustive: a range of 1..9 is nine strings, but
+    // Sampled rather than exhaustive: a valueRange of 1..9 is nine strings, but
     // nothing stops a caller passing 0..100000. The ends and each digit
     // boundary between them cover the two things that actually change the
     // width — the number of digits, and singular versus plural at the bottom of
-    // the range.
+    // the valueRange.
     val valueStyle = Theme.typography.titleMedium
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val widestValue = remember(range, step, valueStyle, density, measurer, format) {
+    val widestValue = remember(valueRange, step, valueStyle, density, measurer, format) {
         val candidates = buildSet {
-            add(range.first)
-            add(range.last)
-            add((range.first + step).coerceIn(range))
+            add(valueRange.first)
+            add(valueRange.last)
+            add((valueRange.first + step).coerceIn(valueRange))
             var boundary = 9
-            while (boundary < range.last) {
-                if (boundary >= range.first) add(boundary)
-                add((boundary + 1).coerceIn(range))
+            while (boundary < valueRange.last) {
+                if (boundary >= valueRange.first) add(boundary)
+                add((boundary + 1).coerceIn(valueRange))
                 boundary = boundary * 10 + 9
             }
         }
@@ -145,6 +148,8 @@ fun Stepper(
             candidates.maxOf { measurer.measure(format(it), valueStyle).size.width }.toDp()
         }
     }
+    val tap = rememberTapFeedback()
+
 
     Row(
         modifier = modifier.semantics {
@@ -159,7 +164,8 @@ fun Stepper(
             icon = SystemIcons.Dash,
             contentDescription = decrementLabel,
             onClick = {
-                onValueChange((shown - step).coerceIn(range))
+                tap()
+                onValueChange((shown - step).coerceIn(valueRange))
             },
             enabled = canDecrement,
             variant = ButtonVariant.Tertiary,
@@ -174,31 +180,34 @@ fun Stepper(
             .widthIn(min = maxOf(valueWidth, widestValue))
             .clearAndSetSemantics {}
 
-        if (animateValue) {
-            AnimatedCounter(
-                value = shown,
-                format = format,
-                style = valueStyle,
-                // The column is wider than the number so the buttons do not
-                // shuffle as it grows; the number belongs in the middle of it,
-                // the way the static branch below has always put it.
-                horizontalArrangement = Arrangement.Center,
-                modifier = valueModifier,
-            )
-        } else {
-            Text(
-                text = format(shown),
-                style = valueStyle,
-                textAlign = TextAlign.Center,
-                modifier = valueModifier,
-            )
+        DisableSelection {
+            if (animateValue) {
+                AnimatedCounter(
+                    value = shown,
+                    format = format,
+                    style = valueStyle,
+                    // The column is wider than the number so the buttons do not
+                    // shuffle as it grows; the number belongs in the middle of it,
+                    // the way the static branch below has always put it.
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = valueModifier,
+                )
+            } else {
+                Text(
+                    text = format(shown),
+                    style = valueStyle,
+                    textAlign = TextAlign.Center,
+                    modifier = valueModifier,
+                )
+            }
         }
 
         IconButton(
             icon = SystemIcons.Plus,
             contentDescription = incrementLabel,
             onClick = {
-                onValueChange((shown + step).coerceIn(range))
+                tap()
+                onValueChange((shown + step).coerceIn(valueRange))
             },
             enabled = canIncrement,
             variant = ButtonVariant.Tertiary,
@@ -207,6 +216,7 @@ fun Stepper(
     }
 }
 
+/** What a [Stepper] takes by default. */
 object StepperDefaults {
     /**
      * The floor for the number between the buttons.

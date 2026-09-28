@@ -1,5 +1,6 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -24,9 +25,14 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
+import io.kontour.ui.interaction.RubberBand
+import io.kontour.ui.theme.Motion
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 /**
  * Where a sheet is, and where it is going.
@@ -145,8 +151,21 @@ class SheetState internal constructor(
      * the anchors, the settled detent and everything derived from them are
      * untouched, and letting go springs it back to zero rather than settling
      * anywhere new.
+     *
+     * A [RubberBand], which is the library's primitive for exactly this and whose
+     * arithmetic was written here in the first place — *"lifted here so the sheet
+     * and the wheel picker share one, rather than the second one to want it
+     * growing a copy"*. The sheet went on carrying the copy, and that is not a
+     * tidiness point: the copy was the **single Euler step** the primitive was
+     * rewritten to get rid of, which gives a different curve at 120Hz than at 60.
+     * The library runs at 120 on an iPhone, so the sheet's own stretch was one of
+     * the *"slightly different rubber-banding animations between each platform"*
+     * that was reported. See [RubberBand.pull].
      */
-    internal var overshoot by mutableFloatStateOf(0f)
+    private val band = RubberBand()
+
+    /** See [band]. Positive is upward, and the layout subtracts it. */
+    internal val overshoot: Float get() = band.offset
 
     /**
      * How far the sheet is *drawn* above its detent, in pixels.
@@ -179,11 +198,241 @@ class SheetState internal constructor(
      */
     internal val canOvershoot: Boolean
         get() {
-            val tallest = allowedDetents.minOfOrNull { detent ->
-                anchoredState.anchors.positionOf(detent)
-            } ?: return false
+            val tallest = highestAnchored(allowedDetents)
             return !tallest.isNaN() && tallest > 0.5f
         }
+
+    /**
+     * The offsets of the detents that are actually **in** the anchors.
+     *
+     * `positionOf` answers `NaN` for a detent that is not anchored, and two
+     * detents that resolve to the same height leave only one of them anchored —
+     * `resolveAnchors` drops the duplicate deliberately, because two anchors at
+     * one offset make `settledValue` ambiguous. So `NaN` is an ordinary answer
+     * here rather than an error, and a `minOfOrNull` over a list containing one
+     * is `NaN`: every comparison against it is false, so the whole reading
+     * collapses.
+     *
+     * That is not hypothetical and it is not small. A sheet whose peek anchor was
+     * its only always-present content resolved `Expanded` to the same offset as
+     * its peek, lost `Expanded` to the dedupe, and then reported `NaN` from
+     * [lowestRestingOffset] — which took the floating sheet's landing arithmetic
+     * with it, and [dragFloor] with that, so an undismissable sheet lost the very
+     * floor it exists to have. One dropped anchor, three silent reversions.
+     *
+     * [SheetDetent.Hidden] is skipped: both of these are asked about where the
+     * sheet can *be*, and hidden is where it goes to stop being anywhere. It
+     * makes no difference to [canOvershoot] — hidden is the largest offset, so
+     * it was never the smallest — except for a sheet whose only detent is hidden,
+     * which now reports that it cannot be stretched, which is true.
+     */
+    private fun highestAnchored(detents: List<SheetDetent>): Float =
+        extremeAnchored(detents, highest = true)
+
+    /** See [highestAnchored]. The largest offset, which is the lowest on screen. */
+    private fun lowestAnchored(detents: List<SheetDetent>): Float =
+        extremeAnchored(detents, highest = false)
+
+    private fun extremeAnchored(detents: List<SheetDetent>, highest: Boolean): Float {
+        val anchors = anchoredState.anchors
+        var found = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val at = anchors.positionOf(detent)
+            if (at.isNaN()) continue
+            if (found.isNaN() || (if (highest) at < found else at > found)) found = at
+        }
+        return found
+    }
+
+    /**
+     * Where [detent] puts the sheet's top edge, anchored or not.
+     *
+     * The anchors are the first answer and the arithmetic is the fallback, which
+     * is the whole point: `resolveAnchors` drops a detent that lands on an offset
+     * already taken, so a perfectly meaningful detent can be missing from the
+     * anchors — and `positionOf` then says `NaN`, which is indistinguishable from
+     * "nonsense" to every caller that asks. Recomputed, it says what it has
+     * always meant: the offset the sheet would sit at, which is *also* the offset
+     * of whichever anchor swallowed it.
+     *
+     * `NaN` only before the first layout, where nothing has been measured and
+     * there is genuinely no answer.
+     */
+    internal fun offsetOf(detent: SheetDetent): Float {
+        val anchored = anchoredState.anchors.positionOf(detent)
+        if (!anchored.isNaN()) return anchored
+        val density = anchorDensity ?: return Float.NaN
+        if (containerHeight <= 0f) return Float.NaN
+        return detentOffset(
+            detent = detent,
+            containerHeight = containerHeight,
+            sheetHeight = sheetHeight,
+            peekHeight = peekHeight,
+            density = density,
+        )
+    }
+
+    /**
+     * Whether the sheet is at [detent]'s height or above it, or on its way there.
+     *
+     * Compared by *position* rather than by index in the detent list, because a
+     * list is written in whatever order a caller found convenient and two detents
+     * can resolve to the same height.
+     *
+     * **Target, not settled**, so it answers as soon as a drag has committed
+     * rather than once the sheet has stopped. What reads it is
+     * [SheetContentScope.part], and only to decide whether the part is in the
+     * assistive tree: a part's *pixels* are not gated on anything, because the
+     * sheet's own bottom edge is what hides them.
+     */
+    internal fun willReach(detent: SheetDetent): Boolean {
+        val here = offsetOf(anchoredState.targetValue)
+        val there = offsetOf(detent)
+        if (here.isNaN() || there.isNaN()) return false
+        // Offsets grow downward, so a taller sheet is a smaller number.
+        return here <= there
+    }
+
+    /**
+     * The density the anchors were last built against.
+     *
+     * Kept so [offsetOf] can resolve a detent the anchors do not have. A detent
+     * is a `Density.(container, sheet) -> Float`, and every other caller of one
+     * is inside a layout block that has a density to hand; this object is not,
+     * so it keeps the one its anchors were built with. Null before the first
+     * layout, which is the one time there is nothing to resolve against.
+     */
+    private var anchorDensity: Density? = null
+
+    /**
+     * The offset of the lowest detent that is somewhere to *be*, in pixels.
+     *
+     * `NaN` before there are anchors, and for a sheet whose only detent is
+     * [SheetDetent.Hidden].
+     *
+     * The line between "short" and "leaving". Everything above it is the sheet at
+     * one of its sizes; everything below it is the sheet on its way out, because
+     * the only anchor down there is hidden. [dragFloor] is the same measurement
+     * for a different question — what a *drag* may reach — so it consults
+     * [allowedDetents] and gives up for a dismissable sheet. This one is about
+     * where the sheet is rather than about what the user may do, so it reads the
+     * whole list and answers the same whoever is moving it.
+     */
+    internal val lowestRestingOffset: Float get() = lowestAnchored(detents)
+
+    /**
+     * How far through [morph] a floating sheet is with its top edge at [raw]: 0 at
+     * or below `morph.from`, 1 at or above `morph.until`, and linear between.
+     *
+     * In offsets rather than detents so it reads the same for a finger, a spring and
+     * a stretch above the top — whatever is moving the sheet, the morph is where the
+     * sheet is. 0 for a null morph, before there are anchors, and for a sheet with
+     * no step to morph across: `until` its lowest resting detent and `from` not
+     * given, which leaves nothing below it to start from.
+     *
+     * **A default `from` is never nearer the top than [SheetEdgeMorph.nearTop].**
+     * The step below the top is whatever the content makes it, and content a few dp
+     * taller than `Half` made it a few dp: the whole morph happened in a frame of
+     * any travel, reported as the expand-to-edge animation that "just snaps". It
+     * appeared when the catalog's frame grew and its sheet's content landed just
+     * above `Half`. So a step shorter than that starts the morph lower down, and a
+     * sheet resting on such a detent — nearly at the top already — is nearly an
+     * edge sheet. A `from` the caller gave is where they said.
+     */
+    internal fun edgeMorphFraction(morph: SheetEdgeMorph?, raw: Float): Float {
+        if (morph == null) return 0f
+        val until = morph.until?.let(::offsetOf) ?: highestAnchored(detents)
+        if (until.isNaN()) return 0f
+        val below = morph.from?.let(::offsetOf) ?: restingBelow(until)
+        if (below.isNaN()) return nearTheTop(morph, until)
+        val shortest = anchorDensity?.let { with(it) { morph.nearTop.toPx() } } ?: 0f
+        val from = if (morph.from != null) below else maxOf(below, until + shortest)
+        if (from <= until) return 0f
+        return ((from - raw) / (from - until)).coerceIn(0f, 1f)
+    }
+
+    /**
+     * The morph for a sheet with no step to morph across, decided by **where it
+     * rests** — [resting], its one detent's offset — and not by where it is.
+     *
+     * Full if it rests at the top of the window, none if it rests further than
+     * [SheetEdgeMorph.nearTop] below it, and between only for content that lands in
+     * that last stretch. It used to follow the live offset over that stretch, which
+     * was reported as the sheet "snapping" fully open near the top: a tall sheet
+     * opened floating and changed shape in its last few frames. Decided by the rest,
+     * it is one shape the whole way up and the whole way down.
+     *
+     * The top is [fullHeightTop], where a sheet whose content fills the window really
+     * rests: below the status bar, which on a phone is well below [SheetTopGap] — the
+     * number this used to measure from, so a full-height sheet rested half changed.
+     */
+    private fun nearTheTop(morph: SheetEdgeMorph, resting: Float): Float {
+        val density = anchorDensity ?: return 0f
+        val top = fullHeightTop.takeUnless { it.isNaN() } ?: with(density) { SheetTopGap.toPx() }
+        val reach = with(density) { morph.nearTop.toPx() }
+        // Half a pixel, so a sheet resting exactly at the top is fully there.
+        if (reach <= 0f) return if (resting <= top + 0.5f) 1f else 0f
+        return ((top + reach - resting) / reach).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Where a sheet whose content fills the window rests: the container less the
+     * room the content is given. Written by the sheet's content measurement, which
+     * is the one place that knows the insets. `NaN` until then.
+     */
+    internal var fullHeightTop by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The offset of the tallest resting detent, when **every** resting detent is
+     * independent of the content — `Half`, a fraction, a height, a peek — and `NaN`
+     * as soon as one is not.
+     *
+     * What the content is measured against. A sheet whose tallest detent is `Half`
+     * shows half a window of content at most, and a list measured taller than that
+     * has rows past the bottom of the window that no scrolling reaches. Only
+     * detents that do not depend on the content can say so without a cycle — the
+     * content's height is what `Expanded` resolves from — which is why one
+     * content-dependent detent in the list turns this off.
+     *
+     * Tested rather than named: a detent is resolved against an empty sheet and a
+     * window-tall one, and one that answers the same both times does not depend on
+     * its content, whoever wrote it.
+     */
+    internal fun tallestFixedTop(): Float {
+        val density = anchorDensity ?: return Float.NaN
+        val container = containerHeight
+        if (container <= 0f) return Float.NaN
+        var top = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val empty = detent.resolve(density, container, 0f)
+            val full = detent.resolve(density, container, container)
+            if (kotlin.math.abs(empty - full) > 0.5f) return Float.NaN
+            val at = offsetOf(detent)
+            if (at.isNaN()) return Float.NaN
+            if (top.isNaN() || at < top) top = at
+        }
+        return top
+    }
+
+    /**
+     * The nearest resting detent's offset below [offset] — the next larger one —
+     * or `NaN` when there is none. [SheetDetent.Hidden] is not somewhere to rest.
+     */
+    private fun restingBelow(offset: Float): Float {
+        val anchors = anchoredState.anchors
+        var found = Float.NaN
+        for (detent in detents) {
+            if (detent == SheetDetent.Hidden) continue
+            val at = anchors.positionOf(detent)
+            // Half a pixel, so a detent that resolved onto the same offset as
+            // `until` is not taken for the one below it.
+            if (at.isNaN() || at <= offset + 0.5f) continue
+            if (found.isNaN() || at < found) found = at
+        }
+        return found
+    }
 
     /**
      * The furthest down a *drag* may take the sheet, in pixels of offset.
@@ -212,11 +461,7 @@ class SheetState internal constructor(
             // Already away: nothing to hold it up, and a sheet mid-open would
             // otherwise be floored at wherever it happens to be.
             if (anchoredState.settledValue == SheetDetent.Hidden) return Float.NaN
-            val lowest = allowedDetents
-                .filter { it != SheetDetent.Hidden }
-                .maxOfOrNull { anchoredState.anchors.positionOf(it) }
-                ?: return Float.NaN
-            return if (lowest.isNaN()) Float.NaN else lowest
+            return lowestAnchored(allowedDetents)
         }
 
     /**
@@ -242,6 +487,12 @@ class SheetState internal constructor(
      * A twelfth of the container: far enough to feel like the sheet answered the
      * finger, short enough that nobody mistakes it for a detent they have not
      * found yet.
+     *
+     * Approached rather than arrived at — a boundary that gives indefinitely is
+     * not a boundary and one that arrives at a hard stop is the rigid boundary
+     * again a few pixels further on. So it is the scale of the pull as much as its
+     * ceiling: a finger travels about this far past the stop to get 63% of the way
+     * out, twice that for 86%. See [RubberBand.pull].
      */
     internal val maxOvershoot: Float get() = containerHeight * OvershootShare
 
@@ -252,14 +503,15 @@ class SheetState internal constructor(
      * moves the sheet less the further it has already been pulled, so the edge
      * feels like it is resisting. A linear stretch with a hard stop is the same
      * rigid boundary moved somewhere else.
+     *
+     * [maxOvershoot] is the stretch the sheet approaches and never reaches, which
+     * is also the scale of the pull: a finger travels about that far past the stop
+     * for 63% of it. It used to be a clamp the sheet arrived at, and an
+     * exponential approach cannot overshoot — see [RubberBand.pull].
      */
     internal fun stretch(by: Float): Float {
-        val max = maxOvershoot
-        if (max <= 0f || by <= 0f) return 0f
-        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
-        val gained = by * resistance
-        overshoot = (overshoot + gained).coerceIn(-max, max)
-        return gained
+        if (by <= 0f) return 0f
+        return band.pull(by, maxOvershoot)
     }
 
     /**
@@ -267,15 +519,12 @@ class SheetState internal constructor(
      *
      * [overshoot] is signed, and the layout subtracts it — so a negative one
      * moves the sheet down by exactly as much as a positive one moves it up, and
-     * both ends spring back through the same [releaseOvershoot].
+     * both ends spring back through the same [releaseOvershoot]. [by] is how hard
+     * the finger is pushing, so it is positive here and the pull is not.
      */
     internal fun stretchDown(by: Float): Float {
-        val max = maxOvershoot
-        if (max <= 0f || by <= 0f) return 0f
-        val resistance = 1f - (abs(overshoot) / max).coerceIn(0f, 1f)
-        val gained = by * resistance
-        overshoot = (overshoot - gained).coerceIn(-max, max)
-        return gained
+        if (by <= 0f) return 0f
+        return -band.pull(-by, maxOvershoot)
     }
 
     /**
@@ -285,27 +534,33 @@ class SheetState internal constructor(
      * starts moving again; the other order slides the sheet away with the gap
      * still open, and one gesture produces two motions. Signed the way the
      * finger is: positive is downward.
+     *
+     * **The two frames are opposite**, which is the one thing to know about this
+     * line. [overshoot] counts upward, because that is the direction a sheet is
+     * stretched in and the layout subtracts it; a scroll delta counts downward,
+     * because that is the direction a finger drags in. [RubberBand.payBack] works
+     * in one frame throughout, so the delta is negated going in and the answer
+     * negated coming out, and the sign convention this function documents is
+     * unchanged for its callers.
      */
-    internal fun payBackOvershoot(by: Float): Float {
-        if (overshoot == 0f || by == 0f) return 0f
-        // Same sign means the finger is opening the gap wider, not closing it.
-        if ((overshoot > 0f) == (by < 0f)) return 0f
-        val paid = minOf(abs(overshoot), abs(by))
-        overshoot += paid * if (overshoot > 0f) -1f else 1f
-        return paid * if (by > 0f) 1f else -1f
-    }
+    internal fun payBackOvershoot(by: Float): Float = -band.payBack(-by)
 
     /** Springs the stretch back to nothing. */
-    internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) {
-        if (overshoot == 0f) return
-        animate(
-            initialValue = overshoot,
-            targetValue = 0f,
-            animationSpec = spec,
-        ) { value, _ -> overshoot = value }
-    }
+    internal suspend fun releaseOvershoot(spec: AnimationSpec<Float>) = band.release(spec)
 
-    /** The content's own full height in pixels, for [SheetDetent.Expanded]. */
+    /**
+     * The content's own full height in pixels, for [SheetDetent.Expanded].
+     *
+     * **Every [SheetContentScope.part] is in it, at every detent.** A part used to
+     * be left out while it was collapsed, and that closed a loop: `Expanded` is
+     * this height, so a sheet whose parts were all gated resolved its tallest
+     * detent to its *collapsed* height and could not be dragged any further. The
+     * fix after that kept two numbers — what the column placed and what it would
+     * place — so that revealing a part could not move an anchor. Both are gone
+     * with the reveal: a part is laid out at its full height whatever the sheet is
+     * doing, so this number does not depend on where the sheet is and there was
+     * never anything for the second one to hold.
+     */
     internal var sheetHeight by mutableFloatStateOf(0f)
 
     /**
@@ -380,6 +635,30 @@ class SheetState internal constructor(
     /** True while it is animating or being dragged. */
     val isMoving: Boolean get() = anchoredState.isAnimationRunning
 
+    /**
+     * True while a **finger** is moving the sheet, as opposed to code.
+     *
+     * The signal `FeedbackIntent.DragThreshold`'s own documentation said was
+     * missing, in as many words: [targetDetent] "changes the instant a drag
+     * passes the threshold", which is exactly the moment worth reporting, and
+     * nothing distinguished it from the same field changing because someone
+     * called [animateTo]. A sheet that buzzes when it is opened programmatically
+     * is worse than one that is silent, so the tick waited for this.
+     *
+     * Fed from the drag's `MutableInteractionSource` rather than from a flag the
+     * gesture sets, because that is the one place the distinction already
+     * exists: `anchoredDraggable` emits `DragInteraction.Start` for a finger and
+     * nothing at all for an animation.
+     *
+     * Covers the sheet's own drag — the handle, the surface — and not a list
+     * inside it scrolled past its top, which reaches the sheet through the
+     * nested-scroll connection. That is a scroll being handed on rather than a
+     * sheet being dragged, and it is quiet for the same reason a flick down a
+     * list is.
+     */
+    var draggedByHand: Boolean by mutableStateOf(false)
+        internal set
+
     /** True when any part of the sheet is on screen. */
     val isVisible: Boolean get() = currentDetent != SheetDetent.Hidden ||
         targetDetent != SheetDetent.Hidden
@@ -433,14 +712,58 @@ class SheetState internal constructor(
      */
     private var pendingDetent: SheetDetent? by mutableStateOf(null)
 
-    /** Animates to [detent]. Suspends until it arrives. */
+    /**
+     * Animates to [detent]. Suspends until it arrives.
+     *
+     * Under reduced motion it does not travel: opening from hidden, the sheet
+     * appears at its detent and fades up; closing, it fades where it rests and
+     * then goes. A drag is untouched — the sheet follows the reader's own finger
+     * either way, and the setting is about movement nobody's hand is making.
+     */
     suspend fun animateTo(detent: SheetDetent) {
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
             pendingDetent = detent
             return
         }
-        anchoredState.animateTo(detent)
+        move(anchoredEquivalent(detent))
+    }
+
+    /**
+     * The theme's motion, handed in by the sheet that draws this state — a
+     * state holder cannot read the theme, and one state can be shown by more
+     * than one sheet over its life.
+     */
+    internal var motion: Motion? = null
+
+    /**
+     * How present the sheet is, 0 to 1, drawn as its opacity and multiplied into
+     * a modal's scrim. Always 1 except while reduced motion fades a sheet in or
+     * out in place of a slide.
+     */
+    internal val presence = Animatable(1f)
+
+    private suspend fun move(target: SheetDetent) {
+        val motion = motion
+        if (motion == null || !motion.reduceMotion) {
+            anchoredState.animateTo(target)
+            return
+        }
+        val shown = anchoredState.settledValue != SheetDetent.Hidden
+        when {
+            target == SheetDetent.Hidden -> {
+                presence.animateTo(0f, motion.tweenExit())
+                anchoredState.snapTo(target)
+                presence.snapTo(1f)
+            }
+            !shown -> {
+                presence.snapTo(0f)
+                anchoredState.snapTo(target)
+                presence.animateTo(1f, motion.tweenFast())
+            }
+            // Between two open detents: the new height, at once.
+            else -> anchoredState.snapTo(target)
+        }
     }
 
     /** Jumps to [detent] with no animation. For restoring state, not for interaction. */
@@ -450,7 +773,31 @@ class SheetState internal constructor(
             pendingDetent = detent
             return
         }
-        anchoredState.snapTo(detent)
+        anchoredState.snapTo(anchoredEquivalent(detent))
+    }
+
+    /**
+     * The anchored detent that sits where [detent] would, which may not be
+     * [detent] itself.
+     *
+     * A detent resolving to an offset another one already has is dropped from the
+     * anchors — deliberately, since two anchors at one offset make `settledValue`
+     * ambiguous — and `anchoredDraggable` asked to animate to a detent it has no
+     * anchor for goes to `NaN`: the sheet reports itself settled at a position
+     * that is not a number, and every derived reading collapses with it. That is
+     * reachable from ordinary code, not from a mistake: `expand()` asks for the
+     * last detent in the list, and on a sheet whose peek anchor is its only
+     * always-present content, `Expanded` and `peek` are the same offset.
+     *
+     * Same offset, so the sheet goes exactly where it was asked to go; it simply
+     * arrives under the name the anchors kept.
+     */
+    private fun anchoredEquivalent(detent: SheetDetent): SheetDetent {
+        val anchors = anchoredState.anchors
+        if (!anchors.positionOf(detent).isNaN()) return detent
+        val wanted = offsetOf(detent)
+        if (wanted.isNaN()) return detent
+        return anchors.closestAnchor(wanted) ?: detent
     }
 
     private val hasAnchors: Boolean get() = anchoredState.anchors.size > 0
@@ -469,6 +816,22 @@ class SheetState internal constructor(
     suspend fun hide() = animateTo(SheetDetent.Hidden)
 
     /**
+     * Moves the sheet [fraction] of the way from [from] towards hidden, as a
+     * drag would — for a modal's back gesture, which runs the sheet's own way
+     * out rather than a motion of its own.
+     *
+     * Short of hidden, always: a sheet that reached its hidden anchor would
+     * settle there, and settling hidden is a dismissal the gesture has not made
+     * yet. Letting go is what hides it, by [hide], from wherever this left it.
+     */
+    internal suspend fun followBack(from: Float, fraction: Float) {
+        val hidden = offsetOf(SheetDetent.Hidden)
+        if (from.isNaN() || hidden.isNaN()) return
+        val to = from + (hidden - from) * (fraction.coerceIn(0f, 1f) * BackTravel)
+        anchoredState.anchoredDrag { dragTo(to) }
+    }
+
+    /**
      * Opens it far enough to be worth looking at — the second detent if there is
      * one, otherwise the first visible one.
      */
@@ -478,15 +841,6 @@ class SheetState internal constructor(
         animateTo(target)
     }
 
-    /**
-     * Recomputes anchor positions.
-     *
-     * Called from layout whenever the container, the content or the detent list
-     * changes. Detents that resolve to the same position as one already placed
-     * are dropped: two anchors at the same offset make `settledValue`
-     * ambiguous, and the sheet ends up flickering between two names for one
-     * position.
-     */
     /**
      * How many times [updateAnchors] has done the work.
      *
@@ -523,7 +877,74 @@ class SheetState internal constructor(
         val fontScale: Float,
     )
 
+    /**
+     * How tall the sheet's surface has to be, which is **not** the container.
+     *
+     * The surface is a constant size and merely translated, because a node whose
+     * size changes cannot keep the drawing it recorded last frame — see
+     * `SheetFramePressureTest`. That much is settled. What was not settled is
+     * *which* constant, and `containerHeight` is the wrong one: the requirement
+     * is that the surface's bottom reaches the window's at every detent, and
+     * the tallest detent is the one that asks for the most. A sheet whose
+     * tallest detent shows 220dp of a 900dp window needs 220dp of surface and
+     * was given 900.
+     *
+     * **A shadow's blur is linear in the area it covers.** Measured on
+     * `Elevation.overlay`'s two layers over a 420dp-wide surface: 1.2ms at
+     * 200dp tall, 3.0 at 450, 5.9 at 900, 9.7 at 1800 — so four fifths of that
+     * sheet's shadow was being blurred into the region hanging below the
+     * window, where nothing can see it. On the frame a modal sheet mounts, all
+     * of it is: the sheet is parked at `Hidden`, entirely off-screen, and the
+     * blur is the single largest cost on the frame. `SheetMountCostDiagnostic`
+     * has the ladder.
+     *
+     * Plus [maxOvershoot], because a sheet pulled above its top detent moves
+     * **up** — so the bottom edge would lift off the window's by exactly the
+     * stretch, and a band of background would open under it. That was the
+     * original bug the container-tall surface was written to fix, and it is the
+     * one this must not reintroduce.
+     *
+     * **Nothing at all before there are anchors to ask.** That is the frame a
+     * modal sheet mounts on, and the reason this is a layout-phase read rather
+     * than a flag in composition: the surface measures before its content, so on
+     * that frame nobody knows how tall the sheet will be, and a fallback to the
+     * container would blur a window's worth of shadow for a sheet that is parked
+     * off-screen. Zero draws nothing, which is what is wanted there, and costs
+     * no recomposition to arrive at — a `derivedStateOf` flag was tried and
+     * reaches composition a frame late, which puts the blur on the frame the
+     * sheet starts moving instead of the cheap one before it.
+     *
+     * Measured end to end on `SheetOpenCostDiagnostic`, worst frame of an open:
+     * **12.5ms to 9.2 empty, 13.2 to 9.1 with a line of text, 20.3 to 16.0 with
+     * twelve list rows.**
+     */
+    internal val surfaceHeight: Float
+        get() {
+            val container = containerHeight
+            if (container <= 0f) return 0f
+            val lowest = anchoredState.anchors.let { anchors ->
+                var min = Float.NaN
+                for (index in 0 until anchors.size) {
+                    val at = anchors.positionAt(index)
+                    if (!at.isNaN() && (min.isNaN() || at < min)) min = at
+                }
+                min
+            }
+            if (lowest.isNaN()) return 0f
+            return (container - lowest + maxOvershoot).coerceIn(0f, container)
+        }
+
+    /**
+     * Recomputes anchor positions.
+     *
+     * Called from layout whenever the container, the content or the detent list
+     * changes. Detents that resolve to the same position as one already placed
+     * are dropped: two anchors at the same offset make `settledValue`
+     * ambiguous, and the sheet ends up flickering between two names for one
+     * position.
+     */
     internal fun updateAnchors(density: Density) {
+        anchorDensity = density
         val inputs = AnchorInputs(
             container = containerHeight.roundToInt(),
             sheet = sheetHeight.roundToInt(),
@@ -590,7 +1011,237 @@ class SheetState internal constructor(
         val target = pendingDetent ?: return
         if (!hasAnchors) return
         pendingDetent = null
-        if (target in allowedDetents) anchoredState.animateTo(target)
+        if (target in allowedDetents) move(target)
+    }
+
+    /**
+     * Whether the scrollable inside the sheet moved during the current gesture.
+     *
+     * Held on the state rather than on the connection, because `BottomSheet`
+     * builds a new connection whenever its settle spec or the flick velocity
+     * changes — a theme change, a density change — and a field on it would be
+     * forgotten if that happened mid-drag.
+     *
+     * Set in `onPostScroll`, read and cleared in `onPostFling`. What it is for is
+     * in `onPostFling`'s KDoc.
+     */
+    private var listScrolled: Boolean = false
+
+    /**
+     * How much of the last dispatch's delta the child was offered.
+     *
+     * Scratch for the pair above: `onPreScroll` writes it, `onPostScroll` reads it
+     * one call later in the same dispatch. Not snapshot state — nothing composes
+     * from it and it changes every frame of every drag.
+     */
+    private var offeredToChild: Float = 0f
+
+    /**
+     * Whether `onPreFling` settled the release itself, because the sheet was the
+     * thing moving when the finger lifted. Read and cleared in `onPostFling`.
+     */
+    private var releasedBySheet: Boolean = false
+
+    /** The finger on the sheet, for a release the platform reports as no throw at all. See [SheetFinger]. */
+    internal val finger = SheetFinger()
+
+    /**
+     * Settles at the detent a flick was **aimed at**, not the one it was nearest
+     * when the finger left.
+     *
+     * Reported: a sheet with two detents — full height and closed — cannot be
+     * closed by flicking, however hard, and has to be dragged more than half way
+     * down instead. That is exactly what the arithmetic said. `settle` animates
+     * to the state's current `targetValue`, which is chosen by **position**
+     * alone against a 0.5 positional threshold; and the velocity never reached
+     * it anyway, because [nestedScrollConnection] handed a downward fling
+     * straight through `onPreFling` and then settled positionally in
+     * `onPostFling`. Every flick on a settings sheet starts on its content, so
+     * every flick on a settings sheet was settled with no velocity at all.
+     *
+     * So the velocity is projected into a landing position and the nearest
+     * anchor to *that* wins. Below a real flick the projection collapses to
+     * where the finger already is and the behaviour is what it always was —
+     * which is what keeps a slow haul stopping at the detent it reached.
+     *
+     * ### Why the decay and not a threshold
+     *
+     * A velocity threshold gives "one detent per flick, however hard", which is
+     * what the handle's own `flingBehavior` already does above Compose's
+     * 125dp/s — and is the behaviour that cannot skip a middle detent on a
+     * three-detent sheet. A projection has no such ceiling: a hard throw lands
+     * past everything and closes the sheet outright, a soft one lands next door.
+     *
+     * ### What it cannot fix
+     *
+     * The **handle's** fling still goes through `AnchoredDraggableDefaults`,
+     * which takes a positional threshold and a snap spec and no velocity
+     * parameter. Routing it through here would mean an `animateTo` inside the
+     * fling that the drag's own mutex is holding, which is a deadlock waiting to
+     * be found rather than a fix. Dragging the handle is the one gesture where
+     * the finger is on the sheet itself and the positional answer is the
+     * intuitive one, so the ceiling stays there and is documented on
+     * `BottomSheetDefaults`.
+     */
+    internal suspend fun settleWhereAimed(
+        velocity: Float,
+        spec: AnimationSpec<Float>,
+        minVelocity: Float,
+        atLeastOne: Boolean = false,
+    ) {
+        val from = anchoredState.offset
+        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne) ?: (if (from.isNaN()) null else nearestAllowed(from))
+        if (aimed == null) anchoredState.settle(spec) else carryTo(aimed, velocity, spec)
+    }
+
+    /**
+     * Animates to [target] **starting at the finger's speed**.
+     *
+     * Foundation's `animateTo` starts from the velocity the anchored state last
+     * recorded, and a sheet moved by its content never records one: the content
+     * moves it by raw deltas. So a flick from a sheet's list stopped the sheet
+     * dead where the finger left it — three frames in a row, measured — and then
+     * eased it away from rest on a gentle spring, where a UIKit sheet carries on
+     * at the speed it was thrown and is gone. Reported from an iPhone as closing
+     * a sheet feeling "like such an effort", against Android, where the same
+     * sheet is usually dragged by its handle, whose fling carried the speed all
+     * along.
+     */
+    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+        anchoredState.anchoredDrag(targetValue = target) { anchors, latest ->
+            val to = anchors.positionOf(latest)
+            if (to.isNaN()) return@anchoredDrag
+            val from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
+            // Already there: nothing to animate, as Foundation's own `animateTo`
+            // decides, and no frame to wait for.
+            if (from == to) return@anchoredDrag
+            animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
+        }
+    }
+
+    /**
+     * Whether the sheet is resting at one of its detents, rather than somewhere a
+     * finger has put it on the way between.
+     */
+    private fun restingAtADetent(): Boolean {
+        val at = anchoredState.offset
+        if (at.isNaN()) return true
+        val anchors = anchoredState.anchors
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            if (!position.isNaN() && abs(position - at) < 0.5f) return true
+        }
+        return false
+    }
+
+    /**
+     * Where a release of the sheet itself — its handle, its surface — settles:
+     * the detent [detentAimedAt] projects it to, and at least the next one in the
+     * direction of the throw, since the finger was on the sheet and a flick of it
+     * is always meant. Below [minVelocity] the nearest allowed detent.
+     */
+    internal fun detentFlungTo(velocity: Float, minVelocity: Float): SheetDetent? {
+        val from = anchoredState.offset
+        if (from.isNaN()) return null
+        val anchors = anchoredState.anchors
+        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne = true) ?: return nearestAllowed(from)
+        return aimed.takeIf { anchors.positionOf(it).let { at -> !at.isNaN() } }
+    }
+
+    /**
+     * Whether a flick may land on [detent]: an allowed one, and not
+     * [SheetDetent.Hidden] on a sheet the user may not put away — a throw hard
+     * enough to project past the [dragFloor] is still a throw the sheet has to
+     * refuse.
+     */
+    private fun flingMayLandOn(detent: SheetDetent): Boolean =
+        detent in allowedDetents &&
+            (detent != SheetDetent.Hidden || userDismissible || anchoredState.settledValue == SheetDetent.Hidden)
+
+    private fun nearestAllowed(at: Float): SheetDetent? {
+        val anchors = anchoredState.anchors
+        var nearest: SheetDetent? = null
+        var best = Float.MAX_VALUE
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            val detent = anchors.anchorAt(index) ?: continue
+            if (position.isNaN() || !flingMayLandOn(detent)) continue
+            if (abs(position - at) < best) {
+                best = abs(position - at)
+                nearest = detent
+            }
+        }
+        return nearest
+    }
+
+    /**
+     * Which detent [velocity] is aimed at, or null when there is nothing to aim.
+     *
+     * Split from [settleWhereAimed] because it is the whole of the behaviour and
+     * none of the machinery: the decision is arithmetic over the anchors and can
+     * be asserted directly, where animating to it needs a frame clock and a
+     * composition. `SheetSettleTest` reads this; the animation is Foundation's
+     * and is covered by the sheet's own gesture tests.
+     *
+     * Null means "no opinion" — no anchors, nothing that counts as a flick, or a
+     * projection that lands nowhere allowed — and the caller falls back to
+     * settling by position, which is what the sheet has always done.
+     *
+     * ### [minVelocity] is the whole of "a flick has to be one"
+     *
+     * The first version of this had no floor at all, and said so in as many
+     * words: the only guard was `velocity == 0f`, exact equality. That is a
+     * threshold of one pixel per second, and it is why the sheet became too easy
+     * to close.
+     *
+     * The reason it was left out was sound and incomplete. A *velocity* threshold
+     * of the usual kind gives "one detent per flick however hard", which is the
+     * behaviour the projection exists to replace. But a floor on whether the
+     * projection is consulted at all is a different thing: above it the response
+     * is still continuous in the throw and still skips detents, and below it a
+     * finger coming to rest settles by position exactly as it always did.
+     *
+     * What made the absence bite is that a flick's velocity is not the only thing
+     * carrying the sheet. `onPostScroll` has already dragged it part of the way,
+     * so the projection only has to cover the remainder — measured in
+     * `SheetFlickTest`, 450px/s was enough once the finger had carried the sheet
+     * 40% of the way, against the ~1260px/s the same sheet needs from rest.
+     */
+    internal fun detentAimedAt(velocity: Float, minVelocity: Float, atLeastOne: Boolean = false): SheetDetent? {
+        val from = anchoredState.offset
+        val anchors = anchoredState.anchors
+        if (from.isNaN() || anchors.size == 0) return null
+        if (abs(velocity) < minVelocity) return null
+
+        // Where a thrown thing on iOS comes to rest: the throw carried on for
+        // half a second more. Continuous in the throw — a hard one lands past
+        // everything and closes the sheet, a soft one next door or not at all.
+        val projected = from + velocity * SheetProjectionSeconds
+        var aimed: SheetDetent? = null
+        var aimedAt = Float.NaN
+        var best = Float.MAX_VALUE
+        // The next detent the throw is heading for, for a throw of the sheet itself.
+        var next: SheetDetent? = null
+        var nextAt = Float.NaN
+        for (index in 0 until anchors.size) {
+            val at = anchors.positionAt(index)
+            if (at.isNaN()) continue
+            val detent = anchors.anchorAt(index) ?: continue
+            if (!flingMayLandOn(detent)) continue
+            val distance = abs(at - projected)
+            if (distance < best) {
+                best = distance
+                aimed = detent
+                aimedAt = at
+            }
+            val ahead = (at - from) * sign(velocity)
+            if (ahead > 1f && (next == null || ahead < (nextAt - from) * sign(velocity))) {
+                next = detent
+                nextAt = at
+            }
+        }
+        if (atLeastOne && next != null && (aimed == null || (aimedAt - nextAt) * sign(velocity) < 0f)) return next
+        return aimed
     }
 
     /**
@@ -615,6 +1266,8 @@ class SheetState internal constructor(
      */
     internal fun nestedScrollConnection(
         settleSpec: AnimationSpec<Float>,
+        flickVelocity: Float,
+        minThrow: Float = 0f,
     ): NestedScrollConnection =
         object : NestedScrollConnection {
 
@@ -626,6 +1279,10 @@ class SheetState internal constructor(
                 val offered = delta - paid
                 // Dragging up, sheet not yet expanded: the sheet takes it first.
                 val taken = if (offered < 0f) anchoredState.dispatchRawDelta(offered) else 0f
+                // What the child is about to be offered, remembered so the
+                // callback below can tell how much of it the child wanted. The
+                // two are one dispatch, so nothing can arrive in between.
+                offeredToChild = offered - taken
                 return (paid + taken).toOffset()
             }
 
@@ -638,6 +1295,10 @@ class SheetState internal constructor(
                 // takes the remainder and starts to close.
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
                 val offered = available.y
+                // **Did the list move?** The difference between what the child
+                // was offered and what it declined, which is how the sheet knows
+                // whose gesture this is when the fling arrives. See `onPostFling`.
+                if (offeredToChild != offered) listScrolled = true
                 // ...as far as it is allowed to go, and no further. A sheet with
                 // a form in it is dragged by its content as often as by its
                 // handle, so the floor has to hold here too.
@@ -649,6 +1310,28 @@ class SheetState internal constructor(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                // **The sheet was moving under the finger when it let go**, so
+                // the release is the sheet's, whatever the list did earlier in
+                // the gesture. UIKit's rule: once a scroll view at its top has
+                // handed the pan to its sheet, the sheet's pan decides where it
+                // goes, at the speed it was going.
+                //
+                // Before, a downward release went to the list first, and the
+                // sheet read what its fling handed back a frame or two later —
+                // or, if the list had moved at all in the gesture, nothing: a
+                // reader who scrolled up to the top and pulled on down, the most
+                // natural way to put a sheet away on an iPhone, had the flick
+                // ignored and the sheet spring back.
+                //
+                // At least one detent, as for a throw of the handle: the finger
+                // was on the sheet, moving it, and a flick of it is meant.
+                if (!restingAtADetent()) {
+                    listScrolled = false
+                    releasedBySheet = true
+                    settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity, atLeastOne = true)
+                    releaseOvershoot(settleSpec)
+                    return available
+                }
                 // A fling that started in the list belongs to the sheet only
                 // while the sheet is the thing that has been moving.
                 val offset = anchoredState.offset
@@ -667,18 +1350,79 @@ class SheetState internal constructor(
                     !expandedOffset.isNaN() &&
                     offset > expandedOffset
                 ) {
-                    anchoredState.settle(settleSpec)
+                    settleWhereAimed(available.y, settleSpec, flickVelocity)
                     available
                 } else {
                     Velocity.Zero
                 }
             }
 
+            /**
+             * What the inner scrollable's fling did not want.
+             *
+             * **A fling the list spent itself on is not a sheet flick**, and this
+             * is where that had to be said. The callback above carries the rule
+             * and four guards; this one, which is where *every downward flick
+             * actually lands*, had none — it projected whatever velocity arrived,
+             * from whoever.
+             *
+             * The velocity that arrives is large, too. Compose's fling behaviour
+             * cancels its decay on the first frame a delta is not fully consumed
+             * and hands up the *instantaneous* velocity, and this connection
+             * declines everything that is not `UserInput` — so that frame
+             * consumes nothing and a list passes on very nearly the whole throw.
+             * `WheelPicker`'s containment records the same handoff from the other
+             * side and names the sheet as what it leaked into.
+             *
+             * So [listScrolled] decides, and **not [consumed]**, which was the
+             * first attempt and does not work: the decay loses a frame's worth of
+             * velocity before it cancels, about 6% of the throw, so `consumed` is
+             * non-zero even when the list absorbed nothing at all. It failed the
+             * deliberate 3600px/s flick, which is the gesture this whole path
+             * exists for.
+             *
+             * What separates the two cases is whether the **list moved**. A reader
+             * who scrolled a list and let go was moving the list, and its
+             * leftovers are not an instruction to the sheet. A reader whose list
+             * was already at its top never moved it, and their flick is the
+             * sheet's to answer — which is exactly the case the projection was
+             * added for.
+             */
             override suspend fun onPostFling(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
-                anchoredState.settle(settleSpec)
+                val wasTheList = listScrolled
+                // The gesture is over either way, and `onDragStopped` always
+                // reaches here — with a zero velocity if the finger simply
+                // stopped — so this is the reliable place to forget it.
+                listScrolled = false
+                // Already answered, in `onPreFling`, with nothing left over.
+                if (releasedBySheet) {
+                    releasedBySheet = false
+                    return Velocity.Zero
+                }
+                if (wasTheList) {
+                    anchoredState.settle(settleSpec)
+                } else {
+                    settleWhereAimed(available.y, settleSpec, flickVelocity)
+                }
+                // **And the stretch this path opened has to come back.** A drag
+                // on the *content* reaches `stretchDown` through `onPostScroll`
+                // above, and until this line the only `releaseOvershoot` in the
+                // library was `SheetOverscroll`'s — which is the handle's path.
+                // So an undismissable sheet pushed below its floor by its own
+                // list stayed there after the finger lifted: no detent had
+                // changed, so nothing settled it, and the stretch is what the
+                // layout subtracts. The docs promise the opposite in as many
+                // words — *"a drag to the bottom, which springs back instead of
+                // closing"*.
+                //
+                // After the settle rather than before it, for the reason
+                // `SheetOverscroll.applyToFling` gives: a flick that carries the
+                // sheet somewhere else should not be fighting a stretch
+                // unwinding underneath it.
+                releaseOvershoot(settleSpec)
                 return available
             }
 
@@ -707,7 +1451,7 @@ class SheetState internal constructor(
  */
 @Composable
 fun rememberSheetState(
-    detents: List<SheetDetent> = DefaultSheetDetents,
+    detents: List<SheetDetent> = BottomSheetDefaults.Detents,
     initialDetent: SheetDetent = detents.firstDetent(),
     confirmDetentChange: (SheetDetent) -> Boolean = { true },
 ): SheetState {
@@ -748,17 +1492,63 @@ internal fun resolveAnchors(
     if (containerHeight <= 0f) return positions
 
     for (detent in detents) {
-        val visible = if (detent.id == PeekDetentId && peekHeight > 0f) {
-            peekHeight
-        } else {
-            with(density) { detent.resolve(this, containerHeight, sheetHeight) }
-        }
-        val offset = containerHeight - visible.coerceIn(0f, containerHeight)
+        val offset = detentOffset(
+            detent = detent,
+            containerHeight = containerHeight,
+            sheetHeight = sheetHeight,
+            peekHeight = peekHeight,
+            density = density,
+        )
         if (positions.values.none { abs(it - offset) < 0.5f }) {
             positions[detent] = offset
         }
     }
     return positions
+}
+
+/**
+ * Where one detent puts the sheet's top edge, in pixels from the container's top.
+ *
+ * Pulled out of [resolveAnchors] so that [SheetState.offsetOf] can ask the same
+ * question about a detent the anchors do not have — which is the ordinary state
+ * of a detent whose offset another one got to first, since a duplicate is dropped
+ * above. Pure, and takes everything it needs, so the two answers cannot drift.
+ */
+internal fun detentOffset(
+    detent: SheetDetent,
+    containerHeight: Float,
+    sheetHeight: Float,
+    peekHeight: Float,
+    density: Density,
+): Float {
+    val visible = if (detent.id == PeekDetentId && peekHeight > 0f) {
+        peekHeight
+    } else {
+        with(density) { detent.resolve(this, containerHeight, sheetHeight) }
+    }
+    // **Nothing reaches the very top.** A sheet whose top edge lands on
+    // pixel zero has no page above it for its rounded corners to read
+    // against, and on a phone it also puts the drag handle and the header
+    // under the status bar — which is what was reported. `SheetTopGap` is
+    // the same 12dp the backdrop already insets a receding page by, so a
+    // sheet at full height and a page behind a sheet leave the same margin.
+    //
+    // Applied here rather than inside `Full` and `Expanded` because it is a
+    // fact about how far a sheet may travel, not about what either detent
+    // means: `Full` still resolves to "the whole container" and says so, and
+    // a caller's own `fraction(1f)` gets the same treatment without knowing
+    // about it.
+    //
+    // A container with no room for the gap does not get one. `minOf(gap,
+    // container)` is the obvious guard and it is the wrong one: on a 6px
+    // container it makes the gap the whole container, so every detent
+    // resolves to "entirely hidden" and the sheet has nowhere to be. A
+    // container that small is a measurement in progress rather than a
+    // window, and leaving it exactly the offsets it had is what does least
+    // harm to it.
+    val gap = with(density) { SheetTopGap.toPx() }
+    val raw = containerHeight - visible.coerceIn(0f, containerHeight)
+    return if (containerHeight > gap) raw.coerceAtLeast(gap) else raw
 }
 
 /**
@@ -827,3 +1617,86 @@ private const val EmptyDetents: String =
  */
 private fun List<SheetDetent>.firstDetent(): SheetDetent =
     firstOrNull() ?: throw IllegalArgumentException(EmptyDetents)
+
+/**
+ * How far a throw carries a sheet past where the finger let go of it: the throw
+ * kept up for this long.
+ *
+ * Half a second is UIKit's own — what `UIScrollView`'s normal deceleration rate
+ * comes to, and what a sheet on iOS projects a release by to decide where it
+ * lands. It replaced an exponential decay that carried a 3000px/s throw about
+ * 700px, and closing a sheet by flicking was reported as taking "too much
+ * effort": the same throw now carries 1500px.
+ */
+internal const val SheetProjectionSeconds: Float = 0.5f
+
+/**
+ * How fast a gesture on a sheet's **content** has to be leaving the glass to
+ * count as a flick of the sheet.
+ *
+ * Per second, so it is a velocity written as the distance one second of it would
+ * cover. Below this a release settles by position; above it the velocity is
+ * projected and the sheet goes where the throw was aimed, skipping detents on the
+ * way if it was hard enough. See [SheetState.detentAimedAt].
+ *
+ * **300dp/s, between two reports.** The projection shipped with no floor at all,
+ * and flicking was reported as too sensitive, *"especially if I've just scrolled
+ * to the top of a list within the sheet"* — the drag has already carried the sheet
+ * most of the way and the velocity only has to cover what is left. The floor went
+ * to 500dp/s, and then closing a sheet by flicking was reported as taking too much
+ * effort. `SheetFlickTest`'s slow control, 225dp/s after carrying the sheet 40% of
+ * the way, is still under it; a real flick is well over. A number to tune on a
+ * device, which the catalog's diagnostics page is for.
+ *
+ * Content only. A throw of the sheet itself — its handle, its surface — has
+ * [SheetHandleFlickVelocity], a quarter of this, because nothing else can have
+ * been meant by it.
+ *
+ * Here rather than on `BottomSheetDefaults`, for the reason [SheetTopGap] is: it is a
+ * fact about how a hand moves, not a number a brand restyles, and the literals
+ * ratchet in `check-components.py` counts the ones that sit in a `Defaults`
+ * object as knobs somebody is expected to reach for.
+ */
+internal val SheetFlickVelocity: Dp = 300.dp
+
+/**
+ * How far a finger has to run one way for its release to count as a throw of
+ * the sheet: past touch slop, and a little more. See `SheetFinger.throwOf`.
+ *
+ * Between two measured gestures, which is where it has to be. Twenty-four
+ * pixels of roll-off at the scene's density — 12dp, most of it touch slop — must
+ * leave a full-height sheet where it is; thirty-two pixels at the same speed —
+ * 16dp, the gentlest flick the suite throws — must move it a detent.
+ */
+internal val SheetMinThrow: Dp = 14.dp
+
+/**
+ * How fast a release of the sheet itself has to be to count as a flick: Compose's
+ * own bar for a fling, `AnchoredDraggableMinFlingVelocity`. Above it the sheet
+ * moves at least a detent the way it was thrown, and as many as the throw
+ * projects to; below it, the nearest detent.
+ */
+internal val SheetHandleFlickVelocity: Dp = 125.dp
+
+/**
+ * How far short of the screen's edge a sheet stops.
+ *
+ * Two reasons, and the second is the one that was reported. A sheet whose top
+ * edge is at pixel zero has nothing above it for its rounded corners to read
+ * against, so the corners stop being corners; and on a phone it puts the drag
+ * handle and the header under the status bar and the notch.
+ *
+ * The chrome's own inset is the other half of that second one and is applied
+ * separately, in `BottomSheet` — this gap is smaller than a status bar and is
+ * not trying to clear it. What it does is leave the sheet looking like a sheet.
+ *
+ * 12dp, which is `ComponentDefaults.backdropInset`: a receding page behind a
+ * sheet already stops that far short of the window on all four sides, so a
+ * full-height sheet and the page behind it now leave the same margin. Not read
+ * from the theme, because anchors are resolved against a `Density` and nothing
+ * else — a sheet's reach is not a thing a brand restyles.
+ */
+internal val SheetTopGap: Dp = 12.dp
+
+/** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
+private const val BackTravel = 0.95f

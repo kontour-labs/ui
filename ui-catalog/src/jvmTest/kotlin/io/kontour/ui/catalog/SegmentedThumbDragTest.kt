@@ -81,8 +81,8 @@ class SegmentedThumbDragTest {
             Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
                 SegmentedControl(
                     options = Options,
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
                 )
             }

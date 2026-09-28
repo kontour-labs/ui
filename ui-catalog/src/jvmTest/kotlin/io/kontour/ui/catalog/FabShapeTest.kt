@@ -117,7 +117,7 @@ class FabShapeTest {
      * have an 18dp corner on it, and nothing in this file could tell.
      *
      * That is not hypothetical. Round 26 capped the height-derived corners at
-     * `CapsuleCap`, and stage 1b then moved "the ten circles" onto `pill` so the
+     * `Shapes.CapsuleCap`, and stage 1b then moved "the ten circles" onto `pill` so the
      * cap could not reach them. `FloatingActionButton` was in that sweep;
      * `ExtendedFloatingActionButton` was not, and kept `Theme.shapes.control` —
      * half its height *up to 18dp*. On a 56dp box that is 18 rather than 28.

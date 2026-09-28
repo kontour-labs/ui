@@ -11,9 +11,9 @@ var index by remember { mutableStateOf(1) }
 
 WheelPicker(
     items = platforms,
-    selected = index,
-    onSelectedChange = { index = it },
-    label = { it },
+    selectedIndex = index,
+    onSelectedIndexChange = { index = it },
+    itemLabel = { it },
 )
 ```
 
@@ -23,13 +23,43 @@ The scrolling drum, for any list of values. `TimePicker` is three of these.
 dead at either one is a boundary the finger cannot feel — the gesture simply
 stops answering and the control reads as broken rather than as finished. Pushed
 past an end, the drum follows the finger a row or so further, each pixel buying
-less than the last, and springs back when the finger lifts. Nothing is selected
-by it: the stretch is drawn and no index, no settled value and nothing the caller
-sees knows it happened.
+less than the last, and springs back when the finger lifts. A flick that reaches
+an end carries on into the same give and bounces back, rather than stopping dead
+on the last row with its speed thrown away. Nothing is selected by either: the
+stretch is drawn and no index, no settled value and nothing the caller sees knows
+it happened.
 
 Set `infinite = true` and there are no ends to feel. That is a decision about
 whether the *values* wrap — hours and months do, a list of countries does not —
 rather than about how the ends behave.
+
+**The value is the row in the band**, which is the row whose centre is nearest the
+drum's. It used to be the *next* row: the correction that turns "the first visible
+row" into "the centred row" was applied past any fraction of a row rather than past
+half of one, so a drum a pixel off a boundary reported a value the reader could see
+was not the one in the band.
+
+Reported on `TimePicker`'s AM/PM column, which is the worst case for it. A drum of
+`n` rows has `n - 1` rows of travel, so two rows give one — and "the offset is not
+zero" was true across nearly the whole of it. Pull the drum toward `AM` and let go
+and it went back to `PM`, because the value it settles onto is the value it had
+already reported.
+
+**Tapping a row you can see turns the drum to it**, on both kinds. It used to be
+a drag or nothing: the rows are boxes with text in them and nothing anywhere
+handled a click, so reaching a value two rows up meant dragging the drum by
+exactly two rows. On a phone that is a gesture; with a mouse it is a gesture
+nobody makes.
+
+It is a pointer surface on the container rather than a click handler per row, and
+that is deliberate. Making each row `selectable` would turn a 24-hour drum into
+24 stops for a screen reader and a keyboard, where the whole point of the control
+is that it is *one* value with a state description. The two input methods that
+already had a working way in should not pay for the one that did not.
+
+The turn is silent, which is the harder half. An animated scroll crosses every row
+between here and there, and none of those is a detent a finger crossed — a buzz
+per row would be four for a gesture in which nothing was felt.
 
 **Reach for a [`Select`](select.md) instead** inside a form. A drum
 is right when the value is one of a long ordered run and the user is adjusting
@@ -57,9 +87,19 @@ has not loaded should do.
 The wheel reports the centred item as its `stateDescription`, so a screen reader
 announces the value the picker has settled on rather than the scroll position.
 
-`label` is what gets announced, so return something speakable: `"08"` reads as
+`itemLabel` is what gets announced, so return something speakable: `"08"` reads as
 "zero eight" and is what a clock wants visually — where the two disagree, the
 component drawing the wheel should give it a spoken form.
 
 A wheel is a scroll gesture with a lot of stops. Where the set is long, a
 [`Select`](select.md) is reachable in one gesture and a wheel is not.
+
+At high contrast the band behind the chosen row gains an edge, and the rows
+either side stay legible: the neighbours fade to 0.75 of the ink and those
+beyond to 0.6, where the standard tier goes to 0.45 and 0.2.
+
+Under reduced motion the drum still follows the finger, and its rows keep the
+curve that is how a wheel reads. What settles on its own does so over a short
+tween without overshoot — the give at the ends, and every turn of an `infinite`
+wheel — and a finite wheel's turn to a tapped row, and its settle after a mouse
+drag, arrive at once. A flick into an end stops there, without the bounce.

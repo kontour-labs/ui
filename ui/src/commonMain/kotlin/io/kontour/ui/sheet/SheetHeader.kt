@@ -37,17 +37,20 @@ import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
+import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
@@ -103,7 +106,7 @@ fun DragHandle(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = DragHandleDefaults.Target)
-            .pointerCursor()
+            .pointerCursor(Cursor.ResizeRow)
             .hoverable(interactions)
             /**
              * Presses, without taking the gesture.
@@ -160,6 +163,7 @@ fun DragHandle(
     }
 }
 
+/** What a [DragHandle] takes by default. */
 object DragHandleDefaults {
     /**
      * How tall the pressable area around the 4dp bar is.
@@ -217,7 +221,8 @@ enum class SheetHeaderStyle {
     Small,
 
     /**
-     * One line, title centred.
+     * One line, title centred — or, where it cannot be centred on the header
+     * because the controls leave it too little room, exactly [Small].
      *
      * For a sheet with a control on both sides — a close on one, an action on
      * the other — where a leading title reads off-balance against them.
@@ -248,7 +253,7 @@ enum class SheetHeaderStyle {
  * SheetHeader(
  *     modifier = Modifier.sheetPeekAnchor(),
  *     onClose = { showing = false },
- *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
+ *     actions = { IconButton(icon = Tabler.Outline.Star, contentDescription = "Favourite", onClick = ::favourite) },
  * ) {
  *     +"Perth Underground"
  *     supporting { +"Platform 2 · Joondalup line" }
@@ -299,14 +304,11 @@ fun SheetHeader(
     }
 
     @Composable
-    fun Title(textStyle: TextStyle, centred: Boolean, modifier: Modifier = Modifier) {
-        Column(
-            // Full width, or the alignment has nothing to align against: a Column
-            // that wraps its content is already exactly as wide as the text in it,
-            // and centring inside that is a no-op.
-            modifier = modifier.fillMaxWidth(),
-            horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
-        ) {
+    fun Title(textStyle: TextStyle, modifier: Modifier = Modifier) {
+        // Centred by the bar when it has centred the title, and started when it
+        // has not — see `CentredBarTitle`. A Large title is given a range, so it
+        // starts.
+        CentredBarTitle(modifier = modifier) {
             slots.label?.let { title ->
                 Box(Modifier.semantics { heading() }) {
                     ProvideTextStyle(textStyle) {
@@ -317,38 +319,39 @@ fun SheetHeader(
             slots.supporting?.let { supporting ->
                 ProvideContentColour(Theme.colours.contentMuted) {
                     ProvideTextStyle(Theme.typography.bodySmall) {
-                        ContentSlot(maxLines = 1, content = supporting)
+                        // Ellipsised rather than cut: a centred title is judged on
+                        // its heading alone, and the line under it made to fit.
+                        ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = supporting)
                     }
                 }
             }
         }
     }
 
-    val padding = Modifier.padding(
-        start = Theme.spacing.md,
-        end = Theme.spacing.xs,
-        top = Theme.spacing.xs,
-        bottom = Theme.spacing.sm,
-    )
+    // Uneven on purpose: `md` is the sheet's own content inset, where the title
+    // lines up with what it heads, and the close button's own padding makes up the
+    // rest at the trailing end. The horizontal half is handed to the bar rather
+    // than put round it, so it counts towards the centre: padding outside the bar
+    // moved a centred title 4dp towards the trailing edge.
+    val start = Theme.spacing.md
+    val end = Theme.spacing.xs
+    val vertical = Modifier.padding(top = Theme.spacing.xs, bottom = Theme.spacing.sm)
 
-    when (style) {
-        SheetHeaderStyle.Small, SheetHeaderStyle.Centred -> CentredBar(
-            modifier = modifier.fillMaxWidth().then(padding),
+    when {
+        style != SheetHeaderStyle.Large -> CentredBar(
+            modifier = modifier.fillMaxWidth().then(vertical),
             centred = style == SheetHeaderStyle.Centred,
+            startInset = start,
+            endInset = end,
             leading = {
                 slots.leading?.let { leading -> ContentSlot(content = leading) }
             },
             title = {
-                Title(
-                    textStyle = Theme.typography.titleMedium,
-                    centred = style == SheetHeaderStyle.Centred,
-                    // No padding of its own. The bar above already insets the
-                    // whole header by `md`, which is the sheet's own content
-                    // padding, and a second `sm` on top of that put the title
-                    // and its supporting line further in than everything they
-                    // head. The trailing controls never had it, which is why
-                    // only one side looked wrong.
-                )
+                // No padding of its own. The bar already insets the whole header
+                // by `md`, which is the sheet's own content padding, and a second
+                // `sm` on top of that put the title and its supporting line
+                // further in than everything they head.
+                Title(textStyle = Theme.typography.titleMedium)
             },
             trailing = {
                 Row(
@@ -362,8 +365,10 @@ fun SheetHeader(
 
         // Controls first, title under them. The title gets the whole width, so
         // it is the one thing here that never has to truncate around a button.
-        SheetHeaderStyle.Large -> Column(
-            modifier = modifier.fillMaxWidth().then(padding),
+        // It shared the controls' line for a while when nothing led it, and was
+        // put back: the title on a line of its own is what the style is for.
+        else -> Column(
+            modifier = modifier.fillMaxWidth().then(vertical).padding(start = start, end = end),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             Row(
@@ -376,7 +381,7 @@ fun SheetHeader(
                 Controls(this)
             }
 
-            Title(textStyle = Theme.typography.titleLarge, centred = false)
+            Title(textStyle = Theme.typography.titleLarge)
         }
     }
 }

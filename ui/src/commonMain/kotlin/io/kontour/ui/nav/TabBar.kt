@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
 import androidx.compose.foundation.ScrollState
 import androidx.compose.animation.animateColorAsState
@@ -65,12 +67,13 @@ import io.kontour.ui.foundation.selectionIndicatorItem
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.Theme
 
+/** What a [TabBar] takes by default. */
 object TabBarDefaults {
     val Height: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.tabBarHeight
@@ -151,12 +154,26 @@ fun TabBar(
     content: @Composable TabBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+
+    // The marker's own corner, built once rather than per frame.
+    //
+    // Concentric with the tab it sits in rather than sharing a token with it:
+    // both are above `small`, so both would stop at `Shapes.CapsuleCap` and the 4dp
+    // ring would close to nothing at the corners. The inset is read from the
+    // same `xxs` the sizing below uses, so the two cannot drift apart.
+    //
+    // Hoisted out of the `indicator` lambda and remembered, because that lambda
+    // runs on every frame the marker travels and `inset` returns a fresh
+    // `SquircleShape` each time. See `SquirclePaths`.
+    val indicatorInset = Theme.spacing.xxs
+    val tabShape = Theme.shapes.control
+    val indicatorShape = remember(tabShape, indicatorInset) { tabShape.inset(indicatorInset) }
     // Through `Surface` rather than a bare `Modifier.background`, which is what
     // `NavBar`, `NavRail`, `NavDrawer` and `Scaffold` all do with their own
     // container colour. The difference is `LocalContentColour`: a bar given a
     // solid ground has to recolour the tabs sitting on it, and a background
     // modifier paints the colour and tells the content nothing.
-    Surface(modifier = modifier, colour = containerColour) {
+    Surface(modifier = modifier, containerColour = containerColour) {
         Column {
             // The indicator box sits *inside* the scroll container, so the anchor
             // and the tabs scroll together and the scroll offset never enters the
@@ -169,7 +186,7 @@ fun TabBar(
             Box(if (scrollable) Modifier.weight(1f, fill = false) else Modifier.weight(1f)) {
             Box(
                 if (scrollable) {
-                    Modifier.horizontalScroll(scrollState)
+                    Modifier.horizontalScroll(scrollState, flingBehavior = ScrollDefaults.flingBehavior())
                 } else {
                     Modifier
                 }
@@ -211,14 +228,11 @@ fun TabBar(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                // Concentric with the tab it sits in rather than
-                                // sharing a token with it. Both are above `small`,
-                                // so both would stop at `CapsuleCap` and the 4dp
-                                // ring would close to nothing at the corners. The
-                                // inset is read from the same `xxs` the sizing
-                                // above uses, so the two cannot drift apart.
-                                .clip(Theme.shapes.control.inset(Theme.spacing.xxs))
+                                // See `indicatorShape`, which is where this is
+                                // built and why it is not built here.
+                                .clip(indicatorShape)
                                 .background(indicatorColour)
+                                .optionalBorder(selectionEdge(), indicatorShape)
                         )
                     },
                 ) {
@@ -382,14 +396,26 @@ fun TabBarScope.Tab(
         // tabs of one width each read as a row shoved to the left, with the
         // indicator under a label that is no longer above it.
         //
-        // `Arrangement.Center` with the gap moved onto the badge, and not
-        // `spacedBy(xs, CenterHorizontally)` which says the same thing more
-        // neatly. That form makes this row — itself a weighted child of the bar
-        // — never reach an idle frame: `ComponentContractTest` spins in
-        // `waitForIdle` until its one-minute deadline, on all six contracts at
-        // once. Swapping only the arrangement fixes it, so the cause is in
-        // there somewhere; it has not been chased further than that.
-        horizontalArrangement = Arrangement.Center,
+        // **This used to be `Arrangement.Center` with the gap carried by the
+        // badge, and the reason was a hang nobody had found.** The tidier form
+        // made this row — itself a weighted child of the bar — never reach an
+        // idle frame: `ComponentContractTest` spun in `waitForIdle` to its
+        // one-minute deadline, on all six contracts at once, and swapping only
+        // the arrangement fixed it. The note left behind said the cause was in
+        // there somewhere and had not been chased further.
+        //
+        // Chased: it does not reproduce. Not in the hand-built shape — a
+        // weighted row inside a weighted row, arranged this way — and not in
+        // the real component, and not in `ComponentContractTest`, which passes
+        // all seven. Something between then and now fixed it, and a workaround
+        // whose cause has stopped existing is a workaround that makes the code
+        // read as though it still does.
+        //
+        // `TabArrangementLoopTest` is what keeps that honest. It asks the same
+        // question with a frame count instead of a deadline, so if this ever
+        // comes back it comes back as a named failure in seconds rather than as
+        // six tests timing out.
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The label yields to the badge rather than the other way round. A
@@ -431,8 +457,11 @@ fun TabBarScope.Tab(
         // Beside the label, not over it. `BadgedBox` overlays its badge on the
         // top-right of what it wraps, which is right for an icon and lands on
         // the last two letters of a word.
-        // The gap the row's arrangement would normally provide — see above.
-        if (badge != null) Badge(count = badge, modifier = Modifier.padding(start = Theme.spacing.xs))
+        //
+        // No padding of its own: the row's arrangement carries the gap again,
+        // which is what it is for. It was a `padding(start = xs)` for as long as
+        // the arrangement could not be `spacedBy` — see above.
+        if (badge != null) Badge(count = badge)
     }
 }
 
@@ -470,7 +499,7 @@ private fun Modifier.tabPadding(each: Dp): Modifier = layout { measurable, const
  *     Tab(selected = tab == 0, onClick = { tab = 0 }, key = 0) { +"Departures" }
  *     Tab(selected = tab == 1, onClick = { tab = 1 }, key = 1) { +"Route map" }
  * }
- * Box(Modifier.tabSwipe(selected = tab, count = 2, onSelectedChange = { tab = it })) {
+ * Box(Modifier.tabSwipe(selectedIndex = tab, count = 2, onSelectedIndexChange = { tab = it })) {
  *     when (tab) { 0 -> Departures(); else -> RouteMap() }
  * }
  * ```
@@ -499,24 +528,24 @@ private fun Modifier.tabPadding(each: Dp): Modifier = layout { measurable, const
  */
 @Composable
 fun Modifier.tabSwipe(
-    selected: Int,
+    selectedIndex: Int,
     count: Int,
-    onSelectedChange: (Int) -> Unit,
+    onSelectedIndexChange: (Int) -> Unit,
     enabled: Boolean = true,
 ): Modifier {
     if (!enabled || count <= 1) return this
 
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val currentChange by rememberUpdatedState(onSelectedChange)
+    val currentChange by rememberUpdatedState(onSelectedIndexChange)
 
     var width by remember { mutableFloatStateOf(0f) }
     // The tab this gesture believes it is on. Held here rather than read back
-    // from `selected`, because several steps can fall inside one frame and the
+    // from `selectedIndex`, because several steps can fall inside one frame and the
     // parameter does not refresh until the next composition — a fast flick
     // would then commit the same step three times.
-    var index by remember { mutableIntStateOf(selected) }
+    var index by remember { mutableIntStateOf(selectedIndex) }
     var travelled by remember { mutableFloatStateOf(0f) }
-    val ticker = rememberDetentTicker()
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
 
     return this
         .onSizeChanged { width = it.width.toFloat() }
@@ -528,24 +557,22 @@ fun Modifier.tabSwipe(
 
                 // Dragging left goes forward, the way a page does.
                 //
-                // `Tick` rather than `Selection` on each step. They are two
-                // different things and this was firing the wrong one: a tick is
-                // a detent crossed, which is what a step through a row of tabs
-                // is, and a selection is a value being chosen — which on this
-                // gesture happens once, when the finger lifts. Firing the heavier
-                // one per step made a three-tab drag feel like three decisions.
+                // A `Snap` for the tabs passed, once per event however many that
+                // is: the ticker reports a jump of several as one crossing, and
+                // calling it per tab inside one event used to fire a snap each,
+                // unfloored, in the same instant.
+                val before = index
                 while (travelled <= -threshold && index < count - 1) {
                     travelled += threshold
                     index += 1
-                    ticker.at(index)
                     currentChange(index)
                 }
                 while (travelled >= threshold && index > 0) {
                     travelled -= threshold
                     index -= 1
-                    ticker.at(index)
                     currentChange(index)
                 }
+                if (index != before) ticker.at(index)
                 // Pinned at the ends, so a drag past the last tab does not bank
                 // travel that then has to be undone before the first step back.
                 //
@@ -557,7 +584,7 @@ fun Modifier.tabSwipe(
             },
             orientation = Orientation.Horizontal,
             onDragStarted = {
-                index = selected
+                index = selectedIndex
                 travelled = 0f
                 ticker.reset()
                 ticker.at(index)
@@ -565,8 +592,6 @@ fun Modifier.tabSwipe(
             onDragStopped = {
                 travelled = 0f
                 ticker.reset()
-                // Once, at the end — the thing a `Selection` was being spent on
-                // per step now marks the gesture actually finishing.
             },
         )
 }

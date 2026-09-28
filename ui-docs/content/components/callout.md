@@ -8,11 +8,11 @@ if it can go away, it is a `Banner`.
 // The markdown blockquote treatment, for an aside inside prose. Not a
 // status and not dismissible — if it can go away, it is a `Banner`.
 Callout {
-    Text("Melbourne, Sydney and Canberra do not currently support journey planning.")
+    +"Melbourne, Sydney and Canberra do not currently support journey planning."
 }
 ```
 
-**It is a [`Banner`](banner.md) that cannot go away.** Same `BannerTone`, decided
+**It is a [`Banner`](banner.md) that cannot go away.** Same `Tone`, decided
 by the same table, so a warning callout and a warning banner are the same ground,
 the same border and the same ink. Two things that both mean "pay attention to
 this" should not look like they came from two different libraries.
@@ -50,3 +50,9 @@ second channel, and it is on by default for that reason rather than for
 decoration. It is `contentDescription = null`, deliberately: the tone belongs in
 the words, and a reader is not helped by hearing "warning" read out before a
 sentence that already says so. If the severity matters, write it.
+
+At high contrast the tone's ground, border, text and icon come from the enhanced
+scheme, and the border is drawn at the tier's thicker line. Nothing else about it
+changes.
+
+Nothing about a callout moves, so reduced motion changes nothing.

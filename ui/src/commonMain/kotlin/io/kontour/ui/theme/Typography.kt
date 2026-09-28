@@ -1,6 +1,7 @@
 package io.kontour.ui.theme
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.TextStyle
@@ -71,10 +72,12 @@ fun outfitFontFamily(): FontFamily {
  * `Kbd`'s documented fallback spread worse rather than better, which is the one
  * thing this was supposed to fix.
  *
- * Nine `KbdDefaults` symbols still fall back, because upstream JetBrains Mono
- * does not draw them either: ⏎ ⌫ ⌦ ⎋ ⇥ ⇪ ⇞ ⇟ ␣. Measured, not assumed —
- * `KbdIcons` remains the answer for the four it covers, and `Kbd`'s own KDoc
- * says why.
+ * Two `KbdDefaults` symbols still fall back, because upstream JetBrains Mono
+ * does not draw them either: ⌦ and ⎋. It was nine — ⏎ ⌫ ⌦ ⎋ ⇥ ⇪ ⇞ ⇟ ␣ —
+ * and `KbdIcons` now covers seven of them, having been short by five for as long
+ * as it claimed Tabler had no tab, caps lock or page keys. It does; they are
+ * filed under the arrows they draw. Measured against the artifact, not assumed,
+ * which is the only reason the old number was wrong for as long as it was.
  *
  * Ligatures are **off**: the `calt` feature is dropped in the subset. A
  * documentation site that silently redraws `!=` as `≠` is showing the reader
@@ -152,12 +155,30 @@ data class Typography(
      * `monoLabel`, whose name promised exactly the fix it was not providing.
      *
      * A caller who wants a *different* size in this face takes the family and
-     * leaves the metrics: `bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily)`.
-     * That is what the documentation site's code blocks do, and it is why this
-     * is one style rather than a parallel scale of nine.
+     * leaves the metrics: `Theme.typography.bodySmall.mono()`. That is what the
+     * documentation site's code blocks do, and it is why this is one style
+     * rather than a parallel scale of nine.
      */
     val mono: TextStyle,
 )
+
+/**
+ * This style in the theme's mono face, at its own size and line height:
+ * `Theme.typography.labelSmall.mono()` for a key cap, `bodySmall.mono()` for a
+ * code block.
+ *
+ * It takes the family and the tabular-figure feature from [Typography.mono] and
+ * nothing else, so the scale's metrics stay the scale's. The mistake it
+ * replaces is `FontFamily.Monospace`, which is whatever the platform has rather
+ * than the face the theme ships — six call sites in this repository reached for
+ * it before this existed.
+ */
+@Composable
+@ReadOnlyComposable
+fun TextStyle.mono(): TextStyle {
+    val mono = Theme.typography.mono
+    return copy(fontFamily = mono.fontFamily, fontFeatureSettings = mono.fontFeatureSettings)
+}
 
 /**
  * Trims the half-leading above the first line and below the last, so a text

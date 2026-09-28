@@ -75,6 +75,11 @@ class ComponentDefaultsValuesTest {
     fun controlMetricsAreWhatTheyWere() {
         assertEquals(6.dp, d.segmentedTrackPadding)
         assertEquals(6.dp, d.toolbarPadding)
+        // Not a transcription from a pre-sweep `*Defaults` object like its
+        // neighbours: there was nothing to transcribe. The tick was
+        // `trackHeight * 0.22f` inline in two files, which is 1.76dp and is the
+        // number the report was about.
+        assertEquals(3.dp, d.sliderTickSize)
     }
 
     @Test
@@ -82,6 +87,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(48.dp, d.listItemMinHeight)
         assertEquals(64.dp, d.listItemTwoLineMinHeight)
         assertEquals(2.dp, d.listItemSpacing)
+        assertEquals(0.35f, d.swipePositionalThreshold)
         assertEquals(6.dp, d.scrollbarThickness)
         assertEquals(10.dp, d.scrollbarHoveredThickness)
         assertEquals(88.dp, d.swipeActionWidth)
@@ -91,7 +97,8 @@ class ComponentDefaultsValuesTest {
     fun displayMetricsAreWhatTheyWere() {
         assertEquals(8.dp, d.pageIndicatorDotSize)
         assertEquals(20.dp, d.pageIndicatorActiveWidth)
-        assertEquals(6.dp, d.pageIndicatorGap)
+        assertEquals(8.dp, d.pageIndicatorGap)
+        assertEquals(0.dp, d.carouselHeroPeek)
         assertEquals(108.dp, d.keyValueLabelWidth)
         assertEquals(96.dp, d.keyValueMinValueWidth)
         assertEquals(48.dp, d.marqueeGap)
@@ -99,17 +106,13 @@ class ComponentDefaultsValuesTest {
 
     @Test
     fun navigationMetricsAreWhatTheyWere() {
-        assertEquals(56.dp, d.navIndicatorWidth)
-        assertEquals(32.dp, d.navIndicatorHeight)
-        assertEquals(28.dp, d.navGlyphHeight)
         assertEquals(48.dp, d.navInlineGlyph)
         assertEquals(40.dp, d.navCircleSize)
         assertEquals(1.08f, d.navSelectedIconScale)
         assertEquals(12.dp, d.navBarItemGap)
         assertEquals(88.dp, d.navRailCollapsedWidth)
         assertEquals(280.dp, d.navRailExpandedWidth)
-        assertEquals(280.dp, d.navDrawerWidth)
-        assertEquals(24.dp, d.navDrawerNestIndent)
+        assertEquals(24.dp, d.navNestIndent)
         assertEquals(56.dp, d.topBarHeight)
         assertEquals(112.dp, d.topBarLargeHeight)
         assertEquals(48.dp, d.tabBarHeight)
@@ -124,10 +127,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(96.dp, d.commandPaletteTopInset)
         assertEquals(8.dp, d.coachmarkSpotlightPadding)
         assertEquals(24.dp, d.backdropBlurRadius)
-        assertEquals(0.94f, d.backdropScaleBack)
-        assertEquals(0.58f, d.glassAlpha)
-        assertEquals(0.94f, d.glassOpaqueAlpha)
-        assertEquals(14.dp, d.glassBlurRadius)
+        assertEquals(12.dp, d.backdropInset)
         assertEquals(640.dp, d.sheetMaxWidth)
         assertEquals(480.dp, d.sideSheetWidth)
         assertEquals(12.dp, d.toastPeek)
@@ -165,29 +165,28 @@ class ComponentDefaultsValuesTest {
                 pressScaleMedium = 0.95f,
                 segmentedTrackPadding = 6.dp,
                 toolbarPadding = 6.dp,
+                sliderTickSize = 3.dp,
                 listItemMinHeight = 48.dp,
                 listItemTwoLineMinHeight = 64.dp,
                 listItemSpacing = 2.dp,
+                swipePositionalThreshold = 0.35f,
                 scrollbarThickness = 6.dp,
                 scrollbarHoveredThickness = 10.dp,
                 swipeActionWidth = 88.dp,
                 pageIndicatorDotSize = 8.dp,
                 pageIndicatorActiveWidth = 20.dp,
-                pageIndicatorGap = 6.dp,
+                pageIndicatorGap = 8.dp,
+                carouselHeroPeek = 0.dp,
                 keyValueLabelWidth = 108.dp,
                 keyValueMinValueWidth = 96.dp,
                 marqueeGap = 48.dp,
-                navIndicatorWidth = 56.dp,
-                navIndicatorHeight = 32.dp,
-                navGlyphHeight = 28.dp,
                 navInlineGlyph = 48.dp,
                 navCircleSize = 40.dp,
                 navSelectedIconScale = 1.08f,
                 navBarItemGap = 12.dp,
                 navRailCollapsedWidth = 88.dp,
                 navRailExpandedWidth = 280.dp,
-                navDrawerWidth = 280.dp,
-                navDrawerNestIndent = 24.dp,
+                navNestIndent = 24.dp,
                 topBarHeight = 56.dp,
                 topBarLargeHeight = 112.dp,
                 tabBarHeight = 48.dp,
@@ -198,10 +197,7 @@ class ComponentDefaultsValuesTest {
                 commandPaletteTopInset = 96.dp,
                 coachmarkSpotlightPadding = 8.dp,
                 backdropBlurRadius = 24.dp,
-                backdropScaleBack = 0.94f,
-                glassAlpha = 0.58f,
-                glassOpaqueAlpha = 0.94f,
-                glassBlurRadius = 14.dp,
+                backdropInset = 12.dp,
                 sheetMaxWidth = 640.dp,
                 sideSheetWidth = 480.dp,
                 toastPeek = 12.dp,

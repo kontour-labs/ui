@@ -5,8 +5,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The spacing scale — a 4dp grid, named to match `--space-*` in
- * `admin/src/lib/styles/app.css` so values port across without arithmetic.
+ * The spacing scale — a 4dp grid, named to match the `--space-*` custom
+ * properties of the web styles, so values port across without arithmetic.
  *
  * | Token | | Typical use |
  * |---|---|---|

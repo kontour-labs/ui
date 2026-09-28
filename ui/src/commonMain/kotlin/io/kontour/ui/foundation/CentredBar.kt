@@ -3,9 +3,17 @@ package io.kontour.ui.foundation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlin.math.max
 
 /**
@@ -36,13 +44,42 @@ import kotlin.math.max
  * it does not, the title takes everything between the two sides — off-centre,
  * but whole, and clamped so it never runs under a control.
  *
- * So a bar with room is properly centred, and a bar without room degrades to
- * exactly what it does today rather than to something broken.
+ * So a bar with room is properly centred, and a bar without room degrades to a
+ * leading title rather than to something broken.
+ *
+ * ### A title that cannot be centred is a leading title
+ *
+ * It used to degrade to a title *centred in what was left* — off-centre, and
+ * visibly so with two actions at one end and nothing at the other, which is how
+ * it was reported: "the centred style is not really that centred". So a title
+ * that does not fit centred is laid out exactly as the non-centred style lays it
+ * out, against the leading controls.
+ *
+ * The decision is made at measure time, where composition cannot see it, so it
+ * is handed to the title in its constraints: **a title this bar has centred is
+ * measured at exactly the width it is centred in**, and one it has not is given
+ * a range. [CentredBarTitle] reads that and centres its lines, or starts them.
+ *
+ * ### Judged on the heading, not the line under it
+ *
+ * What has to fit centred is the title's first line — its heading. A supporting
+ * line under it is fitted to whatever the heading is centred in, and ends in an
+ * ellipsis if it is longer. The two used to be judged together, so a sheet
+ * header whose title fitted easily was pushed to the leading edge by a long
+ * subtitle under it — asked from a phone to "try a bit harder" to stay centred.
+ *
+ * @param startInset Room at the leading edge, inside the bar, before the leading
+ *   controls — padding that counts towards the centre. Padding put *around* the
+ *   bar instead moves its centre when the two sides differ, which is how a sheet
+ *   header's title came to sit 4dp right of the sheet's middle.
+ * @param endInset The same at the trailing edge.
  */
 @Composable
 internal fun CentredBar(
     modifier: Modifier = Modifier,
     centred: Boolean = true,
+    startInset: Dp = 0.dp,
+    endInset: Dp = 0.dp,
     leading: @Composable () -> Unit,
     title: @Composable () -> Unit,
     trailing: @Composable () -> Unit,
@@ -54,8 +91,12 @@ internal fun CentredBar(
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val lead = leadingItems.map { it.measure(loose) }
         val trail = trailingItems.map { it.measure(loose) }
-        val leadWidth = lead.sumOf { it.width }
-        val trailWidth = trail.sumOf { it.width }
+        val start = startInset.roundToPx()
+        val end = endInset.roundToPx()
+        // The insets count as part of each side: the title is centred on the bar,
+        // and kept clear of the controls and of the room beyond them.
+        val leadWidth = start + lead.sumOf { it.width }
+        val trailWidth = end + trail.sumOf { it.width }
 
         // Unbounded means there is no bar to centre on — a header inside a
         // horizontally scrolling parent, or one being measured for its
@@ -66,7 +107,8 @@ internal fun CentredBar(
         val titleMeasurable = titleItems.first()
         // How wide the title would like to be, asked before anything is decided:
         // it is both the fallback width below and the test for whether the title
-        // can be centred at all.
+        // can be centred at all. A [CentredBarTitle] answers with its heading's
+        // width, not its widest line's — see above.
         val titleWish = titleMeasurable.maxIntrinsicWidth(constraints.maxHeight)
         val width = if (bounded) {
             constraints.maxWidth
@@ -84,9 +126,14 @@ internal fun CentredBar(
         // Centred only when it fits centred. See the note above: a title squeezed
         // into a symmetric slot it cannot fill is the worse of the two failures.
         val useSymmetric = centred && bounded && titleWish <= symmetric
-        val titleWidth = if (useSymmetric) symmetric else between
+        // Exactly `symmetric` wide when centred, and a range when not: the
+        // contract [CentredBarTitle] reads.
         val titlePlaceable = titleMeasurable.measure(
-            Constraints(minWidth = 0, maxWidth = titleWidth, minHeight = 0, maxHeight = constraints.maxHeight)
+            if (useSymmetric) {
+                Constraints.fixedWidth(symmetric).copy(maxHeight = constraints.maxHeight)
+            } else {
+                Constraints(minWidth = 0, maxWidth = between, minHeight = 0, maxHeight = constraints.maxHeight)
+            }
         )
 
         val height = maxOf(
@@ -97,15 +144,15 @@ internal fun CentredBar(
         )
 
         layout(width, height) {
-            fun place(placeables: List<Placeable>, startAt: Int) {
+            fun placeRun(placeables: List<Placeable>, startAt: Int) {
                 var x = startAt
                 placeables.forEach { placeable ->
-                    placeable.place(x, Alignment.CenterVertically.align(placeable.height, height))
+                    placeable.placeRelative(x, Alignment.CenterVertically.align(placeable.height, height))
                     x += placeable.width
                 }
             }
-            place(lead, 0)
-            place(trail, width - trailWidth)
+            placeRun(lead, start)
+            placeRun(trail, width - trailWidth)
 
             val titleX = if (useSymmetric) {
                 // The middle of the *bar*.
@@ -114,10 +161,61 @@ internal fun CentredBar(
                 // Everything between the controls, and never under one.
                 leadWidth
             }
-            titlePlaceable.place(
+            titlePlaceable.placeRelative(
                 x = titleX.coerceIn(leadWidth, max(leadWidth, width - trailWidth - titlePlaceable.width)),
                 y = Alignment.CenterVertically.align(titlePlaceable.height, height),
             )
         }
     }
+}
+
+/**
+ * A [CentredBar] title's lines, stacked: centred on each other and on the bar
+ * when the bar has centred the title, and against the leading edge when it has
+ * not.
+ *
+ * The bar says which by the constraints it measures the title with — exactly the
+ * width it is centred in, or a range — so a title that could not be centred is
+ * laid out exactly as the non-centred style lays it out: a title *and* its
+ * supporting line starting at the leading edge, not a supporting line centred
+ * under a title pushed against the controls.
+ *
+ * Its widest wish, asked by the bar, is its **first line's** — the heading's: the
+ * lines under it fit themselves to the width the heading is given.
+ */
+@Composable
+internal fun CentredBarTitle(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier, measurePolicy = CentredBarTitlePolicy)
+}
+
+private object CentredBarTitlePolicy : MeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        val centre = constraints.hasFixedWidth
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val lines = measurables.map { it.measure(loose) }
+        val widest = lines.maxOfOrNull { it.width } ?: 0
+        // The whole range when there is one, so a leading title is as wide as
+        // the room it was given, as a full-width column was.
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else widest
+        val height = lines.sumOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+        return layout(width, height) {
+            var y = 0
+            lines.forEach { line ->
+                line.placeRelative(if (centre) (width - line.width) / 2 else 0, y)
+                y += line.height
+            }
+        }
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables.firstOrNull()?.maxIntrinsicWidth(height) ?: 0
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        measurables.firstOrNull()?.minIntrinsicWidth(height) ?: 0
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.sumOf { it.maxIntrinsicHeight(width) }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.sumOf { it.minIntrinsicHeight(width) }
 }

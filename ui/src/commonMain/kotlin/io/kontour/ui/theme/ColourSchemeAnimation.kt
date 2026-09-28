@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,12 +22,58 @@ import androidx.compose.ui.graphics.lerp
 internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
 
 /**
+ * A handle on a fade in progress, whose **identity never changes**.
+ *
+ * The reason there is a handle at all rather than a value. [LocalColourScheme]
+ * is a `staticCompositionLocalOf`, which does not track reads: providing a new
+ * value invalidates the entire subtree under the provider. That is the right
+ * trade for a token family — see the note on the local — right up until the
+ * value changes sixty times a second, which is what a fade does. A theme change
+ * was measured at a 99.9ms peak frame on a phone, and about thirteen full-app
+ * recompositions is the floor under it.
+ *
+ * So the static locals get the fade's **target**, which changes once, and this
+ * gets the frames in between. [fade] is snapshot state, so a composable that
+ * reads a colour registers with it and one that does not is untouched.
+ *
+ * ### [targetColours] and [targetElevation] are identities, not values
+ *
+ * `ProvideTokens` and any caller may provide `LocalColourScheme` for a subtree,
+ * and below that point this handle is describing a fade between two schemes
+ * neither of which is in effect any more. `Theme.colours` uses it only while the
+ * value the static local carries is *the same object* this was installed
+ * against; anything else was provided by something closer and wins.
+ *
+ * Identity rather than equality, because two equal schemes from different
+ * providers are still different intentions, and the cheap test is the correct
+ * one here.
+ */
+@Stable
+internal class ThemeFadeState(initial: ThemeFade, initialContrast: ContrastLevel) {
+    var fade: ThemeFade by mutableStateOf(initial)
+
+    var targetColours: ColourScheme = initial.colours
+    var targetElevation: Elevation = initial.elevation
+
+    /**
+     * The tier the last scheme arrived at, so a change of tier can be seen.
+     *
+     * A plain field rather than snapshot state, like the two above: it is read
+     * from the fade's own coroutine, and nothing should recompose because it was
+     * written. See [animatedTheme] for what it decides.
+     */
+    var contrast: ContrastLevel = initialContrast
+}
+
+/**
  * Cross-fades between themes instead of cutting.
  *
- * Switching to dark mode, changing the accent, or moving contrast tier used to
- * be a single frame: one composition with the old colours, the next with the
- * new. Every other state change in the library animates, and the largest one
- * did not.
+ * Switching to dark mode or changing the accent used to be a single frame: one
+ * composition with the old colours, the next with the new. Every other state
+ * change in the library animates, and the largest one did not.
+ *
+ * Moving contrast tier is the exception and still cuts, deliberately — see *A
+ * change of contrast tier cuts* below.
  *
  * ### One animation, not fifty
  *
@@ -36,18 +83,26 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  * transition where every one of them starts and ends together — so this runs
  * **one** float and lerps the scheme from it.
  *
- * ### What it costs, and why that is the right trade anyway
+ * ### What it used to cost, and the argument that was wrong
  *
  * [LocalColourScheme] is a `staticCompositionLocalOf`, so a new scheme
- * invalidates the whole content subtree — the entire application, once per
- * frame, for the length of the fade. That is the exact cost round 18 removed
- * from the window size class, and it is being spent deliberately here: a theme
+ * invalidates the whole content subtree. This used to provide one **per frame**,
+ * which meant the entire application recomposed about a dozen times in a row as
+ * fast as the device could manage — and the note here defended it: a theme
  * change is a rare, deliberate, user-initiated event, and it is *supposed* to
- * repaint everything. A window resize is neither of those things, which is why
- * one animates and the other must not.
+ * repaint everything.
  *
- * It is still a few hundred milliseconds of full recomposition, so it is a
- * parameter rather than a fact — see `KontourTheme`'s `animateThemeChanges`.
+ * It is. Once. Twelve times is not twelve times more correct, and a phone
+ * reported the difference as a 99.9ms peak frame.
+ *
+ * So the static local gets the fade's **target**, which changes once, and the
+ * frames in between go through [ThemeFadeState], whose identity never moves and
+ * whose field is snapshot state. A composable that reads a colour recomposes on
+ * every frame of a fade, which it must; one that does not is untouched.
+ * `ThemeFadeRecompositionTest` holds both halves of that.
+ *
+ * It is still a whole-app repaint, so it stays a parameter rather than a fact —
+ * see `KontourTheme`'s `animateThemeChanges`.
  *
  * ### The elevation scale travels with it
  *
@@ -64,40 +119,118 @@ internal class ThemeFade(val colours: ColourScheme, val elevation: Elevation)
  * rasterised on the frame before, and blurs are about four fifths of what a fade
  * costs.
  *
+ * ### The first switch after launch costs about 2.4x a later one, and that is the
+ * runtime rather than this
+ *
+ * Reported from an Android phone: light↔dark still stutters at about 66.6ms peak,
+ * *"however, I've noticed it only really happens when I first open the app. After I
+ * switch it a few times, it's really smooth."* Measured in a debug build.
+ *
+ * `FirstThemeSwitchCostDiagnostic` flips one scene four times with **no** warm-up,
+ * which is the thing the other three theme diagnostics all discard, and reproduces
+ * it on the JVM:
+ *
+ * ```
+ *   flip        worst frame    total over 16 frames
+ *   1              63.8ms            609.6ms
+ *   2              43.3ms            337.2ms
+ *   3              21.8ms            245.8ms
+ *   4              24.3ms            254.5ms
+ * ```
+ *
+ * 2.39x first to last, settling by the third — and a 63.8ms worst frame against
+ * the 66.6ms the phone reported. **Nothing here is warming up.** No cache in this
+ * library is keyed on light/dark: `SquirclePaths` is keyed on size, radii and
+ * smoothing, none of which a scheme moves, and the `ColourScheme` and `Elevation`
+ * instances are rebuilt on *every* switch, warm or cold. What warms is the runtime
+ * compiling this path — the JIT here, and on Android a debug build has no baseline
+ * profile, so the first run through any code path is interpreted. `FrameReadout`
+ * has said so about sheets since it was written.
+ *
+ * So the fix is not in this file. It is a release build, and ultimately a shipped
+ * baseline profile — which needs a macrobenchmark module and a device, so it is
+ * recorded here rather than done. `FramesPage` reports a worst frame **per flip**
+ * so the same comparison can be made on the phone in either build.
+ *
+ * What is left on this side is already spent: both diagnostics put shadows at
+ * 80-82% of a fade frame, and `ThemeSwitchCostDiagnostic` records that holding the
+ * elevation scale still across the flip now buys almost nothing — 40.05 against
+ * 40.59. The cost is that everything redraws, not that the shadow parameters move.
+ *
  * ### Interrupting mid-fade
  *
  * A scheme arriving while a fade is running restarts from **where the fade
  * actually is**, not from where it began. Flipping dark mode twice quickly
  * otherwise jumps back to the first scheme before starting the second, which is
  * more visible than not animating at all.
+ *
+ * ### A change of contrast tier cuts
+ *
+ * The one scheme change that does not fade, and it is the [Sizing] scale that
+ * decides it rather than the colours. A tier is not only a palette: `KontourTheme`
+ * resolves `kontourSizing(contrast)` from it too, and hands that to a static
+ * local that changes in one frame. So a faded tier change was a *half*-animated
+ * one — every border and focus ring in the application jumping to its high
+ * contrast width on frame one, over surfaces that then spent 220ms catching up.
+ *
+ * Both at once is worse than both at once instantly, which is the whole
+ * argument. Widths cannot sensibly be interpolated behind a static local — that
+ * is the invalidation this file exists to avoid, thirteen full-app recompositions
+ * of it — so the colours join the widths instead.
+ *
+ * Dark mode has no such partner: it moves colours and shadows and nothing else,
+ * and those two already travel together through one [Animatable]. Type size and
+ * reduced motion likewise reach only [Typography] and [Motion], neither of which
+ * this touches, and both have always cut.
  */
 @Composable
 internal fun animatedTheme(
     colours: ColourScheme,
     elevation: Elevation,
     motion: Motion,
-): ThemeFade {
-    val target = ThemeFade(colours, elevation)
-    var from by remember { mutableStateOf(target) }
-    var to by remember { mutableStateOf(target) }
+    contrast: ContrastLevel,
+): ThemeFadeState {
+    val state = remember { ThemeFadeState(ThemeFade(colours, elevation), contrast) }
     val fraction = remember { Animatable(1f) }
 
-    LaunchedEffect(colours, elevation) {
-        if (colours == to.colours && elevation == to.elevation) return@LaunchedEffect
-        from = lerpTheme(from, to, fraction.value)
-        to = ThemeFade(colours, elevation)
+    LaunchedEffect(colours, elevation, contrast) {
+        val to = ThemeFade(colours, elevation)
+        val tierChanged = contrast != state.contrast
+        state.contrast = contrast
+        if (
+            tierChanged ||
+            (state.fade.colours == to.colours && state.fade.elevation == to.elevation)
+        ) {
+            // A tier change stops any fade already running as well as skipping
+            // this one, so a reader who turns high contrast on mid-way through a
+            // dark-mode fade lands on the new tier rather than watching the old
+            // one finish arriving over the new widths.
+            fraction.snapTo(1f)
+            state.fade = to
+            return@LaunchedEffect
+        }
+        // Where the fade actually is, which is what interrupting one has to
+        // start from. It used to be reconstructed here as
+        // `lerpTheme(from, to, fraction.value)`; it is simply the last frame
+        // written now, because the frames are written rather than derived.
+        val from = state.fade
         fraction.snapTo(0f)
-        fraction.animateTo(1f, motion.tweenDefault())
+        // **Written from the animation, not read in composition.**
+        //
+        // The fraction used to be a state read in the body of this function, so
+        // `KontourTheme` recomposed on every frame of a fade and re-provided a
+        // new scheme to a static local — which is the whole-subtree
+        // invalidation this is here to stop. Nothing reads the fraction now: the
+        // animation pushes each frame into [ThemeFadeState.fade] from a
+        // coroutine, and the only composables that recompose are the ones that
+        // read a colour out of it.
+        fraction.animateTo(1f, motion.tweenDefault()) {
+            state.fade = lerpTheme(from, to, value)
+        }
+        state.fade = to
     }
 
-    val f = fraction.value
-    return remember(from, to, f) {
-        when {
-            f >= 1f -> to
-            f <= 0f -> from
-            else -> lerpTheme(from, to, f)
-        }
-    }
+    return state
 }
 
 /**
@@ -160,7 +293,7 @@ internal fun lerpColourScheme(start: ColourScheme, stop: ColourScheme, fraction:
     background = lerp(start.background, stop.background, fraction),
     surface = lerp(start.surface, stop.surface, fraction),
     surfaceSunken = lerp(start.surfaceSunken, stop.surfaceSunken, fraction),
-    surfaceTrack = lerp(start.surfaceTrack, stop.surfaceTrack, fraction),
+    surfaceIndicator = lerp(start.surfaceIndicator, stop.surfaceIndicator, fraction),
     surfaceRaised = lerp(start.surfaceRaised, stop.surfaceRaised, fraction),
     surfaceInverse = lerp(start.surfaceInverse, stop.surfaceInverse, fraction),
     onSurfaceInverse = lerp(start.onSurfaceInverse, stop.onSurfaceInverse, fraction),

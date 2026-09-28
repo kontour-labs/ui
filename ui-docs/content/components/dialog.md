@@ -9,8 +9,7 @@ var open by remember { mutableStateOf(false) }
 
 Button(onClick = { open = true }) { +"Rename favourite" }
 
-Dialog(visible = open, onDismissRequest = { open = false }) {
-    Text("Rename favourite", style = Theme.typography.titleMedium)
+Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
     Text(
         "Give it a name you will recognise on the home screen.",
         style = Theme.typography.bodySmall,
@@ -24,6 +23,10 @@ Reach for a [`Popover`](popover.md) when the rest of the screen is still usable 
 a dialog says *stop*, and saying it about something optional is how people learn
 to dismiss dialogs without reading them. For the ordinary confirm-or-cancel
 shape, [`AlertDialog`](alert-dialog.md) already lays the buttons out.
+
+**`title` is a heading above the content**, `title = { +"Rename favourite" }`, set
+in `titleLarge` as an [`AlertDialog`](alert-dialog.md)'s is and announced as a
+heading. The content under it is any column.
 
 **A dialog scrolls its own content.** It is centred in the window with nowhere
 else to go, so content taller than the window has no other way out. Without the
@@ -48,9 +51,20 @@ the subject.
 
 Dismissal has three routes and they are meant to stay three: the scrim's
 labelled `onClick` action, the platform back gesture, and whatever button the
-content provides. `dismissOnOutside = false` removes the first — correct for a
+content provides. `dismissible = false` removes the first two — correct for a
 confirmation that must be answered, and a reason to make sure the content offers
-its own way out.
+its own way out. Back still reaches the dialog then, and does nothing: the
+dialog does not move, and back does not go on to pop the screen behind a
+question that is still open. On Android a dialog that may be dismissed goes back
+by its own exit, following the gesture; on iOS back never closes a dialog.
 
 `dismissLabel` is what the scrim announces. The default is `Theme.strings.dismiss`;
 override it when "dismiss" is ambiguous about what is being dismissed.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the panel
+takes an edge in the scheme's `outline`, since a raised panel is otherwise
+barely distinct from the page at this tier, and the scrim behind it is darker.
+
+Under [reduced motion](../tokens.md#motion) the dialog fades in where it will
+rest instead of settling down onto the screen from slightly larger, and it
+arrives on a short tween rather than a spring.

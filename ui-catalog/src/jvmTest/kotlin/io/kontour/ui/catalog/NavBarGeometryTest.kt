@@ -24,10 +24,13 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Search
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.display.Badge
 import io.kontour.ui.nav.NavBar
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavBarStyle
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.kontourSizing
 import kotlin.math.abs
 import kotlin.test.Test
@@ -65,6 +68,8 @@ class NavBarGeometryTest {
         /** Each destination, in order, so the gaps between them can be compared. */
         var each: List<Rect> = emptyList()
         var fab: Rect = Rect.Zero
+        /** `Theme.spacing.xs`, read from the theme the bar was drawn in. */
+        var xs: Float = 0f
     }
 
     /**
@@ -83,7 +88,7 @@ class NavBarGeometryTest {
         showLabels: Boolean = true,
         badgeOn: Int? = null,
         withAction: Boolean = false,
-        backdrop: Boolean = false,
+        style: NavBarStyle = NavBarStyle.Floating,
         direction: LayoutDirection = LayoutDirection.Ltr,
         /**
          * The platform's minimum touch target, or `null` for the JVM's own.
@@ -110,23 +115,31 @@ class NavBarGeometryTest {
                             if (touchTarget == null) it else it.copy(minTouchTarget = touchTarget)
                         },
                     ) {
+                        measured.xs = Theme.spacing.xs.value * pixelsPerDp
                         Box(Modifier.fillMaxSize()) {
                             NavBar(
-                                items = destinations.mapIndexed { index, label ->
-                                    NavItem(
-                                        label = label,
-                                        icon = Tabler.Outline.Search,
-                                        onClick = {},
-                                        badge = if (index == badgeOn) 2 else null,
-                                        contentDescription = label,
-                                    )
-                                },
-                                selectedIndex = 1,
                                 modifier = Modifier.testTag("bar"),
+                                style = style,
                                 showLabels = showLabels,
-                                backdrop = backdrop,
-                                action = if (withAction) {
-                                    {
+                            ) {
+                                destinations.forEachIndexed { index, label ->
+                                    item(
+                                        selected = index == 1,
+                                        onClick = {},
+                                        key = label,
+                                        icon = Tabler.Outline.Search,
+                                        contentDescription = label,
+                                        badge = if (index == badgeOn) {
+                                            { Badge(count = 2) }
+                                        } else {
+                                            null
+                                        },
+                                    ) { +label }
+                                }
+                                // The old `action` parameter: a slot after the
+                                // destinations, which is what it always was.
+                                if (withAction) {
+                                    slot {
                                         FloatingActionButton(
                                             icon = Tabler.Outline.Search,
                                             contentDescription = "Search",
@@ -134,10 +147,8 @@ class NavBarGeometryTest {
                                             modifier = Modifier.testTag("action"),
                                         )
                                     }
-                                } else {
-                                    null
-                                },
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -162,7 +173,8 @@ class NavBarGeometryTest {
     }
 
     /**
-     * The bar is exactly as tall as the target it reserves, and no taller.
+     * The destinations are exactly as tall as the target they reserve, and the
+     * bar adds its own padding to that and nothing else.
      *
      * It used to be eight dp taller: a 48dp circle with `spacing.xxs` of padding
      * above and below it. But a destination already calls `minimumTouchTarget()`,
@@ -173,23 +185,37 @@ class NavBarGeometryTest {
      * target's own.
      *
      * Both halves matter. Dropping the padding without shrinking the circle
-     * would have made the bar 48dp of solid disc with no air at all — which is
-     * why the circle is checked too. Disabling the touch target is caught by the
-     * *first* assertion rather than the second, because the bar's height is now
-     * the target: it drops to the circle's 40dp and says so. The second is for
-     * the case the first cannot see, a bar padded back up to 48 around
-     * destinations that are smaller than that to hit.
+     * would have made the row 48dp of solid disc with no air at all — which is
+     * why each destination is checked too. Disabling the touch target is caught
+     * by the *first* assertion rather than the last, because the row's height is
+     * the target: it drops to the circle's 40dp and says so.
+     *
+     * This was written against `NavBarStyle.Free`, which had no surface and so
+     * no padding: its height *was* the target. Free is gone and every bar has a
+     * surface now, which pads what it holds by `spacing.xs` — so the claim is
+     * measured on the destination row, and on what `Docked`, the flush style,
+     * adds to it: `xs` above and below, and nothing counted twice.
      */
     @Test
     fun theBarIsNoTallerThanTheTargetItReserves() {
-        val phone = measure(showLabels = false, touchTarget = AndroidTouchTarget)
+        val phone = measure(showLabels = false, style = NavBarStyle.Docked, touchTarget = AndroidTouchTarget)
         val target = AndroidTouchTarget.value * pixelsPerDp
 
         assertTrue(
-            abs(phone.bar.height - target) <= 1f,
-            "the bar is ${phone.bar.height / pixelsPerDp}dp tall for a " +
-                "${AndroidTouchTarget.value}dp touch target — it should be the " +
+            abs(phone.items.height - target) <= 1f,
+            "the destinations are ${phone.items.height / pixelsPerDp}dp tall for a " +
+                "${AndroidTouchTarget.value}dp touch target — they should be the " +
                 "target exactly, with nothing padded on top of it",
+        )
+
+        val surface = target + 2 * phone.xs
+        assertTrue(
+            abs(phone.bar.height - surface) <= 1f,
+            "the docked bar is ${phone.bar.height / pixelsPerDp}dp tall — the " +
+                "${AndroidTouchTarget.value}dp target and its surface's " +
+                "${phone.xs / pixelsPerDp}dp above and below come to " +
+                "${surface / pixelsPerDp}dp, and anything past that is air the " +
+                "touch target already reserved, counted again",
         )
 
         phone.each.forEachIndexed { index, item ->
@@ -202,38 +228,9 @@ class NavBarGeometryTest {
         }
     }
 
-    /**
-     * The fade behind the bar changes nothing about the bar's size or place.
-     *
-     * It used to be a 128dp sibling box inside the component's own `Box`, so
-     * turning `backdrop` on made the whole thing 128dp tall — and because the
-     * destination row carried no alignment, it then sat at the *top* of that box
-     * instead of the bottom. [io.kontour.ui.nav.NavigationSuiteScaffold]
-     * measures this component and hands its height to the screen as padding, so
-     * a screen that asked for a backdrop inset its content by 128dp and lifted
-     * its destinations away from the edge they belong on.
-     *
-     * The gallery's own golden had shown it since the day the backdrop was
-     * added: one specimen's circles sitting fifty pixels above its neighbours',
-     * in a row of four panels meant to be identical but for their decoration.
-     */
-    @Test
-    fun theBackdropDoesNotChangeTheBarsSize() {
-        val plain = measure(showLabels = false)
-        val faded = measure(showLabels = false, backdrop = true)
-
-        assertTrue(
-            abs(plain.bar.height - faded.bar.height) <= 1f,
-            "the bar is ${plain.bar.height / pixelsPerDp}dp without a backdrop " +
-                "and ${faded.bar.height / pixelsPerDp}dp with one — the fade is " +
-                "decoration and must not be laid out",
-        )
-        assertTrue(
-            abs(plain.items.top - faded.items.top) <= 1f,
-            "the destinations sit at y=${plain.items.top / pixelsPerDp}dp without " +
-                "a backdrop and y=${faded.items.top / pixelsPerDp}dp with one",
-        )
-    }
+    // `theBackdropDoesNotChangeTheBarsSize` is gone with its premise: the fade
+    // behind the bar was `NavBarStyle.Free`'s, and neither Free nor the backdrop
+    // exists any more.
 
     @Test
     fun theBarCentresItsContentsVertically() {
@@ -307,28 +304,35 @@ class NavBarGeometryTest {
                     KontourTheme(darkTheme = false, reduceMotion = true) {
                         Box(Modifier.fillMaxSize().background(Color.White)) {
                             NavBar(
-                                items = destinations.mapIndexed { index, label ->
-                                    NavItem(
-                                        label = label,
-                                        icon = Tabler.Outline.Search,
-                                        onClick = {},
-                                        // On the last destination, so the two
-                                        // being compared are both unselected and
-                                        // therefore drawn in the same ink.
-                                        badge = if (index == 2) 2 else null,
-                                        contentDescription = label,
-                                    )
-                                },
-                                selectedIndex = 0,
                                 modifier = Modifier.testTag("bar"),
                                 showLabels = false,
                                 // Flattened to two tones, so "which pixels are the
                                 // glyph" is a question about the render rather than
                                 // about the palette.
-                                containerColour = Color.White,
-                                indicatorColour = Color.White,
-                                contentColour = Color.Black,
-                            )
+                                colours = NavDefaults.colours(
+                                    container = Color.White,
+                                    content = Color.Black,
+                                    indicator = Color.White,
+                                ),
+                            ) {
+                                destinations.forEachIndexed { index, label ->
+                                    item(
+                                        selected = index == 0,
+                                        onClick = {},
+                                        key = label,
+                                        icon = Tabler.Outline.Search,
+                                        contentDescription = label,
+                                        // On the last destination, so the two
+                                        // being compared are both unselected and
+                                        // therefore drawn in the same ink.
+                                        badge = if (index == 2) {
+                                            { Badge(count = 2) }
+                                        } else {
+                                            null
+                                        },
+                                    ) { +label }
+                                }
+                            }
                         }
                     }
                 }
@@ -345,8 +349,8 @@ class NavBarGeometryTest {
 
                 // The glyph is the only near-black thing in a destination: the
                 // circle behind it is white, the badge is the danger colour and
-                // its count is white on top of that, and the circle's shadow is a
-                // pale grey nowhere near this threshold.
+                // its count is white on top of that. (The marker cast a pale
+                // shadow once; it casts none now, which only widens the margin.)
                 var n = 0
                 var sumX = 0f
                 var sumY = 0f
@@ -367,9 +371,9 @@ class NavBarGeometryTest {
         // Against a plain neighbour rather than dead centre: an icon whose own
         // artwork is not symmetric is allowed to sit slightly off, as long as it
         // sits there for every destination. Both are unselected, so both are
-        // drawn in the `contentColour` the threshold was chosen for — the current
-        // destination takes the accent's on-container colour instead and is not
-        // one of the two being compared.
+        // drawn in the `content` colour the threshold was chosen for — the current
+        // destination takes the colour worked out from the marker instead and is
+        // not one of the two being compared.
         val plain = ink[1]
         val badged = ink[2]
         listOf(1, 2).forEach { index ->
@@ -387,13 +391,89 @@ class NavBarGeometryTest {
         )
     }
 
+    /**
+     * Without labels, each glyph is centred in its destination — and so under the
+     * marker, which is centred in the same target.
+     *
+     * Reported from a phone: the icons sat high in a label-less bar. The glyph
+     * column was top-aligned inside the 48dp touch target, so the 40dp circle
+     * had its 8dp of slack all underneath it while the marker, centred, sat 4dp
+     * lower. At the JVM's 24dp target there is no slack to put anywhere, so this
+     * asks for a phone's.
+     */
+    @Test
+    fun withoutLabelsTheGlyphIsCentredInItsTarget() {
+        val offsets = mutableListOf<Offset>()
+        runComposeUiTest {
+            setContent {
+                CompositionLocalProvider(LocalDensity provides Density(pixelsPerDp, 1f)) {
+                    KontourTheme(
+                        darkTheme = false,
+                        reduceMotion = true,
+                        sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = AndroidTouchTarget),
+                    ) {
+                        Box(Modifier.fillMaxSize().background(Color.White)) {
+                            NavBar(
+                                modifier = Modifier.testTag("bar"),
+                                showLabels = false,
+                                colours = NavDefaults.colours(
+                                    container = Color.White,
+                                    content = Color.Black,
+                                    indicator = Color.White,
+                                ),
+                            ) {
+                                destinations.forEachIndexed { index, label ->
+                                    item(
+                                        selected = index == 0,
+                                        onClick = {},
+                                        key = label,
+                                        icon = Tabler.Outline.Search,
+                                        contentDescription = label,
+                                    ) { +label }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+            val bar = onNodeWithTag("bar").fetchSemanticsNode().boundsInRoot
+            val pixels = onNodeWithTag("bar").captureToImage().toPixelMap()
+            // The two unselected destinations, drawn in plain `content` ink.
+            destinations.drop(1).forEach { label ->
+                val box = onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+                    .translate(-bar.left, -bar.top)
+                var top = Int.MAX_VALUE
+                var bottom = Int.MIN_VALUE
+                for (y in box.top.toInt().coerceAtLeast(0) until box.bottom.toInt()) {
+                    for (x in box.left.toInt().coerceAtLeast(0) until box.right.toInt()) {
+                        val c = pixels[x, y]
+                        if (c.red < Ink && c.green < Ink && c.blue < Ink) {
+                            top = minOf(top, y)
+                            bottom = maxOf(bottom, y)
+                        }
+                    }
+                }
+                assertTrue(top <= bottom, "$label drew no glyph to measure")
+                // The glyph's own vertical extent, centred against its target's.
+                offsets += Offset(0f, (top + bottom + 1) / 2f - box.center.y)
+            }
+        }
+        offsets.forEach {
+            assertTrue(
+                abs(it.y) <= 1.5f,
+                "a label-less glyph sits ${it.y / pixelsPerDp}dp off the middle of its 48dp target " +
+                    "(the marker is centred there) — the column is not centring it",
+            )
+        }
+    }
+
     @Test
     fun theActionSitsBesideTheDestinationsNotAmongThem() {
         // A 56dp FAB inside the bar's own shape left 4dp of air and read as jammed
-        // in. It is a separate circle beside the destinations, the same way the
-        // app's own toolbar draws it — and now that the destinations are separate
-        // circles too, "beside" is the only thing left to assert: there is no
-        // container either of them could be inside of.
+        // in. It is a slot after the destinations now — the bar's `action`
+        // parameter became `slot { }` — and "beside" is what is asserted: a slot
+        // written after the destinations must not be laid out among them.
         val measured = measure(withAction = true)
 
         assertTrue(measured.fab.width > 0f, "the action never reported a size")

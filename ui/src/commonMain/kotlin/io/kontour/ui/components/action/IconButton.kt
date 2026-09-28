@@ -1,5 +1,7 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.unit.Dp
+import io.kontour.ui.a11y.selectionEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,7 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,15 +45,16 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberToggleFeedback
 
 /**
  * A button whose whole label is an icon.
  *
  * ```
  * IconButton(
+ *     onClick = ::dismiss,
  *     icon = Icons.Close,
  *     contentDescription = "Close",
- *     onClick = ::dismiss,
  * )
  * ```
  *
@@ -80,9 +83,9 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun IconButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /**
@@ -136,10 +139,10 @@ fun IconButton(
  *
  * ```
  * IconToggleButton(
- *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
- *     contentDescription = "Favourite",
  *     checked = favourite,
  *     onCheckedChange = viewModel::setFavourite,
+ *     icon = if (favourite) Icons.StarFilled else Icons.StarOutline,
+ *     contentDescription = "Favourite",
  * )
  * ```
  *
@@ -159,10 +162,10 @@ fun IconButton(
  */
 @Composable
 fun IconToggleButton(
-    icon: ImageVector,
-    contentDescription: String,
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
+    icon: ImageVector,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /**
@@ -207,6 +210,10 @@ fun IconToggleButton(
     val accentColours = checkedColours.copy(
         container = Theme.colours.accent.container,
         content = Theme.colours.accent.onContainer,
+        // At the enhanced tier the tint is 1.25:1 from the page, so on and off
+        // would differ by little more than the glyph's colour; the accent edge
+        // is what every other selection takes there.
+        border = selectionEdge()?.let { Theme.colours.accent.solid } ?: checkedColours.border,
     )
 
     // A struck glyph carries its own state, so the container stays out of it.
@@ -218,6 +225,9 @@ fun IconToggleButton(
     // a password field is the case that showed it — and says the same thing
     // twice, the second time louder than the control deserves.
     val struck = strikethrough && checkedIcon == null
+    // A toggle, and it answers like one: on and off feel different, as a
+    // checkbox's do. It was the one checkbox-role control that said nothing.
+    val toggled = rememberToggleFeedback()
     val strike by animateFloatAsState(
         targetValue = if (struck && checked) 1f else 0f,
         animationSpec = Theme.motion.tweenDefault(),
@@ -272,10 +282,82 @@ fun IconToggleButton(
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = {
+                    toggled(it)
                     onCheckedChange(it)
                 },
             )
         },
+    )
+}
+
+/**
+ * A show/hide toggle whose glyph states what is true now: struck through while
+ * the thing is hidden, plain while it is shown.
+ *
+ * [IconToggleButton] strikes its glyph while *checked*, which is right for the
+ * toggles it was written for — a muted alert, a hidden layer — and was backwards
+ * for a password. Reported: "when the strikethrough is visible, password should
+ * be hidden." A reveal toggle is checked when the thing is *revealed*, so it
+ * needs the slash on the other side of the same state, and that is all this is.
+ *
+ * Internal, because the only caller is [io.kontour.ui.components.text.PasswordField]
+ * and a public toggle with its slash inverted is a second way to say the same thing.
+ * Announced the same way [IconToggleButton] is: a checkbox, checked while revealed,
+ * labelled with [contentDescription].
+ *
+ * @param hiddenIcon Drawn while hidden instead of a slash across [icon].
+ */
+@Composable
+internal fun RevealToggleButton(
+    revealed: Boolean,
+    onRevealedChange: (Boolean) -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    hiddenIcon: ImageVector? = null,
+    size: ButtonSize = ButtonSize.XSmall,
+    // A capsule on a square button is a circle, as `pill` would be; the capsule is
+    // the one a theme that squares off its controls can reach.
+    shape: Shape = Theme.shapes.capsule,
+) {
+    val interactions = remember { MutableInteractionSource() }
+    // Answers like the toggle it is, as `IconToggleButton` does: reported from a
+    // phone as the one toggle in a password field that said nothing when pressed.
+    val toggled = rememberToggleFeedback()
+    val drawn = hiddenIcon == null
+    val strike by animateFloatAsState(
+        targetValue = if (drawn && !revealed) 1f else 0f,
+        animationSpec = Theme.motion.tweenDefault(),
+        label = "revealToggleStrike",
+    )
+    IconButtonSurface(
+        icon = if (revealed || hiddenIcon == null) icon else hiddenIcon,
+        crossFadeIcon = hiddenIcon != null,
+        strike = if (drawn) ({ strike }) else null,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        enabled = enabled,
+        shape = shape,
+        rotation = 0f,
+        colours = ButtonDefaults.colours(ButtonVariant.Ghost),
+        metrics = ButtonDefaults.metrics(size),
+        interactions = interactions,
+        indication = kontourIndication(
+            shape,
+            ButtonDefaults.pressScale(ButtonVariant.Ghost, size, iconOnly = true),
+        ),
+        behaviour = Modifier.pointerCursor(enabled = enabled).toggleable(
+            value = revealed,
+            interactionSource = interactions,
+            indication = null,
+            enabled = enabled,
+            role = Role.Checkbox,
+            onValueChange = {
+                toggled(it)
+                onRevealedChange(it)
+            },
+        ),
     )
 }
 
@@ -320,13 +402,22 @@ private fun IconButtonSurface(
         animationSpec = motion.tweenFast(),
         label = "iconButtonContent",
     )
-    val animatedRotation by animateFloatAsState(
+    val animatedRotation = animateFloatAsState(
         targetValue = rotation,
         // Bouncy: a chevron that overshoots a few degrees and settles reads as
         // a physical flip rather than a value being assigned.
         animationSpec = motion.springOrTween(motion.springBouncy),
         label = "iconButtonRotation",
     )
+    // Turned in the layer, as `chevronTurn` turns a chevron: read through
+    // `Modifier.rotate` the angle was a composition read, and every frame of a
+    // turn recomposed the button to move a layer. Only for a button that has
+    // been asked to turn at all — the rest keep no layer, as `rotate(0f)` kept
+    // none — and that one keeps its layer from then on, so the turn home has
+    // somewhere to be drawn.
+    val turned = remember { booleanArrayOf(false) }
+    if (rotation != 0f) turned[0] = true
+    val turn = if (turned[0]) Modifier.graphicsLayer { rotationZ = animatedRotation.value } else Modifier
     val borderColour = colours.border(enabled)
     // The control height, not the icon plus a padding of its own.
     //
@@ -365,6 +456,9 @@ private fun IconButtonSurface(
             .then(behaviour),
         contentAlignment = Alignment.Center,
     ) {
+        // A control's strong border, so the slash thickens with the tier as
+        // the border beside it does.
+        val strikeWidth = Theme.sizing.borderWidthStrong
         CompositionLocalProvider(LocalContentColour provides contentColour) {
             LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
                 if (crossFadeIcon) {
@@ -382,8 +476,8 @@ private fun IconButtonSurface(
                             imageVector = glyph,
                             contentDescription = contentDescription,
                             modifier = Modifier
-                                .rotate(animatedRotation)
-                                .slash(strike, contentColour, container),
+                                .then(turn)
+                                .slash(strike, contentColour, container, strikeWidth),
                             size = metrics.iconSize,
                         )
                     }
@@ -392,8 +486,8 @@ private fun IconButtonSurface(
                         imageVector = icon,
                         contentDescription = contentDescription,
                         modifier = Modifier
-                            .rotate(animatedRotation)
-                            .slash(strike, contentColour, container),
+                            .then(turn)
+                            .slash(strike, contentColour, container, strikeWidth),
                         size = metrics.iconSize,
                     )
                 }
@@ -413,6 +507,7 @@ private fun Modifier.slash(
     strike: (() -> Float)?,
     colour: Color,
     container: Color,
+    width: Dp,
 ): Modifier = if (strike == null) {
     this
 } else {
@@ -420,9 +515,6 @@ private fun Modifier.slash(
         progress = strike,
         colour = colour,
         halo = container,
-        width = StrikeWidth,
+        width = width,
     )
 }
-
-/** The slash's own thickness. The same weight as a control's strong border. */
-private val StrikeWidth = 2.dp

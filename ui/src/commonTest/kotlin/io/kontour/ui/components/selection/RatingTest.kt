@@ -1,6 +1,14 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -39,7 +47,7 @@ class RatingTest {
     fun aReadOnlyRatingOffersNothingToPress() = runComposeUiTest {
         setContent {
             KontourTheme {
-                Rating(value = 4.3f, contentDescription = "Average rating")
+                Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")
             }
         }
 
@@ -53,6 +61,7 @@ class RatingTest {
             KontourTheme {
                 Rating(
                     value = 4.3f,
+                    onValueChange = null,
                     contentDescription = "Average rating",
                     modifier = Modifier.testTag("rating"),
                 )
@@ -112,6 +121,71 @@ class RatingTest {
 
         onNodeWithContentDescription("5 out of 5").performClick()
         assertEquals(5f, score)
+    }
+
+    /**
+     * A score can be taken back: a tap on the score already given clears it —
+     * asked for from a phone, where a rating had no way back to nothing.
+     */
+    @Test
+    fun tappingTheCurrentScoreClearsIt() = runComposeUiTest {
+        var score by mutableStateOf(3f)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Rating(value = score, contentDescription = "Your rating", onValueChange = { score = it })
+            }
+        }
+        onNodeWithContentDescription("3 out of 5").performClick()
+        waitForIdle()
+        assertEquals(0f, score)
+    }
+
+    /** Not decided on the press: a drag that starts on the score is a drag. */
+    @Test
+    fun aDragThatStartsOnTheScoreDoesNotClearIt() = runComposeUiTest {
+        var score by mutableStateOf(3f)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Rating(value = score, contentDescription = "Your rating", onValueChange = { score = it })
+            }
+        }
+        val third = onNodeWithContentDescription("3 out of 5").fetchSemanticsNode().boundsInRoot
+        val fourth = onNodeWithContentDescription("4 out of 5").fetchSemanticsNode().boundsInRoot
+        onRoot().performTouchInput {
+            down(third.center)
+            moveTo(Offset((third.center.x + fourth.center.x) / 2f, third.center.y))
+            moveTo(fourth.center)
+            up()
+        }
+        waitForIdle()
+        assertEquals(4f, score)
+    }
+
+    @Test
+    fun activatingTheSelectedMarkFromTheKeyboardClearsIt() = runComposeUiTest {
+        var score by mutableStateOf(3f)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Rating(value = score, contentDescription = "Your rating", onValueChange = { score = it })
+            }
+        }
+        onNodeWithContentDescription("3 out of 5").performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+        assertEquals(0f, score)
+    }
+
+    @Test
+    fun withoutAllowZeroTheScoreStays() = runComposeUiTest {
+        var score by mutableStateOf(3f)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Rating(value = score, contentDescription = "Your rating", onValueChange = { score = it }, allowZero = false)
+            }
+        }
+        onNodeWithContentDescription("3 out of 5").performClick()
+        onNodeWithContentDescription("3 out of 5").performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+        assertEquals(3f, score)
     }
 
     /**

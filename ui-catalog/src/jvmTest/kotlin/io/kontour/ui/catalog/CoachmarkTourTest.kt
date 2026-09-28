@@ -176,7 +176,7 @@ class CoachmarkTourTest {
     private fun Target(modifier: Modifier) {
         Surface(
             modifier = modifier.size(TargetSize.dp),
-            colour = Theme.colours.surfaceSunken,
+            containerColour = Theme.colours.surfaceSunken,
             content = {},
         )
     }

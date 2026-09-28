@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.inset
 import io.kontour.ui.theme.outset
 
 /**
@@ -111,4 +112,50 @@ fun Modifier.focusRing(
 fun rememberFocusRingVisible(interactionSource: InteractionSource): Boolean {
     val focused by interactionSource.collectIsFocusedAsState()
     return focused && LocalInputModality.current.showsFocusRing
+}
+
+/**
+ * A focus ring drawn just *inside* the component rather than around it.
+ *
+ * For the components whose neighbours touch them — a table row, a day in a
+ * calendar, a row in a menu, an action under a swiped row. Around them, the next
+ * one along would paint over the ring's far edge, or the panel they sit in would
+ * clip it. Inside, it is always whole.
+ *
+ * Shown on the same terms as [focusRing]: only when focus came from the
+ * keyboard. Apply it *after* the component's `clip`, so it is drawn on top of the
+ * pressed and selected grounds rather than under them.
+ *
+ * @param shape The component's own shape; the ring follows it, a stroke-width in.
+ * @param colour The ring's colour. The scheme's focus ring clears 3:1 on every
+ *   ground in the scheme; a component on a ground of its own — a red delete
+ *   action — passes its content colour instead.
+ */
+@Composable
+internal fun Modifier.insetFocusRing(
+    interactionSource: InteractionSource,
+    shape: Shape = RectangleShape,
+    enabled: Boolean = true,
+    colour: Color = Theme.colours.focusRing,
+): Modifier {
+    val visible = rememberFocusRingVisible(interactionSource) && enabled
+    if (!visible) return this
+    val width = Theme.sizing.focusRingWidth
+    return drawWithCache {
+        val stroke = width.toPx()
+        val half = stroke / 2f
+        // Concentric with the component: its corner, less the distance in.
+        val ringShape = (shape as? CornerBasedShape)?.inset(half.toDp()) ?: shape
+        val outline = ringShape.createOutline(
+            Size((size.width - stroke).coerceAtLeast(0f), (size.height - stroke).coerceAtLeast(0f)),
+            layoutDirection,
+            this,
+        )
+        onDrawWithContent {
+            drawContent()
+            translate(left = half, top = half) {
+                drawOutline(outline = outline, color = colour, style = Stroke(width = stroke))
+            }
+        }
+    }
 }

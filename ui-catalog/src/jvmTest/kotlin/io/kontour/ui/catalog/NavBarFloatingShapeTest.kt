@@ -12,7 +12,6 @@ import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
-import io.kontour.ui.nav.NavItem
 import io.kontour.ui.theme.KontourTheme
 import java.awt.image.BufferedImage
 import kotlin.math.sqrt
@@ -25,7 +24,7 @@ import kotlin.test.assertTrue
  * Reported as "can we make the floating nav bar rounded, since that's holding
  * rounded items", and it is a regression rather than a thing never done: the
  * container was `Theme.shapes.pill` until it moved to `control`, and round 26
- * then capped `control` at `CapsuleCap` underneath it. `nav-surfaces.md` still
+ * then capped `control` at `Shapes.CapsuleCap` underneath it. `nav-surfaces.md` still
  * describes the style as "a capsule inset from every edge" — the documentation
  * was never wrong, the code drifted out from under it.
  *
@@ -63,7 +62,7 @@ class NavBarFloatingShapeTest {
             "the floating nav bar's corner measured $fraction of half its height. " +
                 "It holds 40dp circles with 8dp above and below them, so a " +
                 "concentric container is 28dp and that is exactly the 1.0 a " +
-                "capsule gives — 0.64 is `control` stopping at CapsuleCap, which " +
+                "capsule gives — 0.64 is `control` stopping at Shapes.CapsuleCap, which " +
                 "is an 18dp box around uncapped circles.",
         )
     }
@@ -74,15 +73,13 @@ class NavBarFloatingShapeTest {
             KontourTheme(darkTheme = true) {
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
                     NavBar(
-                        items = listOf(
-                            NavItem("Nearby", Tabler.Outline.MapPin, onClick = {}),
-                            NavItem("Routes", Tabler.Outline.Bus, onClick = {}),
-                            NavItem("Saved", Tabler.Outline.Star, onClick = {}),
-                        ),
-                        selectedIndex = 0,
                         style = NavBarStyle.Floating,
                         modifier = Modifier.reportBounds { bounds = it },
-                    )
+                    ) {
+                        item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+                        item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                        item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+                    }
                 }
             }
         }.use { it.frames(6) }

@@ -34,3 +34,9 @@ with a motor impairment and worst again for anyone using a screen magnifier.
 
 The box itself adds no semantics. Whatever goes inside it — an image, a map —
 carries its own `contentDescription`.
+
+At high contrast nothing changes: the box draws nothing of its own, so there is
+no colour or line for the tier to strengthen.
+
+Under reduced motion nothing changes either, because nothing moves. Whatever
+goes inside the box answers to both settings on its own.

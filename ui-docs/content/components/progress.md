@@ -40,9 +40,34 @@ one that admits it does not know. But it also announces no value, so anything
 long enough to worry about wants a message beside it. The same goes for
 `StepProgress` at `current = null`.
 
+**Indeterminate is two bars chasing each other**: a long one sweeping out and a
+short one after it, each end speeding up and slowing down on its own curve, so the
+bars stretch and shrink as they go — Material's timing, over 1.8 seconds. It
+replaced a single band at an even speed, reported as wanting to be "more
+interesting". Every bar keeps round ends, down to a sliver, which is drawn as a
+dot.
+
 `StepProgress` is for a known number of steps, and the count is the story — give
-it "Step 2 of 4" rather than a percentage. At `current = null` it shows a band
-travelling the length of the row, occluded where it crosses the gaps between
-segments — the same motion `LinearProgress` makes, at the scale of the row. It
-used to light one whole segment at a time, which is a stepped animation for a
-state whose whole meaning is that there are no steps to report.
+it "Step 2 of 4" rather than a percentage. At `current = null` the row melts into
+one bar and the same two bars chase along it, occluded where they cross the gaps
+between segments. It used to light one whole segment at a time, which is a
+stepped animation for a state whose whole meaning is that there are no steps to
+report.
+
+**`working = true` runs the chase inside the current step**: its position is
+known and its progress within it is not. When `current` moves on, the step just
+finished fills first, and only once it is full do the bars start in the next
+step, from its start — asked for from a phone, so the step "fills up before the
+indeterminate animation moves to the next step".
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the track
+under the fill becomes `inactive` on all three, 3:1 from the default fill and
+4.5:1 on the page. The bar and the ring keep their thickness, and nothing else
+changes.
+
+Under reduced motion nothing loops but the spinner. An indeterminate
+`LinearProgress` holds a still stretch of fill at its start, `StepProgress` holds
+a still stub where its bars would run, and `CircularProgress` with
+`progress = null`, being a [`Spinner`](spinner.md), keeps turning with its
+breathing stilled. A new value still eases to its fill, over 150ms and without
+overshoot.

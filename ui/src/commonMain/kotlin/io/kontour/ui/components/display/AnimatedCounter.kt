@@ -1,7 +1,14 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.locale.rememberIntegerFormat
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -11,13 +18,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -25,11 +37,23 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.HoldFeedback
+import io.kontour.ui.interaction.rememberHoldFeedback
+import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.SpringToken
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 /**
  * A number that rolls to its new value instead of being replaced.
@@ -88,7 +112,7 @@ import io.kontour.ui.theme.Theme
 fun AnimatedCounter(
     value: Int,
     modifier: Modifier = Modifier,
-    format: (Int) -> String = { it.toString() },
+    format: (Int) -> String = rememberIntegerFormat(),
     colour: Color = Color.Unspecified,
     style: TextStyle = LocalTextStyle.current,
     /**
@@ -104,10 +128,136 @@ fun AnimatedCounter(
      * places for the number depending on whether it animated.
      */
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    /**
+     * How long the digits shake before a fall is rolled.
+     *
+     * `ZERO` — off — and it only ever applies to a **decrease**. A number going
+     * up is good news and arrives as fast as it likes; a number going down is a
+     * seat gone, a balance spent, a minute lost, and the report was that it
+     * happens with no warning at all.
+     *
+     * **The warning and the tremor are one thing, and this is its length.** They
+     * were two, and both arrangements of them were reported. A tremor at the
+     * front of a longer hold shook for 450ms and then stood still for a second
+     * before the number moved; moving it to the back put the same silence in
+     * front, so the drop was announced by nothing happening. There is no third
+     * place to put a pause inside a warning, because the pause *was* the fault:
+     * a warning is the tremor, it starts on the frame the fall is noticed, and
+     * the number rolls as it stops.
+     *
+     * So this is the whole of it — no lead-in, no tail. **About 450ms is the
+     * length to ask for**, which is two there-and-backs at the tremor's natural
+     * rhythm and is what the demo uses. Longer is honest rather than clever: ask
+     * for two seconds and you get two seconds of shaking, which stops reading as
+     * an announcement somewhere around the third cycle. The rhythm is held near
+     * constant and the number of cycles follows the duration, so a longer
+     * warning is more shaking rather than slower shaking.
+     *
+     * The counter cannot see the future, so it makes one: a drop is held at the
+     * old number for this long, shaking throughout, and then rolled. What it
+     * costs is that the drawn number lags the hoisted [value] by exactly this
+     * much while the warning runs. That is the trade, and it is why this is
+     * opt-in and zero by default rather than a behaviour every counter in an app
+     * suddenly has.
+     *
+     * A second drop landing mid-warning restarts nothing: the wiggle continues
+     * and the roll, when it comes, goes to wherever the value has reached. So a
+     * value falling every second does not queue a second of warning per step.
+     *
+     * Ignored under reduced motion, which takes the delay with it — a reader who
+     * has asked for less movement should not also be shown a stale number.
+     */
+    warnBefore: Duration = Duration.ZERO,
+    /**
+     * Whether a warning is felt as well as seen: a faint rumble for as long as
+     * the digits shake, and a tap as the number they warned of lands — once each
+     * per warning. Only matters with a [warnBefore].
+     *
+     * On by default, because a number that warns is one the reader may be about
+     * to act on — a seat count, a time remaining — and the taps are what reach a
+     * reader who is not looking. It used to tap on *every* drop of such a
+     * counter, including the ones that landed mid-wiggle, so a quick run of
+     * drops buzzed once each through a single warning; now a warning is felt
+     * for as long as it runs and where it ends, however many drops it covers. A
+     * rise that cuts a warning short stops the rumble and lands without the tap:
+     * it is not the news the rumble warned of. Under reduced motion, where
+     * nothing shakes, it taps once, at the drop.
+     */
+    hapticWarning: Boolean = true,
     contentDescription: String? = null,
 ) {
     val motion = Theme.motion
-    val text = format(value)
+    val tap = rememberTapFeedback()
+    val warned = rememberHoldFeedback()
+    val felt by rememberUpdatedState(hapticWarning && warnBefore > Duration.ZERO)
+
+    // What is actually drawn, which is `value` except while a fall is being
+    // announced. See [warnBefore].
+    var shown by remember { mutableIntStateOf(value) }
+    var warning by remember { mutableStateOf(false) }
+
+    // **One hold, for as long as the counter is composed, and it cannot be
+    // left stuck.**
+    //
+    // This was an effect keyed on `value` that set `warning`, waited, and then
+    // cleared it. A second drop inside the wait relaunched it — which cancelled
+    // the first one in the middle of its `delay`, before the line that cleared
+    // the flag — and the relaunched one saw a warning "already running" and
+    // returned. Nothing was left to finish it. Reported from the catalog as
+    // "Tick down" stopping working entirely if it was pressed quickly enough:
+    // the drawn number froze and never wiggled again.
+    //
+    // Now the value is *collected* rather than keyed on. The flow is conflated,
+    // so drops that land during a hold are not queued — the roll, when it
+    // comes, goes to wherever the value has reached, which is the promise the
+    // `warnBefore` KDoc has always made. The flag is cleared in `finally`, so a
+    // cancelled hold cannot leave it set. And a rise during a hold ends it at
+    // once: good news does not wait for a warning about bad news to finish.
+    val latest by rememberUpdatedState(value)
+    LaunchedEffect(warnBefore, motion.reduceMotion) {
+        snapshotFlow { latest }.collect { target ->
+            if (target >= shown || warnBefore <= Duration.ZERO || motion.reduceMotion) {
+                // Nothing shakes under reduced motion, so the drop itself is the
+                // warning, and the reader who asked for less movement is exactly
+                // the one it is quietest for.
+                if (target < shown && felt) tap()
+                warning = false
+                shown = target
+                return@collect
+            }
+            // Down is the one direction worth reporting, and only on a counter
+            // that warns: a number that falls there is a seat count or a time
+            // remaining the reader may be about to act on. A faint rumble for as
+            // long as the digits shake, and the tap as the number lands — once
+            // per warning, since a drop landing mid-wiggle is part of the warning
+            // already running. It used to report every fall on every counter: a
+            // seconds countdown buzzed once a second, and a `Stepper`'s own
+            // counter answered its minus button a second time.
+            //
+            // The rumble replaced a light tap at the start, asked for from a
+            // phone: a shake is felt better as something going on than as a knock.
+            if (felt) warned.start()
+            warning = true
+            try {
+                coroutineScope {
+                    val building = if (felt) launch { buildRumble(warned, warnBefore) } else null
+                    try {
+                        withinOrNull(warnBefore.inWholeMilliseconds) { snapshotFlow { latest }.first { it >= shown } }
+                    } finally {
+                        building?.cancel()
+                    }
+                }
+            } finally {
+                warned.stop()
+                warning = false
+            }
+            val landed = latest
+            if (felt && landed < shown) tap()
+            shown = landed
+        }
+    }
+
+    val text = format(shown)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
 
@@ -126,7 +276,7 @@ fun AnimatedCounter(
     val figures = remember(style) {
         style.copy(
             fontFeatureSettings = listOfNotNull(style.fontFeatureSettings, TabularFigures)
-                .joinToString(", ")
+                .joinToString(FeatureSeparator)
         )
     }
 
@@ -142,24 +292,151 @@ fun AnimatedCounter(
     // changes, and the previous value is written *after* composition — so a
     // recomposition that changes nothing else does not flip the direction, and
     // a jump from 14 to 3 still rolls downward. It went down, however far.
-    val previous = remember { PreviousValue(value) }
-    val goingUp = remember(value) { value >= previous.value }
-    SideEffect { previous.value = value }
+    val previous = remember { PreviousValue(shown) }
+    val goingUp = remember(shown) { shown >= previous.value }
+    SideEffect { previous.value = shown }
 
+    /**
+     * Which drawn positions are about to change, right-aligned.
+     *
+     * The wiggle used to be on the whole `Row`, on the argument that the number
+     * is one object saying something about itself. The report was that it should
+     * be the digits that are about to move, and that is the better reading: the
+     * announcement is *which* part of the figure is going, and shaking the whole
+     * thing says only that something is.
+     *
+     * Right-aligned because a formatted number can change length — 1000 falls to
+     * 999 — so comparing index for index from the left marks every position as
+     * moving on exactly the transition where three of the four genuinely do and
+     * the leading 1 is disappearing rather than changing. Counting from the right
+     * makes the shift explicit, and a position with nothing opposite it is a
+     * position that is going away, which counts as moving.
+     */
+    val moving = remember(text, warning, value, format) {
+        if (!warning) {
+            BooleanArray(text.length)
+        } else {
+            val next = format(value)
+            val shift = text.length - next.length
+            BooleanArray(text.length) { index ->
+                val opposite = index - shift
+                opposite !in next.indices || next[opposite] != text[index]
+            }
+        }
+    }
+
+    // The wiggle itself: a small vertical bob, per changing digit.
+    //
+    // An `Animatable` driven by an effect rather than `rememberInfiniteTransition`,
+    // and that is not a style choice. An infinite transition runs for as long as
+    // it is composed — so every counter in an app would carry a perpetual
+    // animation to be ready for a warning most of them never give, which is the
+    // exact shape of a defect this repository has already fixed once under the
+    // heading of animations running for nobody. This one exists between the drop
+    // and the roll and at no other time.
+    //
+    // **The tremor is the warning, and it fills it exactly.** The two used to be
+    // separate lengths, and both ways of arranging them were reported. A fixed
+    // 450ms shake at the front of a 1.5s hold stood still for a second before
+    // the number moved; putting it at the back left the same second of silence
+    // in front of it, so the drop was announced by nothing happening. There is
+    // nowhere left to put a pause, because the pause was the fault. The shake
+    // starts on the frame the fall is noticed and stops as the roll begins.
+    val wobble = remember { Animatable(0f) }
+    LaunchedEffect(warning) {
+        if (!warning) {
+            wobble.snapTo(0f)
+            return@LaunchedEffect
+        }
+        // Cycles from the duration, leg from the cycles — so a longer warning is
+        // more shaking rather than slower shaking, and the last leg lands on
+        // centre at the moment the hold ends rather than a fraction before it.
+        //
+        // Rounding the cycle count on its own would leave up to two legs of
+        // stillness at the end, which is the reported defect again in miniature;
+        // dividing the remainder back into the leg keeps the rhythm within about
+        // a tenth of [WigglePeriodMillis] and closes the gap. At the 450ms this
+        // is written for both numbers come out exactly where they were: two
+        // cycles at 90ms.
+        val cycles = wiggleCycles(warnBefore)
+        val legMillis = (warnBefore.inWholeMilliseconds / (2L * cycles + 1L))
+            .toInt()
+            .coerceAtLeast(1)
+        val leg = tween<Float>(legMillis, easing = LinearEasing)
+        repeat(cycles) {
+            wobble.animateTo(1f, leg)
+            wobble.animateTo(-1f, leg)
+        }
+        // Back to rest rather than stopping wherever the last leg left it. It is
+        // the third leg of the count above rather than an extra on the end, so
+        // the digits reach centre on the frame the roll starts and the number
+        // begins travelling from where it was standing — not from 1.5dp off it.
+        wobble.animateTo(0f, leg)
+    }
+    val amplitude = with(LocalDensity.current) { WiggleAmplitude.toPx() }
+
+    CompositionLocalProvider(LocalLayoutDirection provides directionOf(text)) {
     Row(
-        modifier = modifier.semantics {
-            this.contentDescription = contentDescription ?: text
-        },
+        modifier = modifier
+            .semantics {
+                // What is drawn, not what is pending.
+                //
+                // The other way round is tempting — a screen reader gets no
+                // wiggle, so the warning does not exist for it, and announcing
+                // the number that is coming would spare it the delay. It is
+                // wrong: a sighted user of a screen reader would hear one number
+                // and see another, and the invariant a counter's description
+                // has always had is that it says what the counter says.
+                //
+                // The delay is the cost of the warning and it is paid in every
+                // channel. `warnBefore` is opt-in and zero by default for that
+                // reason.
+                this.contentDescription = contentDescription ?: text
+            },
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Bottom,
     ) {
-        text.forEachIndexed { index, character ->
-            if (character.isDigit()) {
+        // Digits one cell each, so each can roll; everything else in runs, so a
+        // word keeps its shaping — Arabic letters drawn one to a `Text` do not
+        // join. And the row in the text's own direction rather than the page's:
+        // a number reads left to right inside a right-to-left line, and a row
+        // of digit cells laid out right to left writes it backwards.
+        textRuns(text).forEach { (index, run) ->
+            val character = run.first()
+            if (run.length == 1 && character.isDigit()) {
                 AnimatedContent(
                     targetState = character,
                     transitionSpec = { rollSpec(goingUp, motion) },
                     label = "digit$index",
-                    modifier = Modifier.width(digitWidth),
+                    modifier = Modifier
+                        .width(digitWidth)
+                        // **Every digit about to move trembles the same way, and
+                        // up and down.**
+                        //
+                        // Up and down because that was asked for: the tremor was a
+                        // side-to-side shake, and the report was that it should
+                        // bob instead. It also agrees with what comes next — the
+                        // roll is vertical, so a digit that has been bobbing in
+                        // its cell rolls out along the line it was already moving
+                        // on, rather than changing direction to go.
+                        //
+                        // The same way, not alternating by column: reported from
+                        // a phone as *"if multiple digits are about to move, then
+                        // they wiggle in the same direction"*. The digits that are
+                        // not about to change sit still, so `1,200` falling to
+                        // `1,199` bobs two columns while two hold their ground.
+                        //
+                        // Unclipped, so 1.5dp of the tremor crosses into the line
+                        // above or below. Accepted rather than clipped: a cell is
+                        // exactly a line tall, so clipping would shave the top off
+                        // the glyph at the extremes of every cycle.
+                        .graphicsLayer {
+                            translationY = if (moving.getOrElse(index) { false }) {
+                                wobble.value * amplitude
+                            } else {
+                                0f
+                            }
+                        },
                 ) { digit ->
                     Box(Modifier.width(digitWidth), Alignment.Center) {
                         Text(
@@ -173,7 +450,7 @@ fun AnimatedCounter(
                 }
             } else {
                 Text(
-                    text = character.toString(),
+                    text = run,
                     colour = colour,
                     style = style,
                     maxLines = 1,
@@ -182,7 +459,47 @@ fun AnimatedCounter(
             }
         }
     }
+    }
 }
+
+/**
+ * [text] as the cells a counter draws: each digit on its own, and each run of
+ * anything else together, with the index each starts at.
+ */
+internal fun textRuns(text: String): List<Pair<Int, String>> = buildList {
+    var start = -1
+    for ((index, char) in text.withIndex()) {
+        if (char.isDigit()) {
+            if (start >= 0) add(start to text.substring(start, index))
+            start = -1
+            add(index to char.toString())
+        } else if (start < 0) {
+            start = index
+        }
+    }
+    if (start >= 0) add(start to text.substring(start))
+}
+
+/**
+ * Right to left when the first letter in [text] is from a right-to-left script;
+ * digits, marks and punctuation decide nothing.
+ *
+ * By block rather than by `Char.directionality`, which only the JVM has. Every
+ * letter outside these blocks is written left to right.
+ */
+internal fun directionOf(text: String): LayoutDirection {
+    for (char in text) {
+        if (!char.isLetter()) continue
+        return if (RightToLeftBlocks.any { char.code in it }) LayoutDirection.Rtl else LayoutDirection.Ltr
+    }
+    return LayoutDirection.Ltr
+}
+
+/**
+ * Hebrew, Arabic, Syriac, Thaana, N'Ko, Samaritan, Mandaic and Arabic's
+ * extensions, and the Hebrew and Arabic presentation forms.
+ */
+private val RightToLeftBlocks = listOf(0x0590..0x08FF, 0xFB1D..0xFDFF, 0xFE70..0xFEFF)
 
 /**
  * A digit leaving upward while the next arrives from below, or the reverse.
@@ -226,3 +543,53 @@ object AnimatedCounterDefaults {
      */
     val Roll: SpringToken = SpringToken(dampingRatio = 1f, stiffness = 1400f)
 }
+
+/**
+ * How far the digits travel each way while a fall is being announced.
+ *
+ * A private top-level value rather than a field on `AnimatedCounterDefaults`,
+ * for the reason the literals ratchet exists: this is a fact about what a
+ * wiggle is, not a dial a brand reaches for. 1.5dp is small enough to read as
+ * a tremor on a headline figure and large enough to see on a body one.
+ */
+private val WiggleAmplitude: Dp = 1.5.dp
+
+/** One leg. Fast enough to read as agitation rather than as drift. */
+private const val WigglePeriodMillis: Int = 90
+
+/**
+ * How many there-and-backs fill a warning of [warnBefore] long.
+ *
+ * A there-and-back is two legs and the settle back to centre is a third, so a
+ * warning of `n` legs holds `n / 2` cycles. At the 450ms `AnimatedCounter` is
+ * written for that is two — 360ms of tremor and a 90ms settle, which is exactly
+ * the fixed pair it replaced.
+ *
+ * Derived rather than fixed because the warning is now the tremor's own length
+ * rather than a hold wrapped round it, and a fixed count would leave a warning
+ * that is mostly silence — which is the defect, in both of the arrangements it
+ * was reported in. At least one, so the shortest warning anybody can ask for is
+ * still a shake and not a twitch.
+ */
+private fun wiggleCycles(warnBefore: Duration): Int =
+    (warnBefore.inWholeMilliseconds / (2L * WigglePeriodMillis)).toInt().coerceAtLeast(1)
+
+/** Between two OpenType feature settings — CSS's syntax, not a word. */
+private const val FeatureSeparator = ", "
+
+/**
+ * The warning's rumble, built across [over] — the hold's own ramp, taken only
+ * [WarningRumbleShare] of the way, so it stays a shake that is felt rather than
+ * an alarm.
+ */
+private suspend fun buildRumble(hold: HoldFeedback, over: Duration) {
+    val total = over.inWholeNanoseconds.coerceAtLeast(1L).toFloat()
+    val start = withFrameNanos { it }
+    while (true) {
+        withFrameNanos { now -> hold.update(((now - start) / total).coerceIn(0f, 1f) * WarningRumbleShare) }
+    }
+}
+
+/** How far up the hold's ramp a counter's warning goes: half, which is faint. */
+private const val WarningRumbleShare = 0.5f
+

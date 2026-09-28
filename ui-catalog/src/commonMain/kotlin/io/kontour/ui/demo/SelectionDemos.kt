@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,17 +15,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Ship
 import com.composables.icons.tabler.outline.Sparkles
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
+import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
+import io.kontour.ui.components.selection.ColourFormat
+import io.kontour.ui.components.selection.ColourPicker
+import io.kontour.ui.components.selection.ColourPickerDefaults
+import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
+import io.kontour.ui.components.selection.KnobDefaults
 import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
@@ -35,6 +46,9 @@ import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.Text
+import kotlin.math.roundToInt
+import io.kontour.ui.components.display.DialColours
+import io.kontour.ui.components.selection.Knob as KnobControl
 import io.kontour.ui.theme.Theme
 
 private val checkboxEnabled = Knob.Flag("Enabled", initial = true)
@@ -115,11 +129,19 @@ internal val RadioGroupDemo = ComponentDemo(
     var mode by remember { mutableStateOf("Bus") }
     RadioGroup(
         options = listOf("Bus", "Train", "Ferry"),
-        selected = mode,
-        onSelectedChange = { mode = it },
+        value = mode,
+        onValueChange = { mode = it },
         enabled = this[radioGroupEnabled],
-        label = { it },
-    )
+    ) { option ->
+        +option
+        leading {
+            +when (option) {
+                "Bus" -> Tabler.Outline.Bus
+                "Train" -> Tabler.Outline.Train
+                else -> Tabler.Outline.Ship
+            }
+        }
+    }
 }
 
 private val switchEnabled = Knob.Flag("Enabled", initial = true)
@@ -188,12 +210,12 @@ internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph)) 
     ChipGroup {
         FilterChip(
             selected = buses,
-            onClick = { buses = !buses },
+            onSelectedChange = { buses = it },
             selectedIcon = Tabler.Outline.Check,
         ) { +"Buses" }
         FilterChip(
             selected = trains,
-            onClick = { trains = !trains },
+            onSelectedChange = { trains = it },
             selectedIcon = Tabler.Outline.Check,
         ) {
             +Tabler.Outline.Bus
@@ -231,8 +253,8 @@ internal val SegmentedControlDemo = ComponentDemo(slug = "segmented-control") {
     var span by remember { mutableStateOf(1) }
     SegmentedControl(
         options = listOf("Day", "Week", "Month"),
-        selected = span,
-        onSelectedChange = { span = it },
+        selectedIndex = span,
+        onSelectedIndexChange = { span = it },
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -249,10 +271,28 @@ private val sliderSteps = Knob.Flag("Stepped")
 private val sliderTicks = Knob.Flag("Ticks", initial = true)
 private val sliderEnabled = Knob.Flag("Enabled", initial = true)
 
+/**
+ * Marks between the marks, which is the half a still picture cannot argue.
+ *
+ * On, because the coarse scale is what a slider has always drawn and the
+ * question is what the fine one adds — a reader who has to turn it on to see it
+ * has already been told the answer.
+ */
+private val sliderMinorTicks = Knob.Flag("Minor ticks", initial = true)
+
+/**
+ * The value above the thumb while it is held.
+ *
+ * On, because it only shows during a drag — a still page looks the same either
+ * way, and the reader finds it by pressing.
+ */
+private val sliderValueLabel = Knob.Flag("Value label", initial = true)
+
 internal val SliderDemo = ComponentDemo(
     slug = "slider",
-    knobs = listOf(sliderSteps, sliderTicks, sliderEnabled),
+    knobs = listOf(sliderSteps, sliderTicks, sliderMinorTicks, sliderValueLabel, sliderEnabled),
 ) {
+    val label = this[sliderValueLabel]
     var amount by remember { mutableStateOf(0.35f) }
     var stepped by remember { mutableStateOf(3f) }
     val enabled = this[sliderEnabled]
@@ -264,7 +304,9 @@ internal val SliderDemo = ComponentDemo(
                 onValueChange = { stepped = it },
                 valueRange = 1f..5f,
                 steps = 3,
+                minorTicks = if (this@ComponentDemo[sliderMinorTicks]) 1 else 0,
                 showTicks = ticks,
+                valueLabel = if (label) { value -> "${value.roundToInt()}" } else null,
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -278,6 +320,7 @@ internal val SliderDemo = ComponentDemo(
         Slider(
             value = amount,
             onValueChange = { amount = it },
+            valueLabel = if (label) { value -> "${(value * 100).roundToInt()}%" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -288,10 +331,14 @@ private val rangeSliderSteps = Knob.Flag("Stepped")
 private val rangeSliderTicks = Knob.Flag("Ticks", initial = true)
 private val rangeSliderEnabled = Knob.Flag("Enabled", initial = true)
 
+/** The held thumb's value above it, and a pushed one's too. */
+private val rangeSliderValueLabel = Knob.Flag("Value label", initial = true)
+
 internal val RangeSliderDemo = ComponentDemo(
     slug = "range-slider",
-    knobs = listOf(rangeSliderSteps, rangeSliderTicks, rangeSliderEnabled),
+    knobs = listOf(rangeSliderSteps, rangeSliderTicks, rangeSliderValueLabel, rangeSliderEnabled),
 ) {
+    val label = this[rangeSliderValueLabel]
     var window by remember { mutableStateOf(0.25f..0.7f) }
     var hours by remember { mutableStateOf(8f..17f) }
     val enabled = this[rangeSliderEnabled]
@@ -306,6 +353,7 @@ internal val RangeSliderDemo = ComponentDemo(
             steps = 13,
             showTicks = ticks,
             minDistance = 1f,
+            valueLabel = if (label) { value -> "${value.roundToInt()}:00" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -313,6 +361,7 @@ internal val RangeSliderDemo = ComponentDemo(
         RangeSlider(
             value = window,
             onValueChange = { window = it },
+            valueLabel = if (label) { value -> "${(value * 100).roundToInt()}%" } else null,
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -343,7 +392,7 @@ internal val StepperDemo = ComponentDemo(
             value = adults,
             onValueChange = { adults = it },
             contentDescription = "Adults",
-            range = 1..9,
+            valueRange = 1..9,
             animateValue = animate,
             enabled = enabled,
         )
@@ -351,7 +400,7 @@ internal val StepperDemo = ComponentDemo(
             value = bags,
             onValueChange = { bags = it },
             contentDescription = "Bags",
-            range = 0..4,
+            valueRange = 0..4,
             format = { if (it == 1) "1 bag" else "$it bags" },
             animateValue = animate,
             enabled = enabled,
@@ -362,9 +411,12 @@ internal val StepperDemo = ComponentDemo(
 private val ratingHalf = Knob.Flag("Half marks")
 private val ratingEnabled = Knob.Flag("Enabled", initial = true)
 
+/** Whether a tap on the score already given takes it back to nothing. */
+private val ratingZero = Knob.Flag("Allow zero", initial = true)
+
 internal val RatingDemo = ComponentDemo(
     slug = "rating",
-    knobs = listOf(ratingHalf, ratingEnabled),
+    knobs = listOf(ratingHalf, ratingZero, ratingEnabled),
 ) {
     var score by remember { mutableStateOf(3f) }
     Rating(
@@ -372,6 +424,7 @@ internal val RatingDemo = ComponentDemo(
         contentDescription = "Your rating",
         onValueChange = { score = it },
         allowHalf = this[ratingHalf],
+        allowZero = this[ratingZero],
         enabled = this[ratingEnabled],
     )
 }
@@ -398,6 +451,132 @@ internal val ColourSwatchPickerDemo = ComponentDemo(slug = "colour-swatch-picker
     )
 }
 
+// --- ColourPicker ---------------------------------------------------------
+
+private val pickerMode =
+    Knob.Choice("Mode", ColourPickerMode.entries.toList(), ColourPickerMode.Spectrum)
+private val pickerFormat =
+    Knob.Choice("Notation", ColourFormat.entries.toList(), ColourFormat.Hex)
+private val pickerAlpha = Knob.Flag("Opacity")
+private val pickerField = Knob.Flag("Value field", initial = true)
+private val pickerSwatches = Knob.Flag("Swatches", initial = true)
+
+internal val ColourPickerDemo = ComponentDemo(
+    slug = "colour-picker",
+    knobs = listOf(pickerMode, pickerFormat, pickerAlpha, pickerField, pickerSwatches),
+) {
+    var colour by remember { mutableStateOf(Color(0xFF1E88E5)) }
+    // Keyed on the knob so flipping it *sets* the mode rather than fighting the
+    // switch inside the picker, which the reader can also work. The same bargain
+    // the modal sheet demo strikes with its Open knob.
+    var mode by remember(this[pickerMode]) { mutableStateOf(this[pickerMode]) }
+    var format by remember(this[pickerFormat]) { mutableStateOf(this[pickerFormat]) }
+
+    ColourPicker(
+        colour = colour,
+        onColourChange = { colour = it },
+        modifier = Modifier.width(PickerWidth),
+        mode = mode,
+        onModeChange = { mode = it },
+        showAlphaSlider = this[pickerAlpha],
+        showValueField = this[pickerField],
+        format = format,
+        onFormatChange = { format = it },
+        swatches = if (this[pickerSwatches]) ColourPickerDefaults.Swatches else emptyList(),
+    )
+}
+
+/** Narrow enough to be a sheet's worth of picker, wide enough for four fields. */
+private val PickerWidth = 320.dp
+
+// --- Knob ------------------------------------------------------------------
+
+/** On, it stops at eleven places with a tick at each, and a detent felt at each. */
+private val knobStepped = Knob.Flag("Steps")
+private val knobEnabled = Knob.Flag("Enabled", initial = true)
+
+/** On, a tap on the face opens the value for typing. */
+private val knobEditable = Knob.Flag("Tap to type", initial = true)
+
+/** How far the knob turns from one end to the other. */
+private val knobSweep =
+    Knob.Choice("Sweep", listOf(180f, 270f, 320f), 270f, name = { "${it.roundToInt()}°" })
+
+/**
+ * What the fill is painted with: the accent, a gradient along the scale, or bands —
+ * green, then amber from 70%, then red from 90%, given in each knob's own units.
+ */
+private val knobFill = Knob.Choice("Fill", listOf("Solid", "Gradient", "Bands"), "Solid", name = { it })
+
+internal val KnobDemo = ComponentDemo(
+    slug = "knob",
+    knobs = listOf(knobStepped, knobSweep, knobFill, knobEditable, knobEnabled),
+) {
+    val sweep = this[knobSweep]
+    val fill = this[knobFill]
+    // In the units its readout shows, so the number a tap opens for typing is the
+    // number on the face.
+    var volume by remember { mutableStateOf(40f) }
+    var balance by remember { mutableStateOf(0.5f) }
+    val stepped = this[knobStepped]
+    val enabled = this[knobEnabled]
+    val editable = this[knobEditable]
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        KnobControl(
+            value = volume,
+            onValueChange = { volume = it },
+            valueRange = 0f..100f,
+            steps = if (stepped) 9 else 0,
+            enabled = enabled,
+            editable = editable,
+            sweepAngle = sweep,
+            colours = knobColours(fill, top = 100f),
+            contentDescription = "Volume",
+            stateDescription = { "${it.roundToInt()}%" },
+            onValueChangeFinished = { echo("Volume ${volume.roundToInt()}%") },
+        ) {
+            +"${volume.roundToInt()}"
+        }
+        KnobControl(
+            value = balance,
+            onValueChange = { balance = it },
+            valueRange = 0f..1f,
+            steps = if (stepped) 9 else 0,
+            enabled = enabled,
+            editable = editable,
+            sweepAngle = sweep,
+            colours = knobColours(fill, top = 1f),
+            size = 72.dp,
+            contentDescription = "Balance",
+        )
+    }
+}
+
+/** The demo's fill, with bands in the units of a knob that goes up to [top]. */
+@Composable
+private fun knobColours(fill: String, top: Float): DialColours = when (fill) {
+    "Gradient" -> KnobDefaults.colours(indicator = ScaleColours.gradient(listOf(KnobTeal, KnobBlue)))
+    "Bands" -> {
+        val success = Theme.colours.success.solid
+        val warning = Theme.colours.warning.solid
+        val danger = Theme.colours.danger.solid
+        KnobDefaults.colours(
+            indicator = ScaleColours.bands {
+                band(from = 0f, colour = success)
+                band(from = top * 0.7f, colour = warning)
+                band(from = top * 0.9f, colour = danger)
+            },
+        )
+    }
+    else -> KnobDefaults.colours()
+}
+
+private val KnobTeal = Color(0xFF2EC4B6)
+private val KnobBlue = Color(0xFF3A86FF)
+
 internal val selectionDemos = listOf(
     CheckboxDemo,
     TriStateCheckboxDemo,
@@ -412,4 +591,6 @@ internal val selectionDemos = listOf(
     StepperDemo,
     RatingDemo,
     ColourSwatchPickerDemo,
+    ColourPickerDemo,
+    KnobDemo,
 )

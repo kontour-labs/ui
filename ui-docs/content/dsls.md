@@ -107,13 +107,14 @@ supporting { +("Perth Underground will be taken off " +     // ✓
 Which one a component uses is invisible at the call site, and the difference is
 worth understanding only when you are writing a component.
 
-**Emitting.** `Button`, `Chip`, `Tag` — anything whose content is a single run of
-things. The slot is a normal `@Composable` lambda and `+` emits where it is
+**Emitting.** `Button`, `Chip`, `Tag`, `ChatBubble`, `Callout`, and a `Dialog`'s or
+`Popover`'s `title` — anything whose content is a single run of things. The slot is a normal `@Composable` lambda and `+` emits where it is
 written. The scope extends the layout scope the lambda already had
 (`RowContentScope : RowScope`), so `Modifier.weight` still means what it did.
 
-**Collecting.** `ListItem`, `Banner`, `TopBar`, `MenuItem`, `SheetHeader` —
-anything with more than one region. Content cannot run where it is written: a
+**Collecting.** `ListItem`, `Banner`, `TopBar`, `MenuItem`, `SheetHeader`,
+`TimelineItem`, and the readouts of `Gauge`, `Meter` and `Knob` — anything with
+more than one region. Content cannot run where it is written: a
 row's label belongs inside a `Column` inside a `Row`, next to a leading slot
 declared after it. So the builder is a plain lambda that *records* what goes
 where, and the component composes the regions in the order the layout wants.
@@ -127,11 +128,31 @@ A collecting builder is not composable, so you cannot call a composable or read
 same shape as Compose's own `LazyListScope`.
 
 **A bare `+` fills the component's primary text** — the region a one-line call
-means. A row's label, a banner's message, a state screen's title, a stat's label.
-Those are four different *names* because they are four different things, and the
+means. A row's label, a banner's message, a state screen's title, a stat's label,
+a readout's figure. Those are five different *names* because they are five
+different things, and the
 [word table](../../docs/building/contributing.md#the-words) keeps them apart: a `label`
 names a control, a `title` heads a region, a `message` is prose. What is uniform
 is which one `+` reaches, not what it is called.
+
+### Which components take it
+
+`+` belongs where a component's content is, nine times in ten, the same kind of
+thing in the same style — so the component can own the style, and the call site
+writes only the words:
+
+| Component | Region | Style it gets |
+|---|---|---|
+| `ChatBubble` | the message; `meta` | `bodyMedium`; `labelSmall`, faint |
+| `Callout` | the aside | `bodySmall`, in the tone's colour |
+| `TimelineItem` | `+` the stop; `supporting`, `overline`, `trailing` | `titleSmall`; `bodySmall`, muted |
+| `Dialog`, `Popover` | `title` | `titleLarge`, `titleSmall`; a heading |
+| `Gauge`, `Meter`, `Knob` | `+` the figure; `label` | sized by the component; `labelSmall`, muted |
+| `ListItem`, `SettingRow`, `SelectionRow` | `trailing` | `bodyMedium`, muted |
+
+It stays out of bodies that are genuinely anything — a `Card`, a `Dialog`'s or a
+sheet's content, an `Accordion`'s panel — and out of holders of controls, like a
+`Toolbar` or a `TopBar`'s actions, where the thing inside sets its own style.
 
 ---
 
@@ -143,10 +164,10 @@ shape you write nine times out of ten.
 ```kotlin
 DropdownMenu(visible = open, onDismissRequest = { open = false }) {
     section("This stop")
-    item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
-    item("Copy stop ID", icon = Tabler.Outline.Copy) { copy(stop.id) }
+    item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S") { share(stop) }
+    item("Copy stop ID", leadingIcon = Tabler.Outline.Copy) { copy(stop.id) }
     divider()
-    item("Remove favourite", icon = Tabler.Outline.Trash, destructive = true) {
+    item("Remove favourite", leadingIcon = Tabler.Outline.Trash, destructive = true) {
         remove(stop)
     }
 }
@@ -198,7 +219,7 @@ component still works inside it, unchanged:
 | Scope | Extends | Used by |
 |---|---|---|
 | `MenuScope` | `ColumnScope` | `DropdownMenu`, `AnchoredDropdownMenu`, `SubMenu` |
-| `NavDrawerScope` | `ColumnScope` | `NavDrawer`, `ModalNavDrawer`, `NavDrawerSection`, `NavDrawerGroup` |
+| `NavScope` | — | `NavBar` (as `NavBarScope`), `NavRail`, `ModalNavRail`, `NavigationSuiteScaffold` |
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
 
 ```kotlin
@@ -236,7 +257,8 @@ runs.
 
 `closeOnClick = false` for a row the user is likely to press again, like a filter
 toggle. `submenu` closes the whole stack rather than just itself, for the same
-reason one level up.
+reason one level up. `actionRow { action(label, icon) { } }` is the row of two to
+four buttons across the top, and closes the menu the same way `item` does.
 
 ### `ListGroupScope` — the corners
 
@@ -280,26 +302,32 @@ lists this is for and the wrong one for a list of thousands; a group of thousand
 of rows with rounded ends is not a thing anyone wants to look at, so the
 constraint and the design agree.
 
-### `NavDrawerScope` — the indent
+### `NavScope` — one tree, four surfaces
 
-A destination inside a `group` inside a `section` is still a destination. It
-keeps its full touch target and reports its selection to the travelling pill
-through a composition local rather than through its parent, so the only thing
-nesting changes is the indent — and by hand that means threading `nestLevel`
-down every branch.
+The same destinations are a bar on a phone, a rail on a tablet and a sidebar on a
+desktop, and by hand that is three copies of them, kept in step. `NavScope` is
+written once and each surface draws it its own way: a `group` is a menu in a bar
+and a disclosure in a sidebar, a `section` is inline in a bar and a title in a
+sidebar. A destination inside a group inside a section is still a destination —
+it reports its selection to the travelling marker through a composition local
+rather than through its parent, so nesting changes the indent and nothing else.
 
 ```kotlin
-NavDrawer(header = { AppMark() }) {
-    item("Home", Tabler.Outline.Home, selected = tab == Tab.Home) { go(Tab.Home) }
-
+NavRail(expanded = true) {
+    item(tab == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
     section("Saved") {
-        item("Favourites", Tabler.Outline.Star, badge = 3) { go(Tab.Favourites) }
-        group("Routes", expanded = open, onExpandedChange = { open = it }) {
-            item("950", selected = route == "950") { go("950") }
+        item(tab == Favourites, { go(Favourites) }, key = Favourites, icon = Tabler.Outline.Star) { +"Favourites" }
+        group(open, { open = it }, key = "routes", icon = Tabler.Outline.Route, header = { +"Routes" }) {
+            item(route == "950", { go("950") }, key = "950", icon = null) { +"950" }
         }
     }
 }
 ```
+
+**Its label is `+"Stops"` and collects a `String`**, unlike a slot: it is drawn
+where there is room and announced where there is not — a bar's circles, a
+collapsed rail's icons — and an announcement is a `String` (see the table at the
+top). It is required for the same reason.
 
 ---
 

@@ -51,6 +51,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":ui"))
+            // The Back page drives real Navigation 3 stacks, and a simulated
+            // gesture through the same dispatcher a real one arrives by.
+            implementation(project(":ui-nav3"))
+            implementation(libs.navigationevent.compose)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -109,7 +113,7 @@ tasks.withType<Test>().configureEach {
 // One region for the tests
 // ---------------------------------------------------------------------------
 //
-// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// `LocaleFormats` resolves from the platform's locale now — that is the whole
 // of the "dates are backwards in the US" fix — which makes every calendar and
 // every clock in the suite a function of the machine it runs on. A golden
 // recorded in one region is not a golden, and an assertion about "9 Jun" is a

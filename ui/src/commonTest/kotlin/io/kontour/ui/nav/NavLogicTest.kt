@@ -34,13 +34,13 @@ class NavigationSuiteTypeTest {
     }
 
     @Test
-    fun aTabletOrDesktopGetsADrawer() {
+    fun aTabletOrDesktopGetsASidebar() {
         assertEquals(
-            NavigationSuiteType.Drawer,
+            NavigationSuiteType.ExpandedRail,
             navigationSuiteTypeFor(WindowWidthClass.of(1000.dp)),
         )
         assertEquals(
-            NavigationSuiteType.Drawer,
+            NavigationSuiteType.ExpandedRail,
             navigationSuiteTypeFor(WindowWidthClass.of(1600.dp)),
         )
     }

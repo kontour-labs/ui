@@ -33,3 +33,11 @@ listen to.
 `until` is a `Duration`, so the caller owns the clock: what is announced is
 derived from a value under test rather than from a time source inside the
 component.
+
+At high contrast it is text in the colour you pass, or the one it inherits, from
+the enhanced scheme; nothing else changes.
+
+By default nothing moves, so reduced motion has nothing to change. With
+`animateValue = true` the number rolls over through
+[`AnimatedCounter`](animated-counter.md), and under reduced motion it is
+replaced where it stands instead.

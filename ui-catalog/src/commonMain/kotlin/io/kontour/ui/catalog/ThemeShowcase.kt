@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.Card
@@ -43,7 +44,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun ThemeShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, colour = Theme.colours.background) {
+    Surface(modifier = modifier, containerColour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -104,7 +105,7 @@ private fun Swatch(name: String, colour: Color, onColor: Color, width: Int = 132
     Surface(
         modifier = Modifier.width(width.dp).height(56.dp),
         shape = Theme.shapes.small,
-        colour = colour,
+        containerColour = colour,
         contentColour = onColor,
         // A hairline on every swatch, so the ones that match the page ground —
         // `surface` and `surfaceRaised` in light mode are both white — are still
@@ -134,20 +135,20 @@ private fun ColourRamp() {
             Swatch("primary", c.primary, c.onPrimary)
             Swatch("accent", c.accent.solid, c.accent.onSolid)
             Swatch("accent.container", c.accent.container, c.accent.onContainer)
-            // In the built-in schemes this is identical to `accent`, and that is
-            // the point: they have no product in them, so `brand` resolves to
-            // the accent until an app sets one, and the label says so rather
-            // than letting the swatch read as a duplicate.
+            // Where `brand` and `accent` are the same colour — the dark scheme,
+            // whose accent is Kontour Labs' violet itself — the label says so
+            // rather than letting the swatch read as a duplicate. In light they
+            // differ, because `#BB86FC` cannot carry the white label an accent
+            // has to; GTurbo's logo red, one step off its fill red, is the other
+            // case a second theme exists to show.
             //
-            // It used to say "unset" unconditionally, which was true while the
-            // default scheme was the only one anybody drew this under. A theme
-            // that sets a real brand — GTurbo's logo red, one step off its fill
-            // red — made the label wrong, which is the sort of thing a second
-            // theme exists to find.
+            // The label on it is picked for the swatch, not borrowed from the
+            // accent: a brand is allowed to be too light for white text, and
+            // the light default is.
             Swatch(
-                if (c.brand == c.accent.solid) "brand — unset" else "brand",
+                if (c.brand == c.accent.solid) "brand = accent" else "brand",
                 c.brand,
-                c.accent.onSolid,
+                contentColourFor(c.brand),
             )
         }
         FlowRow(
@@ -156,7 +157,7 @@ private fun ColourRamp() {
         ) {
             Swatch("surface", c.surface, c.content)
             Swatch("surfaceSunken", c.surfaceSunken, c.content)
-            Swatch("surfaceTrack", c.surfaceTrack, c.content)
+            Swatch("surfaceIndicator", c.surfaceIndicator, c.content)
             Swatch("surfaceRaised", c.surfaceRaised, c.content)
             Swatch("surfaceInverse", c.surfaceInverse, c.onSurfaceInverse)
         }
@@ -173,7 +174,7 @@ private fun StatusRow(name: String, tone: StatusColours) {
         Surface(
             modifier = Modifier.width(260.dp).height(56.dp),
             shape = Theme.shapes.small,
-            colour = tone.container,
+            containerColour = tone.container,
             contentColour = tone.onContainer,
         ) {
             Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.CenterStart) {
@@ -212,7 +213,7 @@ private fun SurfacesAndElevation() {
                     Surface(
                         modifier = Modifier.size(width = 120.dp, height = 72.dp),
                         shape = Theme.shapes.medium,
-                        colour = Theme.colours.surface,
+                        containerColour = Theme.colours.surface,
                         shadow = shadow,
                     ) {
                         Box(Modifier.padding(Theme.spacing.sm), contentAlignment = Alignment.Center) {
@@ -245,7 +246,7 @@ private fun ShapeScale() {
                 Surface(
                     modifier = Modifier.size(width = 96.dp, height = 56.dp),
                     shape = shape,
-                    colour = Theme.colours.surfaceSunken,
+                    containerColour = Theme.colours.surfaceSunken,
                     border = BorderStroke(Theme.sizing.borderWidth, Theme.colours.outline),
                 ) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

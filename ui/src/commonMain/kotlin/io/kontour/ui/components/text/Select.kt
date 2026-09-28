@@ -1,5 +1,6 @@
 package io.kontour.ui.components.text
 
+import io.kontour.ui.locale.ListStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -40,8 +41,10 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.interaction.rememberToggleFeedback
 
 /**
  * Whether a [Select], [MultiSelect] or [Combobox] has its menu open.
@@ -52,16 +55,19 @@ import io.kontour.ui.theme.Theme
  * parameter can be ignored.
  */
 @Stable
-class SelectState internal constructor(initiallyExpanded: Boolean) {
-    var expanded: Boolean by mutableStateOf(initiallyExpanded)
+class SelectState internal constructor(initialExpanded: Boolean) {
+    /** Whether the options are showing. Changed through [expand] and [collapse]. */
+    var expanded: Boolean by mutableStateOf(initialExpanded)
+        private set
 
     fun expand() { expanded = true }
     fun collapse() { expanded = false }
 }
 
+/** Remembers a [SelectState], with the menu open to begin with if [initialExpanded]. */
 @Composable
-fun rememberSelectState(initiallyExpanded: Boolean = false): SelectState =
-    remember { SelectState(initiallyExpanded) }
+fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
+    remember { SelectState(initialExpanded) }
 
 /**
  * Picks one of a fixed set of options.
@@ -184,14 +190,7 @@ fun <T> MultiSelect(
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
     optionEnabled: (T) -> Boolean = { true },
-    summary: (Set<T>) -> String = { selected ->
-        val labels = options.filter { it in selected }.map(optionLabel)
-        when {
-            labels.isEmpty() -> ""
-            labels.size <= 3 -> labels.joinToString(", ")
-            else -> "${labels.size} selected"
-        }
-    },
+    summary: (Set<T>) -> String = SelectDefaults.summary(options, optionLabel),
     supporting: String? = null,
     errorMessage: String? = null,
     leadingIcon: ImageVector? = null,
@@ -201,6 +200,8 @@ fun <T> MultiSelect(
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // Checkboxes, so they toggle — as `FilterChip`, their alternative, does.
+    val toggled = rememberToggleFeedback()
     SelectFrame(
         valueLabel = summary(value).takeIf { it.isNotEmpty() },
         placeholder = placeholder,
@@ -218,6 +219,7 @@ fun <T> MultiSelect(
         for (option in options) {
             MenuItem(
                 onClick = {
+                    toggled(option !in value)
                     onValueChange(
                         if (option in value) value - option else value + option
                     )
@@ -270,9 +272,7 @@ fun <T> Combobox(
     placeholder: String = Theme.strings.select,
     optionLabel: (T) -> String = { it.toString() },
     optionIcon: ((T) -> ImageVector?)? = null,
-    matches: (T, String) -> Boolean = { option, query ->
-        optionLabel(option).contains(query, ignoreCase = true)
-    },
+    matches: (T, String) -> Boolean = SelectDefaults.matches(optionLabel),
     emptyLabel: String = Theme.strings.noMatches,
     supporting: String? = null,
     errorMessage: String? = null,
@@ -400,7 +400,7 @@ private fun SelectFrame(
 
     fun setExpanded(open: Boolean) {
         if (state.expanded == open) return
-        state.expanded = open
+        if (open) state.expand() else state.collapse()
         onOpenChange(open)
     }
 
@@ -472,13 +472,48 @@ private fun SelectFrame(
         }
     }
 
-    AnchoredDropdownMenu(
-        visible = expanded,
-        anchor = anchor,
-        onDismissRequest = { setExpanded(false) },
-        alignment = OverlayAlignment.Start,
-        matchAnchorWidth = true,
-    ) {
-        content { setExpanded(false) }
+    WithAnchor({ anchor }) { bounds ->
+        AnchoredDropdownMenu(
+            visible = expanded,
+            anchor = bounds,
+            onDismissRequest = { setExpanded(false) },
+            alignment = OverlayAlignment.Start,
+            matchAnchorWidth = true,
+        ) {
+            content { setExpanded(false) }
+        }
+    }
+}
+
+/** What [MultiSelect] and [Combobox] take by default. */
+object SelectDefaults {
+    /**
+     * A [MultiSelect]'s closed field: up to three labels, joined as this reader's
+     * language joins a list, and then a count — `Strings.selectedCount`, in the
+     * reader's digits.
+     */
+    @Composable
+    fun <T> summary(options: List<T>, optionLabel: (T) -> String): (Set<T>) -> String {
+        val strings = Theme.strings
+        val formats = Theme.formats
+        return { selected ->
+            val labels = options.filter { it in selected }.map(optionLabel)
+            when {
+                labels.isEmpty() -> ""
+                labels.size <= 3 -> formats.list(labels, ListStyle.Unit)
+                else -> strings.selectedCount(formats.quantity(labels.size))
+            }
+        }
+    }
+
+    /**
+     * A [Combobox]'s search: whether an option's label contains the query, both
+     * folded for search — so `zurich` finds `Zürich`, and a Turkish reader's
+     * `İSTANBUL` finds `istanbul`.
+     */
+    @Composable
+    fun <T> matches(optionLabel: (T) -> String): (T, String) -> Boolean {
+        val formats = Theme.formats
+        return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
     }
 }

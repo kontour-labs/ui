@@ -36,7 +36,7 @@ sealed interface Route {
 /**
  * Routing through the URL fragment, because a static host has no rewrite rules.
  *
- * GitHub Pages serves files. Ask it for `/components/button` and it looks for a
+ * A static host serves files. Ask it for `/components/button` and it looks for a
  * file of that name and returns its 404 page; ask it for
  * `/#/components/button` and it serves `index.html` and hands the rest to the
  * page. Every deep link works, the back button works, and nothing has to be

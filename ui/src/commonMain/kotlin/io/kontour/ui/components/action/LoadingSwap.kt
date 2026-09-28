@@ -1,7 +1,9 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,41 +92,50 @@ internal fun LoadingSwap(
             content()
         }
 
-        AnimatedContent(
-            targetState = loading,
-            // Centred, and with no size transform at all.
-            //
-            // Both were defaults and both were wrong here. `AnimatedContent`
-            // aligns its children `TopStart` and animates its own size between
-            // the two states, clipping to it on the way — and the outgoing state
-            // is a zero-sized `Box`. So the container's width grew 0 -> spinner
-            // with the spinner pinned to its leading edge and clipped to the
-            // growing box, while the outer `Box` re-centred the whole thing each
-            // frame. What that draws is a spinner wiping in from the left, which
-            // is what was reported; `scaleIn`'s own centre origin never got to
-            // show, because the clip was doing the drawing.
-            //
-            // The text beside it has always expanded from its centre — it is a
-            // `graphicsLayer` scale, which does not resize anything — so the two
-            // halves of one swap were animating on different principles.
-            contentAlignment = Alignment.Center,
-            transitionSpec = {
-                // The spinner pops in rather than fading — a slightly overscaled
-                // entrance is the difference between "something is happening"
-                // and "something appeared".
-                (fadeIn(motion.tweenFast()) + scaleIn(motion.tweenFast(), initialScale = LoadingSwapScale))
-                    .togetherWith(
-                        fadeOut(motion.tweenFast()) +
-                            scaleOut(motion.tweenFast(), targetScale = LoadingSwapScale)
-                    )
-                    .using(sizeTransform = null)
-            },
-            label = "loadingSwapSpinner",
-        ) { isLoading ->
-            if (isLoading) {
-                Spinner(modifier = Modifier.size(spinnerSize), colour = LocalContentColour.current)
-            } else {
-                Box(Modifier.size(0.dp))
+        // Composed only once the control has actually loaded, and until the
+        // spinner has gone again. Every button carries one of these and almost
+        // none of them ever load; an `AnimatedContent` holding a zero-sized box
+        // was a transition, a layout and a slot table entry per button for
+        // nothing. The state starts where `loading` started, so a first load
+        // still animates in — and a control composed already loading still
+        // shows its spinner from the first frame, as it did.
+        val spinner = remember { MutableTransitionState(loading) }
+        spinner.targetState = loading
+        if (loading || spinner.currentState || !spinner.isIdle) {
+            rememberTransition(spinner, label = "loadingSwapSpinner").AnimatedContent(
+                // Centred, and with no size transform at all.
+                //
+                // Both were defaults and both were wrong here. `AnimatedContent`
+                // aligns its children `TopStart` and animates its own size between
+                // the two states, clipping to it on the way — and the outgoing state
+                // is a zero-sized `Box`. So the container's width grew 0 -> spinner
+                // with the spinner pinned to its leading edge and clipped to the
+                // growing box, while the outer `Box` re-centred the whole thing each
+                // frame. What that draws is a spinner wiping in from the left, which
+                // is what was reported; `scaleIn`'s own centre origin never got to
+                // show, because the clip was doing the drawing.
+                //
+                // The text beside it has always expanded from its centre — it is a
+                // `graphicsLayer` scale, which does not resize anything — so the two
+                // halves of one swap were animating on different principles.
+                contentAlignment = Alignment.Center,
+                transitionSpec = {
+                    // The spinner pops in rather than fading — a slightly overscaled
+                    // entrance is the difference between "something is happening"
+                    // and "something appeared".
+                    (fadeIn(motion.tweenFast()) + scaleIn(motion.tweenFast(), initialScale = LoadingSwapScale))
+                        .togetherWith(
+                            fadeOut(motion.tweenFast()) +
+                                scaleOut(motion.tweenFast(), targetScale = LoadingSwapScale)
+                        )
+                        .using(sizeTransform = null)
+                },
+            ) { isLoading ->
+                if (isLoading) {
+                    Spinner(modifier = Modifier.size(spinnerSize), colour = LocalContentColour.current)
+                } else {
+                    Box(Modifier.size(0.dp))
+                }
             }
         }
     }

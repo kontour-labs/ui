@@ -12,15 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,22 +38,25 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
-import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberLongPressFeedback
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
+/** The timing [Modifier.tooltip] takes by default. */
 object TooltipDefaults {
     /** How long a pointer must rest before a tooltip appears. */
-    const val HoverDelayMillis: Long = 500
+    val HoverDelay: Duration = 500.milliseconds
 
     /** How long a touch-triggered tooltip stays before dismissing itself. */
-    const val TouchDurationMillis: Long = 4_000
+    val TouchDuration: Duration = 4_000.milliseconds
 
     val MaxWidth: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.tooltipMaxWidth
@@ -62,9 +67,9 @@ object TooltipDefaults {
  *
  * ```
  * IconButton(
+ *     onClick = ::openFilters,
  *     icon = Tabler.Outline.Filter,
  *     contentDescription = "Filter routes",
- *     onClick = ::openFilters,
  *     modifier = Modifier.tooltip("Filter routes"),
  * )
  * ```
@@ -74,7 +79,7 @@ object TooltipDefaults {
  *
  * | Modality | Trigger | Dismissed by |
  * |---|---|---|
- * | Mouse | Hovering for [TooltipDefaults.HoverDelayMillis] | Moving away |
+ * | Mouse | Hovering for [TooltipDefaults.HoverDelay] | Moving away |
  * | Keyboard | Focus arriving | Focus leaving |
  * | Touch / stylus | A long press | A timeout |
  *
@@ -96,7 +101,7 @@ object TooltipDefaults {
 fun Modifier.tooltip(
     text: String,
     side: OverlaySide = OverlaySide.Top,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ): Modifier {
@@ -104,7 +109,7 @@ fun Modifier.tooltip(
     val hovered by interactions.collectIsHoveredAsState()
     val focused by interactions.collectIsFocusedAsState()
     val modality = LocalInputModality.current
-    val feedback = LocalFeedback.current
+    val longPressed = rememberLongPressFeedback()
 
     var bounds by remember { mutableStateOf<Rect?>(null) }
     var showing by remember { mutableStateOf(false) }
@@ -119,7 +124,7 @@ fun Modifier.tooltip(
             hovered && modality.supportsHover -> {
                 // The delay is what stops a tooltip firing for every control a
                 // pointer crosses on its way somewhere else.
-                delay(TooltipDefaults.HoverDelayMillis)
+                delay(TooltipDefaults.HoverDelay)
                 showing = true
             }
 
@@ -129,7 +134,7 @@ fun Modifier.tooltip(
 
     TooltipOverlay(
         visible = showing,
-        anchor = bounds,
+        anchor = { bounds },
         content = { +text },
         // Nothing to pass: this entry point is a modifier on the *trigger*, and
         // the bubble it shows is not addressable from the call site. Use the
@@ -147,7 +152,7 @@ fun Modifier.tooltip(
             if (!enabled || !modality.needsLargeTargets) return@pointerInput
             detectTapGestures(
                 onLongPress = {
-                    feedback.perform(FeedbackIntent.LongPress)
+                    longPressed()
                     showing = true
                 },
             )
@@ -170,7 +175,7 @@ fun Modifier.tooltip(
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.Route, "Show route", onClick = ::show)
+ *     IconButton(icon = Tabler.Outline.Route, contentDescription = "Show route", onClick = ::show)
  *     Tooltip(visible = firstRun) { +"Tap to see the whole route" }
  * }
  * ```
@@ -181,7 +186,7 @@ fun Modifier.tooltip(
  * a validation hint that appears while a field is wrong.
  *
  * For teaching a feature the user has not found at all, use
- * [Modifier.coachMark] instead — it goes through the [OverlayQueue] and so
+ * [Modifier.coachmark] instead — it goes through the [OverlayQueue] and so
  * cannot collide with five other features having the same idea.
  */
 @Composable
@@ -198,7 +203,7 @@ fun Tooltip(
      */
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Top,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     onDismissRequest: () -> Unit = {},
     content: @Composable ContentScope.() -> Unit,
 ) {
@@ -207,7 +212,7 @@ fun Tooltip(
 
     TooltipOverlay(
         visible = visible,
-        anchor = bounds,
+        anchor = { bounds },
         content = content,
         modifier = modifier,
         side = side,
@@ -216,11 +221,15 @@ fun Tooltip(
     )
 }
 
-/** The bubble itself, without the triggering. Shared by both entry points. */
+/**
+ * The bubble itself, without the triggering. Shared by both entry points, and by
+ * a component that decides for itself when and where its tooltip shows — an
+ * activity calendar's, which moves from cell to cell under one pointer.
+ */
 @Composable
-private fun TooltipOverlay(
+internal fun TooltipOverlay(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     content: @Composable ContentScope.() -> Unit,
     modifier: Modifier,
     side: OverlaySide,
@@ -232,9 +241,14 @@ private fun TooltipOverlay(
     val modality = LocalInputModality.current
     val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
+    // Read here rather than by the caller. The bounds change on every frame the
+    // trigger scrolls, and read by the caller — `Modifier.tooltip` is part of
+    // whatever composable it is written in — that recomposed the whole screen
+    // around a tooltip that was not even showing. Read here, only this does.
+    val anchorNow = anchor()
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchor)
+    val latestAnchor by rememberUpdatedState(anchorNow)
     val latestModifier by rememberUpdatedState(modifier)
     // Same reason as the anchor: the bubble's content is read when the overlay
     // composes, not captured when the entry was built. It also keeps the slot
@@ -245,8 +259,8 @@ private fun TooltipOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -282,7 +296,7 @@ private fun TooltipOverlay(
         )
 
         if (modality.needsLargeTargets) {
-            delay(TooltipDefaults.TouchDurationMillis)
+            delay(TooltipDefaults.TouchDuration)
             dismiss()
         }
     }
@@ -296,14 +310,20 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
         modifier = modifier
             .widthIn(max = TooltipDefaults.MaxWidth),
         shape = Theme.shapes.container,
-        colour = Theme.colours.surfaceInverse,
+        containerColour = Theme.colours.surfaceInverse,
         contentColour = Theme.colours.onSurfaceInverse,
     ) {
+        // Scrolls for the same reason `PopoverPanel` does: an anchored overlay is
+        // bounded to the room on its own side now, and a bound without a scroller is
+        // a bound that loses text. A tooltip is two lines and will almost never use
+        // it — almost never is not never, at 200% type against a short side.
         Box(
-            Modifier.padding(
-                horizontal = Theme.spacing.sm,
-                vertical = Theme.spacing.xxs,
-            )
+            Modifier
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .padding(
+                    horizontal = Theme.spacing.sm,
+                    vertical = Theme.spacing.xxs,
+                )
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
                 ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
@@ -317,13 +337,13 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *
  * ```
  * IconButton(
+ *     onClick = ::save,
  *     icon = Tabler.Outline.Bookmark,
  *     contentDescription = "Save this trip",
- *     onClick = ::save,
- *     modifier = Modifier.coachMark(
+ *     modifier = Modifier.coachmark(
  *         id = "save-trip",
  *         title = "Save this trip",
- *         text = "Trips you save show up on the home screen.",
+ *         message = "Trips you save show up on the home screen.",
  *         priority = 40,
  *         minSessions = 3,
  *     ),
@@ -348,13 +368,13 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  *   teaching a sequence in order.
  */
 @Composable
-fun Modifier.coachMark(
+fun Modifier.coachmark(
     id: String,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     priority: Int = 0,
     minSessions: Int = 0,
     prerequisites: Set<String> = emptySet(),
@@ -383,9 +403,9 @@ fun Modifier.coachMark(
 
     CoachMarkOverlay(
         visible = queue.current?.id == id,
-        anchor = bounds,
+        anchor = { bounds },
         title = title,
-        text = text,
+        message = message,
         icon = icon,
         side = side,
         alignment = alignment,
@@ -399,9 +419,9 @@ fun Modifier.coachMark(
 @Composable
 private fun CoachMarkOverlay(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     side: OverlaySide,
     alignment: OverlayAlignment,
@@ -412,14 +432,16 @@ private fun CoachMarkOverlay(
     val colours = Theme.colours
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
+    // Read here rather than by the caller — see [TooltipOverlay].
+    val anchorNow = anchor()
     // Read live by the overlay's measure pass rather than captured when the
     // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchor)
+    val latestAnchor by rememberUpdatedState(anchorNow)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, title, text, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -448,7 +470,7 @@ private fun CoachMarkOverlay(
                     ) {
                         CoachMarkBubble(
                             title = title,
-                            text = text,
+                            message = message,
                             icon = icon,
                             dismissLabel = dismissLabel,
                             onDismiss = { dismissNow() },
@@ -463,23 +485,29 @@ private fun CoachMarkOverlay(
 @Composable
 private fun CoachMarkBubble(
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
     val colours = Theme.colours
+    val announced = Theme.strings.sentences(listOf(title, message))
     Surface(
         modifier = Modifier
             .widthIn(max = 320.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "$title. $text" },
+            .semantics(mergeDescendants = true) { contentDescription = announced },
         shape = Theme.shapes.container,
-        colour = colours.accent.solid,
+        containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
+        // As `TooltipBubble` above: bounded to its side, so it needs somewhere for
+        // the overflow to go. A coach mark carries a title *and* a paragraph, so it
+        // is the likelier of the two to want it.
         Column(
-            modifier = Modifier.padding(Theme.spacing.md),
+            modifier = Modifier
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
         ) {
             Row(
@@ -495,7 +523,7 @@ private fun CoachMarkBubble(
                 }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(text, style = Theme.typography.bodySmall)
+            Text(message, style = Theme.typography.bodySmall)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

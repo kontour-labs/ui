@@ -213,8 +213,83 @@ class RangeSliderSeparationTest {
         )
     }
 
+    /**
+     * A pushed thumb lands on a tick, like every other value a stepped slider has.
+     *
+     * `minDistance` is added to the dragged thumb's value **after** it has been
+     * snapped, and nothing quantises the gap itself — so with a step of 1 and a
+     * minimum of 1.5 the shoved thumb comes to rest on `start + 1.5`, half a step
+     * off the grid. The tick marks say that value does not exist, dragging that
+     * thumb cannot reproduce it (its own first delta re-snaps, jumping it half a
+     * step), and the same arithmetic makes the dragged thumb's own ceiling
+     * off-grid, so the last part-step of track is a dead zone it sits pinned in.
+     */
+    @Test
+    fun bothThumbsStayOnTheGridWithAMinimumDistance() {
+        var range by mutableStateOf(2f..6f)
+        val seen = mutableListOf<ClosedFloatingPointRange<Float>>()
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 240) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                RangeSlider(
+                    value = range,
+                    onValueChange = { range = it; seen += it },
+                    valueRange = Range,
+                    steps = Steps,
+                    minDistance = MinDistance,
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            assertTrue(bounds.width > 0f, "the range slider never reported a size")
+            val from = bounds.alongX(0.2f)
+            val to = bounds.alongX(0.75f)
+
+            scene.press(from)
+            scene.frame()
+            repeat(24) { step ->
+                scene.move(Offset(from.x + (to.x - from.x) * (step + 1) / 24f, from.y))
+                scene.frame()
+            }
+            scene.release(to)
+            scene.frames(4)
+        }
+
+        assertTrue(seen.isNotEmpty(), "the drag reported nothing at all")
+
+        val step = (Range.endInclusive - Range.start) / (Steps + 1)
+        fun offGrid(v: Float): Boolean {
+            val index = v / step
+            return kotlin.math.abs(index - kotlin.math.round(index)) > 0.01f
+        }
+
+        val stray = seen.firstOrNull { offGrid(it.start) || offGrid(it.endInclusive) }
+        assertTrue(
+            stray == null,
+            "a stepped range slider with a ${MinDistance} minimum reported " +
+                "${stray?.start}..${stray?.endInclusive}, and the ticks are every " +
+                "$step. The gap is added after the snap and is never quantised, so " +
+                "the pushed thumb rests between two notches on a value nothing else " +
+                "in the control can produce.",
+        )
+
+        val tight = seen.firstOrNull { it.endInclusive - it.start < MinDistance - 0.01f }
+        assertTrue(
+            tight == null,
+            "the two came within ${tight?.let { it.endInclusive - it.start }} of each " +
+                "other against a minimum of $MinDistance — quantising the gap must " +
+                "round it up, never down",
+        )
+    }
+
     private companion object {
         val Range = 0f..10f
+
+        /** Ten notches a unit apart, so a 1.5 minimum is deliberately off-grid. */
+        const val Steps = 9
+        const val MinDistance = 1.5f
         const val Slack = 0.05f
     }
 }

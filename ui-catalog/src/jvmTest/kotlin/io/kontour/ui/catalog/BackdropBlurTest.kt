@@ -20,7 +20,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.ModalBottomSheet
-import io.kontour.ui.sheet.SideSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
@@ -324,7 +324,7 @@ class BackdropBlurTest {
         Scene(width = 720, height = 1400, darkTheme = true) {
             OverlayHost(Modifier.fillMaxSize().background(page)) {
                 Box(Modifier.fillMaxSize().background(Theme.colours.background))
-                SideSheet(visible = visible, onDismissRequest = {}) { Text("Filters") }
+                ModalSideSheet(visible = visible, onDismissRequest = {}) { Text("Filters") }
             }
         }.use { scene ->
             scene.frames(4)
@@ -355,7 +355,12 @@ class BackdropBlurTest {
         Scene(width = 720, height = 1400, darkTheme = true) {
             OverlayHost(Modifier.fillMaxSize().background(page)) {
                 Box(Modifier.fillMaxSize().background(Theme.colours.background))
-                SideSheet(visible = visible, onDismissRequest = {}) { Text("Filters") }
+                // The reporter's configuration, an edge sheet: at this width it covers
+                // the whole row as it arrives, which is when the band is measured.
+                ModalSideSheet(
+                    visible = visible,
+                    onDismissRequest = {},
+                ) { Text("Filters") }
             }
         }.use { scene ->
             scene.frames(4)
@@ -447,7 +452,7 @@ class BackdropBlurTest {
                     Surface(
                         modifier = Modifier.size(160.dp, 60.dp),
                         shape = Theme.shapes.medium,
-                        colour = Color.White,
+                        containerColour = Color.White,
                         shadow = Theme.elevation.high,
                         content = {},
                     )

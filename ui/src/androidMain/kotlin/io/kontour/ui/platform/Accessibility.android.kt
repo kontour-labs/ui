@@ -104,7 +104,7 @@ private fun observeGlobalSetting(
     context: Context,
     key: String,
     read: (android.content.ContentResolver) -> Boolean,
-): Boolean = observeSetting(context, Settings.Global.getUriFor(key), read)
+): Boolean = observeSetting(context, remember(key) { Settings.Global.getUriFor(key) }, read)
 
 @Composable
 private fun observeSetting(

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -37,6 +40,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
@@ -44,7 +49,7 @@ import kotlin.math.roundToInt
 
 /** How much of the track the thumb covers, and where it sits. 0 to 1. */
 @Immutable
-data class ScrollbarGeometry(
+internal data class ScrollbarGeometry(
     val fraction: Float,
     val position: Float,
     /**
@@ -61,6 +66,7 @@ data class ScrollbarGeometry(
     val isUseful: Boolean get() = fraction < 1f && fraction > 0f
 }
 
+/** What a [Scrollbar] takes by default. */
 object ScrollbarDefaults {
     val Thickness: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.scrollbarThickness
@@ -167,8 +173,14 @@ fun Scrollbar(
     // the grip had been lost.
     val active = hovered || dragged
 
-    val geometry = scrollbarGeometry(state)
-    if (!geometry.isUseful) return
+    // Everything but the position, which changes on every frame of a scroll and
+    // is read where it is used — in the thumb's placement. Composition only
+    // needs what decides the thumb's size, and that holds still while a list of
+    // even rows scrolls, so the bar no longer recomposes once a frame for it.
+    val extent by remember(state) {
+        derivedStateOf { scrollbarGeometry(state).copy(position = 0f) }
+    }
+    if (!extent.isUseful) return
 
     val width by animateFloatAsState(
         targetValue = if (active) hoveredThickness.value else thickness.value,
@@ -176,7 +188,9 @@ fun Scrollbar(
         label = "scrollbarThickness",
     )
     val alpha by animateFloatAsState(
-        targetValue = if (active) 1f else 0.5f,
+        // Half-faded at rest, except at the enhanced tier, where a thumb the
+        // reader has to find is not the thing to make fainter.
+        targetValue = if (active || highContrast()) 1f else 0.5f,
         animationSpec = motion.tweenFast(),
         label = "scrollbarAlpha",
     )
@@ -185,23 +199,25 @@ fun Scrollbar(
     val minThumbPx = with(LocalDensity.current) {
         minThumbLength.toPx()
     }
-    val thumbLength = (trackLength * geometry.fraction).coerceAtLeast(minThumbPx)
+    val thumbLength = (trackLength * extent.fraction).coerceAtLeast(minThumbPx)
     val travel = (trackLength - thumbLength).coerceAtLeast(0f)
-    val thumbOffset = travel * geometry.position
 
     // A pixel along the track is `scrollable / travel` pixels of content: the
     // thumb crosses its whole travel exactly as the list crosses all of its.
     // Read live rather than captured — `rememberDraggableState` keeps the
     // current lambda, and both numbers change as the list is scrolled.
     val drag = rememberDraggableState { delta ->
-        if (travel > 0f) state.dispatchRawDelta(delta * geometry.scrollable / travel)
+        if (travel > 0f) state.dispatchRawDelta(delta * extent.scrollable / travel)
     }
 
     Box(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
-            .pointerCursor()
+            // Held rather than merely pressed, so the thumb looks taken hold of
+            // for the whole drag. On the bar only: Compose has no cursor capture,
+            // and a pointer that wanders off sideways gets whatever is under it.
+            .pointerCursor(if (dragged) Cursor.Grabbing else Cursor.Grab)
             .hoverable(interactions)
             // The whole bar, not the thumb. Grabbing a thumb means hitting a
             // 32dp-tall target inside a 6dp-wide one; grabbing the bar means
@@ -211,6 +227,9 @@ fun Scrollbar(
             .draggable(
                 state = drag,
                 orientation = orientation,
+                // A horizontal list runs from the right in right to left, and so
+                // does its thumb: dragging it left is dragging it forward.
+                reverseDirection = orientation == Orientation.Horizontal && LocalLayoutDirection.current == LayoutDirection.Rtl,
                 interactionSource = interactions,
             )
             .then(
@@ -243,6 +262,7 @@ fun Scrollbar(
         Box(
             Modifier
                 .offset {
+                    val thumbOffset = travel * scrollbarGeometry(state).position
                     if (orientation == Orientation.Vertical) {
                         IntOffset(0, thumbOffset.roundToInt())
                     } else {
@@ -318,8 +338,30 @@ internal fun scrollbarGeometry(state: ScrollableState): ScrollbarGeometry = when
         }
     }
 
+    is ScrollExtent -> if (state.extentMax <= 0) {
+        ScrollbarGeometry(1f, 0f)
+    } else {
+        val viewport = state.extentViewport.toFloat()
+        scrollbarGeometry(
+            viewport = viewport,
+            contentLength = viewport + state.extentMax,
+            scrolled = state.extentValue.toFloat(),
+        )
+    }
+
     // No position to report. Hidden rather than drawn wrong.
     else -> ScrollbarGeometry(1f, 0f)
+}
+
+/**
+ * A scrollable state of the library's own that can say where it is, in pixels —
+ * a table's sideways scroll, which is not a `ScrollState` because its bounds are
+ * set by the table rather than by a scroll modifier.
+ */
+internal interface ScrollExtent {
+    val extentValue: Int
+    val extentMax: Int
+    val extentViewport: Int
 }
 
 /**

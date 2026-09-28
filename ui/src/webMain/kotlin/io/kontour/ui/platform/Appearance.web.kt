@@ -1,5 +1,6 @@
 package io.kontour.ui.platform
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.browser.document
@@ -51,3 +52,13 @@ internal actual fun platformReportAppearance(dark: Boolean) {
         root.style.setProperty("color-scheme", if (dark) "dark" else "light")
     }
 }
+
+/**
+ * `prefers-color-scheme`, through Compose.
+ *
+ * No loop: [platformReportAppearance] sets `color-scheme`, which tells the
+ * browser what the page *can* render and does not feed `prefers-color-scheme`,
+ * which is the user's setting.
+ */
+@Composable
+internal actual fun platformSystemDark(): Boolean = isSystemInDarkTheme()

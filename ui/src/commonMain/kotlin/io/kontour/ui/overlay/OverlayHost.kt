@@ -1,39 +1,56 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.key
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
-import io.kontour.ui.foundation.Scrim
-import io.kontour.ui.components.text.DefaultTextSelectionToolbar
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.components.text.TextContextMenuHost
+import io.kontour.ui.foundation.ScrimLayer
+import io.kontour.ui.input.clearFocusOnTap
+import io.kontour.ui.motion.BackPan
+import io.kontour.ui.motion.BackStyle
+import io.kontour.ui.motion.EdgePanWidth
+import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.rememberSwipeBackInput
+import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.theme.Theme
 
 /**
@@ -121,7 +138,7 @@ class OverlayEntry(
      * scroll is the clearest possible statement that the user has finished with
      * them.
      *
-     * It is also what lets the page scroll at all. See [Scrim]'s
+     * It is also what lets the page scroll at all. See [io.kontour.ui.foundation.Scrim]'s
      * `onScrollRequest`: a scrim is in front of the page for every kind of
      * pointer event or none, so an overlay that will not close on a scroll is
      * an overlay that stops the page scrolling.
@@ -192,6 +209,12 @@ class OverlayHostState {
     private val leaving = mutableStateListOf<Any>()
 
     /**
+     * Entries animating their own way out ([OverlayEntry.managesOwnExit]) that
+     * have let go of the page: still drawn, no longer in its way. See [letGo].
+     */
+    private val lettingGo = mutableStateListOf<Any>()
+
+    /**
      * Where the host itself sits in the window, so anchors captured in root
      * coordinates can be made host-local. Zero when the host is at the root,
      * which is the common case and the recommended one.
@@ -199,9 +222,20 @@ class OverlayHostState {
     internal var originInRoot: Offset by mutableStateOf(Offset.Zero)
 
     /**
+     * How far each of the host's edges is from the same edge of the root, in
+     * pixels. All zero for a host that fills the window.
+     *
+     * Read by anchored overlays to take only the part of a window inset that
+     * reaches into this host: a status bar is 47dp off the top of the window, and
+     * nothing at all off the top of a card half-way down the page. See
+     * `AnchoredOverlayLayout`.
+     */
+    internal var edgesFromRoot: AnchorInsets by mutableStateOf(AnchorInsets.None)
+
+    /**
      * How far the entry that owns the backdrop is in, or null when none does.
      *
-     * A lambda rather than a value, and for the same reason [Scrim] takes one:
+     * A lambda rather than a value, and for the same reason [io.kontour.ui.foundation.Scrim] takes one:
      * this changes every frame, and the thing reading it is a `graphicsLayer`
      * wrapped around the *whole application*. Reading a float here in
      * composition would recompose every screen in the app once per frame of
@@ -215,14 +249,21 @@ class OverlayHostState {
 
     /** The stack, bottom to top. Sorted by layer, then by push order within a layer. */
     val visible: List<OverlayEntry>
-        get() = entries.filter { it.key !in leaving }.sortedBy { it.layer.ordinal }
+        get() = entries.filter { it.key !in leaving && it.key !in lettingGo }.sortedBy { it.layer.ordinal }
 
     /** [visible], plus whatever is still animating out. What the host draws. */
     internal val rendered: List<OverlayEntry>
         get() = entries.sortedBy { it.layer.ordinal }
 
-    /** True while this entry is on its way out rather than on its way in. */
+    /** True while the host is animating this entry out. */
     internal fun isLeaving(key: Any): Boolean = key in leaving
+
+    /**
+     * True once this entry is on its way out, whoever is animating it: it is
+     * drawn, and nothing else about it — its scrim takes no taps, it holds no
+     * focus, back goes past it.
+     */
+    internal fun isGoing(key: Any): Boolean = key in leaving || key in lettingGo
 
     /** True when nothing at all is showing. */
     val isEmpty: Boolean get() = visible.isEmpty()
@@ -242,6 +283,7 @@ class OverlayHostState {
         // Re-showing something that is mid-exit turns it straight back around
         // rather than stacking a second copy behind the one leaving.
         leaving.remove(entry.key)
+        lettingGo.remove(entry.key)
         val existing = entries.indexOfFirst { it.key == entry.key }
         if (existing >= 0) {
             entries[existing] = entry
@@ -262,10 +304,30 @@ class OverlayHostState {
         if (entries.any { it.key == key } && key !in leaving) leaving.add(key)
     }
 
+    /**
+     * An entry that animates its own way out has started to: from here on it is
+     * drawn and nothing more. Its scrim lets taps through to the page, the page
+     * takes focus and is read again, and back goes past it — while it slides or
+     * folds away on its own clock, until it calls [hide].
+     *
+     * Reported from a phone as the page taking "an extra split second" to answer
+     * after a sheet had gone: the sheet held the page for the whole of its slide,
+     * and then for the host's fade on top.
+     */
+    internal fun letGo(key: Any) {
+        if (entries.any { it.key == key } && key !in leaving && key !in lettingGo) lettingGo.add(key)
+    }
+
+    /** Undoes [letGo]: the entry turned back before it had gone. */
+    internal fun takeBack(key: Any) {
+        lettingGo.remove(key)
+    }
+
     /** Called by the host once [key] has finished animating out. */
     internal fun finishHiding(key: Any) {
         entries.removeAll { it.key == key }
         leaving.remove(key)
+        lettingGo.remove(key)
     }
 
     /** True when an entry with this key is showing. */
@@ -296,6 +358,26 @@ class OverlayHostState {
         return true
     }
 
+    /**
+     * The entry a back gesture goes to, or null when it should go past the
+     * overlays to the page.
+     *
+     * The topmost entry that dismisses on back, *or that dims*: a dimmed entry
+     * says the page is unavailable, and a back gesture reaching past a dialog
+     * that may not close — to pop the screen behind it — would be the worst of
+     * both. Such an entry takes the gesture and refuses it. A toast or a plain
+     * tooltip neither dims nor dismisses on back, so back goes past it.
+     */
+    internal val backTarget: OverlayEntry?
+        get() = visible.lastOrNull { it.dismissOnBack || it.scrim == ScrimStyle.Dimmed }
+
+    /** What a completed back gesture aimed at [entry] does: [dismissTop], for that entry. */
+    internal fun dismissForBack(entry: OverlayEntry) {
+        if (!entry.dismissOnBack || isGoing(entry.key)) return
+        entry.onDismiss?.invoke()
+        if (!entry.managesOwnExit) hide(entry.key)
+    }
+
     internal fun dismissOutside(entry: OverlayEntry) {
         if (!entry.dismissOnOutside) return
         entry.onDismiss?.invoke()
@@ -321,12 +403,63 @@ private fun EntryHost(
     entry: OverlayEntry,
     index: Int,
     dimmed: Boolean,
+    takesBack: Boolean,
 ) {
     val motion = Theme.motion
     val leaving = state.isLeaving(entry.key)
+    // On its way out by either route. The page is the reader's again from here,
+    // not from when the last of the entry has been drawn.
+    val going = state.isGoing(entry.key)
     val progress = remember { Animatable(0f) }
 
+    // Back, for this entry alone. Its dispatcher is enabled only while it is
+    // the entry back goes to, and its handler is registered before its content
+    // is composed, so a stack inside a sheet answers first while it has
+    // somewhere to go back to. See `OverlayBack.kt`.
+    val backOwner = rememberChildBackDispatcher(enabled = takesBack && !going)
+    val backStyle = LocalBackStyle.current
+    val (back, backHandler) = rememberOverlayBack(
+        // Back closes an overlay under predictive back, and only one that may be
+        // dismissed. Under swipe back — iOS — only what iOS swipes away: a side
+        // sheet, by a gesture moving towards its own edge, or by a key. A
+        // bottom sheet is dragged down there, and a dialog answered.
+        closes = { back, edge ->
+            entry.dismissOnBack && when (backStyle) {
+                BackStyle.Predictive -> true
+                BackStyle.Swipe -> back.swipeAwayEdge.let { away -> away != null && (edge == null || edge == away) }
+            }
+        },
+        onCommit = { state.dismissForBack(entry) },
+    )
+    RegisterBackHandler(backOwner, backHandler)
+
+    // A gesture runs the entry's own appearance backwards — the scale and fade
+    // it arrived with, or its slide — so it leaves by the animation it already
+    // has, and the scrim and the receding page, which read the same number,
+    // follow with it. Let go, and `leaving` carries the same exit on from the
+    // pose the hand left; abandon it, and the entry's own arrival brings it
+    // back. An entry that animates its own exit — a sheet — reads the gesture
+    // itself.
+    if (!entry.managesOwnExit) {
+        LaunchedEffect(back) {
+            snapshotFlow { if (back.following) back.progress else null }
+                .collect { gesture -> if (gesture != null) progress.snapTo(1f - gesture) }
+        }
+        LaunchedEffect(back.cancels) {
+            if (back.cancels > 0 && !state.isLeaving(entry.key)) {
+                progress.animateTo(1f, motion.springOrTween(motion.springSnappy))
+            }
+        }
+    }
+
     LaunchedEffect(leaving) {
+        // An entry that animates itself out calls `hide` when it has finished:
+        // there is nothing left to fade. Fading it anyway kept its scrim over
+        // the page for another 150ms after the sheet had gone.
+        if (leaving && entry.managesOwnExit) {
+            state.finishHiding(entry.key)
+            return@LaunchedEffect
+        }
         progress.animateTo(
             targetValue = if (leaving) 0f else 1f,
             // Out faster than in. An overlay arriving wants to be noticed; one
@@ -350,6 +483,9 @@ private fun EntryHost(
     // appearance. Both are lambdas for the same reason, and it is the reason
     // this line exists at all: see [LocalOverlayProgress].
     val reader: () -> Float = remember { { progress.value } }
+    // Read where it is used, in measure, so a panel can hold its placement for the
+    // length of its exit without recomposing to find out it is leaving.
+    val leavingReader: () -> Boolean = remember(state, entry.key) { { state.isLeaving(entry.key) } }
 
     DisposableEffect(state, dimmed, fraction) {
         if (dimmed) state.backdropFraction = fraction
@@ -371,26 +507,26 @@ private fun EntryHost(
         // times per open. Mostly that is waste; the part that is not is that a
         // tap landing in the wrong frame meets a detector that has just been
         // torn down.
-        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, leaving) {
-            if (entry.dismissOnOutside && !leaving) {
+        val dismiss: (() -> Unit)? = remember(entry, state, entry.dismissOnOutside, going) {
+            if (entry.dismissOnOutside && !going) {
                 { state.dismissOutside(entry) }
             } else {
-                // Still consumes taps on the way out; it just no longer offers a
-                // dismissal for something already dismissed.
+                // No dismissal for something already dismissed, or for
+                // something that may not be dismissed at all.
                 null
             }
         }
         // Remembered for the same reason `dismiss` is: `Scrim` keys a gesture
         // coroutine on it, and `EntryHost` recomposes every frame an overlay is
         // animating.
-        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, leaving) {
-            if (entry.dismissOnScroll && !leaving) {
+        val scrolled: (() -> Unit)? = remember(entry, state, entry.dismissOnScroll, going) {
+            if (entry.dismissOnScroll && !going) {
                 { state.dismissOutside(entry) }
             } else {
                 null
             }
         }
-        Scrim(
+        ScrimLayer(
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim`.
             fraction = fraction,
@@ -398,6 +534,10 @@ private fun EntryHost(
             dismissLabel = entry.dismissLabel,
             colour = if (dimmed) Theme.colours.scrim else Color.Transparent,
             onScrollRequest = scrolled,
+            // Once it is going, a tap is the page's: what the scrim was keeping
+            // it from is already on its way off the screen. Material's scrim
+            // does the same.
+            blocks = !going,
         )
     }
 
@@ -407,8 +547,18 @@ private fun EntryHost(
             traversalIndex = (index + 1).toFloat()
         }
     ) {
-        CompositionLocalProvider(LocalOverlayProgress provides reader) {
-            entry.content()
+        CompositionLocalProvider(
+            LocalOverlayProgress provides reader,
+            LocalOverlayLeaving provides leavingReader,
+            LocalOverlayBack provides back,
+        ) {
+            if (backOwner != null) {
+                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
+                    entry.content()
+                }
+            } else {
+                entry.content()
+            }
         }
     }
 }
@@ -442,6 +592,13 @@ private fun EntryHost(
 internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
 
 /**
+ * Whether this overlay is on its way out. A lambda, read where it matters — an
+ * anchored panel reads it in measure to leave from the side it was on. See
+ * `AnchoredOverlayLayout`.
+ */
+internal val LocalOverlayLeaving = compositionLocalOf<() -> Boolean> { { false } }
+
+/**
  * The one entry in [stack] whose scrim is actually drawn dark.
  *
  * Every scrim-requesting entry gets a scrim, because each has to block input to
@@ -453,6 +610,7 @@ internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
 internal fun topDimmedEntry(stack: List<OverlayEntry>): OverlayEntry? =
     stack.lastOrNull { it.scrim == ScrimStyle.Dimmed }
 
+/** Remembers an [OverlayHostState], the stack an [OverlayHost] draws. */
 @Composable
 fun rememberOverlayHostState(): OverlayHostState = remember { OverlayHostState() }
 
@@ -512,18 +670,53 @@ fun OverlayHost(
     // sibling needs it too — it is the node the backdrop is applied to.
     val dimming = topDimmedEntry(stack)
     val backdrop = dimming?.backdrop ?: BackdropStyle.None
+    // What the page is shut behind for a reader: the same, but only while it is
+    // still here. One on its way out gives the page back to a screen reader as
+    // it gives it back to a finger — see `OverlayHostState.letGo`.
+    val shutBy = topDimmedEntry(state.visible)
 
-    CompositionLocalProvider(LocalOverlayHost provides state) {
+    // Back goes to the page only while no overlay takes it. The page's
+    // dispatcher is disabled rather than its handlers outranked, so it does not
+    // matter what the page registers or when: a navigation stack composed after
+    // a dialog opened still cannot pop from behind it.
+    //
+    // On iOS the outermost host builds that tree on a dispatcher of its own
+    // rather than under the platform's, and tracks the swipe itself: see
+    // `libraryTracksBackSwipe`. Everywhere else the tree hangs off the
+    // platform's, as the system's back and Escape arrive there.
+    val ownBack = if (LocalTakesBackSwipe.current) rememberOwnBackDispatcher() else null
+    val backRoot = ownBack ?: LocalNavigationEventDispatcherOwner.current
+    val backTarget = state.backTarget
+    val pageBack = rememberChildBackDispatcher(enabled = backTarget == null, parent = backRoot)
+
+    CompositionLocalProvider(
+        LocalOverlayHost provides state,
+        LocalTakesBackSwipe provides false,
+        *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
+    ) {
         Box(
             modifier
                 .fillMaxSize()
                 .trackHostOrigin(state)
-                .backdropGround(state, backdrop)
-                .clearFocusOnTap(clearFocusOnTap),
+                .clearFocusOnTap(clearFocusOnTap)
+                .then(if (ownBack != null) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    // **Outside the content's layer and inside the host**, in
+                    // that order, and both halves matter.
+                    //
+                    // Outside, because the band and the ring must not be scaled
+                    // or blurred along with what they frame — that is why this
+                    // is before `overlayBackdrop` in the chain rather than after.
+                    //
+                    // Inside the host, because the band is drawn *over* what it
+                    // wraps now, and what this wraps is the app. It sat on the
+                    // host for one round, where `drawContent` is the app **and
+                    // the overlay stack**, so the band painted black across the
+                    // sheet it was supposed to be framing.
+                    .backdropGround(state, backdrop)
                     .overlayBackdrop(state, backdrop)
                     .semantics {
                         isTraversalGroup = true
@@ -564,18 +757,21 @@ fun OverlayHost(
                     // findable. Clearing states the fact — there is no such
                     // control right now — in the one vocabulary every reader of
                     // this tree shares.
-                    .then(if (dimming != null) Modifier.clearAndSetSemantics {} else Modifier)
+                    .then(if (shutBy != null) Modifier.clearAndSetSemantics {} else Modifier)
             ) {
-                // Every text box below here gets the library's own selection
-                // toolbar. See `DefaultTextSelectionToolbar` for why the host
-                // installs it rather than the field: `LocalOverlayHost` throws
-                // when there is no host, so a field that reached for one would
-                // break every app that draws a field on its own.
-                DefaultTextSelectionToolbar {
-                    // And the right-click menu, for the same reason and in the
-                    // same place: it opens into this host, and a field cannot
-                    // reach for a host that may not exist.
-                    TextContextMenuHost { content() }
+                // Every text box below here gets the library's right-click
+                // menu. The host installs it rather than the field, because it
+                // opens into this host: `LocalOverlayHost` throws when there is
+                // no host, so a field that reached for one would break every app
+                // that draws a field on its own.
+                TextContextMenuHost {
+                    if (pageBack != null) {
+                        CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides pageBack) {
+                            content()
+                        }
+                    } else {
+                        content()
+                    }
                 }
             }
 
@@ -596,6 +792,7 @@ fun OverlayHost(
                         entry = entry,
                         index = index,
                         dimmed = entry === dimming,
+                        takesBack = entry === backTarget,
                     )
                 }
             }
@@ -604,63 +801,40 @@ fun OverlayHost(
 }
 
 /**
- * Takes focus off whatever holds it when a press reaches the root unhandled.
+ * The back swipe from the leading edge, and Escape, for a host that has taken
+ * back over from the platform.
  *
- * ### Why it watches two passes rather than adding a click
- *
- * The obvious version — a `clickable` on the root — is wrong twice over: it puts
- * a click action into the semantics tree, so a screen reader announces the whole
- * page as a button, and it competes with the children for the gesture rather
- * than observing it.
- *
- * The press is read on the **Initial** pass, which runs before children see it,
- * so nothing can hide a press from this. The release is read on the ordinary
- * **Main** pass — and that is not the obvious choice, so it is worth saying why
- * it is the right one.
- *
- * Pointer passes run outside-in and then back: a parent's Initial, then the
- * child's Initial, the child's Main, then the *parent's* Main. So by the time
- * this sees the release, every child has already had its turn to consume it. A
- * release that is still unconsumed there is one nothing on the page wanted, and
- * that is the definition of "outside".
- *
- * **Asking for the Final pass instead does not work**, which took a probe to
- * see rather than a reading: `waitForUpOrCancellation` awaits Final *itself* as
- * its cancellation check, so handing it Final makes it await the same pass
- * twice and the whole gesture runs one event behind. The symptom is a rule that
- * fires on the press after the one you made. Its default is Main for this
- * reason.
- *
- * Nothing here consumes, so every other gesture is untouched.
- *
- * ### What that rule gets right by construction
- *
- * - **A button still runs.** Its `clickable` consumes the release, so this stays
- *   out of the way entirely. Whether pressing a button *also* moves focus is the
- *   button's business and the platform's — a desktop click focuses what it hits
- *   and a touch does not — and this rule neither causes that nor prevents it.
- * - **Another field takes focus normally.** It consumes, and it was going to
- *   move focus itself.
- * - **Scrolling does not drop the keyboard.** `waitForUpOrCancellation` returns
- *   null when a drag claims the pointer, so a flick past a focused field leaves
- *   it alone. That is deliberate rather than incidental: a list that dismissed
- *   the keyboard on every scroll would be its own report.
- * - **A press on an overlay's empty space counts.** This sits on the outer box,
- *   above both the content and the stack, so the rule is the same everywhere.
- *
- * `clearFocus()` and not `clearFocus(force = true)`: a field that has
- * deliberately captured focus — a validation that refuses to let go — is making
- * a statement this should not overrule.
+ * UIKit's edge pan, in the library's hands: a pan that starts within
+ * [EdgePanWidth] of the leading edge and heads for the trailing one. It looks
+ * before anything under it does, as UIKit's does — a carousel or a row of swipe
+ * actions against the edge does not get to keep it, since the edge decides as
+ * early as they do — and only while something would answer back, so at the
+ * root of an app the edge is the content's. A control that took the press
+ * itself, a slider, keeps it.
  */
 @Composable
-private fun Modifier.clearFocusOnTap(enabled: Boolean): Modifier {
-    if (!enabled) return this
-    val focus = LocalFocusManager.current
-    return pointerInput(focus) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val release = waitForUpOrCancellation()
-            if (release != null && !release.isConsumed) focus.clearFocus()
-        }
+private fun Modifier.edgeSwipeBack(dispatcher: NavigationEventDispatcher): Modifier {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val pan = remember(rtl) {
+        BackPan(
+            rightwards = !rtl,
+            edge = if (rtl) NavigationEvent.EDGE_RIGHT else NavigationEvent.EDGE_LEFT,
+            pass = PointerEventPass.Initial,
+            startsAt = { x, window, density -> (if (rtl) window - x else x) < EdgePanWidth.value * density },
+            early = true,
+        )
     }
+    val swipe = rememberSwipeBackInput(dispatcher)
+    val keys = remember { KeyBackInput() }
+    DisposableEffect(dispatcher, keys) {
+        dispatcher.addInput(keys)
+        onDispose { dispatcher.removeInput(keys) }
+    }
+    return this
+        .swipeBack(pan, swipe)
+        // After everything focused inside has had the key and left it.
+        .onKeyEvent { event ->
+            event.key == Key.Escape && event.type == KeyEventType.KeyDown && keys.press()
+        }
 }
+

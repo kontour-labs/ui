@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.a11y.highContrast
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableState
@@ -12,7 +13,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -20,11 +21,12 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /** How opaque each edge's fade is, 0 to 1. */
 @Immutable
-data class ScrollFade(val start: Float, val end: Float) {
+internal data class ScrollFade(val start: Float, val end: Float) {
     val isVisible: Boolean get() = start > 0f || end > 0f
 }
 
@@ -52,6 +54,10 @@ data class ScrollFade(val start: Float, val end: Float) {
  * Anything else falls back to `canScrollBackward`/`canScrollForward` — correct,
  * but with no gradual fade near the ends.
  *
+ * At high contrast there is no fade: nothing that is text fades at that tier,
+ * and a row half-erased at the edge is text a reader has asked to see whole. The
+ * list's own edge, and its scrollbar, still say there is more.
+ *
  * @param fadeLength Capped at 40% of the container, so a short list does not
  *   fade to nothing in the middle.
  */
@@ -61,6 +67,7 @@ fun Modifier.fadingEdges(
     orientation: Orientation = Orientation.Vertical,
     fadeLength: Dp = 24.dp,
 ): Modifier {
+    if (highContrast()) return this
     val density = LocalDensity.current
     val fadeLengthPx = remember(density, fadeLength) { with(density) { fadeLength.toPx() } }
 
@@ -86,33 +93,44 @@ fun Modifier.fadingEdges(
                 CompositingStrategy.Auto
             }
         }
-        .drawWithContent {
-            drawContent()
-            if (!fade.isVisible) return@drawWithContent
-
+        // The brushes are built in the cache and kept while the fade holds still,
+        // which is most of a scroll: the list redraws on every frame it moves,
+        // and a gradient built in the draw was two new shaders a frame for a
+        // fade that had not changed. Reading `fade` here is what rebuilds them
+        // when it does.
+        .drawWithCache {
+            val edges = fade
             val extent = if (orientation == Orientation.Vertical) size.height else size.width
-            if (extent <= 0f) return@drawWithContent
             val stop = (fadeLengthPx / extent).coerceAtMost(0.4f)
-
-            if (fade.start > 0f) {
-                drawRect(
-                    brush = edgeBrush(
-                        orientation = orientation,
-                        from = 0f to Color.Black.copy(alpha = fade.start),
-                        to = stop to Color.Transparent,
-                    ),
-                    blendMode = BlendMode.DstOut,
+            // Right to left, a horizontal scroller's earlier content is off its
+            // right edge, so the two fades change sides. They used not to, and
+            // faded the newest end of a right-to-left row.
+            val mirrored = orientation == Orientation.Horizontal && layoutDirection == LayoutDirection.Rtl
+            val before = if (mirrored) edges.end else edges.start
+            val after = if (mirrored) edges.start else edges.end
+            val drawn = edges.isVisible && extent > 0f
+            val beforeBrush = if (drawn && before > 0f) {
+                edgeBrush(
+                    orientation = orientation,
+                    from = 0f to Color.Black.copy(alpha = before),
+                    to = stop to Color.Transparent,
                 )
+            } else {
+                null
             }
-            if (fade.end > 0f) {
-                drawRect(
-                    brush = edgeBrush(
-                        orientation = orientation,
-                        from = (1f - stop) to Color.Transparent,
-                        to = 1f to Color.Black.copy(alpha = fade.end),
-                    ),
-                    blendMode = BlendMode.DstOut,
+            val afterBrush = if (drawn && after > 0f) {
+                edgeBrush(
+                    orientation = orientation,
+                    from = (1f - stop) to Color.Transparent,
+                    to = 1f to Color.Black.copy(alpha = after),
                 )
+            } else {
+                null
+            }
+            onDrawWithContent {
+                drawContent()
+                if (beforeBrush != null) drawRect(brush = beforeBrush, blendMode = BlendMode.DstOut)
+                if (afterBrush != null) drawRect(brush = afterBrush, blendMode = BlendMode.DstOut)
             }
         }
 }

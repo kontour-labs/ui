@@ -35,39 +35,45 @@ Four built-in schemes: light, dark, and a high-contrast variant of each.
 | `background` | `#FFFFFF` | `#121212` | The page |
 | `surface` | `#FFFFFF` | `#221E29` | Cards, sheets, menus |
 | `surfaceSunken` | `#F6F6F6` | `#1A1820` | Wells: input fills, code blocks, table stripes |
-| `surfaceTrack` | `#D0D0D0` | `#000000` | The ground a moving indicator runs in |
+| `surfaceIndicator` | `#FFFFFF` | `#403852` | The fill of a moving indicator — a segmented thumb |
 | `surfaceRaised` | `#FFFFFF` | `#302B3B` | Above `surface` — menus over cards |
 | `surfaceInverse` | `#121212` | `#F4F1F8` | Toasts, tooltips |
 | `onSurfaceInverse` | `#FFFFFF` | `#121212` | Content on `surfaceInverse` |
 
-**A well and a track are not the same ground, and that is why there are two.**
-`surfaceSunken` is quiet on purpose — 1.08:1 under the page in light — because
-it is a hint that content is inset, and a page of code blocks in a loud well is
-a page of grey boxes. `surfaceTrack` is the opposite: something slides along it
-whose position *is* the control's state, so it has to be far enough under that
-thing to show it. A segmented thumb reads **1.54:1** on it in light and 1.53 in
-dark, against 1.08 when both jobs were one token.
+**A moving indicator gets a token for the thing that moves, not for the ground
+under it.** A segmented control and a wheel picker both run in `surfaceSunken`,
+the same well a filled text field uses — one ground, so a form and a control
+next to it read as one system. What separates the thumb is `surfaceIndicator`,
+and it is the *only* value a theme has to get right for this.
 
-They were one token, and the cost of that was paid twice: tuning it for the
-track turned every code block grey, and tuning it for the well left the thumb
-needing a border to be seen at all.
+There used to be a track token instead, and the ground kept paying for the
+thumb: tuning it dark enough turned every code block grey, and tuning it quiet
+enough left the thumb needing a border. Moving the thumb costs a fill nothing
+else draws.
 
-In dark the track is pure black and the *thumb* rises instead — a track cannot
-go below black, but `surfaceRaised` can come up to meet it, which is why dark
-separates marginally better than light rather than worse.
+In dark it reads **1.59:1** on the well, and **1.94:1** at the enhanced tier —
+both further apart than the track arrangement managed. Light cannot separate on
+fill at all: white is the top of the ramp and the well is `#F6F6F6`, so it is
+1.08:1 whatever the token says.
 
-**What this does not reach.** Three is what WCAG asks of a control's boundary,
-and no two greys in one ramp get there — that needs a mid-grey track, which is
-a dark bar rather than a ground. A selected segment is identified by this fill,
-by the shadow under it in light, and by its label darkening from `contentMuted`
-to `content`. A selected *chip* is bounded instead, because a tint 1.29:1 from
-the page genuinely cannot carry it alone.
+**So light is carried by its shadow and its label instead**, and measures
+1.17:1 end to end — the shadow is `elevation.medium` rather than `low`, raised
+for exactly this, and worth 0.09 of that ratio. A 1dp `outlineStrong` hairline
+was built and measured and reaches 3.60:1, clearing WCAG's 3:1 outright; it was
+rejected on the rendering rather than the number, because on a near-white ground
+that line is a hard dark stroke around the selected segment. The number was
+better and the control was worse.
+
+The selected label darkening from `contentMuted` to `content` is the carrier
+that survives a reader who cannot separate the greys at all, and it is why this
+is a trade rather than a quiet loss. It is the same trade iOS makes, at a
+measured 1.15:1.
 
 ### Content
 
 | Token | Light | Dark | For |
 |---|---|---|---|
-| `content` | `#121212` | `#F4F1F8` | Anything the user reads to understand the screen |
+| `content` | `#121212` | `#E8E4EE` | Anything the user reads to understand the screen |
 | `contentMuted` | `#545454` | `#A79FB0` | Captions, timestamps, secondary labels |
 | `contentSubtle` | `#646464` | `#9A93A2` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
 | `contentDisabled` | `#A3A3A3` | `#5C5566` | Genuinely disabled controls only (WCAG-exempt) |
@@ -79,6 +85,7 @@ the page genuinely cannot carry it alone.
 | `outline` | `#E5E5E5` | `#3C3547` | Dividers and decorative rules |
 | `outlineStrong` | `#818181` | `#7C7484` | The boundary of anything interactive |
 | `outlineSubtle` | `#EFEFEF` | `#2C2735` | The faintest rule, for dense lists |
+| `inactive` | `#818181` | `#7C7484` | The off or not-yet half of a pair: a switch off, stops not reached, the other page dots. `outlineStrong` at this tier; its own value at the enhanced one |
 
 `outline` is too light to bound a control — it does not meet the 3:1 that
 WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
@@ -90,8 +97,8 @@ WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
 |---|---|---|---|
 | `primary` / `onPrimary` | `#121212` / `#FFFFFF` | `#F4F1F8` / `#121212` | The solid call to action |
 | `accent` | a `StatusColours`, below | | The brand, as a tone |
-| `brand` | `#1D4ED8` | `#93C5FD` | The literal brand colour, decoration first |
-| `focusRing` | `#1D4ED8` | `#93C5FD` | The keyboard focus indicator |
+| `brand` | `#BB86FC` | `#BB86FC` | The literal brand colour, decoration first |
+| `focusRing` | `#7C37BE` | `#BB86FC` | The keyboard focus indicator |
 
 **Three roles carry a product's colour and `primary` is not one of them.** It is
 *structural* — near-black on light, near-white on dark, in every scheme the
@@ -109,21 +116,21 @@ like `success` and the rest, so there is one tone type and six tones:
 
 | Member | Light | Dark | Was |
 |---|---|---|---|
-| `accent.solid` | `#1D4ED8` | `#93C5FD` | `accent` |
-| `accent.onSolid` | `#FFFFFF` | `#0D1B2E` | `onAccent` |
-| `accent.container` | `#D5E4F9` | `#1E2C42` | `accentContainer` |
-| `accent.onContainer` | `#1E3A8A` | `#BFDBFE` | `onAccentContainer` |
-| `accent.border` | `#C7DCFD` | `#2C3E5C` | *new* |
+| `accent.solid` | `#7C37BE` | `#BB86FC` | `accent` |
+| `accent.onSolid` | `#FFFFFF` | `#1C0D2C` | `onAccent` |
+| `accent.container` | `#F1E5FF` | `#332742` | `accentContainer` |
+| `accent.onContainer` | `#542482` | `#E2CBFF` | `onAccentContainer` |
+| `accent.border` | `#DAC7F8` | `#4A3961` | *new* |
 
 The point is not tidiness. A component that takes a tone can now take *this*
-one, which is what `ButtonVariant.Accent`, `BannerTone.Accent` and
-`ToastTone.Accent` are made of — and `TagTone.Accent`, which already existed,
+one, which is what `ButtonVariant.Accent`, `Tone.Accent` and
+`Tone.Accent` are made of — and `Tone.Accent`, which already existed,
 had to reach past the group and assemble itself from three separate fields.
 
 It also means a custom scheme has to supply the whole tone rather than one
 colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
-left `accentContainer` at the default, so a green accent came with a blue
-selected-state and the signature said nothing about it.
+left `accentContainer` at the default, so a green accent came with the default's
+selected-state tint and the signature said nothing about it.
 
 **On `brand` versus `accent`.** They are separate roles because a brand colour is
 chosen to be recognised and an accent has to be *read*, and nothing guarantees
@@ -131,12 +138,15 @@ one colour can do both. `brand` is the literal mark — a logo, a decorative rul
 a splash — and is the one role the contrast suite does not walk; `accent.solid`
 is the tone components are built from, and every pairing of it is checked.
 
-Today's default happens to satisfy both: `#1D4ED8` is 6.7:1 on white and
-`#93C5FD` is 10.39:1 on `#121212`, so the shipped `brand` would carry text
-perfectly well. That is a fact about this palette and not about the role. A brand
-that hands over a colour which cannot — GTurbo's `#E11F26` is 4.17:1 on its own
-near-black ground and unreadable on anything lighter — puts it in `brand`,
-supplies a readable tone in `accent`, and the split does its job. Because the
+**The default is the worked example.** Kontour Labs' violet, `#BB86FC`, is the
+`brand` in both schemes. On `#121212` it is 7.07:1, so in dark it is the accent
+too. On white it is 2.65:1 — a mark, not something to read — so the light
+`accent` is `#7C37BE`, the same hue (303° in OKLCH) at a lightness that carries
+white text at 6.67:1, and the light `brand` stays the colour people recognise.
+Every other violet in the scheme — the tints, the text on them, the focus ring,
+the code keyword — sits on that one hue. A brand that hands over a colour which
+cannot carry text either — GTurbo's `#E11F26` is 4.17:1 on its own near-black
+ground — does the same: `brand` for the mark, a readable tone in `accent`. Because the
 suite skips `brand`, that is also the one place a scheme can put a colour it has
 decided nobody has to read.
 
@@ -156,7 +166,7 @@ fields, matching how the web properties already use them:
 | `success` | `#2E7D32` | `#7BE08A` |
 | `warning` | `#B45309` | `#FDBA74` |
 | `danger` | `#B91C1C` | `#FCA5A5` |
-| `info` | `#6D28D9` | `#C4B5FD` |
+| `info` | `#0369A1` | `#7DD3FC` |
 
 ### Overlays
 
@@ -179,7 +189,7 @@ draws them — a fenced block on any page is coloured from these.
 
 | Field | Light | Dark |
 |---|---|---|
-| `keyword` | `#1E3A8A` | `#93C5FD` |
+| `keyword` | `#542482` | `#BB86FC` |
 | `literal` | `#1B5E20` | `#7BE08A` |
 
 `plain` and `comment` follow `content` and `contentMuted` unless a theme moves
@@ -294,7 +304,7 @@ same `of(n)` is a sign that value wants a name.
 | `medium` | 22dp | Cards, list groups, menus |
 | `large` | 28dp | Dialogs, large cards |
 | `extraLarge` | 34dp | Sheets, hero panels |
-| `pill` | 50% | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar` |
+| `pill` | 50%, uncapped | Avatars, scrollbars, indicators, both FABs, `FabMenu`, a floating `NavBar`, a `Switch`'s track |
 | `sheet` | 34dp top only | Bottom sheets |
 | `sideSheet` | 34dp leading only | Side sheets |
 
@@ -306,6 +316,18 @@ scale meant to be small runs 10, 2, 4, 28, 34 and its *extra small* corner is
 the second largest in it. `smoothing = 0f` turns the continuous corners off
 across the whole scale in the same call, which is the only place it can be done
 consistently — see below.
+
+**Two shapes may disagree with the scale's smoothing, and only two.** A scale
+with two smoothings in it is a scale whose corners do not match each other, which
+is why `smoothing` is a `kontourShapes` argument rather than a field anyone can
+set per rung. The exception is the pair of shapes that are not nested inside
+*each other* but inside the **display**: the backdrop's receded screen and a
+bottom sheet's top corners. Where a platform states its own bezel curve — iOS
+always, Android from a short table of device families — those two take it, and
+everything else on screen keeps the scale's. A device that states nothing changes
+nothing. [`overlays.md`](overlays.md) has the detail and is honest about which
+half of it is measured and which half is a judgement; a third shape wanting the
+exemption would need its own reason written down.
 
 `kontourShapes()` with no arguments is exactly `Shapes()`, asserted on every
 build. A brand that disagrees about which rung a *pressable* thing lands on is
@@ -359,7 +381,7 @@ is, and every button reads it.
 |---|---|---|
 | `control` | half its height, up to 18dp | `Button`, `SplitButton`, `ButtonGroup`, `Chip`, `Tag`, `Toolbar`, `TabBarScope.Tab`, `Breadcrumbs`, `Pagination` |
 | `field` | half its height, up to 18dp | `TextField`, `SearchField`, `Select`, `SegmentedControl`, `TimePicker` |
-| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip`, `NavDrawer` |
+| `container` | `medium` | `Card`, `ListItem`, `SelectionRow`, `Accordion`, `SwipeActions`, `DropdownMenu`, `Popover`, `Tooltip` |
 | `panel` | `large` | `Dialog`, `CommandPalette`, `NavSearch` |
 
 **A control is a pill up to `small`, and squarer above it.** Half its own height
@@ -527,16 +549,34 @@ The exceptions fall out of the same rule rather than a list. A square box at
 capsule radius is saturated on *both* edges, so it has nothing to ease onto in
 either direction and stays a true circle: an `IconButton`, an `Avatar`, a status
 dot, the ring round a `RadioButton`, a colour swatch, a day cell. `pill` remains
-for those, and `capsule` — the squircle of the same silhouette — is what a
-lozenge asks for: a chip, a toast, a nav indicator, a skeleton line.
+for those, and `capsule` is what a lozenge asks for: a chip, a toast, a nav
+indicator, a skeleton line.
+
+**`pill` and `capsule` are the same corner and differ only in whether they
+stop.** Both are half the shorter side; `capsule` stops at the cap and `pill`
+does not. `pill` used to differ in a second way — it was a true circular arc
+rather than a squircle — and that was a mistake with two costs. Everything
+reaching for it that was *not* square got circular ends on a lozenge in a family
+of squircles, which is the exact mismatch these two tokens exist to name: a tag,
+a skeleton's line, a nav indicator, a pull-to-refresh badge, a day cell's range
+caps. And a theme's `smoothing` moved every rung except this one. On a square box
+the change is invisible — a saturated corner has no straight run to ease into, so
+the squircle collapses onto the arc and the two differ by a fraction of a pixel
+at the rim.
 
 Those components **name** `pill` rather than inheriting it from `control`, and
 that is a deliberate change: on a square box the two draw the same picture, so
 the name buys nothing you can see today. What it buys is an exemption from the
 cap below. A capped `capsule` on a 50dp box is an 18dp rounded square; a `pill`
-on the same box is still a circle. A day cell is the case that makes it
-concrete — its fill, its "today" ring and its range caps only agree with each
-other if none of them is capped.
+on the same box is still fully round. Two cases make it concrete. A day cell's
+fill, its "today" ring and its range caps only agree with each other if none of
+them is capped. And a `Switch`'s track is 28dp tall against a thumb drawn at half
+its own *measured* height — a number, because a draw call has no token to consult,
+and a rounded rect only while the thumb is at least as wide as it is tall; squashed
+past that it is an egg, circular on the end against the wall — so a theme that sets
+`capsuleCap = 10.dp` capped the track at 10 and
+left the thumb at 12, and the two stopped being concentric. Reported, and fixed
+by the track naming `pill`.
 
 **What is still drawn as a plain rounded rect, and why.** Seventeen places paint
 a corner with `drawRoundRect` rather than clipping to a shape, and a
@@ -649,10 +689,19 @@ vestibular discomfort — large translation, parallax and spinning are. When
 - transition presets swap movement for opacity
 - springs degrade to tweens, so nothing overshoots or bounces
 - `KontourIndication` drops the press-shrink and keeps the tonal wash
-- continuous looping motion — marquee, indeterminate spinners — stops
+- a marquee stops; a spinner keeps turning, with its breathing stilled — an
+  indicator of work in progress that stopped would read as one that had hung
 - **large transforms lose their amplitude**: an overlay fades in place instead of
   scaling into it, and the screen behind a sheet stays where it is instead of
   receding to 94%
+- **nothing travels that no finger is moving**: a sheet, a side sheet, a toast,
+  a FAB menu's items and a calendar's month all fade where they rest; a carousel
+  page, a scroll into view, a swipe row the app opens and a row settling after a
+  reorder all arrive at once; a rail widening and a supporting pane opening take
+  their size at once and fade what appears in it
+
+A drag is never touched. What follows a finger follows it at every setting —
+the setting is about movement the reader did not make.
 
 Which OS setting turns it on is in
 [`accessibility.md`](accessibility.md#reduced-motion).
@@ -675,9 +724,89 @@ has to read `Theme.motion.reduceMotion` for itself:
 val scale = if (Theme.motion.reduceMotion) 1f else 0.94f
 ```
 
+Or it can go through the helpers that *do* shrink a movement, which is what the
+library's own components use:
+
+| Helper | Under reduced motion |
+|---|---|
+| `Theme.motion.enterOrFade(transition)` | A fade in, at `fast`, in place of the transition |
+| `Theme.motion.exitOrFade(transition)` | A fade out where it stands |
+| `Theme.motion.scrollSpec()` | `snap()`: a programmatic scroll arrives at once |
+| `Theme.motion.sizeSpec()` | `snap()`: a size change is the new size at once |
+
+```kotlin
+AnimatedVisibility(
+    visible = shown,
+    enter = Theme.motion.enterOrFade(slideInVertically { it / 2 } + fadeIn()),
+    exit = Theme.motion.exitOrFade(slideOutVertically { it / 2 } + fadeOut()),
+) { Notice() }
+```
+
 The rule of thumb is amplitude. A few pixels — a press, a lean, a lift — is
 covered by the helpers shortening it. A transform that moves a whole panel or a
 whole screen is not, and needs the explicit read.
+
+### Flings
+
+How a list carries on after a finger lets it go is `ScrollDefaults.flingBehavior()`.
+Every scroller in the library that does not snap uses it: menus, dialogs,
+popovers, tooltips, tables, tabs, breadcrumbs, the rail, the command palette and
+the timelines. Carousels, wheel pickers and sheets snap to their own positions
+and keep their own flings.
+
+**Pass it to your own lists as well.** Compose has no way to change the fling of
+every list in an app at once. A list that is not handed this one flings the
+platform's way, and on iOS that will not match the lists around it.
+
+```kotlin
+LazyColumn(flingBehavior = ScrollDefaults.flingBehavior()) { … }
+Column(Modifier.verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { … }
+```
+
+What it does depends on `LocalScrollFeel`:
+
+| Platform | `LocalScrollFeel` | The fling |
+|---|---|---|
+| iOS | `ScrollFeel(velocityScale = 1.2f)` | The library's: slows at UIKit's rate, reads a throw a fifth faster, and flicks add up |
+| Android, desktop, web | `null` | The platform's own, unchanged |
+
+The iOS default exists because flings on iOS were reported to "stop too soon".
+Compose's iOS fling already slows at UIKit's rate, so the rate was not the
+difference. The difference was **accumulation**. On an iPhone, a flick while a
+list is still moving adds to the speed it already has, so a run of flicks goes
+further each time. In Compose, each flick started again from rest. Once that was
+in, flings were still reported to have "a bit of friction", so the iOS default
+reads each throw a fifth faster. That figure is a starting point to tune against
+a native scroll view, not a measurement.
+
+**A flick after a rest carries on, in every list.** Compose's iOS velocity
+tracker reads a thumb laid on a list, rested a moment, then flicked as no speed
+at all, and a late frame just before the lift does the same, so the list
+stopped dead where the finger left it. On iOS the root of a `KontourTheme`
+follows the finger, and when a release reports exactly nothing while the finger
+was still moving, it hands the list the finger's own speed. That happens through
+nested scroll, before any list starts its fling, so your own lists get it too,
+whether or not they use `ScrollDefaults.flingBehavior()`. A finger that stopped
+before it lifted still stops the list.
+
+A `ScrollFeel` has three settings:
+
+| Property | Default | What it changes |
+|---|---|---|
+| `decelerationRate` | `0.998` | How much speed is kept each millisecond. This is UIKit's `normal` rate: a throw at `v` travels about `v × 0.5s` |
+| `velocityScale` | `1` (`1.2` in the iOS default) | A multiplier on the release velocity, for a throw that Compose reads slower than UIKit does |
+| `accumulates` | `true` | Whether a flick in the same direction, within 0.6s and faster than 300dp/s, adds to what was left of the last one |
+
+Provide a different `ScrollFeel` to tune it, or to give another platform the
+same behaviour. Provide `null` to get the platform's own fling back:
+
+```kotlin
+CompositionLocalProvider(LocalScrollFeel provides ScrollFeel(velocityScale = 1.2f)) { App() }
+```
+
+The values can be set by hand on a phone. The catalog's **Frames** page has a
+Scroll feel card that sets all three live, reports each throw's speed and
+distance, and on iOS puts a `UIScrollView` beside it to compare against.
 
 ---
 

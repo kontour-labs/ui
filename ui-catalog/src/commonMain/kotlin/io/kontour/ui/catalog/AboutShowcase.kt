@@ -37,7 +37,7 @@ import io.kontour.ui.theme.Theme
  */
 @Composable
 fun AboutShowcase(modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, colour = Theme.colours.background) {
+    Surface(modifier = modifier, containerColour = Theme.colours.background) {
         Column(
             modifier = Modifier.padding(Theme.spacing.lg).widthIn(max = 720.dp),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -127,12 +127,11 @@ private fun Theming() {
             style = Theme.typography.bodyMedium,
         )
         Text(
-            "The default palette is monochrome with one blue accent, and that is " +
-                "deliberate: a library that shipped somebody's brand would make " +
-                "every app using it look like that somebody. Every token group is " +
-                "a parameter, so a product overrides accent, brand and focus ring " +
-                "and inherits the rest. Kontour's own theme is about a hundred " +
-                "lines, most of them colour values.",
+            "The default palette is monochrome with one accent, Kontour Labs' " +
+                "violet, and the controls stay ink: the violet marks what is " +
+                "selected, focused or linked rather than every control on the " +
+                "screen. Every token group is a parameter, so a product overrides " +
+                "accent, brand and focus ring and inherits the rest.",
             style = Theme.typography.bodyMedium,
             colour = Theme.colours.contentMuted,
         )
@@ -154,7 +153,7 @@ private fun Reading() {
         // three of its five targets, and a link that does nothing on iOS is
         // worse than a path someone can find in the repository.
         KeyValueList {
-            item("The site", "kontour-labs.github.io/ui")
+            item("The site", "docs.kontour.io/ui")
             item("Installing", "ui-docs/content/installing.md")
             item("Components", "ui-docs/content/components.md")
             item("Tokens", "ui-docs/content/tokens.md")

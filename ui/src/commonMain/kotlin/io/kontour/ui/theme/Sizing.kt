@@ -41,17 +41,17 @@ data class Sizing(
     val focusRingWidth: Dp = 2.dp,
     /** Gap between the component's edge and its focus ring. */
     val focusRingOffset: Dp = 2.dp,
-
-    /**
-     * The travelling bar that marks the selected item in a tab bar, nav bar,
-     * rail or drawer.
-     *
-     * A token rather than a per-component constant because four components draw
-     * it, and a selection marker that is 3dp in one surface and 2dp in another
-     * reads as two different mechanisms.
-     */
-    val selectionIndicator: Dp = 3.dp,
 )
+
+/**
+ * A line [lines] times [Sizing.borderWidth] thick.
+ *
+ * How a component draws a ring, a tick or a hairline that has to thicken with
+ * the tier the way every border does: a mark's ring at 1.5 lines is 1.5dp at
+ * the standard tier and 3dp at the enhanced one. A width written as a constant
+ * of its own stays a hairline beside borders twice its weight.
+ */
+internal fun Sizing.lines(lines: Float): Dp = borderWidth * lines
 
 /**
  * [Sizing] for a contrast tier.
@@ -76,6 +76,5 @@ fun kontourSizing(contrast: ContrastLevel): Sizing = when (contrast) {
         borderWidthStrong = 3.dp,
         dividerThickness = 2.dp,
         focusRingWidth = 3.dp,
-        selectionIndicator = 4.dp,
     )
 }

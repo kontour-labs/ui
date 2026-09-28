@@ -1,0 +1,162 @@
+# `ColourPicker`
+
+*Also on this page: `ColourFormat`, `ColourPickerMode`, `Hsv`, `Hsl`.*
+
+Picks a colour — a saturation-and-value area, a hue track, and as much or as
+little else as the screen wants.
+
+<!--sample:ColourPickerBasics-->
+```kotlin
+var accent by remember { mutableStateOf(Color(0xFF1E88E5)) }
+
+ColourPicker(colour = accent, onColourChange = { accent = it })
+```
+
+**Every part except the spectrum is optional**, because the same component is
+asked for very different things: a theme editor wants the area, the hue, the
+opacity and a hex field; a label picker wants eight swatches and nothing else.
+Turning a part off removes it rather than disabling it.
+
+| | Off by | Why you would |
+|---|---|---|
+| Swatches | `swatches = emptyList()` | Nothing worth suggesting |
+| Opacity | `showAlphaSlider = false`, the default | Most colours are opaque |
+| The field | `showValueField = false` | Nobody here is going to type a hex |
+| The notation switch | `onFormatChange = null`, the default | One notation is enough |
+| The mode switch | `onModeChange = null`, the default | See below |
+
+<!--sample:ColourPickerParts-->
+```kotlin
+// A label colour: the eight we offer, and nothing to invent a ninth with.
+ColourPicker(
+    colour = label,
+    onColourChange = { label = it },
+    mode = ColourPickerMode.Palette,
+    showValueField = false,
+)
+```
+
+`ColourPickerMode.Spectrum` and `ColourPickerMode.Palette` are not a style
+preference. A palette answers "which of ours" and a spectrum answers "which
+colour", so an app that means the first should not offer the second — a brand
+picker with a full spectrum in it invites an off-brand answer. Pass
+`onModeChange` only when both are genuinely allowed.
+
+**The mode chooses the area and nothing else.** `Spectrum` gives the continuous
+saturation-and-value square; `Palette` gives the same two axes as a grid of
+forty discrete cells, which is faster to answer because a cell is a target and
+there is nothing to aim at. Both keep the hue track underneath, and both take
+the opacity track if `showAlphaSlider` is on — a palette built from a single hue is
+a column of greys, so dropping the hue with the square would not leave a palette
+at all.
+
+---
+
+## It keeps a hue, not a colour
+
+The picker holds its own `Hsv` and converts on the way out, and that is not an
+optimisation. **A colour that has reached pure black or pure white has no hue
+left in it** — the three channels are equal and there is nothing to recover — so
+a picker that re-derived one from `colour` every frame would watch its own hue
+track jump to red as the value reached the bottom of the area, and stay there on
+the way back up. Dragging to black and back is the first thing anyone does with a
+colour area, and it is checked on every build.
+
+`colour` is still the source of truth, and anything arriving from outside the
+picker's own gestures is adopted.
+
+**Keeping the hue is not the same as reading it live, and the difference cost a
+round.** The picker kept its hue correctly and then handed a stale copy of it to
+the area's drag handler: a hue set on the track reverted to the one the picker was
+born with on the very next press in the spectrum, and the rest of that gesture
+continued from the reverted value. The cause was a handler spelled `::report`
+rather than `{ report(it) }` — a reference to a local function is memoized once
+at first composition and holds the parameters it was born with, where a lambda
+literal is rebuilt when they change. The two spellings look identical and are not.
+Both areas read the hue through `rememberUpdatedState` now, which is immune to
+how the handler is delivered rather than dependent on it.
+
+---
+
+## Typing, and the loop a bound field would otherwise be
+
+`ColourFormat` is `Hex`, `Rgb`, `Hsv` or `Hsl`, and the field row changes with
+it: one field for a hex, three channels for the rest, plus opacity when it is on.
+Four notations rather than one, because the people who type into a colour picker
+have already learned one somewhere else — a hex off a brand sheet, RGB out of a
+design tool, HSL out of a stylesheet.
+
+A field bound to a colour has to push the colour in and pull typing out, and the
+naive version of that oscillates: you type `0f8`, the picker resolves it, the
+canonical `#00FF88` comes back, and the field rewrites itself under your cursor
+mid-word. So the field is only rewritten when the incoming text means a
+**different colour** than what is already in it. `0f8` and `#00FF88` parse to the
+same thing and nothing is touched; a colour picked on the area above parses to
+something else, so the field follows it.
+
+Out-of-range is not a value, and is not clamped: type `300` into a channel and
+nothing happens until it is in range, because clamping would turn it into `255`
+under your finger and take the second digit you meant to type with it.
+
+---
+
+## The maths is public
+
+`Color.toHsv()`, `Color.toHsl()`, `Hsv.toColour()`, `Hsl.toColour()`,
+`Color.toHex()` and `colourFromHex()` are ordinary functions in `foundation`,
+usable without the picker.
+
+```kotlin
+val warmer = colour.toHsv().copy(hue = 30f).toColour()
+val fromBrandSheet = colourFromHex("#3355AA") ?: fallback
+```
+
+`Hsv` and `Hsl` are not the same numbers for the same colour: HSL's `0.5`
+lightness is the *full* hue where HSV's `1.0` value is, and the two disagree
+about saturation throughout. `colourFromHex` takes `#RGB`, `#RGBA`, `#RRGGBB` and
+`#RRGGBBAA` with or without the hash, and returns null rather than throwing or
+falling back to black — it sits behind a field somebody is halfway through
+typing into, and `#33` is not an error, it is a colour that is not finished.
+
+Alpha goes **last** in a hex, which is not the order a `Color(0xFF3355AA)`
+literal is written in. That literal is a packed ARGB integer; every design tool,
+every stylesheet and every hex a person has ever typed puts alpha at the end.
+
+---
+
+## Accessibility
+
+The hue and opacity tracks report `ProgressBarRangeInfo` and accept
+`setProgress`, so a screen reader can adjust either one directly — they are
+values, and a value is exactly what that action is for.
+
+**The area cannot be, and says so rather than pretending.** Saturation and value
+are two axes on one node, and there is no accessible action for a point. The
+route to any colour without the gesture is the field and the swatches, which is
+why `showValueField` defaults to on: a picker with the field turned off and no
+swatches has one input and it is a drag. Turn it off only where the colour is a
+convenience rather than the point.
+
+**From a keyboard, all three take focus** and show the focus ring. On a track
+the arrows move the thumb the way they point, a hundredth at a time — so in
+right-to-left, where the tracks run from the right, Right lowers the value — Up
+and Down raise and lower it, Page Up and Page Down move a tenth, and Home and End
+go to the ends. In the area the arrows move the cursor across and down; in the
+palette grid, a cell at a time. The area does not mirror in right-to-left: it is
+a picture of colour, with white at one side and the hue at the other, not text
+that reads in a direction.
+
+Every swatch carries its own hex as a content description, through
+[`ColourSwatchPicker`](colour-swatch-picker.md), and reports
+`Role.RadioButton` inside a selectable group.
+
+At high contrast the cursor — the same one on the area, the palette and both
+tracks — keeps its white inner ring and turns its outer one from a translucent
+shadow into solid black, and both are drawn at the tier's thicker strong border.
+The swatches' rings and the focus rings thicken with it, the value field gains an
+edge, and the mode and format switches take their track's edge.
+
+Under reduced motion a chosen swatch's tick grows in without overshooting, and
+the mode and format switches' thumb fades in at its new segment rather than
+sliding there. The cursor and the thumbs are drawn at the value, so a finger, a
+key or a typed value moves them at once at every setting.

@@ -1,16 +1,19 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bike
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Navigation
 import com.composables.icons.tabler.outline.Plus
@@ -30,10 +33,17 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.IconToggleButton
 import io.kontour.ui.components.action.SplitButton
-import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.components.action.TextIconButton
+import io.kontour.ui.components.action.VerticalButtonGroup
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.action.VerticalToolbar
+import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.richText
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.theme.Theme
 
 @Composable
 fun ButtonBasics() {
@@ -62,7 +72,7 @@ fun ButtonLoading() {
 
 @Composable
 fun IconButtonBasics() {
-    IconButton(Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
+    IconButton(icon = Tabler.Outline.X, contentDescription = "Close", onClick = { dismiss() })
 }
 
 @Composable
@@ -91,7 +101,7 @@ fun IconToggleButtonBasics() {
 
 @Composable
 fun FloatingActionButtonBasics() {
-    FloatingActionButton(Tabler.Outline.Plus, "Add favourite", onClick = { add() })
+    FloatingActionButton(icon = Tabler.Outline.Plus, contentDescription = "Add favourite", onClick = { add() })
 }
 
 @Composable
@@ -120,6 +130,14 @@ fun ButtonGroupBasics() {
 }
 
 @Composable
+fun VerticalButtonGroupBasics() {
+    VerticalButtonGroup {
+        item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
+        item(onClick = { zoomOut() }, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
+    }
+}
+
+@Composable
 fun ToolbarBasics() {
     Toolbar {
         ButtonGroup {
@@ -131,7 +149,17 @@ fun ToolbarBasics() {
             item(onClick = { zoomIn() }, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
         }
         ToolbarDivider()
-        IconButton(Tabler.Outline.Stack, "Map layers", onClick = { openLayers() })
+        IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
+    }
+}
+
+@Composable
+fun VerticalToolbarBasics() {
+    VerticalToolbar {
+        IconButton(icon = Tabler.Outline.Plus, contentDescription = "Zoom in", onClick = { zoomIn() })
+        IconButton(icon = Tabler.Outline.Minus, contentDescription = "Zoom out", onClick = { zoomOut() })
+        ToolbarDivider()
+        IconButton(icon = Tabler.Outline.Stack, contentDescription = "Map layers", onClick = { openLayers() })
     }
 }
 
@@ -191,4 +219,33 @@ fun SplitButtonBasics() {
     ) {
         +"Save"
     }
+}
+
+@Composable
+fun TextButtonBasics() {
+    TextButton(onClick = { forgot() }) {
+        +"Forgot your password?"
+    }
+}
+
+@Composable
+fun TextIconButtonBasics() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Perth Underground", style = Theme.typography.titleSmall)
+        TextIconButton(
+            icon = Tabler.Outline.InfoCircle,
+            contentDescription = "About this stop",
+            onClick = { explain() },
+        )
+    }
+}
+
+@Composable
+fun InlineLink() {
+    Text(
+        richText {
+            +"Services are suspended between Perth and Midland. "
+            link("See replacement buses") { replacements() }
+        }
+    )
 }

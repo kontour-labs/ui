@@ -1,5 +1,6 @@
 package io.kontour.ui.components.action
 
+import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.expandHorizontally
@@ -27,6 +28,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideTextStyle
@@ -53,9 +55,9 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  *
  * ```
  * FloatingActionButton(
+ *     onClick = ::addFavourite,
  *     icon = Icons.Plus,
  *     contentDescription = "Add favourite",
- *     onClick = ::addFavourite,
  * )
  * ```
  *
@@ -75,9 +77,9 @@ enum class FabSize(internal val container: Dp, internal val icon: Dp) {
  */
 @Composable
 fun FloatingActionButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
@@ -104,15 +106,17 @@ fun FloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
         // `defaultMinSize` makes the surface larger than the icon inside it, so
         // without this the icon lands in the FAB's top-left corner rather than
@@ -179,15 +183,17 @@ fun FloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
         contentAlignment = Alignment.Center,
         content = { LoadingSwap(loading = loading, spinnerSize = size.icon) { content() } },
@@ -200,10 +206,10 @@ fun FloatingActionButton(
  *
  * ```
  * ExtendedFloatingActionButton(
+ *     onClick = ::startTrip,
  *     icon = Icons.Navigation,
  *     contentDescription = "Start trip",
  *     expanded = !listState.isScrollingDown,
- *     onClick = ::startTrip,
  * ) { +"Start trip" }
  * ```
  *
@@ -219,9 +225,9 @@ fun FloatingActionButton(
  */
 @Composable
 fun ExtendedFloatingActionButton(
+    onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     /** Swaps the icon for a spinner and blocks input. See [LoadingSwap]. */
@@ -235,7 +241,7 @@ fun ExtendedFloatingActionButton(
      *
      * The same value the plain [FloatingActionButton] takes, and for the same
      * reason: a FAB is round because of what it is. `control` caps at
-     * `CapsuleCap`, so it drew an 18dp corner on a 56dp box — a rounded square
+     * `Shapes.CapsuleCap`, so it drew an 18dp corner on a 56dp box — a rounded square
      * collapsed and a rounded rectangle open, on a button sitting next to a plain
      * FAB that is a circle. Round 26 moved the library's circles onto `pill`
      * precisely so the cap could not reach them and this one was missed.
@@ -285,15 +291,17 @@ fun ExtendedFloatingActionButton(
             .pointerCursor(enabled = interactive)
             .clickable(
                 interactionSource = interactions,
-                indication = kontourIndication(shape, FabDefaults.pressScale(size)),
+                indication = kontourIndication(shape, FloatingActionButtonDefaults.pressScale(size)),
                 enabled = interactive,
                 role = Role.Button,
                 onClick = onClick,
             ),
         shape = shape,
-        colour = fabColor,
+        containerColour = fabColor,
         contentColour = fabContent,
-        border = border,
+        // Disabled, a FAB is a well with no shadow — 1.13:1 from the page at
+        // the enhanced tier — so it takes the tier's edge.
+        border = border ?: if (enabled) null else contrastEdge(),
         shadow = fabShadow,
     ) {
         // The whole row swaps, icon and label together: a spinner beside a
@@ -316,10 +324,10 @@ fun ExtendedFloatingActionButton(
             AnimatedSlot(
                 visible = expanded,
                 gap = Theme.spacing.xs,
-                enter = expandHorizontally(motion.springOrTween(motion.springDefault)) +
-                    fadeIn(motion.tweenFast()),
-                exit = shrinkHorizontally(motion.springOrTween(motion.springDefault)) +
-                    fadeOut(motion.tweenFast()),
+                // `sizeSpec`: the button takes its new width at once under reduced
+                // motion, and the label fades.
+                enter = expandHorizontally(motion.sizeSpec()) + fadeIn(motion.tweenFast()),
+                exit = shrinkHorizontally(motion.sizeSpec()) + fadeOut(motion.tweenFast()),
             ) {
                 ProvideTextStyle(Theme.typography.labelLarge) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -358,7 +366,7 @@ private fun fabColours(
 }
 
 /** Metrics for a [FloatingActionButton] that are not on [FabSize] itself. */
-object FabDefaults {
+object FloatingActionButtonDefaults {
     /**
      * How far a FAB shrinks on press.
      *

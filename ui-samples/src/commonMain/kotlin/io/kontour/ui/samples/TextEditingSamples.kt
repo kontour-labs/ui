@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.components.text.PhoneFormat
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import io.kontour.ui.components.text.TextField
@@ -46,8 +48,8 @@ fun ImeChainForm() {
 fun TextFieldSlots() {
     val stop = rememberTextFieldState()
 
-    // `label` is a `String?` rather than a slot on purpose: a floating label is
-    // chrome, it animates between two positions, and `FieldScaffold` reads it to
+    // `label` is a `String?` rather than a slot on purpose: a field's label is
+    // chrome, drawn above the frame in the field's own style, and `FieldScaffold` reads it to
     // give the control its accessible name — none of which a composable can do.
     TextField(
         state = stop,
@@ -77,8 +79,7 @@ fun TextAreaBasics() {
         state = note,
         label = "What went wrong?",
         placeholder = "The 950 didn't turn up",
-        minLines = 3,
-        maxLines = 8,
+        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8),
     )
 }
 
@@ -150,9 +151,10 @@ fun SpecialisedFieldsBasics() {
     // Each is `TextField` with the keyboard, the autofill hint and the
     // transformation already right — the three things that get forgotten one
     // at a time.
-    PasswordField(state = password, label = "Password", isNewPassword = true)
+    PasswordField(state = password, label = "Password", newPassword = true)
     NumberField(state = adults, label = "Adults", maxLength = 2)
-    // Stored clean, displayed masked: the caller reads "0412345678".
-    PhoneField(state = phone, label = "Mobile")
+    // Stored clean, displayed masked: the caller reads "0412345678". The
+    // grouping is the app's to name — the field guesses no country.
+    PhoneField(state = phone, label = "Mobile", format = PhoneFormat.AustralianMobile)
     EmailField(state = email, label = "Email")
 }

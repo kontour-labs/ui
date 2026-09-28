@@ -43,6 +43,14 @@ class SheetDetent(
          * Not "the full height of the screen": a sheet with three rows in it
          * should be three rows tall, not an empty full-screen panel with three
          * rows at the top.
+         *
+         * "Its content" is all of it, including every
+         * [part][io.kontour.ui.sheet.SheetContentScope.part] — a part is laid out
+         * at its full height whatever the sheet is doing, so this height does not
+         * depend on where the sheet currently is. It used to: a part that composed
+         * nothing while it was collapsed made this resolve to the sheet's
+         * *collapsed* height, and a sheet whose parts were all gated could not be
+         * dragged past the content it was already showing.
          */
         val Expanded: SheetDetent = SheetDetent("expanded") { container, sheet ->
             minOf(sheet, container)
@@ -101,9 +109,4 @@ class SheetDetent(
  */
 internal const val PeekDetentId: String = "peek"
 
-/** The default set: closed, peeking, half, or all of it. */
-val DefaultSheetDetents: List<SheetDetent> = listOf(
-    SheetDetent.Hidden,
-    SheetDetent.Half,
-    SheetDetent.Expanded,
-)
+

@@ -25,7 +25,7 @@ COMPONENTS = CONTENT / "components"
 # A tuple, not a set, and the order is load-bearing.
 #
 # `family_of` is first-index-wins, and a page can be linked from two indexes —
-# `nav-surfaces.md` from `navigation.md` and again from `foundation.md`.
+# `nav-scope.md` from `navigation.md` and again from `foundation.md`.
 # Iterating a set of strings means iterating in an order Python's hash
 # randomisation changes between runs, so that page landed in Navigation or in
 # Foundation depending on the process. `DocPages.kt` therefore differed run to
@@ -67,7 +67,7 @@ FAMILY = {
 #
 # "The detent model" is gone from here entirely: it was a guide about one
 # family, and it now opens that family's own index at `components/sheets.md`.
-GUIDES = ("installing", "tokens", "theming", "dsls", "accessibility", "overlays", "components")
+GUIDES = ("installing", "tokens", "theming", "dsls", "accessibility", "localisation", "overlays", "navigation3", "haptics", "components", "migrating", "agents")
 
 
 # A link to a page, as these files write them: `(button.md)`, `(chip.md#tone)`.
@@ -79,10 +79,10 @@ PAGE_LINK = re.compile(r"\(([a-z0-9-]+\.md)(?:#[^)]*)?\)")
 def family_of() -> dict[str, tuple[str, int]]:
     """Which index claims each component page, and where in it — `{stem: (family, position)}`.
 
-    First index wins, and within it the first mention wins: `nav-surfaces.md` is
-    linked three times from `navigation.md`, once per surface, and belongs where
-    the first of those rows puts it. [INDEXES] order breaks the tie between two
-    indexes that both link a page.
+    First index wins, and within it the first mention wins: a page an index
+    links from two rows belongs where the first of them puts it. [INDEXES] order
+    breaks the tie between two indexes that both link a page — `nav-scope.md` is
+    in `navigation.md` and `foundation.md`, and belongs to Navigation.
 
     The position is the index page's own order, which is an editorial one — the
     table in `navigation.md` opens with `NavigationSuiteScaffold` and the words

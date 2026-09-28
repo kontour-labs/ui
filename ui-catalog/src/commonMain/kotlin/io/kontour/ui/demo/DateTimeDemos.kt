@@ -1,5 +1,14 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.theme.ProvideTokens
+import io.kontour.ui.locale.HourCycle
+import io.kontour.ui.locale.DateOrder
+import io.kontour.ui.locale.DateStyle
+import io.kontour.ui.locale.ListStyle
+import io.kontour.ui.locale.PseudoLocale
+import io.kontour.ui.locale.PseudoLocalised
+import io.kontour.ui.locale.RelativeUnit
+import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,21 +19,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Plane
+import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.ChevronLeft
 import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityLegend
+import io.kontour.ui.components.datetime.ActivityMark
+import io.kontour.ui.components.datetime.ActivityCalendarDefaults
+import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
-import io.kontour.ui.components.datetime.DateTimeFormats
-import io.kontour.ui.components.datetime.LocalDateTimeFormats
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -39,14 +56,18 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         DatePicker(
-            selected = depart,
-            onSelectedChange = { depart = it },
+            value = depart,
+            onValueChange = { depart = it },
             today = Today,
             // Past dates are unselectable, which is what a departure date is —
             // and it is the parameter people reach for first.
             isDateSelectable = { it >= Today },
             previousIcon = Tabler.Outline.ChevronLeft,
             nextIcon = Tabler.Outline.ChevronRight,
+            // The header opens two wheels. Without a glyph it is a title that
+            // happens to be a button, which on a touch screen has no hover to
+            // discover it with.
+            chooserIcon = Tabler.Outline.ChevronDown,
         )
         Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
@@ -61,10 +82,11 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
     DateRangePicker(
         start = range.first,
         end = range.second,
-        onRangeSelected = { start, end -> range = start to end },
+        onRangeChange = { start, end -> range = start to end },
         today = Today,
         previousIcon = Tabler.Outline.ChevronLeft,
         nextIcon = Tabler.Outline.ChevronRight,
+        chooserIcon = Tabler.Outline.ChevronDown,
     )
 }
 
@@ -86,10 +108,13 @@ internal val TimePickerDemo = ComponentDemo(
     knobs = listOf(twelveHour),
 ) {
     var at by remember { mutableStateOf(LocalTime(8, 15)) }
-    // The 12/24-hour choice is a *format* rather than a parameter, provided the
-    // way an app would provide it — one local, once, at the root.
-    CompositionLocalProvider(
-        LocalDateTimeFormats provides DateTimeFormats(is24Hour = !this[twelveHour]),
+    // The 12/24-hour choice is a *convention* rather than a parameter, provided
+    // the way an app would provide it — once, for everything below.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = if (this[twelveHour]) HourCycle.H12 else HourCycle.H23),
+        ),
     ) {
         TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5)
     }
@@ -126,10 +151,10 @@ internal val WheelPickerDemo = ComponentDemo(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         WheelPicker(
             items = values,
-            selected = index,
-            onSelectedChange = { index = it },
+            selectedIndex = index,
+            onSelectedIndexChange = { index = it },
             infinite = this@ComponentDemo[wheelInfinite],
-            label = { it },
+            itemLabel = { it },
         )
         Text(
             "Hour ${values[index]}",
@@ -161,7 +186,150 @@ internal val RelativeTimeTextDemo = ComponentDemo(
     }
 }
 
+/**
+ * A language that does not exist, over everything the formats write.
+ *
+ * Off is the reader's own; the other three are the tests a screen runs before a
+ * translator sees it — longer words, right to left with Arabic-Indic digits, and
+ * marks stacked above and below every letter.
+ */
+private val pseudoLocale = Knob.Choice("Pseudo-locale", listOf(null) + PseudoLocale.entries, name = { it?.name ?: "Off" })
+
+private val hourCycle = Knob.Choice("Hour cycle", HourCycle.entries.toList(), HourCycle.H23)
+
+private val dateOrder = Knob.Choice("Date order", DateOrder.entries.toList())
+
+internal val LocaleFormatsDemo = ComponentDemo(
+    slug = "locale-formats",
+    knobs = listOf(pseudoLocale, hourCycle, dateOrder),
+) {
+    val mode = this[pseudoLocale]
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = this[hourCycle], dateOrder = this[dateOrder]),
+        ),
+    ) {
+        if (mode == null) FormatsSpecimen() else PseudoLocalised(mode) { FormatsSpecimen() }
+    }
+}
+
+/** One of everything the formats write, and a phrase from the strings around a count. */
+@Composable
+private fun FormatsSpecimen() {
+    val formats = Theme.formats
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+        Text(formats.date(Today, DateStyle.Full))
+        Text(formats.dateTime(Today, LocalTime(14, 5)))
+        Text(formats.date(Today, DateStyle.Short))
+        Text(formats.integer(12_345))
+        Text(formats.relativeTime(-5, RelativeUnit.Minute))
+        Text(formats.list(listOf("Perth", "Fremantle", "Joondalup"), ListStyle.And))
+        Text(
+            Theme.strings.pageOfCount(formats.quantity(2), formats.quantity(12)),
+            style = Theme.typography.labelSmall,
+            colour = Theme.colours.contentMuted,
+        )
+    }
+}
+
+/**
+ * A made-up year of trips, the same on every run: a hash of each day, quieter
+ * at weekends, with about a third of days empty.
+ */
+private fun demoActivity(end: LocalDate): Map<LocalDate, Int> = (0 until 371).associate { back ->
+    val day = end.minus(DatePeriod(days = back))
+    val hash = ((day.toEpochDays() * 2_654_435_761L) ushr 9) % 13
+    val weekend = day.dayOfWeek == DayOfWeek.SATURDAY || day.dayOfWeek == DayOfWeek.SUNDAY
+    day to (if (hash < 4) 0 else (hash - 3).toInt()).let { if (weekend) it / 3 else it }
+}
+
+private val activityLook = Knob.Choice("Look", listOf("GitHub", "Minimal"))
+
+private val activityLevels = Knob.Choice("Levels", listOf("Quantiles", "Thresholds"))
+
+private val activityMonths = Knob.Flag("Month labels", initial = true)
+
+private val activityWeekdays = Knob.Flag("Weekday labels", initial = true)
+
+/** What the shades mean, under the grid: a square of each, one blended bar, or nothing. */
+private val activityLegend = Knob.Choice("Legend", ActivityLegend.entries, ActivityLegend.Steps)
+
+/**
+ * Days decorated as well as shaded: holidays folded over, trips with an icon, busy
+ * days counted — and with "All", every one that applies, so a holiday spent
+ * travelling carries both.
+ */
+private val activityMarks = Knob.Choice("Marks", listOf("None", "Holidays", "Trips", "Busy days", "All"))
+
+/** Western Australia's public holidays in the demo's year. */
+private val holidays = listOf(
+    LocalDate(2026, 1, 1), LocalDate(2026, 1, 26), LocalDate(2026, 3, 2), LocalDate(2026, 4, 3),
+    LocalDate(2026, 4, 6), LocalDate(2026, 4, 27), LocalDate(2026, 6, 1),
+    LocalDate(2025, 9, 29), LocalDate(2025, 12, 25), LocalDate(2025, 12, 26),
+)
+
+/** Days away, with a plane on them. */
+private val trips = mapOf(
+    // A holiday as well: under "All" it carries a folded corner and a plane.
+    LocalDate(2026, 1, 26) to "Ferry to Rottnest",
+    LocalDate(2026, 2, 13) to "Flight to Sydney",
+    LocalDate(2026, 2, 17) to "Flight home",
+    LocalDate(2026, 5, 8) to "Flight to Broome",
+)
+
+internal val ActivityCalendarDemo = ComponentDemo(
+    slug = "activity-calendar",
+    knobs = listOf(activityLook, activityLevels, activityMonths, activityWeekdays, activityLegend, activityMarks),
+) {
+    val end = LocalDate(2026, 6, 5)
+    val activity = remember { demoActivity(end) }
+    var picked by remember { mutableStateOf<LocalDate?>(null) }
+    val formats = Theme.formats
+    val marks = this[activityMarks]
+    val holidayColour = Theme.colours.warning.solid
+    val tripColour = Theme.colours.info.solid
+    ActivityCalendar(
+        activity = activity,
+        end = end,
+        modifier = Modifier.fillMaxWidth(),
+        today = end,
+        selected = picked,
+        onDayClick = {
+            picked = it
+            echo("${activity[it] ?: 0} on ${formats.date(it, DateStyle.Medium)}")
+        },
+        levels = if (this[activityLevels] == "Thresholds") {
+            ActivityLevels.Thresholds(listOf(1, 3, 6, 9))
+        } else {
+            ActivityLevels.Quantiles
+        },
+        colours = ActivityCalendarDefaults.colours(
+            full = if (this[activityLook] == "GitHub") Theme.colours.success.solid else Theme.colours.info.solid,
+        ),
+        showMonthLabels = this[activityMonths],
+        showWeekdayLabels = this[activityWeekdays],
+        legend = this[activityLegend],
+        marksFor = if (marks == "None") {
+            null
+        } else {
+            { date, count ->
+                val all = marks == "All"
+                listOfNotNull(
+                    ActivityMark(corner = holidayColour, description = "Public holiday")
+                        .takeIf { (all || marks == "Holidays") && date in holidays },
+                    trips[date]?.takeIf { all || marks == "Trips" }
+                        ?.let { ActivityMark(icon = Tabler.Outline.Plane, fill = tripColour, description = it) },
+                    ActivityMark(text = "$count", description = "A busy day")
+                        .takeIf { (all || marks == "Busy days") && count >= 8 },
+                )
+            }
+        },
+    )
+}
+
 internal val dateTimeDemos = listOf(
+    ActivityCalendarDemo,
     DatePickerDemo,
     DateRangePickerDemo,
     CalendarMonthDemo,
@@ -169,4 +337,5 @@ internal val dateTimeDemos = listOf(
     TimeFieldDemo,
     WheelPickerDemo,
     RelativeTimeTextDemo,
+    LocaleFormatsDemo,
 )

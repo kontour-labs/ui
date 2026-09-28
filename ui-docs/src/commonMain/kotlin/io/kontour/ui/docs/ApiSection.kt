@@ -13,16 +13,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.mono
 
 /**
  * Every parameter of everything this page documents.
@@ -68,14 +68,14 @@ private fun EntryBlock(entry: ApiEntry) {
         ) {
             Text(
                 text = listOfNotNull(entry.owner, entry.name).joinToString("."),
-                style = Theme.typography.titleSmall.copy(fontFamily = Theme.typography.mono.fontFamily),
+                style = Theme.typography.titleSmall.mono(),
             )
             // A `Tag`, not accent-coloured text. It marks a *kind* of thing,
             // which is what a tag is for, and the page beside it documents
             // `Tag` — a site that draws its own version of a component it is
             // explaining is arguing against itself.
             if (entry.isComposable) {
-                Tag(tone = TagTone.Accent) { +"@Composable" }
+                Tag(tone = Tone.Accent) { +"@Composable" }
             }
             // Beside the entry rather than at the top of the page, which is
             // what it replaces. A page documents up to a dozen declarations and
@@ -94,7 +94,7 @@ private fun EntryBlock(entry: ApiEntry) {
                     style = Theme.typography.eyebrow,
                     colour = Theme.colours.accent.solid,
                     modifier = Modifier
-                        .pointerCursor(PointerIcon.Hand)
+                        .pointerCursor()
                         .clickable { openExternal(url) },
                 )
             }
@@ -118,7 +118,7 @@ private fun EntryBlock(entry: ApiEntry) {
         entry.enums.mapNotNull { apiEnums[it] }.forEach { enum ->
             Text(
                 text = "${enum.name}: ${enum.values.joinToString(", ")}",
-                style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily),
+                style = Theme.typography.bodySmall.mono(),
                 colour = Theme.colours.contentMuted,
             )
         }
@@ -217,7 +217,7 @@ private fun StackedList(entry: ApiEntry) {
 private fun Mono(text: String, weight: FontWeight = FontWeight.Normal) {
     Text(
         text = text,
-        style = Theme.typography.bodySmall.copy(fontFamily = Theme.typography.mono.fontFamily, fontWeight = weight),
+        style = Theme.typography.bodySmall.mono().copy(fontWeight = weight),
         colour = Theme.colours.content,
     )
 }

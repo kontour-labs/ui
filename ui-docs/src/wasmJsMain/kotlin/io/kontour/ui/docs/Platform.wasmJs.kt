@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalWasmJsInterop::class)
+
 package io.kontour.ui.docs
 
 import androidx.compose.runtime.Composable
@@ -5,6 +7,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
 import org.w3c.dom.events.Event
 
@@ -15,7 +18,7 @@ actual fun openExternal(url: String) {
 /**
  * Routing through the URL fragment, because a static host has no rewrite rules.
  *
- * GitHub Pages serves files. Ask it for `/components/button` and it looks for a
+ * A static host serves files. Ask it for `/components/button` and it looks for a
  * file of that name and returns its 404 page; ask it for
  * `/#/components/button` and it serves `index.html` and hands the rest to the
  * page. Every deep link works, the back button works, and nothing has to be
@@ -43,3 +46,13 @@ actual fun rememberRoute(): MutableState<Route> {
 actual fun navigate(target: Route) {
     window.location.hash = target.hash
 }
+
+actual fun copyText(text: String) {
+    writeClipboardText(text)
+}
+
+// A refused write — an insecure origin, a denied permission — rejects the
+// promise; caught, because an unhandled rejection is noise in a reader's
+// console for a button that has nothing better to tell them.
+private fun writeClipboardText(text: String): Unit =
+    js("{ navigator.clipboard.writeText(text).catch(function () {}); }")

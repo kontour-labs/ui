@@ -22,14 +22,15 @@
 //                             [--then-tap X,Y]
 //                             [--mobile] [--dark] [--reduce-motion] [--vibration]
 //                             [--clipboard] [--console] [--film DIR,COUNT,MS[,AFTER]]
-//                             [--eval EXPR]
+//                             [--eval EXPR] [--hover X,Y[;X,Y…]]
 //
 // ### What it can and cannot tell you
 //
 // **Load time is real.** Fetching, parsing and instantiating several megabytes
 // of Wasm is network- and CPU-bound, and headless Chromium does it the same way
-// a visible one does. The server here gzips exactly as GitHub Pages does, so
-// the transfer sizes are the ones a reader actually pays.
+// a visible one does. The server here gzips text and Wasm, as the host does —
+// Cloudflare sends Brotli where the browser takes it, a little smaller — so the
+// transfer sizes are the ones a reader pays, or slightly over.
 //
 // **Frame time is directional only.** There is no GPU in a container, so WebGL
 // runs on SwiftShader and every millisecond is software. Comparing this run to a
@@ -95,7 +96,7 @@ import { createServer } from 'node:http'
 import { readFile, stat, readdir, writeFile } from 'node:fs/promises'
 import { gzipSync } from 'node:zlib'
 import { spawn } from 'node:child_process'
-import { join, extname, normalize, resolve } from 'node:path'
+import { join, extname, normalize, resolve, basename } from 'node:path'
 import { mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { existsSync, readFileSync } from 'node:fs'
@@ -117,7 +118,7 @@ const TYPES = {
   '.ico': 'image/x-icon',
 }
 
-// Pages compresses text and Wasm and leaves images and fonts alone. Matching it
+// The host compresses text and Wasm and leaves images and fonts alone. Matching it
 // matters: gzip is the difference between a 15.9 MB first load and a 5.3 MB one,
 // and measuring the uncompressed number would be measuring a site nobody visits.
 const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.wasm', '.svg'])
@@ -213,9 +214,13 @@ async function serve(root) {
       'content-type': TYPES[ext] ?? 'application/octet-stream',
       'content-length': body.length,
       ...(wantsGzip ? { 'content-encoding': 'gzip' } : {}),
-      // What Pages sends. Left in on purpose: the cache policy is one of the
+      // What Cloudflare Pages sends: revalidate everything, except the two
+      // content-hashed binaries `docs/lay-out-site.py` writes a year's cache
+      // for in `_headers`. Left in on purpose: the cache policy is one of the
       // things being measured, so faking a better one here would hide it.
-      'cache-control': 'max-age=600',
+      'cache-control': /^[0-9a-f]{8,}\.wasm$/.test(basename(file))
+        ? 'private, max-age=31536000, immutable'
+        : 'public, max-age=0, must-revalidate',
     })
     res.end(req.method === 'HEAD' ? undefined : body)
   })
@@ -775,6 +780,38 @@ async function main() {
 
   // Read *after* the gestures, so what is printed is what the interaction
   // produced rather than whatever the page did while loading.
+  // `--hover X,Y[;X,Y…]` moves the mouse to each point in turn, pressing
+  // nothing, and prints the cursor the page set there. A cursor is decided by
+  // hovering and shows nowhere in a screenshot, so this is the only way to ask
+  // what a reader's pointer turns into over a splitter or a grip. Moved twice, a
+  // pixel apart, because the page learns the input is a mouse from the first
+  // movement and a cursor gated on that appears from the second.
+  //
+  // What is read is the cursor of the deepest element under the point, which is
+  // the one the browser draws. Compose keeps its canvas inside a shadow root, so
+  // `document.querySelector('canvas')` finds nothing, and `elementFromPoint`
+  // stops at the shadow host unless each root is asked in turn.
+  const hoverAt = arg('hover', null)
+  if (hoverAt) {
+    console.log('')
+    for (const point of hoverAt.split(';')) {
+      const [x, y] = point.split(',').map(Number)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x - 1, y }, sessionId)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId)
+      await wait(250)
+      const cursor = await evaluate(`(() => {
+        let el = document.elementFromPoint(${x}, ${y})
+        while (el && el.shadowRoot) {
+          const inner = el.shadowRoot.elementFromPoint(${x}, ${y})
+          if (!inner || inner === el) break
+          el = inner
+        }
+        return el ? el.tagName.toLowerCase() + ' ' + getComputedStyle(el).cursor : 'nothing'
+      })()`)
+      console.log(`hover ${x},${y}  -> ${cursor}`)
+    }
+  }
+
   const expression = arg('eval', null)
   if (expression) {
     const value = await evaluate(`JSON.stringify(${expression})`)

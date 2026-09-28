@@ -1,5 +1,7 @@
 package io.kontour.ui.components.display
 
+import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -50,19 +53,18 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
 
-/** How serious a [Banner] is. Ports the four severities from `home`'s `StatusBanner`. */
-enum class BannerTone { Info, Success, Warning, Danger, Accent }
 
 /**
  * An inline message about the state of something.
  *
  * ```
- * Banner(tone = BannerTone.Warning, onDismissRequest = viewModel::dismissAlert) {
+ * Banner(tone = Tone.Warning, onDismissRequest = viewModel::dismissAlert) {
  *     leading { +Tabler.Outline.AlertTriangle }
  *     title { +"Delays on the Armadale line" }
- *     supporting { +"Services are running up to 12 minutes late." }
+ *     message { +"Services are running up to 12 minutes late." }
  *     action { Button(onClick = ::showDetail) { +"View details" } }
  * }
  * ```
@@ -73,20 +75,24 @@ enum class BannerTone { Info, Success, Warning, Danger, Accent }
  * response to a tap is easy to miss, because the user is looking at their finger.
  *
  * A banner is a live region, so it is read out when it appears.
- * [BannerTone.Danger] announces assertively and everything else politely —
+ * [Tone.Danger] announces assertively and everything else politely —
  * interrupting for a routine notice trains people to ignore the interruption.
  *
  * A `leading` icon is strongly recommended, and a distinct one per tone: a tone
  * read purely as hue fails WCAG 1.4.1 and is invisible to the most common form
  * of colour blindness. `action` renders below the message — "Retry", "View
  * details".
+ *
+ * @param dismissIcon The dismiss button's glyph, drawn whenever there is an
+ *   [onDismissRequest]. A close cross by default. It defaulted to `null`, which
+ *   left a banner that could be dismissed with nothing on it to dismiss it by.
  */
 @Composable
 fun Banner(
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Info,
+    tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = null,
+    dismissIcon: ImageVector? = SystemIcons.Close,
     dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
@@ -98,7 +104,7 @@ fun Banner(
         modifier = modifier
             .fillMaxWidth()
             .semantics {
-                liveRegion = if (tone == BannerTone.Danger) {
+                liveRegion = if (tone == Tone.Danger) {
                     LiveRegionMode.Assertive
                 } else {
                     LiveRegionMode.Polite
@@ -201,22 +207,25 @@ fun Banner(
 fun AnimatedBanner(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Info,
+    tone: Tone = Tone.Info,
     onDismissRequest: (() -> Unit)? = null,
-    dismissIcon: ImageVector? = null,
+    dismissIcon: ImageVector? = SystemIcons.Close,
+    dismissLabel: String = Theme.strings.dismiss,
     content: BannerScope.() -> Unit,
 ) {
     val motion = Theme.motion
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(motion.tweenFast()) + expandVertically(motion.tweenDefault()),
-        exit = fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenDefault()),
+        // Under reduced motion the banner takes its room at once and fades.
+        enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenDefault())),
+        exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenDefault())),
     ) {
         Banner(
             modifier = modifier,
             tone = tone,
             onDismissRequest = onDismissRequest,
             dismissIcon = dismissIcon,
+            dismissLabel = dismissLabel,
             content = content,
         )
     }
@@ -244,19 +253,22 @@ fun AnimatedBanner(
  * glyph.
  *
  * @param tone Which of the five, and it decides the ground, the border, the text
- *   colour and the icon together. [BannerTone.Accent] by default, which is the
+ *   colour and the icon together. [Tone.Accent] by default, which is the
  *   neutral aside a blockquote becomes.
  * @param icon The mark. Defaults to the tone's own — unlike [Banner], which makes
  *   the caller choose, because a callout often has no caller: a documentation
  *   site turns every markdown blockquote into one. Null for a callout that is
  *   tint alone.
+ * @param content The aside, in the callout's small body style and the tone's
+ *   colour: `Callout { +"Fares are capped at $5.20 a day." }`, as a [Banner]
+ *   takes its message.
  */
 @Composable
 fun Callout(
     modifier: Modifier = Modifier,
-    tone: BannerTone = BannerTone.Accent,
-    icon: ImageVector? = calloutIcon(tone),
-    content: @Composable () -> Unit,
+    tone: Tone = Tone.Accent,
+    icon: ImageVector? = CalloutDefaults.icon(tone),
+    content: @Composable ContentScope.() -> Unit,
 ) {
     val colours = bannerColoursFor(tone)
     val shape = Theme.shapes.container
@@ -285,10 +297,20 @@ fun Callout(
                 )
             }
             ProvideTextStyle(Theme.typography.bodySmall) {
-                Box(Modifier.weight(1f)) { content() }
+                Box(Modifier.weight(1f)) { ContentSlot(content = content) }
             }
         }
     }
+}
+
+/** What a [Callout] takes by default. */
+object CalloutDefaults {
+    /**
+     * The mark for [tone]: the tone's own glyph, and the info mark for the two
+     * tones that are notes rather than states.
+     */
+    @Composable
+    fun icon(tone: Tone): ImageVector = toneIcon(tone)
 }
 
 /**
@@ -298,32 +320,43 @@ fun Callout(
  * the things it decides, alongside the ground and the border in
  * [bannerColoursFor].
  */
-@Composable
-private fun calloutIcon(tone: BannerTone): ImageVector = when (tone) {
-    BannerTone.Info -> SystemIcons.Info
-    BannerTone.Success -> SystemIcons.Success
-    BannerTone.Warning -> SystemIcons.Warning
-    BannerTone.Danger -> SystemIcons.Danger
+private fun toneIcon(tone: Tone): ImageVector = when (tone) {
+    Tone.Neutral -> SystemIcons.Info
+    Tone.Info -> SystemIcons.Info
+    Tone.Success -> SystemIcons.Success
+    Tone.Warning -> SystemIcons.Warning
+    Tone.Danger -> SystemIcons.Danger
     // The same glyph as `Info`, deliberately. The two differ in emphasis rather
     // than in kind — an accent aside is a note in the brand's colour and an info
     // one is a note in the informational colour — and inventing a second mark to
     // keep them apart would be signalling a difference the component does not
     // have. This is the tone a markdown blockquote becomes, and "here is a note"
     // is what it means.
-    BannerTone.Accent -> SystemIcons.Info
+    Tone.Accent -> SystemIcons.Info
 }
 
-
 @Composable
-private fun bannerColoursFor(tone: BannerTone): StatusColours = when (tone) {
-    BannerTone.Info -> Theme.colours.info
-    BannerTone.Success -> Theme.colours.success
-    BannerTone.Warning -> Theme.colours.warning
-    BannerTone.Danger -> Theme.colours.danger
+private fun bannerColoursFor(tone: Tone): StatusColours = when (tone) {
+    // A banner that is only information about the screen, in the surface's own
+    // tones: the ground a sunken panel has, the hairline every card has, and the
+    // ordinary text colour on it.
+    Tone.Neutral -> Theme.colours.let {
+        StatusColours(
+            solid = it.surfaceInverse,
+            onSolid = it.onSurfaceInverse,
+            container = it.surfaceSunken,
+            onContainer = it.content,
+            border = it.outline,
+        )
+    }
+    Tone.Info -> Theme.colours.info
+    Tone.Success -> Theme.colours.success
+    Tone.Warning -> Theme.colours.warning
+    Tone.Danger -> Theme.colours.danger
     // Reachable at all only because `accent` is a `StatusColours` now. As four
     // loose fields it had no `border`, so a banner could not have been built
     // out of it without inventing one here.
-    BannerTone.Accent -> Theme.colours.accent
+    Tone.Accent -> Theme.colours.accent
 }
 
 /**
@@ -391,6 +424,7 @@ private fun BannerBody(
 
 private enum class BannerSlot { Text, Action }
 
+/** What a [Banner] takes by default. */
 object BannerDefaults {
     /**
      * How much of the width the text keeps before the action is sent below it.

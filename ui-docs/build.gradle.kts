@@ -120,8 +120,8 @@ val generateApiTables = tasks.register("generateApiTables") {
         // A *set* per name, because a simple name is not unique across packages
         // and picking one arbitrarily would send a reader to the wrong page
         // while looking exactly like a working link. There is one such name
-        // today — `shape`, an extension of `ButtonGroupPosition` in one package
-        // and of `ListItemPosition` in another — and it is dropped rather than
+        // today — `shape`, an extension of `GroupPosition` in one package
+        // and of `GroupPosition` in another — and it is dropped rather than
         // guessed at. Ambiguity falls back to the reference's index, which has
         // a search box.
         val referencePaths = sortedMapOf<String, MutableSet<String>>()
@@ -372,7 +372,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 // One region for the tests
 // ---------------------------------------------------------------------------
 //
-// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// `LocaleFormats` resolves from the platform's locale now — that is the whole
 // of the "dates are backwards in the US" fix — which makes every calendar and
 // every clock in the suite a function of the machine it runs on. A golden
 // recorded in one region is not a golden, and an assertion about "9 Jun" is a

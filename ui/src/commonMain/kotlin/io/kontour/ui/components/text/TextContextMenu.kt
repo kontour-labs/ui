@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.theme.Theme
 
 /** What a secondary press asked for: which field, and where the pointer was. */
 internal class TextMenuRequest(
@@ -74,7 +75,31 @@ internal val LocalTextContextMenu = compositionLocalOf<((TextMenuRequest) -> Uni
  * web runtime swallows the platform menu, and no secondary press appears to
  * reach this handler. Where exactly it is lost is not established, and inventing
  * an answer is how a round of repeats gets started. Desktop is fixed; the web
- * half of C9a is open, with the measurement that will start the next attempt.
+ * half of C9a is open.
+ *
+ * ### The next attempt is two one-line probes, and they are written down here
+ *
+ * Because `prevented` is the interesting half. Something calls `preventDefault`
+ * on that `contextmenu`, and the only candidate is the runtime's own canvas
+ * handler — so the press reaches Compose and is lost *after* that, in the
+ * mapping from a DOM mouse event to a `PointerEvent`. Two things in the
+ * condition below can swallow it, and one build separates them:
+ *
+ * - **Widen the button.** Drop the `isSecondaryPressed` line and open the menu
+ *   on any press caught on `Initial`. If a *left* click now opens it, the pass
+ *   is fine and `buttons` is not carrying the secondary bit.
+ * - **Move the pass.** Keep `isSecondaryPressed` and take the event on
+ *   [PointerEventPass.Main]. If that opens it, the button is fine and the
+ *   Initial pass is not running for this event.
+ *
+ * Either outcome names a line. Neither is a guess about a fix, which is the
+ * mistake this comment exists to stop being made twice.
+ *
+ * Driving it needs the built site — `:ui-docs:wasmJsBrowserDistribution`,
+ * `docs/lay-out-site.py`, then
+ * `node docs/measure-web.mjs --dist site --path '#/components/text-field'
+ * --right-click X,Y --screenshot after.png`, with `--click` instead for the
+ * first probe.
  */
 @Composable
 internal fun TextContextMenuHost(content: @Composable () -> Unit) {
@@ -94,11 +119,9 @@ internal fun TextContextMenuHost(content: @Composable () -> Unit) {
 
     CompositionLocalProvider(LocalTextContextMenu provides opener) { content() }
 
-    val labels = textToolbarLabels()
     TextContextMenu(
         request = request,
         open = open,
-        labels = labels,
         onDismissRequest = { open = false },
     )
 }
@@ -108,9 +131,10 @@ internal fun TextContextMenuHost(content: @Composable () -> Unit) {
 private fun TextContextMenu(
     request: TextMenuRequest?,
     open: Boolean,
-    labels: TextToolbarLabels,
     onDismissRequest: () -> Unit,
 ) {
+    // The theme's words, which an app that has localised them has already set.
+    val strings = Theme.strings
     // `LocalClipboardManager` rather than `LocalClipboard`, deliberately and
     // with the deprecation suppressed. The replacement is suspending and carries
     // a `ClipEntry` that is a platform type with no common way to build one from
@@ -129,25 +153,24 @@ private fun TextContextMenu(
         val selection = state.selection
         val selected = !selection.collapsed
 
-        // Absent rather than disabled, the same rule the selection toolbar
-        // follows: a greyed-out "Cut" over no selection tells the user nothing
-        // they can act on, and four permanent rows make the two that apply
-        // harder to hit.
+        // Absent rather than disabled: a greyed-out "Cut" over no selection
+        // tells the user nothing they can act on, and four permanent rows make
+        // the two that apply harder to hit.
         if (selected && asked.editable) {
-            item(labels.cut) {
+            item(strings.cut) {
                 clipboard.setText(AnnotatedString(state.selectedText()))
                 state.edit { replace(selection.min, selection.max, "") }
                 onDismissRequest()
             }
         }
         if (selected) {
-            item(labels.copy) {
+            item(strings.copy) {
                 clipboard.setText(AnnotatedString(state.selectedText()))
                 onDismissRequest()
             }
         }
         if (asked.editable) {
-            item(labels.paste) {
+            item(strings.paste) {
                 val pasted = clipboard.getText()?.text
                 if (!pasted.isNullOrEmpty()) {
                     state.edit { replace(selection.min, selection.max, pasted) }
@@ -156,7 +179,7 @@ private fun TextContextMenu(
             }
         }
         if (state.text.isNotEmpty()) {
-            item(labels.selectAll) {
+            item(strings.selectAll) {
                 state.edit { this.selection = TextRange(0, length) }
                 onDismissRequest()
             }

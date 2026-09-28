@@ -2,6 +2,7 @@
 
 | | For | Instead of |
 |---|---|---|
+| [`ActivityCalendar`](activity-calendar.md) | A year of activity, a shade a day | A chart, when the shape of each day matters |
 | [`CalendarMonth`](calendar-month.md) | Building your own picker | A picker, unless you need the grid |
 | [`DatePicker`](date-picker.md) | One date | — |
 | [`DateRangePicker`](date-range-picker.md) | A start and an end | Two `DatePicker`s |
@@ -9,4 +10,4 @@
 | [`TimeField`](time-field.md) | The tappable field that opens one | — |
 | [`WheelPicker`](wheel-picker.md) | Any list of values, as a drum | A `Select`, in a form |
 | [`RelativeTimeText`](relative-time-text.md) | A self-updating "in 4 min" | A formatted timestamp |
-| [`DateTimeFormats`](date-time-formats.md) | 12/24-hour and day-first, app-wide | Per-call-site formatting |
+| [`LocaleFormats`](locale-formats.md) | Numbers, dates, clocks and plurals, app-wide | Per-call-site formatting |

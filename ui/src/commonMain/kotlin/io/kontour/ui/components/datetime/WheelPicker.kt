@@ -1,13 +1,28 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationConstants
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,21 +31,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -39,12 +55,17 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.rememberRubberBand
@@ -69,9 +90,9 @@ import kotlinx.coroutines.launch
  * ```
  * WheelPicker(
  *     items = (0..23).toList(),
- *     selected = hour,
- *     onSelectedChange = { hour = it },
- *     label = { it.toString().padStart(2, '0') },
+ *     selectedIndex = hour,
+ *     onSelectedIndexChange = { hour = it },
+ *     itemLabel = { it.toString().padStart(2, '0') },
  * )
  * ```
  *
@@ -95,12 +116,23 @@ import kotlinx.coroutines.launch
 @Composable
 fun <T> WheelPicker(
     items: List<T>,
-    selected: Int,
-    onSelectedChange: (Int) -> Unit,
-    label: (T) -> String,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    itemLabel: (T) -> String,
     modifier: Modifier = Modifier,
-    visibleItems: Int = 5,
-    itemHeight: Dp = 40.dp,
+    /**
+     * Whether the drum can be turned. Disabled, it shows its value in the
+     * disabled content colour and answers no drag, tap or wheel.
+     */
+    enabled: Boolean = true,
+    /**
+     * What the drum is a choice of — "Hour", "Departure time" — for a screen
+     * reader, which otherwise hears only the value. A drum under a visible label
+     * that says it may leave this null.
+     */
+    contentDescription: String? = null,
+    visibleItems: Int = WheelPickerDefaults.VisibleItems,
+    itemHeight: Dp = WheelPickerDefaults.ItemHeight,
     infinite: Boolean = false,
 ) {
     require(visibleItems % 2 == 1) {
@@ -121,10 +153,12 @@ fun <T> WheelPicker(
     if (infinite) {
         InfiniteWheel(
             items = items,
-            selected = selected,
-            onSelectedChange = onSelectedChange,
-            label = label,
+            selected = selectedIndex,
+            onSelectedChange = onSelectedIndexChange,
+            label = itemLabel,
             modifier = modifier,
+            enabled = enabled,
+            contentDescription = contentDescription,
             visibleItems = visibleItems,
             itemHeight = itemHeight,
         )
@@ -147,25 +181,223 @@ fun <T> WheelPicker(
     // Shared arithmetic with the sheet, whose own overshoot was measured and
     // written first — see `RubberBand`.
     val band = rememberRubberBand()
+    // **Home the moment the finger lets go, and there.** A finger that carries the
+    // drum past its end is the commonest way to reach one on a short drum — a
+    // flick on the two-row AM/PM drum is longer than its one row of travel — and
+    // that stretch was released on `springGentle`, which is critically damped at
+    // a low stiffness: it spent the last dozen pixels creeping, and the row sat
+    // off centre for a fifth of a second after it had visibly arrived. Reported
+    // as "settles, then sort of moves up just a little bit" — and it was there
+    // through three changes to the bounce, because it is not the bounce.
+    //
+    // Stiff and critically damped instead: it sets off at once, as a released
+    // stretch does, never passes home, and is within half a pixel in well under
+    // a fifth of a second, where it is placed.
+    val homeSpec = remember(wheelMotion) {
+        spring(dampingRatio = 1f, stiffness = wheelMotion.springSnappy.stiffness, visibilityThreshold = ArrivalSlopPx)
+    }
+    // A bounce's way home starts from where it stopped, at rest, so it eases out
+    // of the turn as well as into home.
+    val turnSpec = remember { tween<Float>(durationMillis = BounceHomeMillis, easing = FastOutSlowInEasing) }
     val bandLimit = with(LocalDensity.current) { (itemHeight * WheelOverscrollRows).toPx() }
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selected)
-    val flingBehavior = rememberSnapFlingBehavior(listState)
-    val ticker = rememberDetentTicker()
-    val currentOnSelect by rememberUpdatedState(onSelectedChange)
+    val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val decay = rememberSplineBasedDecay<Float>()
+    // The list's own snapping, with an approach that arrives. Foundation's default
+    // is a soft spring whose last few pixels take a fifth of a second, and on a
+    // drum with the value's word in the band that reads as settling off centre and
+    // then moving.
+    val snapFling = remember(listState, decay, wheelMotion) {
+        snapFlingBehavior(
+            snapLayoutInfoProvider = SnapLayoutInfoProvider(listState, SnapPosition.Center),
+            decayAnimationSpec = decay,
+            snapAnimationSpec = spring(
+                dampingRatio = 1f,
+                stiffness = wheelMotion.springSnappy.stiffness,
+                visibilityThreshold = ArrivalSlopPx,
+            ),
+        )
+    }
+    val lastIndex by rememberUpdatedState(items.lastIndex)
 
-    // The item under the centre line is the first visible one, because the list
-    // is padded by exactly `edgeItems` rows at each end.
-    // Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
-    // and unlike this one until now. An unkeyed `remember` holds the *first*
-    // lambda, so this clamped against the `items` it was composed with while
-    // everything else read the current one — a list of five filtered down to one
-    // still produced a centred index of four, and the next `items[centredIndex]`
-    // threw. The two were written together and only one of them got the key.
-    val centredIndex by remember(items.size) {
+    /**
+     * The list's own snapping fling, and a bounce where it would run off an end.
+     *
+     * A flick hard enough to reach the first or last row stopped dead against it:
+     * the list cannot scroll past its end and dropped whatever speed was left.
+     * Asked for from a phone, "add bounce-back animation when flicking to end" —
+     * which is what a drum does on iOS.
+     *
+     * So a fling the decay would carry past an end is run here instead: the decay
+     * to the end, and the speed it arrives with thrown into the band, which goes
+     * out and springs back. A fling that stays inside the drum is the snap's, as
+     * before. Nothing moves the value: the band is drawn, and the drum rests on
+     * the end row it reached.
+     */
+    val flingBehavior = remember(snapFling, decay, band, bandLimit, itemPx, wheelMotion) {
+        object : FlingBehavior {
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                // A drum at rest with a row off the band is a drum showing the
+                // wrong thing. The fling above ends on the end row by
+                // construction; this is what makes that a guarantee rather than
+                // an expectation.
+                suspend fun ScrollScope.settleOnARow() {
+                    val off = listState.firstVisibleItemScrollOffset.toFloat()
+                    if (off == 0f) return
+                    val by = if (off > itemPx / 2f) itemPx - off else -off
+                    // A pixel is placed, not travelled: easing it in would be the
+                    // creep this is here to prevent.
+                    if (abs(by) <= 1f) {
+                        scrollBy(by)
+                        return
+                    }
+                    var moved = 0f
+                    animate(0f, by, animationSpec = tween(BounceHomeMillis, easing = FastOutSlowInEasing)) { value, _ ->
+                        scrollBy(value - moved)
+                        moved = value
+                    }
+                }
+
+                // A stretch the finger opened is the finger's, and is being
+                // released as this starts; and a bounce is motion reduced motion
+                // does without.
+                if (wheelMotion.reduceMotion || band.stretched || initialVelocity == 0f) {
+                    return with(snapFling) { performFling(initialVelocity) }.also { settleOnARow() }
+                }
+                // Rows from the far end the fling is heading for. What the list
+                // cannot use is swallowed above rather than handed back, so
+                // `scrollBy` reports everything consumed and the end is found by
+                // where the drum is instead.
+                fun room(): Float {
+                    val turned = listState.firstVisibleItemIndex * itemPx + listState.firstVisibleItemScrollOffset
+                    return if (initialVelocity > 0f) lastIndex * itemPx - turned else turned
+                }
+                if (abs(decay.calculateTargetValue(0f, initialVelocity)) <= room()) {
+                    return with(snapFling) { performFling(initialVelocity) }.also { settleOnARow() }
+                }
+                var arrival = 0f
+                var past = 0f
+                var arrivedAt = AnimationConstants.UnspecifiedTime
+                var travelled = 0f
+                AnimationState(0f, initialVelocity).animateDecay(decay) {
+                    val step = value - travelled
+                    val before = room()
+                    scrollBy(step)
+                    travelled = value
+                    // At the end by where the list *is*, so the drum always comes
+                    // to rest on its end row, whatever took a share of the scroll
+                    // on the way.
+                    if (room() < ArrivalSlopPx) {
+                        // What this frame's step had no room for, and when: the
+                        // band takes up from here, in this frame, rather than the
+                        // drum stopping on its end row first. See `carryOn`.
+                        past = (abs(step) - before).coerceAtLeast(0f)
+                        arrival = velocity
+                        arrivedAt = lastFrameTimeNanos
+                        cancelAnimation()
+                    }
+                }
+                // Out the way the drum was going: a list scrolling forward moves
+                // its rows up, and the band's offset is a downward translation.
+                //
+                // Out on a critically damped spring until its speed is spent, and
+                // home on an ease that arrives at exactly nothing — see `carryOn`
+                // for the three single springs that did not.
+                if (arrival != 0f) {
+                    band.carryOn(
+                        past = past,
+                        velocity = -arrival,
+                        limit = bandLimit,
+                        spec = spring(dampingRatio = 1f, stiffness = wheelMotion.springDefault.stiffness),
+                        sinceNanos = arrivedAt,
+                        back = turnSpec,
+                    )
+                }
+                // Whatever happened on the way, a drum rests on a row.
+                settleOnARow()
+                return 0f
+            }
+        }
+    }
+    val ticker = rememberDetentTicker()
+
+    // **Running out of hours reports nothing now, and this was the strongest
+    // case for keeping one.**
+    //
+    // There was a `FeedbackIntent.Reject` here — the heaviest thing in the
+    // library short of a destructive warning — on the argument that a drum is
+    // turned without being looked at, so the end of the list is the one wall the
+    // eye is genuinely not getting. The argument survives and the report does
+    // not. End stops are for a range run into mid-drag — a slider's, a knob's,
+    // a colour track's, where the value stops changing and nothing else says so.
+    // A drum is told about every row it crosses already, so the row it stops on
+    // is not news, and the drum still stretches and springs back at its ends.
+    val currentOnSelect by rememberUpdatedState(onSelectedIndexChange)
+
+    /**
+     * Whether the drum is being turned by this component rather than by a finger.
+     *
+     * `reset()` is enough where the move is a *jump* — `scrollToItem` produces
+     * exactly one emission and the re-arm swallows exactly it, which is how the
+     * caller-driven path below works. A tap animates, and an animation crosses
+     * every row between here and there, so one re-arm would swallow the first and
+     * report the rest: tapping four rows down would buzz three times for a
+     * gesture that crossed nothing under the finger.
+     *
+     * There is no state on `LazyListState` that answers this — `animateScrollToItem`
+     * sets `isScrollInProgress` exactly as a fling does, which is the distinction
+     * the infinite drum below gets for free because its animation runs on an
+     * `Animatable` and its gestures run on a `scrollableState`.
+     */
+    var driving by remember { mutableStateOf(false) }
+
+    /**
+     * The row in the highlight band: the one whose centre is nearest the drum's.
+     *
+     * **This used to round up.** It was `firstVisibleItemIndex` plus one whenever
+     * `firstVisibleItemScrollOffset` was anything but exactly zero — on the
+     * premise that the first visible row *is* the centred one, because the list
+     * is padded by exactly `edgeItems` rows at each end. The premise is right and
+     * the correction was not: applied past *any* fraction of a row rather than
+     * past half of one, so a drum a pixel off a boundary reported the row below
+     * the one the eye can see in the band.
+     *
+     * Reported from a phone, on the two-item AM/PM drum in `TimePicker`, and that
+     * is the worst case for a reason. A list of `n` rows has exactly `(n - 1)`
+     * rows of travel, so two items give **one** row of it — and `> 0` is true
+     * across essentially the whole range. The wheel said `PM` everywhere except
+     * pixel-exact zero, `TimePicker` committed it, and then `selectedIndex` and
+     * `centredIndex` agreed with each other so the corrective effect below
+     * declined to fix anything. Sharper still on the mouse path: `onDragStopped`
+     * animates to this value, so letting go near `AM` travelled back to `PM`.
+     *
+     * Nearest-centre rather than better arithmetic, because that is robust to the
+     * things arithmetic is not: the content padding, a fractional density leaving
+     * a pixel of snap residue, a partial row at an edge. `Carousel.currentPage`
+     * solved the same problem the same way and says so — *"that index changes the
+     * instant a single pixel of the next page appears"* — and `InfiniteWheel`
+     * below has always rounded to nearest, so the two drums now agree by
+     * construction instead of by accident.
+     *
+     * Keyed on the list, like `InfiniteWheel`'s version two hundred lines below
+     * and unlike this one until now. An unkeyed `remember` holds the *first*
+     * lambda, so this clamped against the `items` it was composed with while
+     * everything else read the current one — a list of five filtered down to one
+     * still produced a centred index of four, and the next `items[centredIndex]`
+     * threw. The two were written together and only one of them got the key.
+     */
+    val centredIndex by remember(listState, items.size) {
         derivedStateOf {
-            (listState.firstVisibleItemIndex +
-                if (listState.firstVisibleItemScrollOffset > 0) 1 else 0)
-                .coerceIn(0, items.lastIndex)
+            val info = listState.layoutInfo
+            val centre = (info.viewportStartOffset + info.viewportEndOffset) / 2
+            val nearest = info.visibleItemsInfo
+                .minByOrNull { abs((it.offset + it.size / 2) - centre) }
+                ?.index
+            // Nothing measured yet — the first composition, before layout. The
+            // list's own answer is the best there is, and it is the right one at
+            // rest.
+                ?: listState.firstVisibleItemIndex
+            nearest.coerceIn(0, items.lastIndex)
         }
     }
 
@@ -179,19 +411,22 @@ fun <T> WheelPicker(
     // which is the same guard six other components already share.
     LaunchedEffect(listState) {
         snapshotFlow { centredIndex }.collect { index ->
-            ticker.at(index)
+            // Re-armed rather than ignored while this component is driving, so
+            // the next real drag does not fire for the row it starts on — the
+            // same reasoning as the caller-driven path below.
+            if (driving) ticker.reset() else ticker.at(index)
             currentOnSelect(index)
         }
     }
 
-    LaunchedEffect(selected) {
-        if (selected != centredIndex && !listState.isScrollInProgress) {
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != centredIndex && !listState.isScrollInProgress) {
             // Re-armed rather than left ticking: the drum is being turned by the
             // caller, and a value set from code is not a detent a finger crossed.
             // `scrollToItem` jumps, so exactly one emission follows and the
             // re-arm swallows exactly it.
             ticker.reset()
-            listState.scrollToItem(selected)
+            listState.scrollToItem(selectedIndex)
         }
     }
 
@@ -259,7 +494,9 @@ fun <T> WheelPicker(
                 // the end of the list arriving under a finger still travelling.
                 // A finger only: a settling animation running out of list is
                 // the drum putting itself straight, not something to stretch.
-                if (source == NestedScrollSource.UserInput) band.pull(available.y, bandLimit)
+                if (source == NestedScrollSource.UserInput) {
+                    band.pull(available.y, bandLimit)
+                }
 
                 // Swallowed whoever it came from, which is a separate question
                 // from who gets to stretch the band. A page that scrolls
@@ -275,7 +512,7 @@ fun <T> WheelPicker(
                 // Launched rather than awaited for that reason: this function
                 // suspends until the whole settle is over, and a band that
                 // waits for it is a band that hangs open for half a second.
-                scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
+                scope.launch { band.release(homeSpec) }
                 return Velocity.Zero
             }
 
@@ -283,6 +520,82 @@ fun <T> WheelPicker(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity = available
+        }
+    }
+
+    /**
+     * How far a row is from the highlight band, in rows, at this instant.
+     *
+     * A lambda read from `graphicsLayer` rather than a value read in
+     * composition, which is the whole of this. The rows used to take
+     * `abs(index - centredIndex)` while they were being composed and hang two
+     * layers off it — an `alpha` and a `scale` — so every row the drum crossed
+     * recomposed every row on screen. Fourteen rows of text, per row, for a
+     * gesture that changed no text at all: a flick through two hundred years is
+     * what that costs, and it was reported as exactly that.
+     *
+     * Read here it is a draw-phase read: the layer re-records and nothing
+     * recomposes. The rest of the library already works this way and says so —
+     * `CalendarMonth` takes `lean = { … }` as a lambda, `OverlayAppearance` takes
+     * `progress: () -> Float` — and this was the one drum that did not.
+     *
+     * Continuous rather than whole rows, and that is a second fix riding on the
+     * first. `centredIndex` is an integer, so the finite wheel faded in steps as
+     * it turned while [InfiniteWheel] — which has always known its distance to a
+     * fraction — faded smoothly; `wheelFade`'s own comment records the two
+     * agreeing "at rest" and it was the only place they did. The list's first
+     * visible row plus its scroll offset *is* the drum's position, in rows, to a
+     * pixel, because the content padding is exactly `edgeItems` rows and every
+     * row is [itemHeight] tall.
+     *
+     * The band is subtracted because it moves the drum and not the highlight, so
+     * a drum held past its last row fades toward the row the eye can see in the
+     * band rather than the one arithmetic says should be there.
+     */
+    val drumDistance: (Int) -> Float = remember(listState, itemPx, band) {
+        { index ->
+            val turned = listState.firstVisibleItemIndex +
+                listState.firstVisibleItemScrollOffset / itemPx -
+                band.offset / itemPx
+            abs(index - turned)
+        }
+    }
+
+    /**
+     * The drum's rows, built once for a given list.
+     *
+     * `LazyColumn` compares its content lambda by identity — a fresh one is a
+     * fresh interval list, and every row on screen recomposes. A drum's
+     * `selectedIndex` is set by the caller from the drum's own `onSelectedIndexChange`, so
+     * a turn arrives back here as a changed argument once per row crossed, and
+     * a lambda written inline at the call site below would be rebuilt each time:
+     * the composition this whole block exists to avoid, re-entered through the
+     * back door. Keyed on everything a row is made of, so nothing here can go
+     * stale.
+     */
+    val rowColour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
+    val enhanced = highContrast()
+    val rows: LazyListScope.() -> Unit = remember(items, itemLabel, itemHeight, drumDistance, rowColour) {
+        {
+            items(items.size) { index ->
+                Box(
+                    Modifier.fillMaxWidth().height(itemHeight),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = itemLabel(items[index]),
+                        style = Theme.typography.titleLarge,
+                        colour = rowColour,
+                        modifier = Modifier.graphicsLayer {
+                            val distance = drumDistance(index)
+                            val shrink = wheelShrink(distance)
+                            alpha = wheelFade(distance, enhanced)
+                            scaleX = shrink
+                            scaleY = shrink
+                        },
+                    )
+                }
+            }
         }
     }
 
@@ -316,6 +629,48 @@ fun <T> WheelPicker(
                     }
                 }
             }
+            /**
+             * Tapping a row you can see turns the drum to it.
+             *
+             * Reported as missing, and it was: the rows are bare boxes with a
+             * `Text` in them and nothing anywhere handled a click, so the only
+             * way to reach a value two rows up was to drag the drum.
+             *
+             * A `pointerInput` on the container rather than a `selectable` on each
+             * row, and the reason is the semantics tree. `selectable` would make
+             * twenty-four rows twenty-four stops for a screen reader and a
+             * keyboard, where the drum is deliberately *one* control with a state
+             * description — so the affordance a pointer wanted would have cost the
+             * two input methods that already had a working way in. This adds
+             * nothing to the tree.
+             *
+             * Which row is worked out from where the tap landed rather than from
+             * hit-testing, for the same reason the rows' fade is: the centre row
+             * is at the container's middle by construction, every row is
+             * `itemHeight` tall, and one division is cheaper and more robust than
+             * twenty-four position callbacks.
+             *
+             * Above the list in the chain, so it runs after the list on the main
+             * pass and sees only a press the list declined — which a tap is,
+             * since the list claims a gesture once it travels.
+             */
+            .pointerInput(items.size, itemPx, enabled) {
+                if (!enabled) return@pointerInput
+                detectTapGestures { at ->
+                    val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
+                    val target = (centredIndex + rows).coerceIn(0, items.lastIndex)
+                    if (target == centredIndex) return@detectTapGestures
+                    scope.launch {
+                        driving = true
+                        try {
+                            // A turn nobody's finger is making: at once under reduced motion.
+                            listState.scrollToItem(target, wheelMotion)
+                        } finally {
+                            driving = false
+                        }
+                    }
+                }
+            }
             // Above the drag and the list, so it sees what either of them
             // declined and the page above sees neither.
             .nestedScroll(containment)
@@ -335,11 +690,12 @@ fun <T> WheelPicker(
                     if (leftOver != 0f) band.pull(leftOver, bandLimit)
                 },
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // The list's own fling snaps; a raw drag has to be given back
                 // to the nearest row itself, or the drum is left between two.
                 onDragStopped = {
-                    scope.launch { band.release(wheelMotion.springOrTween(wheelMotion.springGentle)) }
-                    scope.launch { listState.animateScrollToItem(centredIndex) }
+                    scope.launch { band.release(homeSpec) }
+                    scope.launch { listState.scrollToItem(centredIndex, wheelMotion) }
                 },
             ),
         contentAlignment = Alignment.Center,
@@ -353,12 +709,16 @@ fun <T> WheelPicker(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .clip(Theme.shapes.medium)
-                .background(Theme.colours.surfaceTrack)
+                .background(Theme.colours.surfaceSunken)
+                // The band says which row is chosen; at the enhanced tier it
+                // needs an edge to say it at all.
+                .optionalBorder(contrastEdge(), Theme.shapes.medium)
         )
 
         LazyColumn(
             state = listState,
             flingBehavior = flingBehavior,
+            userScrollEnabled = enabled,
             contentPadding = PaddingValues(vertical = itemHeight * edgeItems),
             // Purely visual: the band moves the drawn drum and no index, no
             // settled value and nothing the caller sees knows it happened, so
@@ -367,23 +727,7 @@ fun <T> WheelPicker(
                 .fillMaxWidth()
                 .graphicsLayer { translationY = band.offset },
         ) {
-            items(items.size) { index ->
-                val distance = abs(index - centredIndex).toFloat()
-                val fade = wheelFade(distance)
-                val shrink = wheelShrink(distance)
-
-                Box(
-                    Modifier.fillMaxWidth().height(itemHeight),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label(items[index]),
-                        style = Theme.typography.titleLarge,
-                        colour = Theme.colours.content,
-                        modifier = Modifier.alpha(fade).scale(shrink),
-                    )
-                }
-            }
+            rows()
         }
 
         // Carries the drum's value for a screen reader, and nothing else. The
@@ -392,7 +736,9 @@ fun <T> WheelPicker(
             Modifier
                 .matchParentSize()
                 .semantics {
-                    stateDescription = label(items[centredIndex])
+                    stateDescription = itemLabel(items[centredIndex])
+                    if (contentDescription != null) this.contentDescription = contentDescription
+                    if (!enabled) disabled()
                 }
         )
     }
@@ -425,6 +771,8 @@ private fun <T> InfiniteWheel(
     onSelectedChange: (Int) -> Unit,
     label: (T) -> String,
     modifier: Modifier,
+    enabled: Boolean,
+    contentDescription: String?,
     visibleItems: Int,
     itemHeight: Dp,
 ) {
@@ -466,20 +814,32 @@ private fun <T> InfiniteWheel(
     val ticker = rememberDetentTicker()
 
     /**
-     * A detent crossed by a finger, and by nothing else.
+     * The same tap-to-turn as the finite drum, by the short way round.
      *
-     * Three things move this drum and only one of them is a gesture. It appears
-     * — and `snapshotFlow` emits its current value first, so the wheel buzzed on
-     * arrival. A caller sets the value — and the spring below crosses every row
-     * between here and there, so `selected = 23` was twenty-three haptics for a
-     * line of code. It settles after a fling — half a row, after the finger has
-     * gone. Only the middle of a real drag is a detent anyone felt.
+     * No `driving` flag is needed here: this wheel's ticker is already gated on
+     * `scrollState.isScrollInProgress`, which is the finger and the fling it
+     * threw and is false for an `Animatable`. So the animation below is silent by
+     * the same rule that already silenced a caller setting the value.
      *
-     * `isScrollInProgress` is exactly that distinction on this drum: it is the
-     * `scrollable` below, which is the finger and the fling it threw, and it is
-     * false for both animations. Re-arming rather than ignoring is what keeps
-     * the next real drag from firing for the row it starts on.
+     * `shortestTurn` is not needed either, and that is worth saying because it is
+     * what the caller-driven path uses: a row the reader can *see* is, by
+     * definition, the nearest representative of its value, so the number of rows
+     * from the centre to the tap is the turn. Going through `shortestTurn` would
+     * throw that away and occasionally turn the long way past a row the finger
+     * was pointing at.
      */
+    val tapToTurn: (Offset, Float) -> Unit = { at, height ->
+        val rows = ((at.y - height / 2f) / itemPx).roundToInt()
+        if (rows != 0) {
+            scope.launch {
+                offset.animateTo(
+                    targetValue = offset.value + rows * itemPx,
+                    animationSpec = motion.springOrTween(motion.springSnappy),
+                )
+            }
+        }
+    }
+
     val scrollState = rememberScrollableState { delta ->
         // Every pixel, always. There is no end to over-scroll past, so nothing
         // is ever left over for a parent to take — which is the other half of
@@ -496,6 +856,19 @@ private fun <T> InfiniteWheel(
         delta
     }
 
+    // A detent crossed by a finger, and by nothing else.
+    //
+    // Three things move this drum and only one of them is a gesture. It appears
+    // — and `snapshotFlow` emits its current value first, so the wheel buzzed on
+    // arrival. A caller sets the value — and the spring below crosses every row
+    // between here and there, so `selected = 23` was twenty-three haptics for a
+    // line of code. It settles after a fling — half a row, after the finger has
+    // gone. Only the middle of a real drag is a detent anyone felt.
+    //
+    // `isScrollInProgress` is exactly that distinction on this drum: it is the
+    // `scrollable` below, which is the finger and the fling it threw, and it is
+    // false for both animations. Re-arming rather than ignoring is what keeps
+    // the next real drag from firing for the row it starts on.
     LaunchedEffect(items.size) {
         snapshotFlow { centredIndex }.collect { index ->
             if (scrollState.isScrollInProgress) ticker.at(index) else ticker.reset()
@@ -516,6 +889,21 @@ private fun <T> InfiniteWheel(
 
     val halfVisible = visibleItems / 2
     val rows = visibleItems + 2
+    val enhanced = highContrast()
+
+    /**
+     * The topmost row laid out: a whole number, so composition follows the rows
+     * and not the pixels.
+     *
+     * `halfVisible + 1` back from the row at the band — one for each row above
+     * it, plus the spare entering from the top. Derived rather than read
+     * straight, because `derivedStateOf` compares its *result*: turning the drum
+     * within a row changes `offset` and does not change this, so the rows below
+     * are left alone until a row genuinely enters or leaves.
+     */
+    val first by remember(itemPx, halfVisible) {
+        derivedStateOf { floor(offset.value / itemPx).toInt() - halfVisible - 1 }
+    }
 
     Box(
         modifier
@@ -551,6 +939,7 @@ private fun <T> InfiniteWheel(
                     scope.launch { offset.snapTo(offset.value - delta) }
                 },
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // `scrollable` settles through `isScrollInProgress`, which a
                 // drag here never touches — so this settles itself, onto the
                 // same nearest row and with the same spring.
@@ -564,10 +953,18 @@ private fun <T> InfiniteWheel(
             .scrollable(
                 state = scrollState,
                 orientation = Orientation.Vertical,
+                enabled = enabled,
                 // Reversed: dragging up turns the drum forwards, the way it does
                 // on every wheel in the library and on the platform's own.
                 reverseDirection = true,
-            ),
+            )
+            // Last in the chain and therefore outermost, so it runs after the
+            // scroll and the drag have both declined the press — see `tapToTurn`
+            // for why this is a pointer node and not a row of `selectable`s.
+            .pointerInput(items.size, itemPx, enabled) {
+                if (!enabled) return@pointerInput
+                detectTapGestures { at -> tapToTurn(at, size.height.toFloat()) }
+            },
         contentAlignment = Alignment.TopStart,
     ) {
         Box(
@@ -576,7 +973,10 @@ private fun <T> InfiniteWheel(
                 .height(itemHeight)
                 .align(Alignment.Center)
                 .clip(Theme.shapes.medium)
-                .background(Theme.colours.surfaceTrack)
+                .background(Theme.colours.surfaceSunken)
+                // The band says which row is chosen; at the enhanced tier it
+                // needs an edge to say it at all.
+                .optionalBorder(contrastEdge(), Theme.shapes.medium)
         )
 
         Column(
@@ -622,15 +1022,9 @@ private fun <T> InfiniteWheel(
                     )
                 }
         ) {
-            // Read here rather than in `offset {}` so the rows recompose only
-            // when the drum has actually turned past a row, not on every pixel.
-            val turned = offset.value / itemPx
-            val first = floor(turned).toInt() - halfVisible - 1
-
             for (row in 0 until rows) {
                 val position = first + row
                 val index = wrap(position, items.size)
-                val distance = abs(position - turned)
 
                 Box(
                     Modifier.fillMaxWidth().height(itemHeight),
@@ -639,8 +1033,23 @@ private fun <T> InfiniteWheel(
                     Text(
                         text = label(items[index]),
                         style = Theme.typography.titleLarge,
-                        colour = Theme.colours.content,
-                        modifier = Modifier.alpha(wheelFade(distance)).scale(wheelShrink(distance)),
+                        colour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled,
+                        // The row's *index* is a composition read and its
+                        // distance from the band is not — see `drumDistance` on
+                        // the finite wheel, which this now matches. The comment
+                        // that used to stand here claimed the rows recomposed
+                        // "only when the drum has actually turned past a row"
+                        // and then divided the raw offset in composition, which
+                        // is every pixel of every frame: seven rows of text
+                        // rebuilt sixty times a second for a gesture that
+                        // changes text seven times a second.
+                        modifier = Modifier.graphicsLayer {
+                            val distance = abs(position - offset.value / itemPx)
+                            val shrink = wheelShrink(distance)
+                            alpha = wheelFade(distance, enhanced)
+                            scaleX = shrink
+                            scaleY = shrink
+                        },
                     )
                 }
             }
@@ -649,7 +1058,11 @@ private fun <T> InfiniteWheel(
         Box(
             Modifier
                 .matchParentSize()
-                .semantics { stateDescription = label(items[centredIndex]) }
+                .semantics {
+                    stateDescription = label(items[centredIndex])
+                    if (contentDescription != null) this.contentDescription = contentDescription
+                    if (!enabled) disabled()
+                }
         )
     }
 }
@@ -673,12 +1086,21 @@ private fun shortestTurn(from: Int, to: Int, size: Int): Int {
  *
  * Falls away steeply: the neighbour is clearly secondary and anything two rows
  * out is barely there. Three anchors — 1, 0.45, 0.2 — interpolated rather than
- * stepped, because [InfiniteWheel] knows a row's distance to a fraction and a
- * drum that dimmed in three steps as it turned would read as a list with a
- * filter on it rather than as a curved surface. The finite wheel passes whole
- * numbers and lands exactly on the anchors, so the two look the same at rest.
+ * stepped, because a drum that dimmed in three steps as it turned would read as a
+ * list with a filter on it rather than as a curved surface.
+ *
+ * **Both drums pass fractions now.** The finite one used to hand this whole
+ * numbers — `abs(index - centredIndex)` — so it landed exactly on the anchors and
+ * stepped between them as it turned, which is the one place the two wheels did not
+ * look alike. Its distance comes off the list's scroll offset since, so at rest
+ * they still agree exactly and in motion they now agree too.
  */
-internal fun wheelFade(distance: Float): Float = when {
+internal fun wheelFade(distance: Float, enhanced: Boolean = false): Float = when {
+    // The rows either side are values the reader can scroll to, and at the
+    // enhanced tier they stay legible: 0.6 of the ink is 5.7:1 on white and 7.4
+    // on black, where the standard tier's 0.2 is barely there.
+    enhanced && distance <= 1f -> lerp(1f, 0.75f, distance)
+    enhanced -> lerp(0.75f, 0.6f, (distance - 1f).coerceAtMost(1f))
     distance <= 1f -> lerp(1f, 0.45f, distance)
     else -> lerp(0.45f, 0.2f, (distance - 1f).coerceAtMost(1f))
 }
@@ -700,3 +1122,18 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
  * same judgement the sheet makes with a twelfth of its container.
  */
 private const val WheelOverscrollRows = 1.5f
+
+/** How long a bounce takes to come home from as far as it went. */
+private const val BounceHomeMillis = 220
+
+/** How close to its end a fling has reached it: the list's own positions are whole pixels. */
+private const val ArrivalSlopPx = 0.5f
+
+/** What a [WheelPicker] takes by default. */
+object WheelPickerDefaults {
+    /** Rows in view: the one picked, and two either side of it. */
+    const val VisibleItems: Int = 5
+
+    /** One row's height. */
+    val ItemHeight: Dp = 40.dp
+}

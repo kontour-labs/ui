@@ -6,14 +6,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.Theme
 
 /**
@@ -51,7 +55,7 @@ fun Stat(
     content: StatScope.() -> Unit,
 ) {
     val slots = statSlots(content)
-    val spoken = slots.spoken()
+    val spoken = slots.spoken(Theme.strings.sentences)
 
     Column(
         modifier = modifier.semantics(mergeDescendants = true) {
@@ -88,6 +92,18 @@ fun Stat(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ProvideContentColour(slots.trendDirection.colour()) {
+                    // Good news and bad are green and red, and nothing else, at
+                    // the standard tier. At the enhanced one they get a mark of
+                    // their own ahead of the caller's content: a tick or an
+                    // alert. Decorative — the caller's words already say it.
+                    val sentiment = when (slots.trendDirection) {
+                        StatTrend.Positive -> SystemIcons.Success
+                        StatTrend.Negative -> SystemIcons.Danger
+                        StatTrend.Neutral -> null
+                    }
+                    if (highContrast() && sentiment != null) {
+                        Icon(sentiment, contentDescription = null, size = Theme.sizing.iconSmall)
+                    }
                     ProvideTextStyle(Theme.typography.labelSmall) {
                         ContentSlot(iconSize = Theme.sizing.iconSmall, content = trend)
                     }
@@ -161,6 +177,21 @@ class StatScope internal constructor() {
         label = { +text }
     }
 
+    /** The label, carrying its own spans; announced as its plain text. */
+    operator fun AnnotatedString.unaryPlus() {
+        val text = this
+        spokenLabel.append(text.text)
+        label = { +text }
+    }
+
+    /**
+     * The label as any composable — the form every collecting scope has
+     * beside `+`. Contributes nothing to the announcement; see [announcement].
+     */
+    fun label(content: @Composable ContentScope.() -> Unit) {
+        label = content
+    }
+
     /** The number itself. */
     fun value(content: @Composable ContentScope.() -> Unit) {
         value = content
@@ -206,14 +237,14 @@ class StatScope internal constructor() {
         override = spoken
     }
 
-    internal fun spoken(): String? {
+    internal fun spoken(sentences: (List<String>) -> String): String? {
         override?.let { return it }
         val parts = listOfNotNull(
             spokenLabel.toString().takeIf { it.isNotBlank() },
             spokenValue.toString().takeIf { it.isNotBlank() },
             spokenRest.toString().takeIf { it.isNotBlank() },
         )
-        return parts.joinToString(". ").takeIf { it.isNotBlank() }
+        return sentences(parts).takeIf { it.isNotBlank() }
     }
 }
 

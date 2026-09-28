@@ -88,7 +88,7 @@ class MarqueeTest {
             // Past the initial pause, so the first sample is taken while it is
             // already under way — sampling from rest would report "still" for a
             // marquee that simply had not set off yet.
-            val settled = scene.frames(framesFor(MarqueeDefaults.PauseMillis + Settle))
+            val settled = scene.frames(framesFor(MarqueeDefaults.Pause.inWholeMilliseconds.toInt() + Settle))
             val later = scene.frames(framesFor(Travel))
             return !settled.sameAs(later)
         }

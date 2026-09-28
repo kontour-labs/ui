@@ -1,5 +1,4 @@
-import org.gradle.api.artifacts.result.ResolvedComponentResult
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -17,103 +16,14 @@ plugins {
 // Publishing
 // ---------------------------------------------------------------------------
 //
-// A release is `git tag v0.2.0` and nothing else. Three sources, in this order:
-//
-//  1. `-Pkontour.version=…`, for a deliberate publish that is not a tag.
-//  2. The tag being built — and **only** a tag.
-//  3. `0.1.0-SNAPSHOT`, for everything else.
-//
-// Rule 2 used to read `GITHUB_REF_NAME` without asking what kind of ref it was,
-// which meant a branch build took the *branch name* as its version. This would
-// have published `io.kontour:ui:claude/compose-multiplatform-components-lz1c97`
-// — a coordinate with a slash in it — the first time anything ran `publish`
-// outside a tag, while the comment above it claimed a branch build was a
-// snapshot. `GITHUB_REF_TYPE` is the field that answers the question.
-//
-// The result is then checked, because the failure mode is silent: an unpublish
-// on a package registry is a support ticket, and the check costs one regex.
-//
-// Everything is read through `providers`, never `System.getenv`. The
-// configuration cache is on (`gradle.properties`), and a direct environment read
-// at configuration time is invisible to it: the cached entry would be reused
-// with last run's token baked in.
-//
-// **This publishes from Linux.** Kotlin 2.x cross-compiles Apple *klibs* — which
-// is what a library consumer resolves — so a Linux publish uploads the complete
-// set, verified by publishing locally and reading `native_targets=ios_arm64` out
-// of the klib manifest. What still needs Xcode is *linking a framework*, and
-// that happens in the consuming app, not here.
-group = "io.kontour"
-version = providers.gradleProperty("kontour.version")
-    .orElse(
-        providers.environmentVariable("GITHUB_REF_TYPE")
-            .zip(providers.environmentVariable("GITHUB_REF_NAME")) { type, name ->
-                if (type == "tag") name.removePrefix("v") else ""
-            }
-            .filter { it.isNotEmpty() }
-    )
-    .orElse("0.1.0-SNAPSHOT")
-    .map { candidate ->
-        require(Regex("""^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$""").matches(candidate)) {
-            "`$candidate` is not a publishable version. A release tag is `v1.2.3`, " +
-                "optionally with a `-rc1`-style suffix; anything else has to come " +
-                "through -Pkontour.version. This check exists because the alternative " +
-                "is noticing after the upload."
-        }
-        candidate
-    }
-    .get()
-
-/**
- * What this build would publish as.
- *
- *     ./gradlew :ui:coordinate
- *
- * The version comes from three sources with a precedence between them, and
- * without this there is no way to ask which one won short of running a publish
- * and reading the upload. That is how a branch build came to be publishable as
- * `io.kontour:ui:some/branch` unnoticed.
- */
-tasks.register("coordinate") {
-    group = "help"
-    description = "Prints the group:artifact:version this build would publish as."
-    // Captured at configuration time: a `doLast` that read `project` would hold
-    // the project reference and break the configuration cache, which is on.
-    val coordinate = "${project.group}:${project.name}:${project.version}"
-    doLast { println(coordinate) }
-}
-
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/kontour-labs/ui")
-            credentials {
-                username = providers.environmentVariable("GITHUB_ACTOR").orNull
-                password = providers.environmentVariable("GITHUB_TOKEN").orNull
-            }
-        }
-    }
-
-    publications.withType<MavenPublication>().configureEach {
-        pom {
-            name = "Kontour UI"
-            description = "A Compose Multiplatform design system built on Foundation, without Material."
-            url = "https://github.com/kontour-labs/ui"
-            licenses {
-                license {
-                    name = "Proprietary"
-                    comments = "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
-                        "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt."
-                }
-            }
-            scm {
-                url = "https://github.com/kontour-labs/ui"
-                connection = "scm:git:https://github.com/kontour-labs/ui.git"
-            }
-        }
-    }
-}
+// The version rule, the `coordinate` task, the repository and the POM, shared
+// with `:ui-nav3` so the two published modules can never disagree about which
+// release they are. The reasoning, and the history behind each rule, is with the
+// code: `buildSrc/src/main/kotlin/KontourPublishing.kt`.
+kontourPublishing(
+    displayName = "Kontour UI",
+    summary = "A Compose Multiplatform design system built on Foundation, without Material.",
+)
 
 // ---------------------------------------------------------------------------
 // The API reference
@@ -176,6 +86,28 @@ dokka {
 }
 
 kotlin {
+    // ---------------------------------------------------------------------
+    // The public API, checked in
+    // ---------------------------------------------------------------------
+    //
+    // `checkKotlinAbi` compares what this module exports with the dump under
+    // `api/`, and fails on any difference; `updateKotlinAbi` rewrites the dump.
+    // A rename that reaches a consumer is then a line in a diff a reviewer reads,
+    // rather than something noticed after a release. The Kotlin plugin's own
+    // validator, so there is no second plugin to keep in step with it.
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation {
+        // The Compose compiler's holders for lambdas with no captures. Public
+        // in the bytecode and named by a hash of each lambda, so without this
+        // any edit to a default slot would fail the check without the API
+        // having moved.
+        filters {
+            exclude {
+                byNames.add("**.ComposableSingletons**")
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Warnings are errors, in the library's own code
     // ---------------------------------------------------------------------
@@ -240,7 +172,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // Compose Foundation and nothing above it. Material is deliberately
-            // absent — see the `checkNoMaterial` task at the bottom of this file.
+            // absent — see `checkNoMaterial`, registered further down this file.
             //
             // `api`, not `implementation`: these types appear in the public API of
             // nearly every component — Modifier, Composable, Color, ImageVector —
@@ -254,7 +186,18 @@ kotlin {
 
             // Also `api`: the date/time components take LocalDate and LocalTime.
             api(libs.kotlinx.datetime)
+
+            // Also `api`: the haptics every component reports through are this
+            // module's effects, and `LocalHaptics` hands a caller its player.
+            // No Compose in it — see its build — so this adds nothing to a
+            // consumer's graph but the effects themselves.
+            api(project(":haptics"))
             implementation(libs.kotlinx.coroutines.core)
+
+            // `implementation`: the overlay host answers back through it, and
+            // no type of it appears in a public signature — `BackStyle` is
+            // this library's own word for how back looks.
+            implementation(libs.navigationevent.compose)
 
             // `implementation`: only the handful of structural glyphs in
             // `foundation/SystemIcons.kt` are used from here, and none of them
@@ -299,71 +242,12 @@ compose.resources {
 
 // ---------------------------------------------------------------------------
 // Material containment
-//
-// Commit 34862a9 removed Material from this project on purpose. The risk is not
-// that someone types `import androidx.compose.material3` — that is easy to spot
-// in review — but that a convenience library pulls it back in transitively and
-// nobody notices until the app is 400 KB heavier and two type scales deep.
-//
-// This walks the fully resolved JVM runtime graph and fails the build if any
-// Material module appears anywhere in it. One target is enough: `:ui` has no
-// per-platform dependencies, so anything that reaches Android or iOS reaches
-// the JVM classpath too.
 // ---------------------------------------------------------------------------
-val forbiddenGroups = setOf(
-    "androidx.compose.material",
-    "androidx.compose.material3",
-    "org.jetbrains.compose.material",
-    "org.jetbrains.compose.material3",
-)
-
-val jvmRuntimeGraph: Provider<ResolvedComponentResult> =
-    configurations.named("jvmRuntimeClasspath")
-        .flatMap { it.incoming.resolutionResult.rootComponent }
-
-val checkNoMaterial = tasks.register("checkNoMaterial") {
-    group = "verification"
-    description = "Fails if a Material dependency reaches the :ui classpath."
-
-    val root = jvmRuntimeGraph
-    val forbidden = forbiddenGroups
-    inputs.property("forbiddenGroups", forbidden)
-
-    doLast {
-        val visited = mutableSetOf<String>()
-        val offenders = sortedSetOf<String>()
-
-        fun walk(component: ResolvedComponentResult) {
-            if (!visited.add(component.id.displayName)) return
-            component.moduleVersion?.let { id ->
-                if (id.group in forbidden) {
-                    offenders += "${id.group}:${id.name}:${id.version}"
-                }
-            }
-            component.dependencies
-                .filterIsInstance<ResolvedDependencyResult>()
-                .forEach { walk(it.selected) }
-        }
-        walk(root.get())
-
-        if (offenders.isNotEmpty()) {
-            throw GradleException(
-                buildString {
-                    appendLine("Material reached the :ui classpath:")
-                    offenders.forEach { appendLine("  - $it") }
-                    appendLine()
-                    appendLine("The design system is built on Compose Foundation only.")
-                    appendLine("Find which dependency pulls this in with:")
-                    appendLine("  ./gradlew :ui:dependencies --configuration jvmRuntimeClasspath")
-                }
-            )
-        }
-    }
-}
-
-tasks.named("check") {
-    dependsOn(checkNoMaterial)
-}
+//
+// Fails the build if any Material module reaches the resolved JVM runtime graph.
+// Shared with `:ui-nav3`, which needs it more: see
+// `buildSrc/src/main/kotlin/MaterialContainment.kt`.
+checkNoMaterial()
 
 // ---------------------------------------------------------------------------
 // API conventions
@@ -517,6 +401,115 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     }
                 }
 
+            // A lambda parameter never takes its function's parameter's name.
+            //
+            // Renaming `RadioGroup(selected)` to `value` left `options.forEach
+            // { value -> val isSelected = value == value }` behind: it compiled,
+            // warnings-as-errors said nothing, and every option drew selected.
+            // A rename is exactly when a lambda's own name starts to collide,
+            // so this is checked rather than remembered. Same-line `{ name ->`
+            // only, which a `when` branch never is.
+            run {
+                val clean = KotlinSignatures.withoutComments(text)
+                val function = Regex("""(?m)^[ \t]*(?:[\w@]+[ \t]+)*fun[ \t]+(?:<[^>]*>[ \t]*)?(?:[\w.<>]+\.)?\w+[ \t]*\(""")
+                val lambda = Regex("""\{[ \t]*(\w+)(?:[ \t]*,[ \t]*(\w+))?[ \t]*->""")
+                function.findAll(clean).forEach { header ->
+                    val opening = header.range.last
+                    val closing = KotlinSignatures.balanced(clean, opening)
+                    val names = KotlinSignatures.parameters(clean.substring(opening + 1, closing))
+                        .map { it.name }.toSet()
+                    if (names.isEmpty()) return@forEach
+                    val brace = Regex("""^[^{=]*\{""").find(clean.substring(closing + 1))
+                        ?: return@forEach
+                    val start = closing + 1 + brace.range.last
+                    val end = KotlinSignatures.balancedBrace(clean, start)
+                    lambda.findAll(clean.substring(start + 1, end)).forEach { match ->
+                        listOfNotNull(match.groups[1]?.value, match.groups[2]?.value)
+                            .filter { it in names }
+                            .forEach { shadowed ->
+                                val at = start + 1 + match.range.first
+                                val line = clean.substring(0, at).count { it == '\n' } + 1
+                                problems += "$rel:$line :: a lambda parameter `$shadowed` shadows " +
+                                    "the function's own `$shadowed` — name it `each`, or for what it holds"
+                            }
+                    }
+                }
+            }
+
+            // Two KDoc blocks in a row. The first documents nothing — KDoc
+            // attaches to the declaration that follows it, and the one that
+            // follows the first block is the second block — so a component's
+            // own documentation went missing from the reference while reading
+            // perfectly well in the source. `KontourTheme`, `Chip`, `Kbd` and
+            // `CalendarMonth` were all caught like this at once.
+            Regex("""/\*[\s\S]*?\*/""").findAll(text).toList()
+                .zipWithNext()
+                .filter { (a, b) ->
+                    a.value.startsWith("/**") && b.value.startsWith("/**") &&
+                        text.substring(a.range.last + 1, b.range.first).isBlank()
+                }
+                .forEach { (_, b) ->
+                    val line = text.substring(0, b.range.first).count { it == '\n' } + 1
+                    problems += "$rel:$line :: two KDoc blocks in a row — the first " +
+                        "documents nothing; merge them, or make the first a `//` comment"
+                }
+
+            // The things a caller holds or starts from have a KDoc.
+            //
+            // A component's own KDoc has always been checked by its page; the
+            // state holders, their `remember` functions and the Defaults
+            // objects were not, and 51 of them reached the reference as a bare
+            // name — `rememberCarouselState` with nothing saying that the
+            // count is read lazily, `TimelineDefaults` with nothing saying it
+            // is the whole family's geometry.
+            val held = Regex(
+                """^(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:data|sealed|abstract|open|value)\s+)*""" +
+                    """(?:class|interface|object|fun)\s+(?:<[^>]*>\s*)?""" +
+                    """(\w*State|remember\w+|\w+Defaults|\w+Colours)\b(?!\.)""",
+            )
+            val lines = text.lines()
+            lines.forEachIndexed { index, line ->
+                val name = held.find(line)?.takeIf { it.range.first == 0 }?.groupValues?.get(1)
+                    ?: return@forEachIndexed
+                var above = index - 1
+                while (above >= 0 && lines[above].startsWith("@")) above--
+                if (above < 0 || !lines[above].trimEnd().endsWith("*/")) {
+                    problems += "$rel:${index + 1} :: $name has no KDoc — say what a caller " +
+                        "holds it for, or what it is the default of"
+                }
+            }
+
+            // No English in a component's body either.
+            //
+            // The rule above covers defaults. This covers the words a
+            // component announces on its own — "Hour", "AM or PM", "Page 3" —
+            // which reached a screen reader in English whatever the app's
+            // language, with no parameter to change them. A template made only
+            // of interpolations passes: it is assembling words from elsewhere.
+            if (!rel.endsWith("theme/Strings.kt")) {
+                val code = text
+                    .replace(Regex("""/\*[\s\S]*?\*/""")) { m -> "\n".repeat(m.value.count { it == '\n' }) }
+                    .replace(Regex("//[^\n]*"), "")
+                Regex("(contentDescription|stateDescription)\\s*=\\s*\"([^\"]*)\"")
+                    .findAll(code)
+                    .filter { m ->
+                        val words = m.groupValues[2]
+                            .replace(Regex("""\$\{[^}]*\}"""), "")
+                            .replace(Regex("""\$\w+"""), "")
+                        Regex("[A-Za-z]{2}").containsMatchIn(words)
+                    }
+                    .forEach { m ->
+                        val line = code.substring(0, m.range.first).count { it == '\n' } + 1
+                        problems += "$rel:$line :: `${m.groupValues[1]}` is the literal " +
+                            "\"${m.groupValues[2]}\" — put the words in `Theme.strings`"
+                    }
+            }
+
+            // Every private or internal name at the top of the file, for the
+            // defaults rule below.
+            val hiddenHere = Regex("""(?m)^(?:private|internal) (?:const )?(?:val|var|fun) (?:<[^>]*> )?(?:[\w.<>?]+\.)?(\w+)""")
+                .findAll(text).map { it.groupValues[1] }.toSet()
+
             // Every public declaration, at any indent, one line or many.
             //
             // It used to be top-level multi-line functions only — 153 of this
@@ -609,7 +602,10 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                                 // `isSelected: (LocalDate) -> Boolean` because
                                 // which dates are selected is the caller's to
                                 // decide, and that is a pair like any other.
-                                if (subject !in names && "is$noun" !in names) {
+                                // A range held as its two ends pairs too:
+                                // `DateRangePicker(start, end, onRangeChange)`.
+                                val range = noun == "Range" && "start" in names && "end" in names
+                                if (subject !in names && "is$noun" !in names && !range) {
                                     problems += "$where: `${match.value}` has no `$subject` " +
                                         "beside it — a callback named for a change is half " +
                                         "of a pair, and a notification should not borrow " +
@@ -652,6 +648,84 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                             "`${parameter.type.trim()}` — import it"
                     }
 
+                    // No fully-qualified `io.kontour` type in a signature, for the
+                    // reason `androidx.*` is banned just above: it is what the
+                    // API reference prints.
+                    params.filter { "io.kontour." in it.type }.forEach { parameter ->
+                        problems += "$where: `${parameter.name}` is typed " +
+                            "`${parameter.type.trim()}` — import it"
+                    }
+
+                    // A default a caller can read.
+                    //
+                    // A default that calls a private helper renders in the API
+                    // reference as `icon = calloutIcon(tone)`, and there is no
+                    // `calloutIcon` to call — a caller who wants the default
+                    // back after overriding it has nothing to write. Put it on
+                    // the component's Defaults object.
+                    params.forEach { parameter ->
+                        val default = parameter.default ?: return@forEach
+                        Regex("""(?<![.\w])([A-Za-z_]\w*)""").findAll(default)
+                            .map { it.groupValues[1] }
+                            .filter { it in hiddenHere && it !in names }
+                            .distinct()
+                            .forEach { hidden ->
+                                problems += "$where: `${parameter.name}` defaults through " +
+                                    "`$hidden`, which a caller cannot reach — publish it on " +
+                                    "the component's Defaults object"
+                            }
+                    }
+
+                    // Time is a `Duration`. A `Long` of milliseconds is a unit
+                    // the type does not carry, and it was how five components
+                    // disagreed about whether a delay was an `Int` or a `Long`.
+                    params
+                        .filter {
+                            it.name.endsWith("Millis") &&
+                                it.type.trim().removeSuffix("?") in setOf("Long", "Int")
+                        }
+                        .forEach { parameter ->
+                            problems += "$where: `${parameter.name}` is a " +
+                                "${parameter.type.trim()} of milliseconds — take a `Duration`"
+                        }
+
+                    // A starting value is `initial<What>`. A bare `initial`
+                    // says it is a starting value and not of what, and
+                    // `initiallyExpanded` was the one adverb among them.
+                    params
+                        .filter { it.name == "initial" || it.name.startsWith("initially") }
+                        .forEach { parameter ->
+                            problems += "$where: `${parameter.name}` — name a starting value " +
+                                "`initial<What>`, as `initialDetent` and `initialDate` are"
+                        }
+
+                    // A switch that shows a part is `show<Part>`.
+                    //
+                    // `tail`, `legend`, `dividers` and `backdrop` all read as the
+                    // part itself — a caller passing `legend = false` could as
+                    // easily be passing the legend. The heuristic is the part
+                    // names this library has; a new part that slips past it is
+                    // still wrong.
+                    val partName = Regex(
+                        "(?i).*(label|labels|line|field|slider|background|legend|tail|" +
+                            "divider|dividers|backdrop|shadow)$",
+                    )
+                    // How it is drawn, rather than whether: `uppercaseLabels`
+                    // says what the labels look like.
+                    val treatment = Regex("^(uppercase|lowercase|single|multi|wrap|allow|is|has|use)[A-Z].*")
+                    params
+                        .filter {
+                            it.type.trim() == "Boolean" &&
+                                !it.name.startsWith("show") &&
+                                !treatment.matches(it.name) &&
+                                partName.matches(it.name)
+                        }
+                        .forEach { parameter ->
+                            val shown = parameter.name.replaceFirstChar { it.uppercase() }
+                            problems += "$where: `${parameter.name}` switches a part on and " +
+                                "off — name it `show$shown`"
+                        }
+
                     // `interactionSource` goes last, after everything except the
                     // slots — a caller overrides it rarely and reads past it often.
                     // Only when it is an override. `Modifier.focusRing` takes one
@@ -667,10 +741,16 @@ val checkApiConventions = tasks.register("checkApiConventions") {
                     val interactionIndex = names.indexOfFirst {
                         it == "interactionSource"
                     }.takeIf { it >= 0 && params[it].optional } ?: -1
+                    // And a shorthand's trailing action is its slot: dsls.md
+                    // puts it last so that `item("Zoom in", icon) { zoomIn() }`
+                    // reads as a call, which is the one position it cannot share.
+                    val trailingAction = declaration.enclosing?.endsWith("Scope") == true &&
+                        params.lastOrNull()?.let { it.name.startsWith("on") && "->" in it.type } == true
                     if (interactionIndex >= 0) {
                         val trailing = params.drop(interactionIndex + 1)
                             .filterNot {
-                                "Composable" in it.type || builderType.containsMatchIn(it.type)
+                                "Composable" in it.type || builderType.containsMatchIn(it.type) ||
+                                    (trailingAction && it === params.last())
                             }
                         if (trailing.isNotEmpty()) {
                             problems += "$where: `interactionSource` must come after every " +
@@ -712,8 +792,8 @@ val checkApiConventions = tasks.register("checkApiConventions") {
 // had not existed for months. A sample that does not compile is worse than no
 // sample, because it gets copied.
 //
-// This is not a compiler, and it deliberately answers two questions — the ones
-// that actually went wrong:
+// This is not a compiler, and it deliberately answers only the questions that
+// actually went wrong. The first two:
 //
 //     for every `Component(name = …)` in a sample, is `name` a parameter of
 //     `Component`?
@@ -726,11 +806,18 @@ val checkApiConventions = tasks.register("checkApiConventions") {
 // the shape a pre-slots sample takes — `MenuItem("Copy", onClick = ::copy)`
 // names nothing wrong, it just no longer passes the content.
 //
-// Receivers, types and the local variables a fragment refers to are out of
-// scope; checking those needs a real frontend.
+// A third came later, and went wrong the same way: inside a builder lambda,
+// does each statement belong to the scope the lambda receives? `Banner {
+// supporting { … } }` names a real component and a real scope member — just
+// `StateScope`'s, not `BannerScope`'s. A statement is only reported when it is
+// a member of some *other* library scope, so a caller's own function or a
+// Compose one is left alone.
 //
-// So is a third question that looks adjacent and is not answerable here: does
-// every capitalised call resolve to something that exists? 27 names in the
+// Types and the local variables a fragment refers to are out of scope;
+// checking those needs a real frontend.
+//
+// One question looks adjacent and is left unanswered, because it cannot be
+// answered here: does every capitalised call resolve to something that exists? 27 names in the
 // current samples resolve to nothing this module declares, and while a dozen
 // are Compose (`Box`, `LazyColumn`, `Color`), the rest are deliberate
 // placeholders standing in for the caller's own composables — `Logo`,
@@ -744,10 +831,18 @@ val checkApiConventions = tasks.register("checkApiConventions") {
 //
 val checkKdocSamples = tasks.register("checkKdocSamples") {
     group = "verification"
-    description = "Fails if a KDoc sample names a parameter that does not exist, or omits a required one."
+    description = "Fails if a KDoc sample names a parameter that does not exist, omits a required one, " +
+        "or calls another scope's member inside a builder lambda."
 
     val sources = layout.projectDirectory.dir("src/commonMain/kotlin")
     inputs.dir(sources).withPropertyName("commonMain")
+    val repository = rootProject.layout.projectDirectory
+    val pages = files(
+        repository.dir("ui-docs/content").asFileTree.matching { include("**/*.md") },
+        repository.dir("docs").asFileTree.matching { include("**/*.md") },
+        repository.asFileTree.matching { include("README.md", "*/README.md") },
+    )
+    inputs.files(pages).withPropertyName("pages")
     outputs.file(layout.buildDirectory.file("reports/kdoc-samples.txt"))
 
     val report = layout.buildDirectory.file("reports/kdoc-samples.txt")
@@ -771,14 +866,187 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
         // overloads are kept, and a sample is judged against whichever it
         // satisfies: an argument only counts as wrong if *no* overload has it.
         val known = mutableMapOf<String, MutableList<List<KotlinSignatures.Parameter>>>()
+        // `Modifier.tabSwipe(…)` is as much a call as `TabBar(…)`, and was
+        // left stale by a rename just the same. Kept apart so a modifier is
+        // judged only against the modifiers of that name.
+        val modifiers = mutableMapOf<String, MutableList<List<KotlinSignatures.Parameter>>>()
         files.forEach { file ->
             KotlinSignatures.declarations(file.readText()).forEach { declaration ->
                 known.getOrPut(declaration.name) { mutableListOf() } += declaration.parameters
+                if (declaration.receiver == "Modifier") {
+                    modifiers.getOrPut(declaration.name) { mutableListOf() } += declaration.parameters
+                }
             }
         }
+        val modifierCall = Regex("""\.([a-z]\w*)\s*\(""")
+
+        // What each builder scope offers inside its lambda, by scope name.
+        //
+        // A capitalised call is only half of a sample: `Banner { supporting {
+        // … } }` names a real component and passes it a lambda, and the call
+        // inside that lambda is the part that had gone stale — `BannerScope`
+        // says `message`. So every member a library scope declares, in its
+        // body or as an extension on it, is collected here along with the
+        // scopes it extends, and a statement in a scoped lambda that belongs
+        // to some *other* scope is reported.
+        val scopeMembers = mutableMapOf<String, MutableSet<String>>()
+        val scopeParents = mutableMapOf<String, MutableSet<String>>()
+        val scopeHeader = Regex(
+            """^[ \t]*(?:\w+\s+)*(?:class|interface)\s+(\w+Scope)\b[^:{\n]*(?::\s*([^{\n]+))?""",
+            RegexOption.MULTILINE,
+        )
+        files.forEach { file ->
+            val text = file.readText()
+            scopeHeader.findAll(text).forEach { header ->
+                val parents = scopeParents.getOrPut(header.groupValues[1]) { mutableSetOf() }
+                Regex("""\b(\w+Scope)\b""").findAll(header.groupValues[2]).forEach {
+                    parents += it.groupValues[1]
+                }
+            }
+            KotlinSignatures.declarations(text).forEach { declaration ->
+                val owner = (declaration.receiver ?: declaration.enclosing)
+                    ?.substringBefore('<')
+                    ?.takeIf { it.endsWith("Scope") && declaration.kind == KotlinSignatures.Kind.Function }
+                    ?: return@forEach
+                if (declaration.isPublic) {
+                    scopeMembers.getOrPut(owner) { mutableSetOf() } += declaration.name
+                }
+            }
+        }
+        fun membersOf(scope: String, seen: MutableSet<String> = mutableSetOf()): Set<String> {
+            if (!seen.add(scope)) return emptySet()
+            return scopeMembers[scope].orEmpty() +
+                scopeParents[scope].orEmpty().flatMap { membersOf(it, seen) }
+        }
+        val anyScopeMember = scopeMembers.values.flatten().toSet()
+        val scopedLambda = Regex("""\b(\w+Scope)\s*(?:<[^>]*>)?\s*\.\s*\(""")
+        val statement = Regex("""^[ \t]*([a-z]\w*)""", RegexOption.MULTILINE)
+        val keywords = setOf("if", "when", "for", "while", "do", "try", "return", "val", "var", "fun", "else")
 
         val problems = mutableListOf<String>()
         var samples = 0
+
+        // The statements directly inside the lambda opened at [brace], each
+        // checked against the scope that lambda receives. Only the lambda's
+        // own level: a nested lambda has its own receiver, and a call inside
+        // it is judged — if it is a component's — at its own site.
+        fun checkScopedLambda(
+            name: String,
+            overloads: List<List<KotlinSignatures.Parameter>>,
+            code: String,
+            brace: Int,
+            line: Int,
+            rel: String,
+        ) {
+            // Every overload has to agree on the receiver. A trailing lambda
+            // that some overload takes as plain content can hold anything.
+            val scopes = overloads.map { parameters ->
+                parameters.lastOrNull()?.type?.let { scopedLambda.find(it)?.groupValues?.get(1) }
+            }
+            if (scopes.isEmpty() || scopes.any { it == null || it !in scopeMembers && it !in scopeParents }) return
+            val allowed = scopes.filterNotNull().flatMap { membersOf(it) }.toSet()
+            val end = KotlinSignatures.balancedBrace(code, brace)
+            val inner = code.substring(brace + 1, end.coerceAtMost(code.length))
+            val flat = topLevel(inner)
+            statement.findAll(flat).forEach { match ->
+                val callee = match.groupValues[1]
+                if (callee in keywords || callee in allowed || callee !in anyScopeMember) return@forEach
+                val next = inner.drop(match.range.last + 1).trimStart().firstOrNull()
+                if (next != '(' && next != '{') return@forEach
+                val receiver = scopes.filterNotNull().distinct().joinToString(" or ")
+                problems += "$rel:$line: `$callee` is not in `$receiver`, the receiver of `$name { … }`"
+            }
+        }
+
+        // One code block, wherever it came from: every component and
+        // modifier call in it, and every builder lambda it passes.
+        fun checkBlock(rel: String, line: Int, code: String) {
+            // `Component { … }` with no parentheses: only its
+            // trailing lambda is there to check.
+            Regex("""\b([A-Z]\w*)\s*\{""").findAll(code).forEach { site ->
+                val overloads = known[site.groupValues[1]] ?: return@forEach
+                checkScopedLambda(site.groupValues[1], overloads, code, site.range.last, line, rel)
+            }
+            val sites = call.findAll(code).mapNotNull { site ->
+                known[site.groupValues[1]]?.let { Triple(site, site.groupValues[1], it) }
+            } + modifierCall.findAll(code).mapNotNull { site ->
+                modifiers[site.groupValues[1]]?.let { Triple(site, "Modifier.${site.groupValues[1]}", it) }
+            }
+            sites.forEach { (site, name, overloads) ->
+                val opening = site.range.last
+                val closing = balanced(code, opening)
+                val after = code.drop(closing + 1)
+                if (after.trimStart().startsWith("{")) {
+                    val brace = closing + 1 + (after.length - after.trimStart().length)
+                    checkScopedLambda(name, overloads, code, brace, line, rel)
+                }
+                val inner = code.substring(opening + 1, closing)
+                val flat = topLevel(inner)
+
+                val named = namedArgument.findAll(flat).map { it.groupValues[1] }.toSet()
+                // Arguments before the first named one are positional.
+                // Kotlin forbids a positional argument after a named
+                // one, so counting depth-zero commas up to the first
+                // `name =` is the whole rule.
+                val firstNamed = namedArgument.find(flat)?.range?.first ?: flat.length
+                val leading = flat.substring(0, firstNamed)
+                val positional = when {
+                    leading.isBlank() -> 0
+                    else -> leading.count { it == ',' } + 1
+                }
+                // `Component(…) { … }` supplies the trailing slot, and
+                // that slot is a required parameter on most of these.
+                val trailingLambda = code.drop(closing + 1).trimStart().startsWith("{")
+
+                // Which of an overload's required parameters this call
+                // leaves unsupplied. One function rather than two,
+                // because the first version had an accept test and a
+                // report that disagreed: the test knew a trailing
+                // lambda fills the last slot, the report did not, so a
+                // sample missing only its `header` was told it was also
+                // missing the `content` sitting right below it.
+                fun unsatisfied(parameters: List<KotlinSignatures.Parameter>): List<String> {
+                    val supplied = parameters.size - (if (trailingLambda) 1 else 0)
+                    return parameters.withIndex()
+                        .filter { (index, parameter) ->
+                            !parameter.optional &&
+                                index >= positional &&
+                                parameter.name !in named &&
+                                !(trailingLambda && index >= supplied)
+                        }
+                        .map { it.value.name }
+                }
+
+                fun satisfies(parameters: List<KotlinSignatures.Parameter>): Boolean =
+                    named.all { given -> parameters.any { it.name == given } } &&
+                        unsatisfied(parameters).isEmpty()
+
+                if (overloads.any(::satisfies)) return@forEach
+
+                // Nothing accepted it. Report the more specific of the
+                // two failures rather than both — a wrong name is the
+                // one someone can act on immediately.
+                val declared = overloads.flatten().map { it.name }.toSet()
+                val unknown = named.filter { it !in declared }
+                if (unknown.isNotEmpty()) {
+                    unknown.forEach {
+                        problems += "$rel:$line: `$name` has no parameter `$it`"
+                    }
+                } else {
+                    // Judged against whichever overload the call came
+                    // closest to satisfying — reporting the other one's
+                    // parameters would send the reader somewhere else.
+                    val missing = unsatisfied(
+                        overloads.minByOrNull { unsatisfied(it).size }.orEmpty()
+                    )
+                    if (missing.isNotEmpty()) {
+                        problems += "$rel:$line: `$name` is missing required " +
+                            "${if (missing.size == 1) "argument" else "arguments"} " +
+                            missing.joinToString(", ") { "`$it`" }
+                    }
+                }
+            }
+        }
 
         files.forEach { file ->
             val text = file.readText()
@@ -805,85 +1073,30 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
                     samples++
                     val code = block.groupValues[1]
                     val line = first + body.substring(0, block.range.first).count { it == '\n' }
-                    call.findAll(code).forEach { site ->
-                        val name = site.groupValues[1]
-                        val overloads = known[name] ?: return@forEach
-                        val opening = site.range.last
-                        val closing = balanced(code, opening)
-                        val inner = code.substring(opening + 1, closing)
-                        val flat = topLevel(inner)
-
-                        val named = namedArgument.findAll(flat).map { it.groupValues[1] }.toSet()
-                        // Arguments before the first named one are positional.
-                        // Kotlin forbids a positional argument after a named
-                        // one, so counting depth-zero commas up to the first
-                        // `name =` is the whole rule.
-                        val firstNamed = namedArgument.find(flat)?.range?.first ?: flat.length
-                        val leading = flat.substring(0, firstNamed)
-                        val positional = when {
-                            leading.isBlank() -> 0
-                            else -> leading.count { it == ',' } + 1
-                        }
-                        // `Component(…) { … }` supplies the trailing slot, and
-                        // that slot is a required parameter on most of these.
-                        val trailingLambda = code.drop(closing + 1).trimStart().startsWith("{")
-
-                        // Which of an overload's required parameters this call
-                        // leaves unsupplied. One function rather than two,
-                        // because the first version had an accept test and a
-                        // report that disagreed: the test knew a trailing
-                        // lambda fills the last slot, the report did not, so a
-                        // sample missing only its `header` was told it was also
-                        // missing the `content` sitting right below it.
-                        fun unsatisfied(parameters: List<KotlinSignatures.Parameter>): List<String> {
-                            val supplied = parameters.size - (if (trailingLambda) 1 else 0)
-                            return parameters.withIndex()
-                                .filter { (index, parameter) ->
-                                    !parameter.optional &&
-                                        index >= positional &&
-                                        parameter.name !in named &&
-                                        !(trailingLambda && index >= supplied)
-                                }
-                                .map { it.value.name }
-                        }
-
-                        fun satisfies(parameters: List<KotlinSignatures.Parameter>): Boolean =
-                            named.all { given -> parameters.any { it.name == given } } &&
-                                unsatisfied(parameters).isEmpty()
-
-                        if (overloads.any(::satisfies)) return@forEach
-
-                        // Nothing accepted it. Report the more specific of the
-                        // two failures rather than both — a wrong name is the
-                        // one someone can act on immediately.
-                        val declared = overloads.flatten().map { it.name }.toSet()
-                        val unknown = named.filter { it !in declared }
-                        if (unknown.isNotEmpty()) {
-                            unknown.forEach {
-                                problems += "$rel:$line: `$name` has no parameter `$it`"
-                            }
-                        } else {
-                            // Judged against whichever overload the call came
-                            // closest to satisfying — reporting the other one's
-                            // parameters would send the reader somewhere else.
-                            val missing = unsatisfied(
-                                overloads.minByOrNull { unsatisfied(it).size }.orEmpty()
-                            )
-                            if (missing.isNotEmpty()) {
-                                problems += "$rel:$line: `$name` is missing required " +
-                                    "${if (missing.size == 1) "argument" else "arguments"} " +
-                                    missing.joinToString(", ") { "`$it`" }
-                            }
-                        }
-                    }
+                    checkBlock(rel, line, code)
                 }
+            }
+        }
+
+        // The guides' own code blocks, which nothing compiled either — that is
+        // how `DatePicker(selected = …)` outlived the rename on the date picker
+        // page. A `<!--sample:…-->` block is copied from `:ui-samples`, where
+        // the compiler checks it; this is for everything typed into a page.
+        var pageBlocks = 0
+        pages.files.sortedBy { it.path }.forEach { file ->
+            val text = file.readText()
+            val rel = file.relativeTo(repository.asFile).path
+            Regex("""```kotlin\n([\s\S]*?)```""").findAll(text).forEach { block ->
+                pageBlocks++
+                val line = text.substring(0, block.range.first).count { it == '\n' } + 1
+                checkBlock(rel, line, block.groupValues[1])
             }
         }
 
         report.get().asFile.apply {
             parentFile.mkdirs()
             writeText(
-                if (problems.isEmpty()) "Every named argument in $samples KDoc samples resolves.\n"
+                if (problems.isEmpty()) "Every argument and scope call in $samples KDoc samples and $pageBlocks page blocks resolves.\n"
                 else problems.distinct().joinToString("\n", postfix = "\n")
             )
         }
@@ -891,7 +1104,7 @@ val checkKdocSamples = tasks.register("checkKdocSamples") {
         if (problems.isNotEmpty()) {
             throw GradleException(
                 buildString {
-                    appendLine("${problems.distinct().size} KDoc sample argument(s) that do not exist:")
+                    appendLine("${problems.distinct().size} sample call(s) that do not resolve:")
                     problems.distinct().forEach { appendLine("  - $it") }
                     appendLine()
                     appendLine("A sample is the first thing anyone reads about a component, and it gets copied.")
@@ -956,7 +1169,7 @@ tasks.matching {
 // One region for the tests
 // ---------------------------------------------------------------------------
 //
-// `DateTimeFormats` resolves from the platform's locale now — that is the whole
+// `LocaleFormats` resolves from the platform's locale now — that is the whole
 // of the "dates are backwards in the US" fix — which makes every calendar and
 // every clock in the suite a function of the machine it runs on. A golden
 // recorded in one region is not a golden, and an assertion about "9 Jun" is a
@@ -998,4 +1211,35 @@ tasks.withType<Test>().configureEach {
 tasks.withType<Test>().configureEach {
     maxParallelForks = minOf(4, Runtime.getRuntime().availableProcessors())
     maxHeapSize = "1g"
+}
+
+// ---------------------------------------------------------------------------
+// On a real screen
+// ---------------------------------------------------------------------------
+//
+//     xvfb-run -a ./gradlew :ui:jvmOnScreenTest
+//
+// Every other test stops one step short of the screen: it records the cursor a
+// scene asks the platform for. `OnScreenCursorTest` opens a real window, moves the
+// real pointer with `java.awt.Robot` and reads back what the window system was
+// given. It needs a display, so it is kept out of `jvmTest` — which runs anywhere —
+// and has a task of its own, which CI runs under `xvfb-run`. Without a display it
+// fails rather than passing having checked nothing.
+tasks.named<Test>("jvmTest") {
+    filter { excludeTestsMatching("*.OnScreen*Test") }
+}
+
+tasks.register<Test>("jvmOnScreenTest") {
+    group = "verification"
+    description = "Moves a real pointer over a real window and checks the cursor it shows. Needs a display."
+    val jvmTest = tasks.named<Test>("jvmTest").get()
+    testClassesDirs = jvmTest.testClassesDirs
+    classpath = jvmTest.classpath
+    filter { includeTestsMatching("*.OnScreen*Test") }
+    // One window at a time: two forks would fight over the one pointer.
+    maxParallelForks = 1
+    systemProperty(
+        "kontour.onScreen.captureDir",
+        layout.buildDirectory.dir("on-screen").get().asFile.absolutePath,
+    )
 }

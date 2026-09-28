@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -59,7 +60,7 @@ object CoachmarkDefaults {
      * smoothing, which a `CornerRadius` on a `RoundRect` cannot carry.
      */
     val SpotlightShape: CornerBasedShape
-        @Composable get() = Theme.shapes.container
+        @Composable @ReadOnlyComposable get() = Theme.shapes.container
 }
 
 /**
@@ -69,14 +70,14 @@ object CoachmarkDefaults {
  * val tour = rememberCoachmarkTour("plan", "save", "alerts")
  *
  * IconButton(
+ *     onClick = ::save,
  *     icon = Tabler.Outline.Bookmark,
  *     contentDescription = "Save this trip",
- *     onClick = ::save,
  *     modifier = Modifier.coachmarkStep(
  *         tour = tour,
  *         id = "save",
  *         title = "Save this trip",
- *         text = "Saved trips show up on the home screen.",
+ *         message = "Saved trips show up on the home screen.",
  *     ),
  * )
  * ```
@@ -86,7 +87,7 @@ object CoachmarkDefaults {
  * changes. Start it with [start] — from a "show me around" button, or once on
  * first run — and it walks itself.
  *
- * ### Not the same thing as [Modifier.coachMark]
+ * ### Not the same thing as [Modifier.coachmark]
  *
  * That one is a single tip, fired by an [OverlayQueue] when the app judges the
  * moment right, and it deliberately leaves the interface undimmed: the user is
@@ -95,7 +96,7 @@ object CoachmarkDefaults {
  * over for a few seconds, and dimming everything but the current control is what
  * makes "this one, here" unmistakable.
  *
- * | | `Modifier.coachMark` | `CoachmarkTour` |
+ * | | `Modifier.coachmark` | `CoachmarkTour` |
  * |---|---|---|
  * | Who starts it | the app, through a queue | the user |
  * | How many | one | several, in order |
@@ -191,10 +192,10 @@ fun Modifier.coachmarkStep(
     tour: CoachmarkTour,
     id: String,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     padding: Dp = CoachmarkDefaults.SpotlightPadding,
     shape: CornerBasedShape = CoachmarkDefaults.SpotlightShape,
     enabled: Boolean = true,
@@ -203,9 +204,9 @@ fun Modifier.coachmarkStep(
 
     CoachmarkSpotlight(
         visible = enabled && tour.isShowing(id),
-        anchor = bounds,
+        anchor = { bounds },
         title = title,
-        text = text,
+        message = message,
         icon = icon,
         side = side,
         alignment = alignment,
@@ -227,9 +228,9 @@ fun Modifier.coachmarkStep(
 @Composable
 private fun CoachmarkSpotlight(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     side: OverlaySide,
     alignment: OverlayAlignment,
@@ -241,13 +242,15 @@ private fun CoachmarkSpotlight(
     val colours = Theme.colours
     val key = remember { Any() }
     val dismissLabel = Theme.strings.gotIt
-    val latestAnchor by rememberUpdatedState(anchor)
+    // Read here rather than by the caller — see `TooltipOverlay`.
+    val anchorNow = anchor()
+    val latestAnchor by rememberUpdatedState(anchorNow)
     val latestTour by rememberUpdatedState(tour)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, title, text, side, alignment) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
+        if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -286,7 +289,7 @@ private fun CoachmarkSpotlight(
                     ) {
                         CoachmarkBubble(
                             title = title,
-                            text = text,
+                            message = message,
                             icon = icon,
                             tour = latestTour,
                         )
@@ -350,7 +353,7 @@ private fun Spotlight(
 @Composable
 private fun CoachmarkBubble(
     title: String,
-    text: String,
+    message: String,
     icon: ImageVector?,
     tour: CoachmarkTour,
 ) {
@@ -361,10 +364,10 @@ private fun CoachmarkBubble(
         modifier = Modifier
             .widthIn(max = BubbleMaxWidth)
             .semantics(mergeDescendants = true) {
-                contentDescription = "$title. $text"
+                contentDescription = strings.sentences(listOf(title, message))
             },
         shape = Theme.shapes.container,
-        colour = colours.accent.solid,
+        containerColour = colours.accent.solid,
         contentColour = colours.accent.onSolid,
         shadow = Theme.elevation.overlay,
     ) {
@@ -381,7 +384,7 @@ private fun CoachmarkBubble(
                 }
                 Text(title, style = Theme.typography.titleSmall)
             }
-            Text(text, style = Theme.typography.bodySmall)
+            Text(message, style = Theme.typography.bodySmall)
 
             Row(
                 modifier = Modifier
@@ -394,9 +397,11 @@ private fun CoachmarkBubble(
                 // user cannot decide whether to sit through.
                 if (tour.count > 1) {
                     Text(
-                        text = "${tour.position} / ${tour.count}",
+                        text = strings.tourPosition(Theme.formats.quantity(tour.position), Theme.formats.quantity(tour.count)),
                         style = Theme.typography.labelSmall,
-                        colour = colours.accent.onSolid.copy(alpha = StepCountAlpha),
+                        // Faded beside the message at the standard tier (5.4:1); ink at the
+                        // enhanced one, which asks 7.
+                        colour = if (highContrast()) colours.accent.onSolid else colours.accent.onSolid.copy(alpha = StepCountAlpha),
                     )
                 }
                 Box(Modifier.weight(1f))

@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and web from one source set.
-<!--counts-->140 public components across 103 pages<!--/counts-->, every one with
+<!--counts-->151 public components across 118 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -17,9 +17,12 @@ KontourTheme {
 }
 ```
 
-### **[kontour-labs.github.io/ui](https://kontour-labs.github.io/ui/)**
+### **[docs.kontour.io/ui](https://docs.kontour.io/ui/)**
 
-The documentation site: every component running, not pictured. Its source is
+The documentation site: every component running, not pictured. It is private —
+sign in with a GitHub account in the kontour-labs organisation; an agent reads
+the same pages as Markdown with a service token, as
+[`agents.md`](ui-docs/content/agents.md) describes. Its source is
 [`ui-docs/content/`](ui-docs/content), which reads on GitHub too —
 [components](ui-docs/content/components.md) ·
 [installing](ui-docs/content/installing.md) ·
@@ -48,8 +51,14 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 }
 
 // build.gradle.kts
-implementation("io.kontour:ui:0.1.0")
+implementation("io.kontour:ui:0.2.0")
+// Optional: Navigation 3 scene strategies over the pane scaffolds
+implementation("io.kontour:ui-nav3:0.2.0")
 ```
+
+`io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can
+be used on its own, with no Compose in it: see
+[`haptics.md`](ui-docs/content/haptics.md).
 
 [`installing.md`](ui-docs/content/installing.md) has the whole of it: why
 `content { includeGroup }` is not tidiness but the difference between a working
@@ -111,13 +120,24 @@ images in the docs.
 ./gradlew :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions \
           :ui:checkKdocSamples :ui-catalog:jvmTest :ui-docs:jvmTest \
           :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples \
-          :ui:dokkaGenerateHtml
+          :ui-nav3:jvmTest :ui-nav3:checkNoMaterial \
+          :haptics:jvmTest :haptics:checkNoCompose \
+          :ui:compileIosMainKotlinMetadata \
+          :ui-catalog:compileIosMainKotlinMetadata \
+          :ui-nav3:compileIosMainKotlinMetadata \
+          :haptics:compileIosMainKotlinMetadata \
+          :ui:dokkaGenerateHtml :ui-nav3:dokkaGenerateHtml :haptics:dokkaGenerateHtml
 python3 docs/check-links.py
 python3 docs/check-components.py
 ```
 
-Twelve gates, all on the JVM, no emulator and no simulator. Each exists because
-something drifted past a review — what each asks and what each has caught is in
+No emulator and no simulator. Everything runs on the JVM except the
+`compileIosMainKotlinMetadata` tasks, which type-check the iOS source sets — UIKit
+cinterop included — from a Linux host, which is as far as this repository can
+follow a platform actual. They are here because an iOS-only defect shipped:
+`platformReportAppearance` fed its own reader, and nothing compiled the file it
+was in. Each gate exists because something drifted past a review — what each
+asks and what each has caught is in
 [`docs/building/testing.md`](docs/building/testing.md).
 
 ## Releasing
@@ -134,7 +154,7 @@ version comes from the tag, so the artifact cannot disagree with it.
 To cut one without tagging — from a branch, or to re-publish — run the **CI**
 workflow manually and give it a version. That is the only other way to get a
 publishable version out of the build: on a branch with no version supplied, the
-version is `0.1.0-SNAPSHOT` and the publish job does not run.
+version is `0.3.0-SNAPSHOT` and the publish job does not run.
 
 ```sh
 ./gradlew :ui:coordinate    # what this checkout would publish as

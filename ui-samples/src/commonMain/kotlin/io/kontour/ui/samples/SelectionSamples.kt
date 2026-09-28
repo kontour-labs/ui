@@ -1,19 +1,28 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.selection.Knob
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.ArrowsRightLeft
+import com.composables.icons.tabler.outline.Bolt
 import com.composables.icons.tabler.outline.Check
+import com.composables.icons.tabler.outline.Walk
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.ChipGroup
+import io.kontour.ui.components.selection.ColourPicker
+import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
+import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
@@ -24,7 +33,6 @@ import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import kotlin.math.roundToInt
-import io.kontour.ui.components.selection.RadioButton
 
 @Composable
 fun CheckboxBasics() {
@@ -55,11 +63,13 @@ fun RadioGroupBasics() {
 
     RadioGroup(
         options = Mode.entries,
-        selected = mode,
-        onSelectedChange = { mode = it },
-        label = { it.displayName },
-        supporting = { it.explanation },
-    )
+        value = mode,
+        onValueChange = { mode = it },
+    ) { option ->
+        +option.displayName
+        leading { +option.icon }
+        supporting { +option.explanation }
+    }
 }
 
 @Composable
@@ -93,8 +103,8 @@ fun FilterChipGroup() {
         Mode.entries.forEach { mode ->
             FilterChip(
                 selected = mode in active,
-                onClick = {
-                    active = if (mode in active) active - mode else active + mode
+                onSelectedChange = { on ->
+                    active = if (on) active + mode else active - mode
                 },
                 selectedIcon = Tabler.Outline.Check,
             ) {
@@ -110,8 +120,8 @@ fun SegmentedControlBasics() {
 
     SegmentedControl(
         options = listOf("Bus", "Train", "Ferry"),
-        selected = selected,
-        onSelectedChange = { selected = it },
+        selectedIndex = selected,
+        onSelectedIndexChange = { selected = it },
     )
 }
 
@@ -126,6 +136,22 @@ fun ColourSwatchPickerBasics() {
         swatchColour = { it.colour },
         swatchLabel = { it.displayName },
     )
+}
+
+@Composable
+fun KnobBasics() {
+    var volume by remember { mutableStateOf(40f) }
+
+    Knob(
+        value = volume,
+        onValueChange = { volume = it },
+        valueRange = 0f..100f,
+        steps = 9,
+        contentDescription = "Volume",
+        stateDescription = { "${it.roundToInt()}%" },
+    ) {
+        +"${volume.roundToInt()}"
+    }
 }
 
 @Composable
@@ -167,7 +193,7 @@ fun StepperBasics() {
         value = adults,
         onValueChange = { adults = it },
         contentDescription = "Adults",
-        range = 1..9,
+        valueRange = 1..9,
     )
 }
 
@@ -175,19 +201,23 @@ fun StepperBasics() {
 fun RatingBasics() {
     var rating by remember { mutableStateOf(0f) }
 
-    Rating(value = rating, contentDescription = "Your rating", onValueChange = { rating = it })
+    Rating(value = rating, onValueChange = { rating = it }, contentDescription = "Your rating")
 
-    // No callback means read-only, which means not a control at all: no role,
+    // A null callback means read-only, which means not a control at all: no role,
     // no touch target, one node saying "Average rating, 4.3 out of 5".
-    Rating(value = 4.3f, contentDescription = "Average rating")
+    Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")
 }
 
 // --- The caller's own types -------------------------------------------------
 
-internal enum class Mode(val displayName: String, val explanation: String) {
-    Fastest("Fastest", "Shortest total travel time"),
-    FewestChanges("Fewest changes", "Fewer transfers, possibly slower"),
-    LeastWalking("Least walking", "Shortest distance on foot"),
+internal enum class Mode(
+    val displayName: String,
+    val explanation: String,
+    val icon: ImageVector,
+) {
+    Fastest("Fastest", "Shortest total travel time", Tabler.Outline.Bolt),
+    FewestChanges("Fewest changes", "Fewer transfers, possibly slower", Tabler.Outline.ArrowsRightLeft),
+    LeastWalking("Least walking", "Shortest distance on foot", Tabler.Outline.Walk),
 }
 
 internal enum class RouteColor(val displayName: String, val colour: Color) {
@@ -211,4 +241,22 @@ fun RadioButtonBasics() {
         +"Train"
         leading { RadioButton(selected = mode == "Train", onClick = null) }
     }
+}
+
+@Composable
+fun ColourPickerBasics() {
+    var accent by remember { mutableStateOf(Color(0xFF1E88E5)) }
+
+    ColourPicker(colour = accent, onColourChange = { accent = it })
+}
+
+@Composable
+fun ColourPickerParts() {
+    // A label colour: the eight we offer, and nothing to invent a ninth with.
+    ColourPicker(
+        colour = label,
+        onColourChange = { label = it },
+        mode = ColourPickerMode.Palette,
+        showValueField = false,
+    )
 }

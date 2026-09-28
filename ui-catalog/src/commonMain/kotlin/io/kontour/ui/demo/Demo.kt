@@ -282,15 +282,17 @@ private fun <T> ChoiceKnob(knob: Knob.Choice<T>, values: Knobs) {
         if (labels.size <= SegmentedLimit && !compact) {
             SegmentedControl(
                 options = labels,
-                selected = knob.options.indexOf(selected).coerceAtLeast(0),
-                onSelectedChange = { values.set(knob, knob.options[it]) },
+                selectedIndex = knob.options.indexOf(selected).coerceAtLeast(0),
+                onSelectedIndexChange = { values.set(knob, knob.options[it]) },
             )
         } else {
+            // By position, so an option that is `null` — "Off" — is chosen
+            // rather than read by `Select` as nothing chosen yet.
             Select(
-                value = selected,
-                options = knob.options,
-                onValueChange = { values.set(knob, it) },
-                optionLabel = knob.name,
+                value = knob.options.indexOf(selected).coerceAtLeast(0),
+                options = knob.options.indices.toList(),
+                onValueChange = { values.set(knob, knob.options[it]) },
+                optionLabel = { labels[it] },
                 modifier = Modifier.widthIn(max = KnobWidth),
             )
         }

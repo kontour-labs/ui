@@ -50,6 +50,8 @@ import kotlin.test.assertTrue
  *
  * Median of three runs, each the mean of the fourteen frames inside one fade:
  *
+ * Before the fix, when a modal sheet still blurred:
+ *
  * ```
  *   overlay closed                rest   3.60 · switching  11.13  (+7.53)
  *   overlay open, blurred         rest  26.16 · switching  34.30  (+8.14)
@@ -57,24 +59,42 @@ import kotlin.test.assertTrue
  *   fade vs cut — no overlay      10.06 vs  4.12 · blurred  33.03 vs 26.33
  * ```
  *
+ * And after, with the sheets arm this file gained at the same time:
+ *
+ * ```
+ *   overlay closed                   rest   4.50 · switching   9.69  (+5.19)
+ *   overlay open, blurred (dialogs)  rest  28.84 · switching  34.93  (+6.09)
+ *   overlay open, receding (sheets)  rest   9.74 · switching  13.39  (+3.65)
+ *   overlay open, blur off           rest   6.76 · switching  14.81  (+8.06)
+ *   fade vs cut — no overlay:  6.71 vs  5.04 · under a blurred overlay: 33.13 vs 30.31
+ * ```
+ *
  * Three things fall out, and the first two were not what was expected.
  *
  * **The switch costs the same wherever it happens** — `+7.53`, `+8.14`, `+7.04`
- * are one number. The blur does not make a switch more expensive; it makes every
- * frame more expensive, switch or no switch.
+ * are one number, and so are the four deltas in the second table once the
+ * run-to-run spread is allowed for. The blur does not make a switch more
+ * expensive; it makes every frame more expensive, switch or no switch.
  *
  * **A blurred backdrop is 7.3x the whole rest of the frame, at rest.** 26.16
  * against 3.60 for the same tree with the overlay closed, which is
  * `BackdropCostDiagnostic`'s 7.2–7.9x arriving independently. This is a known
- * and accepted cost of the frosted-glass decision; what is new is that the
- * control for changing themes sits under it on one of the two surfaces, so a
- * fade there spends fourteen frames at 47ms.
+ * and accepted cost of the frosted-glass decision, and it is still what a
+ * *dialog* costs — 28.84 in the second table, unchanged and deliberately so. A
+ * dialog is on screen for one decision and has nothing to recede.
  *
- * **The two surfaces are not the same case.** The site's settings `Popover`
- * takes `ScrimStyle.Transparent`, and `OverlayEntry` derives the backdrop from
- * the scrim — so the site does **not** blur, and its lag is the fade's own
- * 2.3x. The gallery's `SettingsSheet` is a `ModalBottomSheet`, which dims and
- * therefore blurs, so a phone is in the 7.3x case. One report, two causes.
+ * **The two surfaces were not the same case, and now they are.** The site's
+ * settings `Popover` takes `ScrimStyle.Transparent`, and `OverlayEntry` derives
+ * the backdrop from the scrim — so the site never blurred, and its lag was the
+ * fade's own 2.3x. The gallery's `SettingsSheet` is a `ModalBottomSheet`, which
+ * dimmed and therefore blurred, so a phone was in the 7.3x case: one report, two
+ * causes. `ModalBottomSheet` asks for `BackdropStyle.Scale` now — it recedes
+ * without blurring — and a theme switch inside one costs **13.39ms a frame
+ * against 34.93**, which is the row this file was written to move.
+ *
+ * What is left in that row is the fade, and the fade is deliberate: 9.74 of it
+ * is a receding full-screen layer at rest and 3.65 is the switch on top. There
+ * is no third thing to remove without changing what a theme change *does*.
  *
  * A browser confirms the site half independently: a theme switch on the built
  * site paces at a p95 of 100–117ms against 16.7 at rest and 50 for a page
@@ -148,9 +168,11 @@ class ThemeSwitchCostDiagnostic {
         }
 
         println("theme switch cost, ms/frame — median of $Repeats runs, each the mean of $Samples frames")
+        val switchingCost = mutableMapOf<String, Double>()
         for ((label, style, blur) in rows) {
             val rest = median(switching = false, overlay = style, blur = blur)
             val switching = median(switching = true, overlay = style, blur = blur)
+            switchingCost[label] = switching
             println(
                 "  %-32s rest %6.2f · switching %6.2f  (+%.2f)"
                     .format(label, rest, switching, switching - rest)
@@ -172,7 +194,28 @@ class ThemeSwitchCostDiagnostic {
             "  fade vs cut — no overlay: %6.2f vs %6.2f · under a blurred overlay: %6.2f vs %6.2f"
                 .format(animated, cut, blurredAnimated, blurredCut)
         )
-        assertTrue(true)
+        // The one row with a ratchet on it, and the reason is the report rather
+        // than tidiness. "Switching themes is ridiculously laggy" was measured to
+        // the surface the control sits on: a `ModalBottomSheet`, which dimmed and
+        // therefore blurred, so a phone paid the 7.3x backdrop on every frame of
+        // a fade. Sheets recede without blurring now, and this is what stops that
+        // coming back — flipping `ModalBottomSheet` to `BlurAndScale` would put
+        // these two rows level and nothing else in the suite would notice.
+        //
+        // A ratio rather than a number, because every millisecond here is a
+        // software rasteriser on a JVM: the absolutes do not transfer to a phone
+        // and the ratios do. Generous, at well under half the gap actually
+        // measured, so ordinary run-to-run spread cannot reach it.
+        val sheets = switchingCost.getValue("overlay open, receding (sheets)")
+        val dialogs = switchingCost.getValue("overlay open, blurred (dialogs)")
+        assertTrue(
+            sheets < dialogs * SheetCeiling,
+            "a theme switch under a receding sheet cost %.2fms a frame against " +
+                "%.2f under a blurred dialog, where the sheet should be well under " +
+                "%.0f%% of it. The sheet is the surface the settings live on; if it " +
+                "is blurring again, the frame times the report was about are back."
+                .format(sheets, dialogs, SheetCeiling * 100),
+        )
     }
 
     /**
@@ -333,6 +376,15 @@ class ThemeSwitchCostDiagnostic {
     }
 
     private companion object {
+        /**
+         * How much of a blurred dialog's switching cost a receding sheet may take.
+         *
+         * Measured at 13.39 against 34.93, which is 38%. Sixty leaves room for the
+         * spread a software rasteriser under a busy machine produces and still
+         * fails outright at the thing being guarded against: a sheet that blurs
+         * again is a sheet costing the *same* as the dialog, not 60% of it.
+         */
+        const val SheetCeiling = 0.6
         const val Canvas = 580
         const val CanvasHeight = 700
         const val Cards = 8

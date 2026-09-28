@@ -66,3 +66,11 @@ page is now shown.
 
 For a feed with no known end, [`LoadMore`](load-more.md) is the component —
 pagination implies a countable set.
+
+At high contrast the current page keeps an edge in the accent round its tint,
+and the previous and next arrows gain the edge every ghost button takes at this
+tier, as the other page numbers do.
+
+Under reduced motion the page numbers and arrows drop their press-shrink, and
+the jump box fades in place rather than scaling up. The current page's tint
+moves to the new page at once at every setting; it does not travel.

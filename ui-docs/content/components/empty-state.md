@@ -10,7 +10,7 @@ showing an error face for an empty list makes people think they broke something.
 // empty leaves the reader where they already were.
 EmptyState(Modifier.fillMaxWidth()) {
     +"No favourites yet"
-    supporting { +"Star a stop or route and it will appear here." }
+    message { +"Star a stop or route and it will appear here." }
     leading { +Tabler.Outline.Star }
     action {
         Button(onClick = { nearby() }, variant = ButtonVariant.Secondary) { +"Browse routes" }
@@ -34,3 +34,11 @@ were, with nothing to move to. Give it somewhere to go.
 
 The `leading` icon is decorative and cleared. Whatever it depicts should be in
 the words.
+
+At high contrast both states take the enhanced scheme's colours and draw no line
+of their own. `ErrorState`'s retry is a secondary button, whose border thickens
+with the tier.
+
+Neither state animates its arrival, so reduced motion changes nothing about
+them. A button in the `action` slot drops its press-shrink, as every button
+does.

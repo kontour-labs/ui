@@ -1,11 +1,20 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -14,6 +23,10 @@ import androidx.compose.ui.platform.testTag
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Eye
 import com.composables.icons.tabler.outline.EyeOff
+import androidx.compose.runtime.CompositionLocalProvider
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -70,6 +83,139 @@ class PasswordFieldTest {
                 "pressing reveal did not show the password — `revealed` is wired " +
                     "to something that does not draw",
             )
+        }
+    }
+
+    /**
+     * Backspace takes one character, not the whole password.
+     *
+     * Reported from the catalog. The mask replaced the whole text in one edit, and a
+     * replaced range maps every offset *inside* it back to the whole of the source —
+     * so the one-character deletion a hardware backspace makes on the displayed text
+     * became a deletion of everything.
+     */
+    @Test
+    fun backspaceDeletesOneCharacter() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    PasswordField(state = state, label = "Password", revealLastTyped = false)
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            onNode(hasSetTextAction()).performKeyInput { pressKey(Key.Backspace) }
+            waitForIdle()
+            assertEquals(Secret.dropLast(1), state.text.toString())
+        }
+    }
+
+    /**
+     * The character just typed is shown for a moment, and then masked like the rest.
+     *
+     * Asked for: "I'd like to be able to see the most recently-typed character for a
+     * short period of time in that field" — the phone keyboard's own habit, and the
+     * only feedback a reader has that the key they meant is the key they hit.
+     */
+    @Test
+    fun theLastTypedCharacterShowsBrieflyThenMasks() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    PasswordField(
+                        state = state,
+                        modifier = Modifier.testTag(Tag),
+                        label = "Password",
+                    )
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            mainClock.autoAdvance = false
+            onNode(hasSetTextAction()).performTextInput("x")
+            mainClock.advanceTimeByFrame()
+            mainClock.advanceTimeByFrame()
+
+            val typing = shownText()
+            assertEquals(Secret.length + 1, typing.length)
+            assertTrue(
+                typing.endsWith("x") && Secret.none { it in typing },
+                "just after typing, the field should show the new character and mask " +
+                    "the rest; it showed \"$typing\"",
+            )
+
+            mainClock.advanceTimeBy(3_000)
+            val later = shownText()
+            assertTrue(
+                'x' !in later,
+                "the typed character was still showing three seconds later: \"$later\"",
+            )
+        }
+    }
+
+    /**
+     * Typing does not restart the keyboard.
+     *
+     * Reported from Android: *"whenever you type something into the password field,
+     * the keyboard jumps away then reappears"*. The last-typed reveal handed the field
+     * a new output transformation on every keystroke, and a new transformation is a
+     * new input session — so the keyboard was asked for again, each time. Counted
+     * here as the platform input requests the field makes after it has focus.
+     */
+    @OptIn(ExperimentalComposeUiApi::class)
+    @Test
+    fun typingDoesNotAskForTheKeyboardAgain() {
+        runComposeUiTest {
+            val state = TextFieldState(Secret)
+            var requests = 0
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    InterceptPlatformTextInput(
+                        interceptor = { request, next ->
+                            requests++
+                            next.startInputMethod(request)
+                        },
+                    ) {
+                        PasswordField(state = state, modifier = Modifier.testTag(Tag), label = "Password")
+                    }
+                }
+            }
+            onNode(hasSetTextAction()).requestFocus()
+            waitForIdle()
+            val onFocus = requests
+            repeat(4) { onNode(hasSetTextAction()).performTextInput("x") }
+            waitForIdle()
+            assertEquals(
+                onFocus, requests,
+                "typing four characters asked for the keyboard ${requests - onFocus} more " +
+                    "times after focus ($onFocus) — each one is the keyboard hiding and coming back",
+            )
+        }
+    }
+
+    /**
+     * The reveal toggle answers like the toggle it is — reported from a phone as
+     * the one toggle in the field that said nothing when pressed.
+     */
+    @Test
+    fun revealingPlaysATurnOn() {
+        val heard = mutableListOf<FeedbackIntent>()
+        runComposeUiTest {
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { heard += it }) {
+                        PasswordField(
+                            state = rememberTextFieldState(Secret),
+                            label = "Password",
+                            revealIcon = Tabler.Outline.Eye,
+                            hideIcon = Tabler.Outline.EyeOff,
+                        )
+                    }
+                }
+            }
+            onNodeWithContentDescription("Show password").performClick()
+            waitForIdle()
+            assertEquals(listOf(FeedbackIntent.ToggleOn), heard)
         }
     }
 

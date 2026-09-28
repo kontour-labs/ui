@@ -1,28 +1,31 @@
 package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.adaptive.leadingEdges
-import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
 
@@ -31,162 +34,207 @@ enum class NavigationSuiteType {
     /** A [NavBar] across the bottom. Phones. */
     Bar,
 
-    /** A [NavRail] down the leading edge. Landscape phones, small tablets. */
+    /** A collapsed [NavRail] down the leading edge, expandable if asked. Small tablets, landscape phones. */
     Rail,
 
-    /** A [NavDrawer] down the leading edge, labels always visible. Desktop. */
-    Drawer,
+    /** A [NavRail] at its widest, labels always showing: a sidebar. Desktops. */
+    ExpandedRail,
+
+    /**
+     * A [ModalNavRail] the app opens — from a menu button in its top bar — with
+     * no navigation on screen until it does. A phone whose destinations are too
+     * many, or too nested, for a bar.
+     */
+    ModalRail,
 }
+
+/**
+ * What a [NavigationSuiteScaffold] remembers across the surfaces it switches
+ * between: whether the modal rail is open, and whether the rail is expanded.
+ * Hoisted, so a top bar's menu button can open the modal rail.
+ */
+@Stable
+class NavigationSuiteState internal constructor(railExpanded: Boolean) {
+
+    /** Whether the [NavigationSuiteType.ModalRail] is showing. */
+    var modalVisible: Boolean by mutableStateOf(false)
+        private set
+
+    /** Whether the [NavigationSuiteType.Rail] is expanded, when it may be. */
+    var railExpanded: Boolean by mutableStateOf(railExpanded)
+        private set
+
+    fun showModal() {
+        modalVisible = true
+    }
+
+    fun hideModal() {
+        modalVisible = false
+    }
+
+    fun expandRail() {
+        railExpanded = true
+    }
+
+    fun collapseRail() {
+        railExpanded = false
+    }
+
+    internal companion object {
+        /** The rail's width survives a configuration change; an open modal rail does not need to. */
+        val Saver: Saver<NavigationSuiteState, Boolean> = Saver(
+            save = { it.railExpanded },
+            restore = { NavigationSuiteState(it) },
+        )
+    }
+}
+
+/** Remembers a [NavigationSuiteState], its rail starting at [railExpanded]. */
+@Composable
+fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuiteState =
+    rememberSaveable(saver = NavigationSuiteState.Saver) { NavigationSuiteState(railExpanded) }
 
 /**
  * Puts the app's destinations wherever the window has room for them.
  *
  * ```kotlin
+ * val suite = rememberNavigationSuiteState()
  * NavigationSuiteScaffold(
- *     items = destinations,
- *     selectedIndex = current,
- *     action = { FloatingActionButton(Tabler.Outline.Search, "Search", ::search) },
- * ) {
- *     CurrentScreen()
+ *     destinations = {
+ *         item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *         item(here == Saved, { go(Saved) }, key = Saved, icon = Tabler.Outline.Star) { +"Saved" }
+ *     },
+ *     state = suite,
+ * ) { padding ->
+ *     CurrentScreen(Modifier.padding(padding))
  * }
  * ```
  *
- * A screen declares its destinations once and this decides where they go. The
- * Android app already writes the same three destinations into `MainToolbar` and
- * `MainNavigationRail` and picks between them by hand; this is that, with one
- * declaration.
+ * The destinations are written once, as a [NavScope], and drawn by a [NavBar]
+ * on a phone, a [NavRail] on a tablet, a sidebar on a desktop, or a
+ * [ModalNavRail] the app opens: see [NavigationSuiteType] and
+ * [navigationSuiteTypeFor].
  *
- * Which surface goes where, and why it is not configurable, are on the
- * navigation page: `ui-docs/content/components/navigation.md`.
+ * The bar **overlays** the content rather than sitting below it, so read the
+ * padding handed to [content] and inset scrolling content by it. A rail sits
+ * beside the content and hands it no padding.
  *
- * The surface **overlays** the content rather than sitting below it, so read
- * the padding handed to [content] and inset your own scrolling content by it — the same way a
- * map insets its controls by a sheet's `visibleHeight`.
- *
- * @param type Override the automatic choice. For a screen that genuinely needs a
- *   different surface than its window size implies — rare, and worth a comment
- *   at the call site.
+ * @param type Override the automatic choice — [NavigationSuiteType.ModalRail],
+ *   which is never chosen automatically, is the common reason.
+ * @param barStyle The bar's style, when there is one.
+ * @param showLabels Whether the bar names its destinations. `null` leaves it to
+ *   the bar, which does not; a rail shows labels whenever it is wide enough.
+ * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
+ *   grow into a sidebar. Its state lives in [state], so it persists while the
+ *   window stays a rail.
+ * @param railExpandedWidth The sidebar's width, expanded or modal.
+ * @param searchIndex Where [search] goes among the bar's destinations, counted:
+ *   `2` after the second. `null`, or a number at or past the count, puts it
+ *   after all of them.
+ * @param header Above the destinations in a rail or a modal rail.
+ * @param search In the bar, among the destinations — usually a [NavSearch]. A
+ *   rail's is the app's to put in [header].
+ * @param action In the bar, after everything; at the foot of a rail.
  */
 @Composable
 fun NavigationSuiteScaffold(
-    items: List<NavItem>,
-    selectedIndex: Int,
+    destinations: @Composable NavScope.() -> Unit,
     modifier: Modifier = Modifier,
+    state: NavigationSuiteState = rememberNavigationSuiteState(),
     type: NavigationSuiteType = navigationSuiteTypeFor(LocalWindowSizeClass.current.width),
-    /**
-     * Whether destinations are named as well as drawn.
-     *
-     * `null` — the default — lets each surface answer for itself, because they
-     * do not agree and should not: a rail is a column of icons on the edge of a
-     * wide window and wants its words, a bar is four circles over the content
-     * and the destinations of an app this size are ones its user already knows.
-     * Set it to override both.
-     */
+    barStyle: NavBarStyle = NavBarStyle.Floating,
     showLabels: Boolean? = null,
+    railExpandable: Boolean = false,
+    railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
     containerColour: Color = Theme.colours.background,
-    /**
-     * A search field in the bar, usually a [NavSearch].
-     *
-     * The bar only. A rail and a drawer have a leading edge to put one on and no
-     * shortage of room, and how a wide window searches is a screen's decision
-     * rather than the navigation surface's — whereas on a phone the bar is the
-     * only furniture there is, which is why it takes one at all.
-     */
-    search: (@Composable () -> Unit)? = null,
-    /**
-     * Where [search] sits among the destinations. `null` puts it after them all;
-     * `items.size / 2` puts it in the middle, with two either side.
-     */
+    colours: NavColours = NavDefaults.colours(),
     searchIndex: Int? = null,
-    action: (@Composable () -> Unit)? = null,
-    drawerHeader: (@Composable ColumnScope.() -> Unit)? = null,
-    /**
-     * What the navigation surface keeps clear of, passed through to whichever one
-     * this window gets. Sided automatically: a bar takes the bottom and the sides,
-     * a rail or drawer takes the leading side and the top and bottom.
-     */
     windowInsets: WindowInsets? = null,
-    content: @Composable (contentPadding: Dp) -> Unit,
+    header: (@Composable ColumnScope.() -> Unit)? = null,
+    search: (@Composable () -> Unit)? = null,
+    action: (@Composable () -> Unit)? = null,
+    content: @Composable (contentPadding: PaddingValues) -> Unit,
 ) {
-    Surface(modifier = modifier.fillMaxSize(), colour = containerColour) {
+    Surface(modifier = modifier.fillMaxSize(), containerColour = containerColour) {
         when (type) {
             NavigationSuiteType.Bar -> Box(Modifier.fillMaxSize()) {
-                // Measured, not calculated. A constant was wrong twice over: it
-                // added the floating inset to a docked bar that has none, and the
-                // bar's height is now derived from its content, so it grows at
-                // large type and no arithmetic here could predict it.
+                // Measured, not calculated: the bar's height comes from its
+                // content, and grows with type size and labels.
                 val estimate = NavBarDefaults.MinHeight
                 var barHeight by remember { mutableStateOf(estimate) }
                 val density = LocalDensity.current
 
-                content(barHeight)
+                content(PaddingValues(bottom = barHeight))
 
-                // Anchored to the bottom, over the content. The one placement
-                // decision this component exists to make.
-                NavBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
+                NavBarLayout(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .onSizeChanged {
-                            barHeight = with(density) { it.height.toDp() }
-                        },
+                        .onSizeChanged { barHeight = with(density) { it.height.toDp() } },
+                    style = barStyle,
                     showLabels = showLabels ?: false,
+                    colours = colours,
+                    arrangement = null,
+                    windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                     search = search,
                     searchIndex = searchIndex,
-                    action = action,
-                    windowInsets = windowInsets ?: WindowInsets.bottomEdges,
-                )
-            }
-
-            NavigationSuiteType.Rail -> Row(Modifier.fillMaxSize()) {
-                NavRail(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    showLabels = showLabels ?: true,
-                    header = drawerHeader,
-                    action = action?.let { { it() } },
-                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
-                )
-                Box(Modifier.weight(1f)) { content(0.dp) }
-            }
-
-            NavigationSuiteType.Drawer -> Row(Modifier.fillMaxSize()) {
-                NavDrawer(
-                    header = drawerHeader,
-                    footer = action?.let { { it() } },
-                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
                 ) {
-                    items.forEachIndexed { index, item ->
-                        NavDrawerItem(
-                            selected = index == selectedIndex,
-                            onClick = item.onClick,
-                            key = item.label,
-                            badge = item.badge,
-                            enabled = item.enabled,
-                            contentDescription = item.contentDescription,
-                        ) {
-                            +item.label
-                            leading { +item.iconFor(index == selectedIndex) }
-                        }
-                    }
+                    destinations()
+                    if (action != null) slot { action() }
                 }
-                Box(Modifier.weight(1f)) { content(0.dp) }
+            }
+
+            NavigationSuiteType.Rail, NavigationSuiteType.ExpandedRail -> Row(Modifier.fillMaxSize()) {
+                val wide = type == NavigationSuiteType.ExpandedRail
+                NavRail(
+                    expanded = wide || (railExpandable && state.railExpanded),
+                    onExpandedChange = if (!wide && railExpandable) {
+                        { if (it) state.expandRail() else state.collapseRail() }
+                    } else {
+                        null
+                    },
+                    expandedWidth = railExpandedWidth,
+                    colours = colours,
+                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
+                    header = header,
+                    footer = action?.let { { it() } },
+                    content = destinations,
+                )
+                Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
+            }
+
+            NavigationSuiteType.ModalRail -> Box(Modifier.fillMaxSize()) {
+                content(PaddingValues(0.dp))
+                ModalNavRail(
+                    visible = state.modalVisible,
+                    onDismissRequest = state::hideModal,
+                    width = railExpandedWidth,
+                    // A panel over the page is raised, as every modal one is,
+                    // unless the app chose its ground.
+                    colours = if (colours.container == Theme.colours.surface) {
+                        colours.copy(container = Theme.colours.surfaceRaised)
+                    } else {
+                        colours
+                    },
+                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
+                    header = header,
+                    footer = action?.let { { it() } },
+                    content = destinations,
+                )
             }
         }
     }
 }
 
 /**
- * Which surface a window of this width should get.
+ * Which surface a window of this width gets: a bar on a phone, a rail on a
+ * small tablet, a sidebar from there up. [NavigationSuiteType.ModalRail] is
+ * never automatic; an app chooses it.
  *
- * Pure, and tested, because the breakpoints are the whole behaviour — and a
- * layout that switches one class too early looks fine on the two devices anyone
- * checks and wrong on the third.
+ * Pure, and tested, because the breakpoints are the whole behaviour.
  */
 fun navigationSuiteTypeFor(width: WindowWidthClass): NavigationSuiteType = when (width) {
     WindowWidthClass.Compact -> NavigationSuiteType.Bar
     WindowWidthClass.Medium -> NavigationSuiteType.Rail
-    WindowWidthClass.Expanded, WindowWidthClass.Large -> NavigationSuiteType.Drawer
+    WindowWidthClass.Expanded, WindowWidthClass.Large -> NavigationSuiteType.ExpandedRail
 }

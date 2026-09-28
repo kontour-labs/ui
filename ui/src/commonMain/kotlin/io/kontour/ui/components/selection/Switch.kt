@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,12 +20,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -30,16 +35,21 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberRubberBand
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.invisible
-import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 private val TrackWidth = 48.dp
 private val TrackHeight = 28.dp
@@ -48,6 +58,31 @@ private val ThumbPadding = 2.dp
 
 /** How much wider than round the thumb gets while it is moving. */
 private const val ThumbStretch = 1.25f
+
+/**
+ * How much narrower than its resting self the thumb gets at a full end stop.
+ *
+ * A fifth — 4.8dp off a 24dp thumb — the same as `SliderThumb`, and deliberately
+ * so: a squash is a squash. It was a sixth *of the stretched width*, which is
+ * where the report came from. The stretch is up to 1.25x and 1.25 x 0.84 is 1.05,
+ * so the hardest push into a wall produced a thumb slightly **wider** than the
+ * circle it rests at.
+ *
+ * Then it was a quarter, which on this control was 6dp and read correctly, and on
+ * a slider read as far too much — the slider was measuring it off a resting
+ * diameter while squashing a thumb half as wide again, so the same constant came
+ * out at 64% there against 25 here. That is fixed at the reference frame rather
+ * than here, and the depth came down with it: *"it only really needs to deform a
+ * bit"*, and a fifth is a deformation you read as one without the thumb becoming
+ * a different shape.
+ */
+private const val ThumbSquash = 0.2f
+
+/**
+ * How quickly a press's stretch gives way to the squash when the thumb meets the
+ * end: all of it by a quarter of the way into a full squash.
+ */
+private const val PressGivesWay = 4f
 
 /**
  * The speed, in track-fractions per second, at which the stretch is full.
@@ -93,9 +128,9 @@ private const val StretchAtSpeed = 5f
  * interactive, held at the 3:1 WCAG 1.4.11 asks for. It clears that against
  * `surface` and `surfaceRaised` in both schemes, which the surface ramp itself
  * cannot: `surfaceSunken` is 1.08:1 against `surface` in light mode, and even
- * `surfaceTrack` — the loudest ground the scheme has, tuned so a segmented thumb
- * shows on it without a border — only reaches 1.54. That ramp separates fills
- * from each other; it does not bound controls.
+ * `surfaceIndicator` — the fill tuned so a segmented thumb shows without a
+ * border — only reaches 1.59, and only in dark. That ramp separates fills from
+ * each other; it does not bound controls.
  */
 @Composable
 fun Switch(
@@ -105,10 +140,32 @@ fun Switch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val toggled = rememberToggleFeedback()
+    val crossing = rememberDetentTicker(FeedbackIntent.DragThreshold, back = FeedbackIntent.DragThresholdBack)
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
-    val shape = Theme.shapes.control
+    // At the enhanced tier the thumb carries its state as a mark as well as a
+    // position: a check when on, a dash when off. Position alone is a
+    // difference of colour and place, and a reader who asked for more contrast
+    // may be the reader who cannot see the colour.
+    val stateGlyph = highContrast()
+    val glyphStroke = Theme.sizing.borderWidthStrong
+    // `pill` rather than `control`, and the reason is the thumb below.
+    //
+    // The thumb is drawn at `thumbPx / 2f` — half its own height, with no cap,
+    // because a `drawRoundRect` has no token to consult. The track was reading
+    // `Theme.shapes.control`, which *is* capped, so a theme that lowers
+    // `capsuleCap` lowers one of the two and not the other: at `capsuleCap =
+    // 10.dp` the 28dp track came out at 10 against a 24dp thumb at 12, where
+    // concentricity wants `thumb + ThumbPadding` = 14. Reported as switches no
+    // longer being concentric, and it was exactly that.
+    //
+    // `pill` is the same `CapsuleCornerSize` with the cap taken off, so the two
+    // now track each other by construction at every `capsuleCap` a theme picks.
+    // In the default theme nothing moves: `Shapes.CapsuleCap` is 18dp and half of 28 is
+    // 14, so `control` was never reaching the cap here anyway.
+    val shape = Theme.shapes.pill
     val scope = rememberCoroutineScope()
 
     // A switch inside a `SelectionRow` has no callback of its own — the row owns
@@ -121,14 +178,39 @@ fun Switch(
         if (onCheckedChange == null && interactionSource == null && row != null) row else interactions
     val pressed by pressSource.collectIsPressedAsState()
 
-    val trackColour by animateColorAsState(
-        targetValue = when {
-            !enabled -> colours.contentDisabled
-            checked -> colours.primary
-            else -> colours.outlineStrong
-        },
+    /**
+     * The track's two ends. **The travel between them is the thumb's position**,
+     * read in the draw block, not a tween of its own.
+     *
+     * It used to be one `animateColorAsState` keyed on [checked], and that is a
+     * fixed-duration crossfade fired by the commit. On a tap the two happened to
+     * roughly coincide; on a *drag* they could not. The thumb follows the finger
+     * one to one, so a slow drag holds it anywhere it likes — and the track
+     * behind it stayed one colour, then repainted itself over 150ms the instant
+     * the midpoint went by, whatever the finger was doing. Two events for one
+     * movement, which is the same mistake the thumb's stretch already had taken
+     * out of it.
+     *
+     * Interpolated from the position instead, a drag half way across is a track
+     * half way across, and a tap crossfades on the position spring's own timing
+     * because that is what is driving it. `Color.lerp` blends through Oklab, so
+     * the midpoint of grey to a saturated primary is not the muddy step that
+     * interpolating sRGB channels gives.
+     *
+     * What still animates here is the one axis the position cannot express:
+     * enabled to disabled, where both ends move at once and the thumb does not.
+     */
+    val trackOff by animateColorAsState(
+        // `inactive`, which is `outlineStrong` at the standard tier and 3:1 from
+        // `primary` at the enhanced one, where `outlineStrong` was 1.85.
+        targetValue = if (enabled) colours.inactive else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
-        label = "switchTrack",
+        label = "switchTrackOff",
+    )
+    val trackOn by animateColorAsState(
+        targetValue = if (enabled) colours.primary else colours.contentDisabled,
+        animationSpec = motion.tweenFast(),
+        label = "switchTrackOn",
     )
     // The thumb does not change colour, in either direction. A switch has one
     // moving part and one thing that changes behind it; recolouring the thumb as
@@ -174,6 +256,23 @@ fun Switch(
     var dragging by remember { mutableStateOf(false) }
 
     /**
+     * Which side the *gesture* has decided on, which is not [checked].
+     *
+     * The switch used to report on release: you dragged the thumb the whole way
+     * across, nothing changed under your finger, and the state flipped once you
+     * let go. That reads as a control that does not answer a drag — which is
+     * how it was reported — and it is also the wrong model. A physical toggle
+     * goes over at the midpoint and is over from then on, whether or not you
+     * have lifted your hand.
+     *
+     * So the crossing is the commit. This is what the crossing is measured
+     * against, kept locally rather than read from [checked], because [checked]
+     * comes back through the caller and a recomposition: reading it here would
+     * let one gesture cross the same midpoint twice before the answer arrived.
+     */
+    var committed by remember { mutableStateOf(checked) }
+
+    /**
      * The gesture's running total, mirrored into [fraction] and never drawn from.
      *
      * `Animatable.snapTo` suspends, so a drag delta reaches it through a
@@ -184,6 +283,29 @@ fun Switch(
 
     val travel = TrackWidth - ThumbSize - ThumbPadding * 2
     val travelPx = with(LocalDensity.current) { travel.toPx() }
+
+    /**
+     * What a drag pushing past either end does instead of nothing.
+     *
+     * The accumulator is clamped to `0..1`, so a finger that carries on past the
+     * end used to be spending pixels on a control that had stopped answering.
+     * The rejected part goes here and comes out as the thumb squashing in the
+     * direction it is being pushed, then springing back on release.
+     *
+     * **Scaled to neither the thumb nor the travel.** Sizing it to the travel is
+     * the thing `SliderDefaults.DetentPull` got wrong when it was tried here: a
+     * switch's track is 20dp, so anything sized to it is either invisible or
+     * throws the thumb off the finger. Sizing it to the *thumb* was the fix, and
+     * it was 6dp — which a finger crosses inside a single frame, so the squash
+     * arrived all at once and the control had two states. What the limit
+     * measures is how far the finger travels past the stop, which is a fact
+     * about hands rather than about this control, so every control that has an
+     * end stop takes [EndStopTravel].
+     */
+    val band = rememberRubberBand()
+
+    /** How far past the end a finger goes for a full squash. Shared — see the constant. */
+    val thumbSquashPx = with(LocalDensity.current) { EndStopTravel.toPx() }
 
     // Springs to wherever `checked` now is, starting from wherever the thumb now
     // is. Keyed on `dragging` as well as on `checked`, so it also runs when a
@@ -210,6 +332,7 @@ fun Switch(
         label = "switchThumbPress",
     )
 
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Canvas(
         modifier = modifier
             .minimumTouchTarget()
@@ -219,6 +342,13 @@ fun Switch(
                     Modifier.pointerCursor(enabled = enabled).toggleable(
                         value = checked,
                         onValueChange = {
+                            // A tapped switch reports like the checkbox beside
+                            // it. It used to be silent on the argument that a
+                            // thumb crossing a 20dp track is obvious enough —
+                            // which is true of the switch alone and wrong in a
+                            // settings list, where the control above it ticks
+                            // and this one does not. On and off feel different.
+                            toggled(it)
                             onCheckedChange(it)
                         },
                         enabled = enabled,
@@ -249,51 +379,147 @@ fun Switch(
                 if (dragTarget != null && enabled) {
                     Modifier.draggable(
                         state = rememberDraggableState { delta ->
-                            dragAccumulator = (dragAccumulator + delta / travelPx).coerceIn(0f, 1f)
+                            // A finger coming back closes the stretch it opened
+                            // before the thumb itself moves again, or one
+                            // gesture reads as two motions.
+                            val offered = delta - band.payBack(delta)
+                            val raw = dragAccumulator + offered / travelPx
+                            dragAccumulator = raw.coerceIn(0f, 1f)
+                            if (!motion.reduceMotion) {
+                                band.pull(
+                                    (raw - dragAccumulator) * travelPx,
+                                    thumbSquashPx,
+                                )
+                            }
+
+                            // The midpoint, with slack: once over, the thumb has
+                            // to come back past it by [SwitchMidpointSlack]
+                            // before it counts as over again. A finger resting
+                            // on the middle used to flip the value — and the
+                            // unfloored threshold report — every frame.
+                            val side = if (committed) {
+                                dragAccumulator >= 0.5f - SwitchMidpointSlack
+                            } else {
+                                dragAccumulator >= 0.5f + SwitchMidpointSlack
+                            }
+                            val crossed = side != committed
+                            if (crossed) {
+                                committed = side
+                                // The one thing here the eye is not already
+                                // being told: what letting go will do has just
+                                // changed. `DragThreshold` is the intent for
+                                // exactly that.
+                                //
+                                // Through the ticker rather than performed
+                                // directly, because a midpoint is a two-sided
+                                // threshold — the same guard, doing the same
+                                // job. An outcome, so the rate floor never drops
+                                // it, and holds back the light haptics behind it.
+                                crossing.at(if (side) 1f else 0f)
+                                dragTarget(side)
+                            }
+
+                            // The thumb tracks the finger, one to one.
+                            //
+                            // It briefly did not: it sat on the detent it had
+                            // committed to and was pulled part of the way
+                            // toward the finger by `SliderDefaults.DetentPull`,
+                            // which is the ticked slider's mechanism and is
+                            // right there and wrong here. A slider's thumb
+                            // crosses most of a screen, so travelling 45% of
+                            // the way reads as strain. This track is **20dp**.
+                            // The same ratio moves the thumb 9dp while the
+                            // finger moves 20 and then jumps it when the
+                            // midpoint goes over, which does not read as
+                            // resistance at that size — it reads as a control
+                            // that is not keeping up, and then a glitch.
+                            //
+                            // What survives from that attempt is the part that
+                            // was about behaviour rather than feel: the commit
+                            // below happens at the midpoint rather than on
+                            // release.
                             scope.launch { fraction.snapTo(dragAccumulator) }
                         },
                         orientation = Orientation.Horizontal,
+                        // On is at the end of the line, so in right-to-left a
+                        // drag leftwards turns it on.
+                        reverseDirection = rtl,
                         interactionSource = interactions,
                         onDragStarted = {
                             // From where it *is*, not from where `checked` says
                             // it should be — grabbing a thumb still in flight
                             // used to snap it to an end before it would move.
                             dragAccumulator = fraction.value
+                            committed = checked
                             dragging = true
+                            // Armed at the side the thumb starts on, so the
+                            // first crossing *reports* rather than being taken
+                            // as the ticker's starting index. Every other
+                            // `DetentTicker` is armed by a gesture that begins
+                            // on a detent and reports the ones after it; this
+                            // one has exactly one crossing to give, so arming it
+                            // on that crossing would silence the whole gesture.
+                            crossing.at(if (checked) 1f else 0f)
                         },
                         onDragStopped = {
-                            // Whichever half it was let go in. Clearing
-                            // `dragging` releases the spring above, which picks
-                            // the thumb up from here and carries it to whatever
-                            // the caller settles on.
-                            val now = fraction.value >= 0.5f
+                            // Nothing to report here any more: the midpoint did
+                            // it, possibly several times if the finger went back
+                            // and forth. Clearing `dragging` releases the spring
+                            // above, which picks the thumb up from wherever it
+                            // was left and carries it to whatever the caller
+                            // settled on — including back, if the caller
+                            // declined the change.
                             dragging = false
-                            if (now != checked) {
-                                dragTarget(now)
-                            }
+                            crossing.reset()
+                            // Bouncy rather than snappy, matching `pressStretch`
+                            // above: a switch is small enough that a little
+                            // overshoot reads as rubber rather than as wobble.
+                            band.release(motion.springOrTween(motion.springBouncy))
                         },
                     )
                 } else {
                     Modifier
                 }
             )
+            // Drawn mirrored in right-to-left, where on is the thumb at the start
+            // of the line's end — the left. Everything below is written for left
+            // to right and stays that way.
+            .graphicsLayer { scaleX = if (rtl) -1f else 1f }
             .size(width = TrackWidth, height = TrackHeight)
     ) {
-        val trackRadius = size.height / 2f
+        val f = fraction.value.coerceIn(0f, 1f)
 
         // One filled capsule, no outline over it. An outline on a filled track
         // would have to be a third colour to be visible at all, and a switch
         // does not need a third colour.
-        drawRoundRect(
-            color = trackColour,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackRadius),
+        //
+        // **A shape's own outline, not a `drawRoundRect`.** The shape scale is a
+        // squircle scale, and this was the one pill in the library drawing plain
+        // circular corners while naming the same token as the buttons beside it
+        // — reported as switches not having "that same smoothing factor as
+        // things like buttons which are pill-shaped", which is exactly what it
+        // was. `SquircleShape` saturates the short edge of a capsule and eases
+        // into the long one, so the change is at the ends of a 48dp track and it
+        // is the thing that makes a switch and a `Button` read as one system.
+        //
+        // Still a squircle now that it reads `Theme.shapes.pill` rather than
+        // `Theme.shapes.control` — `pill` is one too. See `shape` above for why
+        // the uncapped one is the right of the two.
+        //
+        // It costs a path lookup per frame and no path *building*: the track is
+        // a fixed 48x28 and the shape is one remembered instance, so every call
+        // after the first hits `SquircleShape`'s ring cache. See
+        // `SquirclePathCacheTest`.
+        drawOutline(
+            outline = shape.createOutline(size, layoutDirection, this),
+            color = lerp(trackOff, trackOn, f),
         )
 
         // Drawn to the box it was *given*, not the box it asked for.
         //
         // `Modifier.size` states a preference, and a `Row` that has run out of
         // width hands out less — or nothing. The thumb used to be clamped with
-        // `coerceIn(0f, size.width - stretchedWidth)`, and `coerceIn` **throws**
+        // `coerceIn(0f, size.width - thumbWidth)`, and `coerceIn` **throws**
         // on an inverted range: a switch measured narrower than its own thumb
         // took the frame down with it, from inside draw, where there is nothing
         // to catch it. A switch squeezed to nothing should look squeezed.
@@ -301,7 +527,6 @@ fun Switch(
         val thumbPx = ThumbSize.toPx().coerceAtMost(size.width)
         val interior = (size.width - paddingPx * 2f).coerceAtLeast(0f)
         val room = (interior - thumbPx).coerceAtLeast(0f)
-        val f = fraction.value.coerceIn(0f, 1f)
 
         /**
          * The other half of the stretch, read from the thumb's own speed.
@@ -340,14 +565,136 @@ fun Switch(
         // the give was always meant to be.
         val stretchedWidth = (thumbPx * thumbStretch).coerceAtMost(maxOf(interior, thumbPx))
         val grow = stretchedWidth - thumbPx
-        val left = paddingPx + room * f - grow * f
+        val reached = paddingPx + room * f - grow * f
+
+        // **The end stop compresses the thumb; it does not lengthen it.**
+        //
+        // The first version fed the band into `thumbStretch` above, on the
+        // reasoning that all the spare room at either end is behind the thumb so
+        // the growth would go there by itself. It does — and growing *backwards*
+        // away from the wall is a stretch, which is the opposite of what pushing
+        // into a wall looks like. It read as the thumb getting fat.
+        //
+        // A squash is shorter along the axis of the push with the leading edge
+        // pinned, so the thumb visibly shortens against the end it has run into
+        // and springs back out of it. Applied to the width here rather than to
+        // the stretch above, because it has to move the edge that is *not*
+        // against the wall and the stretch has no way to say which one that is.
+        // **Measured from the thumb at rest, not from the thumb as it currently
+        // is.** It was `stretchedWidth * (1 - squeeze)`, and `stretchedWidth`
+        // already carries the press growth — so at 1.25x grown and 0.16 squashed
+        // the arithmetic came back at 25.2dp against a resting 24, and the thumb
+        // pushed hardest into a wall was *wider* than the circle it sits at. The
+        // report was that the switch head never gets narrower than a circle, and
+        // that is exactly what the two factors did to each other.
+        //
+        // The target is a fixed [ThumbSquash] off the resting width whatever the
+        // press did, and the drawn width travels to it as the band comes out: at
+        // rest it is the stretch above, at a full push it is 19.2dp on a 24dp
+        // thumb, and in between it tracks the finger.
+        val pull = if (thumbSquashPx <= 0f) {
+            0f
+        } else {
+            (abs(band.offset) / thumbSquashPx).coerceIn(0f, 1f)
+        }
+        // **Against the wall the press gives way, at once.** Squashed from the
+        // stretched width, a thumb pushed into the end was still half a press:
+        // held 20dp past it, 1.25x wide and 0.8x squashed met in the middle and
+        // the thumb came out barely narrower than at rest. And the press stretch
+        // is a bouncy spring, so a thumb swiped into the end the instant it was
+        // touched hit the wall *before* that spring had grown — and then grew,
+        // wider by an eighth, while the finger pushed it into the wall. Reported
+        // as the head staying "a wide pill when you hit the end", until dragged
+        // further. The stretch belongs to a thumb in flight; the moment the band
+        // takes up it hands over to the thumb's resting width, gone by a quarter
+        // of the way into the squash, so what the press spring is doing does not
+        // reach a thumb against the wall at all.
+        val give = (pull * PressGivesWay).coerceIn(0f, 1f)
+        val againstWall = stretchedWidth + (thumbPx - stretchedWidth) * give
+        val thumbWidth = againstWall + (thumbPx * (1f - ThumbSquash) - againstWall) * pull
+        // Pinned against whichever end was pushed into: on the right, the lost
+        // width comes off the left edge.
+        val left = reached + if (band.offset > 0f) stretchedWidth - thumbWidth else 0f
         val top = (size.height - thumbPx).coerceAtLeast(0f) / 2f
 
-        drawRoundRect(
-            color = thumbColour,
-            topLeft = Offset(left.coerceIn(0f, (size.width - stretchedWidth).coerceAtLeast(0f)), top),
-            size = Size(stretchedWidth, thumbPx),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(thumbPx / 2f),
+        // **The thumb stays a circular capsule, and that is the shape scale's own
+        // answer rather than an exception to it.** At rest it is a 24dp square at
+        // capsule radius, which saturates on *both* edges — so `SquircleShape`
+        // returns a true circle for it, the same as an `IconButton`, an `Avatar`
+        // or a radio ring. There is nothing to smooth and nothing to match.
+        //
+        // In flight it is 24 by 30 and a squircle would have a little room on the
+        // long edge, worth about half a pixel. It would also be a fresh path
+        // every frame, under a finger, past every cache: `SliderThumb` refused
+        // that trade for the same reason and at the same size, and refusing it
+        // twice is more consistent than paying for it once.
+        //
+        // **Squashed, it becomes an egg: round against the wall, squashed on the
+        // other side.** It used to be one radius for four corners — half the
+        // resting height — so pushing into an end narrowed both ends at once and
+        // the head could not get narrower than the circle it rests as. Then it
+        // kept the cap against the wall and flattened the other end, which fixed
+        // that and read as a cut. Then it was one ellipse, which has no end to
+        // cut but goes pointy on the end that is *touching*, where a ball pressed
+        // into a wall does not.
+        //
+        // So the wall side keeps the resting radius and only the free side
+        // squashes — see `squashedCapsule` for the join, which is the hard part.
+        // On this control that is also what makes the pressed end **exactly
+        // concentric** with the track's end arc: a 12dp cap pinned 2dp inside a
+        // 14dp arc shares its centre, so the clearance is 2dp the whole way round
+        // the end the finger is pushing into. The *pinning* just above is what
+        // makes it press into the wall rather than shrink away from it.
+        val x = left.coerceIn(0f, (size.width - thumbWidth).coerceAtLeast(0f))
+        squashedCapsule(
+            left = x,
+            top = top,
+            right = x + thumbWidth,
+            bottom = top + thumbPx,
+            colour = thumbColour,
+            wallOnRight = band.offset > 0f,
         )
+
+        if (stateGlyph) {
+            // Cross-faded by the same fraction as the track, so a drag half way
+            // over is half a check and half a dash, and each is drawn in the
+            // colour of the track end it belongs to.
+            val centre = Offset(x + thumbWidth / 2f, top + thumbPx / 2f)
+            val r = thumbPx * 0.26f
+            val stroke = glyphStroke.toPx()
+            if (f > 0f) {
+                val check = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(centre.x - r, centre.y)
+                    lineTo(centre.x - r * 0.3f, centre.y + r * 0.7f)
+                    lineTo(centre.x + r, centre.y - r * 0.7f)
+                }
+                drawPath(
+                    check,
+                    trackOn,
+                    alpha = f,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = stroke,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                    ),
+                )
+            }
+            if (f < 1f) {
+                drawLine(
+                    trackOff,
+                    Offset(centre.x - r * 0.8f, centre.y),
+                    Offset(centre.x + r * 0.8f, centre.y),
+                    strokeWidth = stroke,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    alpha = 1f - f,
+                )
+            }
+        }
     }
 }
+
+/**
+ * How far past the middle, as a share of the thumb's travel, a drag has to go to
+ * change sides: a tenth, so a finger resting on the midpoint does not flip it.
+ */
+private const val SwitchMidpointSlack = 0.1f

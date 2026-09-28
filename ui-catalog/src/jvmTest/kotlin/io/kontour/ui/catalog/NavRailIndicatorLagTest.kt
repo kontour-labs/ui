@@ -12,7 +12,7 @@ import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
 import java.awt.image.BufferedImage
 import kotlin.test.Test
@@ -32,8 +32,8 @@ import kotlin.test.assertTrue
  *
  * ### Nothing in this suite had ever watched the pill move
  *
- * `NavRailGrowthTest` and `NavRailStillnessTest` both render the rail with
- * `indicatorColour = Color.Transparent`, on purpose: they measure ink and icon
+ * `NavRailGrowthTest` and `NavRailStillnessTest` both render the rail with a
+ * transparent `indicator` colour, on purpose: they measure ink and icon
  * edges, and a pill is a large moving block of colour in the way of both.
  * `SelectionIndicatorGeometryTest` and `TabIndicatorTest` sample only at rest,
  * one of them with `reduceMotion = true`. So the lag was invisible to every test
@@ -50,12 +50,6 @@ import kotlin.test.assertTrue
  */
 class NavRailIndicatorLagTest {
 
-    private val items = listOf(
-        NavItem(label = "Nearby", icon = Tabler.Outline.MapPin, onClick = {}),
-        NavItem(label = "Routes", icon = Tabler.Outline.Bus, onClick = {}),
-        NavItem(label = "Saved", icon = Tabler.Outline.Star, onClick = {}),
-    )
-
     @Test
     fun thePillKeepsUpWithTheRail() {
         var expanded by mutableStateOf(false)
@@ -66,14 +60,16 @@ class NavRailIndicatorLagTest {
         Scene(width = 900, height = 700) {
             Box(Modifier.fillMaxSize().background(Color.Magenta)) {
                 NavRail(
-                    items = items,
-                    selectedIndex = 0,
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
                     // The one thing on the rail drawn in this colour, so the
                     // pill's edge can be found without a band to get wrong.
-                    indicatorColour = Pill,
-                )
+                    colours = NavDefaults.colours(indicator = Pill),
+                ) {
+                    item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }
+                    item(false, {}, key = "routes", icon = Tabler.Outline.Bus) { +"Routes" }
+                    item(false, {}, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+                }
             }
         }.use { scene ->
             val settled = scene.frames(30)

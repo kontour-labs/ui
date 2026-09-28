@@ -24,7 +24,7 @@ rest. That division is the whole component, and it is what separates it from a
 list.
 
 The two halves sit flush with a hairline between them and only the outside
-corners round — the same `ButtonGroupPosition.shape` a
+corners round — the same `GroupPosition.shape` a
 [`ButtonGroup`](button-group.md) uses, because it is the same idea: separate targets
 that read as one control. The pair owns the touch target between them for the
 reason `ButtonGroup` does, so the reserved slack does not land in the seam and
@@ -54,3 +54,12 @@ full-size target however narrow it looks.
 
 Where the menu holds the *only* copy of an action, that action is unreachable for
 anyone who does not open menus. Keep the main action in the main half.
+
+At high contrast each half follows the `Button` variant it is given: a `Primary`
+pair takes the enhanced scheme's colours and nothing more, while a `Tertiary` or
+ghost pair, or a disabled one, gains an edge round each half. The focus rings
+are drawn thicker.
+
+Under reduced motion both halves keep the tonal wash of a press and lose the
+shrink. The chevron still turns when the menu opens, over a short tween with no
+overshoot, and the menu fades in rather than growing out of the button.

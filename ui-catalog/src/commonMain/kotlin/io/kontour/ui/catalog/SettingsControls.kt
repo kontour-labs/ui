@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -14,6 +15,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.theme.ContrastLevel
+import io.kontour.ui.interaction.HapticsLevel
 import io.kontour.ui.theme.Theme
 
 /**
@@ -29,8 +31,8 @@ import io.kontour.ui.theme.Theme
 fun ThemePicker(settings: CatalogSettings, modifier: Modifier = Modifier) {
     SegmentedControl(
         options = demoThemes.map { it.name },
-        selected = demoThemes.indexOf(settings.theme).coerceAtLeast(0),
-        onSelectedChange = { settings.theme = demoThemes[it] },
+        selectedIndex = demoThemes.indexOf(settings.theme).coerceAtLeast(0),
+        onSelectedIndexChange = { settings.theme = demoThemes[it] },
         modifier = modifier.fillMaxWidth(),
     )
 }
@@ -163,9 +165,21 @@ fun DisplaySettingsControls(
     )
     SegmentedControl(
         options = textScales.map { it.first },
-        selected = textScales.indexOfFirst { it.second == settings.textScale }
+        selectedIndex = textScales.indexOfFirst { it.second == settings.textScale }
             .coerceAtLeast(0),
-        onSelectedChange = { settings.textScale = textScales[it].second },
+        onSelectedIndexChange = { settings.textScale = textScales[it].second },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    Text(
+        text = "Haptics",
+        style = Theme.typography.labelMedium,
+        modifier = Modifier.padding(top = Theme.spacing.sm),
+    )
+    SegmentedControl(
+        options = hapticsLevels.map { it.name },
+        selectedIndex = hapticsLevels.indexOf(settings.haptics).coerceAtLeast(0),
+        onSelectedIndexChange = { settings.haptics = hapticsLevels[it] },
         modifier = Modifier.fillMaxWidth(),
     )
 
@@ -176,9 +190,23 @@ fun DisplaySettingsControls(
     )
     SegmentedControl(
         options = inputModalities.map { it.first },
-        selected = inputModalities.indexOfFirst { it.second == settings.modality }
+        selectedIndex = inputModalities.indexOfFirst { it.second == settings.modality }
             .coerceAtLeast(0),
-        onSelectedChange = { settings.modality = inputModalities[it].second },
+        onSelectedIndexChange = { settings.modality = inputModalities[it].second },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    // Last: a tool for whoever is building the screen, not a setting a reader
+    // opened the panel for, so it does not push theirs further down.
+    Text(
+        text = "Pseudo-locale",
+        style = Theme.typography.labelMedium,
+        modifier = Modifier.padding(top = Theme.spacing.sm),
+    )
+    SegmentedControl(
+        options = pseudoLocales.map { it.first },
+        selectedIndex = pseudoLocales.indexOfFirst { it.second == settings.pseudoLocale }.coerceAtLeast(0),
+        onSelectedIndexChange = { settings.pseudoLocale = pseudoLocales[it].second },
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -206,10 +234,38 @@ fun DisplaySettingsControls(
  *
  * `SettingsLabelFitTest` holds every one of those measurements.
  */
+/**
+ * The four levels, in the order they are declared, which is quietest first.
+ *
+ * `entries` rather than a hand-written list, so a fifth level cannot be added to
+ * the library and quietly stay out of the one control that offers them. The
+ * labels are the enum's own names for the same reason — a display string here
+ * would be a second name for each level with nothing keeping the two in step.
+ *
+ * **They do not all fit at 200% type**, and this is the third control in this
+ * panel with that problem: `Standard` is eight characters in four segments, where
+ * `Keyboard` already measured 124dp against an 84dp segment. Naming them `Std`
+ * would fit and would be the wrong fix, for the same reason `Keys` was — see
+ * `SettingsLabelFitTest`, which pins all three and says what the real one is.
+ */
+val hapticsLevels: List<HapticsLevel> = HapticsLevel.entries
+
 val textScales: List<Pair<String, Float?>> = listOf(
     "Auto" to null,
     "85" to 0.85f,
     "100" to 1f,
     "130" to 1.3f,
     "200" to 2f,
+)
+
+/**
+ * The pseudo-locales, "Off" first: longer and accented, mirrored with other
+ * digits, and marks stacked above and below — the three things a real
+ * translation breaks, without waiting for one.
+ */
+private val pseudoLocales = listOf(
+    "Off" to null,
+    "Longer" to PseudoLocale.Accented,
+    "Mirrored" to PseudoLocale.Bidi,
+    "Tall" to PseudoLocale.Tall,
 )

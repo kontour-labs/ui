@@ -1,5 +1,9 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.motion.sizeSpec
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.contrastEdge
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -29,7 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.selectionEdge
+import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -37,6 +46,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
@@ -51,11 +61,19 @@ import io.kontour.ui.theme.invisible
 private val ChipHeight = 34.dp
 
 /**
+ * The gap between a chip's tick and its label.
+ *
+ * Named because [AnimatedSlot] needs it as a value rather than as an
+ * arrangement, and because three chip variants were each restating `6.dp`.
+ */
+private val ChipIconGap = 6.dp
+
+/**
  * A compact, pill-shaped control.
  *
  * ```
  * // Filter — toggles a facet on and off
- * FilterChip(selected = showBuses, onClick = ::toggleBuses) { +"Buses" }
+ * FilterChip(selected = showBuses, onSelectedChange = { showBuses = it }) { +"Buses" }
  *
  * // Assist — performs an action
  * Chip(onClick = ::shareTrip) {
@@ -72,14 +90,6 @@ private val ChipHeight = 34.dp
  * Chips are for things that come in *sets*. A single chip on a screen is
  * usually a small button wearing the wrong clothes.
  */
-/**
- * The gap between a chip's tick and its label.
- *
- * Named because [AnimatedSlot] needs it as a value rather than as an
- * arrangement, and because three chip variants were each restating `6.dp`.
- */
-private val ChipIconGap = 6.dp
-
 @Composable
 fun Chip(
     onClick: () -> Unit,
@@ -114,6 +124,8 @@ fun Chip(
             .focusRing(interactions, shape)
             .clip(shape)
             .background(if (enabled) colours.surfaceSunken else Color.Transparent, shape)
+            // A sunken fill is barely apart from the page at the enhanced tier.
+            .optionalBorder(contrastEdge(), shape)
             .pointerCursor(enabled = enabled)
             .clickable(
                 interactionSource = interactions,
@@ -168,7 +180,8 @@ private fun RowContentScope.KeyedChipContent(
         targetState = key,
         transitionSpec = {
             (fadeIn(motion.tweenFast()) togetherWith fadeOut(motion.tweenFast()))
-                .using(SizeTransform(clip = false))
+                // The new label's width at once under reduced motion.
+                .using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() })
         },
         label = "chipContent",
     ) { _ ->
@@ -187,11 +200,16 @@ private fun RowContentScope.KeyedChipContent(
  * When selected it fills with the accent container and takes the accent for its
  * label, dropping the outline it wears unselected.
  *
+ * [onSelectedChange] is handed the new state, the way `SelectionRow`'s is, so
+ * a set of filters toggles with `{ on -> active = if (on) active + it else
+ * active - it }` rather than by reading the old state back. Null leaves the
+ * chip showing its state without answering a press.
+ *
  * **The tick is opt-in.** Pass [selectedIcon] and it *expands in* rather than
  * appearing, pushing the label across — the small shove is what makes a filter
  * bar feel responsive when you rattle through several of them. It is a parameter
- * rather than a default because the library ships no glyphs at all: the icon set
- * is the application's choice, so there is no tick here to reach for.
+ * rather than a default because the tick is the application's own glyph: a
+ * filter bar's tick should match the rest of its icon set.
  *
  * Without one, selection is carried by colour alone. That is legible, and it is
  * the only channel — so a filter bar where the distinction matters should pass
@@ -200,17 +218,21 @@ private fun RowContentScope.KeyedChipContent(
 @Composable
 fun FilterChip(
     selected: Boolean,
-    onClick: () -> Unit,
+    onSelectedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selectedIcon: ImageVector? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
 ) {
+    val toggled = rememberToggleFeedback()
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
+    // At the enhanced tier the selected chip keeps an edge, in the accent: its
+    // tint alone is 1.25:1 from the page.
+    val selectedBorder = selectionEdge()?.let { colours.accent.solid } ?: colours.outlineStrong.invisible()
 
     val container by animateColorAsState(
         targetValue = when {
@@ -233,7 +255,7 @@ fun FilterChip(
     val borderColour by animateColorAsState(
         targetValue = when {
             !enabled -> colours.outline
-            selected -> colours.outlineStrong.invisible()
+            selected -> selectedBorder
             else -> colours.outlineStrong
         },
         animationSpec = motion.tweenFast(),
@@ -244,18 +266,33 @@ fun FilterChip(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .clip(shape)
             .background(container, shape)
             .border(BorderStroke(Theme.sizing.borderWidth, borderColour), shape)
-            .pointerCursor(enabled = enabled)
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                enabled = enabled,
-                role = Role.Checkbox,
-                interactionSource = interactions,
-                indication = kontourIndication(shape),
+            .then(
+                if (onSelectedChange == null) {
+                    // Inert, but still a chip that reads as on or off, the way
+                    // an inert `SelectionRow` does.
+                    Modifier.semantics {
+                        role = Role.Checkbox
+                        this.selected = selected
+                    }
+                } else {
+                    Modifier
+                        .pointerCursor(enabled = enabled)
+                        .selectable(
+                            selected = selected,
+                            onClick = {
+                                toggled(!selected)
+                                onSelectedChange(!selected)
+                            },
+                            enabled = enabled,
+                            role = Role.Checkbox,
+                            interactionSource = interactions,
+                            indication = kontourIndication(shape),
+                        )
+                },
             )
             .padding(horizontal = Theme.spacing.sm),
         // No `spacedBy`: the tick carries its own gap, so the row does not lose
@@ -326,7 +363,13 @@ fun InputChip(
     removeLabel: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    removeIcon: ImageVector? = null,
+    /**
+     * The remove button's glyph. A close cross by default: [onRemove] is
+     * required, so a chip that could be removed and drew nothing to remove it
+     * with — which is what a `null` default did — was a removal nobody could
+     * find. Pass `null` only for a chip removed some other way.
+     */
+    removeIcon: ImageVector? = SystemIcons.Close,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowContentScope.() -> Unit
@@ -339,9 +382,10 @@ fun InputChip(
         modifier = modifier
             .minimumTouchTarget()
             .focusRing(interactions, shape)
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .clip(shape)
             .background(colours.surfaceSunken, shape)
+            .optionalBorder(contrastEdge(), shape)
             .then(
                 if (onClick != null) {
                     Modifier.pointerCursor(enabled = enabled).clickable(
@@ -370,15 +414,17 @@ fun InputChip(
                 )
             }
             if (removeIcon != null) {
+                val removeInteractions = remember { MutableInteractionSource() }
                 Row(
                     Modifier
+                        .focusRing(removeInteractions, Theme.shapes.control)
                         .clip(Theme.shapes.control)
                         .pointerCursor(enabled = enabled)
                         .clickable(
                             enabled = enabled,
                             role = Role.Button,
                             onClickLabel = removeLabel,
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = removeInteractions,
                             indication = kontourIndication(Theme.shapes.control),
                             onClick = {
                                 onRemove()
@@ -437,7 +483,7 @@ private fun ChipSurface(
         // The target belongs at the top of the chain, which is where the caller
         // puts it now — see [Chip].
         modifier = modifier
-            .height(ChipHeight)
+            .heightIn(min = ChipHeight)
             .padding(horizontal = Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,

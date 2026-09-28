@@ -1,6 +1,7 @@
 package io.kontour.ui.components.action
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.layout.Box
@@ -16,11 +17,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -46,14 +49,19 @@ import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** How a [FabMenu]'s items arrange themselves around the button they came out of. */
 enum class FabMenuLayout {
@@ -128,16 +136,16 @@ object FabMenuDefaults {
      * five things appearing: each item leaves a beat after the one before it, so
      * the eye follows a wave outward instead of being handed a finished menu.
      *
-     * Small, because the stagger accumulates — six items at 40ms is a quarter of
-     * a second before the last one has moved, and by then the first has settled
-     * and the menu feels slow. At 28ms a six-item menu is fully out in about
-     * 300ms including the spring.
+     * Small, because the stagger accumulates, and no smaller, because each item
+     * is felt as it lands: 28ms apart, the landings ran together into one
+     * rumble at the end. At 50ms each is its own tick, and a four-item menu is
+     * fully out in about a third of a second including the spring.
      *
      * Zero under `reduceMotion`, where the items simply fade: a sequence is
      * still movement, and staggering it draws the eye across the screen exactly
      * as the preference asks it not to.
      */
-    const val StaggerMillis: Long = 28L
+    val Stagger: Duration = 50.milliseconds
 
     /** How small an item starts before springing out to full size. */
     const val FromScale: Float = 0.55f
@@ -218,9 +226,12 @@ object FabMenuDefaults {
  * @param itemBorder The hairline that keeps a light item off a light page — see
  *   [FabMenuDefaults.itemBorder]. Null on a menu that only ever floats over
  *   photography or a map, where the shadow already does the work.
- * @param showLabels Drawn beside each item. On for [FabMenuLayout.Vertical],
- *   off for the other two, where the items sit at angles that leave a label
- *   nowhere to go. Every item is still *named* for a screen reader either way.
+ * @param showLabels Drawn beside each item, or above it and rotated for
+ *   [FabMenuLayout.Horizontal]. On for both of those and off for
+ *   [FabMenuLayout.Fan], whose items already sit at angles with no clear
+ *   direction to rotate a label into. Every item is still *named* for a screen
+ *   reader either way — the labels were emitted and not drawn, which is why this
+ *   was a visual change rather than an accessibility one.
  * @param scrim [ScrimStyle.Transparent] by default — taps outside close the menu
  *   but nothing dims, so the FAB does not grey out under its own menu. Pass
  *   [ScrimStyle.Dimmed] where the actions deserve the whole screen's attention.
@@ -233,10 +244,16 @@ fun FabMenu(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
+    key: Any = remember { Any() },
     size: FabSize = FabSize.Medium,
     itemSize: FabSize = FabSize.Small,
     layout: FabMenuLayout = FabMenuLayout.Vertical,
-    showLabels: Boolean = layout == FabMenuLayout.Vertical,
+    showLabels: Boolean = layout != FabMenuLayout.Fan,
     expandedIcon: ImageVector? = null,
     expandedContentDescription: String = Theme.strings.close,
     shape: Shape = Theme.shapes.pill,
@@ -246,7 +263,8 @@ fun FabMenu(
     itemContentColour: Color = Theme.colours.content,
     itemBorder: BorderStroke? = FabMenuDefaults.itemBorder(),
     scrim: ScrimStyle = ScrimStyle.Transparent,
-    key: Any = remember { Any() },
+    /** The main button's interactions. */
+    interactionSource: MutableInteractionSource? = null,
     content: FabMenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -278,6 +296,11 @@ fun FabMenu(
      */
     val fractions = remember(items.size) { List(items.size) { Animatable(0f) } }
 
+    // Each item landing, felt: one soft tick as each arrives, the wave of them
+    // running out from the button as the items do. Asked for from a phone — the
+    // menu was the one thing in the set that moved this much and said nothing.
+    val feedback = LocalFeedback.current
+
     val latestItems by rememberUpdatedState(items)
     val latestLayout by rememberUpdatedState(layout)
     val latestShowLabels by rememberUpdatedState(showLabels)
@@ -293,7 +316,7 @@ fun FabMenu(
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
     LaunchedEffect(open, items.size, scrim) {
-        val stagger = if (motion.reduceMotion) 0L else FabMenuDefaults.StaggerMillis
+        val stagger = if (motion.reduceMotion) Duration.ZERO else FabMenuDefaults.Stagger
         if (open) {
             host.show(
                 OverlayEntry(
@@ -329,11 +352,26 @@ fun FabMenu(
                 )
             )
             launch { openness.animateTo(1f, motion.tweenFast()) }
+            val itemSpec = motion.springOrTween<Float>(motion.springDefault)
             // Nearest first, so the wave runs outward from the button it came
             // out of.
             fractions.forEachIndexed { index, fraction ->
                 launch {
-                    delay(index * stagger)
+                    delay(stagger * index)
+                    // Each item felt as it lands: watched on its own animation,
+                    // so the tick comes as it arrives rather than on a schedule
+                    // worked out in advance — asked for a little before it, so
+                    // it is felt on time (see `FabItemLanded`). They used to be one pattern
+                    // computed from the spring, played from the first landing —
+                    // which arrived as a single rumble once the last item had
+                    // landed, and was reported as exactly that. Each a little
+                    // softer than the one before; one tick where nothing moves.
+                    if (!motion.reduceMotion || index == 0) {
+                        launch {
+                            snapshotFlow { fraction.value }.first { it >= FabItemLanded }
+                            feedback.perform(FeedbackIntent.GestureEnd, landingStrength(index))
+                        }
+                    }
                     // `springDefault`, not `springBouncy`. Overshoot is a
                     // proportion of the distance travelled, so the same spring
                     // that reads as lively on a chip's 6dp tick reads as a
@@ -342,16 +380,19 @@ fun FabMenu(
                     // travels furthest. The stagger already carries the sense of
                     // the menu unfolding; the bounce was a second opinion about
                     // the same thing.
-                    fraction.animateTo(1f, motion.springOrTween(motion.springDefault))
+                    fraction.animateTo(1f, itemSpec)
                 }
             }
         } else {
+            // Folding away is the menu on its way out: the page is the reader's
+            // again from here, not from when the last item is home.
+            host.letGo(key)
             val last = fractions.lastIndex
             val folding = fractions.mapIndexed { index, fraction ->
                 launch {
                     // Furthest first on the way back: the menu gathers itself
                     // into the FAB rather than peeling away from it.
-                    delay((last - index).coerceAtLeast(0) * stagger)
+                    delay(stagger * (last - index).coerceAtLeast(0))
                     fraction.animateTo(0f, motion.springOrTween(motion.springSnappy))
                 }
             }
@@ -363,13 +404,18 @@ fun FabMenu(
     // A lambda, so the animation is read at draw rather than in composition — a
     // 45° sweep redraws the glyph instead of recomposing the button forty times
     // on its way round.
-    val rotation = { if (expandedIcon == null) 45f * openness.value else 0f }
+    //
+    // Not under reduced motion, where a glyph spinning is movement for its own
+    // sake: the icon becomes a close glyph on the tap instead, below.
+    val turns = expandedIcon == null && !motion.reduceMotion
+    val rotation = { if (turns) 45f * openness.value else 0f }
 
     // Swapped on the tap rather than partway through the animation. Reading
     // `openness` here would put an animation in the *composition* phase, which
     // is the thing the lambda above exists to avoid — and a swap at the halfway
     // mark is not better than one at the moment the user asked for it.
-    val showingClose = expandedIcon != null && open
+    val closeIcon = expandedIcon ?: if (motion.reduceMotion) SystemIcons.Close else null
+    val showingClose = closeIcon != null && open
 
     FloatingActionButton(
         onClick = { onExpandedChange(!expanded) },
@@ -380,9 +426,10 @@ fun FabMenu(
         shape = shape,
         containerColour = containerColour,
         contentColour = contentColour,
+        interactionSource = interactionSource,
     ) {
         Icon(
-            imageVector = if (showingClose) expandedIcon else icon,
+            imageVector = if (showingClose) closeIcon else icon,
             contentDescription = null,
             // The turn is a draw-time read of the animation, so a 45° sweep
             // redraws the glyph rather than recomposing the button forty times
@@ -423,6 +470,10 @@ private fun FabMenuItems(
 ) {
     val host = LocalOverlayHost.current
     val density = LocalDensity.current
+    // Under reduced motion the items are where they are going from the first
+    // frame and only fade: no flight out of the button, no growing from half
+    // size. The fraction then carries opacity and nothing else.
+    val stayPut = Theme.motion.reduceMotion
 
     // Room for each item's fade to composite in without cutting its own shadow.
     //
@@ -458,7 +509,38 @@ private fun FabMenuItems(
                 if (showLabels) {
                     Box(
                         Modifier
-                            .graphicsLayer { alpha = fractions[index].value }
+                            .graphicsLayer {
+                                alpha = fractions[index].value
+                                // A row of buttons has nowhere to put a
+                                // horizontal label: the gap between two items is
+                                // 8dp and the words are forty. Above and turned
+                                // is the arrangement that fits, and it fits for a
+                                // reason worth stating — two parallel lines at
+                                // 45°, one per item, have `spacing × sin 45°` of
+                                // perpendicular clearance between them, so items
+                                // 56dp apart leave 40dp for a 32dp chip. Laid
+                                // flat above their buttons the same labels would
+                                // overlap by most of their length.
+                                if (layout == FabMenuLayout.Horizontal) {
+                                    rotationZ = -HorizontalLabelAngle
+                                    // About the chip's own bottom-left corner,
+                                    // which is `itemRoom` inside this box rather
+                                    // than at its edge — the padding is the
+                                    // fade's shadow buffer, and pivoting on the
+                                    // box would swing the chip 24dp off its
+                                    // button.
+                                    transformOrigin = TransformOrigin(
+                                        pivotFractionX =
+                                            if (size.width > 0f) roomPx / size.width else 0f,
+                                        pivotFractionY =
+                                            if (size.height > 0f) {
+                                                (size.height - roomPx) / size.height
+                                            } else {
+                                                1f
+                                            },
+                                    )
+                                }
+                            }
                             .padding(itemRoom)
                     ) {
                     Surface(
@@ -468,7 +550,7 @@ private fun FabMenuItems(
                             // fault the contract suite exists to catch.
                             .clearAndSetSemantics { },
                         shape = Theme.shapes.control,
-                        colour = Theme.colours.surfaceRaised,
+                        containerColour = Theme.colours.surfaceRaised,
                         contentColour = Theme.colours.content,
                         // A label is a light chip on a light page too, and it
                         // has no icon inside it to give away where its edges are.
@@ -496,8 +578,9 @@ private fun FabMenuItems(
                         .graphicsLayer {
                             val fraction = fractions[index].value
                             alpha = fraction
+                            val grown = if (stayPut) 1f else fraction
                             val scale = FabMenuDefaults.FromScale +
-                                (1f - FabMenuDefaults.FromScale) * fraction
+                                (1f - FabMenuDefaults.FromScale) * grown
                             scaleX = scale
                             scaleY = scale
                         }
@@ -587,7 +670,7 @@ private fun FabMenuItems(
             items.indices.forEach { index ->
                 val label = placeables[index * 2]
                 val button = placeables[index * 2 + 1]
-                val fraction = fractions[index].value
+                val fraction = if (stayPut) 1f else fractions[index].value
 
                 // Out of the FAB and back into it. The travel is interpolated
                 // here rather than in a layer so the item's *hit area* travels
@@ -607,7 +690,9 @@ private fun FabMenuItems(
                 if (label.width > 0 && label.height > 0) {
                     placeLabel(
                         label, button, point, geometry.labelOnLeft,
-                        labelGapPx, container, marginPx, roomPx,
+                        above = layout == FabMenuLayout.Horizontal,
+                        gap = labelGapPx, container = container,
+                        margin = marginPx, room = roomPx,
                     )
                 }
             }
@@ -615,22 +700,50 @@ private fun FabMenuItems(
     }
 }
 
-/** Beside its button, on the side the menu decided has room. */
+/**
+ * Beside its button on the side the menu decided has room, or above it turned.
+ *
+ * Both placeables are `room` larger on every side than the thing drawn inside
+ * them — see `itemRoom`, which buys the fade a buffer big enough to hold each
+ * item's shadow. Every gap here is between the *drawn* edges, so the padding
+ * comes back off; leave it in and every label sits 24dp further from its button
+ * than it is supposed to.
+ */
 private fun Placeable.PlacementScope.placeLabel(
     label: Placeable,
     button: Placeable,
     point: Offset,
     onLeft: Boolean,
+    above: Boolean,
     gap: Float,
     container: IntSize,
     margin: Float,
     room: Float,
 ) {
-    // Both placeables are `room` larger on every side than the thing drawn
-    // inside them — see `itemRoom`, which buys the fade a buffer big enough to
-    // hold each item's shadow. The gap is between the *drawn* edges, so the
-    // padding comes back off here; leave it in and every label sits 24dp
-    // further from its button than it is supposed to.
+    if (above) {
+        // The rotation is the label's own layer and does not change what it
+        // measured, so this places the *unrotated* chip with its bottom-left
+        // corner `gap` above the button's centre — and that corner is the pivot,
+        // so the chip swings up and to the right from exactly there.
+        val chipWidth = label.width - 2f * room
+        val chipHeight = label.height - 2f * room
+        // Where the turned chip actually reaches. A `w × h` rectangle rotated
+        // 45° about its bottom-left corner puts its furthest corner
+        // `(w + h) / √2` above that point, `w / √2` to the right of it — and
+        // `h / √2` to the *left*, which is the one that is easy to forget and is
+        // why the low clamp is not simply the margin.
+        val right = chipWidth * DiagonalComponent
+        val left = chipHeight * DiagonalComponent
+        val pivotY = point.y - button.height / 2f + room - gap
+        val low = margin + left - room
+        val high = container.width - margin - right - room
+        label.place(
+            x = (point.x - room).coerceIn(low, high.coerceAtLeast(low)).toInt(),
+            y = (pivotY - label.height + room).toInt(),
+        )
+        return
+    }
+
     val edge = button.width / 2f - room + gap
     val x = if (onLeft) point.x - edge - label.width + room else point.x + edge - room
     label.place(
@@ -787,3 +900,38 @@ private fun fabMenuGeometry(
 
     return FabMenuGeometry(points = points, labelOnLeft = labelOnLeft)
 }
+
+/**
+ * How far a horizontal menu's labels lean, in degrees counter-clockwise.
+ *
+ * 45° rather than a gentler angle, and the number is doing arithmetic rather
+ * than taste. Two labels turned by θ and sitting `d` apart have `d × sin θ` of
+ * perpendicular clearance between them, so the angle is what decides whether
+ * they collide: at 30° three items 56dp apart leave 28dp for a chip about 32dp
+ * tall and they touch, and at 45° they leave 40dp and they do not. Steeper than
+ * 45° reads as vertical text and costs height for clearance nothing needs.
+ */
+private const val HorizontalLabelAngle = 45f
+
+/**
+ * `cos 45°`, which at this angle is also `sin 45°`.
+ *
+ * Written out rather than computed, and named for what it is rather than for the
+ * number: both reaches of a chip turned by [HorizontalLabelAngle] are one of its
+ * own dimensions times this, and the two being equal is why one constant serves.
+ */
+private const val DiagonalComponent = 0.70710678f
+
+/**
+ * How far out an item is when its landing is played: 85% of the way, about 40ms
+ * ahead of where the eye has it arriving on `springDefault`.
+ *
+ * Ahead on purpose. A haptic reaches the hand a frame or two after it is asked
+ * for — the frame the value is observed in, and the actuator's own start — so a
+ * tick asked for as the item visibly stopped, at 97%, was felt after it had, and
+ * reported from a phone as "a bit delayed".
+ */
+private const val FabItemLanded = 0.85f
+
+/** The [index]th item's landing, a little softer than the one before, to a floor. */
+internal fun landingStrength(index: Int): Float = (1f - 0.1f * index).coerceAtLeast(0.6f)

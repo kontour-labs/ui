@@ -3,6 +3,9 @@ package io.kontour.ui.motion
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -12,6 +15,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.animation.AnimatedVisibility
@@ -26,6 +30,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 
 /** Which way a [Transitions.sharedAxis] transition travels. */
@@ -171,7 +176,7 @@ object Transitions {
  * The side away from the content it is spacing away from: a slot at the *start*
  * of a row carries its gap [Trailing], and one at the end carries it [Leading].
  */
-enum class SlotGap { Leading, Trailing }
+internal enum class SlotGap { Leading, Trailing }
 
 /**
  * An appearing or disappearing row item that carries its own gap.
@@ -268,4 +273,68 @@ internal fun Modifier.chevronTurn(expanded: Boolean, label: String = "chevronTur
         label = label,
     )
     return graphicsLayer { rotationZ = turn.value }
+}
+
+/**
+ * [transition], or a fade in place under reduced motion.
+ *
+ * ```kotlin
+ * AnimatedVisibility(
+ *     visible = shown,
+ *     enter = Theme.motion.enterOrFade(slideInVertically { it / 2 } + fadeIn()),
+ *     exit = Theme.motion.exitOrFade(slideOutVertically { it / 2 } + fadeOut()),
+ * ) { Notice() }
+ * ```
+ *
+ * The amplitude half of reduced motion. `Motion`'s own helpers — [Motion.tweenDefault],
+ * [Motion.springOrTween] — make a movement shorter and stop it overshooting;
+ * neither can make it *smaller*, and a panel that slides a third of the screen
+ * in 150ms instead of 400 still slides a third of the screen. This swaps the
+ * movement for the one thing that is not movement, at [Motion.fast].
+ *
+ * The library's own transitions go through here, so a component and the app
+ * around it answer the setting the same way.
+ */
+fun Motion.enterOrFade(transition: EnterTransition): EnterTransition =
+    if (reduceMotion) fadeIn(tweenFast()) else transition
+
+/** [transition], or a fade where it stands under reduced motion. See [enterOrFade]. */
+fun Motion.exitOrFade(transition: ExitTransition): ExitTransition =
+    if (reduceMotion) fadeOut(tweenFast()) else transition
+
+/**
+ * The spec for a scroll the app starts — to a page, an item, the top — which
+ * under reduced motion is no animation at all.
+ *
+ * ```kotlin
+ * scope.launch { pager.animateScrollToPage(3, animationSpec = Theme.motion.scrollSpec()) }
+ * ```
+ *
+ * A programmatic scroll is the largest movement an interface makes: the whole
+ * content travels, possibly by several screens, with nobody's finger on it. So
+ * it snaps. A scroll the reader makes with a finger is theirs and is not
+ * touched.
+ */
+fun <T> Motion.scrollSpec(): AnimationSpec<T> =
+    if (reduceMotion) snap() else springOrTween(springDefault)
+
+/**
+ * The spec for a size that changes on its own — a rail widening, a pane
+ * opening — which under reduced motion is instant.
+ *
+ * Content inside the resized thing reflows with it, so an animated size is
+ * movement of everything in it, frame by frame. Under reduced motion the size
+ * is simply the new one and whatever appears in the new room fades in.
+ */
+fun <T> Motion.sizeSpec(): FiniteAnimationSpec<T> =
+    if (reduceMotion) snap() else springOrTween(springDefault)
+
+/**
+ * Scrolls a lazy list to [index], animated or at once as [motion] says.
+ *
+ * `LazyListState.animateScrollToItem` takes no spec, so it cannot be handed
+ * [scrollSpec]; this picks between it and `scrollToItem` instead.
+ */
+internal suspend fun LazyListState.scrollToItem(index: Int, motion: Motion) {
+    if (motion.reduceMotion) scrollToItem(index) else animateScrollToItem(index)
 }

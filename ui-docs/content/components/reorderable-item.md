@@ -7,6 +7,17 @@ exists at rest. `ReorderableState.start(index)`, `drag(delta)` and `stop()` are
 public so a drag can be begun without one: for a keyboard affordance, and for a
 test that needs a row already lifted.
 
+**The shadow belongs to the card, not to the row.** With a `handleIcon` those are
+two different widths — the grip takes its own column and the content has what is
+left — and the lift used to be cast by the row, so a picked-up row drew a shadow
+tracing a rectangle wider than the card anybody could see, with an unpainted
+strip beside the handle. Reported twice: once as the gap, and again after the gap
+was filled with the surface colour, which on a light page is the same white as
+the page, so the fix changed nothing you could see. The lift is measured from the
+content's own box now: the shadow hugs the card, and the grip sits beside it on
+the list rather than inside it. The **scale and the offset stay on the row**, so
+the handle still travels and grows with what it is holding.
+
 **Reordering happens live, under the finger.** `onMove` fires every time the
 dragged row passes another, so the caller's list stays the source of truth
 throughout and there is no pending order to reconcile on release.
@@ -28,12 +39,28 @@ LazyColumn(state = listState) {
 }
 ```
 
-**A `handleIcon` changes the gesture, not just the picture.** With one, the row
-is dragged from the grip and the drag starts the moment the grip is pressed.
-Without one the whole row is draggable, and on touch that has to wait for a long
-press — because a row that moved as soon as a finger touched it could never be
-scrolled past. `handleSide` puts the grip at either end; the trailing end by
-default, since the leading end is usually where a row's own icon or avatar is.
+**A `handleIcon` adds a gesture rather than replacing one.** The grip picks the
+row up the moment it is pressed, because a grip has no scroll to steal. **The
+row stays draggable too**, on a long press, exactly as it is without a handle —
+a row that moved as soon as a finger touched it could never be scrolled past,
+and the hold is what keeps a row that is also a link safe.
+
+It did not used to. Turning the grip on took the whole row's gesture away with
+it, on the reasoning that a handle is what you asked for — which is not how any
+platform's own editable list behaves, and not what a reader reaches for first.
+
+`handleSide` puts the grip at either end; the trailing end by default, since the
+leading end is usually where a row's own icon or avatar is.
+
+**Handles animate in and out from their own side**, and the row's content narrows
+with them. Turning them on used to be a layout jump — the content went from
+filling the row to being a weighted sibling of a grip between two frames, so a
+row of text reflowed with no warning. The grip expands out of the edge it lives
+on, and because the width being animated is the grip's own, the card's remainder
+is animated by the same curve rather than by a second one kept in step with it.
+Moving `handleSide` across animates the old grip out and the new one in. Under
+reduced motion the grip fades rather than growing out of the edge, and the rows
+a reorder moves take their new places at once instead of sliding into the gap.
 
 The grip is decoration. Move up and move down are the accessible route either
 way, so the glyph carries no description and adding one would only put a third,
@@ -62,3 +89,11 @@ fingertip is a centimetre wide and rolls as it presses. The row allows a
 fingertip's worth of wander during the hold instead, which is well inside what
 any gesture that meant to scroll would have crossed by then. Reported from a
 phone browser, where frames are slower and holding still is a skill.
+
+High contrast changes nothing here: a lifted row is marked by its shadow and a
+2% lift at both tiers, and the row it wraps takes the tier as it would anywhere.
+
+Under [reduced motion](../tokens.md#motion) the rows a reorder displaces take
+their new places at once instead of sliding, including after a move made through
+the actions, and a grip turned on or off fades where it sits. The row under the
+finger follows it at every setting.

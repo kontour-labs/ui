@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.theme.ContrastLevel
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.kontourSizing
@@ -119,7 +119,7 @@ class BannerAlignmentTest {
             ) {
                 Box(Modifier.fillMaxSize().background(Color.White).padding(24.dp)) {
                     Banner(
-                        tone = BannerTone.Warning,
+                        tone = Tone.Warning,
                         onDismissRequest = {},
                         // Without an icon there is no dismiss button, and
                         // without the button the row is only as tall as the text

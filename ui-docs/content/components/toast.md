@@ -23,7 +23,7 @@ Button(
         scope.launch {
             toasts.show(
                 "Couldn't reach the timetable service",
-                tone = ToastTone.Danger,
+                tone = Tone.Danger,
                 actionLabel = "Retry",
                 onAction = { refresh() },
             )
@@ -59,7 +59,7 @@ right, but a toast that arrives at the front with two hundred milliseconds left
 was never actually read — it flashed. So on being promoted its remainder is
 raised to `ToastDefaults.PromotedFloor` of its own duration, three fifths, which
 scales with whatever the caller asked for and keeps the extra time
-`DurationWithAction` exists to give. It is a **floor and not a restart**: a
+`DisplayDurationWithAction` exists to give. It is a **floor and not a restart**: a
 restart would put a stack of four back to taking four full durations to clear,
 which is the queue this host was rewritten to stop being, and a toast promoted
 with plenty of time left is untouched either way.
@@ -105,12 +105,28 @@ and has two ways out of the way, that is the right trade — and without it a
 sideways swipe inside a vertical list is a race decided by the angle of the first
 few pixels.
 
+**`alignment` puts the stack in a corner.** A toast is capped at
+`ToastDefaults.MaxWidth`, so on a phone it spans the screen less its margins and
+`alignment` changes nothing. On a desktop window the default is a card in the
+middle of the bottom edge — as far as it can be from the pointer and from the
+corner where desktop platforms have taught people to look for a notification.
+`OverlayAlignment.End` puts it there.
+
+```kotlin
+ToastHost(toasts, alignment = OverlayAlignment.End)
+```
+
+It is a second parameter rather than four more values of `ToastPosition`, because
+only the *edge* decides which way the stack recedes, slides in and is swiped away.
+A top-right position would have to answer whether it recedes up or right, and every
+answer to that is arbitrary; the edge and the corner along it are two questions.
+
 ---
 
 ## Accessibility
 
 A toast announces itself. The live region is **`Assertive` for
-`ToastTone.Danger`** and `Polite` for everything else — a failure interrupts,
+`Tone.Danger`** and `Polite` for everything else — a failure interrupts,
 a confirmation waits for a gap.
 
 It never takes focus, which is deliberate: a toast that stole focus would move
@@ -119,5 +135,15 @@ worked. The consequence is the rule that governs the component — **an action i
 a toast must not be the only way to do it.** Four seconds is not a decision
 window for someone reading at their own pace.
 
-`showClose` adds a close button with `closeLabel` on it, which is worth turning
+`showDismiss` adds a close button with `dismissLabel` on it, which is worth turning
 on wherever a toast can carry an action.
+
+At high contrast the rims round the pills stacked behind the front toast are
+drawn thicker and in full ink rather than faded, and the action and close
+buttons, which are ghosts, gain an outline in the toast's text colour.
+
+Under reduced motion a toast arrives and leaves by fading where it rests, the
+front card and the pills behind it alike, and a swipe still follows the finger.
+When one leaves, the cards behind it still step forward into its place, over a
+short tween with no overshoot — a few pixels of the stack's resting depth — and
+a toast whose message changes takes its new size at once.

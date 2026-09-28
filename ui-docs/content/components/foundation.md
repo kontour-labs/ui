@@ -5,11 +5,13 @@ The primitives every other component is built from.
 | | |
 |---|---|
 | [`Text`](text.md) | Resolves style and colour from the theme. `String` and `AnnotatedString` overloads |
+| [`SelectableText`](selectable-text.md) | A region whose text the reader can select and copy. Nothing is selectable outside one |
 | [`Icon`](icon.md) | Tinted to the surrounding content colour. Takes an `ImageVector` or `Painter` |
 | [`Surface`](surface.md) | Background, shape, border, shadow — and sets `LocalContentColour` |
 | [`HorizontalDivider` / `VerticalDivider`](divider.md) | Decorative rules |
 | [`Scrim`](scrim.md) | Dims and blocks input behind a modal |
 | [`SelectionIndicatorBox`](selection-indicator.md) | The travelling pill behind a selected destination |
+| [`Modifier.clearFocusOnTap`](modifier-clear-focus-on-tap.md) | Puts the keyboard away when a press lands on nothing |
 
 `Surface` setting `LocalContentColour` is what makes `Text` and `Icon` need no
 colour argument in the common case: a surface says what it is, and its content
@@ -74,5 +76,5 @@ page:
 | `LocalInputModality` | [Input modality](../accessibility.md#input-modality) |
 | `kontourIndication` | [Interaction](../../../docs/building/contributing.md#interaction) |
 | `Feedback` / `FeedbackIntent` | [Interaction](../../../docs/building/contributing.md#interaction) |
-| `SelectionIndicatorBox` | [How selection is shown](nav-surfaces.md#how-selection-is-shown) |
+| `SelectionIndicatorBox` | [How selection is shown](nav-scope.md#how-selection-is-shown) |
 | `OverlayHost` | [Overlays](../overlays.md) |

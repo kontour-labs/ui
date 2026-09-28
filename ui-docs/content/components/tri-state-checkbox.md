@@ -34,3 +34,11 @@ something the *children* produce, which is what it means.
 
 The label still belongs on the row. Put it in a
 [`SelectionRow`](selection-row.md).
+
+At high contrast the box's outline and the tick or dash inside it are drawn at
+`borderWidthStrong`, which is thicker at this tier, in the enhanced scheme's
+colours; so is the focus ring.
+
+Under reduced motion the tick still strokes itself on and the box still grows to
+meet it, over a short tween with no overshoot rather than a spring. A press
+still draws a third of the mark, and a tick still flattens into the dash.

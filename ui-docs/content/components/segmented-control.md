@@ -6,8 +6,8 @@ var selected by remember { mutableStateOf(0) }
 
 SegmentedControl(
     options = listOf("Bus", "Train", "Ferry"),
-    selected = selected,
-    onSelectedChange = { selected = it },
+    selectedIndex = selected,
+    onSelectedIndexChange = { selected = it },
 )
 ```
 
@@ -24,16 +24,48 @@ premise.
 ### When the labels do not fit
 
 The track is divided evenly between the segments, so a long label on a narrow
-control is *expected* to run out of room — and what runs out **ellipsises**, the
-same as a [`TabBar`](tab-bar.md) tab and for the same reason: "Keyboard" cut to
-"Keyboar" reads as a different word, where "Keybo…" reads as a shortened one.
+control is *expected* to run out of room. **When one does, the options stop
+sharing a row and stack into full-width rows instead** — one per option, every
+label drawn whole.
 
-Note "short" in the paragraph above is relative to the *control's* width, not to
-the label. Four segments in 244dp is 61dp each, which "Keyboard" already exceeds
-at the default type scale — and a reader who has turned text size up makes every
-segment tighter without making the control wider. If your labels are ellipsising
-at 100%, that is the signal to reach for a `RadioGroup` or a `Select`, not to
-shorten the words.
+Note "short" is relative to the *control's* width, not to the label. Four
+segments in 244dp is 58dp each — the track is the control less 6dp of padding a
+side, which an earlier version of this page forgot — and "Keyboard" exceeds that
+at the default type scale, so a control that narrow stacks. A reader who has
+turned text size up makes every segment tighter without making the control wider,
+which is why this is a text-size question as much as a layout one: at 200% both
+`Standard` and `Keyboard` are about twice their segment's width.
+
+Wrapping to a second line is not the answer and was tried: `Keyboard`, `Standard`
+and `200` are single unbreakable words, so a second line gets nothing.
+
+**Stacked, the thumb drags down the column — from the thumb.** The drag used to
+go away entirely when the control stacked, on the reasoning that a vertical drag
+would be competing with the page for its own direction. Half of that is right,
+and it is the half that decides the rule. Side by side, the control and the page
+want different axes, so the control can take any drag that is more along its
+track than across it and win on slope. Stacked, they want the same axis and no
+slope can separate them.
+
+So what separates them is **where the finger goes down**. A drag that starts on
+the thumb carries it, with the same lean, rubber band and squash a row has; a
+drag that starts anywhere else is never consumed at all and scrolls the page
+behind it. A stacked control in a scrolling screen stays scrollable everywhere
+except on its own handle, which is the one place a drag could only have meant
+the control.
+
+Taps are unchanged either way, and they are still the whole interaction for a
+reader who never tries to drag.
+
+**The control also grows taller with the type.** Its height used to be pinned at
+`max(controlHeightMedium, minTouchTarget)` whatever the text size, and a 14sp
+label with a 1.20 line height passes that box at around 2.1×, at which point the
+glyphs were clipped top and bottom with no ellipsis to mark it. It is a minimum
+now rather than a fixed height.
+
+If your labels stack at 100%, that is still the signal to reach for a
+`RadioGroup` or a `Select` — stacking keeps the words readable, but four rows of
+one option each is a radio group wearing a segmented control's clothes.
 
 The indicator is a single surface that **slides** between positions rather than
 each segment fading its own background — that is what makes it read as one
@@ -57,6 +89,19 @@ rather than on each segment: a drag from "Depart" to "Arrive" leaves the segment
 it began in, and a per-segment handler loses the pointer at the boundary. Taps
 still belong to the segment under them.
 
+**Carry it past the last segment and the thumb squashes against the end.** The
+lean above is clamped at the **thumb's own travel** — centre to centre, because
+that is as far as the thumb can go — and the part of the push the clamp refused
+goes into a rubber band, coming back as the thumb shortening from its *trailing*
+edge while the leading one stays on the wall. Clamping to the *track* instead is
+half a segment of finger that moves nothing and squashes nothing, which is what
+was reported: having to drag a little further after the end stop before anything
+gave. The two are never both live, which is what lets one `transformOrigin`
+serve them: at a wall the lean is zero because the clamp took it, and anywhere
+else the band is at rest. They want opposite anchors, so getting that wrong is
+not subtle — the thumb narrows by exactly as much, from the wrong end, and reads
+as retreating from the stop rather than as compressing into it.
+
 The drag is *owned*: from the first pixel the finger travels, the control takes
 the whole gesture and a scrolling page above it cannot take it back. Without
 that, whether the thumb moved at all depended on the angle — the control and the
@@ -64,6 +109,11 @@ list it sits in are both waiting for their own touch slop, and more than 45° of
 the track the list reached its threshold first and the thumb never moved. The
 price is that you cannot scroll a page by dragging on a segmented control. A
 press that never travels is left alone, so tapping one is unchanged.
+
+Stacked, the ownership rule is the other way round and for the same reason: the
+control takes only what starts on its thumb, because the gesture it would
+otherwise be taking is the page's own scroll rather than a drag at an awkward
+angle.
 
 ---
 
@@ -79,3 +129,13 @@ what is on screen below them.
 Beyond four or five options the segments become unreadable slivers before they
 become inaccessible — but they become both. A [`Select`](select.md) is the answer
 for a long set.
+
+At high contrast the track takes an edge and the focus ring is drawn thicker.
+The thumb takes no edge at either tier;
+[A selection indicator, and what identifies it](../accessibility.md#a-selection-indicator-and-what-identifies-it)
+sets out that trade.
+
+Under reduced motion the thumb does not slide: it fades up on the segment
+chosen, and while a finger drags across the track it moves segment by segment
+the same way. It also stops leaning toward the finger and stretching past the
+ends.

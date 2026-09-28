@@ -1,5 +1,6 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -35,6 +38,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.SystemIcons
@@ -48,8 +53,8 @@ import kotlin.math.ceil
  * A score out of [count], as a row of marks.
  *
  * ```kotlin
- * Rating(value = 4f, contentDescription = "Your rating", onValueChange = { rating = it })
- * Rating(value = 4.3f, contentDescription = "Average rating")   // read-only
+ * Rating(value = 4f, onValueChange = { rating = it }, contentDescription = "Your rating")
+ * Rating(value = 4.3f, onValueChange = null, contentDescription = "Average rating")   // read-only
  * ```
  *
  * **`onValueChange = null` makes it read-only, and read-only means it is not a
@@ -66,8 +71,9 @@ import kotlin.math.ceil
  * **Press and drag across the marks to set it.** A row of stars is the most
  * obviously swipeable control there is, and until now every one of them was five
  * separate tap targets. The score follows the finger from the moment it lands —
- * there is no slop to cross first — and each value crossed ticks, so a score can
- * be set without looking.
+ * there is no slop to cross first. The press answers with a tap when it changes
+ * the score, and each mark a drag then crosses ticks like a slider's detent, so a
+ * score can be set without looking and a fast drag is not a run of presses.
  *
  * The row owns the pointer for the whole gesture, the way [Slider] does and for
  * the same reason: it is an absolute control, mapping a position to a value, so
@@ -86,6 +92,12 @@ import kotlin.math.ceil
  *   the right half is whole, which is the only mapping anyone guesses right
  *   first time — and the halves divide the mark's whole 48dp target, not its
  *   glyph, so the half score is a 24dp-wide region rather than a 10dp one.
+ * @param allowZero Whether the score can be taken back to nothing. On by
+ *   default, as asked for from a phone: a rating with no way back to zero is one
+ *   a slip of the thumb commits the reader to. A tap on the score already given
+ *   clears it — decided when the finger lifts, so a drag that starts there still
+ *   drags — as does a drag carried off the start of the row, or choosing the
+ *   selected mark again from the keyboard. Off, the lowest score is one mark.
  * @param contentDescription What the score is *of* — "Your rating", "Average
  *   rating". Required: five stars with no name is a row of decoration.
  * @param onValueChange `null` for read-only. Receives whole numbers unless
@@ -95,28 +107,40 @@ import kotlin.math.ceil
  *   common rating on any screen.
  * @param icon The empty mark. Defaults to a star outline.
  * @param filledIcon The full mark. Defaults to a filled star.
+ * @param onValueChangeFinished Called once the score has been set — when a press
+ *   or a drag lifts, or a mark is chosen from the keyboard — as a slider's is. For
+ *   saving the score, where [onValueChange] would save every mark a drag crossed.
  */
 @Composable
 fun Rating(
     value: Float,
+    onValueChange: ((Float) -> Unit)?,
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onValueChange: ((Float) -> Unit)? = null,
     count: Int = RatingDefaults.Count,
     allowHalf: Boolean = false,
+    allowZero: Boolean = true,
     icon: ImageVector? = null,
     filledIcon: ImageVector? = null,
     markSize: Dp = Theme.sizing.iconLarge,
-    filledColour: Color = Theme.colours.warning.solid,
-    emptyColour: Color = Theme.colours.outlineStrong,
+    colours: RatingColours = RatingDefaults.colours(),
     stateDescription: ((Float) -> String)? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val tap = rememberTapFeedback()
+    // Marks crossed by a drag are detents, not presses: the lightest tick, and the
+    // shared rate floor. It used to tap for each one — a click per star, twice
+    // with halves — which was felt as heavy against every other drag in the set.
+    val ticker = rememberDetentTicker()
     val empty = icon ?: SystemIcons.Star
     val full = filledIcon ?: SystemIcons.StarFilled
     val clamped = value.coerceIn(0f, count.toFloat())
-    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count)
+    val strings = Theme.strings
+    val formats = Theme.formats
+    val outOf: (String, Int) -> String = remember(strings, formats) { { written, of -> strings.outOf(written, formats.quantity(of)) } }
+    val spoken = stateDescription?.invoke(clamped) ?: defaultRatingDescription(clamped, count, outOf, formats)
 
     if (onValueChange == null) {
         // One node, and nothing to press. `clearAndSetSemantics` rather than a
@@ -137,8 +161,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColour = filledColour,
-                    emptyColour = emptyColour,
+                    filledColour = colours.filled,
+                    emptyColour = colours.empty,
                 )
             }
         }
@@ -161,22 +185,49 @@ fun Rating(
     val markWidth = remember(count) { FloatArray(count) }
     val currentValue by rememberUpdatedState(clamped)
     val currentChange by rememberUpdatedState(onValueChange)
+    val currentFinished by rememberUpdatedState(onValueChangeFinished)
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    fun setFromX(x: Float) {
+    // Whether the gesture's press landed on the score already given — which,
+    // lifted without a drag, takes it back to zero. See `allowZero`.
+    var pressedOnScore = false
+
+    fun setFromX(x: Float, press: Boolean) {
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
         val index = if (isRtl) count - 1 - nearest else nearest
         val within = ((x - markLeft[nearest]) / markWidth[nearest]).coerceIn(0f, 1f)
+        // Carried off the start of the row: before the first mark in reading
+        // order, which is its left in LTR and its right in RTL.
+        val offStart = if (isRtl) {
+            x > markLeft[count - 1] + markWidth[count - 1]
+        } else {
+            x < markLeft[0]
+        }
         val next = when {
+            allowZero && offStart -> 0f
             !allowHalf -> (index + 1).toFloat()
             // The left half of a mark is the half mark. Mirrored in RTL, where
             // "the left half" is the far side of the same star.
             (if (isRtl) 1f - within else within) < 0.5f -> index + 0.5f
             else -> (index + 1).toFloat()
         }
-        if (next == currentValue) return
+        // Indexed in half marks, so a half is its own detent where there are halves.
+        val detent = next * 2f
+        if (press) {
+            // The press arms the ticker on the value it lands on — a drag that
+            // starts there has crossed nothing yet — and answers with a tap if it
+            // changed the score.
+            ticker.reset()
+            ticker.at(detent)
+            pressedOnScore = next == currentValue && next > 0f
+            if (next == currentValue) return
+            tap()
+        } else {
+            ticker.at(detent)
+            if (next == currentValue) return
+        }
         currentChange(next)
     }
 
@@ -190,7 +241,7 @@ fun Rating(
             }
             .then(
                 if (enabled) {
-                    Modifier.pointerInput(count, allowHalf, isRtl) {
+                    Modifier.pointerInput(count, allowHalf, allowZero, isRtl) {
                         awaitEachGesture {
                             // Claimed on the down, on the initial pass, which
                             // travels parent to child — so the marks' own
@@ -210,7 +261,9 @@ fun Rating(
                                 pass = PointerEventPass.Initial,
                             )
                             down.consume()
-                            setFromX(down.position.x)
+                            setFromX(down.position.x, press = true)
+                            var travel = Offset.Zero
+                            var lifted = false
 
                             while (true) {
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -219,11 +272,25 @@ fun Rating(
                                 // reports zero for a change that has already
                                 // been consumed, so reading it afterwards is a
                                 // gesture that can never see any movement.
-                                val travelled = change.positionChange() != Offset.Zero
+                                val moved = change.positionChange()
                                 change.consume()
-                                if (!change.pressed) break
-                                if (travelled) setFromX(change.position.x)
+                                if (!change.pressed) {
+                                    lifted = true
+                                    break
+                                }
+                                travel += moved
+                                if (moved != Offset.Zero) setFromX(change.position.x, press = false)
                             }
+                            // A tap on the score already given, lifted where it
+                            // landed: take it back. Not decided on the press, so
+                            // a drag from the current score is a drag.
+                            if (allowZero && lifted && pressedOnScore && travel.getDistance() < viewConfiguration.touchSlop) {
+                                tap()
+                                currentChange(0f)
+                            }
+                            pressedOnScore = false
+                            ticker.reset()
+                            currentFinished?.invoke()
                         }
                     }
                 } else {
@@ -256,14 +323,27 @@ fun Rating(
                     .pointerCursor(enabled = enabled)
                     .selectable(
                         selected = markValue <= selected,
-                        onClick = { onValueChange(markValue.toFloat()) },
+                        // The keyboard and assistive-tech path, and the only one
+                        // that reaches here — the row consumes the pointer on the
+                        // initial pass, so this and `setFromX` never both answer
+                        // the same input. Both acknowledge a change, because a
+                        // checkbox activated from the keyboard does — and neither
+                        // answers the score it already has, as a radio does not.
+                        onClick = {
+                            // The selected mark again takes the score back, where
+                            // that is allowed — the keyboard's way to zero.
+                            val next = if (allowZero && markValue.toFloat() == currentValue) 0f else markValue.toFloat()
+                            if (next != currentValue) tap()
+                            onValueChange(next)
+                            currentFinished?.invoke()
+                        },
                         enabled = enabled,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
                         interactionSource = interactions,
                         indication = null,
                     )
                     .semantics {
-                        this.contentDescription = ratingMarkDescription(markValue, count)
+                        this.contentDescription = outOf(formats.integer(markValue), count)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -276,8 +356,8 @@ fun Rating(
                     empty = empty,
                     full = full,
                     size = markSize,
-                    filledColour = if (enabled) filledColour else Theme.colours.contentDisabled,
-                    emptyColour = if (enabled) emptyColour else Theme.colours.contentDisabled,
+                    filledColour = if (enabled) colours.filled else colours.filledDisabled,
+                    emptyColour = if (enabled) colours.empty else colours.emptyDisabled,
                     springOnFill = true,
                 )
             }
@@ -340,7 +420,14 @@ private fun Mark(
                     // of the empty star underneath it. Clipping the drawing
                     // leaves the glyph exactly where it was laid out.
                     .drawWithContent {
-                        clipRect(right = this.size.width * shownFill) {
+                        // From the start of the line: a half star in Arabic is
+                        // lit on its right.
+                        val lit = this.size.width * shownFill
+                        val rtl = layoutDirection == LayoutDirection.Rtl
+                        clipRect(
+                            left = if (rtl) this.size.width - lit else 0f,
+                            right = if (rtl) this.size.width else lit,
+                        ) {
                             this@drawWithContent.drawContent()
                         }
                     },
@@ -351,20 +438,42 @@ private fun Mark(
     }
 }
 
-/** "4.3 out of 5", or "4 out of 5" when the score is whole. */
-private fun defaultRatingDescription(value: Float, count: Int): String {
+/**
+ * "4.3 out of 5", or "4 out of 5" when the score is whole — through
+ * [io.kontour.ui.theme.Strings.outOf], which one mark announces as well: "3 out
+ * of 5", not "star 3".
+ */
+private fun defaultRatingDescription(value: Float, count: Int, outOf: (String, Int) -> String, formats: LocaleFormats): String {
     val whole = value.toInt()
-    val shown = if (value == whole.toFloat()) whole.toString() else value.toString()
-    return "$shown out of $count"
+    val shown = if (value == whole.toFloat()) formats.integer(whole) else formats.decimal(value.toDouble(), 1)
+    return outOf(shown, count)
 }
 
-/** What one mark announces: "3 stars", not "star 3". */
-private fun ratingMarkDescription(markValue: Int, count: Int): String =
-    if (markValue == 1) "1 out of $count" else "$markValue out of $count"
+/** The colours a [Rating] draws its marks in. */
+@Immutable
+data class RatingColours(
+    /** The filled part of a mark. */
+    val filled: Color,
+    /** The outline of a mark, and the part a partial score leaves empty. */
+    val empty: Color,
+    val filledDisabled: Color,
+    val emptyDisabled: Color,
+)
 
+/** What a [Rating] takes by default. */
 object RatingDefaults {
     /** Five, which is what a rating means to almost everybody. */
     const val Count: Int = 5
+
+    /** The theme's colours for a rating: warning-yellow marks on a strong outline. */
+    @Composable
+    @ReadOnlyComposable
+    fun colours(
+        filled: Color = Theme.colours.warning.solid,
+        empty: Color = Theme.colours.outlineStrong,
+        filledDisabled: Color = Theme.colours.contentDisabled,
+        emptyDisabled: Color = Theme.colours.contentDisabled,
+    ): RatingColours = RatingColours(filled, empty, filledDisabled, emptyDisabled)
 
     /**
      * The gap between marks.
@@ -373,5 +482,5 @@ object RatingDefaults {
      * icons — the touch targets around them are much wider than the gap and
      * overlap nothing, because `minimumTouchTarget` reserves layout space.
      */
-    val Gap: Dp @Composable get() = Theme.spacing.xxs
+    val Gap: Dp @Composable @ReadOnlyComposable get() = Theme.spacing.xxs
 }

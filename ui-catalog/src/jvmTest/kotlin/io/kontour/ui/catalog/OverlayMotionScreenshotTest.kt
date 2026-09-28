@@ -31,11 +31,11 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.Tooltip
-import io.kontour.ui.overlay.coachMark
+import io.kontour.ui.overlay.coachmark
 import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetHeader
-import io.kontour.ui.sheet.SideSheet
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.AfterTest
@@ -163,7 +163,7 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
         showing.value = false
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), colour = Theme.colours.background) {
+    Surface(modifier = Modifier.fillMaxSize(), containerColour = Theme.colours.background) {
         Row(
             modifier = Modifier.padding(Theme.spacing.lg),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -180,7 +180,7 @@ private fun LeavingSheets(dismissAfterFrames: Int) {
                 }
             }
             MotionPanel("Side sheet") {
-                SideSheet(
+                ModalSideSheet(
                     visible = showing.value,
                     onDismissRequest = { showing.value = false },
                     width = 220.dp,
@@ -217,7 +217,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), colour = Theme.colours.background) {
+    Surface(modifier = Modifier.fillMaxSize(), containerColour = Theme.colours.background) {
         Row(
             modifier = Modifier.padding(Theme.spacing.lg),
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -232,7 +232,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                     DropdownMenu(
                         visible = showing.value,
                         onDismissRequest = {},
-                        alignment = OverlayAlignment.Center,
+                        alignment = OverlayAlignment.Centre,
                     ) {
                         item("Share") {}
                         item("Copy stop ID") {}
@@ -260,11 +260,11 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                             icon = Tabler.Outline.Bookmark,
                             contentDescription = "Save this trip",
                             onClick = {},
-                            modifier = Modifier.coachMark(
+                            modifier = Modifier.coachmark(
                                 enabled = showing.value,
                                 id = "save-trip",
                                 title = "Save this trip",
-                                text = "Saved trips show up on the home screen.",
+                                message = "Saved trips show up on the home screen.",
                                 priority = 10,
                             ),
                         )
@@ -300,7 +300,7 @@ private fun AppearingOverlays(dismissAfterFrames: Int? = null) {
                     destructive = true,
                 ) {
                     +"Remove this favourite?"
-                    supporting { +"Perth Underground will be taken off your home screen." }
+                    message { +"Perth Underground will be taken off your home screen." }
                 }
             }
         }
@@ -326,7 +326,7 @@ private fun MotionPanel(label: String, content: @Composable BoxScope.() -> Unit)
         Surface(
             modifier = Modifier.width(400.dp).height(380.dp),
             shape = Theme.shapes.large,
-            colour = Theme.colours.surface,
+            containerColour = Theme.colours.surface,
         ) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize(), content = content)

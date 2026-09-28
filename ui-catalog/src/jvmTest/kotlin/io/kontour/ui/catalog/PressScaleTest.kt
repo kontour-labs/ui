@@ -82,7 +82,7 @@ class PressScaleTest {
     @Test
     fun aSmallButtonMovesFurtherThanALargeOne() {
         val (smallRest, smallPress) = inkWidths {
-            IconButton(Tabler.Outline.Star, "Save", {}, size = ButtonSize.XSmall)
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, size = ButtonSize.XSmall)
         }
         val (largeRest, largePress) = inkWidths {
             Button(onClick = {}, size = ButtonSize.XLarge) { +"Save the whole itinerary" }
@@ -100,15 +100,135 @@ class PressScaleTest {
         )
     }
 
+    /**
+     * A tap too quick to see still plays in full.
+     *
+     * Reported from a phone: the press "looks good on desktop when you click it,
+     * and it sorta shrinks and darkens", but on a phone "you're often not tapping
+     * it for long enough to see that shrinking, and it sometimes just looks like
+     * it's flashing". The cause is arithmetic rather than taste — a thumb is down
+     * for a few tens of milliseconds, the shrink is a spring and the wash a
+     * `tweenFast`, and releasing retargeted both the moment the finger lifted. The
+     * shrink turned round a third of the way down; what is left of an animation
+     * that reverses before it arrives is a flicker.
+     *
+     * Held now for `IndicationDefaults.PressFloor` after the release, so the shrink gets there.
+     *
+     * Measured as the smallest the control's ink ever gets after a press and a
+     * release in the same breath — no frame between them, which is the shortest
+     * press this harness can express and shorter than any real one. The floor is a
+     * wall-clock duration and the scene's frames are not, so twenty frames of
+     * animation pass inside a couple of milliseconds of held press: exactly the
+     * separation being tested, since the point is that the animation is allowed to
+     * finish.
+     */
+    @Test
+    fun aTapTooQuickToSeeStillShrinks() {
+        var bounds = Rect.Zero
+        var resting = 0
+        var held = 0
+        var tapped = Int.MAX_VALUE
+
+        Scene(width = 500, height = 220) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(24.dp)) {
+                Box(Modifier.reportBounds { bounds = it }) {
+                    Button(onClick = {}) { +"Save" }
+                }
+            }
+        }.use { scene ->
+            resting = scene.frames(8).inkWidth()
+            val at = bounds.alongX(0.5f)
+
+            // The control under a finger that stays there, for the number the tap
+            // below has to reach.
+            scene.press(at)
+            held = scene.frames(20).inkWidth()
+            scene.release(at)
+            scene.frames(30)
+
+            // And the same press, let go immediately.
+            scene.press(at)
+            scene.release(at)
+            repeat(20) { tapped = minOf(tapped, scene.frame().inkWidth()) }
+        }
+
+        assertTrue(
+            held < resting,
+            "a held press did not shrink the control at all: $resting→$held. " +
+                "Nothing else here can mean anything if that is false",
+        )
+        assertTrue(
+            tapped <= held,
+            "a tap released in the same breath took the control to ${tapped}px at " +
+                "its smallest, where a held press reaches ${held}px from " +
+                "${resting}px at rest. The press is being answered before its own " +
+                "animation has arrived, which is the flicker that was reported",
+        )
+    }
+
+    /**
+     * And it still plays in full when the renderer stalls at the moment of the tap.
+     *
+     * The hold was 120ms on the **wall** clock, and the shrink it exists to protect
+     * runs on the **frame** clock. On a phone that drops frames just as the finger
+     * lifts, the floor ran out before the shrink had drawn anything, the release
+     * turned it round, and the flicker the floor was added for came back on exactly
+     * the devices most likely to show it. The arm above caught it first, as a test
+     * that passed on its own and failed under a busy suite — a busy machine is a
+     * janky renderer — and was nearly written off as flaky.
+     *
+     * So this is the jank, on purpose: the tap, then a real stall longer than the
+     * floor before a single frame is drawn. The release has to wait for the shrink
+     * to arrive, not for a stopwatch that started while nothing was being drawn.
+     */
+    @Test
+    fun aTapStillShrinksWhenTheRendererStalls() {
+        var bounds = Rect.Zero
+        var resting = 0
+        var held = 0
+        var tapped = Int.MAX_VALUE
+
+        Scene(width = 500, height = 220) {
+            Box(Modifier.fillMaxSize().background(Color.White).padding(24.dp)) {
+                Box(Modifier.reportBounds { bounds = it }) {
+                    Button(onClick = {}) { +"Save" }
+                }
+            }
+        }.use { scene ->
+            resting = scene.frames(8).inkWidth()
+            val at = bounds.alongX(0.5f)
+
+            scene.press(at)
+            held = scene.frames(20).inkWidth()
+            scene.release(at)
+            scene.frames(30)
+
+            scene.press(at)
+            scene.release(at)
+            // Nothing drawn for longer than the whole floor.
+            Thread.sleep(Stall)
+            repeat(20) { tapped = minOf(tapped, scene.frame().inkWidth()) }
+        }
+
+        assertTrue(held < resting, "a held press did not shrink the control at all: $resting→$held")
+        assertTrue(
+            tapped <= held,
+            "after a ${Stall}ms stall a tap took the control only to ${tapped}px, where a " +
+                "held press reaches ${held}px from ${resting}px at rest. The release was " +
+                "timed on the wall clock and ran out while nothing was being drawn, so " +
+                "the shrink was turned round before it had begun",
+        )
+    }
+
     /** One control, and the name a failure should call it by. */
     private class Case(val name: String, val content: @Composable () -> Unit)
 
     private val Buttons = listOf(
         Case("IconButton (default, Ghost)") {
-            IconButton(Tabler.Outline.Star, "Save", {})
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {})
         },
         Case("IconButton (Primary)") {
-            IconButton(Tabler.Outline.Star, "Save", {}, variant = ButtonVariant.Primary)
+            IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, variant = ButtonVariant.Primary)
         },
         Case("IconToggleButton") {
             var on by mutableStateOf(false)
@@ -124,7 +244,7 @@ class PressScaleTest {
             Button(onClick = {}, variant = ButtonVariant.Tertiary) { +"Save" }
         },
         Case("FloatingActionButton") {
-            FloatingActionButton(Tabler.Outline.Star, "Save", {}, size = FabSize.Medium)
+            FloatingActionButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}, size = FabSize.Medium)
         },
     )
 
@@ -165,6 +285,12 @@ class PressScaleTest {
  * getting **bigger** under a finger. Anything past [Solid] is a container or a
  * glyph; nothing that faint is either.
  */
+/**
+ * Longer than `IndicationDefaults.PressFloor`, with room to spare on a slow machine: the whole floor
+ * passes before the first frame after the tap is drawn.
+ */
+private const val Stall = 250L
+
 private fun BufferedImage.inkWidth(): Int {
     val page = getRGB(2, 2)
     var left = -1

@@ -34,3 +34,9 @@ should say how many items it has.
 
 It draws with a blend mode over the content, and it adds no node to the
 accessibility tree at all.
+
+At high contrast there is no fade: nothing that is text fades at that tier, and
+the list's own edge and its scrollbar still say there is more.
+
+The fade follows the scroll position and has no animation of its own, so
+reduced motion changes nothing about it.

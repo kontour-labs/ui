@@ -77,7 +77,8 @@ import androidx.compose.ui.unit.dp
  *   there is nowhere else for this to live. It is applied where the library
  *   turns a caller's `String` into text on a *control* — the seven row-shaped
  *   slots (`Button`, the extended FAB, `Tag`, the three `Chip` variants and a
- *   `TabBar` tab) and a field's label — and nowhere else. Dialog titles, banner
+ *   `TabBar` tab), a `SegmentedControl`'s options and a field's label — and
+ *   nowhere else. Dialog titles, banner
  *   messages, list rows and menu items go through a different slot helper and
  *   are prose, not labels.
  *
@@ -107,18 +108,44 @@ data class ComponentDefaults(
     val buttonGapXLarge: Dp = 10.dp,
     /** How far a small control shrinks on press. 28 and 36dp can take 7%. */
     val pressScaleSmall: Float = 0.93f,
-    /** The same for 44dp. Large and XLarge use `DefaultPressScale`. */
+    /** The same for 44dp. Large and XLarge use `IndicationDefaults.PressScale`. */
     val pressScaleMedium: Float = 0.95f,
 
     // --- Controls ---
     val segmentedTrackPadding: Dp = 6.dp,
     val toolbarPadding: Dp = 6.dp,
+    /**
+     * How wide a detent mark on a slider's track is drawn.
+     *
+     * 3dp, on a 4dp track. It was `trackHeight * 0.22f` — a literal, and one
+     * that worked out at **1.76dp across**, which is under two pixels at 1x and
+     * is why the report was that the ticks are not obvious enough. A mark that
+     * says "the value stops here" has to be findable while a thumb is covering
+     * part of the track.
+     *
+     * Three quarters of the track rather than all of it: a tick as tall as the
+     * bar it sits in stops reading as a mark on the track and starts reading as
+     * a break in it.
+     */
+    val sliderTickSize: Dp = 3.dp,
 
     // --- Rows and lists ---
     val listItemMinHeight: Dp = 48.dp,
     val listItemTwoLineMinHeight: Dp = 64.dp,
     /** Between a row's label and its supporting line. */
     val listItemSpacing: Dp = 2.dp,
+    /**
+     * How far into a swipe row's actions a slow release has to be to open them,
+     * and how far back out to close them.
+     *
+     * 0.35, down from 0.55. At 0.55, with a commit beyond it that wanted four
+     * fifths of the rest of the row, a swipe was reported as "way too hard to do"
+     * on iOS. A flick decides by direction and the commit by a point of no return,
+     * so this is only the slow case now. Here rather than in
+     * `SwipeActionsDefaults` because how hard a row is to swipe is a feel a
+     * design system picks, not a fact about the component.
+     */
+    val swipePositionalThreshold: Float = 0.35f,
     val scrollbarThickness: Dp = 6.dp,
     val scrollbarHoveredThickness: Dp = 10.dp,
     val swipeActionWidth: Dp = 88.dp,
@@ -126,24 +153,44 @@ data class ComponentDefaults(
     // --- Display ---
     val pageIndicatorDotSize: Dp = 8.dp,
     val pageIndicatorActiveWidth: Dp = 20.dp,
-    val pageIndicatorGap: Dp = 6.dp,
+    /**
+     * Between two dots, and between the widened one and its neighbours.
+     *
+     * Eight rather than six, which is where it sat while the indicator reserved
+     * 48dp of row for every dot and the gap it drew was not the gap you saw. It
+     * stopped doing that and six read as cramped, which it always was — this is
+     * the same ratio to the dot that a platform indicator uses.
+     */
+    val pageIndicatorGap: Dp = 8.dp,
+    /**
+     * How much of the next page a hero carousel shows beside the current one.
+     *
+     * **None, by default**: one page at a time, the frame holding the hero alone and
+     * the gap opening between two boxes only while a swipe is in flight. Asked for
+     * as the default, and it is also the case in which a hero's picture holds
+     * perfectly still while its box wipes over it — with a peek, a page arriving
+     * slides the last gap-and-a-peek of its way home.
+     *
+     * A brand's dial, which is why it is here: how much of the next thing to show
+     * is a decision about the *pictures*. Around 96dp reads as a picture with
+     * something in it rather than a stripe, narrow enough that the page being
+     * looked at is plainly the subject, and a comfortable target — a tap on it
+     * turns the page.
+     */
+    val carouselHeroPeek: Dp = 0.dp,
     val keyValueLabelWidth: Dp = 108.dp,
     val keyValueMinValueWidth: Dp = 96.dp,
     /** The blank between the end of a marquee's text and its repeat. */
     val marqueeGap: Dp = 48.dp,
 
     // --- Navigation ---
-    val navIndicatorWidth: Dp = 56.dp,
-    val navIndicatorHeight: Dp = 32.dp,
-    val navGlyphHeight: Dp = 28.dp,
     val navInlineGlyph: Dp = 48.dp,
     val navCircleSize: Dp = 40.dp,
     val navSelectedIconScale: Float = 1.08f,
     val navBarItemGap: Dp = 12.dp,
     val navRailCollapsedWidth: Dp = 88.dp,
     val navRailExpandedWidth: Dp = 280.dp,
-    val navDrawerWidth: Dp = 280.dp,
-    val navDrawerNestIndent: Dp = 24.dp,
+    val navNestIndent: Dp = 24.dp,
     val topBarHeight: Dp = 56.dp,
     val topBarLargeHeight: Dp = 112.dp,
     val tabBarHeight: Dp = 48.dp,
@@ -156,12 +203,38 @@ data class ComponentDefaults(
     val commandPaletteTopInset: Dp = 96.dp,
     val coachmarkSpotlightPadding: Dp = 8.dp,
     val backdropBlurRadius: Dp = 24.dp,
-    /** How far the page behind a sheet or drawer recedes. */
-    val backdropScaleBack: Float = 0.94f,
-    val glassAlpha: Float = 0.58f,
-    /** What a glass surface falls back to at the high-contrast tier. */
-    val glassOpaqueAlpha: Float = 0.94f,
-    val glassBlurRadius: Dp = 14.dp,
+    /**
+     * How far the content behind a modal is inset while it is open.
+     *
+     * A **distance**, where it used to be a scale of `0.94`, and the swap is the
+     * whole of "the insets around the screen are not uniform". A uniform scale
+     * insets a rectangle by a fraction of each *axis*, so on a 390x844 phone
+     * 0.94 left 11.7dp at the sides and 25.3dp at the top — more than double,
+     * and it reads as a gap above the receded screen rather than a frame around
+     * it.
+     *
+     * 12dp, and `overlayBackdrop` makes the **top** land on it exactly and holds
+     * the other three at *at least* it. The sides are exactly 12 whenever nothing
+     * is docked along the bottom of the window — every gesture-navigation phone,
+     * every desktop window — and grow a few dp when something is, because a
+     * three-button navigation bar would otherwise swallow the bottom frame whole.
+     * The arithmetic and the measurement are with the scale itself.
+     */
+    val backdropInset: Dp = 12.dp,
+    /**
+     * How far a `SheetPresentation.Floating` sheet sits from the window's edges.
+     *
+     * A *minimum* clearance rather than a gap added to the system's own: the
+     * sheet unions this with its window insets, so on a phone with a 24dp gesture
+     * bar it floats 24dp up and not 36.
+     *
+     * The same number as [backdropInset], and for the same reason — both are the
+     * frame a surface leaves around what is behind it, and two frames a couple of
+     * dp apart on one screen read as a mistake. Separate fields because a brand
+     * that wants a wider float does not necessarily want the receded screen to
+     * move with it.
+     */
+    val sheetFloatingInset: Dp = 12.dp,
     val sheetMaxWidth: Dp = 640.dp,
     val sideSheetWidth: Dp = 480.dp,
     /** How much of the toast beneath the top one shows. */

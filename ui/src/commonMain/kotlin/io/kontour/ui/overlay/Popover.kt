@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,9 +31,13 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 
 /**
@@ -39,9 +45,8 @@ import io.kontour.ui.theme.Theme
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.InfoCircle, "About this route", onClick = { open = true })
- *     Popover(open, onDismissRequest = { open = false }) {
- *         Text("Route 950", style = Theme.typography.titleSmall)
+ *     IconButton(icon = Tabler.Outline.InfoCircle, contentDescription = "About this route", onClick = { open = true })
+ *     Popover(open, onDismissRequest = { open = false }, title = { +"Route 950" }) {
  *         Text("Runs every 15 minutes until 11pm.")
  *     }
  * }
@@ -60,10 +65,22 @@ import io.kontour.ui.theme.Theme
  * Carries an arrow, since a floating panel with no visible connection to its
  * trigger is just a small dialog in the wrong place.
  *
+ * @param title A heading at the top of the panel, in `titleSmall` and announced
+ *   as a heading: `title = { +"Route 950" }`. The body below it is any column of
+ *   content.
  * @param scrim [ScrimStyle.Transparent] by default: taps outside close it
  *   without dimming, which is right for something this light. Pass
  *   [ScrimStyle.Dimmed] when the popover holds a form worth protecting from a
  *   stray tap.
+ * @param dismissOnScroll Whether a scroll anywhere closes it. True by default,
+ *   which is right for a legend or a summary: it is anchored to something that is
+ *   about to move.
+ *
+ *   **Turn it off for a popover holding a control that scrolls** — a wheel picker,
+ *   a list, anything a drag is meant to reach — or the drag that operates it is
+ *   read as the user finishing with it. The price is that the page behind cannot
+ *   scroll while the popover is open, which for a panel being worked in is usually
+ *   the right trade.
  */
 @Composable
 fun Popover(
@@ -71,10 +88,12 @@ fun Popover(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     side: OverlaySide = OverlaySide.Bottom,
-    alignment: OverlayAlignment = OverlayAlignment.Center,
+    alignment: OverlayAlignment = OverlayAlignment.Centre,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     showArrow: Boolean = true,
-    maxWidth: Dp = 320.dp,
+    maxWidth: Dp = PopoverDefaults.MaxWidth,
+    dismissOnScroll: Boolean = true,
+    title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -86,15 +105,27 @@ fun Popover(
     // entry was built — see `AnchoredOverlayLayout`.
     val latestAnchor by rememberUpdatedState(anchor)
     val body by rememberUpdatedState(content)
+    val latestTitle by rememberUpdatedState(title)
     // As with the anchor: read live rather than captured when the entry was
     // published, so a modifier change reaches a popover that is already open.
     val latestModifier by rememberUpdatedState(modifier)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val closeLabel = Theme.strings.close
 
     Box(Modifier.parentBounds { anchor = it })
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment, scrim, showArrow, maxWidth) {
+    LaunchedEffect(
+        visible,
+        anchor != null,
+        side,
+        alignment,
+        scrim,
+        showArrow,
+        maxWidth,
+        dismissOnScroll,
+    ) {
         if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -113,7 +144,8 @@ fun Popover(
                 // toolbar are both `Transparent` and want opposite answers — so
                 // anything with a scrim traps, deliberately.
                 trapFocus = scrim != ScrimStyle.None,
-                dismissLabel = "Close",
+                dismissOnScroll = dismissOnScroll,
+                dismissLabel = closeLabel,
                 onDismiss = { dismiss() },
                 content = {
                     AnchoredOverlayLayout(
@@ -124,7 +156,10 @@ fun Popover(
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
                         arrow = if (showArrow) {
-                            ArrowSpec(colour = colours.surfaceRaised)
+                            // A raised panel on a raised page is 1.00:1 at the
+                            // enhanced tier; there the arrow is outlined and the
+                            // panel keeps its border below.
+                            ArrowSpec(colour = colours.surfaceRaised, edge = contrastEdge(colours.outlineSubtle))
                         } else {
                             null
                         },
@@ -132,10 +167,12 @@ fun Popover(
                         PopoverPanel(
                             modifier = latestModifier,
                             maxWidth = maxWidth,
-                            border = !showArrow,
+                            border = !showArrow || highContrast(),
                             onDismissRequest = { dismiss() },
-                            content = body,
-                        )
+                        ) {
+                            latestTitle?.let { OverlayTitle(Theme.typography.titleSmall, it) }
+                            body()
+                        }
                     }
                 },
             )
@@ -164,8 +201,22 @@ private fun PopoverPanel(
             },
         border = border,
     ) {
+        // **Scrolls, which is what lets `side` be a promise rather than a
+        // preference.**
+        //
+        // An anchored overlay is now bounded to the room on the side it was asked
+        // for, so that side is the side it opens on. That bound is only an
+        // improvement if what does not fit can still be reached: the first version
+        // bounded the panel and nothing else, and a popover near the bottom of a
+        // phone came back with its last lines cut off. `MenuPanel` had scrolled for
+        // years; this is the same answer, arriving late.
+        //
+        // Inside the padding rather than around it, so the panel's own inset does not
+        // scroll away from the top edge.
         Column(
-            modifier = Modifier.padding(Theme.spacing.md),
+            modifier = Modifier
+                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             content = content,
         )
@@ -236,8 +287,10 @@ fun LoadingOverlay(
                                     contentDescription = label
                                 },
                             shape = Theme.shapes.container,
-                            colour = Theme.colours.surfaceRaised,
+                            containerColour = Theme.colours.surfaceRaised,
                             shadow = Theme.elevation.overlay,
+                            // A raised panel on a dimmed page, edged as a dialog is.
+                            border = contrastEdge(),
                         ) {
                             Column(
                                 modifier = Modifier.padding(Theme.spacing.lg),
@@ -259,4 +312,10 @@ fun LoadingOverlay(
             )
         )
     }
+}
+
+/** What a [Popover] takes by default. */
+object PopoverDefaults {
+    /** Wide enough for a short form, narrow enough to read as attached to its anchor. */
+    val MaxWidth: Dp = 320.dp
 }

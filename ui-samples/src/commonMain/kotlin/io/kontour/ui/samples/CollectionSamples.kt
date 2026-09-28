@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -9,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
@@ -17,7 +19,7 @@ import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeToDismiss
@@ -32,11 +34,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
-import io.kontour.ui.components.list.LoadMoreState
+import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.table.TableSort
+import io.kontour.ui.components.table.TableAlign
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.SortDirection
 
 @Composable
 fun ListItemBasics(stops: List<Stop>) {
@@ -46,7 +52,7 @@ fun ListItemBasics(stops: List<Stop>) {
                 onClick = { openStop(stop.name) },
                 // Rounds the outside corners of the group and leaves the seams
                 // square, so a run of rows reads as one block.
-                position = ListItemPosition.of(index, stops.size),
+                position = GroupPosition.of(index, stops.size),
             ) {
                 leading { +Tabler.Outline.Bus }
                 +stop.name
@@ -131,13 +137,15 @@ fun ListSectionBasics() {
     // as a stack of separate ones.
     ListSection(
         title = { +"Appearance" },
-        description = { +"How the app looks on this device" },
+        supporting = { +"How the app looks on this device" },
+        // Above the rows is what the group *is*; below them is what it *does*.
+        footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
-        SettingRow(position = ListItemPosition.First, onClick = { save() }) {
+        SettingRow(position = GroupPosition.First, onClick = { save() }) {
             +"Theme"
             supporting { +"Match system" }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { save() }) {
+        SettingRow(position = GroupPosition.Last, onClick = { save() }) {
             +"Text size"
             supporting { +"Default" }
         }
@@ -154,15 +162,15 @@ fun SettingRowBasics() {
 
 @Composable
 fun LoadMoreBasics() {
-    var state by remember { mutableStateOf(LoadMoreState.Idle) }
+    var status by remember { mutableStateOf(LoadMoreStatus.Idle) }
 
     // One component for all four states — idle, loading, failed and the end of
     // the list. The failure is the one that gets skipped when a screen rolls its
     // own, and it is the one a user on a train actually meets.
     LoadMore(
-        state = state,
-        onLoadMore = { state = LoadMoreState.Loading },
-        errorLabel = "Couldn't load more departures",
+        status = status,
+        onLoadMore = { status = LoadMoreStatus.Loading },
+        errorMessage = "Couldn't load more departures",
         endLabel = "That's everything",
     )
 }
@@ -194,3 +202,28 @@ fun FadingEdgesBasics() {
         Text("Departures")
     }
 }
+
+@Composable
+fun TableBasics() {
+    var sort by remember { mutableStateOf<TableSort?>(null) }
+    val rows = remember(sort) {
+        // The table says what the reader asked for; the caller does the sorting.
+        val by = compareBy<Service> { if (sort?.column == "Route") it.route else it.time }
+        services.sortedWith(if (sort?.direction == SortDirection.Descending) by.reversed() else by)
+    }
+
+    Table(
+        items = rows,
+        modifier = Modifier.height(240.dp),
+        stickyColumns = 1,
+        striped = true,
+        sort = sort,
+        onSortChange = { sort = it },
+        onRowClick = { openService(it) },
+    ) {
+        column("Route", width = 72.dp) { +it.route }
+        column("Destination", weight = 1f) { +it.destination }
+        column("Departs", align = TableAlign.End) { +it.time }
+    }
+}
+

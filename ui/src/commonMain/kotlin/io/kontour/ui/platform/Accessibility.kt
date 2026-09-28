@@ -20,6 +20,29 @@ internal expect val platformMinTouchTarget: Dp
  * Observed, not sampled once: on every platform this recomposes if the setting
  * changes while the app is running, because users toggle it *because* something
  * on screen is making them uncomfortable and waiting for a relaunch is no help.
+ *
+ * ### Which device settings this library follows live, and where it cannot
+ *
+ * Asked as a group, so it is answered as a group rather than rediscovered one
+ * `actual` at a time.
+ *
+ * | | android | ios | jvm | web |
+ * |---|---|---|---|---|
+ * | dark mode | yes | yes | yes | yes |
+ * | reduced motion | yes | yes | **no** | yes |
+ * | high contrast | yes, API 34+ | yes | **no** | yes |
+ * | type size | yes | yes | yes | yes |
+ *
+ * Dark mode goes through [io.kontour.ui.theme.deviceInDarkTheme] rather than
+ * Compose's `isSystemInDarkTheme()`, and the difference is not cosmetic — see
+ * that function. Type size arrives as `Density.fontScale` and needs nothing from
+ * this file.
+ *
+ * The two desktop gaps are deliberate and are explained in the JVM actual: the
+ * settings sit behind AppKit, `SystemParametersInfo` and the desktop portal,
+ * none of which is reachable from the standard library, and desktop is a
+ * development and test host rather than a shipping target. An in-app setting
+ * overrides either one, which is what the gallery's own switches do.
  */
 @Composable
 expect fun platformPrefersReducedMotion(): Boolean

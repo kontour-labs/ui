@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
 
 /**
@@ -37,6 +38,12 @@ internal fun nearby() = Unit
 internal fun saveAndClose() = Unit
 internal fun saveCopy() = Unit
 internal fun showTour() = Unit
+internal fun forgot() = Unit
+
+/** A colour the app is holding for something the reader named. */
+internal var label: Color = Color(0xFF43A047)
+internal fun explain() = Unit
+internal fun replacements() = Unit
 
 /** A handful of them, where a sample needs a list to iterate. */
 internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay", 3))
@@ -62,3 +69,39 @@ internal fun suggest() = Unit
 /** The body of a sheet, where the sheet rather than its contents is the subject. */
 @Composable
 internal fun Departures() = Unit
+
+/** A departure that has not arrived yet, for the redaction example. */
+internal class Departure(val name: String, val detail: String)
+
+/** Null while it loads, which is the state the example is about. */
+internal val departures: List<Departure>? = null
+
+/** A commit, for the history example: newest first, each naming its parents. */
+internal class Commit(val sha: String, val message: String, val author: String, val parents: List<String>)
+
+internal val commits = listOf(
+    Commit("e41", "Merge feature/maps", "Sam", listOf("c32", "b17")),
+    Commit("b17", "Map tiles", "Kai", listOf("a09")),
+    Commit("c32", "Fix stop search", "Ari", listOf("a09")),
+    Commit("a09", "Add journey planner", "Sam", emptyList()),
+)
+
+internal fun openCommit(commit: Commit) = Unit
+
+/** A year of trips a day, for the activity calendar example. */
+internal val tripsByDay: Map<kotlinx.datetime.LocalDate, Int> = emptyMap()
+
+/** Days off, and days away, for the activity calendar's marks. */
+internal val publicHolidays: Set<kotlinx.datetime.LocalDate> = emptySet()
+internal val flights: Map<kotlinx.datetime.LocalDate, String> = emptyMap()
+
+/** A service on a departure board, for the table example. */
+internal class Service(val route: String, val destination: String, val time: String)
+
+internal val services = listOf(
+    Service("950", "Elizabeth Quay", "8:12"),
+    Service("T1", "Fremantle", "8:15"),
+    Service("103", "Joondalup", "8:21"),
+)
+
+internal fun openService(service: Service) = Unit

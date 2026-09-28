@@ -9,17 +9,22 @@ var open by remember { mutableStateOf(false) }
 
 Button(onClick = { open = true }) { +"Rename favourite" }
 
-ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
+ModalBottomSheet(visible = open, onDismissRequest = { open = false }) { safeArea ->
     SheetHeader {
         +"Rename favourite"
         supporting { +"Perth Underground" }
     }
     Column(
-        modifier = Modifier.padding(
-            start = Theme.spacing.md,
-            end = Theme.spacing.md,
-            bottom = Theme.spacing.lg,
-        ),
+        modifier = Modifier
+            .padding(
+                start = Theme.spacing.md,
+                end = Theme.spacing.md,
+                bottom = Theme.spacing.lg,
+            )
+            // The gesture bar, handed over rather than applied: a `Column`
+            // takes it as padding, and a `LazyColumn` would take it as
+            // `contentPadding` so its last row can scroll through the band.
+            .padding(bottom = safeArea.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         Button(onClick = { save(); open = false }, modifier = Modifier.fillMaxWidth()) {
@@ -37,6 +42,31 @@ Takes `visible` and `onDismissRequest` rather than a sheet state, because a moda
 sheet has one meaningful position and the state object exists to describe
 several. Reach for [`BottomSheet`](bottom-sheet.md) when what is behind the sheet
 is still the point.
+
+### An edge sheet by default
+
+Where [`BottomSheet`](bottom-sheet.md) floats, a modal sheet is **flush to the
+bottom and both sides** by default, top corners rounded. A modal sheet recedes
+the page behind it into a frame of its own, and a floating panel in front of that
+is two frames around one thing — it was the default for a while, and on a phone
+it did not feel right.
+
+`presentation = SheetPresentation.Floating` still floats one, lifted off the
+bottom and both sides with every corner rounded. On its default detents,
+`[Hidden, Expanded]`, it has one size to be — as tall as its content — and so
+**where it rests decides** whether it floats: a rename field or a confirmation
+floats the whole way up and back, and a sheet whose content fills the window is
+an edge sheet from its first frame to its last. See
+[`BottomSheet`](bottom-sheet.md#expanded-a-floating-sheet-becomes-an-edge-sheet).
+
+### `onDismissRequest` is the user's, and comes once
+
+It fires when the *user* closes the sheet — a drag to the bottom, a tap outside,
+back on Android — and once per closing. Setting `visible = false` yourself is not
+a dismissal and is not reported back to you. So a dismissal can safely *do*
+something, pop a back stack or record an event, rather than only flip the flag
+that closes the sheet. It used to report every arrival at the bottom, which
+counted a tap outside twice and a caller's own close once.
 
 ### `dismissible = false` closes the drag too
 
@@ -59,6 +89,16 @@ Not the same as `draggable = false`, which stops the sheet moving at all and
 takes its handle with it. An undismissable sheet can still be dragged between its
 detents.
 
+### `alignment` follows the window while the sheet is open
+
+On a window wider than a sheet's 640dp cap, `alignment` puts the sheet at the start,
+centre or end of the bottom edge — see [`BottomSheet`](bottom-sheet.md), where the
+cap and the reason for it are explained. On a phone it does nothing.
+
+It is read live. A modal sheet renders into the overlay host, and whatever it reads
+directly is fixed at the moment it opens; a sheet already up would otherwise ignore a
+window being resized underneath it until it was closed and opened again.
+
 ---
 
 ## Accessibility
@@ -76,3 +116,11 @@ gesture closes it.
 
 `dismissOnOutside = false` removes the scrim route. Where you use it, the content
 must offer its own way out.
+
+At [high contrast](../accessibility.md#what-high-actually-changes) the sheet
+takes the same edge a `BottomSheet` does, and the scrim behind it is darker.
+
+Under [reduced motion](../tokens.md#motion) it opens and closes as a
+`BottomSheet` does — fading in at its detent and out where it rests, with the
+scrim following — and the page behind stays where it is instead of receding. A
+drag still moves the sheet with the finger.

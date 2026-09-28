@@ -94,9 +94,10 @@ data class StatusColours(
  *   nothing has to be legible on top — a splash, a marketing surface, an
  *   illustration.
  *
- *   It is a **role**, not a hue. The default schemes have no product in them, so
- *   it resolves to the same blue as [accent]; an app that sets one separates the
- *   two. The reason it is a separate token at all is that a brand colour is
+ *   It is a **role**, not a hue. In the default schemes it is Kontour Labs'
+ *   violet, `#BB86FC`: the dark scheme's [accent] too, and in the light scheme a
+ *   mark only, beside the deeper violet that [accent] has to be there. An app
+ *   that sets its own brand sets this. The reason it is a separate token at all is that a brand colour is
  *   under no obligation to pass a contrast checker and [accent] is under every
  *   obligation, so one token could not be both. The GTurbo demo theme is the
  *   worked example: its logo red `#E11F26` is 4.17:1 on its own near-black
@@ -117,20 +118,32 @@ data class ColourScheme(
     /** Wells and inset areas: input fills, code blocks, table stripes. */
     val surfaceSunken: Color,
     /**
-     * The ground a moving indicator runs in: a segmented track, a wheel's band.
+     * The fill of a moving indicator: a segmented control's thumb.
      *
-     * Distinct from [surfaceSunken] because the two want opposite things. A well
-     * is a hint that content is inset and should stay quiet — a page of code
-     * blocks in a loud well is a page of grey boxes. A track has something
-     * sliding along it whose position *is* the control's state, so it has to be
-     * far enough under that thing to show it.
+     * The *ground* it runs in is [surfaceSunken] — the same well a filled text
+     * field uses — so a segmented control and a text field on one screen read as
+     * one system. They did not: the track was a token of its own, two steps
+     * darker than the well, and the pair looked like two design systems next to
+     * each other.
      *
-     * They were one token until a reader disliked what holding both jobs cost:
-     * making a segmented thumb visible turned every code block on the
-     * documentation site grey, and the thumb still needed a border on top. This
-     * is the token that lets the track go dark on its own.
+     * This is the other end of the same problem, and it is the end worth moving.
+     * The old token made the *ground* darker so a white thumb could sit on it,
+     * which is why a page of code blocks went grey the first time it was tried
+     * and why the track had to be split back out afterwards. Lifting the thumb
+     * instead costs one fill nothing else draws, and in dark it lands **further
+     * from its ground than the arrangement it replaces** — 1.59:1 against
+     * 1.53:1, and 1.94:1 in the enhanced tier against 1.52:1.
+     *
+     * **In light it carries nothing**, and that is the honest cost. White is
+     * already the top of the ramp, so a white thumb on a `#F6F6F6` well is
+     * 1.08:1 and no value of this token can change it. What identifies the
+     * selected segment in light is the shadow under the thumb and the label
+     * going [contentMuted] to [content] — the same trade iOS makes, whose own
+     * segmented control measures 1.15:1. `IndicatorVisibilityTest` measures the
+     * shadow where it actually falls, and `SurfaceLadderTest` holds the fill
+     * floor for the two schemes that can meet it.
      */
-    val surfaceTrack: Color,
+    val surfaceIndicator: Color,
     /** Above [surface]: menus over cards, elevated dialogs. */
     val surfaceRaised: Color,
     /** Inverted ground for toasts and tooltips. */
@@ -158,16 +171,15 @@ data class ColourScheme(
      * is the border around it, and that border is this.
      *
      * It is **not** what identifies a segmented control's selected segment, and
-     * used to be. That thumb is now a lighter fill on a
-     * [surfaceTrack] dark enough to show it — 1.53:1 or so, depending on the
-     * scheme — with a shadow under it in light and the label going from
-     * `contentMuted` to `content`. Three carriers rather than a line, which is
-     * a deliberate step away from the 3:1 a boundary would give; see
-     * `SurfaceLadderTest` for the floor those carriers hold and
-     * `IndicatorVisibilityTest` for what is given up.
+     * used to be. That thumb is [surfaceIndicator] on a [surfaceSunken] ground
+     * — 1.59:1 in dark and 1.94:1 in the enhanced tier — with a shadow under it
+     * in light and the label going from `contentMuted` to `content`. Three
+     * carriers rather than a line, which is a deliberate step away from the 3:1
+     * a boundary would give; see `SurfaceLadderTest` for the floor those
+     * carriers hold and `IndicatorVisibilityTest` for what is given up.
      *
-     * [surfaceTrack] is therefore not in the fill half of the walk. Nothing
-     * bounds a track.
+     * [surfaceIndicator] is therefore not in the fill half of the walk. Nothing
+     * bounds a thumb.
      */
     val outlineStrong: Color,
     /** The faintest rule the scheme offers, for dense lists. */
@@ -197,8 +209,8 @@ data class ColourScheme(
      * It used to be four loose fields — `accent`, `onAccent`, `accentContainer`,
      * `onAccentContainer` — beside four grouped [StatusColours]. One tone type and
      * six tones means a component that takes a tone can take *this* one, which is
-     * what `ButtonVariant.Accent` and `BannerTone.Accent` are made of, and it is
-     * why `TagTone.Accent` had to reach past the group to build itself.
+     * what `ButtonVariant.Accent` and `Tone.Accent` are made of, and it is
+     * why `Tone.Accent` had to reach past the group to build itself.
      */
     val accent: StatusColours,
 
@@ -245,10 +257,31 @@ data class ColourScheme(
 
     /** Whether this scheme reads as dark. Drives status-bar icons and image scrims. */
     val isDark: Boolean,
+
+    /**
+     * A mark in its **off or not-yet** state, beside the same mark on: a
+     * switch's track when it is off, a timeline's stops not yet reached, the
+     * page dots that are not the current page, a slider's or gauge's track at
+     * the enhanced tier.
+     *
+     * [outlineStrong] in both standard schemes, so nothing at that tier moved
+     * when this arrived. It is its own role because the enhanced tier needs a
+     * value [outlineStrong] cannot be: that tier darkens every boundary toward
+     * [primary] — which is right for a boundary and wrong for the *other half of
+     * a pair*. A switch's off track was 1.85:1 from its on track at high
+     * contrast, which is closer than at the standard tier, where it was 4.8.
+     *
+     * Held by `StatePairContrastTest` to 3:1 from [primary] (the on half of
+     * every pair it is in) and to 4.5:1 from the grounds it sits on — 3:1 on
+     * [surfaceRaised], where the enhanced dark tier has no value that clears
+     * both. Last, and defaulted to [outlineStrong], so a scheme built before it
+     * existed still compiles and still draws exactly what it drew.
+     */
+    val inactive: Color = outlineStrong,
 )
 
 /**
- * The default light scheme: white and near-black structure, blue as accent.
+ * The default light scheme: white and near-black structure, violet as accent.
  *
  * Every parameter is defaulted, so a product theme overrides only what it needs:
  * ```
@@ -259,7 +292,7 @@ fun lightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
     surfaceSunken: Color = Palette.Grey50,
-    surfaceTrack: Color = Palette.Grey300,
+    surfaceIndicator: Color = Palette.White,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Ink,
     onSurfaceInverse: Color = Palette.White,
@@ -273,14 +306,17 @@ fun lightColourScheme(
     primary: Color = Palette.Ink,
     onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueReadable,
+        solid = Palette.VioletReadable,
         onSolid = Palette.White,
-        container = Palette.BlueTintLight,
-        onContainer = Palette.BlueDeep,
-        border = Palette.BlueBorderLight,
+        container = Palette.VioletTintLight,
+        onContainer = Palette.VioletDeep,
+        border = Palette.VioletBorderLight,
     ),
-    brand: Color = Palette.BlueReadable,
-    focusRing: Color = Palette.BlueReadable,
+    // Kontour Labs' violet itself, which is decorative here: 2.65:1 on white
+    // carries neither text nor a control boundary, so `accent` and
+    // `focusRing` take the deeper tone of the same hue.
+    brand: Color = Palette.VioletLight,
+    focusRing: Color = Palette.VioletReadable,
     success: StatusColours = StatusColours(
         solid = Palette.GreenSolid,
         onSolid = Palette.White,
@@ -313,20 +349,22 @@ fun lightColourScheme(
     overlayHover: Color = Color(0x0F121212),
     overlayPressed: Color = Color(0x1F121212),
     overlayDragged: Color = Color(0x29121212),
-    // Blue and green off the ramps above rather than colours of their own —
+    // Violet and green off the ramps above rather than colours of their own —
     // they already clear 4.5:1 on `surfaceSunken`, which is the only ground
     // code is ever drawn on, and `ColourSchemeContrastTest` now says so.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueDeep,
+        keyword = Palette.VioletDeep,
         literal = Palette.GreenDeep,
         comment = contentMuted,
     ),
+    /** See [ColourScheme.inactive]. */
+    inactive: Color = outlineStrong,
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -352,6 +390,7 @@ fun lightColourScheme(
     overlayDragged = overlayDragged,
     code = code,
     isDark = false,
+    inactive = inactive,
 )
 
 /** The default dark scheme. Surfaces and muted tones come from `home html.dark`. */
@@ -359,7 +398,7 @@ fun darkColourScheme(
     background: Color = Palette.Ink,
     surface: Color = Palette.Slate850,
     surfaceSunken: Color = Palette.Slate900,
-    surfaceTrack: Color = Palette.Black,
+    surfaceIndicator: Color = Palette.SlateIndicator,
     surfaceRaised: Color = Palette.Slate800,
     surfaceInverse: Color = Palette.Paper,
     onSurfaceInverse: Color = Palette.Ink,
@@ -373,14 +412,14 @@ fun darkColourScheme(
     primary: Color = Palette.Paper,
     onPrimary: Color = Palette.Ink,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLight,
-        onSolid = Palette.BlueOnLight,
-        container = Palette.BlueTintDark,
-        onContainer = Palette.BluePale,
-        border = Palette.BlueBorderDark,
+        solid = Palette.VioletLight,
+        onSolid = Palette.VioletOnLight,
+        container = Palette.VioletTintDark,
+        onContainer = Palette.VioletPale,
+        border = Palette.VioletBorderDark,
     ),
-    brand: Color = Palette.BlueLight,
-    focusRing: Color = Palette.BlueLight,
+    brand: Color = Palette.VioletLight,
+    focusRing: Color = Palette.VioletLight,
     success: StatusColours = StatusColours(
         solid = Palette.GreenLight,
         onSolid = Palette.GreenOnLight,
@@ -415,15 +454,17 @@ fun darkColourScheme(
     overlayDragged: Color = Color(0x33FFFFFF),
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueLight,
+        keyword = Palette.VioletLight,
         literal = Palette.GreenLight,
         comment = contentMuted,
     ),
+    /** See [ColourScheme.inactive]. */
+    inactive: Color = outlineStrong,
 ): ColourScheme = ColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -449,6 +490,7 @@ fun darkColourScheme(
     overlayDragged = overlayDragged,
     code = code,
     isDark = true,
+    inactive = inactive,
 )
 
 /**
@@ -491,8 +533,9 @@ fun darkColourScheme(
  *
  * [brand] and [focusRing] default to `accent.solid` rather than to a constant,
  * so supplying an accent moves all three. The standard [lightColourScheme] uses
- * constants that merely happen to agree at the default; the difference only shows
- * when a caller passes something.
+ * constants — its `brand` is `#BB86FC` beside a deeper accent, so the two do not
+ * even agree at the default; the difference shows when a caller passes an accent
+ * and keeps the violet brand.
  *
  * [code]'s `plain` and `comment` follow [content] and [contentMuted], the way
  * they do in [lightColourScheme] — so a brand that darkens its text gets code
@@ -512,7 +555,7 @@ fun highContrastLightColourScheme(
     background: Color = Palette.White,
     surface: Color = Palette.White,
     surfaceSunken: Color = Palette.GreyHcSunken,
-    surfaceTrack: Color = Palette.Grey300,
+    surfaceIndicator: Color = Palette.White,
     surfaceRaised: Color = Palette.White,
     surfaceInverse: Color = Palette.Black,
     onSurfaceInverse: Color = Palette.White,
@@ -522,15 +565,18 @@ fun highContrastLightColourScheme(
     contentDisabled: Color = Palette.GreyHcDisabled,
     outline: Color = Palette.GreyHcOutline,
     outlineStrong: Color = Palette.GreyHcMuted,
-    outlineSubtle: Color = Palette.GreyHcOutlineSubtle,
+    // The same as `outline`. A menu's or popover's border is this, on the page,
+    // and the fainter grey it used to be was 3.03:1 — the tier asks 4.5 of a
+    // boundary. There is no faint rule at the enhanced tier; that is its point.
+    outlineSubtle: Color = outline,
     primary: Color = Palette.Black,
     onPrimary: Color = Palette.White,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueStrong,
+        solid = Palette.VioletStrong,
         onSolid = Palette.White,
-        container = Palette.BlueTintLightHc,
-        onContainer = Palette.BlueDeeper,
-        border = Palette.BlueStrong,
+        container = Palette.VioletTintLightHc,
+        onContainer = Palette.VioletDeeper,
+        border = Palette.VioletStrong,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -588,15 +634,18 @@ fun highContrastLightColourScheme(
     // borrowed here for its depth, not the `GreenHcDeep` its name suggests.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueDeeper,
+        keyword = Palette.VioletDeeper,
         literal = Palette.GreenOnLight,
         comment = contentMuted,
     ),
+    // Lighter than `outlineStrong`, which this tier darkens nearly to `primary`:
+    // 3.94:1 from black, 4.68:1 on the well. See [ColourScheme.inactive].
+    inactive: Color = Palette.GreyHcInactive,
 ): ColourScheme = lightColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -621,6 +670,7 @@ fun highContrastLightColourScheme(
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
     code = code,
+    inactive = inactive,
 )
 
 /**
@@ -640,7 +690,7 @@ fun highContrastDarkColourScheme(
     background: Color = Palette.Black,
     surface: Color = Palette.InkHcSurface,
     surfaceSunken: Color = Palette.InkHcSunken,
-    surfaceTrack: Color = Palette.Black,
+    surfaceIndicator: Color = Palette.InkHcIndicator,
     surfaceRaised: Color = Palette.InkHcRaised,
     surfaceInverse: Color = Palette.White,
     onSurfaceInverse: Color = Palette.Black,
@@ -650,20 +700,19 @@ fun highContrastDarkColourScheme(
     contentDisabled: Color = Palette.SlateHcDisabled,
     outline: Color = Palette.SlateHcOutline,
     outlineStrong: Color = Palette.SlateHcOutlineStrong,
-    outlineSubtle: Color = Palette.SlateHcOutlineSubtle,
+    // The same as `outline`, for the reason the light tier gives.
+    outlineSubtle: Color = outline,
     primary: Color = Palette.White,
     onPrimary: Color = Palette.Black,
     accent: StatusColours = StatusColours(
-        solid = Palette.BlueLightHc,
-        onSolid = Palette.BlueHcOnLight,
-        container = Palette.BlueTintDarkHc,
-        onContainer = Palette.BluePaleHc,
+        solid = Palette.VioletLightHc,
+        onSolid = Palette.VioletHcOnLight,
+        container = Palette.VioletTintDarkHc,
+        onContainer = Palette.VioletPaleHc,
         // The accent's border is its own solid here, as it is for all four
         // status tones in both high-contrast tiers — unlike the standard tiers,
-        // where borders are separate softer values. `Palette.BlueBorderDarkHc`
-        // exists and is read by nothing; it looks like the value that belongs
-        // here and is not.
-        border = Palette.BlueLightHc,
+        // where borders are separate softer values.
+        border = Palette.VioletLightHc,
     ),
     brand: Color = accent.solid,
     focusRing: Color = accent.solid,
@@ -705,15 +754,18 @@ fun highContrastDarkColourScheme(
     // and it is the shipped value.
     code: CodeColours = CodeColours(
         plain = content,
-        keyword = Palette.BlueLightHc,
+        keyword = Palette.VioletLightHc,
         literal = Palette.GreenPale,
         comment = contentMuted,
     ),
+    // 3.34:1 from white, 5.03:1 on the surface and 4.13:1 on the raised ground,
+    // which is the one that cannot also reach 4.5 while white stays 3:1 away.
+    inactive: Color = Palette.SlateHcInactive,
 ): ColourScheme = darkColourScheme(
     background = background,
     surface = surface,
     surfaceSunken = surfaceSunken,
-    surfaceTrack = surfaceTrack,
+    surfaceIndicator = surfaceIndicator,
     surfaceRaised = surfaceRaised,
     surfaceInverse = surfaceInverse,
     onSurfaceInverse = onSurfaceInverse,
@@ -738,6 +790,7 @@ fun highContrastDarkColourScheme(
     overlayPressed = overlayPressed,
     overlayDragged = overlayDragged,
     code = code,
+    inactive = inactive,
 )
 
 /** Picks the built-in scheme for a given mode and contrast tier. */

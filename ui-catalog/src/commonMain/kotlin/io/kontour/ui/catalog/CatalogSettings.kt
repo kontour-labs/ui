@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.locale.PseudoLocale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -9,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Density
 import io.kontour.ui.demo.theme.demoThemes
 import io.kontour.ui.input.InputModality
+import io.kontour.ui.interaction.HapticsLevel
 
 /**
  * Every display switch the gallery and the documentation site both offer.
@@ -72,6 +74,12 @@ class CatalogSettings {
     var reduceMotion by mutableStateOf<Boolean?>(null)
 
     var rightToLeft by mutableStateOf(false)
+
+    /**
+     * A made-up language to run in — longer words, reversed words, or tall marks
+     * — or null for the real one. See `PseudoLocale`.
+     */
+    var pseudoLocale by mutableStateOf<PseudoLocale?>(null)
 
     /**
      * The font scale to run at, or null to take the device's.
@@ -143,6 +151,23 @@ class CatalogSettings {
      * reader of a component's page wants to check without owning the hardware.
      */
     var modality by mutableStateOf<InputModality?>(null)
+
+    /**
+     * How much physical feedback the library is allowed to give.
+     *
+     * **Not nullable, unlike the four above, and the asymmetry is real.** Those
+     * four have a device setting behind them that the platform reports and that
+     * can change while the app is open, so "follow the device" is a state they
+     * need. There is no operating-system haptics preference to follow — a phone
+     * has a system-wide vibration switch, but nothing exposes "the reader wants
+     * less of it but not none", which is the axis this offers. So the library's
+     * own default is the default here, and the reader is choosing rather than
+     * overriding.
+     *
+     * Which is also why it is outside [followsDevice] and [followDevice]: there
+     * is nothing to hand back.
+     */
+    var haptics by mutableStateOf(HapticsLevel.Standard)
 
     /** The frame-time readout. Gallery-only until the site has somewhere to put it. */
     var frameTimes by mutableStateOf(false)

@@ -1,5 +1,7 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -40,14 +43,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.error as semanticsError
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 
@@ -122,6 +126,15 @@ fun TextField(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
 
+    // The requester the frame hands a press to.
+    //
+    // A chain already owns one — `rememberImeChain` needs it to move focus down
+    // a form — and taking it when it is there keeps one requester on one node.
+    // Without a chain there was none at all, which is why the frame had nothing
+    // to focus and the field's padding did nothing.
+    val ownRequester = remember { FocusRequester() }
+    val requester = imeChain?.requester ?: ownRequester
+
     val selectionColours = remember(colours) {
         TextSelectionColors(
             handleColor = colours.cursor,
@@ -167,7 +180,7 @@ fun TextField(
         // the focus tint this field also stopped showing.
         frameModifier = Modifier
             .pointerCursor(
-                PointerIcon.Text,
+                Cursor.Text,
                 enabled = enabled && !readOnly,
             )
             // On the frame, not the input, and that placement is the mechanism:
@@ -179,10 +192,25 @@ fun TextField(
                 editable = enabled && !readOnly,
                 enabled = enabled,
             ),
+        // A press anywhere on the frame puts the caret in the field.
+        //
+        // Not gated on `readOnly`: a read-only field is still focusable and its
+        // text is still selectable, which is the whole reason foundation has
+        // that flag rather than `enabled`. It is gated on `enabled`, because a
+        // disabled field should not take focus from wherever it currently is.
+        onFrameTap = if (enabled) {
+            { requester.requestFocus() }
+        } else {
+            null
+        },
     ) {
         val contentColour = if (enabled) colours.content else colours.contentDisabled
+        val parts = LocalFieldParts.current
 
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+        Box(
+            Modifier.weight(1f).then(if (parts != null) Modifier.onPlaced(parts.text) else Modifier),
+            contentAlignment = Alignment.CenterStart,
+        ) {
             CompositionLocalProvider(
                 LocalTextSelectionColors provides selectionColours,
                 LocalContentColour provides contentColour,
@@ -191,16 +219,12 @@ fun TextField(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            // The requester belongs on the input itself, not on
-                            // the frame — focusing the frame would put the
-                            // caret nowhere.
-                            if (imeChain != null) {
-                                Modifier.focusRequester(imeChain.requester)
-                            } else {
-                                Modifier
-                            }
-                        )
+                        // The requester belongs on the input itself, not on the
+                        // frame — focusing the frame would put the caret
+                        // nowhere. Always present now rather than only with a
+                        // chain, because the frame needs something to aim a
+                        // press at either way.
+                        .focusRequester(requester)
                         .semantics {
                             // The visible [label] is a sibling `Text` in the
                             // scaffold, one node up and to the side, so nothing
@@ -228,6 +252,9 @@ fun TextField(
                         // wrong for a password halfway down a form. One rule
                         // beats a precedence table nobody can predict.
                         imeAction = imeChain?.imeAction ?: imeAction,
+                        // The reader's language, so a keyboard that can switch
+                        // offers theirs and its dictionary.
+                        hintLocales = LocaleList(Theme.locale),
                     ),
                     onKeyboardAction = onKeyboardAction ?: imeChain?.handler,
                     lineLimits = lineLimits,
@@ -254,12 +281,19 @@ fun TextField(
  * A multi-line text field that grows with its content.
  *
  * ```kotlin
- * TextArea(state = feedback, label = "What went wrong?", minLines = 3, maxLines = 8)
+ * TextArea(
+ *     state = feedback,
+ *     label = "What went wrong?",
+ *     lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8),
+ * )
  * ```
  *
- * Growing between [minLines] and [maxLines] and then scrolling internally beats
- * a fixed height in both directions: a short answer does not sit in a mostly
- * empty box, and a long one does not push the submit button off screen.
+ * Growing between the [lineLimits] and then scrolling internally beats a fixed
+ * height in both directions: a short answer does not sit in a mostly empty box,
+ * and a long one does not push the submit button off screen.
+ *
+ * @param lineLimits The same `TextFieldLineLimits` a [TextField] takes, held to
+ *   the multi-line kind: three lines to start with, growing to eight.
  */
 @Composable
 fun TextArea(
@@ -271,10 +305,12 @@ fun TextArea(
     placeholder: String? = null,
     supporting: String? = null,
     errorMessage: String? = null,
-    minLines: Int = 3,
-    maxLines: Int = 8,
+    lineLimits: TextFieldLineLimits.MultiLine = TextAreaDefaults.LineLimits,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
     inputTransformation: InputTransformation? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
     TextField(
@@ -287,12 +323,19 @@ fun TextArea(
         supporting = supporting,
         errorMessage = errorMessage,
         variant = variant,
+        shape = shape,
         imeAction = ImeAction.Default,
         inputTransformation = inputTransformation,
-        lineLimits = TextFieldLineLimits.MultiLine(
-            minHeightInLines = minLines,
-            maxHeightInLines = maxLines,
-        ),
+        lineLimits = lineLimits,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
     )
+}
+
+/** What a [TextArea] takes by default. */
+object TextAreaDefaults {
+    /** Three lines to start with, growing to eight before it scrolls. */
+    val LineLimits: TextFieldLineLimits.MultiLine =
+        TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8)
 }

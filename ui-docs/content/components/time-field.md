@@ -28,3 +28,9 @@ The formatted time is the field's `stateDescription`, so what is announced is
 It is a button, not an editable field, and deliberately: typing a time into a
 text field is how you get 25:61. Pressing it opens a
 [`TimePicker`](time-picker.md).
+
+At high contrast the field gains an edge round its sunken fill, which otherwise
+sits close to the page, and its focus ring is drawn thicker.
+
+Nothing in the field moves, and a press is a tonal wash without a shrink at
+every setting, so reduced motion changes nothing here.

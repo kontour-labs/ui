@@ -44,3 +44,11 @@ has a bug in it.
 
 `swatchColour` returning `null` renders the "match the system" entry as an
 outlined swatch with an icon — still named, still one of the group.
+
+At high contrast the ring round an unchosen swatch is the enhanced scheme's
+near-ink `outline`, and every ring, the chosen one's included, is drawn thicker,
+as the focus ring is. Nothing else about the picker changes.
+
+Under reduced motion the tick grows in over a short tween instead of springing
+past full size, and a pressed swatch does not shrink; the tonal wash and the
+tick's third-of-the-way preview under a press remain.

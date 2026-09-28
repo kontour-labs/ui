@@ -52,10 +52,10 @@ class WheelPickerGiveTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 WheelPicker(
                     items = (0..9).map { it.toString() },
-                    selected = selected,
-                    onSelectedChange = { selected = it },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
                     modifier = Modifier.reportBounds { bounds = it },
-                    label = { it },
+                    itemLabel = { it },
                 )
             }
         }.use { scene ->
@@ -125,6 +125,111 @@ class WheelPickerGiveTest {
             )
         }
     }
+
+    /**
+     * A flick that reaches the end carries on into the band and comes back.
+     *
+     * Asked for from a phone: "add bounce-back animation when flicking to end".
+     * The drum used to stop dead on the first row with whatever speed it had
+     * left. The crown is the first row of ink, which only ever sits *below* where
+     * it rests at the start of the list if the drum has gone past it.
+     */
+    @Test
+    fun aFlickIntoTheFirstRowBouncesBack() {
+        val (overshoot, selected) = flickToTheStart(reduceMotion = false)
+        assertTrue(overshoot > 6, "a hard flick into the first row went ${overshoot}px past it — it should bounce")
+        assertTrue(overshoot < 60, "a hard flick into the first row went ${overshoot}px past it — a bounce, not a second track")
+        assertTrue(selected == 0, "the flick should rest on the first row, and rested on $selected")
+    }
+
+    /** The control, and the setting: under reduced motion the drum stops at the end. */
+    @Test
+    fun underReducedMotionAFlickStopsAtTheEnd() {
+        val (overshoot, selected) = flickToTheStart(reduceMotion = true)
+        assertTrue(overshoot <= 2, "under reduced motion a flick went ${overshoot}px past the first row")
+        assertTrue(selected == 0, "the flick should rest on the first row, and rested on $selected")
+    }
+
+    /**
+     * A two-row drum flicked into its end goes straight on into the bounce and
+     * lands centred, without stopping on the row first.
+     *
+     * Reported from a phone on `TimePicker`'s AM/PM drum: a flick "settles, then
+     * sort of moves up just a little bit, and the item is a bit off-centre". Two
+     * rows is one row of travel, so almost every flick on it ends in the bounce,
+     * and the bounce was a second animation begun a frame after the decay had
+     * stopped the drum on its end row. Measured at an iPhone's density: centred
+     * for two frames, out past the band by 31px, then a critically damped creep
+     * back that left the row a pixel or two low for another twenty-odd frames.
+     *
+     * Two properties. The drum never rests on the row and then leaves it again;
+     * and it is home, and stays home, within a quarter of a second of the finger
+     * lifting.
+     */
+    @Test
+    fun aTwoRowDrumFlickedIntoItsEndLandsCentredWithoutStopping() {
+        var selected by mutableStateOf(1)
+        var bounds = Rect.Zero
+        val rows = mutableListOf<Float>()
+        var rest = 0f
+        Scene(width = 400, height = 500, density = 3f) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                WheelPicker(
+                    items = listOf("AM", "PM"),
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
+                    itemLabel = { it },
+                    visibleItems = 3,
+                    modifier = Modifier.reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            rest = scene.frames(6).centredInk(bounds)
+            // Down, towards AM: about 2500px a second at the lift.
+            val from = bounds.alongY(0.5f)
+            scene.drag(from = from, to = Offset(from.x, from.y + 135f), steps = 4)
+            repeat(40) { rows += scene.frame().centredInk(bounds) }
+        }
+        assertTrue(selected == 0, "the flick should have landed on AM, and landed on $selected")
+        val home = rows.map { kotlin.math.abs(it - rest) <= 0.5f }
+        val rested = (0 until home.size - 1).firstOrNull { home[it] && home[it + 1] }
+        if (rested != null) {
+            assertTrue(
+                home.drop(rested).all { it },
+                "the drum sat centred on AM from frame $rested and then left it again — it stopped on the row " +
+                    "before bouncing: ${rows.map { it - rest }}",
+            )
+        }
+        val settled = home.indexOfLast { !it } + 1
+        assertTrue(
+            settled <= 16,
+            "the drum was still off centre ${settled} frames after the finger lifted: ${rows.map { it - rest }}",
+        )
+    }
+
+    /** How far past its resting place the crown went after a hard flick to the start, and where it settled. */
+    private fun flickToTheStart(reduceMotion: Boolean): Pair<Int, Int> {
+        var selected by mutableStateOf(5)
+        var bounds = Rect.Zero
+        val crowns = mutableListOf<Int>()
+        Scene(width = 300, height = 400, reduceMotion = reduceMotion) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                WheelPicker(
+                    items = (0..9).map { it.toString() },
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
+                    modifier = Modifier.reportBounds { bounds = it },
+                    itemLabel = { it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(20)
+            // About 3750px a second, downward: towards the first row.
+            scene.drag(from = bounds.alongY(0.2f), to = bounds.alongY(0.8f), steps = 4)
+            repeat(90) { crowns += scene.frame().firstInkRow(bounds) }
+        }
+        return (crowns.max() - crowns.last()) to selected
+    }
 }
 
 /**
@@ -145,6 +250,28 @@ private const val Steps = 20
  * `surfaceSunken`, nine values off white, so a threshold that ignores it leaves
  * a measurement that follows the drum rather than the furniture drawn over it.
  */
+/**
+ * The vertical middle of the run of ink rows nearest the middle of [within]: the
+ * row in the band, wherever the drum has carried it.
+ */
+private fun java.awt.image.BufferedImage.centredInk(within: Rect): Float {
+    val background = getRGB(1, 1)
+    val inked = (within.top.toInt().coerceAtLeast(0) until within.bottom.toInt().coerceAtMost(height)).filter { y ->
+        (within.left.toInt().coerceAtLeast(0) until within.right.toInt().coerceAtMost(width)).any { x ->
+            val here = getRGB(x, y)
+            kotlin.math.abs((here shr 16 and 0xFF) - (background shr 16 and 0xFF)) > 64
+        }
+    }
+    val runs = mutableListOf<IntRange>()
+    for (y in inked) {
+        val last = runs.lastOrNull()
+        if (last != null && y == last.last + 1) runs[runs.lastIndex] = last.first..y else runs += y..y
+    }
+    val middle = (within.top + within.bottom) / 2f
+    val run = runs.minBy { kotlin.math.abs((it.first + it.last) / 2f - middle) }
+    return (run.first + run.last) / 2f
+}
+
 private fun java.awt.image.BufferedImage.firstInkRow(within: Rect): Int {
     val background = getRGB(1, 1)
     val left = within.left.toInt().coerceAtLeast(0)

@@ -6,7 +6,8 @@ Panels that come in from an edge and rest at positions you name.
 |---|---|---|
 | [`BottomSheet`](bottom-sheet.md) | Content that shares the screen with what is behind it | A `ModalBottomSheet`, when the map underneath is still the point |
 | [`ModalBottomSheet`](modal-bottom-sheet.md) | A task that owns the screen until it is done | A `Dialog`, on a phone, where a sheet is easier to reach |
-| [`SideSheet`](side-sheet.md) | Filters and detail beside the content on a wide window | A `ModalNavDrawer`, which is for destinations |
+| [`SideSheet`](side-sheet.md) | A rail beside a page that stays usable — filters, an inspector | A `ModalSideSheet`, when the page beside it is still the point |
+| [`ModalSideSheet`](modal-side-sheet.md) | Filters and detail over the content on a wide window, until they are done | A `ModalNavRail`, which is for destinations |
 | [`SheetHeader`](sheet-header.md) | The title row every sheet needs | Rebuilding the title, actions and handle per sheet |
 | [`DragHandle`](drag-handle.md) | The grab bar at the top of a sheet | — |
 
@@ -14,7 +15,7 @@ Panels that come in from an edge and rest at positions you name.
 [drawn rather than draggable](#draghandle-is-drawn-not-draggable) — the sheet
 under it owns the gesture.
 
-Everything below is the model the five of them share: where a sheet is allowed
+Everything below is the model the six of them share: where a sheet is allowed
 to stop, and why those positions are values rather than an enum.
 
 ---
@@ -36,7 +37,7 @@ Box(Modifier.fillMaxSize()) {
     Map(contentPadding = PaddingValues(bottom = with(density) { sheet.visibleHeight.toDp() }))
 
     BottomSheet(sheet) {
-        SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+        SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
         LazyColumn { … }
     }
 }
@@ -118,7 +119,7 @@ both change again at 200% type.
 
 ```kotlin
 BottomSheet(sheet) {
-    SheetHeader("Perth Underground", modifier = Modifier.sheetPeekAnchor())
+    SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
     LazyColumn { … }
 }
 ```
@@ -203,11 +204,83 @@ That handoff is why a sheet takes its content as a slot rather than being a
 modifier. Without it, a sheet with a list inside is either undraggable or
 unscrollable, depending on which modifier won.
 
+**Inside a draggable sheet, the sheet owns the vertical rubber band.** A list and
+the sheet it is in share one axis, and only one of them can answer a finger that
+has run out of list — so a scrollable in a sheet is given no vertical overscroll
+of its own, and the pixels it declines reach the sheet. Sideways is untouched: a
+sheet has no opinion about horizontal scroll, so a carousel in one keeps whatever
+bounce the platform gives it.
+
+This was reported from an iPhone, as two symptoms of one cause — a flick that had
+to be thrown harder than on Android, and a downward drag that *sometimes* pulled
+the list's content down instead of moving the sheet. Each platform installs a
+different overscroll effect on a scrollable, and that effect wraps the whole
+scroll: one with a band already open takes the finger *before* the sheet is
+offered anything, and it is handed the release as well, where it can keep velocity
+for its own spring. Desktop has no such effect at all, which is why desktop was
+the behaviour that read as correct. None of the platforms' rubber-band curves
+changed; what changed is whose gesture a declined vertical drag is.
+
+A sheet with `draggable = false` is the exception, and for the reason the
+nested-scroll connection has the same exception: nothing would answer a list that
+has reached its top, and a list that stops dead is a boundary the finger cannot
+feel.
+
+**One flick closes it.** A release lands where the throw would have carried
+the sheet had it kept going for half a second — what iOS projects a release by —
+at the nearest detent to that, so a hard throw goes past a middle detent and
+closes the sheet in one, where it used to take one flick per detent. A throw of
+the sheet itself, by its handle or its surface, counts from 125dp/s and always
+moves it at least one detent the way it was thrown.
+
+**A finger rolling off the glass is not a throw.** A release only counts as one
+if the finger's last run in one direction was at least 14dp, a little past touch
+slop. A finger that leaves with a few pixels of travel at a few hundred pixels a
+second would otherwise move a full-height sheet a detent. The run starts again
+where the finger turns, so a roll-off after pulling a sheet up against its top
+is judged on the roll-off alone.
+
+**A sheet being pulled when the finger lets go owns the release**, as a sheet on
+an iPhone does. If the content has handed the drag to the sheet, the release
+belongs to the sheet: it carries on at the finger's speed, and it moves at least
+one detent the way it was thrown. That holds even when the gesture scrolled the
+list up to its top first. A release used to stop the sheet dead for a few frames
+and then ease it away from rest. A pull that followed a scroll was also read as
+the list's, and sprang back.
+
+**A flick is read off the finger when the platform loses it.** On iOS, Compose's
+velocity tracker reports no speed at all for a thumb laid on the sheet, rested a
+moment, and flicked — it takes the rest for the finger stopping — and the same for
+a throw across a slow frame. So when a release reports exactly nothing but the
+finger was still moving as it lifted, the sheet reads the throw off the last tenth
+of a second of the finger's own path. A finger that stopped before lifting still
+settles by position.
+
+**A flick from the content has to be firmer.** Below 300dp/s, a release settles
+by position. A fling the list spent on itself does not move the sheet at all: a
+reader who scrolled the list and let go was moving the list, and its leftovers
+are not a request. The floor was 500dp/s, and closing a sheet was reported as
+taking too much effort; both numbers are for tuning on a device.
+
+**A sheet thrown away gives the page back as it goes.** The scrim stops taking
+taps, and the page is readable again, from the moment the sheet is let go on its
+way out, not once it has landed. If the sheet is caught again, or put back
+because `onDismissRequest` declined, it holds the page again.
+
+A sheet that may not be dismissed by hand is never flicked shut, however hard it
+is thrown: its lowest resting place is the floor a drag already stops at.
+
 **Content taller than the window scrolls rather than being cropped.** The sheet
 measures its content at the room it actually has, so a long `Column` wrapped in
 `verticalScroll` has a real viewport and the part below the fold is reachable.
 Content that fits is unaffected — `SheetDetent.Expanded` still means "as tall as
 the content".
+
+**The room is the tallest the sheet can be.** A sheet whose detents are all fixed
+sizes — a bar and `Half`, say — measures its content at the tallest of them rather
+than at the window, so a list in a sheet that never goes above half height still
+reaches its last row. It used to be measured a window tall with only half of that
+ever on screen.
 
 This used to be the other way round: the content was measured at an unbounded
 height and then placed in the room the sheet had, so anything past the window's
@@ -215,6 +288,30 @@ bottom edge simply was not drawn — and adding a `verticalScroll` to fix it thr
 because Compose refuses a scroller measured at an infinite height. If you carried
 a workaround for that — a fixed `heightIn` on the content, say — you no longer
 need it.
+
+**The gesture bar is handed to the content rather than reserved from it.** The
+content lambda takes a `PaddingValues` carrying the bottom inset — the gesture
+bar, or the keyboard when it is up — and the sheet applies none of it:
+
+```kotlin
+BottomSheet(sheet) { safeArea ->
+    LazyColumn(contentPadding = safeArea) { … }        // scrolls through the bar
+    Column(Modifier.padding(safeArea)) { … }           // sits above it
+}
+```
+
+The sheet used to pad its content column itself, which is the first of those two
+for everybody — so a list inside ended its viewport a gesture bar above the
+window and its last row stopped short of the band rather than travelling through
+it and coming to rest clear. Reported as content being cut off at the safe zone.
+Only the caller knows whether the number belongs outside a scroller or inside
+one, and applying it to the wrong one clips the scroll; `Scaffold` has handed its
+own padding over for the same reason since it was written.
+
+The other three sides are still applied for you, and a floating sheet hands out
+zero — its margin has already cleared the inset. **Content written before this
+existed now draws to the bottom of the window**, which is the behaviour change:
+read the value and put it where it belongs.
 
 ---
 

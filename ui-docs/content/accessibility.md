@@ -60,27 +60,68 @@ authored would be a lie in an enum.
 
 ### What `High` actually changes
 
-Three things, and for a long time it was only the first:
+Five things, and for a long time it was only the first:
 
 **The scheme.** `kontourColourScheme(dark, contrast)` returns a different
 `ColourScheme` — AAA body contrast, a near-ink `outline`, pure white on pure
-black in dark mode.
+black in dark mode, and an `outlineSubtle` equal to `outline`: there is no faint
+rule at this tier, because a menu's border in the fainter grey was 3.03:1.
+
+**The pairs.** The tier used to darken every boundary toward `primary`, which is
+right for a boundary and wrong for the other half of a pair: a switch's off
+track was **1.85:1** from its on track, where the standard tier has 4.81.
+`ColourScheme.inactive` is the off or not-yet half — a switch off, a timeline's
+stops not reached, the page dots that are not current, and at this tier every
+track a fill runs along (`Slider`, the progress forms, `Gauge`, `Meter`,
+`Knob`). It equals `outlineStrong` at the standard tier, so nothing there moved,
+and a check holds every pair at this tier to 3:1 and every off mark to 4.5:1 on
+its ground.
 
 **The tokens.** `Sizing` is keyed on the tier, so every line in the system gets
-thicker: `borderWidth`, `borderWidthStrong`, `dividerThickness`,
-`focusRingWidth` and `selectionIndicator`. A component that reads one of those
-responds without being touched, which is most of them.
+thicker: `borderWidth`, `borderWidthStrong`, `dividerThickness` and
+`focusRingWidth`. A component that reads one of those responds without being
+touched — and every ring, tick and rule in the library is drawn from one: the
+avatar group's ring, a gauge's and a knob's ticks, a slider's thumb ring, the
+colour picker's cursor, a table's rules and an activity calendar's rings used to
+be constants of their own, and stayed hairlines beside borders twice their
+weight.
 
 **The edges.** `contrastEdge()` gives a container a boundary it does not
 otherwise have, and returns `null` at `Standard` so the call site reads as
 "this container's border, or an edge if the user needs one". `Card` Elevated
 and Filled, `Button` Tertiary and the ghosts, `ListItem`, `Tag`, `Dialog`, both
-sheets, `Toolbar`, `SegmentedControl`'s track and `TextFieldVariant.Filled` all
-take one. Its *thumb* does not — see below.
-`NavBar` was listed here and does not call it — it sits on its own surface with
-its own boundary, and the entry was wrong rather than the component.
+sheets, `Toolbar`, `SegmentedControl`'s track, `TextFieldVariant.Filled`,
+`NavBar` in both styles, `NavRail`, `NavSearch`'s results and a
+navigation slot's recess, someone else's `ChatBubble`, `TimePicker`'s field,
+`WheelPicker`'s band, a `Popover` with its arrow (the arrow is outlined too),
+the pull-to-refresh disc, a disabled FAB, an avatar with neither name nor
+picture, and the activity calendar's legend all take one. The
+segmented control's *thumb* does not — see below.
 
-That third part is the one a darker `outline` cannot do. An elevated `Card` is
+`selectionEdge()` is the same for a **selection**: an outline in the accent
+round a selected tint, which at this tier is 1.25:1 from the page. The travelling
+indicators of `NavBar`, `NavRail` and `TabBar`, the current `Pagination` page, a
+selected `FilterChip`, a selected `ListItem` (and so a `CommandPalette`
+highlight and a `TimelineList` row) and a selected `Table` row take it.
+
+**Marks as well as colours.** Where a state was colour and nothing else, the
+tier adds a mark, and only this tier:
+
+| Component | At `High` |
+|---|---|
+| `Switch` | A check in the thumb when on, a dash when off |
+| `Timeline`, `TimelineList`, `BranchTimeline` | Stops not yet reached are hollow; the halo round the current stop is a solid ring |
+| `PageIndicator` | A `Worm` rests with the current dot widened, as `Pill` does |
+| `Breadcrumbs` | Crumbs you can follow are underlined |
+| `Stat` | A good or bad trend gets a tick or an alert before it |
+| `Badge` | A ring of the page's colour separates it from what it sits on |
+| `Slider`, `RangeSlider` | Ticks are cut into the track in the page's colour |
+
+And nothing that is text fades: a coach mark's step count, a chat bubble's
+time, a toast's stacked rims, a wheel's neighbouring rows (to no fainter than
+5.7:1) and an idle scrollbar all go to full ink.
+
+That edge part is the one a darker `outline` cannot do. An elevated `Card` is
 `surfaceRaised` on the page with a shadow for an edge, and a shadow does not
 change between tiers; at the high-contrast light tier those two grounds are both
 pure white, so the card measures **1.00:1** against the page it sits on — against
@@ -94,28 +135,36 @@ and enhanced, light and dark. In light a shadow separated them; the dark
 elevation scale draws its shadows *black*, so on a near-black track there was
 nothing left to darken and the thumb disappeared.
 
-It is a distinct ground now. `surfaceTrack` is tuned for exactly this and
-nothing else, so the thumb reads **1.54:1** in light and 1.53 in dark without
-the well — every code block, table and text field on this site — having to
-darken with it. In dark the track goes to black and the thumb rises to
-`surfaceRaised`, since a track cannot go below black but a thumb can come up.
+The **thumb** is the distinct token now, not the ground. Both grounds went back
+to `surfaceSunken` — the same well every code block, table and text field uses —
+and `surfaceIndicator` lifts the thumb off it: **1.59:1** in dark and **1.94:1**
+at the enhanced tier, both further apart than the separate-track arrangement
+managed, and neither needing a border.
 
-**This does not reach the 3:1 WCAG asks of a boundary, and that is a choice
-rather than an oversight.** No two greys in one ramp reach it; a white thumb
-needs a mid-grey track, which stops being a ground and becomes a dark bar. An
-earlier version drew a hard grey line around the selected segment to get there,
-and it read as an apology for a fill that was not doing its job.
+Light is the scheme that cannot. White is the top of the ramp and the well is
+`#F6F6F6`, so the fill is 1.08:1 whatever token it reads, and a shadow is worth
+0.09 of a ratio on a ground that pale — measured, a borderless light thumb comes
+to 1.17:1.
 
-So the selected state is carried three ways instead of one: the fill, the shadow
-under the thumb in light, and the label moving from `contentMuted` to `content`
-— the last of which survives a reader who cannot separate the greys at all. It
-is the same trade iOS makes, and it is a trade: someone who could find the old
-border and cannot find this fill has lost something real.
+**So light is carried by its shadow and its label, and measures 1.17:1.** That
+does not reach the 3:1 WCAG asks of a control's boundary, and it is a choice
+rather than an oversight: a 1dp `outlineStrong` hairline was built and measured
+and reaches 3.60:1, and was rejected because on a near-white ground it is a hard
+dark stroke around the selected segment — the apology for a fill not doing its
+job that an earlier round already removed once.
 
-A selected **chip** still takes `outlineStrong`, because a tint 1.29:1 from the
-page genuinely cannot carry it alone. `contrastFailures` walks `outlineStrong`
-against the fills as well as the grounds, which is what keeps that promise
-honest.
+So the selected state is carried more than once everywhere: the fill in dark,
+the shadow in light, and in both the label moving from `contentMuted` to
+`content` — the last of which survives a reader who cannot separate the greys at
+all. It is the same trade iOS makes with its own segmented control, at a
+measured 1.15:1, and it is a trade: someone who could find the old `#D0D0D0`
+ground and cannot find this shadow has lost something real.
+
+A selected **chip** is its tint and its label's colour at the standard tier; its
+unselected border goes. At the enhanced tier the tint cannot carry it alone, so
+it keeps an edge, in the accent — `selectionEdge()`. `contrastFailures` walks
+`outlineStrong` against the fills as well as the grounds, which is what keeps
+the unselected chip's boundary honest.
 
 **How this is kept honest.** `LocalContrastLevel` was provided by the theme and
 read by nothing in the repo for most of the project's life, and it went
@@ -231,7 +280,17 @@ something on screen is making them uncomfortable and waiting for a relaunch is
 no help.
 
 It does not mean "no animation", and what it actually changes is listed with the
-motion tokens in [`tokens.md`](tokens.md#motion).
+motion tokens in [`tokens.md`](tokens.md#motion). In short: things fade rather
+than fly, programmatic scrolls and size changes arrive at once, and whatever
+follows the reader's own finger still follows it.
+
+**The spinner keeps turning.** Loading is information that something is still
+happening (WCAG 2.2.2 exempts it for that reason), and a spinner that stopped
+would say the opposite. What stops is its breathing: the arc holds one length.
+
+A theme nested inside another — a screen forcing dark mode — keeps the reader's
+setting rather than reading the platform's again, and a custom `Motion` passed
+to `KontourTheme` follows it too.
 
 ---
 

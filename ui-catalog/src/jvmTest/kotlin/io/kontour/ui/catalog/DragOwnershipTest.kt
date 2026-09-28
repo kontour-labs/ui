@@ -132,8 +132,8 @@ class DragOwnershipTest {
         scene {
             SegmentedControl(
                 options = listOf("One", "Two", "Three"),
-                selected = selected,
-                onSelectedChange = { selected = it },
+                selectedIndex = selected,
+                onSelectedIndexChange = { selected = it },
                 // Narrow, so a drag steeper than 45° still fits the scene.
                 modifier = Modifier.width(150.dp).reportBounds { bounds = it },
             )
@@ -179,8 +179,8 @@ class DragOwnershipTest {
         scene {
             SegmentedControl(
                 options = listOf("One", "Two", "Three"),
-                selected = selected,
-                onSelectedChange = { selected = it },
+                selectedIndex = selected,
+                onSelectedIndexChange = { selected = it },
                 modifier = Modifier.width(150.dp).reportBounds { bounds = it },
             )
         }.use { scene ->

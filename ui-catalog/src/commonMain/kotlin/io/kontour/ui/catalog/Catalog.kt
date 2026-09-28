@@ -1,6 +1,5 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +17,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,8 +29,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
 import com.composables.icons.tabler.outline.Calendar
+import com.composables.icons.tabler.outline.DeviceMobileVibration
 import com.composables.icons.tabler.outline.Click
 import com.composables.icons.tabler.outline.Forms
+import com.composables.icons.tabler.outline.Activity
 import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.LayoutBottombar
 import com.composables.icons.tabler.outline.LayoutGrid
@@ -39,6 +42,7 @@ import com.composables.icons.tabler.outline.Menu2
 import com.composables.icons.tabler.outline.Palette
 import com.composables.icons.tabler.outline.SquareRoundedLetterT
 import com.composables.icons.tabler.outline.Stack2
+import com.composables.icons.tabler.outline.Swipe
 import com.composables.icons.tabler.outline.Typography
 import com.composables.icons.tabler.outline.Windmill
 import io.kontour.ui.adaptive.LocalWindowSizeClass
@@ -52,9 +56,11 @@ import io.kontour.ui.demo.demoFamilies
 import io.kontour.ui.demo.theme.DemoThemeProvider
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.LocalInputModality
-import io.kontour.ui.nav.ModalNavDrawer
-import io.kontour.ui.nav.NavItem
+import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.nav.NavigationSuiteScaffold
+import io.kontour.ui.nav.NavigationSuiteType
+import io.kontour.ui.nav.navigationSuiteTypeFor
+import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.ToastHost
@@ -64,6 +70,7 @@ import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.deviceInDarkTheme
 
 /** One page of the gallery. */
 internal class Page(
@@ -73,7 +80,7 @@ internal class Page(
 )
 
 /**
- * Every page, in order: two written by hand and eleven generated.
+ * Every page, in order: five written by hand and eleven generated.
  *
  * **The generated eleven are the point.** They used to be hand-written too — a
  * fixed list of thirteen, last changed structurally in August, while the library
@@ -85,10 +92,14 @@ internal class Page(
  * The fix is not a check that notices the drift. It is the removal of the second
  * list: a demo can only be added to `demoFamilies`, and these pages are that.
  *
- * Two survive by hand because they are not component demos and never could be:
- * `About` is what the gallery is, and `Tokens` is the palette, the type scale
- * and the shape ladder — the one page where a *theme* can be judged rather than
- * a component.
+ * Five survive by hand because they are not component demos and never could be:
+ * `About` is what the gallery is, `Tokens` is the palette, the type scale and
+ * the shape ladder — the one page where a *theme* can be judged rather than a
+ * component — and `Frames`, `Haptics` and `Back` are instruments. `Frames` has the
+ * sharpest reason: a full-screen generic-path clip sat under every sheet
+ * in the library for three rounds of profiling because the JVM suite prices a
+ * mask as pixel work and a GPU prices it as an architectural penalty. The
+ * measurement had to move to the device. See [FramesPage].
  *
  * `internal` rather than private so the test suite can render each one on its
  * own. That is not a courtesy: the shell's goldens only ever show the page that
@@ -102,6 +113,15 @@ internal val pages: List<Page> = listOf(
     // handed the library nothing about what it is or where the writing is.
     Page("About", Tabler.Outline.InfoCircle) { Scrolling(it) { AboutShowcase(Modifier.fillMaxWidth()) } },
     Page("Tokens", Tabler.Outline.Palette) { Scrolling(it) { ThemeShowcase(Modifier.fillMaxWidth()) } },
+    // Not `Scrolling`: it scrolls itself, because the workload inside it is a
+    // lazy list that has to be flickable on its own.
+    Page("Frames", Tabler.Outline.Activity) { FramesPage(it) },
+    // Also scrolls itself, and also an instrument: the one place a haptic can be
+    // judged is a hand holding the phone. See [HapticsLab].
+    Page("Haptics", Tabler.Outline.DeviceMobileVibration) { HapticsLab(it) },
+    // An instrument too: back is judged by driving it, with a real gesture on
+    // a phone and the simulator elsewhere. See [BackPage].
+    Page("Back", Tabler.Outline.Swipe) { BackPage(it) },
 ) + demoFamilies.map { family ->
     Page(family.name, family.icon) { modifier -> DemoFamilyPage(family, modifier) }
 }
@@ -120,7 +140,7 @@ internal val pages: List<Page> = listOf(
 /** A scroller for the two pages that are a plain column of content. */
 @Composable
 private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState())) { content() }
+    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { content() }
 }
 
 @Composable
@@ -128,6 +148,7 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(Theme.spacing.md),
+        flingBehavior = ScrollDefaults.flingBehavior(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
     ) {
         items(family.demos, key = { it.slug }) { demo ->
@@ -157,18 +178,45 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
  * | Input modality | Forces the touch/pointer/keyboard branch — focus rings, hover, scrollbars and tooltip triggers all key off it, and on a desktop host you would otherwise only ever see the pointer branch |
  * | Reduce motion | Every animation in the system honours it; this is how you check |
  *
- * Above compact, navigation is a rail on medium and a drawer on expanded,
- * decided by [NavigationSuiteScaffold]. Resizing the window is itself a test.
- * Compact gets a menu button and a modal drawer instead — see [CompactCatalog]
- * for why a gallery is not the shape a bottom bar is for.
+ * Navigation is a [NavigationSuiteScaffold] at every width: a modal rail
+ * behind a menu button on compact, an expandable rail on medium and a sidebar
+ * above. Resizing the window is itself a test.
  */
 @Composable
 fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
 
+    /**
+     * What each destination remembers about itself while you are somewhere else.
+     *
+     * A page is composed cold on arrival and thrown away on departure, so every
+     * revisit started at the top of a list the reader had scrolled halfway down —
+     * on a gallery whose pages are long, which is most of them. A
+     * `SaveableStateHolder` keys the saved registry on the destination, so a
+     * `rememberScrollState` or a `rememberLazyListState` comes back where it was
+     * left. Both layouts share the one holder, so resizing the window across a
+     * breakpoint does not lose it either.
+     *
+     * It does not make the *arrival* cheaper and is not claimed to:
+     * `DrawerSelectCostDiagnostic` measures a destination's first frame at 64.2ms
+     * against about 5 for the ones after it, and that is composition, which this
+     * does not skip. Nor does it keep a knob's setting — `rememberKnobs` holds
+     * `mutableStateOf<Any?>`, which has no saver and could not have one while a
+     * knob's value is `Any?`.
+     */
+    val pageState = rememberSaveableStateHolder()
+
+    // The shell's navigation state: whether the compact modal rail is open, and
+    // whether the medium window's rail is expanded, which persists while the
+    // window stays that size.
+    val suite = rememberNavigationSuiteState()
+
     val density = LocalDensity.current
-    val systemDark = isSystemInDarkTheme()
+    // `deviceInDarkTheme()`, not Compose's own: this app has a dark switch
+    // *and* reports its appearance to the host, and on iOS those are the
+    // same property. See `deviceInDarkTheme`.
+    val systemDark = deviceInDarkTheme()
     val systemHighContrast = platformPrefersHighContrast()
     val systemReduceMotion = platformPrefersReducedMotion()
 
@@ -225,46 +273,54 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                 { what: String -> toasts.show(what) }
                             }
                         ) {
-                            // Twelve destinations is more than a bottom bar can hold
-                            // — the labels truncate to three letters each — so on
-                            // compact the catalog drives its own modal drawer rather
-                            // than taking what `NavigationSuiteScaffold` would pick.
-                            // That is not a gap in the scaffold: it chooses correctly
-                            // for an app with three to five destinations, which a
-                            // gallery is not. Above compact the scaffold's choice is
-                            // right and it makes it.
-                            if (LocalWindowSizeClass.current.width == WindowWidthClass.Compact) {
-                                CompactCatalog(
-                                    selected = selected,
-                                    onSelectedChange = { selected = it },
-                                    action = settingsButton,
-                                )
-                            } else {
-                                NavigationSuiteScaffold(
-                                    items = pages.mapIndexed { index, page ->
-                                        NavItem(
-                                            label = page.title,
-                                            icon = page.icon,
+                            // Twelve destinations is more than a bottom bar can
+                            // hold — the labels truncate to three letters each —
+                            // so on compact the destinations are a modal rail the
+                            // top bar's menu button opens, rather than a bar. A
+                            // gallery is somewhere you browse, not an app with a
+                            // handful of places to flick between. Above compact,
+                            // an expandable rail on medium and a sidebar beyond.
+                            val width = LocalWindowSizeClass.current.width
+                            val compact = width == WindowWidthClass.Compact
+                            NavigationSuiteScaffold(
+                                destinations = {
+                                    pages.forEachIndexed { index, page ->
+                                        item(
+                                            selected = index == selected,
                                             onClick = { selected = index },
-                                        )
-                                    },
-                                    selectedIndex = selected,
-                                    action = settingsButton,
-                                ) { contentPadding ->
-                                    // **The shell does not scroll.** It used
-                                    // to, because every page was a plain
-                                    // `Column`; the generated ones are lazy, and
-                                    // a `LazyColumn` inside a `verticalScroll`
-                                    // is measured with an infinite height and
-                                    // throws. Each page brings its own scroller
-                                    // now, which is also what keeps the lazy
-                                    // ones lazy — the whole reason they are.
+                                            key = index,
+                                            icon = page.icon,
+                                        ) { +page.title }
+                                    }
+                                },
+                                state = suite,
+                                type = if (compact) NavigationSuiteType.ModalRail else navigationSuiteTypeFor(width),
+                                railExpandable = true,
+                                action = if (compact) null else settingsButton,
+                            ) { contentPadding ->
+                                // **The shell does not scroll.** Each page brings
+                                // its own scroller, which is what keeps the lazy
+                                // ones lazy: a `LazyColumn` inside a
+                                // `verticalScroll` is measured with an infinite
+                                // height and throws.
+                                if (compact) {
+                                    CompactCatalog(
+                                        selected = selected,
+                                        onMenu = suite::showModal,
+                                        action = settingsButton,
+                                        pageState = pageState,
+                                    )
+                                } else {
                                     Box(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = contentPadding)
+                                            .padding(contentPadding)
                                     ) {
-                                        pages[selected].content(Modifier.fillMaxWidth())
+                                        CatalogDestination(
+                                            selected = selected,
+                                            pageState = pageState,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
                                     }
                                 }
                             }
@@ -296,20 +352,47 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
 }
 
 /**
- * The compact layout: a top bar with a menu button, and the destinations in a
- * modal drawer.
+ * The selected destination, holding what it remembered from last time.
  *
- * A gallery is a browsing surface, not an app with a handful of places you flick
- * between, so the list is somewhere you go rather than something always present.
+ * One function for both layouts, because the thing worth getting right here is
+ * shared: a page is composed on arrival and disposed on departure, so without
+ * the [SaveableStateHolder] every return to a page started at the top of a list
+ * the reader had scrolled. The rail and the drawer had a copy of this line each,
+ * and a fix applied to one of them would have been a fix on one window size.
+ *
+ * `internal` for the same reason [pages] is — so a test can drive the swap
+ * without hunting for a navigation item to tap, which is what `PageStateTest`
+ * does.
+ */
+@Composable
+internal fun CatalogDestination(
+    selected: Int,
+    pageState: SaveableStateHolder,
+    modifier: Modifier = Modifier,
+) {
+    pageState.SaveableStateProvider(selected) {
+        pages[selected].content(modifier)
+    }
+}
+
+/**
+ * The compact layout's page: a top bar whose menu button opens the destinations
+ * in the suite's modal rail.
+ *
+ * Choosing a destination changes the page first and closes the rail a frame
+ * later — `ModalNavRail`'s `dismissOnItemClick` — so the destination's
+ * expensive first frame lands while the rail is still and covering it, not
+ * inside its exit. `DrawerSelectCostDiagnostic` measured the alternatives: the
+ * same 64ms landing in the exit read as the rail snapping shut, and holding the
+ * choice until the rail had gone read as the page changing late.
  */
 @Composable
 private fun CompactCatalog(
     selected: Int,
-    onSelectedChange: (Int) -> Unit,
+    onMenu: () -> Unit,
     action: @Composable () -> Unit,
+    pageState: SaveableStateHolder,
 ) {
-    var drawerOpen by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopBar(
@@ -317,7 +400,7 @@ private fun CompactCatalog(
                     IconButton(
                         icon = Tabler.Outline.Menu2,
                         contentDescription = "Destinations",
-                        onClick = { drawerOpen = true },
+                        onClick = onMenu,
                     )
                 },
                 actions = { action() },
@@ -331,16 +414,11 @@ private fun CompactCatalog(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            pages[selected].content(Modifier.fillMaxWidth())
-        }
-    }
-
-    ModalNavDrawer(visible = drawerOpen, onDismissRequest = { drawerOpen = false }) {
-        pages.forEachIndexed { index, page ->
-            item(page.title, page.icon, selected = index == selected) {
-                onSelectedChange(index)
-                drawerOpen = false
-            }
+            CatalogDestination(
+                selected = selected,
+                pageState = pageState,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -370,8 +448,8 @@ internal fun SettingsSheet(
     systemDark: Boolean,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) {
-        SettingsSheetContent(settings, systemDark)
+    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
+        SettingsSheetContent(settings, systemDark, padding)
     }
 }
 
@@ -389,11 +467,24 @@ internal fun SettingsSheet(
  * being used.
  */
 @Composable
-internal fun SettingsSheetContent(settings: CatalogSettings, systemDark: Boolean) {
+internal fun SettingsSheetContent(
+    settings: CatalogSettings,
+    systemDark: Boolean,
+    safeArea: PaddingValues = PaddingValues(),
+) {
     Column(
         Modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm)
+            // **Inside the scroller, which is the whole point of being handed
+            // it.** Outside it — which is what the sheet used to do for every
+            // caller — the viewport stops above the gesture bar and the last
+            // control comes to rest short of it. Inside, the panel scrolls
+            // *through* the bar and the last control clears it. At 200% type
+            // this panel is 863dp against about 867 of window, so the last
+            // control is Input modality and it is exactly the one a reader
+            // opened the panel for.
+            .padding(bottom = safeArea.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         SheetHeader() {

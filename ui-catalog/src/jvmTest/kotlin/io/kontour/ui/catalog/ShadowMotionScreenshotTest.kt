@@ -25,7 +25,7 @@ import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.overlay.OverlayHost
@@ -113,9 +113,9 @@ class ShadowMotionScreenshotTest {
                             Modifier.fillMaxWidth().padding(Theme.spacing.md),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            ListItem(position = ListItemPosition.First) { +"Perth Underground" }
-                            ListItem(position = ListItemPosition.Middle) { +"Elizabeth Quay" }
-                            ListItem(position = ListItemPosition.Last) { +"McIver" }
+                            ListItem(position = GroupPosition.First) { +"Perth Underground" }
+                            ListItem(position = GroupPosition.Middle) { +"Elizabeth Quay" }
+                            ListItem(position = GroupPosition.Last) { +"McIver" }
                         }
                     }
                 }

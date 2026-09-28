@@ -1,5 +1,38 @@
 package io.kontour.ui.contract
 
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import com.composables.icons.tabler.outline.Bell
+import com.composables.icons.tabler.outline.Mail
+import io.kontour.ui.components.display.Avatar
+import io.kontour.ui.components.display.AvatarGroup
+import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.BadgedBox
+import io.kontour.ui.components.display.Card
+import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.Skeleton
+import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.selection.ColourSwatchPicker
+import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.components.datetime.ActivityCalendar
+import io.kontour.ui.components.datetime.ActivityMark
+import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.TableSort
+import io.kontour.ui.components.display.BubbleSide
+import io.kontour.ui.components.display.ChatBubble
+import io.kontour.ui.components.display.ConnectorStyle
+import io.kontour.ui.components.display.HorizontalTimeline
+import io.kontour.ui.components.display.Timeline
+import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineList
+import io.kontour.ui.components.display.TimelineListStyle
+import io.kontour.ui.components.display.GaugeIndicator
+import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.Meter
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,26 +46,32 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AlertTriangle
+import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.CurrentLocation
+import com.composables.icons.tabler.outline.GripVertical
+import com.composables.icons.tabler.outline.InfoCircle
 import com.composables.icons.tabler.outline.Minus
 import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Stack
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.Route
+import com.composables.icons.tabler.outline.User
+import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Train
 import com.composables.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
@@ -42,62 +81,64 @@ import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.components.action.FabMenuLayout
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
-import io.kontour.ui.components.action.SplitButton
+import io.kontour.ui.components.action.TextButton
+import io.kontour.ui.components.action.TextIconButton
 import io.kontour.ui.components.action.IconToggleButton
-import io.kontour.ui.components.datetime.RelativeTimeText
-import io.kontour.ui.components.display.CircularProgress
-import io.kontour.ui.components.display.LinearProgress
-import io.kontour.ui.components.display.Spinner
-import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.action.SplitButton
+import io.kontour.ui.components.action.Toolbar
+import io.kontour.ui.components.action.ToolbarDivider
+import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
-import io.kontour.ui.overlay.OverlayHost
-import io.kontour.ui.overlay.ToastHost
-import io.kontour.ui.overlay.rememberToastHostState
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
 import io.kontour.ui.components.display.Accordion
-import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.AnimatedBanner
+import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Banner
-import io.kontour.ui.components.display.BannerTone
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.nav.Breadcrumbs
+import io.kontour.ui.nav.Crumb
+import io.kontour.ui.nav.Pagination
+import io.kontour.ui.nav.TopBar
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
-import io.kontour.ui.components.action.Toolbar
-import io.kontour.ui.components.action.ToolbarDivider
 import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.PageIndicatorStyle
-import io.kontour.ui.components.display.rememberCarouselState
-import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
-import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ExpandingListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.list.rememberSwipeActionsState
-import io.kontour.ui.components.list.SettingRow
-import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.Chip
+import io.kontour.ui.components.selection.ColourPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
 import io.kontour.ui.components.selection.RadioButton
+import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
-import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.selection.Slider
@@ -107,21 +148,30 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.TextField
-import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
-import io.kontour.ui.theme.Theme
-import io.kontour.ui.nav.NavBarItem
-import io.kontour.ui.nav.NavDrawerGroup
-import io.kontour.ui.nav.NavDrawerItem
-import io.kontour.ui.nav.NavDrawerSection
-import io.kontour.ui.nav.NavItem
-import io.kontour.ui.nav.NavRailItem
+import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarStyle
+import io.kontour.ui.nav.NavRail
+import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
+import io.kontour.ui.overlay.OverlayHost
+import io.kontour.ui.overlay.ToastHost
+import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.sheet.DragHandle
+import io.kontour.ui.theme.Theme
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
+import kotlinx.datetime.LocalTime
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * One extra picture of a component, in a state it cannot be caught in at rest.
@@ -371,6 +421,26 @@ val componentRegistry: List<ComponentSpec> = buildList {
     }
 
     add(
+        ComponentSpec("TextButton", Role.Button) { modifier, enabled, onClick ->
+            TextButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+                +"Forgot your password?"
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("TextIconButton", Role.Button) { modifier, enabled, onClick ->
+            TextIconButton(
+                icon = Tabler.Outline.InfoCircle,
+                contentDescription = "About this stop",
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+            )
+        }
+    )
+
+    add(
         ComponentSpec("IconButton", Role.Button) { modifier, enabled, onClick ->
             IconButton(
                 icon = Tabler.Outline.Star,
@@ -572,13 +642,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // `selectedIcon` defaults to null, and this render flips
                 // `selected` and nothing else.
                 RenderState("selected") { modifier ->
-                    FilterChip(selected = true, onClick = {}, modifier = modifier) { +"Bus" }
+                    FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) { +"Bus" }
                 },
             ),
         ) { modifier, enabled, onClick ->
             FilterChip(
                 selected = false,
-                onClick = onClick,
+                onSelectedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             ) {
@@ -648,6 +718,24 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // Turned, not tapped: the slider's contract in a round body.
+        ComponentSpec(
+            "Knob",
+            role = null,
+            activatedByClick = false,
+        ) { modifier, enabled, _ ->
+            Knob(
+                value = 0.4f,
+                onValueChange = {},
+                modifier = modifier,
+                enabled = enabled,
+                steps = 9,
+                contentDescription = "Volume",
+            )
+        }
+    )
+
+    add(
         // Dragged, not tapped. The other four rules still apply, and the disabled
         // one still applies in its "says so" half.
         ComponentSpec(
@@ -658,11 +746,15 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // Stepped, which is the case the ticks are for and which nothing
                 // rendered. `showTicks` defaults from `steps` now, and a default
                 // with no picture behind it is a default that drifts.
+                // With minor ticks, because the two tiers only mean anything
+                // beside each other: a major mark is only "major" if there is a
+                // shorter one to compare it with.
                 RenderState("stepped") { modifier ->
                     Slider(
                         value = 0.5f,
                         onValueChange = {},
                         steps = 4,
+                        minorTicks = 1,
                         modifier = modifier,
                     )
                 },
@@ -691,6 +783,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         value = 0.25f..0.75f,
                         onValueChange = {},
                         steps = 4,
+                        minorTicks = 1,
                         modifier = modifier,
                     )
                 },
@@ -732,7 +825,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         contentDescription = "Adults",
                         animateValue = true,
                         modifier = modifier,
-                        range = 1..9,
+                        valueRange = 1..9,
                     )
                 },
             ),
@@ -743,7 +836,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 contentDescription = "Adults",
                 modifier = modifier,
                 enabled = enabled,
-                range = 1..9,
+                valueRange = 1..9,
             )
         }
     )
@@ -764,6 +857,224 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value("4 min")
                 +"Next departure"
                 supporting("Platform 2")
+            }
+        }
+    )
+
+    add(
+        // Read, not operated, like `Stat`: a progress reading with no role and
+        // nothing to press. `GaugeTest` covers the reading and the drawing.
+        ComponentSpec(
+            "Gauge",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 180,
+        ) { modifier, _, _ ->
+            Gauge(
+                value = 0.65f,
+                modifier = modifier,
+                indicator = GaugeIndicator.Needle,
+                majorTicks = 5,
+                tickLabel = { "${(it * 100).toInt()}" },
+                contentDescription = "Battery",
+            )
+        }
+    )
+
+    add(
+        // The gauge laid flat, and read the same way: a progress reading with no
+        // role and nothing to press. `MeterTest` covers the reading.
+        ComponentSpec(
+            "Meter",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 90,
+        ) { modifier, _, _ ->
+            Meter(
+                value = 65f,
+                valueRange = 0f..100f,
+                modifier = modifier,
+                indicator = GaugeIndicator.Thumb,
+                majorTicks = 5,
+                tickLabel = { "${it.toInt()}%" },
+                contentDescription = "Battery",
+            ) {
+                label("Battery")
+            }
+        }
+    )
+
+    add(
+        // Drawn, not operated: the rail and nodes are pictures of a sequence and
+        // the words beside them are read in order. `TimelineConnectorTest`
+        // measures the connectors; this is here for the render and the width sweep.
+        ComponentSpec(
+            "Timeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 160,
+        ) { modifier, _, _ ->
+            Timeline(modifier) {
+                TimelineItem { +"Perth Station" }
+                TimelineItem(connector = ConnectorStyle.Dotted, filled = false) { +"Walk 4 min" }
+                TimelineItem(connector = ConnectorStyle.None) { +"Elizabeth Quay" }
+            }
+        }
+    )
+
+    add(
+        // Rows on a rail. The rows are `ListItem`s and are held to the contract
+        // there; this specimen is for the render — the rail through a grouped
+        // list, with progress — and for the width sweep.
+        ComponentSpec(
+            "TimelineList",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            TimelineList(modifier, style = TimelineListStyle.Grouped, progress = 0.5f) {
+                item("Perth Station", trailing = "08:12")
+                item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false)
+                item("Elizabeth Quay", trailing = "08:21")
+            }
+        }
+    )
+
+    add(
+        // A history drawn as lanes beside list rows. The rows are `ListItem`s,
+        // held to the contract there; this is the render of a merge.
+        ComponentSpec(
+            "BranchTimeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, _, _ ->
+            BranchTimeline(
+                items = listOf(
+                    "m" to listOf("b", "f"),
+                    "f" to listOf("a"),
+                    "b" to listOf("a"),
+                    "a" to emptyList(),
+                ),
+                key = { it.first },
+                parents = { it.second },
+                modifier = modifier,
+            ) { commit ->
+                item {
+                    +when (commit.first) {
+                        "m" -> "Merge feature/maps"
+                        "f" -> "Map tiles"
+                        "b" -> "Fix stop search"
+                        else -> "Add journey planner"
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        // The same items across the page. Here for its render, and for the width
+        // sweep, which is what squeezes an item until its text wraps.
+        ComponentSpec(
+            "HorizontalTimeline",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            HorizontalTimeline(modifier) {
+                TimelineItem { +"Ordered" }
+                TimelineItem(connector = ConnectorStyle.Dashed) { +"Packed" }
+                TimelineItem(connector = ConnectorStyle.None, filled = false) { +"Delivered" }
+            }
+        }
+    )
+
+    add(
+        // A year of shades. Ten weeks here, so the specimen reads at the
+        // shared width, and two marks; the tap, the scrub, the tooltip and the
+        // week nodes are `ActivityCalendarTest`'s.
+        ComponentSpec(
+            "ActivityCalendar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            // Seven rows of cells as large as they grow, the month names above
+            // and the legend below.
+            renderHeight = 250,
+        ) { modifier, _, _ ->
+            val end = LocalDate(2026, 6, 5)
+            val holiday = LocalDate(2026, 6, 1)
+            val warning = Theme.colours.warning.solid
+            val info = Theme.colours.info.solid
+            ActivityCalendar(
+                activity = (0 until 70).associate { back ->
+                    end.minus(DatePeriod(days = back)) to (back * 7 + back / 3) % 5
+                },
+                end = end,
+                modifier = modifier,
+                weeks = 10,
+                today = end,
+                marksFor = { date, _ ->
+                    when (date) {
+                        holiday -> listOf(ActivityMark(corner = warning, description = "Public holiday"))
+                        end.minus(DatePeriod(days = 10)) -> listOf(ActivityMark(dot = info, description = "Trip"))
+                        else -> emptyList()
+                    }
+                },
+            )
+        }
+    )
+
+    add(
+        // A table's rows are its controls, and each is under test in
+        // `TableSemanticsTest`; the specimen is here for its render and the
+        // width sweep, which squeezes its columns until they scroll.
+        ComponentSpec(
+            "Table",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            Table(
+                items = listOf("950" to "Elizabeth Quay", "T1" to "Fremantle", "103" to "Joondalup"),
+                modifier = modifier,
+                stickyColumns = 1,
+                striped = true,
+                sort = TableSort("Route"),
+                onSortChange = {},
+            ) {
+                column("Route", width = 72.dp) { +it.first }
+                column("Destination", weight = 1f) { +it.second }
+            }
+        }
+    )
+
+    add(
+        // A message, not a control. Here for its render and the layout rules —
+        // a bubble has to survive 200% type in RTL, tail and all.
+        ComponentSpec(
+            "ChatBubble",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+        ) { modifier, _, _ ->
+            ChatBubble(side = BubbleSide.Outgoing, modifier = modifier) {
+                +"Every 15 minutes until 11pm"
             }
         }
     )
@@ -821,6 +1132,77 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     item(onClick = onActivate, contentDescription = "Zoom out", icon = Tabler.Outline.Minus)
                     item(onClick = onActivate, contentDescription = "Zoom in", icon = Tabler.Outline.Plus)
                 }
+                ToolbarDivider()
+                IconButton(
+                    icon = Tabler.Outline.Stack,
+                    contentDescription = "Map layers",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Redacted",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            renderHeight = 200,
+        ) { modifier, _, _ ->
+            // Two rows, the second long enough to wrap, because the whole claim
+            // is that the bars come from the real text layout: a wrapped line
+            // has to produce two bars with a short second one, and a single
+            // rectangle over the paragraph is the thing this replaces.
+            Redacted {
+                Column(
+                    modifier = modifier.width(SpecimenProseWidth),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ListItem {
+                        +"Perth Underground"
+                        supporting { +"08:14 · Platform 2" }
+                        leading { +Tabler.Outline.Train }
+                    }
+                    ListItem {
+                        +"Elizabeth Quay"
+                        supporting { +"A longer supporting line, so that it wraps" }
+                        leading { +Tabler.Outline.Bus }
+                    }
+                }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "VerticalToolbar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            // Three targets and a rule, stacked. The default card is 120dp
+            // tall and this is not — the first golden recorded it with the
+            // divider and the third button cropped off the bottom, which is a
+            // picture of a bar that does not exist. Only ever to *fit*: the
+            // crop takes back whatever this does not use.
+            renderHeight = 200,
+        ) { modifier, enabled, onActivate ->
+            VerticalToolbar(modifier) {
+                IconButton(
+                    icon = Tabler.Outline.Plus,
+                    contentDescription = "Zoom in",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
+                IconButton(
+                    icon = Tabler.Outline.Minus,
+                    contentDescription = "Zoom out",
+                    onClick = onActivate,
+                    enabled = enabled,
+                )
                 ToolbarDivider()
                 IconButton(
                     icon = Tabler.Outline.Stack,
@@ -907,7 +1289,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(80.dp),
                         shape = Theme.shapes.small,
-                        colour = Theme.colours.surfaceSunken,
+                        containerColour = Theme.colours.surfaceSunken,
                     ) {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text("Photo ${page + 1}")
@@ -1111,110 +1493,70 @@ val componentRegistry: List<ComponentSpec> = buildList {
 
     // --- Navigation ------------------------------------------------------
     add(
-        // Every navigation item rests unselected, and unselected is the state
-        // with no indicator in it. The pill — its shape, its colour, where it
-        // sits relative to icon and label — is what distinguishes these three
-        // from one another and from a plain row, and none of it was on show.
+        // The control is the selected destination: the bar is a group of them,
+        // and the one that is where the app is carries the role, the name and
+        // the click.
         ComponentSpec(
-            name = "NavBarItem",
+            name = "NavBar",
             role = Role.Tab,
+            control = ControlLocator.SelectedOption,
             states = listOf(
-                RenderState("selected") { modifier ->
-                    NavBarItem(
-                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = true,
-                        modifier = modifier,
-                    )
+                RenderState("labels") { modifier ->
+                    NavBar(modifier = modifier, showLabels = true) { specimenDestinations(onClick = {}) }
                 },
-                RenderState("pressed") { modifier ->
-                    NavBarItem(
-                        item = NavItem(label = "Plan", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = false,
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    )
+                RenderState("docked") { modifier ->
+                    NavBar(modifier = modifier, style = NavBarStyle.Docked) { specimenDestinations(onClick = {}) }
                 },
             ),
         ) { modifier, enabled, onClick ->
-            NavBarItem(
-                item = NavItem(
-                    label = "Plan",
-                    icon = Tabler.Outline.Star,
-                    onClick = onClick,
-                    enabled = enabled,
-                ),
-                selected = false,
-                modifier = modifier,
-            )
+            NavBar(modifier = modifier) { specimenDestinations(onClick = onClick, enabled = enabled) }
         }
     )
 
     add(
         ComponentSpec(
-            name = "NavDrawerItem",
+            name = "NavRail",
             role = Role.Tab,
+            control = ControlLocator.SelectedOption,
+            renderHeight = 240,
             states = listOf(
-                RenderState("selected") { modifier ->
-                    NavDrawerItem(
-                        selected = true,
-                        onClick = {},
-                        key = "drawer-item",
-                        modifier = modifier,
-                    ) { +"Favourites" }
-                },
-                RenderState("pressed") { modifier ->
-                    NavDrawerItem(
-                        selected = false,
-                        onClick = {},
-                        key = "drawer-item",
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    ) { +"Favourites" }
+                // The sidebar the rail grows into: labels, a section title.
+                // 240dp rather than the default, so it fits the card every
+                // specimen shares instead of being cropped at its edge.
+                RenderState("expanded") { modifier ->
+                    NavRail(modifier = modifier, expanded = true, expandedWidth = 240.dp, revealSelected = false) {
+                        section("Saved") { specimenDestinations(onClick = {}) }
+                    }
                 },
             ),
         ) { modifier, enabled, onClick ->
-            NavDrawerItem(
-                selected = false,
-                onClick = onClick,
-                key = "drawer-item",
-                modifier = modifier,
-                enabled = enabled,
-            ) { +"Favourites" }
+            NavRail(modifier = modifier, revealSelected = false) {
+                specimenDestinations(onClick = onClick, enabled = enabled)
+            }
         }
     )
 
     add(
+        // A group's disclosure, closed so that it is the one clickable thing:
+        // a button that says whether it is expanded, not a destination.
         ComponentSpec(
-            name = "NavRailItem",
-            role = Role.Tab,
-            states = listOf(
-                RenderState("selected") { modifier ->
-                    NavRailItem(
-                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = true,
-                        modifier = modifier,
-                    )
-                },
-                RenderState("pressed") { modifier ->
-                    NavRailItem(
-                        item = NavItem(label = "Map", icon = Tabler.Outline.Star, onClick = {}),
-                        selected = false,
-                        modifier = modifier,
-                        interactionSource = rememberHeldDown(),
-                    )
-                },
-            ),
+            name = "NavScope",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            renderHeight = 160,
         ) { modifier, enabled, onClick ->
-            NavRailItem(
-                item = NavItem(
-                    label = "Map",
-                    icon = Tabler.Outline.Star,
-                    onClick = onClick,
+            NavRail(modifier = modifier, expanded = true, expandedWidth = 240.dp, revealSelected = false) {
+                group(
+                    expanded = false,
+                    onExpandedChange = { onClick() },
+                    key = "lines",
+                    icon = Tabler.Outline.Route,
+                    header = { +"Lines" },
                     enabled = enabled,
-                ),
-                selected = false,
-                modifier = modifier,
-            )
+                ) {
+                    item(selected = false, onClick = {}, key = "joondalup", icon = null) { +"Joondalup" }
+                }
+            }
         }
     )
 
@@ -1240,16 +1582,29 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // and it must not quietly stop testing that because a caller
                 // found more room.
                 //
+                // **What it photographs has changed, and the picture is the
+                // point.** The control stacks its options into full-width rows
+                // when they stop fitting rather than cutting them, so this
+                // specimen is four rows now instead of one line of truncated
+                // words. That is the fix working; the golden moved when it
+                // landed, and a reader comparing the two sees exactly what was
+                // traded for what.
+                //
                 // The width is fixed here rather than left to the render card
-                // because the card is generous and the defect only exists when
-                // the control is starved. `WidthSweepTest` cannot see this: it
-                // measures ink spilling *out* of the box, and clipped text keeps
-                // every pixel inside — that is what clipping is.
-                RenderState("squeezed") { modifier ->
+                // because the card is generous and the behaviour only exists when
+                // the control is starved. `WidthSweepTest` still cannot see any
+                // of this: it measures ink spilling *out* of the box, and both a
+                // clipped label and a stacked one keep every pixel inside.
+                // `SegmentedTypeScaleTest` is what watches it, by comparing how
+                // much label ink is drawn against how much the same labels draw
+                // with room.
+                // Tall enough for four stacked rows: the specimen is starved on
+                // purpose, so it is the one that stacks.
+                RenderState("squeezed", height = 260) { modifier ->
                     SegmentedControl(
                         options = listOf("Auto", "Touch", "Mouse", "Keyboard"),
-                        selected = 0,
-                        onSelectedChange = {},
+                        selectedIndex = 0,
+                        onSelectedIndexChange = {},
                         modifier = modifier.width(244.dp),
                     )
                 },
@@ -1257,8 +1612,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onClick ->
             SegmentedControl(
                 options = listOf("Bus", "Train"),
-                selected = 0,
-                onSelectedChange = { onClick() },
+                selectedIndex = 0,
+                onSelectedIndexChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
             )
@@ -1337,7 +1692,96 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
             ) {
                 +"Theme"
-                trailing { settingValue("Match system") }
+                trailing { +"Match system" }
+            }
+        }
+    )
+
+    add(
+        // Stateless by construction, which is what this list needs and what a
+        // picker looks like it cannot be. `colour` is fixed and the change is
+        // routed into `onActivate`; the internal `hsv` and `alpha` only move on
+        // interaction, so the resting frame is the same one every time.
+        //
+        // `onModeChange` and `onFormatChange` both null on purpose. Non-null
+        // puts a mode switch and a notation switch on it, and this specimen is
+        // a picture of a picker rather than of two segmented controls — the
+        // demo is where those are worth pressing.
+        //
+        // No role: the operable parts are inside it — an area, two tracks and a
+        // field, each with its own semantics — and there is no one node that is
+        // "the picker" to give a role to.
+        ComponentSpec(
+            name = "ColourPicker",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            underContract = false,
+            // Tall, and earned: a spectrum area, a hue track, an opacity track,
+            // a swatch row and a value field stacked is 412dp of structure
+            // against the standard card's 120.
+            //
+            // The eight default swatches wrap seven-and-one here, and that is
+            // left alone. The card is 300dp and a row of eight needs more than
+            // the canvas has, so the only ways out are a flattering subset or a
+            // wider canvas for one specimen — and what this shows is true: the
+            // row wraps when it is not given the room. The demo is 320dp and
+            // shows them level.
+            renderHeight = 420,
+        ) { modifier, enabled, onActivate ->
+            ColourPicker(
+                colour = Color(0xFF1E88E5),
+                onColourChange = { onActivate() },
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+                enabled = enabled,
+                showAlphaSlider = true,
+            )
+        }
+    )
+
+    add(
+        // A container, so no role and nothing to press: the rows inside it are
+        // the controls and they have their own specimens above.
+        //
+        // Drawn **with its footer**, which is the one slot the page is actually
+        // about and the one nothing pictured. It is `bodySmall` in
+        // `contentMuted` under the rows, and the whole question a reader has
+        // about it — does it read as part of the group or as a stray caption —
+        // is a question about a picture.
+        ComponentSpec(
+            name = "ListSection",
+            role = null,
+            expectsMinimumTarget = false,
+            activatedByClick = false,
+            underContract = false,
+            renderHeight = 240,
+        ) { modifier, enabled, onClick ->
+            ListSection(
+                // Measured, like every other specimen whose content is prose: a
+                // section fills the width it is given, and the render canvas
+                // gives it none, so unconstrained it asked for 433dp and the
+                // footer never wrapped.
+                modifier = modifier.widthIn(max = SpecimenProseWidth),
+                title = { +"Appearance" },
+                supporting = { +"How the app looks on this device" },
+                footer = { +"Always dark keeps the screen dark even in daylight." },
+            ) {
+                SettingRow(
+                    onClick = onClick,
+                    enabled = enabled,
+                    position = GroupPosition.First,
+                ) {
+                    +"Theme"
+                    trailing { +"Always dark" }
+                }
+                SettingRow(
+                    onClick = onClick,
+                    enabled = enabled,
+                    position = GroupPosition.Last,
+                ) {
+                    +"Text size"
+                    trailing { +"Default" }
+                }
             }
         }
     )
@@ -1354,12 +1798,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, enabled, onClick ->
             RadioGroup(
                 options = listOf("Bus", "Train"),
-                selected = "Bus",
-                onSelectedChange = { onClick() },
+                value = "Bus",
+                onValueChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
-                label = { it },
-            )
+            ) { option -> +option }
         }
     )
 
@@ -1370,11 +1813,22 @@ val componentRegistry: List<ComponentSpec> = buildList {
     // touch target, and a key cap has none of those and is not failing anything
     // by not having them.
     //
-    // Two components are still missing even from here, and deliberately.
+    // Three components are still missing even from here, and deliberately.
     // `ConfirmHost` draws nothing until something asks it a question and
     // `ContextMenuArea` draws nothing until a right-click, so a card of either
     // would show only the child inside it. They need a specimen that captures
     // the *open* state, which is a bigger frame than this one.
+    //
+    // `BottomSheet` is missing for a different reason: its geometry *is* the
+    // window. This canvas is 300x120dp, centred and cropped to the ink, and what
+    // a sheet means — at the bottom edge of a screen, with the content behind it
+    // receding — is exactly what does not survive that crop. A sheet drawn in the
+    // middle of a card is a picture of a sheet's surface and not of a sheet. It is
+    // also the best-covered component in the suite from real windows already
+    // (`SheetGeometryTest`, `SheetFloorTest`, `FloatingSheetTest`,
+    // `SheetOvershootTest`, `SheetPeekAnchorSettleTest`, `SheetDraggableTest`,
+    // `phone/sheets.png`), and `DragHandle` below is the part of one this card can
+    // honestly show.
 
     add(
         ComponentSpec("Kbd", role = null, underContract = false) { modifier, _, _ ->
@@ -1511,7 +1965,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     onAction = {},
                     // Long enough that the render is of a toast rather than of
                     // one halfway through leaving.
-                    durationMillis = 60_000,
+                    duration = 60_000.milliseconds,
                 )
             }
             Box(modifier.fillMaxWidth().height(88.dp)) {
@@ -1561,8 +2015,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             minWidth = 200,
         ) { modifier, _, _ ->
             DatePicker(
-                selected = SpecimenDate,
-                onSelectedChange = {},
+                value = SpecimenDate,
+                onValueChange = {},
                 today = SpecimenToday,
                 previousIcon = SystemIcons.ChevronLeft,
                 nextIcon = SystemIcons.ChevronRight,
@@ -1589,7 +2043,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             DateRangePicker(
                 start = SpecimenDate,
                 end = LocalDate(2026, 6, 24),
-                onRangeSelected = { _, _ -> },
+                onRangeChange = { _, _ -> },
                 today = SpecimenToday,
                 previousIcon = SystemIcons.ChevronLeft,
                 nextIcon = SystemIcons.ChevronRight,
@@ -1618,9 +2072,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ) { modifier, _, _ ->
             WheelPicker(
                 items = (0..9).map { "Platform $it" },
-                selected = 3,
-                onSelectedChange = {},
-                label = { it },
+                selectedIndex = 3,
+                onSelectedIndexChange = {},
+                itemLabel = { it },
                 modifier = modifier,
             )
         }
@@ -1690,7 +2144,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("dismissible", height = 96) { modifier ->
                     Banner(
                         modifier = modifier.widthIn(max = SpecimenProseWidth),
-                        tone = BannerTone.Danger,
+                        tone = Tone.Danger,
                         onDismissRequest = {},
                         dismissIcon = Tabler.Outline.X,
                     ) {
@@ -1706,7 +2160,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // the other side is what it is centred against.
             Banner(
                 modifier = modifier.widthIn(max = SpecimenProseWidth),
-                tone = BannerTone.Warning,
+                tone = Tone.Warning,
                 onDismissRequest = {},
                 dismissIcon = Tabler.Outline.X,
             ) {
@@ -1733,9 +2187,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("warning") { modifier ->
                     Callout(
                         modifier.widthIn(max = SpecimenProseWidth),
-                        tone = BannerTone.Warning,
+                        tone = Tone.Warning,
                     ) {
-                        Text("Journey planning is unavailable while the timetable reloads.")
+                        +"Journey planning is unavailable while the timetable reloads."
                     }
                 },
             ),
@@ -1753,17 +2207,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // is most of what made this a `Banner` sibling — every call site used
             // to pass `bodySmall` by hand and any one of them could have not.
             Callout(modifier.widthIn(max = SpecimenProseWidth)) {
-                Text(
-                    "Melbourne, Sydney and Canberra do not currently support " +
-                        "journey planning.",
-                )
+                +"Melbourne, Sydney and Canberra do not currently support journey planning."
             }
         }
     )
 
     add(
         ComponentSpec("AnimatedBanner", role = null, underContract = false) { modifier, _, _ ->
-            AnimatedBanner(visible = true, modifier = modifier, tone = BannerTone.Warning) {
+            AnimatedBanner(visible = true, modifier = modifier, tone = Tone.Warning) {
                 +"Services are running late."
             }
         }
@@ -1786,9 +2237,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // honestly does when it wraps something short — and is not what
                 // it does in the full-height scrollable it is actually for.
                 Column(Modifier.fillMaxWidth()) {
-                    ListItem(position = ListItemPosition.First) { +"Perth Underground" }
-                    ListItem(position = ListItemPosition.Middle) { +"Elizabeth Quay" }
-                    ListItem(position = ListItemPosition.Last) { +"McIver" }
+                    ListItem(position = GroupPosition.First) { +"Perth Underground" }
+                    ListItem(position = GroupPosition.Middle) { +"Elizabeth Quay" }
+                    ListItem(position = GroupPosition.Last) { +"McIver" }
                 }
             }
         }
@@ -1863,10 +2314,30 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     // reorderable row means anything: it reads its position out
                     // of a `LazyListState`, and it animates its neighbours
                     // through `LazyItemScope`.
+                    //
+                    // One row of a notional three, and the `ListItem` is told
+                    // the same thing the row is. It used to be told nothing, so
+                    // it drew as an `Only` — all four corners round — inside a
+                    // row whose own silhouette was a `First`. Nothing showed
+                    // while the mismatch only reached a soft shadow; the lifted
+                    // row's fill takes that silhouette, so it does now.
+                    //
+                    // **With a grip**, which is the first golden anywhere to have
+                    // one. The shadow is cast by the card rather than by the row,
+                    // so the handle sits beside a lifted card on the list — a
+                    // claim `ReorderShadowTest` measures and this is where it can
+                    // be seen.
                     LazyColumn(state = listState, modifier = modifier) {
                         item {
-                            ReorderableItem(state = reorder, index = 0, itemCount = 3) {
-                                ListItem { +"Perth Underground" }
+                            ReorderableItem(
+                                state = reorder,
+                                index = 0,
+                                itemCount = 3,
+                                handleIcon = Tabler.Outline.GripVertical,
+                            ) {
+                                ListItem(position = GroupPosition.of(0, 3)) {
+                                    +"Perth Underground"
+                                }
                             }
                         }
                     }
@@ -1878,33 +2349,159 @@ val componentRegistry: List<ComponentSpec> = buildList {
             LazyColumn(state = listState, modifier = modifier) {
                 item {
                     ReorderableItem(state = reorder, index = 0, itemCount = 3) {
-                        ListItem { +"Perth Underground" }
+                        ListItem(position = GroupPosition.of(0, 3)) {
+                            +"Perth Underground"
+                        }
                     }
                 }
             }
         }
     )
 
+    // --- Pictures for the components the contract never drew ----------------
+    //
+    // Rendered at both contrast tiers, which is why they are here: the
+    // high-contrast audit found that about twenty components had no specimen, so
+    // nothing had ever photographed them at the tier that asks the most of an
+    // edge. They are drawn, not operated — each has its own behaviour tests.
+
     add(
-        ComponentSpec("NavDrawerSection", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerSection(title = { +"Saved" }, modifier = modifier) {
-                item(label = "Nearby", selected = false, onClick = {})
+        ComponentSpec("Tag", role = null, underContract = false) { modifier, _, _ ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Tag(tone = Tone.Success) { +"On time" }
+                Tag(tone = Tone.Warning) { +"Delayed" }
+                Tag(tone = Tone.Neutral) { +"Platform 2" }
             }
         }
     )
 
     add(
-        ComponentSpec("NavDrawerGroup", role = null, underContract = false) { modifier, _, _ ->
-            NavDrawerGroup(
-                label = { +"Lines" },
-                expanded = true,
-                onExpandedChange = {},
-                modifier = modifier,
-            ) {
-                item(label = "Joondalup", selected = false, onClick = {})
+        ComponentSpec("Badge", role = null, underContract = false) { modifier, _, _ ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                BadgedBox(badge = { Badge(count = 3) }) { Icon(Tabler.Outline.Bell, contentDescription = null) }
+                BadgedBox(badge = { Badge() }) { Icon(Tabler.Outline.Mail, contentDescription = null) }
             }
         }
     )
+
+    add(
+        ComponentSpec(
+            "Avatar",
+            role = null,
+            underContract = false,
+            // A group is its discs overlapping, and a disc does not shrink.
+            minWidth = 100,
+        ) { modifier, _, _ ->
+            FlowRow(
+                modifier,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Through a local: a quoted name argument in this file names a spec.
+                val person = "Ada Lovelace"
+                Avatar(name = person)
+                // Decorated: a status on the rim at bottom end, and a count at top
+                // end, each ringed in the page's colour.
+                val online = Theme.colours.success.solid
+                Avatar(name = person) {
+                    status(online, "Online")
+                    count(3)
+                }
+                // No name and no picture: the placeholder, which is the one that
+                // needs an edge at the enhanced tier.
+                Avatar()
+                AvatarGroup(names = listOf("Ada Lovelace", "Grace Hopper", "Alan Turing", "Ken Thompson"))
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("Card", role = null, underContract = false) { modifier, _, _ ->
+            Card(modifier = modifier.width(SpecimenProseWidth)) {
+                Text("Perth Underground")
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "Pagination",
+            role = null,
+            underContract = false,
+            // Two arrows and the page you are on, each a touch target: there is
+            // no narrower arrangement of it that still pages.
+            minWidth = 144,
+        ) { modifier, _, _ ->
+            // A width, so the row windows its pages as it would in a layout
+            // rather than laying all twelve out at the unbounded measure.
+            Pagination(value = 3, pageCount = 12, onValueChange = {}, modifier = modifier.width(SpecimenProseWidth))
+        }
+    )
+
+    add(
+        ComponentSpec("Breadcrumbs", role = null, underContract = false) { modifier, _, _ ->
+            Breadcrumbs(
+                listOf(Crumb("Routes", onClick = {}), Crumb("Route 950", onClick = {}), Crumb("Stops")),
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec("ColourSwatchPicker", role = null, underContract = false) { modifier, _, _ ->
+            val swatches = listOf(Color(0xFF0B6E99), Color(0xFFE11F26), Color(0xFF1B5E20), Color(0xFFF2C200))
+            ColourSwatchPicker(
+                value = swatches[1],
+                options = swatches,
+                onValueChange = {},
+                swatchColour = { it },
+                swatchLabel = { "Route colour" },
+                modifier = modifier,
+            )
+        }
+    )
+
+    add(
+        ComponentSpec("TopBar", role = null, underContract = false) { modifier, _, _ ->
+            TopBar(modifier = modifier.width(SpecimenProseWidth)) { +"Perth Underground" }
+        }
+    )
+
+    add(
+        ComponentSpec("Skeleton", role = null, underContract = false) { modifier, _, _ ->
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Skeleton(Modifier.width(180.dp).height(20.dp))
+                Skeleton(Modifier.width(120.dp).height(16.dp))
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("EmptyState", role = null, underContract = false, renderHeight = 160) { modifier, _, _ ->
+            EmptyState(modifier.width(SpecimenProseWidth)) {
+                +"No favourites yet"
+                message { +"Star a stop and it will appear here." }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("PageIndicator", role = null, underContract = false) { modifier, _, _ ->
+            val carousel = rememberCarouselState { 5 }
+            PageIndicator(state = carousel, modifier = modifier, onPageClick = {})
+        }
+    )
+}
+
+/**
+ * Three destinations for a navigation specimen, the first selected: the one the
+ * contract finds, and the one [onClick] is wired to.
+ */
+@Composable
+private fun NavScope.specimenDestinations(onClick: () -> Unit, enabled: Boolean = true) {
+    item(selected = true, onClick = onClick, key = "plan", icon = Tabler.Outline.Star, enabled = enabled) { +"Plan" }
+    item(selected = false, onClick = {}, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+    item(selected = false, onClick = {}, key = "me", icon = Tabler.Outline.User) { +"Me" }
 }
 
 
@@ -2011,12 +2608,9 @@ private val SpecimenProseWidth = 260.dp
  *
  * ### Do not read these as a press-against-marker comparison
  *
- * For `NavBarItem` they can be — all three of its states render on the same
- * 152x152 canvas. For `NavRailItem` they cannot: resting, selected and pressed
- * come out 216x94, 240x144 and 274x160, because a rail item drawn on its own
- * sizes to something that varies with its state, and it is never drawn on its
- * own in an app. Two renders of different sizes cannot be laid side by side and
- * judged.
+ * A destination is never drawn on its own in an app, so the navigation
+ * specimens are whole bars and rails, and a press is not among their states:
+ * two renders of a surface differ in more than the press.
  *
  * The question "is the highlight under your finger the shape the marker will
  * take" is answered by `NavIndicationShapeTest`, which puts the item inside a

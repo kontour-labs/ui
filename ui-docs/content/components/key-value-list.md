@@ -56,3 +56,7 @@ read aloud: "8m" announced as "8 minutes", "PLT 2" as "Platform 2".
 A row is **not** a control. It has no role, no touch target and no press — that
 is [`SettingRow`](setting-row.md), and the distinction is why a key-value list
 does not appear as a list of buttons a user has to try.
+
+At high contrast the rows take the enhanced scheme's colours, and the dividers
+`showDividers` draws are thicker and in the near-ink `outline`. Nothing in a
+key-value list moves, so reduced motion changes nothing.

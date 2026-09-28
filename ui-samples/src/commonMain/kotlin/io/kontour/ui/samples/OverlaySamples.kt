@@ -32,7 +32,7 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.ToastHost
-import io.kontour.ui.overlay.ToastTone
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.rememberToastHostState
 import io.kontour.ui.overlay.tooltip
 import io.kontour.ui.nav.Tab
@@ -47,8 +47,7 @@ fun DialogBasics() {
 
     Button(onClick = { open = true }) { +"Rename favourite" }
 
-    Dialog(visible = open, onDismissRequest = { open = false }) {
-        Text("Rename favourite", style = Theme.typography.titleMedium)
+    Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
         Text(
             "Give it a name you will recognise on the home screen.",
             style = Theme.typography.bodySmall,
@@ -70,7 +69,7 @@ fun AlertDialogBasics() {
         destructive = true,
     ) {
         +"Remove this favourite?"
-        supporting {
+        message {
             +"Perth Underground will be taken off your home screen. You can add it back any time."
         }
     }
@@ -88,8 +87,7 @@ fun PopoverBasics() {
             contentDescription = "About this route",
             onClick = { open = !open },
         )
-        Popover(visible = open, onDismissRequest = { open = false }) {
-            Text("Route 950", style = Theme.typography.titleSmall)
+        Popover(visible = open, onDismissRequest = { open = false }, title = { +"Route 950" }) {
             Text(
                 "Runs every 15 minutes until 11pm, then every 30 minutes overnight.",
                 style = Theme.typography.bodySmall,
@@ -112,8 +110,8 @@ fun DropdownMenuBasics() {
         )
         DropdownMenu(visible = open, onDismissRequest = { open = false }) {
             section("This stop")
-            item("Share", icon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
-            item("Copy stop ID", icon = Tabler.Outline.Copy, onClick = { open = false })
+            item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S", onClick = { open = false })
+            item("Copy stop ID", leadingIcon = Tabler.Outline.Copy, onClick = { open = false })
             item("Set a reminder", enabled = false, onClick = {})
             divider()
             section("Sort departures by")
@@ -122,7 +120,7 @@ fun DropdownMenuBasics() {
             divider()
             item(
                 "Remove favourite",
-                icon = Tabler.Outline.Trash,
+                leadingIcon = Tabler.Outline.Trash,
                 destructive = true,
                 onClick = { open = false },
             )
@@ -181,7 +179,7 @@ fun ToastBasics() {
             scope.launch {
                 toasts.show(
                     "Couldn't reach the timetable service",
-                    tone = ToastTone.Danger,
+                    tone = Tone.Danger,
                     actionLabel = "Retry",
                     onAction = { refresh() },
                 )
@@ -205,9 +203,9 @@ fun CommandPaletteBasics() {
     var open by remember { mutableStateOf(false) }
     val commands = remember {
         listOf(
-            Command("plan", "Plan a trip", onRun = { plan() }, shortcut = "P"),
-            Command("saved", "Saved trips", onRun = { nearby() }, keywords = listOf("favourites")),
-            Command("offline", "Download for offline", onRun = { save() }, enabled = false),
+            Command("plan", "Plan a trip", onAction = { plan() }, shortcut = "P"),
+            Command("saved", "Saved trips", onAction = { nearby() }, keywords = listOf("favourites")),
+            Command("offline", "Download for offline", onAction = { save() }, enabled = false),
         )
     }
 

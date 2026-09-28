@@ -24,8 +24,9 @@ hit.
 
 It does carry the sheet's accessibility actions, though, since a drag is not a
 gesture a screen reader can perform: expand and collapse appear as actions on the
-handle, which is why it is not marked decorative. It widens slightly on hover —
-the one hint a pointer user gets that a sheet is draggable at all.
+handle, which is why it is not marked decorative. It widens slightly on hover and
+under a press — the one hint a pointer user gets that a sheet is draggable at
+all.
 
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
 slot to replace or remove it. [Sheets](sheets.md) is where the detents, the
@@ -46,3 +47,10 @@ always announced "expand" would be lying half the time.
 `dragHandle = null` removes it. That is correct with `draggable = false` — a
 sheet should not advertise a gesture it does not have — and wrong in every other
 case, because it takes the actions away with it.
+
+At high contrast the bar is drawn in the enhanced scheme's colours at the same
+size; nothing else about it changes.
+
+Under reduced motion the bar still widens under a pointer or a finger, over a
+short tween with no overshoot. The expand and collapse actions put the sheet at
+its new detent at once instead of sliding it there.

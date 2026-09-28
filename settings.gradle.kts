@@ -31,8 +31,16 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-// The library. Product-agnostic, and the only module that gets published.
+// The library. Product-agnostic, and published.
 include(":ui")
+
+// Platform haptics, with no Compose in it. `:ui` depends on this, not the other
+// way round, which is why it is not one of the `ui-*` modules.
+include(":haptics")
+
+// Navigation 3 scene strategies over the library's pane scaffolds. Published
+// beside it, and separate so that `:ui` takes no navigation dependency at all.
+include(":ui-nav3")
 
 // The gallery, and the living documentation. Every component in every state it
 // has, and the source of the screenshot goldens — so it is also where most of
@@ -44,7 +52,7 @@ include(":ui-catalog")
 // rather than being found by whoever pastes it into their app.
 include(":ui-samples")
 
-// The documentation site: a page per component, deployed to GitHub Pages. It
+// The documentation site: a page per component, deployed to docs.kontour.io/ui. It
 // reads the prose from `docs/` and the specimens from `:ui-catalog`, so there
 // is no third copy of either.
 include(":ui-docs")

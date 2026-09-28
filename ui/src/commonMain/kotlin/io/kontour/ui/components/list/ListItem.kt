@@ -3,6 +3,7 @@ package io.kontour.ui.components.list
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,91 +34,27 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
+import io.kontour.ui.foundation.ExcludeFromSelection
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 
-/**
- * Where an item sits within a group, which decides which of its corners round.
- *
- * A list of settings reads as one object with rows in it, not as a stack of
- * separate cards — so only the outside corners of the group are rounded, and the
- * ones facing a neighbour are square.
- */
-@Immutable
-enum class ListItemPosition {
-    /** The only item. All four corners rounded. */
-    Only,
-
-    /** The first of several. Top corners rounded. */
-    First,
-
-    /** Between two others. Square. */
-    Middle,
-
-    /** The last of several. Bottom corners rounded. */
-    Last,
-    ;
-
-    companion object {
-        /**
-         * Where item [index] of [count] sits.
-         *
-         * ```kotlin
-         * itemsIndexed(stops) { index, stop ->
-         *     ListItem(
-         *         onClick = { open(stop) },
-         *         position = ListItemPosition.of(index, stops.size),
-         *     ) { +stop.name }
-         * }
-         * ```
-         */
-        fun of(index: Int, count: Int): ListItemPosition = when {
-            count <= 1 -> Only
-            index == 0 -> First
-            index == count - 1 -> Last
-            else -> Middle
-        }
-    }
-}
-
-/**
- * Resolves this [ListItemPosition] against a corner radius.
- *
- * Pure, and tested, because an off-by-one here is the kind of thing that looks
- * fine on a three-item list in the catalog and wrong on every one-item list in
- * the app.
- */
-fun ListItemPosition.shape(
-    shape: CornerBasedShape,
-    square: Dp = ListItemDefaults.InnerCorner,
-): CornerBasedShape {
-    val flat = androidx.compose.foundation.shape.CornerSize(square)
-    return when (this) {
-        ListItemPosition.Only -> shape
-        ListItemPosition.First -> shape.copy(bottomStart = flat, bottomEnd = flat)
-        ListItemPosition.Middle -> shape.copy(
-            topStart = flat,
-            topEnd = flat,
-            bottomStart = flat,
-            bottomEnd = flat,
-        )
-
-        ListItemPosition.Last -> shape.copy(topStart = flat, topEnd = flat)
-    }
-}
-
+/** What a [ListItem] takes by default. */
 object ListItemDefaults {
     /** Corner radius on a group's outside edges. */
-    val Shape: CornerBasedShape @Composable get() = Theme.shapes.container
+    val Shape: CornerBasedShape @Composable @ReadOnlyComposable get() = Theme.shapes.container
 
     /** Gap between items in a group. */
     val Spacing: Dp
@@ -169,7 +106,7 @@ object ListItemDefaults {
  * ```kotlin
  * ListItem(
  *     onClick = { open(stop) },
- *     position = ListItemPosition.of(index, stops.size),
+ *     position = GroupPosition.of(index, stops.size),
  * ) {
  *     leading { +Tabler.Outline.Train }
  *     +"Perth Underground"
@@ -184,7 +121,7 @@ object ListItemDefaults {
  * [io.kontour.ui.components.selection.SelectionRow], which is the specialisation
  * of this for a row that toggles something.
  *
- * @param position Which corners round. See [ListItemPosition]; a group of rows
+ * @param position Which corners round. See [GroupPosition]; a group of rows
  *   should read as one object, not a stack of separate cards.
  * @param selected Marks the current row in a list that picks one. Requires
  *   [role] to say which kind of choice it is.
@@ -199,8 +136,8 @@ fun ListItem(
     onClick: (() -> Unit)? = null,
     selected: Boolean = false,
     role: Role = Role.Button,
-    position: ListItemPosition = ListItemPosition.Only,
-    shape: Shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner),
+    position: GroupPosition = GroupPosition.Only,
+    shape: Shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
     /**
      * The row's own ground. Sunken rather than [io.kontour.ui.theme.ColourScheme.surface]
      * by default, because in this scheme `surface` and `background` are the same
@@ -220,12 +157,61 @@ fun ListItem(
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
 ) {
-    val slots = listItemSlots(content)
+    ListItemImpl(
+        modifier = modifier,
+        enabled = enabled,
+        onClick = onClick,
+        selected = selected,
+        role = role,
+        shape = shape,
+        containerColour = containerColour,
+        selectedContainerColour = selectedContainerColour,
+        contentColour = contentColour,
+        minHeight = minHeight,
+        interactionSource = interactionSource,
+        slots = listItemSlots(content),
+    )
+}
+
+/**
+ * [ListItem], with the few things a row drawn *by another component* needs and a
+ * caller does not: room at its start for something drawn beside the content
+ * (a timeline's rail), a hook on the label (where that rail's node lines up), and
+ * a ground that can be clear even when the row is disabled.
+ *
+ * Every default is what [ListItem] draws, so a `ListItem` is exactly this.
+ *
+ * @param startPadding The space before the first region, where the row would
+ *   otherwise have [io.kontour.ui.theme.Spacing.md].
+ * @param labelModifier Wraps the label's region, when there is one.
+ * @param edged Whether the row outlines itself at the contrast tier that asks
+ *   for edges. Off for a row with no ground of its own to outline.
+ * @param disabledContainerColour The ground while disabled.
+ */
+@Composable
+internal fun ListItemImpl(
+    modifier: Modifier,
+    enabled: Boolean,
+    onClick: (() -> Unit)?,
+    selected: Boolean,
+    role: Role,
+    shape: Shape,
+    containerColour: Color,
+    selectedContainerColour: Color,
+    contentColour: Color,
+    minHeight: Dp,
+    interactionSource: MutableInteractionSource?,
+    slots: ListItemScope,
+    startPadding: Dp = Theme.spacing.md,
+    labelModifier: Modifier = Modifier,
+    edged: Boolean = true,
+    disabledContainerColour: Color = Theme.colours.surfaceSunken.copy(alpha = 0.5f),
+) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
     val container = when {
-        !enabled -> colours.surfaceSunken.copy(alpha = 0.5f)
+        !enabled -> disabledContainerColour
         selected -> selectedContainerColour
         else -> containerColour
     }
@@ -234,6 +220,10 @@ fun ListItem(
         selected -> colours.accent.onContainer
         else -> contentColour
     }
+
+    // One indication for the life of the row, whatever its shape does. See
+    // `rememberLiveShape`: a row whose corners morph lost its held press wash.
+    val indicationShape = rememberLiveShape(shape)
 
     val interactive = onClick != null && enabled
     // Note the two conditions. A row with no `onClick` is not a control and gets
@@ -249,7 +239,7 @@ fun ListItem(
                 interactionSource = interactions,
                 // A whole row flinching is too much movement; the tonal wash is the
                 // feedback here.
-                indication = kontourIndication(shape, pressScale = 1f),
+                indication = kontourIndication(indicationShape, pressScale = 1f),
                 enabled = enabled,
                 role = role,
                 onClick = onClick,
@@ -257,7 +247,7 @@ fun ListItem(
 
         else -> Modifier.pointerCursor(enabled = enabled).clickable(
             interactionSource = interactions,
-            indication = kontourIndication(shape, pressScale = 1f),
+            indication = kontourIndication(indicationShape, pressScale = 1f),
             enabled = enabled,
             role = role,
             onClick = onClick,
@@ -274,74 +264,95 @@ fun ListItem(
     // a trailing slot has no callback of its own and would otherwise never see
     // the tap that the row just handled.
     CompositionLocalProvider(LocalRowInteractionSource provides interactions) {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .semantics(mergeDescendants = true) {}
-                .defaultMinSize(minHeight = resolvedMinHeight)
-                // Keyed on being a control at all, not on being enabled — a row that
-                // changed height when it greyed out would jump the list around it.
-                .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
-                .focusRing(interactions, shape, enabled = interactive)
-                .clip(shape)
-                .background(container, shape)
-                // `surfaceSunken` on `background` is **1.06:1** at the dark
-                // enhanced tier and **1.14** at light's — a group of rows reads as
-                // loose text rather than as one object with rows in it, which is
-                // the exact thing the sunken ground exists to prevent. A well is
-                // deliberately quiet, so at the tier that asks for more it is the
-                // edge rather than the fill that has to say where a row ends.
-                .then(contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier)
-                .then(clickModifier)
-                // `xs`, not `sm`. The 12dp version put 24dp of air around a
-                // single line of text inside a row whose minimum is already 56dp,
-                // so the padding was never what set the height — it only pushed a
-                // two-line row taller than it needed to be. `MinHeight` holds the
-                // floor for the one-line case, which is what it is for.
-                .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.xs),
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
+        // A row with an `onClick` is a control, and its text is chrome; one
+        // without is content — a stop's address, a fare — and stays selectable
+        // inside a `SelectableText`.
+        ExcludeFromSelection(excluded = onClick != null) {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {}
+                    .defaultMinSize(minHeight = resolvedMinHeight)
+                    // Keyed on being a control at all, not on being enabled — a row that
+                    // changed height when it greyed out would jump the list around it.
+                    .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
+                    .focusRing(interactions, shape, enabled = interactive)
+                    .clip(shape)
+                    .background(container, shape)
+                    // `surfaceSunken` on `background` is **1.06:1** at the dark
+                    // enhanced tier and **1.14** at light's — a group of rows reads as
+                    // loose text rather than as one object with rows in it, which is
+                    // the exact thing the sunken ground exists to prevent. A well is
+                    // deliberately quiet, so at the tier that asks for more it is the
+                    // edge rather than the fill that has to say where a row ends.
+                    .then(if (edged) contrastEdge()?.let { Modifier.border(it, shape) } ?: Modifier else Modifier)
+                    // A selected row is a tint 1.25:1 from the page at the
+                    // enhanced tier; there it is outlined in the accent as well,
+                    // over whatever edge the row already has.
+                    .optionalBorder(if (selected && enabled) selectionEdge() else null, shape)
+                    .then(clickModifier)
+                    // `xs`, not `sm`. The 12dp version put 24dp of air around a
+                    // single line of text inside a row whose minimum is already 56dp,
+                    // so the padding was never what set the height — it only pushed a
+                    // two-line row taller than it needed to be. `MinHeight` holds the
+                    // floor for the one-line case, which is what it is for.
+                    .padding(start = startPadding, end = Theme.spacing.md)
+                    .padding(vertical = Theme.spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-            slots.leading?.let { leading ->
-                Box(contentAlignment = Alignment.Center) {
-                    // Muted and `iconLarge`, which is what the old `leadingIcon`
-                    // parameter did. Anything that is not a bare glyph — an avatar, a
-                    // checkbox — sets its own colours and is unaffected.
-                    ProvideContentColour(muted) {
-                        ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
-                    }
-                }
-            }
-
-            Column(Modifier.weight(1f)) {
-                slots.overline?.let { overline ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.labelSmall) {
-                            ContentSlot(maxLines = 1, content = overline)
+                slots.leading?.let { leading ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // Muted and `iconLarge`, which is what the old `leadingIcon`
+                        // parameter did. Anything that is not a bare glyph — an avatar, a
+                        // checkbox — sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ContentSlot(iconSize = Theme.sizing.iconLarge, content = leading)
                         }
                     }
                 }
-                slots.label?.let { label ->
-                    ProvideContentColour(content) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            ContentSlot(maxLines = 2, content = label)
-                        }
-                    }
-                }
-                slots.supporting?.let { supporting ->
-                    ProvideContentColour(muted) {
-                        ProvideTextStyle(Theme.typography.bodySmall) {
-                            ContentSlot(maxLines = 2, content = supporting)
-                        }
-                    }
-                }
-            }
 
-            slots.trailing?.let { trailing ->
-                Box(contentAlignment = Alignment.Center) {
-                    ContentSlot(content = trailing)
+                Column(Modifier.weight(1f)) {
+                    slots.overline?.let { overline ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.labelSmall) {
+                                ContentSlot(maxLines = 1, content = overline)
+                            }
+                        }
+                    }
+                    slots.label?.let { label ->
+                        ProvideContentColour(content) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                if (labelModifier == Modifier) {
+                                    ContentSlot(maxLines = 2, content = label)
+                                } else {
+                                    Box(labelModifier) { ContentSlot(maxLines = 2, content = label) }
+                                }
+                            }
+                        }
+                    }
+                    slots.supporting?.let { supporting ->
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(maxLines = 2, content = supporting)
+                            }
+                        }
+                    }
+                }
+
+                slots.trailing?.let { trailing ->
+                    Box(contentAlignment = Alignment.Center) {
+                        // A value — "4 min", "Kilometres" — in the row's muted
+                        // body style, dimming with the row. A control in the slot
+                        // sets its own colours and is unaffected.
+                        ProvideContentColour(muted) {
+                            ProvideTextStyle(Theme.typography.bodyMedium) {
+                                ContentSlot(maxLines = 1, content = trailing)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -359,15 +370,15 @@ fun ListItem(
  * ```
  *
  * Spaces its children and marks the title as a heading, so a screen reader can
- * jump between sections. It does *not* set each child's [ListItemPosition] —
+ * jump between sections. It does *not* set each child's [GroupPosition] —
  * doing that would mean walking the composed children, which Compose has no way
- * to do. Use [listPositions] or [ListItemPosition.of] at the call site.
+ * to do. Use [listPositions] or [GroupPosition.of] at the call site.
  *
- * @param description Sits under the title, above the rows. For what the group
+ * @param supporting Sits under the title, above the rows. For what the group
  *   *is*.
  * @param footer Sits under the rows. For what the setting *does* — the sentence
  *   a settings screen puts below a switch to explain the consequence of it. A
- *   slot like [description] because it is the same kind of thing, and the two
+ *   slot like [supporting] because it is the same kind of thing, and the two
  *   should not read as different mechanisms.
  * @param action Holds *controls* rather than the section's own text, which is
  *   why it is a plain `RowScope` and the three above are content slots.
@@ -376,7 +387,7 @@ fun ListItem(
 fun ListSection(
     modifier: Modifier = Modifier,
     title: (@Composable ContentScope.() -> Unit)? = null,
-    description: (@Composable ContentScope.() -> Unit)? = null,
+    supporting: (@Composable ContentScope.() -> Unit)? = null,
     footer: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
@@ -388,7 +399,7 @@ fun ListSection(
     ) {
         if (title != null || action != null) {
             SectionHeader(
-                description = description,
+                supporting = supporting,
                 action = action,
                 // An action with no title used to draw an empty `Text`, which
                 // took a line's height to say nothing. An empty slot draws
@@ -419,7 +430,7 @@ fun ListSection(
 @Composable
 fun SectionHeader(
     modifier: Modifier = Modifier,
-    description: (@Composable ContentScope.() -> Unit)? = null,
+    supporting: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     title: @Composable ContentScope.() -> Unit,
 ) {
@@ -447,10 +458,10 @@ fun SectionHeader(
                     }
                 }
             }
-            if (description != null) {
+            if (supporting != null) {
                 ProvideTextStyle(Theme.typography.bodySmall) {
                     ProvideContentColour(Theme.colours.contentSubtle) {
-                        ContentSlot(content = description)
+                        ContentSlot(content = supporting)
                     }
                 }
             }
@@ -469,11 +480,11 @@ fun SectionHeader(
  * }
  * ```
  *
- * Equivalent to calling [ListItemPosition.of] per item; useful when the list is
+ * Equivalent to calling [GroupPosition.of] per item; useful when the list is
  * short enough to build eagerly and you would rather not repeat the size.
  */
-fun listPositions(count: Int): List<ListItemPosition> =
-    List(count) { index -> ListItemPosition.of(index, count) }
+fun listPositions(count: Int): List<GroupPosition> =
+    List(count) { index -> GroupPosition.of(index, count) }
 
 /**
  * A row with an icon, a label and a value — the settings-screen shape.
@@ -486,7 +497,7 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
-    position: ListItemPosition = ListItemPosition.Only,
+    position: GroupPosition = GroupPosition.Only,
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
 ) {
@@ -497,30 +508,5 @@ fun SettingRow(
         position = position,
         interactionSource = interactionSource,
         content = content,
-    )
-}
-
-/**
- * The value a setting is currently at, drawn at the trailing edge.
- *
- * `SettingRow` used to take this as a `value: String?` whose whole job was to
- * build a default for its `trailing` slot — the parallel-parameter shape the slot
- * API exists to delete. It is a one-line helper now, and it composes with
- * anything else the trailing edge wants.
- *
- * ```kotlin
- * SettingRow(onClick = ::openUnits) {
- *     +"Units"
- *     trailing { settingValue("Kilometres") }
- * }
- * ```
- */
-@Composable
-fun ContentScope.settingValue(value: String) {
-    Text(
-        text = value,
-        style = Theme.typography.bodyMedium,
-        colour = Theme.colours.contentMuted,
-        maxLines = 1,
     )
 }

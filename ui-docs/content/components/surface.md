@@ -9,7 +9,7 @@ Background, shape, border and shadow in one — and the thing that sets
 ```kotlin
 // No colour argument on either child: the surface set `LocalContentColour`
 // from its own background, and both resolve against it.
-Surface(colour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
+Surface(containerColour = Theme.colours.primary, shape = Theme.shapes.medium, shadow = Theme.elevation.low) {
     Column(Modifier.padding(Theme.spacing.md)) {
         Text("Perth Underground")
         Icon(Tabler.Outline.Star, contentDescription = null)
@@ -36,8 +36,17 @@ A surface sets `LocalContentColour` from the ground it paints, which is the
 mechanism that keeps contrast correct without any call site asking for it: text
 and icons inside resolve against the background they are actually on.
 
-That is why `colour` and `contentColour` travel together, and why passing a literal
-`colour` without its matching `contentColour` is the way to produce unreadable text
+That is why `containerColour` and `contentColour` travel together, and why passing a literal
+`containerColour` without its matching `contentColour` is the way to produce unreadable text
 in one theme and not the other. The token pairs are asserted for contrast by a
 test over every combination — see
 [accessibility](../accessibility.md).
+
+At high contrast a `Surface` takes the enhanced scheme's grounds and the content
+colours paired with them, and nothing else: it adds no edge of its own, and its
+shadow is the same at both tiers. A ground that sits close to the page —
+`surfaceRaised` measures 1.00:1 against it in the enhanced light scheme — needs
+`border = contrastEdge()`, which is how the library's own cards, sheets and
+dialogs get theirs.
+
+Nothing about a surface moves, so reduced motion changes nothing.

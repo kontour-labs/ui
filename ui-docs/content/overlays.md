@@ -123,7 +123,114 @@ sheet is a surface you sit in.
 alone leaves it legible and distracting. It is a deliberate choice with a cost,
 not the default.
 
-This is a real backdrop filter, not the two-pass trick `GlassSurface` documents.
+**The recede is a distance, not a ratio.** `BackdropDefaults.Inset` is 12dp, and
+the reason it is a `Dp` is that one scale factor gives two different margins on
+any screen that is not square: `0.94` on a 390x844 phone left 11.7dp at the sides
+and 25.3dp at the top, so the receded screen read as having a gap above it rather
+than a frame around it. Scaling each axis separately would fix the margins and
+distort the content — 0.938 across against 0.972 down turns every avatar into a
+slight ellipse.
+
+So it scales **uniformly**, and then moves the content *up* by the vertical slack
+that leaves over, which puts the top margin on the inset and collects the surplus
+at the bottom — the one edge a bottom sheet is covering anyway.
+
+The scale is the tighter of **two** constraints. The first puts both side margins
+exactly on the inset. The second keeps the inset below whatever the system has
+docked at the bottom of the window, and it exists because of what happens when it
+does not: on a 390x844 phone the surplus is about 40dp, which a 48dp three-button
+navigation bar swallows whole. There is no bottom frame at all, and a screen with
+a frame on three sides does not read as a screen stepping back — it reads as the
+page sliding underneath something. Reported exactly that way, and worse with
+three-button navigation on.
+
+So the invariant is *top on the inset, sides and bottom at least the inset*. The
+sides are exactly on it whenever nothing is docked down there, which is every
+gesture-navigation phone and every desktop window; with a bar they grow to about
+16.6dp on that phone. Wider sides are the price of a uniform scale, and the
+alternative is the ellipse above.
+
+The bottom inset comes from `WindowInsets.edges` and **not** `safeDrawing`, which
+is the difference between excluding the keyboard and including it. A screen that
+steps back another 300dp when a field inside the sheet in front of it takes focus
+is a worse fault than the one this fixes.
+
+Under `reduceMotion` the inset is `0.dp` and nothing moves at all.
+
+### The corner is concentric where the platform will say, and ramps either way
+
+Two rounded rectangles nested inside each other with different radii is the most
+legible way to make an inset look accidental, and a receded screen is nested
+inside the **display**. Android reports its window's rounded corners from API 31
+and iOS has `_displayCornerRadius`; where either answers, the receded screen's
+corners are floored at the device's own less the inset, so it sits concentric
+with the bezel instead of square inside it. Where neither answers — every
+desktop, every browser — the corner is exactly what it was before, which is the
+theme's `extraLarge`.
+
+**All four corners, because they need not agree.** This read one — the window's
+top-left — and applied it to the other three, on the reasoning that a device with
+differing corners has a camera housing in one of them. Android's own resources
+are a `_top` pair and a `_bottom` pair and some phones declare them differently;
+the framework then rotates the positions with the window, so on such a phone in
+landscape the window's top-left *is* the display's physical bottom-left and one
+reading floors every corner against the wrong number.
+
+**Below API 31 there is a table.** Android has nothing to report before 31 and
+the library's `minSdk` is 29, so those devices fell back to the theme's guess.
+A small generated table fills the gap, pulled from LineageOS device trees by
+`docs/pull-device-corners.py` — and it is a neat fit rather than a duplication:
+the devices that declare a corner radius in an overlay are overwhelmingly
+2017-2019 hardware, so the table and `RoundedCorner` cover disjoint sets.
+
+**The curve is a judgement, and the library says so.** *"On iOS it's beautiful
+and concentric, as the iOS devices all have the same squircle shape. But on
+Android, it's not quite perfectly concentric — the Google Pixel shape is more
+squircly than a Samsung phone."* That is true and nothing reports it: a radius is
+all `RoundedCorner` carries, and the API 34 call that returns a display's real
+outline is backed by a resource essentially no device sets — where it is empty
+the framework synthesises a circle, so reading a smoothing back out of it would
+be a wrong answer wearing a measurement's clothes. So the smoothing comes from a
+short hand-written table, set by eye against manufacturers' renders and real
+bezels, and **a device it does not name keeps the library's own curve** —
+exactly what every Android device had before the table existed. It can improve a
+device it knows and cannot make one worse.
+
+**The table names the past, not the present**, and that is the second version of
+it. The first listed every current family and defaulted everything else, which
+was wrong within a fortnight: reported as *"I'm on a Pixel 11 Pro XL, so you
+haven't catered for it"*, because the Pixel 11 is `kodiak`, the list stopped at
+the Pixel 9, and the roundest corners Android ships were being drawn with the
+number meant for a Pixel 4. A list of current devices is a list that is wrong
+every autumn. So a manufacturer's present treatment is its default and the
+devices that predate it are the ones named — the next phone is right before it
+exists, and only the past is a closed set.
+
+Every codename in that table is checked against Google's own device registry —
+37,082 of them, from the list that says what may install from Play — so an
+invented or misspelled name fails a gate rather than quietly matching nothing.
+
+This is the one place in the library where a shape may carry a smoothing the
+scale did not choose, and the exemption has a boundary: the backdrop's clip and a
+sheet's top corners are concentric with the *bezel* rather than with the card
+beside them. A third shape wanting it would need its own reason.
+
+The radius also **ramps** with the recede rather than arriving whole. That was the
+other half of the report: the travel is 12dp over 220ms and reads as smooth, but
+the clip switched on at the first non-zero frame with its full radius, so a 34dp
+bite appeared in each corner of a screen that had not visibly moved yet. It now
+grows from the display's own corner at rest — where a clip is invisible, because
+the bezel already draws that curve — to the settled one.
+
+A shape whose corner depends on the animation's fraction is a new shape every
+frame, which would miss the squircle path cache sixty times a second *and* evict
+what every other container on screen is using. So the fraction is quantised to
+twelve steps and thirteen shapes are built once: about a dp a step on a phone
+that reports its corner, which is under what anyone can see. A device's smoothing
+is discrete and fixed for the life of a process, so it costs no extra entries in
+that cache — the same thirteen shapes are simply built on the device's curve.
+
+This is a real backdrop filter, not a second pass of the content blurred behind a panel.
 The difference is that behind a modal there is exactly one node — the host
 composes the whole app as a single full-size sibling of the overlay stack — and
 blurring a node's own content is what `Modifier.blur` already does. Nothing is
@@ -182,20 +289,68 @@ scrim still has to carry the separation on its own, and does.
 
 ### Back and dismissal
 
-```kotlin
-if (!overlayHost.dismissTop()) {
-    navController.popBackStack()
-}
-```
+The host answers back itself: the Android back gesture, iOS's edge swipe,
+Escape on the desktop and the web all reach the topmost entry that takes it,
+and nothing beneath it. With nothing open, back goes past the host to whatever
+is behind it — a navigation stack, the platform. On iOS the outermost host
+tracks the edge swipe itself rather than taking the platform's, so a released
+swipe carries on at the finger's speed, and a swipe from the very edge goes
+back even over a control that pans sideways — see
+[Navigation 3](navigation3.md#back-and-how-pages-move).
 
-`dismissTop()` takes the topmost entry with `dismissOnBack = true` and reports
-whether it dismissed anything. Returning `false` lets the caller pass the event
-on to navigation rather than swallowing it — a back press that silently does
-nothing is worse than one that leaves the screen.
+An entry takes back when it has `dismissOnBack = true`, or when it dims the page
+with `ScrimStyle.Dimmed`. It then keeps back from going any further — to the
+page behind it, or on Android out of the app — on every platform. What back
+does to the entry itself depends on the platform, and on whether it may be
+dismissed:
 
-Toasts and tooltips set `dismissOnBack = false`, so a back press while a toast is
-up leaves the screen rather than dismissing a confirmation the user was not
-interacting with.
+- **Android, and the desktop and the web** (`BackStyle.Predictive`): back
+  closes an entry that may be dismissed. A back gesture runs the entry's *own*
+  exit backwards as the finger moves — a dialog's fade and settle, a side
+  sheet's slide, a bottom sheet moving down — with the scrim going with it; let
+  go, and the same exit finishes from there; abandon it, and the entry's own
+  arrival brings it back. Nothing is drawn that the entry did not already do.
+- **An entry that may not be dismissed** takes back and does nothing: it does
+  not move, and `onDismissRequest` is not called. `Dialog`, `ModalBottomSheet`,
+  `ModalSideSheet` and `CommandPalette` set `dismissOnBack` from their
+  `dismissible`.
+- **iOS** (`BackStyle.Swipe`): back closes one kind of overlay, the one iOS
+  swipes away — a `ModalSideSheet`, and so a `ModalNavRail`, that may be
+  dismissed. It follows a drag towards its own edge by its own slide: on the
+  sheet, anywhere, after anything inside that scrolls sideways; or, for a sheet
+  on the right, the edge swipe from the left, whose finger goes the same way.
+  Past half, or on a flick, it closes; otherwise it slides back. A drawer on the
+  left closes by its own drag left, and the edge swipe leaves it alone. A key
+  closes a side sheet too.
+
+  Everything else stays as it always was there: a bottom sheet is dragged down,
+  a dialog is answered and a menu is tapped away, and the edge swipe does
+  nothing to them.
+- **The drag on a side sheet is the sheet's own, on every platform.** Android's
+  `ModalSideSheet` follows the same drag towards its edge and closes the same
+  way. It reaches the sheet's entry directly rather than going through back,
+  so a stack inside the sheet with somewhere to go back to does not take it:
+  the sheet the finger is on moves. The platform's back gesture still reaches
+  that stack first.
+
+Toasts and plain tooltips neither dismiss on back nor dim, so a back press while
+a toast is up leaves the screen rather than dismissing a confirmation the user
+was not interacting with.
+
+**Inside an entry, the innermost handler wins**, on every platform. A navigation
+stack in a sheet pops first while it has somewhere to go back to — on iOS too,
+as a stack inside an iOS sheet does. Each entry has its own dispatcher under the
+host's, enabled only while that entry is the one back reaches, so what answers
+is decided by which entry is on top, not by the order things were composed in.
+
+A `FabMenu` animates its own way in and out rather than by the host's
+appearance, so it does not move under a back gesture; letting go closes it by
+its own animation.
+
+`dismissTop()` is still there, for an app that closes the top entry from
+something other than back — a hardware key, a toolbar button. It takes the
+topmost entry with `dismissOnBack = true` and reports whether it dismissed
+anything.
 
 ### Focus and reading order
 
@@ -293,17 +448,17 @@ golden.
 ### Coach marks
 
 `TooltipManager` in the Android app is this class with different field names, so
-`Modifier.coachMark` uses the queue rather than carrying its own scheduler:
+`Modifier.coachmark` uses the queue rather than carrying its own scheduler:
 
 ```kotlin
 IconButton(
     icon = Tabler.Outline.Bookmark,
     contentDescription = "Save this trip",
     onClick = ::save,
-    modifier = Modifier.coachMark(
+    modifier = Modifier.coachmark(
         id = "save-trip",
         title = "Save this trip",
-        text = "Trips you save show up on the home screen.",
+        message = "Trips you save show up on the home screen.",
         priority = 40,
         minSessions = 3,
     ),
@@ -339,7 +494,35 @@ Two corrections, in order:
 1. **Flip.** If the preferred side has no room and the opposite side does, use
    the opposite side. If neither fits, keep whichever has more room.
 2. **Shift.** Slide along the other axis until the whole thing is inside the
-   container, keeping `margin` clear of the edges.
+   container, keeping `margin` and the window's own insets clear of the edges.
+
+**Only the part of an inset that reaches the host counts.** The insets are the
+window's — status bar, home indicator, keyboard — and a host is not always the
+window. One inside a card half-way down the page is nowhere near the status bar,
+and taking 47dp off its top and 34dp off its bottom left a popover in a 260dp card
+too little room on either side, so it was shifted back up over its own anchor. A
+host edge that is further from the window's edge than the inset is deep keeps
+nothing clear on that side.
+
+**It leaves from where it was.** Once an overlay is closing it keeps the side it
+opened on and the size it had there, following its anchor but no longer choosing
+a side. A combobox that opened above the field because the keyboard took the room
+below closes as the keyboard does — and while choosing, it flipped back under the
+field for the length of its exit.
+
+**The flip is rarer than it reads**, because the content is measured against the
+room on the preferred side *before* it is measured at all. A panel bounded to its
+own side fits there by construction, so the flip is left for the case it is
+actually for: a side with no usable room. `AnchoredOverlayDefaults.MinimumPanel` —
+64dp, a panel's padding and a line of text — is where that line is drawn, and below
+it the overlay gets the container's bound and overlaps its anchor rather than
+becoming a strip. An anchor can be nearly as big as the window: a menu declared
+inside a `Box(Modifier.fillMaxSize().padding(24.dp))` has twelve pixels beside it.
+
+**Every anchored panel scrolls**, which is what makes that bound safe rather than
+lossy. `MenuPanel` always did; `PopoverPanel`, the tooltip bubble and the coach mark
+do now. Bounding a panel without giving its overflow anywhere to go is how a
+placement fix becomes a content-loss bug, and it did once.
 
 Shifting is not constrained by the anchor. A menu aligned to the start of a
 button in the far corner slides until it fits and ends up no longer aligned with
@@ -369,7 +552,7 @@ a tooltip pointing at a list item that has scrolled away.
 
 ```kotlin
 Box {
-    IconButton(Tabler.Outline.Dots, "More", onClick = { expanded = true })
+    IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { expanded = true })
     DropdownMenu(visible, onDismissRequest = { visible = false }) { … }
 }
 ```
@@ -393,9 +576,9 @@ a panel with a torn corner. Arrow-bearing panels lean on the shadow instead.
 | A list of actions, on secondary click or long press | `ContextMenuArea` |
 | Arbitrary content attached to a control | `Popover` |
 | A decision that must be made before anything else | `Dialog` / `AlertDialog` |
-| A decision, awaited from a coroutine | `ConfirmationController.confirm()` |
+| A decision, awaited from a coroutine | `ConfirmHostState.confirm()` |
 | The name of a control the user is pointing at | `Modifier.tooltip` |
-| A feature the user has not discovered | `Modifier.coachMark` |
+| A feature the user has not discovered | `Modifier.coachmark` |
 | Confirmation of something the user just did | `Toast` |
 | Something about the screen the user is on | `Banner` — not a toast |
 | Whole-screen, must-not-interrupt work | `LoadingOverlay` |
@@ -460,7 +643,7 @@ val toasts = rememberToastHostState()
 ToastHost(toasts)
 
 toasts.show("Added to favourites")
-toasts.show("Couldn't save", tone = ToastTone.Danger, actionLabel = "Retry", onAction = ::retry)
+toasts.show("Couldn't save", tone = Tone.Danger, actionLabel = "Retry", onAction = ::retry)
 ```
 
 ### They stack, and each one runs its own clock
@@ -477,18 +660,39 @@ older ones scaled and offset behind, each carrying its own timer.
 `dismissCurrent()` still exists and now means the one in *front* — the newest,
 which is the only reading of "current" that means anything in a stack.
 
-`showClose = true` puts a close control on the front toast. Off by default: one
+`showDismiss = true` puts a close control on the front toast. Off by default: one
 that dismisses itself in two and a half seconds does not need it. Turn it on
 where toasts are pinned. Either way a toast can be swiped away toward whichever
 edge the stack is anchored to — and the swipe target is the whole card *plus*
 the 16dp of padding around it, because a toast is a small thing to aim at.
 
+**A finger on the stack holds every clock in it.** Not only the one under the
+thumb: the others are queued behind a card that is not going anywhere, and
+expiring on schedule would empty the stack a reader is holding open. The
+remainder is not spent while the gesture lasts, so letting go resumes rather
+than restarts.
+
+**The pills lean; only the front card travels.** Dragging the front toast pulls
+the ones behind it a seventh as far — enough that they are plainly part of the
+same object, little enough that they stay where the eye left them, so letting go
+a card that does not dismiss returns one thing rather than four. Both extremes
+have been shipped and both were reported: pills that ignored the drag entirely
+read as the stack coming apart, and pills that matched it read as the whole
+stack sliding.
+
+**A pill leaves by retracting into the stack**, pivoted on the edge facing the
+card in front of it, so the sliver a reader can see is the part that moves and it
+withdraws behind that card. Shrinking about its own centre thinned it from both
+edges in the middle of nowhere, which reads as dissolving; sliding it out put it
+under the front card on the first frame, so there was nothing to watch at all.
+
 ### How long they stay
 
-`ToastDefaults.Duration` is 2.5 seconds, and `DurationWithAction` is 5 — an
-action has to be read, decided on and reached, and a control that vanishes as
-the finger arrives is worse than one that lingers. Pass `durationMillis` to
-override either, or `0` to pin a toast until something dismisses it.
+`ToastDefaults.DisplayDuration` is 2.5 seconds, and `DisplayDurationWithAction`
+is 5 — an action has to be read, decided on and reached, and a control that
+vanishes as the finger arrives is worse than one that lingers. Pass `duration`
+to override either, or `Duration.INFINITE` to pin a toast until something
+dismisses it.
 
 ### Top or bottom
 
@@ -534,22 +738,25 @@ explanation is its tooltip is a control that is unlabelled.
 
 A submenu does **not** close when the pointer leaves it. The pointer has to travel
 across the gap to reach the submenu, and closing en route is the classic
-nested-menu frustration; the outside-tap scrim closes it instead.
+nested-menu frustration; the outside-tap scrim closes it instead. On touch a
+submenu does not open beside its row at all: it opens in place, over the row, in
+the same overlay as the menu — see [`DropdownMenu`](components/dropdown-menu.md).
 
 ---
 
 ## Feedback and motion
 
-Every overlay animates in, and every animation respects `reduceMotion`.
+Every overlay animates in. Under reduced motion every one of them fades in
+where it will rest instead: the scales below are 1, and nothing slides.
 
 | | |
 |---|---|
-| Dialog | Scales in from 0.92 — it has no direction to come from; it is not somewhere else on the screen, it is *on top of* the screen |
+| Dialog | Settles in from 1.06 — it has no direction to come from; it is not somewhere else on the screen, it is *on top of* the screen |
 | Menu | Scales from 0.9 with its transform origin at the corner nearest the anchor, so it reads as unfolding out of the control |
 | Popover | Scales from 0.94 |
 | Tooltip | Scales from 0.8 on a bouncy spring — one of the few places a flourish costs nothing, since it is transient and nobody is waiting on it |
 | Coach mark | Scales from 0.85, same spring |
-| Toast | Slides half its height in from whichever edge it is anchored to, and fades |
+| Toast | Slides half its height in from whichever edge it is anchored to, and fades; under reduced motion it only fades, and a pill leaving the stack fades where it is rather than shrinking |
 
 Menus scale from 0.9 rather than from nothing on purpose: a menu springing out of
 a point is a lot of movement for something the user opens dozens of times a day.
@@ -560,7 +767,7 @@ a point is a lot of movement for something the user opens dozens of times a day.
 
 Two things with similar names and opposite bargains.
 
-[`Modifier.coachMark`](#the-queue) is a single tip the *app* decides to show,
+[`Modifier.coachmark`](#the-queue) is a single tip the *app* decides to show,
 through the queue, and it deliberately leaves the interface undimmed: the user is
 being shown a thing **in** the screen, so the screen has to stay legible around
 it.
@@ -580,14 +787,14 @@ IconButton(
         tour = tour,
         id = "saved",
         title = "Saved trips",
-        text = "The ones you keep show up here.",
+        message = "The ones you keep show up here.",
     ),
 )
 
 Button(onClick = tour::start) { +"Show me around" }
 ```
 
-| | `Modifier.coachMark` | `CoachmarkTour` |
+| | `Modifier.coachmark` | `CoachmarkTour` |
 |---|---|---|
 | Who starts it | the app, through a queue | the user |
 | How many | one | several, in order |
@@ -619,8 +826,8 @@ CommandPalette(
     visible = paletteOpen,
     onDismissRequest = { paletteOpen = false },
     commands = listOf(
-        Command("plan", "Plan a trip", onRun = ::plan, shortcut = "⌘P"),
-        Command("saved", "Saved trips", onRun = ::openSaved, keywords = listOf("favourites")),
+        Command("plan", "Plan a trip", onAction = ::plan, shortcut = "⌘P"),
+        Command("saved", "Saved trips", onAction = ::openSaved, keywords = listOf("favourites")),
     ),
 )
 ```

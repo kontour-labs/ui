@@ -22,7 +22,8 @@ Twenty-two rules:
   3. Every component page is linked from its category index. A page nothing
      points at is a page nobody reads, and the split is the moment to create
      one by accident.
-  4. Every page has an interactive demo, and every demo has a page.
+  4. Every page has an interactive demo, every demo has a page, and every
+     demo is in a family the gallery renders.
   5. Every public `@Composable` in `:ui` is claimed by some page — the one rule
      anchored to the library rather than to a list, and so the only one that
      could have caught a component nobody remembered to register.
@@ -55,6 +56,11 @@ Twenty-two rules:
      how many sites there are; this keeps the document explaining them true,
      and it had already drifted — the table went on listing a component whose
      sites the audit itself had removed.
+ 23. Nothing in `:ui` reaches a platform's haptics API itself. The `:haptics`
+     module plays them, and the one seam that makes its player is
+     `rememberPlatformHaptics`; a component calling a vibrator, a feedback
+     generator or Compose's own `HapticFeedback` would be a haptic no level,
+     rate floor or recording test could see.
 
 Rules 4, 6, 7, 14, 16 and 17 are **ratchets**: a ceiling that only goes down, rather
 than a list of exempted names. You cannot exempt *your* page, only make the total
@@ -76,7 +82,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from doctree import COMPONENTS, CONTENT, INDEXES, family_of  # noqa: E402
+from doctree import COMPONENTS, CONTENT, FAMILY, INDEXES, family_of  # noqa: E402
 
 # Found rather than named. The registry has already moved source set once — out
 # of `commonTest` and into `commonMain`, so the documentation site could read
@@ -97,13 +103,12 @@ SYMBOL = re.compile(r"`([^`]+)`")
 
 # A family page can name the rest of its subjects on one line under the title:
 #
-#     *Also on this page: `NavBarItem`, `NavRailItem`, …*
+#     *Also on this page: `NavBarScope`, `NavBarStyle`, …*
 #
-# `nav-surfaces.md` is the case. Five item types, each a real component, and the
-# page that explains them is written as a comparison of the three surfaces they
-# belong to — three pages each saying "see the other two" would not be a split.
-# Putting all eight symbols in the title makes a title nobody can read, so the
-# page says so in a line a reader sees and this can parse.
+# `nav-bar.md` is the case: the scope, the style and the defaults are real
+# types, and the page that explains them is the bar's. Putting every symbol in the
+# title makes a title nobody can read, so the page says so in a line a reader
+# sees and this can parse.
 #
 # Deliberately *not* "any heading on the page": `button-group.md` has a section
 # called "Not a `SegmentedControl`", and a page is not the owner of everything
@@ -118,6 +123,15 @@ COMPOSABLE_HEADER = re.compile(
     r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
     r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
 )
+
+# `internal val ToolbarDemo = ComponentDemo(`, and the family list that has to
+# name it: `internal val actionDemos = listOf(ButtonDemo, IconButtonDemo, …)`.
+#
+# `[^)]*` closes on the right paren because a family list holds bare identifiers
+# and nothing else. That is worth keeping true — a `listOf` with a call in it
+# would make this stop at the wrong paren rather than fail loudly.
+DEMO_DECLARATION = re.compile(r"\bval (\w+)\s*=\s*ComponentDemo\(")
+FAMILY_LIST = re.compile(r"\bval (\w+Demos)\s*=\s*listOf\(([^)]*)\)", re.S)
 
 
 
@@ -160,8 +174,8 @@ def page_symbols(path: Path) -> list[str]:
 
 # Only goes down. See rule 4.
 #
-# One, and it is `date-time-formats` — `DateTimeFormats` is a data class holding
-# a set of patterns, so there is nothing to press. That exemption wants deriving
+# One, and it is `locale-formats` — `LocaleFormats` is an interface for writing
+# numbers and dates, so there is nothing to press. That exemption wants deriving
 # rather than counting, from "this page's symbols include no public @Composable",
 # and it will be once the signature parser moves somewhere both this and the
 # build can read it. Until then a ceiling of one is honest and a list of one name
@@ -169,20 +183,141 @@ def page_symbols(path: Path) -> list[str]:
 MAX_WITHOUT_DEMO = 1  # unchanged: the overlay and sheet pages arrived with theirs
 
 
-def demo_slugs() -> set[str]:
-    """Every `ComponentDemo(slug = ...)` in `:ui-catalog`.
+def demo_files() -> list[Path]:
+    """Every `*Demos.kt` in `:ui-catalog`.
 
     Found by walking rather than by a hardcoded path, for the reason
     `registry_components` does: the registry file has already moved once, and a
     hardcoded path turns this guard into a stack trace the day it moves again.
+
+    `Demos.kt` matches the glob as well as the eleven family files, which is
+    deliberate — `demoFamilies` lives there and `unlisted_demos` needs it.
     """
+    return [path for path in Path("ui-catalog/src").rglob("*Demos.kt") if "build" not in path.parts]
+
+
+def demo_slugs() -> set[str]:
+    """Every `ComponentDemo(slug = ...)` in `:ui-catalog`."""
     found: set[str] = set()
-    for path in Path("ui-catalog/src").rglob("*Demos.kt"):
-        if "build" in path.parts:
-            continue
+    for path in demo_files():
         found |= set(re.findall(r'ComponentDemo\(\s*slug\s*=\s*"([^"]+)"', path.read_text()))
         found |= set(re.findall(r'ComponentDemo\(\s*"([^"]+)"', path.read_text()))
     return found
+
+
+def unlisted_demos() -> list[str]:
+    """Demos, and families, that nothing the gallery reads ever names.
+
+    Every rule about demos finds them the way `demo_slugs` does — by regexing a
+    declaration out of the file text. So a `ComponentDemo` declared as a
+    top-level val and never put in its family's `listOf(...)` satisfies rules 4,
+    6, 7, 14 and 16 while drawing nowhere at all. `demoFamilies` is what
+    `Catalog`'s pages, `componentDemos` and the documentation site's per-page
+    demo every one derive from, and a val nothing names is in none of them.
+
+    The same hole is one level up, where a family list nobody adds to
+    `demoFamilies` costs a whole page of the gallery rather than one card, so
+    both halves are checked here.
+    """
+    declared: dict[str, Path] = {}
+    families: dict[str, Path] = {}
+    listed: set[str] = set()
+    gallery: Path | None = None
+
+    for path in demo_files():
+        text = path.read_text()
+        if "val demoFamilies" in text:
+            gallery = path
+        for name in DEMO_DECLARATION.findall(text):
+            declared[name] = path
+        for family, members in FAMILY_LIST.findall(text):
+            families[family] = path
+            listed |= set(re.findall(r"\w+", members))
+
+    if gallery is None:
+        return ["no `*Demos.kt` declares `demoFamilies`, so the gallery has no pages"]
+
+    # Every word in that file, not the `listOf` alone: `demoFamilies` wraps each
+    # list in a `DemoFamily(...)`, and a regex that brace-matched through those
+    # would be a parser. A family named only in a KDoc there would slip through,
+    # which is a smaller hole than the one this closes.
+    named_by_the_gallery = set(re.findall(r"\w+", gallery.read_text()))
+
+    return [
+        f"`{name}` in {path.name} is a `ComponentDemo` that no family lists"
+        for name, path in sorted(declared.items())
+        if name not in listed
+    ] + [
+        f"`{family}` in {path.name} is a demo family `demoFamilies` does not hold"
+        for family, path in sorted(families.items())
+        if family not in named_by_the_gallery
+    ]
+
+
+# `DemoFamily("Adaptive", Tabler.Outline.LayoutSidebar, adaptiveDemos)`, and the
+# declaration that gives a demo its slug. The middle argument is an icon and is
+# skipped rather than matched, because it is the one part of the line nothing
+# here has an opinion about.
+DEMO_FAMILY = re.compile(r'DemoFamily\(\s*"([^"]+)"\s*,[^,]+,\s*(\w+)\s*\)')
+DEMO_SLUG = re.compile(r'\bval (\w+)\s*=\s*ComponentDemo\(\s*(?:slug\s*=\s*)?"([^"]+)"')
+
+
+def misfiled_demos() -> list[str]:
+    """Demos filed under a family their own page does not belong to.
+
+    The gallery and the documentation site each have a notion of which family a
+    component is in, and until this rule they were allowed to disagree. The
+    catalog's is `demoFamilies` — a demo is in whichever `*Demos` list names it,
+    and that list is in whichever `DemoFamily(...)` row holds it. The site's is
+    `family_of()` — a page is in whichever index links to it.
+
+    They disagreed about five components for a whole round. The docs said
+    `Scaffold`, `ListDetailPaneScaffold`, `WindowSizeClass`, `GlassSurface` and
+    `AspectRatioBox` were Adaptive, which they plainly are; the gallery had them
+    all under Foundation, and had exactly one card on its Adaptive page — a page
+    transition, which is motion. Nothing caught it, because every other rule about
+    demos is about a page *existing*, and `FamilyNamesTest` compares the two lists
+    of family *names* rather than their contents. Both halves were green while the
+    two halves of the same documentation pointed at different pages.
+
+    No ceiling. This is a bijection between two lists that are both hand-written
+    and both already parsed here, so a single exemption would only ever mean one
+    of them is wrong.
+    """
+    slugs: dict[str, str] = {}
+    listed: dict[str, str] = {}
+    families: dict[str, str] = {}
+
+    for path in demo_files():
+        text = path.read_text()
+        for name, slug in DEMO_SLUG.findall(text):
+            slugs[name] = slug
+        for family, members in FAMILY_LIST.findall(text):
+            for member in re.findall(r"\w+", members):
+                listed[member] = family
+        for display, family in DEMO_FAMILY.findall(text):
+            families[family] = display
+
+    pages = family_of()
+    problems = []
+    for name, slug in sorted(slugs.items()):
+        gallery = families.get(listed.get(name, ""))
+        page = pages.get(slug)
+        if gallery is None or page is None:
+            # Filed under no family at all, or a slug with no page. Both are
+            # already somebody else's rule, and reporting them twice would only
+            # make the real answer harder to find.
+            continue
+        # `family_of` answers in index stems and the gallery names its pages for
+        # a reader, so one of the two has to be translated. `FAMILY` is the map
+        # the site itself renders with, which makes it the right direction.
+        expected = FAMILY.get(page[0], page[0])
+        if gallery != expected:
+            problems.append(
+                f"`{name}` is on the gallery's {gallery} page and its own "
+                f"`{slug}.md` is in the site's {expected} family"
+            )
+    return problems
 
 
 def public_composables() -> dict[str, Path]:
@@ -348,16 +483,23 @@ def claimed_symbols() -> set[str]:
 # is nowhere near zero and reads the same way.
 # Only goes down. See rule 14.
 #
-# Nine, and what is in it is as interesting as the number. `ContrastLevel` and
+# **Two, and both are the same kind of thing.** `ContrastLevel` and
 # `HapticsLevel` are parameters of `KontourTheme`, which no component demo will
-# ever sweep — the site's own settings panel drives them instead. Excusing those
-# two would need either a list of names, which this file's whole argument is
-# against, or a second derived rule with one customer. A ceiling is not a claim
-# that it should be zero; it is a claim that it should not grow.
+# ever sweep — the site's own settings panel drives them instead. Excusing them
+# would need either a list of names, which this file's whole argument is against,
+# or a second derived rule with one customer. A ceiling is not a claim that it
+# should be zero; it is a claim that it should not grow — and at two it is now
+# also a claim about what is left, which is nothing a component owns.
 #
-# The other seven are all reachable and all worth a knob: `FabPosition`,
-# `OverlaySide` and `OverlayAlignment` in every direction, `NavExpandPlacement`,
-# `NavigationSuiteType`, `PaneFocus` and `ScrimStyle`.
+# It was nine for several rounds, and the other seven were named right here as
+# "all reachable and all worth a knob": `FabPosition`, `OverlaySide` and
+# `OverlayAlignment`, `NavExpandPlacement`, `NavigationSuiteType`, `PaneFocus`
+# and `ScrimStyle`. They have knobs now. `ScrimStyle` is the one worth reading
+# twice: its demo already *had* a control, spelled out as two strings, so the
+# reader could press it and this rule could not see it — and the hand-written
+# pair was missing `None`, the value where the page underneath stays clickable.
+# A knob built from `entries` cannot be short of a value; one built from a list
+# of names is short of one the moment somebody adds it.
 #
 # `ReorderHandleSide` came off this list in Round 27, and how is the argument
 # for the rule. It was named here as worth a knob for two rounds. It got one
@@ -365,24 +507,27 @@ def claimed_symbols() -> set[str]:
 # the parameter that makes the side mean anything, had **zero call sites**
 # anywhere in the repository. The side was unswept because the feature was
 # unrendered, and the ceiling is what kept saying so.
-MAX_UNSWEPT_ENUMS = 9
+MAX_UNSWEPT_ENUMS = 2
 
 # Only goes down. See rule 16.
 #
-# Five, and the criterion earns every one of them. `isNewPassword` is an
-# autofill hint with nothing to render; `matchHeightConstraintsFirst` and
-# `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
-# `Surface`, pressed by nobody because there is nothing to look at;
+# Three, and the criterion earns every one of them. `matchHeightConstraintsFirst`
+# and `propagateMinConstraints` are layout escape hatches on `AspectRatioBox` and
+# `Surface`, pressed by nobody because there is nothing to look at; and
 # `MenuItem.multiple` changes what a screen reader announces and is set by
-# `MultiSelect` at `Select.kt:233`, so it is exercised without being named; and
-# `NavBarItem.showLabel` is handed down from `NavBar.showLabels`, which the
-# nav-surfaces demo *does* sweep.
+# `MultiSelect` at `Select.kt:233`, so it is exercised without being named.
+#
+# It was four until the navigation merge deleted `NavBarItem`, whose
+# `showLabel` was handed down from `NavBar.showLabels` and never named itself.
+# It was five until `isNewPassword` got a knob — an autofill hint with nothing to
+# render, which turned out to be worth pressing anyway because the keyboard it
+# asks for is the thing a reader is checking.
 #
 # It was sixteen before round 22. Twelve of those were features that shipped
 # switched off and stayed that way — the chip morph whose own KDoc carries the
 # worked example, the stepper's `AnimatedCounter` wired in and never turned on,
 # the range slider's tick marks. A reader could not press one of them.
-MAX_UNDEMOED_FLAGS = 4
+MAX_UNDEMOED_FLAGS = 3
 
 
 def undemoed_flags() -> list[str]:
@@ -398,9 +543,28 @@ def undemoed_flags() -> list[str]:
     press it — and nothing about whether the knob is any good. That is the right
     trade: the failure it exists to catch is a parameter no call site anywhere
     passes, which is a feature that was written, documented and never once run.
+
+    ### The theme package is skipped, and the reason is mechanical
+
+    A `ComponentDemo` renders *inside* the gallery's theme; it does not provide
+    one. So no demo can pass a `KontourTheme` parameter at all, and a rule whose
+    remedy is "put it on a knob" has no remedy to offer for one — the only honest
+    way to satisfy it would be a demo that nests a second theme, which is a
+    worse thing to have than the gap it closes.
+
+    This is not the rule going soft. The gallery already switches these live,
+    from the `Frames` page's arms, which is where a theme-level switch belongs:
+    beside the frame times it changes. What the rule still catches everywhere
+    else is a component feature nobody can reach, which is what it was written
+    for. It started to matter when `animateThemeChanges` was set to ship off —
+    the scan counts a `= false` default, because that is a feature switched off,
+    and a theme parameter that ships off was suddenly indistinguishable from a
+    component one.
     """
     flags: dict[str, set[str]] = {}
     for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        if "theme" in path.parts:
+            continue
         text = path.read_text()
         for match in COMPOSABLE_HEADER.finditer(text):
             visibility, name = match.group(1).strip(), match.group(3)
@@ -483,10 +647,12 @@ def uncursored_clicks() -> list[str]:
     return behind
 
 
-MAX_HAPTIC_SITES = 9
+MAX_HAPTIC_SITES = 10
 
 
-HAPTIC_CALL = re.compile(r"feedback\.perform\(")
+# A perform, or a sustain — a hold's rumble is feedback too, and the one place
+# that starts one (`HoldFeedback.start`) is a call site like any other.
+HAPTIC_CALL = re.compile(r"feedback\.(?:perform|sustain)\(")
 
 
 def haptic_sites() -> list[str]:
@@ -497,6 +663,39 @@ def haptic_sites() -> list[str]:
     when `Slider` and `RangeSlider` stopped hand-rolling their own detent guard
     and went through the shared `DetentTicker` like everything else that snaps.
     Two fewer call sites, the same two components firing.
+
+    It went 9 to 10 when `Switch` started reporting the midpoint of a drag. That
+    is the one addition the audit's own rules ask for rather than tolerate: the
+    switch commits as the thumb crosses, so what letting go will do changes
+    under the finger, with nothing on screen having said so first — which is the
+    definition of the `DragThreshold` row in the table. A *tap* on a switch
+    still reports nothing, and `DetentHapticsTest` holds it to both halves.
+
+    It went 9 to 10 when the date range's dwell became a rumble rather than a
+    stream of ticks: `HoldFeedback.start` *sustains* feedback, the one place in
+    the library that does, and a sustain is counted with the performs. The
+    haptics audit that came with it then added two — the toggle helper, so on
+    and off feel different, and `SwipeActions` confirming a full swipe as its
+    tick completes — and took two away, by moving `PullToRefresh` and a
+    reorder's crossings onto the shared ticker. Ten, still.
+
+    It went 10 to 11 for a slider's texture, asked for from a phone: a slider or
+    knob without steps "should have some feedback, proportional to how fast it's
+    moving". `DragTexture` performs each grain at a strength of its own, which
+    no ticker can, so it is a call site — one, in `Detents.kt`, shared by every
+    continuous slider, range slider, knob and colour track rather than one each.
+
+    It went 11 to 9 with the consistency audit: a long-press helper took the
+    three direct `LongPress` performs (`Menu`, `Tooltip`, `ReorderableItem`)
+    and a fourth that needed one (`ActivityCalendar`'s scrub), and a swipe's
+    `Confirm` became one call for its two routes.
+
+    It went 9 to 10 for a FAB menu's items landing, asked for from a phone:
+    "haptics on fab menu when items settle into place". It is a run of one
+    intent timed to the springs, which is the one shape no ticker plays — the
+    items land closer together than the rate floor passes separate taps — so it
+    is a pattern, played through `FeedbackDispatcher.perform(intent, at)`, and
+    one call site.
 
     It exists because this drifted once, quietly and in one direction. "Make it
     tactile" was a good instruction; fifty-seven call sites was the result of
@@ -531,16 +730,60 @@ MAX_POLICY_DRIFT = 0
 HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 
 # A component that fires, either directly or through the shared ticker.
-PERFORMS = re.compile(r"\bperform\(|\brememberDetentTicker\(")
+PERFORMS = re.compile(
+    r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
+    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\("
+)
 
 # Two files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
 # `Dialog.kt` but belongs to `AlertDialog`.
-HAPTIC_FILE_NAMES = {"Reorderable": "ReorderableItem", "Dialog": "AlertDialog"}
+HAPTIC_FILE_NAMES = {
+    "Reorderable": "ReorderableItem",
+    "Dialog": "AlertDialog",
+    "IconButton": "IconToggleButton",
+    "NavRail": "NavScope",
+    "Select": "MultiSelect",
+    "TableRows": "Table",
+}
 
 # The mechanism rather than a component: one defines the dispatcher, the other
 # is the shared detent ticker every snapping component calls.
 HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+
+
+MAX_PLATFORM_HAPTICS = 0
+
+# A platform's haptics API, named in code rather than in a comment: Compose's
+# own `HapticFeedback`, Android's vibrator and feedback constants, UIKit's
+# generators, Core Haptics, the browser's vibrate. `Haptics(` — the `:haptics`
+# module's own factory — is not one of them, and is what the seam calls.
+PLATFORM_HAPTICS = re.compile(
+    r"LocalHapticFeedback|HapticFeedbackType|performHapticFeedback|HapticFeedbackConstants"
+    r"|\bVibrator\b|VibrationEffect|UI(?:Impact|Selection|Notification)FeedbackGenerator"
+    r"|CHHaptic|navigator\.vibrate"
+)
+
+
+def platform_haptics() -> list[str]:
+    """Files in `:ui` that reach a platform's haptics API themselves.
+
+    Every haptic in the library goes to the `:haptics` module's player, through
+    the dispatcher the theme installs. That is what lets a level drop it, the
+    rate floor space it, and a test provide a `RecordingHaptics` and read back
+    what was played. One call past that — a component vibrating the phone
+    itself — would be a haptic none of those can see, and would look, in review,
+    exactly like the ordinary thing a platform file does.
+
+    Zero, across every source set, tests included.
+    """
+    found: list[str] = []
+    for path in sorted(Path("ui/src").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        hits = sorted(set(PLATFORM_HAPTICS.findall(text)))
+        if hits:
+            found.append(f"{path.relative_to('ui/src')} ({', '.join(hits)})")
+    return found
 
 
 def policy_named() -> set[str]:
@@ -591,7 +834,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 24
+MAX_CIRCLES = 28
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -602,16 +845,41 @@ ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
 def circles() -> list[str]:
     """Files still asking for `Shapes.pill`, and files hand-rolling a rounded rect.
 
-    Two ceilings for one rule: **a corner in this library is a squircle unless
-    the thing it is on is a circle.**
+    Two ceilings for one rule: **a corner in this library tracks the scale, and
+    only takes the uncapped rule when the thing it is on is round from what it
+    is.**
 
-    `pill` is the circle. It is a true arc and it is right for an avatar, a
-    status dot, the ring round a radio button, a scrollbar thumb, an icon button,
-    a colour swatch, a day cell — things that are round because of what they
-    *are*, on a box that is square. Everything else that was reaching for it
-    wanted a *lozenge*, and a lozenge with circular ends beside a family of
-    squircles is the mismatch the shape scale exists to remove; `Shapes.capsule`
-    is the same silhouette with the family's curvature.
+    `pill` is the uncapped one. It is right for an avatar, a status dot, the ring
+    round a radio button, a scrollbar thumb, an icon button, a colour swatch, a
+    day cell, a switch's track — things whose roundness is a property of the
+    thing rather than of how tall it happens to be. Everything else that was
+    reaching for it wanted a *lozenge* that stops growing, and that is
+    `Shapes.capsule`, which is the same rule with `CapsuleCap` on it.
+
+    **`pill` used to be a `RoundedCornerShape(percent = 50)` and is not any
+    more.** It is a `SquircleShape(CapsuleCornerSize())` — the same curvature as
+    every other rung, the same radius as `capsule` up to the cap, differing from
+    it only in not stopping. That removes the second job this rule used to do,
+    which was keeping a circular arc away from lozenges; what is left is the job
+    it was written for, which is keeping the *uncapped* rule away from things a
+    theme is entitled to cap.
+
+    **26 to 28 for the slider thumbs** — `Slider` and `RangeSlider`, one each.
+    A thumb at rest is a circle on a square box, which is this list's own test;
+    held, it stretches into a lozenge, and the reporter asked for that lozenge to
+    be *the switch's*: "i meant like the pill shape of the switch. it should still
+    have that circular shape when not pressed, but the pill it expands to should
+    be g2 continuous". A capped `capsule` would square the resting thumb off under
+    a theme that caps its controls, which is the one thing a thumb must not do. It
+    had been a hand-drawn superellipse, which was round at rest in no theme.
+
+    **26 to 27 for an avatar's decorations**, the status dot and a glyph's
+    disc: a dot is round from what it is, on a square box, and so is the ring
+    round it that separates it from the picture.
+
+    **25 to 26 for `Knob`**, whose focus ring is the one shape in it that is not
+    drawn: a knob is round from what it is — a dial — on a square box, which is
+    the case this list is for.
 
     **22 to 24, and it is the same sweep finishing rather than a new argument.**
     Round 26 moved "the ten circles" onto `pill` so the 18dp cap could not reach
@@ -647,11 +915,28 @@ def circles() -> list[str]:
     square, and the evidence is that switching it changes no pixel by more than
     a rim.
 
+    **24 to 25, for the switch's track.** The one site added since is the
+    exception to the square-box test above, and it earns it on the other half of
+    the rule. A switch is a 24dp thumb inside a 28dp track, and the thumb is a
+    `drawRoundRect` at half its own height — a number, not a token, because a
+    draw call has nothing to consult. So the track has to be uncapped or the two
+    stop being concentric the moment a theme lowers `capsuleCap`: at 10dp the
+    track came out at 10 against a thumb at 12, which was reported. Not a square
+    box, and not a lozenge either — a capsule whose partner cannot be capped.
+
+    **27 to 28, for the navigation bar's search control**, which is a lozenge
+    and uncapped on purpose. Asked for from a phone: "have a pill shape in the
+    nav bar, and then animating to the standard text field's shape as it grows".
+    It is one site: `NavExpandingSlot` chooses the shape once and hands it to the
+    control and to the morph that leaves it, which draws whatever it is given —
+    so the morph stays consistent whichever shape the control has, and the
+    choice of pill is the design's, not a constraint of the animation.
+
     The second count is stricter and is a ban rather than a ratchet.
-    `RoundedCornerShape` appears exactly once in `:ui`, to define `pill` itself.
-    A literal anywhere else is a component that has stopped tracking the scale —
-    which is how the last drift started, one reasonable-looking call site at a
-    time.
+    `RoundedCornerShape` no longer appears in `:ui` at all; it used to appear
+    exactly once, to define `pill`, and that exemption went with the definition.
+    A literal anywhere is a component that has stopped tracking the scale — which
+    is how the last drift started, one reasonable-looking call site at a time.
 
     Not counted, and worth naming so the gap is deliberate rather than missed:
     the seventeen `drawRoundRect` calls. A `CornerRadius` on a `RoundRect` cannot
@@ -672,11 +957,14 @@ def circles() -> list[str]:
 
 
 def hand_rolled_rounded_rects() -> list[str]:
-    """`RoundedCornerShape` literals outside the one that defines `pill`."""
+    """`RoundedCornerShape` literals anywhere in `:ui`.
+
+    There used to be an exemption for `Shapes.kt`, which held the only legitimate
+    one. `pill` is a `SquircleShape` now, so the exemption has nothing left to
+    exempt and the ban is total.
+    """
     offenders: list[str] = []
     for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
-        if path.name == "Shapes.kt":
-            continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         count = len(ROUNDED_RECT.findall(text))
         if count:
@@ -685,46 +973,6 @@ def hand_rolled_rounded_rects() -> list[str]:
 
 
 MAX_SILENT_FOCUS_TRAPS = 0
-
-
-# Rule 24 — a transform that moves does so under the reader's control.
-#
-# `Motion`'s helpers can make a movement *shorter* and stop it overshooting.
-# None of them can make one **smaller**, which means a transform whose objection
-# is "it moves too far" rather than "it takes too long" has to read
-# `Theme.motion.reduceMotion` for itself — and before Round 31 the `overlay/`,
-# `nav/`, `sheet/` and `adaptive/` packages contained no such read at all.
-#
-# The one the phone reported was the biggest: every sheet scaled the **whole
-# viewport** back to 94% behind it, ungated, and during a drag with no spec in
-# the path at all. The second was `overlayAppearance`, through which every
-# dialog, menu, popover, tooltip and command palette in the library arrives.
-#
-# What is left is a tail of small-amplitude cases, and the ceiling is what makes
-# it a counted tail rather than a forgotten one. Each is a few pixels — a lift,
-# a collapse, a wheel, a calendar page — and fixing them well means deciding a
-# policy for that size of movement rather than gating a transform. Lower this
-# when one of them is decided; raising it means a new transform that moves a
-# panel or a screen, and those are the ones this exists to stop.
-MAX_UNGATED_TRANSFORMS = 7
-
-# A `graphicsLayer` assigning a transform, in a file that never asks the reader.
-TRANSFORM_ASSIGNMENT = re.compile(r"\b(?:scaleX|scaleY|translationX|translationY)\s*=")
-
-
-def ungated_transforms() -> list[str]:
-    """Files that transform inside a layer and never consult `reduceMotion`."""
-    offenders = []
-    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
-        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
-        if "graphicsLayer" not in text:
-            continue
-        if not TRANSFORM_ASSIGNMENT.search(text):
-            continue
-        if "reduceMotion" in text:
-            continue
-        offenders.append(path.name)
-    return offenders
 
 
 # Geometry a brand adjusts now lives on `ComponentDefaults`. What is left in the
@@ -738,15 +986,20 @@ def ungated_transforms() -> list[str]:
 # the floor is not zero: `ScrollbarDefaults` returns a fallback `0.dp` from a
 # `remember` and `TextFieldDefaults` fades a container by `0.5f`, and neither is
 # a dial anybody wants.
-MAX_DEFAULTS_LITERALS = 78
+#
+# **99**, up from 77, and not because anything was added. The API pass moved the
+# numbers that were written straight into signatures — a wheel's five rows, a
+# popover's 320dp, a text area's three to eight lines, the durations that became
+# `Duration`s — into Defaults objects a caller can read them from, and this
+# count had never seen them where they were. The same numbers, now counted.
+MAX_DEFAULTS_LITERALS = 99
 
 # Every field on `ComponentDefaults` is read by something.
 #
 # The honesty guard on a wide object of defaulted fields: at its default, a field
 # nothing reads is indistinguishable from one that is wired. Two fields are read
-# twice on purpose — `uppercaseLabels` by the row-shaped slot and by a field's
-# label, and `navIndicatorWidth` by the pill and by the glyph box that is as wide
-# as it — so this counts fields read *never*.
+# twice on purpose — `uppercaseLabels`, by the row-shaped slot and by a field's
+# label, is one — so this counts fields read *never*.
 #
 # What it catches that a value check cannot: a forward dropped during the sweep.
 # Fifteen of the fifty-eight defaults are shared by two or more fields, so wiring
@@ -777,6 +1030,84 @@ def defaults_literals() -> int:
                 if depth == 0 and at > index:
                     break
     return total
+
+
+# A gesture handler handed a callable reference to a local function.
+#
+# `onStart = ::report` and `onStart = { report(it) }` read as the same thing and
+# are not. A lambda literal has its transitive captures — including the
+# *parameters* of any local function it calls — recorded as memoization keys, so
+# the compiler rebuilds it when they change. A reference to a local function has
+# no captures at the reference site, so it is built once at first composition and
+# handed back for the life of the composable, holding whatever its enclosing
+# parameters were at birth. `ownedDrag`'s own `rememberUpdatedState` cannot save
+# it: that faithfully stores the latest instance it is given, and it is given the
+# same first-composition instance every time.
+#
+# **This has cost two rounds.** `RangeSlider` first — "move one end, then the
+# other, and the first one goes back where it started" — and then `ColourPicker`,
+# where a hue set on the track reverted to the picker's birth hue on the next
+# press in the area. One occurrence reads as a quirk of one component; two read
+# as a shape, and this is the cheapest possible net for it.
+#
+# The rule is spelling rather than semantics, and deliberately so: the correct
+# fix is `rememberUpdatedState`, but a reviewer cannot see a missing one, and can
+# see a `::`.
+DRAG_HANDLER_REFERENCE = re.compile(r"\bon(?:Start|Delta|End)\s*=\s*::")
+
+
+def drag_handlers_by_reference() -> list[str]:
+    """Drag handlers passed as `::localFunction`, which capture at birth."""
+    offenders = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        for match in DRAG_HANDLER_REFERENCE.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            offenders.append(f"{path.name}:{line} `{match.group().strip()}`")
+    return offenders
+
+
+# A scroller of the library's own, and the call's arguments up to its closing
+# parenthesis — which is where a `flingBehavior` would be.
+SCROLLER_CALL = re.compile(r"\b(verticalScroll|horizontalScroll|LazyColumn|LazyRow|LazyVerticalGrid|scrollable)\(")
+
+# Scrollers that do not fling freely: each snaps to something of its own, and
+# a free fling there is the bug, not the feel.
+SNAPPING_SCROLLERS = {
+    "WheelPicker.kt": "snaps to a row, and bounces at its ends",
+    "Carousel.kt": "snaps to a page",
+    "BottomSheet.kt": "snaps to a detent",
+    "SheetState.kt": "snaps to a detent",
+}
+
+
+def scrollers_off_the_library_fling() -> list[str]:
+    """Library scrollers that fling the platform's way rather than `ScrollDefaults`'.
+
+    Asked for from a phone: on iOS, flings "stop too soon". The library's fling
+    adds a flick to one still moving, as UIKit does — see `ScrollDefaults` — and a
+    scroller that leaves the argument off flings Compose's way instead, which is
+    the difference the phone noticed. Compose has no way to change every list's
+    fling at once, so each scroller has to ask.
+    """
+    offenders = []
+    for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in SNAPPING_SCROLLERS:
+            continue
+        text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
+        for match in SCROLLER_CALL.finditer(text):
+            depth, end = 0, match.end() - 1
+            for end in range(match.end() - 1, len(text)):
+                if text[end] == "(":
+                    depth += 1
+                elif text[end] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            if "flingBehavior" not in text[match.start():end]:
+                line = text.count("\n", 0, match.start()) + 1
+                offenders.append(f"{path.name}:{line} `{match.group(1)}`")
+    return offenders
 
 
 def unread_component_defaults() -> list[str]:
@@ -937,7 +1268,7 @@ def public_declarations() -> set[str]:
 
     Coarser than `public_composables` on purpose: rule 8 asks whether a page's
     title names *something real*, and `WindowSizeClass` is a class,
-    `Modifier.marquee` a modifier and `DateTimeFormats` a data class. All three
+    `Modifier.marquee` a modifier and `LocaleFormats` an interface. All three
     are legitimate page subjects and none is a composable.
     """
     found: set[str] = set()
@@ -1022,7 +1353,8 @@ def main() -> int:
                 f"and does not explain"
             )
 
-    # Rule 4 — a page has an interactive demo, and a demo has a page.
+    # Rule 4 — a page has an interactive demo, a demo has a page, and a demo is
+    # in a family.
     #
     # The demos are what a reader presses. They live beside `componentRegistry`
     # in `:ui-catalog` and are hand-written, one per page, because the registry's
@@ -1046,6 +1378,25 @@ def main() -> int:
             f"{len(without)} pages have no demo, and the ceiling is "
             f"{MAX_WITHOUT_DEMO}. Lower the ceiling when you add one; raising it "
             f"is going backwards. Without: {', '.join(without)}"
+        )
+
+    # The third half, and the one the other two cannot see: both of them find a
+    # demo by regexing its declaration, so a demo nothing lists passes them
+    # while rendering nowhere. No ceiling — the count is zero today and a
+    # ratchet at zero for something with no legacy is a constant nobody needs.
+    for offender in unlisted_demos():
+        problems.append(
+            f"{offender}, so it renders nowhere in the app while satisfying "
+            f"every rule that only counts declarations — add it to the "
+            f"`listOf(...)` at the end of its file"
+        )
+
+    # And the fourth: the family it is filed under is the family its page is in.
+    # See `misfiled_demos` for the round these two spent disagreeing.
+    for offender in misfiled_demos():
+        problems.append(
+            f"{offender} — a reader following the site to a component and a "
+            f"reader browsing the gallery for it end up on different pages"
         )
 
     # Rule 5 — every public component in the library is documented somewhere.
@@ -1400,7 +1751,7 @@ def main() -> int:
             f"{', '.join(internal)}"
         )
 
-    # Rule 19 — the library buzzes for eleven things, and no more.
+    # Rule 19 — the library buzzes for ten things, and no more.
     #
     # See `haptic_sites`. A ratchet on a total nobody was in a position to see
     # while it grew from a good instruction to fifty-seven call sites.
@@ -1416,30 +1767,31 @@ def main() -> int:
             f"of them"
         )
 
-    # Rule 20 — a corner is a squircle unless the thing it is on is a circle.
+    # Rule 20 — the uncapped corner is for things that are round from what they are.
     #
-    # See `circles`. `pill` survives for the twenty-two places that are genuinely
-    # round — square boxes, exempt from the capsule cap; a `RoundedCornerShape`
-    # literal anywhere but the token that defines it is a component that has
-    # stopped tracking the scale.
+    # See `circles`. `pill` survives for the twenty-five places that must not be
+    # capped — square boxes, and the switch's track, whose partner is drawn at
+    # half its own height and has no token to cap; a `RoundedCornerShape` literal
+    # anywhere at all is a component that has stopped tracking the scale.
     round_shapes = circles()
     circular = sum(int(e.rsplit("(", 1)[1].rstrip(")")) for e in round_shapes)
     if circular > MAX_CIRCLES:
         problems.append(
             f"{circular} uses of `Shapes.pill` in :ui, over the ceiling of "
-            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is a true "
-            f"circular arc and belongs on things that are round because of what "
-            f"they are, on a box that is square. A lozenge wants "
-            f"`Shapes.capsule`, which is the same silhouette with the family's "
-            f"own curvature — and which is capped, where `pill` is not"
+            f"{MAX_CIRCLES}: {', '.join(round_shapes)} — `pill` is the uncapped "
+            f"corner and belongs on things that are round because of what they "
+            f"are, on a box that is square. A lozenge wants `Shapes.capsule`, "
+            f"which is the same rule with `CapsuleCap` on it, so a theme that "
+            f"squares off its controls can reach it"
         )
 
     literals = hand_rolled_rounded_rects()
     if len(literals) > MAX_ROUNDED_RECT_SHAPES:
         problems.append(
             f"{len(literals)} file(s) build a `RoundedCornerShape` by hand: "
-            f"{', '.join(literals)} — the only one in :ui defines `Shapes.pill`. "
-            f"A literal elsewhere is a corner that has stopped tracking the scale"
+            f"{', '.join(literals)} — there are none left in :ui now that "
+            f"`Shapes.pill` is a squircle. A literal is a corner that has "
+            f"stopped tracking the scale"
         )
 
     # Rule 21 — an overlay says whether it takes focus away from the app.
@@ -1457,19 +1809,16 @@ def main() -> int:
             f"means to"
         )
 
-    # Rule 24 — a large transform is the reader's to refuse.
+    # Rule 23 — every haptic goes through the player, which is what can see it.
     #
-    # See `ungated_transforms`. The helpers shorten a movement and cannot shrink
-    # one, so amplitude is the one thing `Theme.motion` cannot express for you.
-    ungated = ungated_transforms()
-    if len(ungated) > MAX_UNGATED_TRANSFORMS:
+    # See `platform_haptics`.
+    reaching = platform_haptics()
+    if len(reaching) > MAX_PLATFORM_HAPTICS:
         problems.append(
-            f"{len(ungated)} file(s) transform inside a `graphicsLayer` and "
-            f"never read `reduceMotion`, over the ceiling of "
-            f"{MAX_UNGATED_TRANSFORMS}: {', '.join(ungated)} — "
-            f"`tweenDefault` and `springOrTween` shorten a movement and cannot "
-            f"make one smaller, so a scale or a translation that moves a panel "
-            f"or a screen has to ask for itself"
+            f"{len(reaching)} files in :ui reach a platform's haptics API "
+            f"themselves: {'; '.join(reaching)} — play an effect through the "
+            f"`FeedbackDispatcher` (or `rememberHaptics()`), which the `:haptics` "
+            f"module plays; a direct call is one no level or test can see"
         )
 
     drift = haptics_policy_drift()
@@ -1518,6 +1867,34 @@ def main() -> int:
             f"take it off"
         )
 
+    # Rule 25 — a drag handler is a lambda, never a reference to a local function.
+    #
+    # See `drag_handlers_by_reference`. The one that cost two rounds, and the one
+    # a reviewer cannot see: `::report` reads as the tidier spelling of
+    # `{ report(it) }` and is a closure frozen at first composition.
+    by_reference = drag_handlers_by_reference()
+    if by_reference:
+        problems.append(
+            f"{len(by_reference)} drag handler(s) are a reference to a local "
+            f"function rather than a lambda: {', '.join(by_reference)} — a "
+            f"reference has no captures at the reference site, so it is built "
+            f"once and holds the parameters the composable was born with. Spell "
+            f"it `{{ report(it) }}` and read any hoisted value through "
+            f"`rememberUpdatedState`"
+        )
+
+    # Rule 26 — a library scroller flings the library's way.
+    #
+    # See `scrollers_off_the_library_fling`.
+    off_fling = scrollers_off_the_library_fling()
+    if off_fling:
+        problems.append(
+            f"{len(off_fling)} scroller(s) in :ui fling the platform's way rather "
+            f"than the library's: {', '.join(off_fling)} — pass "
+            f"`flingBehavior = ScrollDefaults.flingBehavior()`, or name the file "
+            f"in SNAPPING_SCROLLERS with what it snaps to"
+        )
+
     if problems:
         print(f"{len(problems)} problem(s):", file=sys.stderr)
         for problem in sorted(problems):
@@ -1538,7 +1915,6 @@ def main() -> int:
         f"{circular} deliberate circles, "
         f"{len(policy_named())} components named by the haptics policy, "
         f"{len(silent)} silent focus traps, "
-        f"{len(ungated)} ungated transforms, "
         f"{literals_left} literals left in `*Defaults`, "
         f"{len(unread)} of them unwired, "
         f"all accounted for."

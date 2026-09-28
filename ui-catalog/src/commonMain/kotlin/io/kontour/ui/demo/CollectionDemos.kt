@@ -19,22 +19,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Archive
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.ChevronDown
 import com.composables.icons.tabler.outline.GripVertical
 import com.composables.icons.tabler.outline.Moon
+import com.composables.icons.tabler.outline.Pin
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
-import io.kontour.ui.components.display.TagTone
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.ListItemPosition
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
-import io.kontour.ui.components.list.LoadMoreState
+import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderHandleSide
 import io.kontour.ui.components.list.ReorderableItem
@@ -45,10 +48,13 @@ import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.components.list.rememberReorderableState
-import io.kontour.ui.components.list.settingValue
 import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.components.table.SortDirection
+import io.kontour.ui.components.table.Table
+import io.kontour.ui.components.table.TableLines
+import io.kontour.ui.components.table.TableSelection
+import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -63,7 +69,7 @@ private val stops = listOf(
 // this and hides the parameter completely. The single row underneath is where
 // a reader can see what one `position` does on its own — `Only` is fully
 // rounded, `Middle` is nearly square, and the two ends round one way each.
-private val listItemPosition = Knob.Choice("Position", ListItemPosition.entries.toList())
+private val listItemPosition = Knob.Choice("Position", GroupPosition.entries.toList())
 
 internal val ListItemDemo = ComponentDemo(
     slug = "list-item",
@@ -81,7 +87,7 @@ internal val ListItemDemo = ComponentDemo(
                     supporting = detail,
                     icon = Tabler.Outline.Bus,
                     selected = index == current,
-                    trailing = { Tag(tone = TagTone.Neutral) { +"${4 + index * 6} min" } },
+                    trailing = { Tag(tone = Tone.Neutral) { +"${4 + index * 6} min" } },
                     onClick = { current = index },
                 )
             }
@@ -112,23 +118,42 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
     }
 }
 
-internal val ListSectionDemo = ComponentDemo(slug = "list-section") {
+/**
+ * The sentence under the rows, which is the slot the page explains and the
+ * demo did not show.
+ *
+ * A knob rather than always on, because the two readings are different: with a
+ * footer the section is a setting *and* its consequence, and without one it is
+ * a group of rows. `description` sits above and says what the group is; this
+ * sits below and says what it does.
+ */
+private val sectionFooter = Knob.Flag("Footer", initial = true)
+
+internal val ListSectionDemo = ComponentDemo(
+    slug = "list-section",
+    knobs = listOf(sectionFooter),
+) {
     var theme by remember { mutableStateOf(0) }
     val themes = listOf("Match system", "Always light", "Always dark")
     ListSection(
         modifier = Modifier.fillMaxWidth(),
         title = { +"Appearance" },
-        description = { +"How the app looks on this device" },
+        supporting = { +"How the app looks on this device" },
+        footer = if (this[sectionFooter]) {
+            { +"Always dark keeps the screen dark even when the system is light." }
+        } else {
+            null
+        },
     ) {
         SettingRow(
-            position = ListItemPosition.First,
+            position = GroupPosition.First,
             onClick = { theme = (theme + 1) % themes.size },
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
-            trailing { settingValue(themes[theme]) }
+            trailing { +themes[theme] }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { echo("Delay alerts") }) {
+        SettingRow(position = GroupPosition.Last, onClick = { echo("Delay alerts") }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
@@ -142,14 +167,14 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
     val themes = listOf("Match system", "Always light", "Always dark")
     Column(Modifier.fillMaxWidth()) {
         SettingRow(
-            position = ListItemPosition.First,
+            position = GroupPosition.First,
             onClick = { theme = (theme + 1) % themes.size },
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
-            trailing { settingValue(themes[theme]) }
+            trailing { +themes[theme] }
         }
-        SettingRow(position = ListItemPosition.Last, onClick = { notify = !notify }) {
+        SettingRow(position = GroupPosition.Last, onClick = { notify = !notify }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
@@ -158,7 +183,63 @@ internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
     }
 }
 
-internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
+/**
+ * How many actions the trailing side offers, up to the cap.
+ *
+ * Three is `SwipeActionsDefaults.MaxActionsPerSide` and a fourth now throws at
+ * composition — a cap worth having, because one target is 88dp and three of them
+ * are 264dp of a phone's width. Nothing in the repository drew more than one
+ * until this knob, so the strip the cap exists to bound had never been looked at:
+ * the same gap `handleIcon` was in for two rounds.
+ *
+ * Starts at one, which is both the common case and the safe one — the semantics
+ * sweep floors at nine actions across this family with a `>=`, so more is always
+ * fine and fewer is the only way to break it.
+ */
+private val swipeActionCount = Knob.Choice("Actions", listOf(1, 2, 3), 1, name = { "$it" })
+
+/**
+ * Whether a full swipe shows a tick before it runs its action.
+ *
+ * Asked for as optional, so both are one press apart: on, the row holds at the
+ * far edge while the icon turns into a drawn check mark; off, the action runs the
+ * moment the row gets there.
+ */
+private val swipeConfirmation = Knob.Flag("Tick on full swipe", initial = true)
+
+/** The same tick for a tap on a revealed action, before it runs and the row closes. */
+private val swipeTapConfirmation = Knob.Flag("Tick on tap", initial = true)
+
+internal val SwipeActionsDemo = ComponentDemo(
+    slug = "swipe-actions",
+    knobs = listOf(swipeActionCount, swipeConfirmation, swipeTapConfirmation),
+) {
+    val confirmation = this[swipeConfirmation]
+    val tapConfirmation = this[swipeTapConfirmation]
+    // The first stays the full-swipe action whatever the count: a full swipe
+    // runs the *first* action of the side, so moving it would change two things
+    // at once.
+    val trailing = listOf(
+        SwipeAction(
+            label = "Remove",
+            icon = Tabler.Outline.Trash,
+            onAction = { echo("Removed") },
+            background = Theme.colours.danger.solid,
+            fullSwipe = true,
+        ),
+        SwipeAction(
+            label = "Archive",
+            icon = Tabler.Outline.Archive,
+            onAction = { echo("Archived") },
+            background = Theme.colours.warning.solid,
+        ),
+        SwipeAction(
+            label = "Pin",
+            icon = Tabler.Outline.Pin,
+            onAction = { echo("Pinned") },
+            background = Theme.colours.accent.solid,
+        ),
+    )
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
@@ -169,15 +250,9 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
             colour = Theme.colours.contentMuted,
         )
         SwipeActions(
-            end = listOf(
-                SwipeAction(
-                    label = "Remove",
-                    icon = Tabler.Outline.Trash,
-                    onAction = { echo("Removed") },
-                    background = Theme.colours.danger.solid,
-                    isFullSwipeAction = true,
-                ),
-            ),
+            end = trailing.take(this@ComponentDemo[swipeActionCount]),
+            fullSwipeConfirmation = confirmation,
+            tapConfirmation = tapConfirmation,
             start = listOf(
                 SwipeAction(
                     label = "Favourite",
@@ -192,10 +267,23 @@ internal val SwipeActionsDemo = ComponentDemo(slug = "swipe-actions") {
                 supporting { +"Swipe either way" }
             }
         }
+        // Actions on one side only: the other way the row gives under the finger
+        // and comes back, rather than doing nothing until it is let go.
+        SwipeActions(
+            end = trailing.take(1),
+            fullSwipeConfirmation = confirmation,
+            tapConfirmation = tapConfirmation,
+        ) {
+            ListItem(onClick = { echo("Elizabeth Quay") }) {
+                +"Elizabeth Quay"
+                supporting { +"Actions on one side" }
+            }
+        }
         SwipeToDismiss(
             onDismissRequest = { echo("Dismissed") },
             label = "Remove",
             icon = Tabler.Outline.Trash,
+            fullSwipeConfirmation = confirmation,
         ) {
             ListItem {
                 +"Elizabeth Quay Station"
@@ -251,6 +339,7 @@ internal val ReorderableItemDemo = ComponentDemo(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),
+            flingBehavior = ScrollDefaults.flingBehavior(),
         ) {
             itemsIndexed(order, key = { _, name -> name }) { index, name ->
                 ReorderableItem(
@@ -260,7 +349,7 @@ internal val ReorderableItemDemo = ComponentDemo(
                     handleIcon = handle,
                     handleSide = handleAt,
                 ) {
-                    ListItem(position = ListItemPosition.of(index, order.size)) {
+                    ListItem(position = GroupPosition.of(index, order.size)) {
                         +name
                         leading { +Tabler.Outline.Bus }
                     }
@@ -283,9 +372,9 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
         onRefresh = { refreshing = true },
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) {
             stops.forEachIndexed { index, (name, detail) ->
-                ListItem(position = ListItemPosition.of(index, stops.size)) {
+                ListItem(position = GroupPosition.of(index, stops.size)) {
                     +name
                     supporting { +detail }
                 }
@@ -297,25 +386,25 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
 // Pressing it walks Idle → Loading → Error, which is the sequence worth
 // feeling; the knob is how a reader reaches `Done` and the end label without
 // having to guess that a fourth state exists.
-private val loadMoreState = Knob.Choice("State", LoadMoreState.entries.toList())
+private val loadMoreState = Knob.Choice("Status", LoadMoreStatus.entries.toList())
 
 internal val LoadMoreDemo = ComponentDemo(
     slug = "load-more",
     knobs = listOf(loadMoreState),
 ) {
     val picked = this[loadMoreState]
-    var state by remember { mutableStateOf(picked) }
-    LaunchedEffect(picked) { state = picked }
-    LaunchedEffect(state) {
-        if (state == LoadMoreState.Loading) {
+    var status by remember { mutableStateOf(picked) }
+    LaunchedEffect(picked) { status = picked }
+    LaunchedEffect(status) {
+        if (status == LoadMoreStatus.Loading) {
             delay(1_200)
-            state = LoadMoreState.Error
+            status = LoadMoreStatus.Error
         }
     }
     LoadMore(
-        state = state,
-        onLoadMore = { state = LoadMoreState.Loading },
-        errorLabel = "Couldn't load more departures",
+        status = status,
+        onLoadMore = { status = LoadMoreStatus.Loading },
+        errorMessage = "Couldn't load more departures",
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -323,7 +412,7 @@ internal val LoadMoreDemo = ComponentDemo(
 internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar") {
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxWidth().height(160.dp)) {
-        Column(Modifier.fillMaxWidth().verticalScroll(scroll)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())) {
             repeat(14) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
         }
         // `alwaysVisible`, because a scrollbar hides itself unless the input can
@@ -344,11 +433,11 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
             modifier = Modifier
                 .fillMaxWidth()
                 .fadingEdges(scroll)
-                .verticalScroll(scroll),
+                .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             repeat(10) { index ->
-                ListItem(position = ListItemPosition.of(index, 10)) {
+                ListItem(position = GroupPosition.of(index, 10)) {
                     +"Departure ${index + 1}"
                     supporting { +"Elizabeth Quay" }
                 }
@@ -357,22 +446,91 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
     }
 }
 
-internal val DragHandleDemo = ComponentDemo(slug = "drag-handle") {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+/** A departure board's row: the same forty on every run. */
+private class DemoDeparture(
+    val id: Int,
+    val route: String,
+    val destination: String,
+    val platform: Int,
+    val departs: String,
+    val fare: Int,
+)
+
+private val demoDepartures = List(40) { index ->
+    val destinations = listOf(
+        "Elizabeth Quay", "Fremantle", "Joondalup", "Midland", "Armadale",
+        "Mandurah", "Perth Airport", "Ellenbrook", "Scarborough Beach", "Cannington",
+    )
+    DemoDeparture(
+        id = index,
+        route = listOf("950", "T1", "103", "Y", "86", "30", "FRM", "MAN")[index % 8],
+        destination = destinations[(index * 7) % destinations.size],
+        platform = 1 + (index * 5) % 9,
+        departs = "${8 + index / 6}:${((index * 10) % 60).toString().padStart(2, '0')}",
+        fare = 330 + (index % 4) * 145,
+    )
+}
+
+private val tableLines = Knob.Choice("Lines", TableLines.entries.toList(), TableLines.Rows)
+
+private val tableSelection = Knob.Choice("Selection", TableSelection.entries.toList())
+
+private val tableStriped = Knob.Flag("Striped", initial = true)
+
+private val tableOutlined = Knob.Flag("Outlined", initial = false)
+
+/** The route column pinned at the start while the rest scroll across. */
+private val tablePinRoute = Knob.Flag("Pin route", initial = true)
+
+private val tableFooter = Knob.Flag("Footer", initial = true)
+
+internal val TableDemo = ComponentDemo(
+    slug = "table",
+    knobs = listOf(tableLines, tableSelection, tableStriped, tableOutlined, tablePinRoute, tableFooter),
+) {
+    var sort by remember { mutableStateOf<TableSort?>(null) }
+    var selected by remember { mutableStateOf(emptySet<Any>()) }
+    // Sorting is the caller's: the table says what was asked for, and this puts
+    // the rows in that order.
+    val rows = remember(sort) {
+        val by: Comparator<DemoDeparture> = when (sort?.column) {
+            "Route" -> compareBy { it.route }
+            "Destination" -> compareBy { it.destination }
+            "Platform" -> compareBy { it.platform }
+            "Fare" -> compareBy { it.fare }
+            else -> compareBy { it.id }
+        }
+        demoDepartures.sortedWith(if (sort?.direction == SortDirection.Descending) by.reversed() else by)
+    }
+    val footer = this[tableFooter]
+    Table(
+        items = rows,
+        modifier = Modifier.fillMaxWidth().height(320.dp),
+        key = { it.id },
+        stickyColumns = if (this[tablePinRoute]) 1 else 0,
+        striped = this[tableStriped],
+        lines = this[tableLines],
+        outlined = this[tableOutlined],
+        sort = sort,
+        onSortChange = { sort = it },
+        selection = this[tableSelection],
+        selected = selected,
+        onSelectedChange = { selected = it },
+        onRowClick = { echo("Opened the ${it.departs} to ${it.destination}") },
     ) {
-        // No `LocalSheetState`, so this is the resting pill rather than the
-        // draggable one — a handle is drawn by the sheet, not dragged on its own.
-        DragHandle(state = null)
-        Text(
-            "Drawn by a sheet, not draggable on its own",
-            style = Theme.typography.labelSmall,
-            colour = Theme.colours.contentMuted,
-        )
+        column("Route", width = 72.dp) { +it.route }
+        column("Destination", weight = 1f, minWidth = 160.dp) { +it.destination }
+        column("Platform", numeric = true) { +"${it.platform}" }
+        column("Departs", numeric = true, sortable = false, footer = if (footer) ({ +"${rows.size} services" }) else null) {
+            +it.departs
+        }
+        column("Fare", numeric = true, footer = if (footer) ({ +dollars(rows.sumOf { it.fare }) }) else null) {
+            +dollars(it.fare)
+        }
     }
 }
+
+private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 
 internal val collectionDemos = listOf(
     ListItemDemo,
@@ -385,5 +543,5 @@ internal val collectionDemos = listOf(
     LoadMoreDemo,
     ScrollbarDemo,
     FadingEdgesDemo,
-    DragHandleDemo,
+    TableDemo,
 )

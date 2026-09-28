@@ -47,9 +47,9 @@ class CommandPaletteKeyboardTest {
                     query = fixture.query,
                     commands = remember {
                         listOf(
-                            Command("plan", "Plan a trip", onRun = { fixture.ran += "plan" }),
-                            Command("saved", "Saved trips", onRun = { fixture.ran += "saved" }),
-                            Command("settings", "Settings", onRun = { fixture.ran += "settings" }),
+                            Command("plan", "Plan a trip", onAction = { fixture.ran += "plan" }),
+                            Command("saved", "Saved trips", onAction = { fixture.ran += "saved" }),
+                            Command("settings", "Settings", onAction = { fixture.ran += "settings" }),
                         )
                     },
                 )

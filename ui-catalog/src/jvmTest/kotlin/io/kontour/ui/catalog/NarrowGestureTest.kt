@@ -275,8 +275,8 @@ class NarrowGestureTest {
                 content = {
                     SegmentedControl(
                         options = listOf("A", "B", "C"),
-                        selected = selected,
-                        onSelectedChange = { selected = it },
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 },
@@ -305,7 +305,7 @@ class NarrowGestureTest {
                             .fillMaxWidth()
                             .height(120.dp)
                             .background(Color.LightGray)
-                            .tabSwipe(selected = tab, count = 3, onSelectedChange = { tab = it })
+                            .tabSwipe(selectedIndex = tab, count = 3, onSelectedIndexChange = { tab = it })
                     )
                 },
                 changed = { tab != 0 },
@@ -315,8 +315,13 @@ class NarrowGestureTest {
             val state = SwipeStateHolder()
             Specimen(
                 content = {
-                    state.state = rememberSwipeActionsState()
+                    val swipe = rememberSwipeActionsState()
+                    state.state = swipe
                     SwipeActions(
+                        // Its own state, so "came to rest showing the action" can be
+                        // read: a full swipe now holds at the edge for its tick before
+                        // the action runs, and this looks before that is over.
+                        state = swipe,
                         modifier = Modifier.fillMaxWidth(),
                         end = listOf(
                             SwipeAction(
@@ -324,7 +329,7 @@ class NarrowGestureTest {
                                 icon = Tabler.Outline.Trash,
                                 onAction = { state.fired = true },
                                 background = Color.Red,
-                                isFullSwipeAction = true,
+                                fullSwipe = true,
                             ),
                         ),
                     ) {

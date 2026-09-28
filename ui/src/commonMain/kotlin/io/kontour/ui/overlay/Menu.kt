@@ -1,6 +1,35 @@
 package io.kontour.ui.overlay
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.offset
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.foundation.Icon
+import io.kontour.ui.motion.ScrollDefaults
+import io.kontour.ui.theme.Motion
+import io.kontour.ui.theme.kontourMotion
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -11,7 +40,6 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +48,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -40,7 +70,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -76,13 +105,15 @@ import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.insetFocusRing
 import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.interaction.FeedbackIntent
-import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.inset
 import kotlinx.coroutines.delay
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Sizing shared by every menu surface. Override per call site if you must. */
 object MenuDefaults {
@@ -99,7 +130,7 @@ object MenuDefaults {
      * Long enough to cross the gap between the row and the submenu, short enough
      * that a menu you have moved away from does not linger.
      */
-    val SubmenuCloseDelay: Long = 220L
+    val SubmenuCloseDelay: Duration = 220.milliseconds
 
     val MinWidth: Dp = 180.dp
     val MaxWidth: Dp = 320.dp
@@ -113,9 +144,9 @@ object MenuDefaults {
  *
  * ```
  * Box {
- *     IconButton(Tabler.Outline.Dots, "More", onClick = { visible = true })
+ *     IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { visible = true })
  *     DropdownMenu(visible, onDismissRequest = { visible = false }) {
- *         item("Share", icon = Tabler.Outline.Share, onClick = ::share)
+ *         item("Share", leadingIcon = Tabler.Outline.Share, onClick = ::share)
  *         divider()
  *         item("Delete", destructive = true, onClick = ::delete)
  *     }
@@ -186,11 +217,16 @@ fun AnchoredDropdownMenu(
     anchor: Rect?,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The overlay's identity in the host, and the one thing two of these shown
+     * from the same place need to differ in. The default is one per call site,
+     * remembered, which is right unless a loop shows several.
+     */
+    key: Any = remember { Any() },
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Start,
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
-    key: Any = remember { Any() },
     content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -198,6 +234,8 @@ fun AnchoredDropdownMenu(
     val modality = LocalInputModality.current
     val dismiss by rememberUpdatedState(onDismissRequest)
     val body by rememberUpdatedState(content)
+    // Read here: the entry below is built in an effect, which has no theme.
+    val closeLabel = Theme.strings.closeMenu
 
     val shape = Theme.shapes.container
     val anchorWidth = anchor?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
@@ -219,7 +257,7 @@ fun AnchoredDropdownMenu(
                 key = key,
                 layer = OverlayLayer.Menu,
                 scrim = scrim,
-                dismissLabel = "Close menu",
+                dismissLabel = closeLabel,
                 onDismiss = { dismiss() },
                 // A menu should not steal focus from a mouse user mid-gesture,
                 // but it must contain focus for a keyboard user. Trapping does
@@ -233,6 +271,7 @@ fun AnchoredDropdownMenu(
                         gap = MenuDefaults.Gap,
                         margin = MenuDefaults.ScreenMargin,
                         minWidth = if (matchAnchorWidth) anchorWidth else Dp.Unspecified,
+                        minimumPanel = MenuMinimumRoom,
                     ) {
                         MenuPanel(
                             modifier = modifier,
@@ -258,32 +297,166 @@ private fun MenuPanel(
     onDismissRequest: () -> Unit,
     content: @Composable MenuScope.() -> Unit,
 ) {
+    // A finger opens submenus in place; a pointer and the keyboard cascade them
+    // beside their rows. Read here, live, rather than when the menu was shown:
+    // the modality starts as touch until the first event says otherwise, and a
+    // menu shown before a mouse had moved would otherwise nest for a finger.
+    // And held while a level is open, so a key pressed in it — which makes the
+    // modality the keyboard's — goes back a level rather than dropping them all.
+    val levels = remember { MenuLevels() }
+    val inPlace = LocalInputModality.current.needsLargeTargets || levels.open.isNotEmpty()
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         if (autoFocus) runCatching { focusRequester.requestFocus() }
     }
+    val sized = modifier
+        .widthIn(
+            min = if (matchAnchorWidth) Dp.Unspecified else MenuDefaults.MinWidth,
+            max = MenuDefaults.MaxWidth,
+        )
+        // Measured from the rows, then clamped by the `widthIn` above — so
+        // the panel hugs its content between 180dp and 320dp rather than
+        // always taking the maximum.
+        .width(IntrinsicSize.Max)
+        .heightIn(max = MenuDefaults.MaxHeight)
 
-    OverlaySurface(
-        modifier = modifier
-            .widthIn(
-                min = if (matchAnchorWidth) Dp.Unspecified else MenuDefaults.MinWidth,
-                max = MenuDefaults.MaxWidth,
-            )
-            // Measured from the rows, then clamped by the `widthIn` above — so
-            // the panel hugs its content between 180dp and 320dp rather than
-            // always taking the maximum.
-            .width(IntrinsicSize.Max)
-            .heightIn(max = MenuDefaults.MaxHeight)
-            .focusRequester(focusRequester)
-            .focusGroup()
-            .onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
-                    onDismissRequest()
-                    true
-                } else {
-                    false
+    // **On touch, a submenu opens in place**: over its own row, growing from the
+    // row's height, with the row kept on top as the way back and the menu under
+    // it dimmed — the way an iOS menu nests. A submenu opened to the side of a
+    // phone-sized menu is off the screen or over the finger, and a hover that
+    // holds it open is not something a finger does.
+    //
+    // The levels are drawn here, in the menu's own overlay, rather than as more
+    // overlays: one surface over another, in one place, so a tap outside the top
+    // level goes back rather than closing everything, and nothing has to agree
+    // across two overlay entries about where a row was.
+    //
+    // One tree whichever it is. The modality changes under an open menu — a key
+    // pressed in it makes it the keyboard's — and a menu that swapped its layout
+    // for it rebuilt every row and lost the focus the key had just moved.
+    levels.scope = rememberCoroutineScope()
+    levels.motion = Theme.motion
+    val back = if (LocalLayoutDirection.current == LayoutDirection.Rtl) Key.DirectionRight else Key.DirectionLeft
+    CompositionLocalProvider(LocalMenuLevels provides if (inPlace) levels else null) {
+        Layout(
+            modifier = Modifier
+                .onGloballyPositioned { levels.root = it }
+                .focusRequester(focusRequester)
+                .focusGroup()
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when {
+                        // Back a level, then out.
+                        event.key == Key.Escape -> {
+                            if (levels.open.isNotEmpty()) levels.closeTop() else onDismissRequest()
+                            true
+                        }
+                        event.key == back && levels.open.isNotEmpty() -> {
+                            levels.closeTop()
+                            true
+                        }
+                        else -> false
+                    }
+                },
+            content = {
+                LevelStack(
+                    below = { levels.open.firstOrNull() },
+                    levels = levels,
+                ) {
+                    MenuSurface(modifier = sized, shape = shape, dimmedBy = { levels.open.firstOrNull()?.progress?.value ?: 0f }) {
+                        MenuScopeImpl(this, onDismissRequest).content()
+                    }
+                }
+                levels.open.forEachIndexed { index, level ->
+                    key(level.key) {
+                        LevelStack(below = { levels.open.getOrNull(index + 1) }, levels = levels) {
+                            MenuLevelSurface(
+                                level = level,
+                                levels = levels,
+                                shape = shape,
+                                onDismissRequest = onDismissRequest,
+                                dimmedBy = { levels.open.getOrNull(index + 1)?.progress?.value ?: 0f },
+                            )
+                        }
+                    }
                 }
             },
+        ) { measurables, constraints ->
+            val base = measurables.first().measure(constraints)
+            val width = base.width
+            val reduced = levels.motion.reduceMotion
+            val stacked = measurables.drop(1).mapIndexed { index, measurable ->
+                val level = levels.open.getOrNull(index)
+                val full = measurable.maxIntrinsicHeight(width)
+                val grown = level?.progress?.value ?: 1f
+                val from = level?.rowHeight?.roundToInt() ?: full
+                val height = if (reduced) full else lerp(from.toFloat(), full.toFloat(), grown).roundToInt()
+                // Over its row if it fits there, shifted up inside the menu if
+                // it does not, and from the top when it is taller than the menu.
+                val rowTop = level?.rowTop ?: 0f
+                val settled = rowTop.coerceAtMost((base.height - full).toFloat()).coerceAtLeast(0f)
+                val top = if (reduced) settled else lerp(rowTop, settled, grown)
+                measurable.measure(Constraints.fixed(width, height.coerceAtLeast(0))) to top.roundToInt()
+            }
+            val height = stacked.fold(base.height) { tallest, (placeable, top) -> maxOf(tallest, top + placeable.height) }
+            layout(width, height) {
+                base.place(0, 0)
+                stacked.forEach { (placeable, top) -> placeable.place(0, top) }
+            }
+        }
+    }
+}
+
+/**
+ * One level of an in-place menu — the menu itself, or a submenu over it — and,
+ * while a level above it is open, a cover that takes a tap on it as "back".
+ */
+@Composable
+private fun LevelStack(below: () -> MenuLevel?, levels: MenuLevels, surface: @Composable () -> Unit) {
+    // Passes the minimum width on: a select's menu is given its field's width as
+    // a minimum, and a box that dropped it left the panel hugging its rows
+    // inside that width, narrower than the field it opened from.
+    Box(propagateMinConstraints = true) {
+        surface()
+        val above = below()
+        if (above != null) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(above) { detectTapGestures { levels.close(above) } },
+            )
+        }
+    }
+}
+
+/**
+ * A menu's panel: the surface, its scrolling rows and its scrollbar. [dimmedBy]
+ * is how far a level over it has opened, which dims it, draws it back a little
+ * and takes it out of what a screen reader can reach.
+ */
+@Composable
+private fun MenuSurface(
+    modifier: Modifier,
+    shape: Shape,
+    dimmedBy: () -> Float = { 0f },
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val reduced = Theme.motion.reduceMotion
+    val covered = dimmedBy() > 0f
+    val dim = Theme.colours.scrim
+    OverlaySurface(
+        modifier = modifier
+            // Drawn back a little, and no more: a layer's alpha would composite
+            // the panel offscreen, cut to its own box, and square off the
+            // shadow round it — which is how it was reported. The dimming is
+            // drawn over the rows instead, inside the panel's shape.
+            .graphicsLayer {
+                if (!reduced) {
+                    scaleX = 1f - LevelRecede * dimmedBy()
+                    scaleY = scaleX
+                }
+            }
+            .then(if (covered) Modifier.clearAndSetSemantics { } else Modifier),
         shape = shape,
         // Hands the panel's settled width down to the column, so the rows are
         // the panel's width rather than their own.
@@ -314,15 +487,20 @@ private fun MenuPanel(
         // `Combobox`, the context menu and every submenu get it without knowing
         // it exists.
         val scroll = rememberScrollState()
-        Box {
+        Box(
+            Modifier.drawWithContent {
+                drawContent()
+                val level = dimmedBy()
+                if (level > 0f) drawRect(dim, alpha = LevelDim * level)
+            }
+        ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(scroll)
+                    .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
                     .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
                     .fillMaxWidth(),
-            ) {
-                MenuScopeImpl(this, onDismissRequest).content()
-            }
+                content = content,
+            )
 
             Scrollbar(
                 state = scroll,
@@ -340,6 +518,139 @@ private fun MenuPanel(
         }
     }
 }
+
+/**
+ * A submenu open in place: its own row at the top, pointing down, as the way back;
+ * then its rows. Reduced motion fades it in where it will be rather than growing
+ * it from the row.
+ */
+@Composable
+private fun MenuLevelSurface(
+    level: MenuLevel,
+    levels: MenuLevels,
+    shape: Shape,
+    onDismissRequest: () -> Unit,
+    dimmedBy: () -> Float,
+) {
+    val reduced = Theme.motion.reduceMotion
+    // The chevron turns from pointing along the row to pointing down as the
+    // level opens, and back as it closes, so at rest it is the row's own.
+    val turn = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -90f else 90f
+    MenuSurface(
+        modifier = Modifier
+            // Faded in over the first part of its growth, and out over the last
+            // of its closing, so it leaves as the row it grew from rather than as
+            // a panel of its own dropped on the frame it lands — the snap reported
+            // on tapping out of one. Under reduced motion the fade is the whole
+            // of it.
+            //
+            // A faded layer is drawn offscreen, cut to its own box, which would
+            // cut the level's shadow square as it faded. So the layer is made
+            // bigger than the level by room for the shadow, and the level laid
+            // out as its own size inside it.
+            .layout { measurable, constraints ->
+                val room = LevelShadowRoom.roundToPx()
+                val placeable = measurable.measure(constraints.offset(2 * room, 2 * room))
+                layout(placeable.width - 2 * room, placeable.height - 2 * room) { placeable.place(-room, -room) }
+            }
+            .graphicsLayer {
+                alpha = if (reduced) level.progress.value else (level.progress.value / LevelFadeShare).coerceIn(0f, 1f)
+            }
+            .padding(LevelShadowRoom),
+        shape = shape,
+        dimmedBy = dimmedBy,
+    ) {
+        MenuItem(
+            onClick = { levels.close(level) },
+            modifier = Modifier.semantics { stateDescription = level.expandedLabel },
+        ) {
+            level.header(this)
+            trailing {
+                val slot = this
+                Box(Modifier.graphicsLayer { rotationZ = turn * level.progress.value.coerceIn(0f, 1f) }) {
+                    with(slot) { +SystemIcons.ChevronForward }
+                }
+            }
+        }
+        MenuDivider()
+        MenuScopeImpl(this, onDismissRequest).(level.content)()
+    }
+}
+
+/**
+ * How much of the scrim a level under an open one is dimmed by, and how far it
+ * draws back.
+ */
+private const val LevelDim: Float = 0.7f
+private const val LevelRecede: Float = 0.03f
+
+/** How much of a level's growth it fades in over, and of its closing it fades out over. */
+private const val LevelFadeShare: Float = 0.3f
+
+/** Room round a fading level for its shadow, which the fade would otherwise cut off. */
+private val LevelShadowRoom = 32.dp
+
+/**
+ * The submenus open in place over a menu, innermost last. Provided by the menu's
+ * panel on touch, where [SubMenu] opens into it rather than beside its row.
+ */
+@Stable
+internal class MenuLevels {
+    val open = mutableStateListOf<MenuLevel>()
+    var root: LayoutCoordinates? = null
+    lateinit var scope: CoroutineScope
+    var motion: Motion = kontourMotion(reduceMotion = false)
+
+    fun push(level: MenuLevel) {
+        if (open.any { it.key == level.key }) return
+        open += level
+        scope.launch {
+            level.progress.animateTo(
+                1f,
+                if (motion.reduceMotion) motion.tweenFast() else motion.springOrTween(motion.springDefault),
+            )
+        }
+    }
+
+    /** Closes [level] and every level over it. */
+    fun close(level: MenuLevel) {
+        val index = open.indexOf(level)
+        if (index < 0) return
+        val closing = open.subList(index, open.size).filter { !it.closing }
+        if (closing.isEmpty()) return
+        closing.forEach { it.closing = true }
+        scope.launch {
+            closing.map { launch { it.progress.animateTo(0f, motion.tweenFast()) } }.joinAll()
+            open.removeAll(closing)
+        }
+    }
+
+    fun closeTop() {
+        open.lastOrNull { !it.closing }?.let(::close)
+    }
+}
+
+/**
+ * One submenu open in place: where its row was in the menu, and what to draw.
+ * [rowTop] and [rowHeight] include the row's inset, so the level's own first row
+ * lands exactly on it.
+ */
+internal class MenuLevel(
+    val key: Any,
+    val rowTop: Float,
+    val rowHeight: Float,
+    val expandedLabel: String,
+    val header: ListItemScope.() -> Unit,
+    val content: @Composable MenuScope.() -> Unit,
+) {
+    val progress = Animatable(0f)
+    var closing by mutableStateOf(false)
+}
+
+/** The in-place levels of the menu a row is in, or null where submenus cascade. */
+internal val LocalMenuLevels = staticCompositionLocalOf<MenuLevels?> { null }
+
+private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
  * One row in a menu.
@@ -376,78 +687,102 @@ fun MenuItem(
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
 
+    // One shape for the clip and the indication, remembered.
+    //
+    // It was the same expression written twice, and `inset` returns a fresh
+    // `SquircleShape` through `copy` — so a menu row built two of them per
+    // recomposition and handed each to a different node. See `SquirclePaths`.
+    val panelShape = Theme.shapes.container
+    val rowInset = Theme.spacing.xxs
+    val rowShape = remember(panelShape, rowInset) { panelShape.inset(rowInset) }
+
     val contentColour = when {
         !enabled -> colours.contentDisabled
         destructive -> colours.danger.solid
         else -> colours.content
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                role = when {
-                    multiple -> Role.Checkbox
-                    selected -> Role.RadioButton
-                    else -> Role.Button
+    DisableSelection {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    role = when {
+                        multiple -> Role.Checkbox
+                        selected -> Role.RadioButton
+                        else -> Role.Button
+                    }
+                    if (selected) this.selected = true
                 }
-                if (selected) this.selected = true
-            }
-            .minimumTouchTarget()
-            .padding(horizontal = Theme.spacing.xxs)
-            .clip(Theme.shapes.container.inset(Theme.spacing.xxs))
-            .pointerCursor(enabled = enabled)
-            .clickable(
-                interactionSource = interactions,
-                // A menu row is a big target; scaling it makes the whole menu
-                // look like it is wobbling.
-                indication = kontourIndication(
-                    Theme.shapes.container.inset(Theme.spacing.xxs),
-                    pressScale = 1f,
-                ),
-                enabled = enabled,
-                onClick = onClick,
-            )
-            .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val muted = if (enabled) colours.contentMuted else colours.contentDisabled
+                // `fill`, so the row that lights up is the row the finger gets.
+                //
+                // No horizontal inset of its own either. The panel already pads by
+                // `xxs` on all four sides, and this used to add a second `xxs`
+                // across — so a row's highlight sat 8dp inside the panel at the
+                // sides and 4dp at the top and bottom. Removing that inset was only
+                // half the fix and made the other half visible: a reserved target
+                // *centres* its content, so on a phone the highlight was a 36dp row
+                // in a 48dp slot and the margins read 4dp at the sides against 10dp
+                // top and bottom — the same complaint, the other way round. Filling
+                // the target puts all four at 4dp and makes the row 48dp tall,
+                // which is what it was always claiming to be.
+                //
+                // It also fixes the corner: `inset(xxs)` is the concentric radius
+                // for a 4dp inset, and now every side really is at 4.
+                .minimumTouchTarget(fill = true)
+                .clip(rowShape)
+                // Inside the row: the panel clips anything drawn around it.
+                .insetFocusRing(interactions, rowShape, enabled)
+                .pointerCursor(enabled = enabled)
+                .clickable(
+                    interactionSource = interactions,
+                    // A menu row is a big target; scaling it makes the whole menu
+                    // look like it is wobbling.
+                    indication = kontourIndication(rowShape, pressScale = 1f),
+                    enabled = enabled,
+                    onClick = onClick,
+                )
+                .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val muted = if (enabled) colours.contentMuted else colours.contentDisabled
 
-        slots.leading?.let { leading ->
-            ProvideContentColour(contentColour) {
-                ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
-            }
-        }
-
-        Box(Modifier.weight(1f)) {
-            slots.label?.let { label ->
+            slots.leading?.let { leading ->
                 ProvideContentColour(contentColour) {
-                    ProvideTextStyle(Theme.typography.bodyMedium) {
-                        ContentSlot(maxLines = 1, content = label)
+                    ContentSlot(iconSize = Theme.sizing.iconMedium, content = leading)
+                }
+            }
+
+            Box(Modifier.weight(1f)) {
+                slots.label?.let { label ->
+                    ProvideContentColour(contentColour) {
+                        ProvideTextStyle(Theme.typography.bodyMedium) {
+                            ContentSlot(maxLines = 1, content = label)
+                        }
                     }
                 }
             }
-        }
 
-        slots.trailing?.let { trailing ->
-            ProvideContentColour(muted) {
-                ProvideTextStyle(Theme.typography.labelSmall) {
-                    ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+            slots.trailing?.let { trailing ->
+                ProvideContentColour(muted) {
+                    ProvideTextStyle(Theme.typography.labelSmall) {
+                        ContentSlot(iconSize = Theme.sizing.iconSmall, maxLines = 1, content = trailing)
+                    }
                 }
             }
-        }
-        // Reserved for the whole life of a multi-select menu, which stays open
-        // while its ticks come and go: a mark that takes space only when it is
-        // there makes every label in the menu step sideways as the user works
-        // down it. A single-select menu closes on the choice, so the slot is
-        // only worth reserving on the row that has one.
-        if (multiple || selected) {
-            AnimatedCheckMark(
-                checked = selected,
-                colour = if (enabled) colours.accent.solid else colours.contentDisabled,
-                size = Theme.sizing.iconSmall,
-            )
+            // Reserved for the whole life of a multi-select menu, which stays open
+            // while its ticks come and go: a mark that takes space only when it is
+            // there makes every label in the menu step sideways as the user works
+            // down it. A single-select menu closes on the choice, so the slot is
+            // only worth reserving on the row that has one.
+            if (multiple || selected) {
+                AnimatedCheckMark(
+                    checked = selected,
+                    colour = if (enabled) colours.accent.solid else colours.contentDisabled,
+                    size = Theme.sizing.iconSmall,
+                )
+            }
         }
     }
 }
@@ -473,7 +808,7 @@ fun MenuDivider(modifier: Modifier = Modifier) {
 @Composable
 fun MenuSectionHeader(
     modifier: Modifier = Modifier,
-    content: @Composable ContentScope.() -> Unit,
+    title: @Composable ContentScope.() -> Unit,
 ) {
     Box(
         modifier.padding(
@@ -485,7 +820,7 @@ fun MenuSectionHeader(
     ) {
         ProvideTextStyle(Theme.typography.labelSmall) {
             ProvideContentColour(Theme.colours.contentMuted) {
-                ContentSlot(iconSize = Theme.sizing.iconSmall, content = content)
+                ContentSlot(iconSize = Theme.sizing.iconSmall, content = title)
             }
         }
     }
@@ -500,6 +835,8 @@ fun MenuSectionHeader(
  *     MenuItem(onClick = ::sortByDuration, selected = sort == Duration) { +"Duration" }
  * }
  * ```
+ *
+ * An icon goes in the label, `leading { +icon }`, as on a [MenuItem].
  *
  * Opens on hover for a mouse and on tap for a finger, which is the difference
  * that makes nested menus usable on touch at all — hover-only submenus are
@@ -516,13 +853,23 @@ fun SubMenu(
     label: ListItemScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: ImageVector? = null,
+    interactionSource: MutableInteractionSource? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
+    val levels = LocalMenuLevels.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // Right opens a submenu and left comes back out of it, mirrored right to left.
+    val forward = if (rtl) Key.DirectionLeft else Key.DirectionRight
+    val back = if (rtl) Key.DirectionRight else Key.DirectionLeft
+    if (levels != null) {
+        InPlaceSubMenuRow(label, modifier, enabled, interactionSource, content, levels, forward)
+        return
+    }
     var open by remember { mutableStateOf(false) }
     var openedByHover by remember { mutableStateOf(false) }
+    val rowFocus = remember { FocusRequester() }
     var bounds by remember { mutableStateOf<Rect?>(null) }
-    val interactions = remember { MutableInteractionSource() }
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val panelInteractions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
     val panelHovered by panelInteractions.collectIsHoveredAsState()
@@ -566,39 +913,224 @@ fun SubMenu(
                 open = !open
                 openedByHover = false
             },
-            modifier = modifier,
+            modifier = modifier
+                .focusRequester(rowFocus)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == forward && enabled) {
+                        open = true
+                        openedByHover = false
+                        true
+                    } else {
+                        false
+                    }
+                },
             enabled = enabled,
             interactionSource = interactions,
         ) {
             label()
-            if (leadingIcon != null) leading { +leadingIcon }
             trailing { +SystemIcons.ChevronForward }
         }
     }
 
-    AnchoredDropdownMenu(
-        visible = open && enabled,
-        anchor = bounds,
-        onDismissRequest = { open = false },
-        modifier = Modifier.hoverable(panelInteractions),
-        side = OverlaySide.End,
-        alignment = OverlayAlignment.Start,
-        // No scrim of its own, unlike every other menu — and this is the whole
-        // reason hover-to-open works at all.
-        //
-        // `ScrimStyle.Transparent` blocks pointer input across the entire host,
-        // which is right for a menu opened from the page: a click outside should
-        // close it rather than land on whatever was underneath. A submenu is
-        // already inside a menu that is doing exactly that, so its own scrim adds
-        // no protection — it only covers the parent menu, including the row the
-        // submenu opened from. The pointer resting on that row would then be
-        // hovering the scrim instead, the row would go cold, the submenu would
-        // close, and its scrim would go with it — putting the pointer back on the
-        // row. A submenu that blinks on and off for as long as you look at it.
-        scrim = ScrimStyle.None,
-        content = content,
-    )
+    WithAnchor({ bounds }) { anchor ->
+        AnchoredDropdownMenu(
+            visible = open && enabled,
+            anchor = anchor,
+            onDismissRequest = { open = false },
+            modifier = Modifier
+                .hoverable(panelInteractions)
+                // Left, from anywhere in it, is back to the row it came from.
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == back) {
+                        open = false
+                        runCatching { rowFocus.requestFocus() }
+                        true
+                    } else {
+                        false
+                    }
+                },
+            side = OverlaySide.End,
+            alignment = OverlayAlignment.Start,
+            // No scrim of its own, unlike every other menu — and this is the whole
+            // reason hover-to-open works at all.
+            //
+            // `ScrimStyle.Transparent` blocks pointer input across the entire host,
+            // which is right for a menu opened from the page: a click outside should
+            // close it rather than land on whatever was underneath. A submenu is
+            // already inside a menu that is doing exactly that, so its own scrim adds
+            // no protection — it only covers the parent menu, including the row the
+            // submenu opened from. The pointer resting on that row would then be
+            // hovering the scrim instead, the row would go cold, the submenu would
+            // close, and its scrim would go with it — putting the pointer back on the
+            // row. A submenu that blinks on and off for as long as you look at it.
+            scrim = ScrimStyle.None,
+            content = content,
+        )
+    }
 }
+
+/**
+ * A [SubMenu]'s row where submenus open in place: a tap, Enter or Right opens its
+ * level over the row.
+ */
+@Composable
+private fun InPlaceSubMenuRow(
+    label: ListItemScope.() -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    content: @Composable MenuScope.() -> Unit,
+    levels: MenuLevels,
+    forward: Key,
+) {
+    val key = remember { Any() }
+    var row by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val inset = with(LocalDensity.current) { Theme.spacing.xxs.toPx() }
+    val expanded = Theme.strings.expanded
+    val currentLabel by rememberUpdatedState(label)
+    val currentContent by rememberUpdatedState(content)
+    fun openLevel() {
+        val here = row?.takeIf { it.isAttached } ?: return
+        val root = levels.root?.takeIf { it.isAttached } ?: return
+        val top = root.localPositionOf(here, Offset.Zero).y
+        levels.push(
+            MenuLevel(
+                key = key,
+                rowTop = top - inset,
+                rowHeight = here.size.height + inset * 2,
+                expandedLabel = expanded,
+                header = currentLabel,
+                content = { currentContent() },
+            )
+        )
+    }
+    MenuItem(
+        onClick = ::openLevel,
+        modifier = modifier
+            .onGloballyPositioned { row = it }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == forward && enabled) {
+                    openLevel()
+                    true
+                } else {
+                    false
+                }
+            },
+        enabled = enabled,
+        interactionSource = interactionSource,
+    ) {
+        label()
+        trailing { +SystemIcons.ChevronForward }
+    }
+}
+
+/**
+ * Two to four actions side by side, an icon over a word each — the row across
+ * the top of an iOS menu, for the actions used most.
+ *
+ * ```kotlin
+ * MenuActionRow {
+ *     action("Copy", Tabler.Outline.Copy) { copy(stop) }
+ *     action("Share", Tabler.Outline.Share) { share(stop) }
+ * }
+ * ```
+ *
+ * For a menu built from the composables. In a [DropdownMenu]'s builder,
+ * [MenuScope.actionRow] is the same row and closes the menu as each action runs;
+ * this one leaves that to [MenuActionRowScope.action]'s `onClick`. The arrow keys
+ * walk along it.
+ */
+@Composable
+fun MenuActionRow(modifier: Modifier = Modifier, filled: Boolean = false, content: MenuActionRowScope.() -> Unit) {
+    MenuActionCells(MenuActionRowScope().apply(content).actions, modifier, filled) { it.onClick() }
+}
+
+/**
+ * The cells of an action row, each running [run] with its action — on a sunken
+ * ground of its own when [filled], and on the menu's otherwise, which is the
+ * default: asked for from a phone as the buttons having "no background".
+ */
+@Composable
+internal fun MenuActionCells(actions: List<MenuAction>, modifier: Modifier, filled: Boolean, run: (MenuAction) -> Unit) {
+    require(actions.size in 1..MaxActions) {
+        "A menu's action row holds two to four actions, not ${actions.size}: past four each word has too " +
+            "little of the menu's width to be read, and one is an item."
+    }
+    val cells = remember(actions.size) { List(actions.size) { FocusRequester() } }
+    var focused by remember { mutableStateOf(-1) }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val colours = Theme.colours
+    val panelShape = Theme.shapes.container
+    val inset = Theme.spacing.xxs
+    val cellShape = remember(panelShape, inset) { panelShape.inset(inset) }
+    val edge = contrastEdge()
+    DisableSelection {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(bottom = Theme.spacing.xxs)
+                .focusGroup()
+                // Along the row, the way the arrow points: the next cell is to the
+                // left right to left.
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || focused < 0) return@onPreviewKeyEvent false
+                    val step = when (event.key) {
+                        Key.DirectionRight -> if (rtl) -1 else 1
+                        Key.DirectionLeft -> if (rtl) 1 else -1
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    val next = focused + step
+                    if (next in cells.indices) runCatching { cells[next].requestFocus() }
+                    true
+                },
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+        ) {
+            actions.forEachIndexed { index, action ->
+                val interactions = remember { MutableInteractionSource() }
+                val tint = when {
+                    !action.enabled -> colours.contentDisabled
+                    action.destructive -> colours.danger.solid
+                    else -> colours.content
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .minimumTouchTarget(fill = true)
+                        .clip(cellShape)
+                        .then(if (filled) Modifier.background(colours.surfaceSunken) else Modifier)
+                        // Edged at the enhanced tier either way, as a ghost button is.
+                        .optionalBorder(edge, cellShape)
+                        .focusRequester(cells[index])
+                        .onFocusChanged { if (it.isFocused) focused = index else if (focused == index) focused = -1 }
+                        .insetFocusRing(interactions, cellShape, action.enabled)
+                        .pointerCursor(enabled = action.enabled)
+                        .clickable(
+                            interactionSource = interactions,
+                            indication = kontourIndication(cellShape, pressScale = 1f),
+                            enabled = action.enabled,
+                            role = Role.Button,
+                            onClick = { run(action) },
+                        )
+                        .padding(vertical = Theme.spacing.xs, horizontal = Theme.spacing.xxs),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                ) {
+                    Icon(imageVector = action.icon, contentDescription = null, tint = tint, size = Theme.sizing.iconMedium)
+                    Text(
+                        text = action.label,
+                        style = Theme.typography.labelSmall.copy(textAlign = TextAlign.Center),
+                        colour = tint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The most actions an action row holds. */
+private const val MaxActions: Int = 4
 
 /**
  * Wraps [content] so that a right-click — or a long press on touch — opens
@@ -625,7 +1157,12 @@ fun SubMenu(
  */
 @Composable
 fun ContextMenuArea(
-    menu: @Composable ColumnScope.() -> Unit,
+    /**
+     * The menu, with the same scope a [DropdownMenu]'s content has — so `item`,
+     * the shorthand that closes the menu as it runs, works here too. It was a
+     * plain `ColumnScope`, and a context menu was the one menu without it.
+     */
+    menu: @Composable MenuScope.() -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     content: @Composable () -> Unit,
@@ -642,7 +1179,7 @@ fun ContextMenuArea(
     var coordinates by remember {
         mutableStateOf<LayoutCoordinates?>(null)
     }
-    val feedback = LocalFeedback.current
+    val longPressed = rememberLongPressFeedback()
     val modality = LocalInputModality.current
 
     fun openAt(local: Offset) {
@@ -675,7 +1212,7 @@ fun ContextMenuArea(
                 if (!enabled || !modality.needsLargeTargets) return@pointerInput
                 detectTapGestures(
                     onLongPress = { position ->
-                        feedback.perform(FeedbackIntent.LongPress)
+                        longPressed()
                         openAt(position)
                     },
                 )
@@ -694,4 +1231,15 @@ fun ContextMenuArea(
     )
 }
 
-
+/**
+ * The least room a menu opens into, on the side it was asked for, before it tries
+ * the other side: about four and a half rows.
+ *
+ * Reported of the combobox: close to the keyboard, its menu opened below the field
+ * *two rows high* before it would flip above. The floor it was held to was the
+ * popover's — a line of text — and a menu is a list to choose from; two rows of
+ * one is not a list anybody can choose from. The half row is so a reader can see
+ * there is more. Capped at the menu's own height, so a short menu that fits below
+ * still opens below.
+ */
+private val MenuMinimumRoom: Dp = 208.dp

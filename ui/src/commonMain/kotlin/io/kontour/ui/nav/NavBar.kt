@@ -4,583 +4,255 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.a11y.selectionEdge
+import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.elevation
-import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.SurfaceDefaults
+import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.OverlaySide
+import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Shadow
-import io.kontour.ui.adaptive.LocalWindowSizeClass
-import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.theme.Theme
+import kotlin.math.max
+import kotlin.math.roundToInt
 
+/** What a [NavBar] takes by default. */
 object NavBarDefaults {
-    /** How far the row sits in from the window's edges. */
-    val Inset: Dp = 16.dp
+    /** How far the bar's destinations sit in from the window's sides. */
+    val Inset: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.md
 
     /**
-     * The shortest the row can be — whichever is larger of a destination's
-     * circle and the touch target reserved around it.
-     *
-     * It used to be `CircleSize.height + 8.dp`, which described the row's old
-     * padding rather than what actually sets the floor. A destination calls
-     * `minimumTouchTarget()`, so on Android the row cannot measure under 48dp
-     * however small the circle is drawn — and deriving this from a decoration is
-     * how it went wrong the moment the decoration changed.
-     *
-     * A starting estimate only: [NavigationSuiteScaffold] measures the real
-     * height, which grows with the user's type size and with a label under each
-     * icon. It is here so the first frame of a screen does not lay its content
-     * out under a bar of no height at all and then jump.
+     * A destination's circle. 40dp, not the touch target's 48: the circle is
+     * what is seen, and the target around it is reserved without being drawn.
+     */
+    val CircleSize: DpSize
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navCircleSize.let { DpSize(it, it) }
+
+    /**
+     * The shortest the row can be: the larger of a circle and the touch target
+     * around it. A first-frame estimate only — [NavigationSuiteScaffold] measures
+     * the real height, which grows with type size and labels.
      */
     val MinHeight: Dp
-        @Composable get() = maxOf(Theme.sizing.minTouchTarget, NavItemDefaults.CircleSize.height)
+        @Composable @ReadOnlyComposable get() = maxOf(Theme.sizing.minTouchTarget, CircleSize.height)
 
-    /**
-     * The gap between destinations when they are not spread across the window.
-     *
-     * Four. The bar's complaint has always been that its buttons are too far
-     * apart, and on the styles with a surface behind them there is no reason to
-     * spread: a docked bar's shape already says where the navigation is, so the
-     * items can sit together and read as one group.
-     */
+    /** The gap between destinations when they are gathered in the middle. */
     val ItemGap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navBarItemGap
 
     /**
-     * How a bar distributes its children, unless the caller says otherwise.
+     * How a bar spreads its destinations: evenly across a phone's width, and
+     * gathered in the middle on anything wider, where spreading three circles
+     * across 1200dp stops them reading as one bar.
      *
-     * **Width, not style.** This used to be a function of [NavBarStyle] alone —
-     * `Free` spread and the other two grouped — and both halves were wrong at
-     * one end of the size range. Spreading three circles across a 1200dp window
-     * put them so far apart they stopped reading as one bar; grouping them at
-     * 4dp on a phone left a row of buttons huddled in the middle of an empty
-     * strip. The complaint was that `Free` was too loose and the other two too
-     * tight, which is the same complaint twice, from opposite directions.
+     * Moot once a weighted slot is in the row: the slot takes the slack.
      *
-     * A phone has one sensible answer for all three styles: use the width, space
-     * the destinations evenly across it. Anything wider has the opposite one:
-     * take only the room you need and sit in the middle. So the deciding input
-     * is [spans], not the style.
-     *
-     * It stays *derived* rather than becoming a parameter of the style, because
-     * [NavBarStyle]'s own documentation records why this component has one enum
-     * and not two — and a measured width is not something a caller should have
-     * to restate.
-     *
-     * Moot the moment a weighted slot is in the row: the slot takes the slack,
-     * so there is none left for an arrangement to distribute.
-     *
-     * @param spans Whether the bar is using the window's full width, which is
-     *   what a [WindowWidthClass.Compact] window gets.
+     * @param spans Whether the bar has the window's whole width to itself — a
+     *   [WindowWidthClass.Compact] window.
      */
     @Composable
     @ReadOnlyComposable
-    fun arrangementFor(style: NavBarStyle, spans: Boolean): Arrangement.Horizontal =
-        if (spans) {
-            Arrangement.SpaceEvenly
-        } else {
-            Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
-        }
-
-    /**
-     * How tall the fade behind the bar is.
-     *
-     * Enough to cover the destinations and a little of what is above them, so
-     * the content dissolves into the fade rather than meeting a line.
-     */
-    val BackdropHeight: Dp = 128.dp
+    fun arrangementFor(spans: Boolean): Arrangement.Horizontal =
+        if (spans) Arrangement.SpaceEvenly else Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
 }
 
 /**
- * How a [NavBar] presents itself. **A container decision, and only that.**
- *
- * The item's own presentation — circle, label, badge — is derived from the style
- * rather than chosen beside it, and that restraint is the whole reason this is
- * an enum and not two. The bar has been here before: it "used to be three
- * container styles and two item styles — nine combinations, of which the product
- * wanted one". Every one of those nine looked defensible on its own, which is
- * exactly how a matrix gets built. A second axis is the thing to refuse.
+ * How a [NavBar] presents itself. A container decision only: the destinations
+ * are circles either way.
  */
 enum class NavBarStyle {
     /**
-     * Free-standing circles over the page, with nothing behind them.
-     *
-     * The default, and what the app ships. Each circle carries its own
-     * elevation, so the bar works over a map without a surface separating it
-     * from one.
-     */
-    Free,
-
-    /**
-     * One surface spanning the window, sitting on the bottom edge.
-     *
-     * The arrangement most apps use, and the one to reach for when the content
-     * behind the bar is a list rather than a map — a surface that meets the
-     * window's edge is a firmer footing than shapes floating over a scroll.
-     */
-    Docked,
-
-    /**
-     * A capsule inset from every edge, hovering over the content.
-     *
-     * [Docked]'s footing without its commitment: the page runs under it, so it
-     * suits content that should be seen to continue past the bar.
+     * A capsule inset from every edge, hovering over the content — the default.
+     * The page runs under it, so it suits content that should be seen to
+     * continue past the bar, and it hugs its destinations on a wide window.
      */
     Floating,
+
+    /**
+     * One surface along the bottom edge, the window's full width. A firmer
+     * footing when the content behind the bar is a list rather than a map.
+     */
+    Docked,
 }
 
 /**
- * What goes in a [NavBar], in the order it goes in.
- *
- * Two primitives, because two is what the cases need. [item] is a destination —
- * it takes part in the selection marker and the screen reader's count of them.
- * [slot] is everything else, and its [slot]'s `weight` is Compose's own `Row`
- * vocabulary rather than a private one: at zero it is sized to its content, and
- * above zero it takes that share of whatever is left over.
+ * The primary navigation on a phone. **Goes at the bottom of the screen.**
  *
  * ```kotlin
- * NavBar(style = NavBarStyle.Docked, selectedIndex = current) {
- *     item(home)
- *     item(browse)
- *     slot(weight = 1f) { SearchField(query, placeholder = "Search") }
- *     item(orders)
- *     item(account)
+ * NavBar {
+ *     item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *     item(here == Map, { go(Map) }, key = Map, icon = Tabler.Outline.Map) { +"Map" }
+ *     item(here == Saved, { go(Saved) }, key = Saved, icon = Tabler.Outline.Star) { +"Saved" }
  * }
  * ```
  *
- * That replaces `search` and `searchIndex`, whose own documentation predicted
- * this: "an index rather than a builder… worth revisiting if the index proves
- * too blunt". It did. An index can put one thing in one place; it cannot say
- * that the search should be twice the width of the wide button beside it, or
- * that two destinations should be pushed to the far edge by an empty
- * `slot(weight = 1f) {}`.
- */
-@Stable
-@LayoutScopeMarker
-interface NavBarScope {
-
-    /**
-     * One destination.
-     *
-     * `selectedIndex` counts **these and nothing else**, so putting a search in
-     * the middle of a bar does not shift the index of the items after it. That
-     * is the trap an entry list of one type would set.
-     */
-    fun item(item: NavItem)
-
-    /**
-     * Anything that is not a destination: a search field, a wide button, an
-     * avatar, a floating action.
-     *
-     * Outside the destinations' `selectableGroup`, so a screen reader does not
-     * announce a search field as "4 of 4" among three places to go.
-     *
-     * @param weight Zero — the default — sizes it to its content. Above zero it
-     *   takes that share of the room the fixed children leave, which is what a
-     *   search field wants and what makes an empty slot a spacer.
-     */
-    fun slot(weight: Float = 0f, content: @Composable () -> Unit)
-}
-
-internal sealed interface NavBarEntry
-
-internal data class NavBarDestination(val item: NavItem) : NavBarEntry
-
-internal class NavBarSlotEntry(
-    val weight: Float,
-    val content: @Composable () -> Unit,
-) : NavBarEntry
-
-internal class NavBarScopeImpl : NavBarScope {
-    val entries = mutableListOf<NavBarEntry>()
-
-    override fun item(item: NavItem) {
-        entries += NavBarDestination(item)
-    }
-
-    override fun slot(weight: Float, content: @Composable () -> Unit) {
-        entries += NavBarSlotEntry(weight, content)
-    }
-}
-
-/**
- * The primary navigation surface on a phone. **Goes at the bottom of the
- * screen.**
+ * Each destination is a circle; one marker travels between them. The content is
+ * a [NavBarScope]: destinations are [NavScope.item]s, a [NavScope.group] is a
+ * circle that opens a menu of its children above the bar, sections run inline
+ * and dividers are left out, and [NavBarScope.slot] holds anything that is not a
+ * destination — a search, a floating action.
  *
- * Free-standing circles, one per destination, floating over whatever the screen
- * is showing. No bar behind them.
- *
- * ```kotlin
- * NavBar(
- *     items = destinations,
- *     selectedIndex = current,
- *     search = { SearchField(state, placeholder = "Search") },
- * )
- * ```
- *
- * Why there is no bar, and how the travelling marker works, are on the
- * navigation page: `ui-docs/content/components/navigation.md`.
- *
- * This used to be three container styles and two item styles — nine
- * combinations, of which the product wanted one. It is one now, and that is
- * worth leaving written down: every one of those styles looked defensible on
- * its own.
- *
+ * @param style [NavBarStyle.Floating], a capsule over the content, or
+ *   [NavBarStyle.Docked], a surface along the bottom edge.
  * @param showLabels Off by default. A word under every icon is a row of words,
- *   and the destinations of an app this size are the four or five its user
- *   already knows. Turn it on for an app whose icons are not obvious.
- * @param backdrop A vertical fade from transparent to the page colour behind
- *   the whole row. Each circle carries its own elevation, which separates it
- *   from a map; over a photo or a promotional banner it does not.
- * @param search Its own shape in the row, sized to what is left. Outside
- *   `selectableGroup()`, so a screen reader does not announce it as "4 of 4"
- *   among three destinations.
- * @param action A trailing control — a FAB, usually. Also outside the group.
+ *   and the few destinations of a bar are ones its user already knows. Hidden
+ *   labels are still announced.
+ * @param arrangement How the row distributes its children. Null derives it from
+ *   the window's width: see [NavBarDefaults.arrangementFor].
  */
 @Composable
 fun NavBar(
-    items: List<NavItem>,
-    selectedIndex: Int,
     modifier: Modifier = Modifier,
-    style: NavBarStyle = NavBarStyle.Free,
+    style: NavBarStyle = NavBarStyle.Floating,
     showLabels: Boolean = false,
-    containerColour: Color = Theme.colours.surface,
-    contentColour: Color = Theme.colours.content,
-    indicatorColour: Color = Theme.colours.accent.container,
-    backdrop: Boolean = false,
-    backdropColour: Color = Theme.colours.background,
-    indicatorSize: DpSize = NavItemDefaults.CircleSize,
-    labelGap: Dp = Theme.spacing.xxs,
-    search: (@Composable () -> Unit)? = null,
-    /**
-     * Where [search] sits among the items.
-     *
-     * `null` — the default — puts it after all of them. An index puts it
-     * *between* two: `items.size / 2` is the middle, which is the arrangement a
-     * map app wants, with destinations either side of the thing people actually
-     * came to do.
-     *
-     * An index because [NavigationSuiteScaffold] hands the bar, the rail and the
-     * drawer one `List<NavItem>` and expects all three to show the same list.
-     * That constraint is real and this overload keeps it; the [NavBarScope]
-     * overload below is where a bar arranges itself freely, and this one is
-     * written in terms of it.
-     */
-    searchIndex: Int? = null,
-    action: (@Composable () -> Unit)? = null,
+    colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
+    content: @Composable NavBarScope.() -> Unit,
 ) {
-    NavBar(
-        selectedIndex = selectedIndex,
+    NavBarLayout(
         modifier = modifier,
         style = style,
         showLabels = showLabels,
-        containerColour = containerColour,
-        contentColour = contentColour,
-        indicatorColour = indicatorColour,
-        backdrop = backdrop,
-        backdropColour = backdropColour,
-        indicatorSize = indicatorSize,
-        labelGap = labelGap,
+        colours = colours,
         arrangement = arrangement,
         windowInsets = windowInsets,
-    ) {
-        items.forEachIndexed { index, destination ->
-            if (search != null && searchIndex == index) slot(weight = 1f) { search() }
-            item(destination)
-        }
-        if (search != null && searchIndex == null) slot(weight = 1f) { search() }
-        if (action != null) slot { action() }
-    }
+        search = null,
+        searchIndex = null,
+        content = content,
+    )
 }
 
 /**
- * The primary navigation surface on a phone, arranged by the caller.
- *
- * ```kotlin
- * NavBar(style = NavBarStyle.Docked, selectedIndex = current) {
- *     item(home)
- *     item(browse)
- *     slot(weight = 1f) { SearchField(query, placeholder = "Search") }
- *     item(orders)
- *     item(account)
- * }
- * ```
- *
- * See [NavBarScope] for what goes in it and [NavBarStyle] for how it presents
- * itself. The `List<NavItem>` overload above is this one with the list laid out
- * left to right, and is what [NavigationSuiteScaffold] drives so that the bar,
- * the rail and the drawer keep showing the same destinations.
- *
- * @param selectedIndex Counts `item`s and nothing else, so a slot in the middle
- *   does not shift the indices of the destinations after it.
- * @param showLabels Off by default. A word under every icon is a row of words,
- *   and the destinations of an app this size are the four or five its user
- *   already knows. Turn it on for an app whose icons are not obvious.
- * @param backdrop A vertical fade from transparent to the page colour behind the
- *   whole row. A [NavBarStyle.Free] concern only: the other two styles have a
- *   surface, which is what a backdrop is standing in for.
- * @param arrangement How the row distributes its children. Null — the default —
- *   derives it from the window's width: see [NavBarDefaults.arrangementFor]. It
- *   cannot be a default *value*, because the answer depends on a measurement
- *   that is not in scope where a default is written.
+ * The bar, with a search placed among its destinations by counting them: after
+ * [searchIndex] of them, or after all of them when [searchIndex] is null or at
+ * or past their number. Counted as the row is measured rather than as it is
+ * composed, so a destination shown or hidden later cannot move the search out of
+ * its place.
  */
 @Composable
-fun NavBar(
-    selectedIndex: Int,
-    modifier: Modifier = Modifier,
-    style: NavBarStyle = NavBarStyle.Free,
-    showLabels: Boolean = false,
-    containerColour: Color = Theme.colours.surface,
-    contentColour: Color = Theme.colours.content,
-    indicatorColour: Color = Theme.colours.accent.container,
-    backdrop: Boolean = false,
-    backdropColour: Color = Theme.colours.background,
-    indicatorSize: DpSize = NavItemDefaults.CircleSize,
-    labelGap: Dp = Theme.spacing.xxs,
-    arrangement: Arrangement.Horizontal? = null,
-    windowInsets: WindowInsets = WindowInsets.bottomEdges,
-    content: NavBarScope.() -> Unit,
+internal fun NavBarLayout(
+    modifier: Modifier,
+    style: NavBarStyle,
+    showLabels: Boolean,
+    colours: NavColours,
+    arrangement: Arrangement.Horizontal?,
+    windowInsets: WindowInsets,
+    search: (@Composable () -> Unit)?,
+    searchIndex: Int?,
+    content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
-    val entries = NavBarScopeImpl().also(content).entries
-
-    // The fade is *drawn*, not laid out.
-    //
-    // It used to be a 128dp sibling `Box` inside this one, which made the whole
-    // component 128dp tall whenever `backdrop` was on — and since the `Row`
-    // carried no alignment it then sat at the top of that box rather than at the
-    // bottom. [NavigationSuiteScaffold] measures this component and hands its
-    // height to the screen as padding, so turning the backdrop on inset the
-    // content by 128dp and lifted the destinations away from the edge.
-    //
-    // Reaching above the node's own bounds is the point: the fade has to start
-    // well over the row it stands behind, and nothing here clips.
-    val backdropHeight = with(LocalDensity.current) { NavBarDefaults.BackdropHeight.toPx() }
-    val fade = if (backdrop && style == NavBarStyle.Free) {
-        // `drawWithCache`, not `drawBehind`: a `Brush` built inside the draw
-        // block is rebuilt on every frame, and a vertical gradient carries a
-        // shader that has to be recreated with it.
-        Modifier.drawWithCache {
-            val top = size.height - backdropHeight
-            val brush = Brush.verticalGradient(
-                colors = listOf(Color.Transparent, backdropColour),
-                startY = top,
-                endY = size.height,
-            )
-            val topLeft = Offset(0f, top)
-            val area = Size(size.width, backdropHeight)
-            onDrawBehind { drawRect(brush = brush, topLeft = topLeft, size = area) }
-        }
-    } else {
-        Modifier
-    }
-
-    // Only the free style's items paint their own circles. The other two have a
-    // surface behind them doing that job, and an item painting over it is a
-    // second ground on top of the first — which is also what would hide the
-    // travelling marker.
-    val itemContainer = if (style == NavBarStyle.Free) containerColour else Color.Transparent
-
+    val keys = remember { NavKeys() }
+    val circle = NavBarDefaults.CircleSize
+    val labelGap = Theme.spacing.xxs
 
     // A phone spans; anything wider takes only the room it needs.
-    //
-    // `Compact` is the line because it is the same line the rest of the library
-    // draws — below it there is no room for a rail beside the content, which is
-    // exactly the case where the bar is the whole of the navigation and should
-    // use the whole of the width.
     val spans = LocalWindowSizeClass.current.width == WindowWidthClass.Compact
-    val rowArrangement = arrangement ?: NavBarDefaults.arrangementFor(style, spans)
-    // Only the floating pill's *width* changes. Everywhere else the row still
-    // fills and the arrangement decides: `SpaceEvenly` spreads across the window
-    // on a phone, `spacedBy(…, CenterHorizontally)` gathers the destinations in
-    // the middle on anything wider. Both need the slack, so taking `fillMaxWidth`
-    // away is what makes an arrangement do nothing at all — the first attempt at
-    // this bunched every bar against its leading edge.
-    val hug = if (spans) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()
+    val rowArrangement = arrangement ?: NavBarDefaults.arrangementFor(spans)
+    val hug = style == NavBarStyle.Floating && !spans
 
-    // Only the floating pill's row wraps. `wrapContentWidth` on the surface is
-    // not enough on its own — it does not *constrain* its child, so a row still
-    // asking to fill expands to the incoming maximum and the pill goes with it.
-    // The row is where the width has to be decided.
-    val rowWidth = if (style == NavBarStyle.Floating) hug else Modifier.fillMaxWidth()
+    // A new scope when anything it draws with changes: the destinations are
+    // composed from inside it, and a scope that changed in place would leave
+    // them skipped with the old values.
+    val scope = remember(keys, showLabels, colours, circle, labelGap) {
+        BarScope(keys, showLabels, colours, circle, labelGap)
+    }
 
     @Composable
-    fun BarRow(rowModifier: Modifier) {
+    fun Destinations(rowModifier: Modifier) {
         SelectionIndicatorBox(
             state = indicator,
-            // The circle *is* the marker, so it is sized to the glyph rather
-            // than to the item — otherwise it stretches to take in a label
-            // underneath and stops being a circle.
+            // The circle is the marker, sized to the glyph rather than the
+            // destination, and against the top when a label hangs under it.
             sizing = IndicatorSizing.Fixed(
-                width = indicatorSize.width,
-                height = indicatorSize.height,
-                // Against the top when there is a label below the icon: the
-                // circle marks the glyph, and centring it on the whole item
-                // drops it into the gap between the icon and the word.
+                width = circle.width,
+                height = circle.height,
                 verticalBias = if (showLabels) 0f else 0.5f,
             ),
             modifier = rowModifier,
             indicator = {
-                // The same corner the destination's own glyph draws, derived
-                // rather than restated — see `navItemShape`. Written out here as
-                // `Theme.shapes.capsule` it disagreed with the glyph's `pill` on
-                // exactly the box they share.
-                val markerShape = navItemShape(indicatorSize)
-                // Remembered for the reason `Surface` is: a fresh `dropShadow`
-                // lambda per recomposition is a shadow re-rasterised per
-                // recomposition, and this one is drawn once per item.
-                val markerShadow = Theme.elevation.low
-                val raised = remember(markerShadow, markerShape) {
-                    Modifier.elevation(markerShadow, markerShape)
-                }
+                // No shadow: the bar is the raised thing, and a marker casting
+                // its own inside it is a second surface on the first.
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .then(raised)
-                        .clip(markerShape)
-                        .background(indicatorColour)
+                        .clip(navItemShape(circle))
+                        .background(colours.indicator)
+                        .optionalBorder(selectionEdge(), navItemShape(circle))
                 )
             },
         ) {
-            Row(
-                modifier = rowWidth.selectableGroup(),
-                horizontalArrangement = rowArrangement,
-                verticalAlignment = Alignment.CenterVertically,
+            BarRow(
+                arrangement = rowArrangement,
+                fill = !hug,
+                searchIndex = searchIndex,
+                slotsCentred = !showLabels,
+                modifier = Modifier.selectableGroup(),
             ) {
-                var ordinal = 0
-                entries.forEach { entry ->
-                    when (entry) {
-                        is NavBarDestination -> {
-                            val index = ordinal++
-                            NavBarItem(
-                                item = entry.item,
-                                selected = index == selectedIndex,
-                                showLabel = showLabels,
-                                // Only the *unselected* circles paint
-                                // themselves: an item's own background draws
-                                // over the marker behind it, so the selected
-                                // one has to be the travelling circle or the
-                                // marker is invisible.
-                                containerColour = if (index == selectedIndex) {
-                                    Color.Transparent
-                                } else {
-                                    itemContainer
-                                },
-                                contentColour = contentColour,
-                                indicatorSize = indicatorSize,
-                                labelGap = labelGap,
-                                shadow = style == NavBarStyle.Free,
-                            )
-                        }
-
-                        is NavBarSlotEntry -> if (entry.weight > 0f) {
-                            // `propagateMinConstraints`, so the slot's content
-                            // is *given* the width rather than merely offered
-                            // it. Without it a search pill wrapped its own
-                            // content and sat at the start of the space it had
-                            // been handed.
-                            Box(
-                                modifier = Modifier.weight(entry.weight),
-                                propagateMinConstraints = true,
-                            ) {
-                                BarSlot(entry.content)
-                            }
-                        } else {
-                            // Aligned to the *icons*, not to the row. With
-                            // `showLabels` the items grow a word taller, so
-                            // centring a trailing action in the row dropped it
-                            // half a label below the icons it sits beside.
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.Top)
-                                    .height(indicatorSize.height),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                BarSlot(entry.content)
-                            }
-                        }
-                    }
+                scope.content()
+                if (search != null) {
+                    Box(Modifier.layoutId(BarChild.Search), propagateMinConstraints = true) { BarSlot(search) }
                 }
             }
         }
     }
 
     when (style) {
-        // No surface at all: shapes with air around them, so the row moves *up*
-        // by the inset rather than growing into it.
-        NavBarStyle.Free -> Box(
-            modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            BarRow(
-                Modifier
-                    .fillMaxWidth()
-                    .then(fade)
-                    .windowInsetsPadding(windowInsets)
-                    // Horizontal only. Every destination reserves
-                    // `Theme.sizing.minTouchTarget` and draws a smaller circle
-                    // inside it, so the air above and below is already there.
-                    .padding(horizontal = NavBarDefaults.Inset)
-            )
-        }
-
         // The surface reaches the window's edge and the insets are applied
-        // inside it, so its colour runs under the gesture bar rather than
-        // stopping short of it.
-        NavBarStyle.Docked -> Surface(
+        // inside it, so its colour runs under the gesture bar.
+        NavBarStyle.Docked -> BarGround(
             modifier = modifier.fillMaxWidth(),
-            colour = containerColour,
-            contentColour = contentColour,
+            shape = RectangleShape,
+            colours = colours,
             shadow = Theme.elevation.low,
         ) {
-            BarRow(
+            Destinations(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(windowInsets)
-                    // Vertical too, unlike the free style. A destination's own
-                    // touch target already carries air above and below it, which
-                    // is enough when there is nothing behind it — but a surface
-                    // wrapping that air sits skin-tight against it, and with
-                    // labels on the words touch the bar's own edge.
-                    .padding(
-                        horizontal = NavBarDefaults.Inset,
-                        vertical = Theme.spacing.xs,
-                    )
+                    .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs)
             )
         }
 
-        // Inset from every edge, so the page is visibly continuing underneath.
+        // Inset from every edge, so the page visibly continues underneath.
         NavBarStyle.Floating -> Box(
             modifier
                 .fillMaxWidth()
@@ -588,99 +260,284 @@ fun NavBar(
                 .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
-            // The pill itself hugs, not just the row inside it — a floating bar
-            // stretched to the window's width is a docked bar with a gap under
-            // it, and the shape is the whole point of the style.
-            Surface(
-                modifier = hug,
-                // A capsule, because it is holding circles — and the arithmetic
-                // rather than the taste is the argument. The items are 40dp
-                // squares on `pill`, so 20dp of radius, with `spacing.xs` above
-                // and below them; a container concentric with those is 20 + 8 =
-                // 28dp, and 28 is exactly half this bar's 56dp height, which is
-                // what `pill` gives it for nothing.
-                //
-                // It was `pill` until it moved to `control`, and round 26 then
-                // capped `control` at `CapsuleCap` underneath it — an 18dp box
-                // around uncapped circles, which is what was reported.
-                // `nav-surfaces.md` has said "a capsule inset from every edge"
-                // throughout; the code drifted out from under the documentation.
-                //
-                // The horizontal padding is `spacing.sm` and does not agree, and
-                // does not have to: on a capsule the horizontal is a straight run
-                // with no corner in it. That mismatch is also why
-                // `ProvideConcentric` has nothing to publish here — it declines
-                // uneven padding on purpose.
+            // A capsule, concentric with the circles it holds: 20dp of their
+            // radius and `xs` around them is half the bar's height.
+            BarGround(
+                modifier = if (hug) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
                 shape = Theme.shapes.pill,
-                colour = containerColour,
-                contentColour = contentColour,
+                colours = colours,
                 shadow = Theme.elevation.high,
             ) {
-                BarRow(
-                    rowWidth.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs)
-                )
+                Destinations(Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs))
+            }
+        }
+    }
+}
+
+/** The bar's surface. */
+@Composable
+private fun BarGround(
+    modifier: Modifier,
+    shape: Shape,
+    colours: NavColours,
+    shadow: Shadow,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier,
+        shape = shape,
+        containerColour = colours.container,
+        contentColour = SurfaceDefaults.contentColour(colours.container),
+        shadow = shadow,
+        // A floating bar is `surface` on `background` with a shadow for an
+        // edge, and those two grounds are 1.00:1 at the enhanced light tier.
+        border = contrastEdge(),
+        content = content,
+    )
+}
+
+/** What a child of the bar's row is, so the row can count destinations and share out room. */
+private sealed interface BarChild {
+    data object Destination : BarChild
+
+    data class Slot(val weight: Float) : BarChild
+
+    data object Search : BarChild
+}
+
+private val Measurable.barChild: BarChild get() = layoutId as? BarChild ?: BarChild.Slot(0f)
+
+private val BarChild.weight: Float
+    get() = when (this) {
+        BarChild.Destination -> 0f
+        is BarChild.Slot -> weight
+        BarChild.Search -> 1f
+    }
+
+/**
+ * A row that is a `Row` with one addition: the search goes directly after the
+ * right number of destinations, wherever it was composed.
+ *
+ * Directly after, and so ahead of any slot that follows them. An index at or
+ * past the count means after the *last destination*, not after everything: the
+ * suite adds its action as a slot after the destinations, and "at the end" used
+ * to put the search behind the action it is supposed to precede.
+ */
+@Composable
+private fun BarRow(
+    arrangement: Arrangement.Horizontal,
+    fill: Boolean,
+    searchIndex: Int?,
+    slotsCentred: Boolean,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val search = measurables.firstOrNull { it.barChild == BarChild.Search }
+        val rest = measurables.filter { it !== search }
+        val ordered = if (search == null) {
+            rest
+        } else {
+            val destinations = rest.indices.filter { rest[it].barChild == BarChild.Destination }
+            val after = minOf(searchIndex ?: Int.MAX_VALUE, destinations.size)
+            val at = when {
+                destinations.isEmpty() -> rest.size
+                after == 0 -> destinations.first()
+                else -> destinations[after - 1] + 1
+            }
+            ArrayList<Measurable>(measurables.size).apply {
+                addAll(rest)
+                add(at, search)
+            }
+        }
+
+        val gap = arrangement.spacing.roundToPx()
+        val gaps = gap * (ordered.size - 1).coerceAtLeast(0)
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = arrayOfNulls<Placeable>(ordered.size)
+        var used = gaps
+        ordered.forEachIndexed { i, child ->
+            if (child.barChild.weight == 0f) {
+                val room = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else Constraints.Infinity
+                placeables[i] = child.measure(loose.copy(maxWidth = room))
+                used += placeables[i]!!.width
+            }
+        }
+        val totalWeight = ordered.sumOf { it.barChild.weight.toDouble() }.toFloat()
+        if (totalWeight > 0f) {
+            val left = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else 0
+            ordered.forEachIndexed { i, child ->
+                val weight = child.barChild.weight
+                if (weight > 0f) {
+                    val width = (left * weight / totalWeight).roundToInt()
+                    placeables[i] = child.measure(loose.copy(minWidth = width, maxWidth = width))
+                    used += width
+                }
+            }
+        }
+        val all = placeables.map { it!! }
+        val contentWidth = all.sumOf { it.width } + gaps
+        val width = if ((fill || totalWeight > 0f) && constraints.hasBoundedWidth) {
+            constraints.maxWidth
+        } else {
+            contentWidth.coerceIn(constraints.minWidth, constraints.maxWidth)
+        }
+        val height = max(all.maxOfOrNull { it.height } ?: 0, constraints.minHeight)
+        val aligned = ordered.map { it.barChild }
+
+        layout(width, height) {
+            val x = IntArray(all.size)
+            if (totalWeight > 0f || !fill) {
+                // Packed, gap apart, and centred in what is left.
+                var at = ((width - contentWidth) / 2).coerceAtLeast(0)
+                for (i in all.indices) {
+                    x[i] = at
+                    at += all[i].width + gap
+                }
+                all.forEachIndexed { i, p -> p.placeRelative(x[i], childTop(aligned[i], p, height, slotsCentred)) }
+            } else {
+                with(arrangement) { arrange(width, IntArray(all.size) { all[it].width }, layoutDirection, x) }
+                all.forEachIndexed { i, p -> p.place(x[i], childTop(aligned[i], p, height, slotsCentred)) }
             }
         }
     }
 }
 
 /**
- * One destination in a [NavBar].
- *
- * Exposed for a bar that needs a destination the [NavItem] model does not cover.
- * Prefer passing items to [NavBar]: it is what keeps the bar, the rail and the
- * drawer showing the same list.
+ * Where a child sits vertically: level with the circles. A fixed-width slot sits
+ * against the top when labels hang under the circles, which keep their place as
+ * a label makes the row taller; without labels the circles are centred in their
+ * targets, and so is it. Everything else is centred.
  */
-@Composable
-fun NavBarItem(
-    item: NavItem,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    showLabel: Boolean = false,
-    containerColour: Color = Theme.colours.surface,
-    contentColour: Color = Theme.colours.content,
-    indicatorSize: DpSize = NavItemDefaults.CircleSize,
-    labelGap: Dp = Theme.spacing.xxs,
-    /**
-     * Whether the circle casts its own shadow.
-     *
-     * True for [NavBarStyle.Free], where each circle is its own object floating
-     * over the page. On a bar with a surface behind it that surface casts the
-     * shadow, and a per-item one is a second shadow inside the first.
-     */
-    shadow: Boolean = true,
-    interactionSource: MutableInteractionSource? = null,
-) {
-    NavDestinationItem(
-        item = item,
-        selected = selected,
-        modifier = modifier,
-        layout = NavItemLayout.Stacked,
-        showLabel = showLabel,
-        containerColour = containerColour,
-        contentColour = contentColour,
-        indicatorSize = indicatorSize,
-        labelGap = labelGap,
-        shadow = if (shadow) Theme.elevation.low else Shadow.None,
-        interactionSource = interactionSource,
-    )
+private fun childTop(child: BarChild, placeable: Placeable, height: Int, slotsCentred: Boolean): Int =
+    if (child is BarChild.Slot && child.weight == 0f && !slotsCentred) 0 else (height - placeable.height) / 2
+
+/** A bar's [NavBarScope]. */
+private class BarScope(
+    private val keys: NavKeys,
+    private val showLabels: Boolean,
+    private val colours: NavColours,
+    private val circle: DpSize,
+    private val labelGap: Dp,
+) : NavBarScope {
+
+    @Composable
+    override fun item(
+        selected: Boolean,
+        onClick: () -> Unit,
+        key: Any,
+        icon: ImageVector?,
+        modifier: Modifier,
+        enabled: Boolean,
+        selectedIcon: ImageVector?,
+        contentDescription: String?,
+        interactionSource: MutableInteractionSource?,
+        badge: (@Composable () -> Unit)?,
+        label: NavLabelScope.() -> Unit,
+    ) {
+        val text = navLabel(label)
+        ClaimNavKey(keys, key)
+        NavDestination(
+            label = text,
+            icon = icon,
+            selected = selected,
+            onClick = onClick,
+            markerKey = key,
+            colours = colours,
+            layout = NavLayout.Stacked,
+            showLabel = showLabels,
+            indicatorSize = circle,
+            modifier = modifier.layoutId(BarChild.Destination),
+            enabled = enabled,
+            selectedIcon = selectedIcon,
+            contentDescription = contentDescription,
+            badge = badge,
+            interactionSource = interactionSource,
+            labelGap = labelGap,
+        )
+    }
+
+    /** Inline: a bar has no room for a title, and its destinations are few. */
+    @Composable
+    override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        content()
+    }
+
+    @Composable
+    override fun group(
+        expanded: Boolean,
+        onExpandedChange: (Boolean) -> Unit,
+        key: Any,
+        icon: ImageVector?,
+        header: NavLabelScope.() -> Unit,
+        modifier: Modifier,
+        enabled: Boolean,
+        interactionSource: MutableInteractionSource?,
+        badge: (@Composable () -> Unit)?,
+        content: @Composable NavScope.() -> Unit,
+    ) {
+        val text = navLabel(header)
+        ClaimNavKey(keys, key)
+        var open by remember { mutableStateOf(false) }
+        var bounds by remember { mutableStateOf<Rect?>(null) }
+        val selection = rememberGroupSelection(hidden = true, content = content)
+        NavDestination(
+            label = text,
+            icon = icon,
+            selected = false,
+            marked = selection.any,
+            onClick = { open = !open },
+            markerKey = key,
+            colours = colours,
+            layout = NavLayout.Stacked,
+            showLabel = showLabels,
+            indicatorSize = circle,
+            modifier = modifier.layoutId(BarChild.Destination).anchorBounds { bounds = it },
+            action = NavAction.Menu,
+            enabled = enabled,
+            badge = badge,
+            interactionSource = interactionSource,
+            labelGap = labelGap,
+        )
+        // Above the bar, the only side with room.
+        AnchoredDropdownMenu(
+            visible = open,
+            anchor = bounds,
+            onDismissRequest = { open = false },
+            side = OverlaySide.Top,
+        ) {
+            NavMenuScope(this, dismiss = { open = false }).content()
+        }
+    }
+
+    /** Left out: a bar's destinations are one run. */
+    @Composable
+    override fun divider(modifier: Modifier) = Unit
+
+    @Composable
+    override fun slot(weight: Float, content: @Composable () -> Unit) {
+        if (weight > 0f) {
+            // `propagateMinConstraints`, so the content is given the width rather
+            // than offered it.
+            Box(Modifier.layoutId(BarChild.Slot(weight)), propagateMinConstraints = true) { BarSlot(content) }
+        } else {
+            // A circle's height, level with the circles rather than centred in a
+            // row a label may have made taller.
+            Box(
+                Modifier.layoutId(BarChild.Slot(0f)).height(circle.height),
+                contentAlignment = Alignment.Center,
+            ) { BarSlot(content) }
+        }
+    }
 }
 
 /**
- * A bar's slot, told how much room it has.
- *
- * A bar does not resize, so `progress` is 1 — but it is a *narrow* place, a
- * hundred-odd dp between two pairs of destinations, and content that adapts to
- * its surface needs to hear that. [LocalNavExpansion] defaults to expanded for
- * anything outside a navigation surface, which is right there and wrong here:
- * without this a [NavSearch] in a bar would decide it had room to be a live text
- * field, and raise the keyboard inside the navigation bar.
+ * A bar's slot, told how much room it has: a narrow place, a hundred-odd dp
+ * between destinations, on the bar's surface. Without it a [NavSearch] in a bar
+ * would decide it had room to be a live field and raise the keyboard inside the
+ * navigation.
  */
 @Composable
 private fun BarSlot(content: @Composable () -> Unit) {
-    CompositionLocalProvider(
-        LocalNavExpansion provides
-            NavExpansion(expanded = false, progress = 1f, onSurface = false),
-        content = content,
-    )
+    CompositionLocalProvider(LocalNavExpansion provides NavExpansion.Bar, content = content)
 }

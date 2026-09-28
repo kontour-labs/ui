@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,171 +20,16 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.a11y.highContrast
-import io.kontour.ui.platform.platformSupportsBackdropBlur
-import io.kontour.ui.theme.LocalBackdropBlur
 import io.kontour.ui.theme.Theme
-
-/**
- * A translucent panel, for a bar floating over content.
- *
- * ```kotlin
- * GlassSurface(shape = Theme.shapes.pill) {
- *     NavBar(items, selectedIndex = current)
- * }
- * ```
- *
- * ### About the blur
- *
- * Compose has **no portable backdrop filter**. `Modifier.blur` blurs a layer's
- * own content, not what is behind it, and there is no common equivalent of CSS's
- * `backdrop-filter` or iOS's `UIVisualEffectView`. So this draws a translucent
- * tint and a hairline highlight, which is most of what reads as glass, and
- * offers real frosting only where you can afford it.
- *
- * Pass [backdrop] to get an actual blur: the content is composed **twice**, once
- * blurred and clipped to the panel's shape, once normally behind it. That is
- * genuinely frosted glass and genuinely costs double. Fine for a static image or
- * a gradient; not for a live map, which is exactly where a floating bar sits, so
- * the default leaves it out.
- *
- * The marketing site's header uses `backdrop-filter: blur(14px)`; on the web
- * that is free and here it is not. The translucent form is the honest
- * equivalent.
- *
- * The blur itself is now the library's own — `BlurEffect` through a
- * `graphicsLayer`, the same call [io.kontour.ui.overlay.BackdropStyle] makes —
- * rather than `Modifier.blur`. So it answers to the theme's `backdropBlur`
- * switch and to `platformSupportsBackdropBlur`, and a target that cannot blur
- * falls back to the translucent tint everywhere at once instead of here and
- * there.
- *
- * ### A modal is not this problem
- *
- * All of the above is about a panel that is a sibling *above* live content:
- * there is no single node holding "everything behind the bar", so there is
- * nothing to blur. Behind a modal there is one —
- * [io.kontour.ui.overlay.OverlayHost] composes the whole application as a single
- * full-size sibling of the overlay stack — so every dimmed overlay does blur
- * what is behind it, properly, with nothing composed twice. See
- * [io.kontour.ui.overlay.BackdropStyle]. This is the hard case; that one is
- * not.
- */
-@Composable
-fun GlassSurface(
-    modifier: Modifier = Modifier,
-    shape: Shape = Theme.shapes.large,
-    tint: Color = Theme.colours.surfaceRaised,
-    /**
-     * How much of the tint is laid over what is behind — so how *little* of it
-     * shows through.
-     *
-     * `0f` is a pane of clear glass and `1f` is a painted panel. It used to
-     * default to `0.72`, which is nearly opaque: the panel read as a solid bar
-     * with a slightly wrong colour rather than as something you could see
-     * through, and the frosting behind it was doing almost no work. Now
-     * [GlassSurfaceDefaults.Alpha].
-     *
-     * **Except under high contrast**, where it goes back up to
-     * [GlassSurfaceDefaults.OpaqueAlpha]. Glass is a contrast hazard by
-     * definition — the text on it is sitting over whatever happens to be
-     * underneath — and a user who has asked the system for more contrast has
-     * asked for exactly the thing translucency takes away.
-     */
-    alpha: Float = if (highContrast()) {
-        GlassSurfaceDefaults.OpaqueAlpha
-    } else {
-        GlassSurfaceDefaults.Alpha
-    },
-    borderAlpha: Float = 0.35f,
-    blurRadius: Dp = GlassSurfaceDefaults.BlurRadius,
-    backdrop: (@Composable () -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    // The same blur the overlay backdrop uses, gated the same way.
-    //
-    // It was `Modifier.blur`, which is a different thing with the same name: on
-    // a target without the render effect it quietly draws nothing at all, and
-    // it takes no notice of the theme's own `backdropBlur` switch — so an app
-    // that had turned blur off across the whole library went on paying for it
-    // here. `BlurEffect` through a `graphicsLayer` is what
-    // `io.kontour.ui.overlay.BackdropStyle` applies, and using it means one
-    // answer to "does this platform blur" rather than two.
-    val blurring = LocalBackdropBlur.current && platformSupportsBackdropBlur
-    val radiusPx = with(LocalDensity.current) { blurRadius.toPx() }
-
-    Box(modifier) {
-        if (backdrop != null) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .clip(shape)
-                    .graphicsLayer {
-                        renderEffect = if (blurring && radiusPx > 0f) {
-                            BlurEffect(radiusX = radiusPx, radiusY = radiusPx)
-                        } else {
-                            null
-                        }
-                    }
-            ) {
-                backdrop()
-            }
-        }
-
-        Surface(
-            modifier = Modifier.matchParentSize(),
-            shape = shape,
-            colour = tint.copy(alpha = alpha),
-            // A hairline of the content colour along the edge. On real frosted
-            // glass this is the refraction at the bevel; here it is the thing
-            // that stops a translucent rectangle reading as a bug.
-            border = androidx.compose.foundation.BorderStroke(
-                Theme.sizing.borderWidth,
-                Theme.colours.content.copy(alpha = borderAlpha * 0.2f),
-            ),
-            content = {},
-        )
-
-        content()
-    }
-}
-
-object GlassSurfaceDefaults {
-
-    /**
-     * How much tint a pane carries by default.
-     *
-     * Well under half again from the 0.72 it shipped with. The number that
-     * reads as glass rather than as a tinted panel is lower than it feels like
-     * it should be: at 0.72 the eye sees a solid bar, and the difference
-     * between 0.6 and 0.55 is the difference between "the bar is a bit
-     * see-through" and "there is something behind the bar".
-     */
-    val Alpha: Float
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassAlpha
-
-    /** What [Alpha] becomes under [io.kontour.ui.theme.ContrastLevel.High]. */
-    val OpaqueAlpha: Float
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassOpaqueAlpha
-
-    /**
-     * Tuned for a small panel over a busy background, and smaller than
-     * `BackdropDefaults.BlurRadius` for the reason recorded there: across a
-     * whole screen a radius this size reads as a smudge rather than as
-     * distance.
-     */
-    val BlurRadius: Dp
-        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.glassBlurRadius
-}
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The radial glow both websites use behind a hero.
@@ -279,8 +123,8 @@ private fun buildAtmosphere(
 /**
  * Fades the content out against the top and bottom edges of a scrolling page.
  *
- * A port of the site's `EdgeVignette.svelte`, minus its blur — see
- * [GlassSurface] for why. What survives is the part that does the work: a soft
+ * A port of the site's `EdgeVignette.svelte`, minus its blur: Compose has no
+ * portable backdrop filter to blur what is behind it. What survives is the part that does the work: a soft
  * falloff at each edge, appearing only when there is content past it.
  *
  * For a scrolling *list*, use
@@ -345,7 +189,7 @@ fun Modifier.edgeVignette(
 fun Modifier.shimmer(
     colour: Color = Theme.colours.surfaceSunken,
     highlight: Color = Theme.colours.surface,
-    durationMillis: Int = 1_400,
+    duration: Duration = 1_400.milliseconds,
 ): Modifier {
     val motion = Theme.motion
     if (motion.reduceMotion) return drawBehind { drawRect(colour) }
@@ -355,24 +199,30 @@ fun Modifier.shimmer(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis),
+            animation = tween(duration.inWholeMilliseconds.toInt()),
             repeatMode = RepeatMode.Restart,
         ),
         label = "shimmerProgress",
     )
 
-    return drawBehind {
-        drawRect(colour)
+    return drawWithCache {
         // Travels one and a half widths, so the highlight is fully off screen
         // between passes rather than wrapping visibly at the edge.
         val travel = size.width * 1.5f
-        val start = -size.width * 0.5f + travel * progress
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, highlight, Color.Transparent),
-                startX = start,
-                endX = start + size.width * 0.5f,
-            )
+        val start = -size.width * 0.5f
+        // Built once, where the pass starts, and moved each frame rather than
+        // rebuilt there — see `Skeleton`, which does the same.
+        val band = Brush.horizontalGradient(
+            colors = listOf(Color.Transparent, highlight, Color.Transparent),
+            startX = start,
+            endX = start + size.width * 0.5f,
         )
+        onDrawBehind {
+            drawRect(colour)
+            val along = travel * progress
+            translate(along, 0f) {
+                drawRect(brush = band, topLeft = Offset(-along, 0f), size = size)
+            }
+        }
     }
 }

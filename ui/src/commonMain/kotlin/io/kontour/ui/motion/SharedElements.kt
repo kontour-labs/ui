@@ -249,7 +249,7 @@ fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
  *
  * ### Reduced motion
  *
- * Degrades to a cross-fade with no bounds morph at all — [sharedElement] and
+ * Degrades to a fade through — out, then in — with no bounds morph at all — [sharedElement] and
  * [sharedBounds] both hand back plain modifiers. An element flying across the
  * screen is the clearest case that preference covers, and there is no gentle
  * version of it: half a morph is still a thing travelling a long way.

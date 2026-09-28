@@ -38,6 +38,8 @@ import kotlin.test.assertEquals
  * | Text size, without | sheet | 200% | `Auto` | 61.0dp | 67.2dp |
  * | Input modality | popover | 130% | `Keyboard` | 81.0dp | 69.0dp |
  * | Input modality | sheet | 200% | `Keyboard` | 124.0dp | 84.0dp |
+ * | Haptics | popover | 130% | `Standard` | 78.0dp | 69.0dp |
+ * | Haptics | sheet | 200% | `Standard` | 119.5dp | 84.0dp |
  *
  * Dropping the per-cent sign is what the phone needed: on the sheet — the
  * surface a phone opens — Text size goes from every option reading `20…` at
@@ -49,6 +51,14 @@ import kotlin.test.assertEquals
  * `Keys` is not what that setting is called. That wants an adaptive fallback in
  * the control — segments sized to content, or stacked when they cannot be — and
  * that is a change to `:ui`, not a change to a string.
+ *
+ * **Haptics is the second control in that position** and it arrived knowing it.
+ * `Standard` is eight characters in four segments, which is the shape that
+ * already failed once: it fits the sheet at 130% and cuts at 200%, and cuts the
+ * narrower popover from 130% up. The same fix answers both, and the same wrong
+ * fix is available for both — `Std` would measure fine and is not what the level
+ * is called. Two controls waiting on one change to `SegmentedControl` is a better
+ * argument for making it than one was.
  *
  * So this is a table rather than a pass/fail: every combination is pinned as it
  * measures today, and both directions of change have to be stated here.
@@ -93,6 +103,7 @@ class SettingsLabelFitTest {
         val controls = listOf(
             "Theme" to demoThemes.map { it.name },
             "Text size" to textScales.map { it.first },
+            "Haptics" to hapticsLevels.map { it.name },
             "Input modality" to inputModalities.map { it.first },
         )
         val rows = buildList {
@@ -134,21 +145,27 @@ class SettingsLabelFitTest {
         val Pinned = listOf(
             "sheet Theme at 1.0: 'Kontour' 51.5dp in 168.0dp — fits",
             "sheet Text size at 1.0: 'Auto' 30.5dp in 67.2dp — fits",
+            "sheet Haptics at 1.0: 'Standard' 60.0dp in 84.0dp — fits",
             "sheet Input modality at 1.0: 'Keyboard' 62.0dp in 84.0dp — fits",
             "sheet Theme at 1.3: 'Kontour' 67.0dp in 168.0dp — fits",
             "sheet Text size at 1.3: 'Auto' 40.0dp in 67.2dp — fits",
+            "sheet Haptics at 1.3: 'Standard' 78.0dp in 84.0dp — fits",
             "sheet Input modality at 1.3: 'Keyboard' 81.0dp in 84.0dp — fits",
             "sheet Theme at 2.0: 'Kontour' 103.0dp in 168.0dp — fits",
             "sheet Text size at 2.0: 'Auto' 61.0dp in 67.2dp — fits",
+            "sheet Haptics at 2.0: 'Standard' 119.5dp in 84.0dp — ELLIPSISED",
             "sheet Input modality at 2.0: 'Keyboard' 124.0dp in 84.0dp — ELLIPSISED",
             "popover Theme at 1.0: 'Kontour' 51.5dp in 138.0dp — fits",
             "popover Text size at 1.0: 'Auto' 30.5dp in 55.2dp — fits",
+            "popover Haptics at 1.0: 'Standard' 60.0dp in 69.0dp — fits",
             "popover Input modality at 1.0: 'Keyboard' 62.0dp in 69.0dp — fits",
             "popover Theme at 1.3: 'Kontour' 67.0dp in 138.0dp — fits",
             "popover Text size at 1.3: 'Auto' 40.0dp in 55.2dp — fits",
+            "popover Haptics at 1.3: 'Standard' 78.0dp in 69.0dp — ELLIPSISED",
             "popover Input modality at 1.3: 'Keyboard' 81.0dp in 69.0dp — ELLIPSISED",
             "popover Theme at 2.0: 'Kontour' 103.0dp in 138.0dp — fits",
             "popover Text size at 2.0: 'Auto' 61.0dp in 55.2dp — ELLIPSISED",
+            "popover Haptics at 2.0: 'Standard' 119.5dp in 69.0dp — ELLIPSISED",
             "popover Input modality at 2.0: 'Keyboard' 124.0dp in 69.0dp — ELLIPSISED",
         )
     }

@@ -22,6 +22,7 @@ import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 
 /**
  * What a toast does when the finger lets go.
@@ -169,7 +170,7 @@ class ToastSwipeTest {
                 }
                 item { Box(Modifier.fillMaxWidth().height(FillerHeight)) }
             }
-            LaunchedEffect(Unit) { state.show("Saved for offline", durationMillis = 0) }
+            LaunchedEffect(Unit) { state.show("Saved for offline", duration = Duration.INFINITE) }
             LaunchedEffect(Unit) {
                 snapshotFlow { list.firstVisibleItemScrollOffset }
                     .collect { scrolled = it }
@@ -309,7 +310,7 @@ class ToastSwipeTest {
                 LaunchedEffect(Unit) {
                     // Pinned, so the frame is settled rather than mid-timer and
                     // nothing expires underneath the gesture.
-                    repeat(toasts) { state.show("Toast number $it", durationMillis = 0) }
+                    repeat(toasts) { state.show("Toast number $it", duration = Duration.INFINITE) }
                 }
             }
         }.use { scene ->

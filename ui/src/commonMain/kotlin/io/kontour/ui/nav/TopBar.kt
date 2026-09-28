@@ -18,18 +18,21 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyListState
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.CentredBar
+import io.kontour.ui.foundation.CentredBarTitle
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Surface
@@ -44,10 +47,12 @@ enum class TopBarStyle {
     Small,
 
     /**
-     * One line, title centred.
+     * One line, title centred on the bar — or, where the controls leave it too
+     * little room to be centred, exactly [Small].
      *
      * For a screen with actions on both sides, where a leading title would sit
-     * off-balance. Costs width, so a long title truncates sooner.
+     * off-balance. A title that does not fit centred is not squeezed or pushed
+     * off-centre: it starts against the leading controls, as a [Small] one does.
      */
     Centred,
 
@@ -62,6 +67,7 @@ enum class TopBarStyle {
     Large,
 }
 
+/** What a [TopBar] takes by default. */
 object TopBarDefaults {
     val Height: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeight
@@ -75,7 +81,7 @@ object TopBarDefaults {
  * ```kotlin
  * TopBar(
  *     onBack = navController::popBackStack,
- *     actions = { IconButton(Tabler.Outline.Star, "Favourite", onClick = ::favourite) },
+ *     actions = { IconButton(icon = Tabler.Outline.Star, contentDescription = "Favourite", onClick = ::favourite) },
  * ) { +"Perth Underground" }
  * ```
  *
@@ -91,6 +97,9 @@ object TopBarDefaults {
  * @param onBack Draws a back button. Give it the same thing the system back
  *   gesture does — a visible back that goes somewhere different from the gesture
  *   is worse than no visible back.
+ * @param containerColour The ground of whatever it sits on — the window's, or a
+ *   sheet's inside a sheet — so a bar at the top of a page in a sheet is not a
+ *   band of a different colour.
  */
 @Composable
 fun TopBar(
@@ -100,7 +109,7 @@ fun TopBar(
     backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
-    containerColour: Color = Theme.colours.background,
+    containerColour: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
     contentColour: Color = Theme.colours.content,
     showDivider: Boolean = false,
     /**
@@ -126,7 +135,7 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    Surface(modifier = modifier.fillMaxWidth(), colour = containerColour, contentColour = contentColour) {
+    Surface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
@@ -146,11 +155,12 @@ fun TopBar(
                     centred = style == TopBarStyle.Centred,
                     leading = { Leading(onBack, backLabel, navigation) },
                     title = {
-                        TitleBlock(
-                            slots = slots,
-                            modifier = Modifier.padding(horizontal = Theme.spacing.xs),
-                            centred = style == TopBarStyle.Centred,
-                        )
+                        // Centred when the bar could centre it and started when it
+                        // could not — see `CentredBarTitle` — so a Centred bar
+                        // whose title does not fit is exactly a Small one.
+                        CentredBarTitle(modifier = Modifier.padding(horizontal = Theme.spacing.xs)) {
+                            TitleLines(slots = slots)
+                        }
                     },
                     trailing = {
                         Row(
@@ -213,7 +223,7 @@ fun TopBar(
                                 bottom = Theme.spacing.sm,
                             )
                     ) {
-                        TitleBlock(slots = slots, large = true)
+                        Column { TitleLines(slots = slots, large = true) }
                     }
                 }
             }
@@ -239,33 +249,22 @@ private fun Leading(
     }
 }
 
+/** The title and its supporting line, each a line of whatever stacks them. */
 @Composable
-private fun TitleBlock(
-    slots: ListItemScope,
-    modifier: Modifier = Modifier,
-    centred: Boolean = false,
-    large: Boolean = false,
-) {
-    val align = if (centred) TextAlign.Center else TextAlign.Unspecified
-    Column(
-        modifier = modifier,
-        horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
-    ) {
-        slots.label?.let { title ->
-            Box(Modifier.semantics { heading() }) {
-                ProvideTextStyle(
-                    (if (large) Theme.typography.displaySmall else Theme.typography.titleMedium)
-                        .copy(textAlign = align)
-                ) {
-                    ContentSlot(maxLines = if (large) 2 else 1, content = title)
-                }
+private fun TitleLines(slots: ListItemScope, large: Boolean = false) {
+    slots.label?.let { title ->
+        Box(Modifier.semantics { heading() }) {
+            ProvideTextStyle(if (large) Theme.typography.displaySmall else Theme.typography.titleMedium) {
+                ContentSlot(maxLines = if (large) 2 else 1, content = title)
             }
         }
-        slots.supporting?.let { subtitle ->
-            ProvideContentColour(Theme.colours.contentMuted) {
-                ProvideTextStyle(Theme.typography.bodySmall.copy(textAlign = align)) {
-                    ContentSlot(maxLines = 1, content = subtitle)
-                }
+    }
+    slots.supporting?.let { subtitle ->
+        ProvideContentColour(Theme.colours.contentMuted) {
+            ProvideTextStyle(Theme.typography.bodySmall) {
+                // Ellipsised rather than cut: a centred title is judged on its
+                // heading alone, and the line under it made to fit.
+                ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = subtitle)
             }
         }
     }

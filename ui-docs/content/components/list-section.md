@@ -10,13 +10,15 @@ can jump between sections rather than walking every row.
 // as a stack of separate ones.
 ListSection(
     title = { +"Appearance" },
-    description = { +"How the app looks on this device" },
+    supporting = { +"How the app looks on this device" },
+    // Above the rows is what the group *is*; below them is what it *does*.
+    footer = { +"Always dark keeps the screen dark even when the system is light." },
 ) {
-    SettingRow(position = ListItemPosition.First, onClick = { save() }) {
+    SettingRow(position = GroupPosition.First, onClick = { save() }) {
         +"Theme"
         supporting { +"Match system" }
     }
-    SettingRow(position = ListItemPosition.Last, onClick = { save() }) {
+    SettingRow(position = GroupPosition.Last, onClick = { save() }) {
         +"Text size"
         supporting { +"Default" }
     }
@@ -37,3 +39,9 @@ looks like a group and is not one.
 `footer` is announced after the rows, in reading order. Put the caveat there
 rather than in the last row's `supporting`, where it reads as being about that
 row.
+
+At high contrast the title, supporting line and footer take the enhanced
+scheme's muted colours. The section draws no line of its own; each
+[`ListItem`](list-item.md) in it takes the edge a row takes at this tier.
+
+Nothing in a section moves, so reduced motion changes nothing about it.
