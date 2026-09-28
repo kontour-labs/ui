@@ -1,9 +1,11 @@
 package io.kontour.ui.sheet
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.LocalOverscrollFactory
-import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -79,10 +81,10 @@ import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.overlay.BackdropStyle
-import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayBack
-import io.kontour.ui.overlay.OverlayBackState
+import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlayBackState
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
@@ -253,24 +255,6 @@ object BottomSheetDefaults {
         SheetPresentation.Floating -> Theme.shapes.panel
     }
 
-    /**
-     * How far a drag must travel before it commits to the next detent.
-     *
-     * Applies to a *slow* gesture only. Above `AnchoredDraggableMinFlingVelocity`
-     * — 125dp/s, a private constant in Compose Foundation — direction decides
-     * instead of distance, and the sheet goes to the next anchor whichever side
-     * of the halfway mark the finger left it.
-     *
-     * Which is also why a hard flick and a gentle one land in the same place:
-     * both clear 125dp/s, both move exactly one detent. Skipping detents on a
-     * fast throw needs a `TargetedFlingBehavior` of our own, because the version
-     * of `AnchoredDraggableDefaults.flingBehavior` we are on takes the
-     * positional threshold and the snap spec and nothing else — there is no
-     * velocity parameter to raise. Worth doing, and worth doing against a real
-     * finger rather than a JVM host, since the failure mode of getting the drag
-     * mutex wrong inside `performFling` is a sheet that stops responding.
-     */
-    val PositionalThreshold: (Float) -> Float = { distance -> distance * 0.5f }
 
     /** A sheet wider than this is a panel; centre it rather than stretching it. */
     val MaxWidth: Dp
@@ -650,11 +634,21 @@ fun BottomSheet(
         state.nestedScrollConnection(settleSpec, flickVelocity)
     }
 
-    val fling = AnchoredDraggableDefaults.flingBehavior(
-        state = state.anchoredState,
-        positionalThreshold = BottomSheetDefaults.PositionalThreshold,
-        animationSpec = settleSpec,
-    )
+    // **One flick closes it.** A throw of the sheet itself lands where it was
+    // aimed — projected half a second on, as iOS does — and at least a detent
+    // along; a hard one skips the rest. It used to be Compose's own rule, one
+    // detent per flick however hard, so a sheet at full height with a middle
+    // detent took two flicks to close — reported as taking "too much effort".
+    // Foundation's own snapping fling, which is what Compose's default is built
+    // from, so it moves the sheet inside the drag it already holds.
+    val handleFlick = with(density) { SheetHandleFlickVelocity.toPx() }
+    val fling = remember(state, settleSpec, handleFlick) {
+        snapFlingBehavior(
+            snapLayoutInfoProvider = SheetSnapping(state, handleFlick),
+            decayAnimationSpec = exponentialDecay(),
+            snapAnimationSpec = settleSpec,
+        )
+    }
 
     // A detent asked for before the sheet had been measured, delivered once it
     // has. `updateAnchors` deliberately does not apply it: doing so snapped, and
@@ -2019,3 +2013,20 @@ private suspend fun snapshotOfHidden(
  * exactly this far; there is nothing here for a caller to tune.
  */
 internal const val SheetDismissalFrames = 2
+
+/**
+ * Where a release of the sheet itself settles, for Foundation's snapping fling:
+ * straight to the detent [SheetState.detentFlungTo] picks, with no free travel
+ * first.
+ */
+private class SheetSnapping(private val state: SheetState, private val minVelocity: Float) : SnapLayoutInfoProvider {
+    override fun calculateApproachOffset(velocity: Float, decayOffset: Float): Float = 0f
+
+    override fun calculateSnapOffset(velocity: Float): Float {
+        val from = state.anchoredState.offset
+        if (from.isNaN()) return 0f
+        val target = state.detentFlungTo(velocity, minVelocity) ?: return 0f
+        val at = state.anchoredState.anchors.positionOf(target)
+        return if (at.isNaN()) 0f else at - from
+    }
+}

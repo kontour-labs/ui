@@ -3303,7 +3303,6 @@ public final class io/kontour/ui/sheet/BottomSheetDefaults {
 	public final fun getActionsGap-D9Ej5fM ()F
 	public final fun getDetents ()Ljava/util/List;
 	public final fun getMaxWidth (Landroidx/compose/runtime/Composer;I)F
-	public final fun getPositionalThreshold ()Lkotlin/jvm/functions/Function1;
 	public final fun shapeFor (Lio/kontour/ui/sheet/SheetPresentation;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/graphics/Shape;
 }
 

@@ -4253,8 +4253,6 @@ final object io.kontour.ui.sheet/BottomSheetDefaults { // io.kontour.ui.sheet/Bo
         final fun <get-Detents>(): kotlin.collections/List<io.kontour.ui.sheet/SheetDetent> // io.kontour.ui.sheet/BottomSheetDefaults.Detents.<get-Detents>|<get-Detents>(){}[0]
     final val MaxWidth // io.kontour.ui.sheet/BottomSheetDefaults.MaxWidth|{}MaxWidth[0]
         final fun <get-MaxWidth>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.sheet/BottomSheetDefaults.MaxWidth.<get-MaxWidth>|<get-MaxWidth>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
-    final val PositionalThreshold // io.kontour.ui.sheet/BottomSheetDefaults.PositionalThreshold|{}PositionalThreshold[0]
-        final fun <get-PositionalThreshold>(): kotlin/Function1<kotlin/Float, kotlin/Float> // io.kontour.ui.sheet/BottomSheetDefaults.PositionalThreshold.<get-PositionalThreshold>|<get-PositionalThreshold>(){}[0]
 
     final fun shapeFor(io.kontour.ui.sheet/SheetPresentation, androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.graphics/Shape // io.kontour.ui.sheet/BottomSheetDefaults.shapeFor|shapeFor(io.kontour.ui.sheet.SheetPresentation;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 }

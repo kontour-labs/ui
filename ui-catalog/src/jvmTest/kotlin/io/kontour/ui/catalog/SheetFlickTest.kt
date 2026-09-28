@@ -20,6 +20,7 @@ import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetState
 import io.kontour.ui.sheet.rememberSheetState
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -39,9 +40,8 @@ import kotlin.test.assertTrue
  * flick was finished as though the finger had stopped dead, and the only thing
  * that could close the sheet was crossing the 0.5 positional threshold.
  *
- * Dragging the *handle* goes somewhere else entirely — Compose's own
- * `AnchoredDraggableDefaults.flingBehavior` — which is unchanged and is not what
- * this covers. See `SheetState.settleWhereAimed` for why it stays that way.
+ * Dragging the sheet itself — its handle, its surface — goes through the
+ * sheet's own snapping fling instead, which the last two tests here cover.
  *
  * ### Both halves, because one of them is the whole risk
  *
@@ -109,6 +109,74 @@ class SheetFlickTest {
                 "list — the reader was scrolling it, and what it could not spend " +
                 "is not an instruction to take the sheet away.",
         )
+    }
+
+    /**
+     * One flick of the sheet itself closes it from full height, past a middle
+     * detent — reported from a phone as taking "too much effort to flick closed".
+     * It was Compose's own rule, one detent per flick however hard, so a sheet
+     * with a half-way detent took two.
+     */
+    @Test
+    fun oneHardFlickOfTheSheetClosesItPastTheMiddle() {
+        assertEquals(SheetDetent.Hidden, flungFromFull(pixelsPerFrame = FlickPerFrame))
+    }
+
+    /** And not one that may not be put away by hand, however hard it is thrown. */
+    @Test
+    fun aHardFlickDoesNotCloseASheetThatMustBeAnswered() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame, dismissible = false))
+    }
+
+    /** A gentle flick of the sheet still moves it — to the next detent, not past it. */
+    @Test
+    fun aGentleFlickOfTheSheetGoesOneDetent() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 8f))
+    }
+
+    /**
+     * Where a sheet with a middle detent, at full height, settles after a flick
+     * down its own surface — nothing scrollable in it, so the sheet's own drag
+     * takes the gesture.
+     */
+    private fun flungFromFull(pixelsPerFrame: Float, dismissible: Boolean = true): SheetDetent {
+        var state: SheetState? = null
+        var settled: SheetDetent? = null
+        var visible by mutableStateOf(true)
+        Scene(width = 600, height = 900) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                val sheet = rememberSheetState(
+                    detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.Expanded,
+                )
+                state = sheet
+                ModalBottomSheet(
+                    visible = visible,
+                    onDismissRequest = { visible = false },
+                    state = sheet,
+                    dismissible = dismissible,
+                ) {
+                    Box(Modifier.fillMaxWidth().height(600.dp).background(Color.LightGray))
+                }
+            }
+        }.use { scene ->
+            scene.frames(80)
+            val sheet = requireNotNull(state)
+            val from = Offset(300f, 500f)
+            scene.press(from)
+            repeat(FlickSteps) { step ->
+                scene.move(Offset(from.x, from.y + pixelsPerFrame * (step + 1)))
+                scene.frame()
+            }
+            scene.release(Offset(from.x, from.y + pixelsPerFrame * FlickSteps))
+            repeat(12) {
+                scene.frames(10)
+                if (sheet.currentDetent == SheetDetent.Hidden || !visible) settled = SheetDetent.Hidden
+            }
+            if (settled == null) settled = sheet.currentDetent
+        }
+        return requireNotNull(settled)
     }
 
     private fun closedBy(

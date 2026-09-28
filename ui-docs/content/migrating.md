@@ -541,6 +541,9 @@ these change what an existing call does.
   Its `progress` now reads the rail's width wherever it is read, so a slot that
   reads it in composition still recomposes each frame — read it in a draw or
   layout lambda, or behind `derivedStateOf`.
+- **One flick closes a bottom sheet**, past any middle detent, where it used to
+  take one flick per detent; a flick from the sheet's content counts from 300dp/s
+  rather than 500dp/s.
 - **A rail's labels end in an ellipsis** instead of at the last whole word, at
   every width.
 - **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
@@ -551,6 +554,7 @@ these change what an existing call does.
 
 | Before | After |
 |---|---|
+| `BottomSheetDefaults.PositionalThreshold` | Removed: a release is judged by where it would land, projected half a second on, and below a flick by position — see [Sheets](components/sheets.md) |
 | `ActivityCalendar(showLegend = false)` | `ActivityCalendar(legend = ActivityLegend.None)`; `true` is the default, `ActivityLegend.Steps` |
 | `ActivityCalendar(markerFor = { d, n -> mark })` returning `ActivityMark?` | `marksFor = { d, n -> listOfNotNull(mark) }`, returning a list: a day can have several |
 

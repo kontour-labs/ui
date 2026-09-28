@@ -5,9 +5,6 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.DecayAnimationSpec
-import androidx.compose.animation.core.calculateTargetValue
-import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
@@ -34,6 +31,7 @@ import io.kontour.ui.interaction.RubberBand
 import io.kontour.ui.theme.Motion
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 /**
  * Where a sheet is, and where it is going.
@@ -1085,6 +1083,46 @@ class SheetState internal constructor(
     }
 
     /**
+     * Where a release of the sheet itself — its handle, its surface — settles:
+     * the detent [detentAimedAt] projects it to, and at least the next one in the
+     * direction of the throw, since the finger was on the sheet and a flick of it
+     * is always meant. Below [minVelocity] the nearest allowed detent.
+     */
+    internal fun detentFlungTo(velocity: Float, minVelocity: Float): SheetDetent? {
+        val from = anchoredState.offset
+        if (from.isNaN()) return null
+        val anchors = anchoredState.anchors
+        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne = true) ?: return nearestAllowed(from)
+        return aimed.takeIf { anchors.positionOf(it).let { at -> !at.isNaN() } }
+    }
+
+    /**
+     * Whether a flick may land on [detent]: an allowed one, and not
+     * [SheetDetent.Hidden] on a sheet the user may not put away — a throw hard
+     * enough to project past the [dragFloor] is still a throw the sheet has to
+     * refuse.
+     */
+    private fun flingMayLandOn(detent: SheetDetent): Boolean =
+        detent in allowedDetents &&
+            (detent != SheetDetent.Hidden || userDismissible || anchoredState.settledValue == SheetDetent.Hidden)
+
+    private fun nearestAllowed(at: Float): SheetDetent? {
+        val anchors = anchoredState.anchors
+        var nearest: SheetDetent? = null
+        var best = Float.MAX_VALUE
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            val detent = anchors.anchorAt(index) ?: continue
+            if (position.isNaN() || !flingMayLandOn(detent)) continue
+            if (abs(position - at) < best) {
+                best = abs(position - at)
+                nearest = detent
+            }
+        }
+        return nearest
+    }
+
+    /**
      * Which detent [velocity] is aimed at, or null when there is nothing to aim.
      *
      * Split from [settleWhereAimed] because it is the whole of the behaviour and
@@ -1117,26 +1155,40 @@ class SheetState internal constructor(
      * `SheetFlickTest`, 450px/s was enough once the finger had carried the sheet
      * 40% of the way, against the ~1260px/s the same sheet needs from rest.
      */
-    internal fun detentAimedAt(velocity: Float, minVelocity: Float): SheetDetent? {
+    internal fun detentAimedAt(velocity: Float, minVelocity: Float, atLeastOne: Boolean = false): SheetDetent? {
         val from = anchoredState.offset
         val anchors = anchoredState.anchors
         if (from.isNaN() || anchors.size == 0) return null
         if (abs(velocity) < minVelocity) return null
 
-        val projected = SheetFlingDecay.calculateTargetValue(from, velocity)
+        // Where a thrown thing on iOS comes to rest: the throw carried on for
+        // half a second more. Continuous in the throw — a hard one lands past
+        // everything and closes the sheet, a soft one next door or not at all.
+        val projected = from + velocity * SheetProjectionSeconds
         var aimed: SheetDetent? = null
+        var aimedAt = Float.NaN
         var best = Float.MAX_VALUE
+        // The next detent the throw is heading for, for a throw of the sheet itself.
+        var next: SheetDetent? = null
+        var nextAt = Float.NaN
         for (index in 0 until anchors.size) {
             val at = anchors.positionAt(index)
             if (at.isNaN()) continue
             val detent = anchors.anchorAt(index) ?: continue
-            if (detent !in allowedDetents) continue
+            if (!flingMayLandOn(detent)) continue
             val distance = abs(at - projected)
             if (distance < best) {
                 best = distance
                 aimed = detent
+                aimedAt = at
+            }
+            val ahead = (at - from) * sign(velocity)
+            if (ahead > 1f && (next == null || ahead < (nextAt - from) * sign(velocity))) {
+                next = detent
+                nextAt = at
             }
         }
+        if (atLeastOne && next != null && (aimed == null || (aimedAt - nextAt) * sign(velocity) < 0f)) return next
         return aimed
     }
 
@@ -1487,52 +1539,53 @@ private fun List<SheetDetent>.firstDetent(): SheetDetent =
     firstOrNull() ?: throw IllegalArgumentException(EmptyDetents)
 
 /**
- * How far a flick carries a sheet past where the finger left it.
+ * How far a throw carries a sheet past where the finger let go of it: the throw
+ * kept up for this long.
  *
- * A plain exponential decay, and the friction is the whole tuning. At the
- * default of 1 a 3000px/s throw — a brisk flick on a phone — projects about
- * 700px, which closes a full-height sheet on most devices and leaves a gentle
- * 500px/s one, projecting about 120px, exactly where it was. Lower friction
- * makes flicks carry further; there is no threshold anywhere, so the response is
- * continuous in the throw rather than stepped.
- *
- * Process-wide rather than per-sheet: it is a fact about how a thrown thing
- * slows down, not a property of any one sheet, and building one per state would
- * be an allocation on every recomposition of every sheet in an app.
+ * Half a second is UIKit's own — what `UIScrollView`'s normal deceleration rate
+ * comes to, and what a sheet on iOS projects a release by to decide where it
+ * lands. It replaced an exponential decay that carried a 3000px/s throw about
+ * 700px, and closing a sheet by flicking was reported as taking "too much
+ * effort": the same throw now carries 1500px.
  */
-private val SheetFlingDecay: DecayAnimationSpec<Float> = exponentialDecay()
+internal const val SheetProjectionSeconds: Float = 0.5f
 
 /**
- * How fast a gesture has to be leaving the glass to count as a flick.
+ * How fast a gesture on a sheet's **content** has to be leaving the glass to
+ * count as a flick of the sheet.
  *
  * Per second, so it is a velocity written as the distance one second of it would
- * cover. Below this a release settles by `BottomSheetDefaults.PositionalThreshold`
- * exactly as it always has; above it the velocity is projected and the sheet goes
- * where the throw was aimed, skipping detents on the way if the throw was hard
- * enough. See [SheetState.detentAimedAt].
+ * cover. Below this a release settles by position; above it the velocity is
+ * projected and the sheet goes where the throw was aimed, skipping detents on the
+ * way if it was hard enough. See [SheetState.detentAimedAt].
  *
- * **500dp/s, and the number is a correction rather than a first guess.** The
- * projection shipped with no floor at all — the only guard was an exact comparison
- * against zero — and a sheet became closable by a gesture that was barely one.
- * Reported as flicking being too sensitive, *"especially if I've just scrolled to
- * the top of a list within the sheet"*, which is the case where the drag has
- * already carried the sheet most of the way and the velocity only has to cover
- * what is left.
+ * **300dp/s, between two reports.** The projection shipped with no floor at all,
+ * and flicking was reported as too sensitive, *"especially if I've just scrolled
+ * to the top of a list within the sheet"* — the drag has already carried the sheet
+ * most of the way and the velocity only has to cover what is left. The floor went
+ * to 500dp/s, and then closing a sheet by flicking was reported as taking too much
+ * effort. `SheetFlickTest`'s slow control, 225dp/s after carrying the sheet 40% of
+ * the way, is still under it; a real flick is well over. A number to tune on a
+ * device, which the catalog's diagnostics page is for.
  *
- * Three measurements put it here. `SheetFlickTest` records 225dp/s closing a sheet
- * the finger had already carried 40% of the way, which had to stop — that pace is
- * now the test's slow control. The same file's deliberate flick is 1800dp/s and
- * has to go on working. And Compose's own `AnchoredDraggableMinFlingVelocity`, the
- * bar for "this was thrown rather than released", is 125dp/s — so this is four
- * times what the platform calls a fling, which is about the difference between a
- * finger leaving the glass and a finger throwing something.
+ * Content only. A throw of the sheet itself — its handle, its surface — has
+ * [SheetHandleFlickVelocity], a quarter of this, because nothing else can have
+ * been meant by it.
  *
  * Here rather than on `BottomSheetDefaults`, for the reason [SheetTopGap] is: it is a
  * fact about how a hand moves, not a number a brand restyles, and the literals
  * ratchet in `check-components.py` counts the ones that sit in a `Defaults`
  * object as knobs somebody is expected to reach for.
  */
-internal val SheetFlickVelocity: Dp = 500.dp
+internal val SheetFlickVelocity: Dp = 300.dp
+
+/**
+ * How fast a release of the sheet itself has to be to count as a flick: Compose's
+ * own bar for a fling, `AnchoredDraggableMinFlingVelocity`. Above it the sheet
+ * moves at least a detent the way it was thrown, and as many as the throw
+ * projects to; below it, the nearest detent.
+ */
+internal val SheetHandleFlickVelocity: Dp = 125.dp
 
 /**
  * How far short of the screen's edge a sheet stops.

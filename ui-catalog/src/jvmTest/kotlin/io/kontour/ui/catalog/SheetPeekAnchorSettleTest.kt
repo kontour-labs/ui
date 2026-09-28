@@ -120,6 +120,10 @@ class SheetPeekAnchorSettleTest {
                 steps = 24,
                 release = false,
             ) { _, image -> crowns += image.crownRow() }
+            // Held still before letting go: a haul, whose release carries no
+            // throw. Let go moving, a sheet goes where it was thrown — see
+            // `SheetState.detentFlungTo` — which is not what this is about.
+            scene.frames(10)
             scene.release(Offset(200f, grab.y - travel))
             scene.frames(120)
         }

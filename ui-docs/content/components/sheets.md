@@ -226,11 +226,22 @@ nested-scroll connection has the same exception: nothing would answer a list tha
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
 
-**A flick has to be firm to count as one.** Below about 500dp/s a fling that
-started in the list settles the sheet where it already is rather than being read as
-an instruction to change detent; above it, the sheet goes where the flick was
-aimed, which may be several detents away. A reader who scrolled the list and let
-go was moving the list, and its leftovers are not a request.
+**One flick closes it.** A release lands where the throw would have carried
+the sheet had it kept going for half a second — what iOS projects a release by —
+at the nearest detent to that, so a hard throw goes past a middle detent and
+closes the sheet in one, where it used to take one flick per detent. A throw of
+the sheet itself, by its handle or its surface, counts from 125dp/s and always
+moves it at least one detent the way it was thrown.
+
+**A flick from the content has to be firmer.** Below 300dp/s a fling that
+started in the list settles the sheet where it already is rather than being read
+as an instruction to change detent. A reader who scrolled the list and let go was
+moving the list, and its leftovers are not a request. The floor was 500dp/s, and
+closing a sheet was reported as taking too much effort; both numbers are for
+tuning on a device.
+
+A sheet that may not be dismissed by hand is never flicked shut, however hard it
+is thrown: its lowest resting place is the floor a drag already stops at.
 
 **Content taller than the window scrolls rather than being cropped.** The sheet
 measures its content at the room it actually has, so a long `Column` wrapped in

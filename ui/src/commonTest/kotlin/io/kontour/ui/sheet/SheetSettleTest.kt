@@ -82,7 +82,9 @@ class SheetSettleTest {
         val state = anchoredState()
         val connection = state.nestedScrollConnection(tween(0), floor)
 
-        connection.onPostFling(consumed = Velocity.Zero, available = Velocity(0f, 800f))
+        // Over the flick floor, and short of carrying the sheet anywhere new:
+        // what is being checked is that the settle does not throw.
+        connection.onPostFling(consumed = Velocity.Zero, available = Velocity(0f, 350f))
 
         assertTrue(
             state.currentDetent in detents,
@@ -123,6 +125,34 @@ class SheetSettleTest {
                 "the alternative is what was reported, which is that the only way " +
                 "to shut a sheet is to haul it past the half-way mark.",
         )
+    }
+
+    /**
+     * A flick of the sheet itself goes at least a detent the way it was thrown,
+     * and as far as it projects to; below the handle's floor, to the nearest.
+     */
+    @Test
+    fun aFlickOfTheSheetGoesAtLeastADetentAndAsFarAsItIsThrown() {
+        val state = SheetState(
+            detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
+            initialDetent = SheetDetent.Expanded,
+            confirmDetentChange = { true },
+        )
+        state.containerHeight = 1000f
+        state.sheetHeight = 600f
+        state.anchoredState.updateAnchors(
+            DraggableAnchors {
+                SheetDetent.Hidden at 1000f
+                SheetDetent.Half at 700f
+                SheetDetent.Expanded at 400f
+            },
+            SheetDetent.Expanded,
+        )
+        val handle = with(Density(1f)) { SheetHandleFlickVelocity.toPx() }
+        assertEquals(SheetDetent.Half, state.detentFlungTo(200f, handle), "a gentle flick down goes one detent")
+        assertEquals(SheetDetent.Hidden, state.detentFlungTo(2000f, handle), "a hard one closes it past the middle")
+        assertEquals(SheetDetent.Expanded, state.detentFlungTo(60f, handle), "under the floor it stays where it is nearest")
+        assertEquals(SheetDetent.Expanded, state.detentFlungTo(-2000f, handle), "up from the top it stays at the top")
     }
 
     /**
