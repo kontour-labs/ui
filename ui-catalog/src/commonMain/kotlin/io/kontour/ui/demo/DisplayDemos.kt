@@ -637,7 +637,7 @@ internal val AccordionDemo = ComponentDemo(slug = "accordion") {
 private val counterWarn = Knob.Flag("Warn before dropping", initial = true)
 
 /** Whether the warning is felt as well: one tap as the digits start to shake. */
-private val counterHaptic = Knob.Flag("Tap as it warns", initial = true)
+private val counterHaptic = Knob.Flag("Rumble as it warns", initial = true)
 
 /** Two there-and-backs at the tremor's own rhythm, which is what it is tuned for. */
 private val CounterWarning: Duration = 450.milliseconds
