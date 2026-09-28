@@ -35,6 +35,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.AlertDialog
@@ -244,10 +245,14 @@ internal val PopoverDemo = ComponentDemo(
  */
 private val menuMatchAnchor = Knob.Flag("Match the anchor")
 
+/** A row of the most-used actions across the top, as an iOS menu has. */
+private val menuActionRow = Knob.Flag("Action row", initial = true)
+
 internal val DropdownMenuDemo = ComponentDemo(
     slug = "dropdown-menu",
-    knobs = listOf(menuMatchAnchor),
+    knobs = listOf(menuMatchAnchor, menuActionRow),
 ) {
+    val actionRow = this[menuActionRow]
     var open by remember { mutableStateOf(false) }
     var order by remember { mutableStateOf(0) }
     // The builder collects rather than composes, so the callbacks are hoisted.
@@ -267,6 +272,13 @@ internal val DropdownMenuDemo = ComponentDemo(
                 onDismissRequest = { open = false },
                 matchAnchorWidth = this@ComponentDemo[menuMatchAnchor],
             ) {
+                if (actionRow) {
+                    actionRow {
+                        action("Share", Tabler.Outline.Share) { echo("Share") }
+                        action("Copy", Tabler.Outline.Copy) { echo("Copy stop ID") }
+                        action("Save", Tabler.Outline.Star) { echo("Save") }
+                    }
+                }
                 section("This stop")
                 item("Share", leadingIcon = Tabler.Outline.Share, shortcut = "⌘S", onClick = share)
                 item("Copy stop ID", leadingIcon = Tabler.Outline.Copy, onClick = copy)
@@ -276,6 +288,11 @@ internal val DropdownMenuDemo = ComponentDemo(
                 item("Departure time", selected = order == 0, onClick = { order = 0 })
                 item("Journey length", selected = order == 1, onClick = { order = 1 })
                 divider()
+                // On a phone it opens in place over its row; with a mouse, beside it.
+                submenu("Add to a list", leadingIcon = SystemIcons.Plus) {
+                    item("Favourites") { echo("Added to Favourites") }
+                    item("Morning commute") { echo("Added to Morning commute") }
+                }
                 item(
                     "Remove favourite",
                     leadingIcon = Tabler.Outline.Trash,

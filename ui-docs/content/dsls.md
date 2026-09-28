@@ -257,7 +257,8 @@ runs.
 
 `closeOnClick = false` for a row the user is likely to press again, like a filter
 toggle. `submenu` closes the whole stack rather than just itself, for the same
-reason one level up.
+reason one level up. `actionRow { action(label, icon) { } }` is the row of two to
+four buttons across the top, and closes the menu the same way `item` does.
 
 ### `ListGroupScope` — the corners
 

@@ -737,7 +737,9 @@ explanation is its tooltip is a control that is unlabelled.
 
 A submenu does **not** close when the pointer leaves it. The pointer has to travel
 across the gap to reach the submenu, and closing en route is the classic
-nested-menu frustration; the outside-tap scrim closes it instead.
+nested-menu frustration; the outside-tap scrim closes it instead. On touch a
+submenu does not open beside its row at all: it opens in place, over the row, in
+the same overlay as the menu — see [`DropdownMenu`](components/dropdown-menu.md).
 
 ---
 

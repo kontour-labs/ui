@@ -521,6 +521,9 @@ these change what an existing call does.
   the marker.
 - **`PasswordField`'s reveal toggle answers like a toggle**, with the same haptic
   as `IconToggleButton`.
+- **On touch, a submenu opens in place**, over its own row in the same menu,
+  instead of beside it. With a mouse or the keyboard it still opens beside it.
+  `MenuScope` gains `actionRow`, so a class implementing it must too.
 - **`DatePicker` and `DateRangePicker` are always six weeks tall**, so a
   five-week month has a blank week at the end, and **a sideways drag on either
   pages the month** — on a range picker, only a drag that starts off the days.
@@ -539,6 +542,7 @@ these change what an existing call does.
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
 `ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;
 `Avatar(decorations)` with `AvatarDecorationScope` and `AvatarCorner`;
+`MenuScope.actionRow` and `MenuActionRow` with `MenuActionRowScope`;
 `SwipeActions(tapConfirmation)`;
 `AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with
