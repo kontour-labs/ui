@@ -146,6 +146,63 @@ class StepProgressBandTest {
     }
 
     /**
+     * A working step that moves on fills first, and only then do the bars start
+     * in the next one — at its start. Asked for from a phone: "I'd like to have
+     * an animation there so the current step fills up before the indeterminate
+     * animation moves to the next step".
+     */
+    @Test
+    fun theFinishedStepFillsBeforeTheBarsMoveOn() {
+        var bounds = Rect.Zero
+        var current by mutableStateOf(2)
+        val finished = mutableListOf<Int>()
+        val next = mutableListOf<List<Int>>()
+        var segmentWidth = 0f
+        var nextLeft = 0
+        Scene(width = 500, height = 60) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                StepProgress(
+                    current = current,
+                    total = 5,
+                    working = true,
+                    colour = Color.Black,
+                    trackColour = Color.White,
+                    height = 12.dp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val rows = bounds.top.toInt()..bounds.bottom.toInt()
+            val gapPx = 4f * 2f
+            segmentWidth = (bounds.width - gapPx * 4f) / 5f
+            fun segment(index: Int) =
+                (bounds.left + index * (segmentWidth + gapPx)).toInt()..(bounds.left + index * (segmentWidth + gapPx) + segmentWidth).toInt()
+            nextLeft = segment(2).first
+            current = 3
+            repeat(60) {
+                val image = scene.frame()
+                finished += image.inkedColumns(segment(1), rows).size
+                next += image.inkedColumns(segment(2), rows)
+            }
+        }
+        val firstLit = next.indexOfFirst { it.isNotEmpty() }
+        assertTrue(firstLit > 0, "the bars should wait for the fill; they were in the next step from frame $firstLit")
+        assertTrue(
+            finished[firstLit] >= segmentWidth * 0.95f,
+            "the bars started in the next step when the one before was ${finished[firstLit]}px of ${segmentWidth}px full",
+        )
+        assertTrue(
+            (0 until firstLit).all { finished[it] <= finished[firstLit] },
+            "the finished step should fill up, not flicker: $finished",
+        )
+        assertTrue(
+            next[firstLit].first() - nextLeft < 6,
+            "the bars should enter the next step from its start, first ink at ${next[firstLit].first() - nextLeft}px in",
+        )
+    }
+
+    /**
      * Runs of ink along the row's middle, one per visible segment.
      *
      * Band and track are the same colour here on purpose: what is counted is the
