@@ -1,9 +1,8 @@
 package io.kontour.ui.nav
 
-import io.kontour.ui.motion.exitOrFade
-import io.kontour.ui.motion.enterOrFade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -28,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,16 +38,24 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
@@ -65,6 +74,8 @@ import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.motion.chevronTurn
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
@@ -164,7 +175,12 @@ fun NavRail(
     content: @Composable NavScope.() -> Unit,
 ) {
     val motion = Theme.motion
-    val width by animateDpAsState(
+    // Read only where it is used — the rail's own layout, and the lambdas below
+    // that draw from it — so a rail growing lays out and draws every frame and
+    // composes twice: when the labels start to show, and when they are the
+    // names. Read here, it recomposed the rail, and everything that read
+    // `LocalNavExpansion`, on every frame of the expansion.
+    val railWidth = animateDpAsState(
         targetValue = if (expanded) expandedWidth else collapsedWidth,
         // `springGentle`: a rail growing to a sidebar is a large surface. At
         // once under reduced motion, where the rail and everything beside it
@@ -172,34 +188,33 @@ fun NavRail(
         animationSpec = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springGentle),
         label = "navRailWidth",
     )
-
-    // Whether the rail is *currently* wide enough for a label — not whether it
-    // is heading there. A label composed on the frame the flag flips appears in
-    // a rail with no room for it. This is the one thing that changes across an
-    // expansion: the rows are the same rows at every width, so the icons do not
-    // move (`NavRailStillnessTest`).
-    val roomForLabels = if (expandedWidth <= collapsedWidth) {
-        expanded
+    val resizes = expandedWidth > collapsedWidth
+    val progress: () -> Float = if (resizes) {
+        remember(railWidth, collapsedWidth, expandedWidth) {
+            { ((railWidth.value - collapsedWidth) / (expandedWidth - collapsedWidth)).coerceIn(0f, 1f) }
+        }
     } else {
-        width > (collapsedWidth + expandedWidth) / 2
+        val fixed = if (expanded) 1f else 0f
+        remember(fixed) { { fixed } }
     }
+    val reveal = rememberRailReveal(progress, reduceMotion = motion.reduceMotion)
 
     // Published to the header, the footer and anything in them, so slot content
     // answers the same question the destinations do from the animated width
-    // rather than from a copy of the flag.
-    val room = NavExpansion(
-        expanded = roomForLabels,
-        progress = if (expandedWidth <= collapsedWidth) {
-            if (expanded) 1f else 0f
-        } else {
-            ((width - collapsedWidth) / (expandedWidth - collapsedWidth)).coerceIn(0f, 1f)
-        },
-        onSurface = true,
-    )
+    // rather than from a copy of the flag — once, with the width read through it.
+    val room = remember(reveal.room, progress) {
+        NavExpansion(expanded = reveal.room, progress = progress, onSurface = true)
+    }
 
     CompositionLocalProvider(LocalNavExpansion provides room) {
         Surface(
-            modifier = modifier.width(width).fillMaxHeight(),
+            modifier = modifier
+                .layout { measurable, constraints ->
+                    val w = constraints.constrainWidth(railWidth.value.roundToPx())
+                    val placeable = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
+                    layout(w, placeable.height) { placeable.place(0, 0) }
+                }
+                .fillMaxHeight(),
             containerColour = colours.container,
             contentColour = SurfaceDefaults.contentColour(colours.container),
             // The rail's ground against the page's is the tier's 1.00:1, so the
@@ -242,7 +257,7 @@ fun NavRail(
                 RailItems(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     colours = colours,
-                    room = roomForLabels,
+                    reveal = reveal,
                     revealSelected = revealSelected,
                     itemAlignment = itemAlignment,
                     afterClick = null,
@@ -329,7 +344,7 @@ fun ModalNavRail(
                     RailItems(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         colours = colours,
-                        room = true,
+                        reveal = RailReveal.Full,
                         revealSelected = revealSelected,
                         itemAlignment = Alignment.Top,
                         afterClick = if (dismissOnItemClick) ({ closing = true }) else null,
@@ -350,7 +365,7 @@ fun ModalNavRail(
 private fun RailItems(
     modifier: Modifier,
     colours: NavColours,
-    room: Boolean,
+    reveal: RailReveal,
     revealSelected: Boolean,
     itemAlignment: Alignment.Vertical,
     afterClick: (() -> Unit)?,
@@ -361,8 +376,8 @@ private fun RailItems(
     val keys = remember { NavKeys() }
     val glyph = NavRailDefaults.GlyphSize
     val indent = NavRailDefaults.NestIndent
-    val scope = remember(keys, colours, room, glyph, indent, afterClick) {
-        RailScope(keys, colours, room, glyph, indent, nest = 0, afterClick = afterClick)
+    val scope = remember(keys, colours, reveal, glyph, indent, afterClick) {
+        RailScope(keys, colours, reveal, glyph, indent, nest = 0, afterClick = afterClick)
     }
 
     // A rail opens on the page you are on, and a list of twenty opens showing the
@@ -426,19 +441,26 @@ private fun RailItems(
     }
 }
 
-/** A rail's [NavScope], at one nesting depth and one width. */
+/** A rail's [NavScope], at one nesting depth. */
 private class RailScope(
     private val keys: NavKeys,
     private val colours: NavColours,
-    private val room: Boolean,
+    private val reveal: RailReveal,
     private val glyph: DpSize,
     private val indent: Dp,
     private val nest: Int,
     private val afterClick: (() -> Unit)?,
 ) : NavScope {
 
-    /** Indented only while the rail is wide enough to show a group's destinations at all. */
-    private val rowIndent: Dp get() = if (room) indent * nest else 0.dp
+    /** Whether the rail is wide enough for labels to be the names. */
+    private val room: Boolean get() = reveal.room
+
+    /**
+     * In from the rail's content edge by a group's depth — by as much of it as
+     * the rail has opened, so nested rows slide into their indent as the rail
+     * makes room for it rather than jumping there.
+     */
+    private fun Modifier.nested(): Modifier = startIndent(indent * nest, reveal.reveal)
 
     @Composable
     override fun item(
@@ -472,43 +494,53 @@ private class RailScope(
             showLabel = room,
             indicatorSize = glyph,
             // Full width, so the marker sits at the same x for every row.
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth().nested(),
             enabled = enabled,
             selectedIcon = selectedIcon,
             contentDescription = contentDescription,
             badge = badge,
             interactionSource = interactionSource,
-            indent = rowIndent,
+            labelFade = reveal.fade,
+            labelDrawn = reveal.labels,
+            initialFade = reveal.initial,
         )
     }
 
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
         // One height whether it is a title or the hairline standing in for one,
-        // so the icons below do not move as the rail grows.
+        // so the icons below do not move as the rail grows. And both, while it
+        // grows: the title fades in over the hairline as the labels do, rather
+        // than the one replacing the other in a frame at the halfway point.
+        val reveal = reveal
         val wide = room
         Box(
             modifier = modifier
                 .fillMaxWidth()
                 .height(SectionHeight)
-                .padding(start = rowIndent),
+                .nested(),
             contentAlignment = Alignment.BottomStart,
         ) {
-            if (wide) {
+            if (!reveal.settled) {
+                HorizontalDivider(
+                    Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = Theme.spacing.sm)
+                        .graphicsLayer { alpha = 1f - reveal.fade() }
+                )
+            }
+            if (reveal.labels) {
                 Text(
                     text = title,
                     style = Theme.typography.labelSmall,
                     colour = Theme.colours.contentMuted,
                     maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .padding(start = Theme.spacing.sm, bottom = Theme.spacing.xxs)
-                        .semantics { heading() },
-                )
-            } else {
-                HorizontalDivider(
-                    Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = Theme.spacing.sm)
+                        .graphicsLayer { alpha = reveal.fade() }
+                        .then(if (wide) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics {}),
                 )
             }
         }
@@ -533,16 +565,23 @@ private class RailScope(
         // With room for labels, a disclosure; without, a menu beside the rail.
         val disclose = room
         val showing = disclose && expanded
+        // An open group folds with the rail: its destinations close up as the
+        // rail narrows, and are gone at the halfway point where the group
+        // becomes a menu, rather than all vanishing on that frame. While they
+        // are part-folded the group carries the marker, as it does when shut —
+        // a destination half under the fold is not somewhere to point at.
+        val folding = showing && reveal.folding
+        val hidden = !showing || folding
         var menuOpen by remember { mutableStateOf(false) }
         var bounds by remember { mutableStateOf<Rect?>(null) }
-        val selection = rememberGroupSelection(hidden = !showing, content = content)
+        val selection = rememberGroupSelection(hidden = hidden, content = content)
         // A disclosure taps both ways, as an `Accordion` does; a menu opening is
         // silent, as a menu's trigger is.
         val tap = rememberTapFeedback()
         LaunchedEffect(disclose) { if (disclose) menuOpen = false }
 
         val motion = Theme.motion
-        val deeper = RailScope(keys, colours, room, glyph, indent, nest + 1, afterClick)
+        val deeper = RailScope(keys, colours, reveal, glyph, indent, nest + 1, afterClick)
         // One child of the rail's spaced column, not two. As two, the header and
         // its children were separated by the column's gap whatever their height,
         // so a collapsing group held an extra gap until it was removed —
@@ -553,13 +592,14 @@ private class RailScope(
         val rowColours = colours
         val wide = room
         val size = glyph
-        val start = rowIndent
+        val rowReveal = reveal
+        val start = Modifier.nested()
         Column {
             NavDestination(
                 label = text,
                 icon = icon,
                 selected = false,
-                marked = !showing && selection.any,
+                marked = hidden && selection.any,
                 onClick = {
                     if (disclose) {
                         tap()
@@ -573,12 +613,14 @@ private class RailScope(
                 layout = NavLayout.Inline,
                 showLabel = wide,
                 indicatorSize = size,
-                modifier = modifier.fillMaxWidth().anchorBounds { bounds = it },
+                modifier = modifier.fillMaxWidth().then(start).anchorBounds { bounds = it },
                 action = if (disclose) NavAction.Disclosure(expanded) else NavAction.Menu,
                 enabled = enabled,
                 badge = badge,
                 interactionSource = interactionSource,
-                indent = start,
+                labelFade = rowReveal.fade,
+                labelDrawn = rowReveal.labels,
+                initialFade = rowReveal.initial,
                 trailing = {
                     Icon(
                         imageVector = SystemIcons.ChevronDown,
@@ -598,9 +640,11 @@ private class RailScope(
             ) {
                 // Still composed while the exit runs, reporting smaller, higher rects
                 // every frame; the marker must not follow them up the rail.
-                CompositionLocalProvider(LocalSelectionIndicatorLeaving provides !showing) {
+                CompositionLocalProvider(LocalSelectionIndicatorLeaving provides hidden) {
                     Column(
-                        Modifier.padding(top = Theme.spacing.xxs),
+                        Modifier
+                            .foldTo(rowReveal.reveal)
+                            .padding(top = Theme.spacing.xxs),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     ) {
                         deeper.content()
@@ -625,7 +669,7 @@ private class RailScope(
     override fun divider(modifier: Modifier) {
         HorizontalDivider(
             modifier
-                .padding(start = rowIndent)
+                .nested()
                 .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xxs)
         )
     }
@@ -658,3 +702,109 @@ private fun RailToggle(
 
 /** A section's title, or the hairline that stands in for it. */
 private val SectionHeight: Dp = 32.dp
+
+/**
+ * How far a rail has opened, in the three readings its rows need.
+ *
+ * @property room Whether labels are the names yet: past halfway. Composed, so it
+ *   changes once per expansion.
+ * @property labels Whether labels are drawn at all — for as long as they have
+ *   any opacity, which under reduced motion outlasts [room] while they fade.
+ * @property settled Whether the labels are fully shown, so the hairlines under
+ *   section titles can go.
+ * @property folding Whether an open group is part-folded.
+ * @property fade How visible labels, titles and chevrons are, frame by frame.
+ * @property reveal How far open the rail's second half is: 0 at halfway, 1 at
+ *   its widest. What nested rows are indented and open groups unfolded by.
+ * @property initial How visible an initial standing in for a missing icon is.
+ */
+@Stable
+private class RailReveal(
+    val room: Boolean,
+    val labels: Boolean,
+    val settled: Boolean,
+    val folding: Boolean,
+    val fade: () -> Float,
+    val reveal: () -> Float,
+    val initial: () -> Float,
+) {
+    companion object {
+        /** A modal rail's: always at its widest. */
+        val Full = RailReveal(
+            room = true, labels = true, settled = true, folding = false,
+            fade = { 1f }, reveal = { 1f }, initial = { 0f },
+        )
+    }
+}
+
+/**
+ * The rail's reveal, from its width's [progress].
+ *
+ * Labels fade in over the second half of an expansion, where there is room for
+ * them, and out over the same half of a collapse: the width decides, so a rail
+ * dragged halfway shows half-faded labels rather than labels on a timer. Under
+ * reduced motion the width jumps, and the labels fade on a clock instead.
+ */
+@Composable
+private fun rememberRailReveal(progress: () -> Float, reduceMotion: Boolean): RailReveal {
+    val reveal = remember(progress) { { ((progress() - LabelsFrom) / (1f - LabelsFrom)).coerceIn(0f, 1f) } }
+    val room by remember(progress) { derivedStateOf { progress() > LabelsFrom } }
+    val fade: () -> Float = if (reduceMotion) {
+        val clock = animateFloatAsState(
+            targetValue = if (room) 1f else 0f,
+            animationSpec = Theme.motion.tweenDefault(),
+            label = "navRailLabels",
+        )
+        remember(clock) { { clock.value } }
+    } else {
+        reveal
+    }
+    val initial = remember(progress) {
+        { 1f - ((progress() - InitialFrom) / (LabelsFrom - InitialFrom)).coerceIn(0f, 1f) }
+    }
+    val shown by remember(fade) { derivedStateOf { fade() > 0f } }
+    val settled by remember(fade) { derivedStateOf { fade() >= 1f } }
+    val folding by remember(reveal) { derivedStateOf { reveal() < 1f } }
+    val labels = room || shown
+    return remember(room, labels, settled, folding, fade, reveal, initial) {
+        RailReveal(room, labels, settled, folding, fade, reveal, initial)
+    }
+}
+
+/**
+ * Where across its growth a rail has room for labels: the halfway point, where
+ * a row's glyph and the gap beside it have been paid for and a word starts to fit.
+ */
+private const val LabelsFrom = 0.5f
+
+/** Where an initial standing in for a missing icon starts giving way to its word. */
+private const val InitialFrom = 0.25f
+
+/**
+ * Pads the start by [share] of [indent], in layout, so a changing share moves
+ * the content without recomposing it.
+ */
+private fun Modifier.startIndent(indent: Dp, share: () -> Float): Modifier =
+    if (indent == 0.dp) {
+        this
+    } else {
+        layout { measurable, constraints ->
+            val px = (indent.toPx() * share()).roundToInt().coerceIn(0, constraints.maxWidth)
+            val placeable = measurable.measure(constraints.offset(horizontal = -px))
+            layout(placeable.width + px, placeable.height) { placeable.placeRelative(px, 0) }
+        }
+    }
+
+/**
+ * Shows [share] of the content's height, from its top, and clips the rest: a
+ * run of rows closing up like a blind, measured once at full height. Clipped
+ * only while part-folded, so a focus ring on the last row is whole at rest.
+ */
+private fun Modifier.foldTo(share: () -> Float): Modifier =
+    drawWithContent {
+        if (share() < 1f) clipRect { this@drawWithContent.drawContent() } else drawContent()
+    }.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val height = (placeable.height * share()).roundToInt().coerceIn(constraints.minHeight, placeable.height)
+        layout(placeable.width, height) { placeable.place(0, 0) }
+    }

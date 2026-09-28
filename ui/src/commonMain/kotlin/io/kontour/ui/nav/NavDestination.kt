@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -85,6 +86,16 @@ internal sealed interface NavAction {
  *
  * @param marked Whether the travelling marker lands here: [selected] for a
  *   destination, and for a group, whether a destination hidden inside it is.
+ * @param showLabel Whether the label is the destination's name on screen: read
+ *   as text, rather than announced as a description.
+ * @param labelFade In a surface that resizes, how visible the label is, read
+ *   frame by frame without recomposing. `null` fades it in and out on its own
+ *   when [showLabel] changes.
+ * @param labelDrawn Whether the label is composed at all, which under
+ *   [labelFade] is longer than [showLabel]: from the first frame it has any
+ *   opacity, while the surface is still too narrow to call it the name.
+ * @param initialFade How visible the initial standing in for a missing icon is,
+ *   where a label is taking its place.
  */
 @Composable
 internal fun NavDestination(
@@ -108,6 +119,9 @@ internal fun NavDestination(
     labelGap: Dp = Theme.spacing.xxs,
     indent: Dp = 0.dp,
     trailing: (@Composable () -> Unit)? = null,
+    labelFade: (() -> Float)? = null,
+    labelDrawn: Boolean = showLabel,
+    initialFade: (() -> Float)? = null,
 ) {
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -255,25 +269,48 @@ internal fun NavDestination(
         }
     }
 
-    // Faded rather than inserted: a rail turns its labels on partway through an
-    // expansion, and a word that simply appears is a pop. A bar's labels do
-    // not change after composition, so this is inert there.
+    // A row's label is one line, always, and ends in an ellipsis rather than at
+    // a word: a rail growing past a two-word label showed it a word at a time,
+    // the second arriving whole in one frame. Unwrapped, the row uncovers it as
+    // it widens.
+    val labelStyle = if (layout == NavLayout.Stacked) Theme.typography.labelSmall else Theme.typography.bodyMedium
+    val inline = layout == NavLayout.Inline
     val labelText = @Composable {
-        AnimatedVisibility(
-            visible = showLabel,
-            enter = fadeIn(motion.tweenDefault()),
-            exit = fadeOut(motion.tweenFast()),
-        ) {
-            Text(
-                text = label,
-                style = if (layout == NavLayout.Stacked) {
-                    Theme.typography.labelSmall
-                } else {
-                    Theme.typography.bodyMedium
-                },
-                colour = content,
-                maxLines = 1,
-            )
+        if (labelFade != null) {
+            // Following the surface's width, so the word fades in as the rail
+            // makes room for it rather than on a clock of its own.
+            if (labelDrawn) {
+                Text(
+                    text = label,
+                    style = labelStyle,
+                    colour = content,
+                    maxLines = 1,
+                    softWrap = !inline,
+                    overflow = if (inline) TextOverflow.Ellipsis else TextOverflow.Clip,
+                    modifier = Modifier
+                        .graphicsLayer { alpha = labelFade() }
+                        // Not yet the name: the destination announces it.
+                        .then(if (showLabel) Modifier else Modifier.clearAndSetSemantics {}),
+                )
+            }
+        } else {
+            // Faded rather than inserted: a word that simply appears is a pop.
+            // A bar's labels do not change after composition, so this is inert
+            // there.
+            AnimatedVisibility(
+                visible = showLabel,
+                enter = fadeIn(motion.tweenDefault()),
+                exit = fadeOut(motion.tweenFast()),
+            ) {
+                Text(
+                    text = label,
+                    style = labelStyle,
+                    colour = content,
+                    maxLines = 1,
+                    softWrap = !inline,
+                    overflow = if (inline) TextOverflow.Ellipsis else TextOverflow.Clip,
+                )
+            }
         }
     }
 
@@ -318,11 +355,24 @@ internal fun NavDestination(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (hasGlyph) glyph()
+                if (hasGlyph) {
+                    if (icon == null && initialFade != null) {
+                        // An initial giving way to the word it stands for.
+                        Box(Modifier.graphicsLayer { alpha = initialFade() }) { glyph() }
+                    } else {
+                        glyph()
+                    }
+                }
                 Box(Modifier.weight(1f)) { labelText() }
                 // A text row has no glyph to hang its badge on, so it goes at the end.
                 if (!hasGlyph && badge != null) badge()
-                if (showLabel && trailing != null) trailing()
+                if (trailing != null) {
+                    if (labelFade != null) {
+                        if (labelDrawn) Box(Modifier.graphicsLayer { alpha = labelFade() }) { trailing() }
+                    } else if (showLabel) {
+                        trailing()
+                    }
+                }
             }
         }
     }

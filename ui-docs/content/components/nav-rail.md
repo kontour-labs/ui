@@ -25,10 +25,23 @@ Pass `onExpandedChange` for the toggle; leave it null for a rail fixed at whatev
 
 **The icons do not move as the rail grows.** A destination is an icon beside its
 label at every width, in a glyph box that is always the same size, so the growing
-rail reveals the labels rather than rearranging around them. Everything that
-changes — labels fading in, section titles taking the place of the hairlines that
-stood for them, a group becoming a disclosure — changes when the *animated* width
-passes halfway, not when the flag flips.
+rail reveals the labels rather than rearranging around them.
+
+**Growing is one movement, and the width drives all of it.** Over the second
+half of an expansion — once a label can start to fit — the labels, the chevrons
+and the section titles fade in with the width, each title over the hairline that
+stood for it, which fades out as it arrives. A label is one line at every width,
+ending in an ellipsis while the rail is still too narrow for it, never broken at a
+word. An open group's destinations unfold, and slide into their indent, as the
+rail makes room for them; collapsing, they fold up with it and are gone at the
+halfway point, where the group becomes a menu. Only two things happen at a point
+rather than across the width — the group becoming a disclosure, and labels
+becoming the names a screen reader reads — and both at halfway. It was all at
+halfway, in one frame, which is the step that was reported as the section names
+"not fluid".
+
+The width is applied in layout, so a rail growing lays out and draws every frame
+and composes twice.
 
 **Expanded, it reads at a drawer's density.** A row is its icon and `sm` above
 and below — 48dp, the touch target — rows are `xxs` apart, and a label sits `md`
@@ -94,7 +107,7 @@ an edge against the page beside it, and the marker on the current destination is
 outlined in the accent as well as tinted. The hairlines that stand in for section
 titles thicken with the tier.
 
-Under reduced motion the rail takes its new width at once and its labels fade
-in, and the marker fades up on the new destination rather than travelling to it.
-A group's children take their room at once and fade in, and its chevron turns
-without overshooting.
+Under reduced motion the rail takes its new width at once and its labels, chevrons
+and section titles fade in on their own, and the marker fades up on the new
+destination rather than travelling to it. A group's children take their room at
+once and fade in, and its chevron turns without overshooting.

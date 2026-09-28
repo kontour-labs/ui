@@ -2184,6 +2184,7 @@ final class io.kontour.ui.nav/NavColours { // io.kontour.ui.nav/NavColours|null[
 
 final class io.kontour.ui.nav/NavExpansion { // io.kontour.ui.nav/NavExpansion|null[0]
     constructor <init>(kotlin/Boolean, kotlin/Float, kotlin/Boolean) // io.kontour.ui.nav/NavExpansion.<init>|<init>(kotlin.Boolean;kotlin.Float;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Boolean, kotlin/Function0<kotlin/Float>, kotlin/Boolean) // io.kontour.ui.nav/NavExpansion.<init>|<init>(kotlin.Boolean;kotlin.Function0<kotlin.Float>;kotlin.Boolean){}[0]
 
     final val expanded // io.kontour.ui.nav/NavExpansion.expanded|{}expanded[0]
         final fun <get-expanded>(): kotlin/Boolean // io.kontour.ui.nav/NavExpansion.expanded.<get-expanded>|<get-expanded>(){}[0]

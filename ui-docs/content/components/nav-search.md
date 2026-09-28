@@ -61,6 +61,13 @@ for a word, `progress` for interpolating across a rail's animation, `onSurface`
 for whether there is a ground behind it. It is what makes `NavSearch` a pill in a
 bar and a field in a sidebar with no parameter at the call site.
 
+A rail provides it once per expansion, not once per frame: `progress` reads the
+rail's animated width wherever it is read. Read it in a `graphicsLayer {}`,
+`drawBehind {}` or `layout {}` block and the slot follows the rail without
+recomposing; for a decision, `derivedStateOf { room.progress > 0.5f }` recomposes
+it once. Chrome of your own can publish the same answer with
+`NavExpansion(expanded, progress = { … }, onSurface)`.
+
 ---
 
 ## Accessibility

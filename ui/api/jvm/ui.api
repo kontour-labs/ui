@@ -2800,6 +2800,7 @@ public final class io/kontour/ui/nav/NavExpandingSlotDefaults {
 public final class io/kontour/ui/nav/NavExpansion {
 	public static final field $stable I
 	public fun <init> (ZFZ)V
+	public fun <init> (ZLkotlin/jvm/functions/Function0;Z)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getExpanded ()Z
 	public final fun getOnSurface ()Z

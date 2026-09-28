@@ -531,6 +531,15 @@ these change what an existing call does.
   its `onAction` comes about 0.6s after the tap; `tapConfirmation = false` runs it
   at once. A drag that starts on a revealed action now moves the row, and the row
   gives past its last resting place instead of stopping dead.
+- **A swipe from the very edge of the screen goes back on iOS even when it starts
+  on a swipe row**, and a swipe from anywhere else on such a row is the row's,
+  whichever way it goes.
+- **`LocalNavExpansion` changes twice as a `NavRail` grows, not on every frame.**
+  Its `progress` now reads the rail's width wherever it is read, so a slot that
+  reads it in composition still recomposes each frame — read it in a draw or
+  layout lambda, or behind `derivedStateOf`.
+- **A rail's labels end in an ellipsis** instead of at the last whole word, at
+  every width.
 
 **Changed, and a call that names them stops compiling:**
 
@@ -543,7 +552,7 @@ these change what an existing call does.
 `ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;
 `Avatar(decorations)` with `AvatarDecorationScope` and `AvatarCorner`;
 `MenuScope.actionRow` and `MenuActionRow` with `MenuActionRowScope`;
-`SwipeActions(tapConfirmation)`;
+`SwipeActions(tapConfirmation)`; `NavExpansion(expanded, progress: () -> Float, onSurface)`;
 `AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with
 `IosHapticsRoute`.

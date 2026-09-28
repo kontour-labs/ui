@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -192,8 +193,11 @@ fun NavSearch(
         // The last query once there has been one. A pill that goes back to
         // saying "Search" after a search has run is a pill that looks like it
         // forgot. Skipped entirely where there is no room for a word — a rail at
-        // 88dp gets the icon and nothing else.
-        if (LocalNavExpansion.current.progress > NavSearchDefaults.LabelAt) {
+        // 88dp gets the icon and nothing else. Derived, so a rail resizing
+        // recomposes this once, at the point the word fits, not every frame.
+        val room = LocalNavExpansion.current
+        val worded by remember(room) { derivedStateOf { room.progress > NavSearchDefaults.LabelAt } }
+        if (worded) {
             Text(
                 text = typed.ifEmpty { placeholder },
                 style = Theme.typography.bodyMedium,

@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -69,39 +69,65 @@ import io.kontour.ui.theme.Theme
  * @property expanded Whether there is room for a label beside an icon. What a
  *   rail decides from its animated width, so it flips partway through an
  *   expansion rather than on the frame the toggle was pressed.
- * @property progress 0 when the surface is at its narrowest and 1 at its widest,
- *   for content that wants to interpolate rather than switch. Always 1 in a
- *   surface that does not resize.
- * Constructible, because the surfaces in this package are not the only things
- * that can host a slot: an app with its own navigation chrome should be able to
- * publish the same answer, and content written against this local then works
- * inside it without knowing it is not a [NavRail].
- *
  * @property onSurface Whether there is a panel behind this slot. True in every
  *   navigation surface — a bar, a rail and a modal rail all have one; false for
  *   content outside them. It decides which way a control has to go to be
  *   *seen*: raised and light over content, recessed against a panel. A control
  *   that picks one and keeps it is invisible in the other, which is how a search
  *   pill ended up the same colour as the page it was drawn on.
+ *
+ * Constructible, because the surfaces in this package are not the only things
+ * that can host a slot: an app with its own navigation chrome should be able to
+ * publish the same answer, and content written against this local then works
+ * inside it without knowing it is not a [NavRail].
  */
-@Immutable
-class NavExpansion(
+@Stable
+class NavExpansion private constructor(
     val expanded: Boolean,
-    val progress: Float,
+    private val fixed: Float,
+    private val progressOf: (() -> Float)?,
     val onSurface: Boolean,
 ) {
+    /** Room that does not change while this is provided: a bar's, a modal rail's. */
+    constructor(expanded: Boolean, progress: Float, onSurface: Boolean) :
+        this(expanded, progress, null, onSurface)
+
+    /**
+     * Room that follows a resize: [progress] is read wherever [NavExpansion.progress]
+     * is, so a surface animating its width provides this once and its slots
+     * read the width frame by frame — in a draw or layout lambda, without
+     * recomposing — rather than the surface providing a new value, and
+     * recomposing every reader, on every frame.
+     */
+    constructor(expanded: Boolean, progress: () -> Float, onSurface: Boolean) :
+        this(expanded, Float.NaN, progress, onSurface)
+
+    /**
+     * 0 when the surface is at its narrowest and 1 at its widest, for content
+     * that wants to interpolate rather than switch. Always 1 in a surface that
+     * does not resize.
+     *
+     * Read it where it is used — in `graphicsLayer {}`, `drawBehind {}` or a
+     * `layout {}` block — and a resize redraws the reader without recomposing
+     * it. Read in composition, every frame of a resize recomposes the reader;
+     * for a decision, `derivedStateOf { room.progress > x }` recomposes it once.
+     */
+    val progress: Float get() = progressOf?.invoke() ?: fixed
+
     // Compared by value, because [LocalNavExpansion] is: a surface that provides
     // the same room on its next composition must not look like new room to
-    // every slot reading it. Without these, every provide was a change.
+    // every slot reading it. A resizing surface's room is the same room for as
+    // long as it keeps the same source for its progress.
     override fun equals(other: Any?): Boolean =
         other is NavExpansion &&
             expanded == other.expanded &&
-            progress == other.progress &&
-            onSurface == other.onSurface
+            onSurface == other.onSurface &&
+            progressOf === other.progressOf &&
+            fixed.toRawBits() == other.fixed.toRawBits()
 
     override fun hashCode(): Int {
         var result = expanded.hashCode()
-        result = 31 * result + progress.hashCode()
+        result = 31 * result + (progressOf?.hashCode() ?: fixed.hashCode())
         result = 31 * result + onSurface.hashCode()
         return result
     }
