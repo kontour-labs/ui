@@ -532,8 +532,30 @@ public final class io/kontour/ui/components/display/AnimatedCounterKt {
 	public static final fun AnimatedCounter-oljHda8 (ILandroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;JLandroidx/compose/ui/text/TextStyle;Landroidx/compose/foundation/layout/Arrangement$Horizontal;JZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/components/display/AvatarCorner : java/lang/Enum {
+	public static final field BottomEnd Lio/kontour/ui/components/display/AvatarCorner;
+	public static final field BottomStart Lio/kontour/ui/components/display/AvatarCorner;
+	public static final field TopEnd Lio/kontour/ui/components/display/AvatarCorner;
+	public static final field TopStart Lio/kontour/ui/components/display/AvatarCorner;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/display/AvatarCorner;
+	public static fun values ()[Lio/kontour/ui/components/display/AvatarCorner;
+}
+
+public final class io/kontour/ui/components/display/AvatarDecorationScope {
+	public static final field $stable I
+	public final fun count (ILjava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;I)V
+	public static synthetic fun count$default (Lio/kontour/ui/components/display/AvatarDecorationScope;ILjava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;IILjava/lang/Object;)V
+	public final fun custom (Lio/kontour/ui/components/display/AvatarCorner;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun custom$default (Lio/kontour/ui/components/display/AvatarDecorationScope;Lio/kontour/ui/components/display/AvatarCorner;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public final fun icon-g2O1Hgs (Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;J)V
+	public static synthetic fun icon-g2O1Hgs$default (Lio/kontour/ui/components/display/AvatarDecorationScope;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;JILjava/lang/Object;)V
+	public final fun status-ek8zF_U (JLjava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;)V
+	public static synthetic fun status-ek8zF_U$default (Lio/kontour/ui/components/display/AvatarDecorationScope;JLjava/lang/String;Lio/kontour/ui/components/display/AvatarCorner;ILjava/lang/Object;)V
+}
+
 public final class io/kontour/ui/components/display/AvatarKt {
-	public static final fun Avatar-X0XjK04 (Landroidx/compose/ui/Modifier;Ljava/lang/String;Landroidx/compose/ui/graphics/painter/Painter;Landroidx/compose/ui/graphics/vector/ImageVector;FLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Avatar-UfvXlcs (Landroidx/compose/ui/Modifier;Ljava/lang/String;Landroidx/compose/ui/graphics/painter/Painter;Landroidx/compose/ui/graphics/vector/ImageVector;FLjava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun AvatarGroup-vqUOL-0 (Ljava/util/List;Landroidx/compose/ui/Modifier;FILjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 }
 

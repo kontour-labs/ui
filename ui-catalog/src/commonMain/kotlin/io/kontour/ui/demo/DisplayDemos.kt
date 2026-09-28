@@ -35,6 +35,8 @@ import io.kontour.ui.components.display.Accordion
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
+import io.kontour.ui.components.display.AvatarCorner
+import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
@@ -188,8 +190,29 @@ private val avatarSize = Knob.Choice(
     name = { if (it == AvatarSize.Small) "Small" else if (it == AvatarSize.Medium) "Medium" else "Large" },
 )
 
-internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize)) {
+/** What sits on the rim: a status dot, an unread count, a glyph, or all three. */
+private val avatarDecorations = Knob.Choice(
+    "Decorations",
+    listOf("None", "Status", "Count", "Icon", "All"),
+    "None",
+    name = { it },
+)
+
+internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize, avatarDecorations)) {
     val size = this[avatarSize]
+    val decorated = this[avatarDecorations]
+    val online = Theme.colours.success.solid
+    val decorations: (AvatarDecorationScope.() -> Unit)? = if (decorated == "None") {
+        null
+    } else {
+        {
+            if (decorated == "Status" || decorated == "All") status(online, "Online")
+            if (decorated == "Count" || decorated == "All") count(12)
+            if (decorated == "Icon" || decorated == "All") {
+                icon(Tabler.Outline.Check, "Verified", at = AvatarCorner.BottomStart)
+            }
+        }
+    }
     // Wraps rather than squeezing: at Large, four avatars and a group are wider
     // than a phone's card, and a squeezed row is how the group's count ended up
     // drawn as a sliver on an iPhone.
@@ -198,9 +221,9 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(name = "Aaron", size = size)
-        Avatar(name = "Jamie Lee", size = size)
-        Avatar(fallbackIcon = Tabler.Outline.User, size = size)
+        Avatar(name = "Aaron", size = size, decorations = decorations)
+        Avatar(name = "Jamie Lee", size = size, decorations = decorations)
+        Avatar(fallbackIcon = Tabler.Outline.User, size = size, decorations = decorations)
         AvatarGroup(names = listOf("Aaron", "Sunny", "Jamie", "Kit", "Robin", "Sam"), size = size)
     }
 }

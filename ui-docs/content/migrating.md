@@ -538,6 +538,7 @@ these change what an existing call does.
 
 **Added:** `Tag(onClick, enabled, interactionSource)`; `Rating(allowZero)`;
 `ActivityLegend.Gradient`; `Knob(editable)` and `Strings.editValue`;
+`Avatar(decorations)` with `AvatarDecorationScope` and `AvatarCorner`;
 `SwipeActions(tapConfirmation)`;
 `AnimatedCounter(hapticWarning)`; `HapticsTrace`, `TracingHaptics` and
 `Haptics.trace` in `:haptics`, and on iOS `Haptics(route, view)` with

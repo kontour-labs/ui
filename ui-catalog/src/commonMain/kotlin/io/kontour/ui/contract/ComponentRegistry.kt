@@ -2401,6 +2401,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // Through a local: a quoted name argument in this file names a spec.
                 val person = "Ada Lovelace"
                 Avatar(name = person)
+                // Decorated: a status on the rim at bottom end, and a count at top
+                // end, each ringed in the page's colour.
+                val online = Theme.colours.success.solid
+                Avatar(name = person) {
+                    status(online, "Online")
+                    count(3)
+                }
                 // No name and no picture: the placeholder, which is the one that
                 // needs an edge at the enhanced tier.
                 Avatar()

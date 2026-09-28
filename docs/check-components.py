@@ -834,7 +834,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 26
+MAX_CIRCLES = 27
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -872,6 +872,10 @@ def circles() -> list[str]:
     be g2 continuous". A capped `capsule` would square the resting thumb off under
     a theme that caps its controls, which is the one thing a thumb must not do. It
     had been a hand-drawn superellipse, which was round at rest in no theme.
+
+    **26 to 27 for an avatar's decorations**, the status dot and a glyph's
+    disc: a dot is round from what it is, on a square box, and so is the ring
+    round it that separates it from the picture.
 
     **25 to 26 for `Knob`**, whose focus ring is the one shape in it that is not
     drawn: a knob is round from what it is — a dial — on a square box, which is

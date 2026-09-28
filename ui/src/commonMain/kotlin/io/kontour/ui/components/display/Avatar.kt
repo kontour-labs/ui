@@ -5,8 +5,15 @@ import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.key
+import androidx.compose.ui.graphics.takeOrElse
+import io.kontour.ui.foundation.LocalContainerColour
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,8 +112,29 @@ value class AvatarSize(val diameter: Dp) {
  * from arbitrary hues, so it stays on-brand and its label contrast is already
  * known good.
  *
+ * ### Decorations
+ *
+ * Small things on the rim — asked for from a phone as "decorator icons in
+ * corners":
+ *
+ * ```
+ * Avatar(name = "Aaron") {
+ *     status(Theme.colours.success.solid, "Online")
+ *     count(3, at = AvatarCorner.TopEnd)
+ * }
+ * ```
+ *
+ * Each sits **on the circle's rim at 45°** in its corner, not in the corner of
+ * the square round it: a dot in the square's corner floats clear of a round
+ * picture. Each is sized from the avatar and ringed in the colour of whatever
+ * the avatar is on, so it reads as laid over the picture rather than as part of
+ * it. The avatar's announcement carries every decoration's description after the
+ * name — "Aaron. Online. 3 new" — since a dot is drawn, not said.
+ *
  * @param name Used for the initials and, by default, the announcement. Pass
  *   `null` for a genuinely anonymous avatar.
+ * @param decorations Status dots, counts and glyphs on the rim. See
+ *   [AvatarDecorationScope].
  */
 @Composable
 fun Avatar(
@@ -116,9 +144,65 @@ fun Avatar(
     fallbackIcon: ImageVector? = null,
     size: AvatarSize = AvatarSize.Medium,
     contentDescription: String? = null,
+    decorations: (AvatarDecorationScope.() -> Unit)? = null,
+) {
+    val placed = decorations?.let { AvatarDecorationScope().apply(it).items }.orEmpty()
+    val base = contentDescription ?: name
+    val strings = Theme.strings
+    val formats = Theme.formats
+    // A count with no words of its own says what a badge would.
+    val said = placed.mapNotNull { decoration ->
+        decoration.description ?: (decoration as? AvatarDecoration.Count)?.let { count ->
+            if (count.value > count.max) {
+                strings.moreThan(formats.quantity(count.max))
+            } else {
+                strings.newCount(formats.quantity(count.value))
+            }
+        }
+    }
+    val announcement = if (said.isEmpty()) base else strings.sentences(listOfNotNull(base) + said)
+    if (placed.isEmpty()) {
+        AvatarBody(modifier.announced(announcement), name, image, fallbackIcon, size)
+        return
+    }
+    Layout(
+        modifier = modifier.announced(announcement),
+        content = {
+            AvatarBody(Modifier, name, image, fallbackIcon, size)
+            placed.forEach { decoration -> key(decoration) { Decoration(decoration, size) } }
+        },
+    ) { measurables, constraints ->
+        val body = measurables.first().measure(constraints)
+        val parts = measurables.drop(1).map { it.measure(Constraints()) }
+        val centre = body.width / 2f
+        // On the rim at 45°: the circle's radius along the diagonal.
+        val along = centre * RimDiagonal
+        layout(body.width, body.height) {
+            body.placeRelative(0, 0)
+            parts.forEachIndexed { index, part ->
+                val corner = placed[index].at
+                val x = centre + if (corner.atEnd) along else -along
+                val y = centre + if (corner.atBottom) along else -along
+                // Relative, so a start corner is on the right right to left.
+                part.placeRelative((x - part.width / 2f).roundToInt(), (y - part.height / 2f).roundToInt())
+            }
+        }
+    }
+}
+
+private fun Modifier.announced(announcement: String?): Modifier =
+    semantics { if (announcement != null) this.contentDescription = announcement }
+
+/** The avatar itself: its picture, initials or glyph, in its circle. */
+@Composable
+private fun AvatarBody(
+    modifier: Modifier,
+    name: String?,
+    image: Painter?,
+    fallbackIcon: ImageVector?,
+    size: AvatarSize,
 ) {
     val density = LocalDensity.current
-    val announcement = contentDescription ?: name
     val palette = avatarPalette()
     val background = if (name != null) {
         palette[name.stableIndex(palette.size)]
@@ -134,9 +218,6 @@ fun Avatar(
     val circle = Theme.shapes.pill
     Box(
         modifier = modifier
-            .semantics {
-                if (announcement != null) this.contentDescription = announcement
-            }
             .size(size.diameter)
             .clip(circle)
             .background(if (image != null) Theme.colours.surfaceSunken else background)
@@ -187,6 +268,142 @@ fun Avatar(
         }
     }
 }
+
+/** A corner of an [Avatar], for a decoration: it sits on the rim at 45° there. */
+enum class AvatarCorner(internal val atEnd: Boolean, internal val atBottom: Boolean) {
+    TopStart(atEnd = false, atBottom = false),
+    TopEnd(atEnd = true, atBottom = false),
+    BottomStart(atEnd = false, atBottom = true),
+    BottomEnd(atEnd = true, atBottom = true),
+}
+
+/**
+ * What an [Avatar] carries on its rim: a status, a count, a glyph, or anything.
+ *
+ * Collected, then drawn over the avatar, each on the rim at 45° in its corner and
+ * ringed in the colour of whatever the avatar sits on. Each [description] joins
+ * the avatar's announcement; leave it null for one that says nothing new.
+ */
+@LayoutScopeMarker
+@Stable
+class AvatarDecorationScope internal constructor() {
+    internal val items = mutableListOf<AvatarDecoration>()
+
+    /** A dot: online, busy, away. A quarter of the avatar across. */
+    fun status(colour: Color, description: String?, at: AvatarCorner = AvatarCorner.BottomEnd) {
+        items += AvatarDecoration.Status(at, description, colour)
+    }
+
+    /**
+     * A count — unread messages — as a [Badge] shows one, "99+" past [max]. Said as
+     * the badge would say it unless given a [description].
+     */
+    fun count(
+        value: Int,
+        description: String? = null,
+        at: AvatarCorner = AvatarCorner.TopEnd,
+        max: Int = 99,
+    ) {
+        items += AvatarDecoration.Count(at, description, value, max)
+    }
+
+    /** A glyph in a small disc: a verified tick, a camera to change the picture, a role. */
+    fun icon(
+        icon: ImageVector,
+        description: String?,
+        at: AvatarCorner = AvatarCorner.BottomEnd,
+        containerColour: Color = Color.Unspecified,
+    ) {
+        items += AvatarDecoration.Glyph(at, description, icon, containerColour)
+    }
+
+    /** Anything else, centred on the rim. Its size is its own; the ring is not drawn for it. */
+    fun custom(at: AvatarCorner, description: String? = null, content: @Composable () -> Unit) {
+        items += AvatarDecoration.Custom(at, description, content)
+    }
+}
+
+/** One of an [AvatarDecorationScope]'s. */
+internal sealed class AvatarDecoration(val at: AvatarCorner, val description: String?) {
+    class Status(at: AvatarCorner, description: String?, val colour: Color) : AvatarDecoration(at, description)
+    class Count(at: AvatarCorner, description: String?, val value: Int, val max: Int) : AvatarDecoration(at, description)
+    class Glyph(at: AvatarCorner, description: String?, val icon: ImageVector, val containerColour: Color) :
+        AvatarDecoration(at, description)
+    class Custom(at: AvatarCorner, description: String?, val content: @Composable () -> Unit) :
+        AvatarDecoration(at, description)
+}
+
+/**
+ * One decoration, ringed in the ground colour: the page's, or the surface the
+ * avatar is on. Silent — the avatar says what each one means.
+ */
+@Composable
+private fun Decoration(decoration: AvatarDecoration, size: AvatarSize) {
+    val ground = LocalContainerColour.current.takeOrElse { Theme.colours.background }
+    val ring = Theme.sizing.borderWidthStrong
+    val round = Theme.shapes.pill
+    val edge = contrastEdge()
+    val silent = Modifier.clearAndSetSemantics { }
+    when (decoration) {
+        is AvatarDecoration.Status -> Box(
+            silent
+                .clip(round)
+                .background(ground)
+                .padding(ring)
+                .size((size.diameter * StatusShare).coerceIn(StatusMin, StatusMax))
+                .clip(round)
+                .background(decoration.colour)
+                .optionalBorder(edge, round),
+        )
+
+        is AvatarDecoration.Count -> Box(silent.clip(Theme.shapes.capsule).background(ground).padding(ring)) {
+            Badge(
+                count = decoration.value,
+                max = decoration.max,
+                contentDescription = decoration.description,
+            )
+        }
+
+        is AvatarDecoration.Glyph -> {
+            val container = decoration.containerColour.takeOrElse { Theme.colours.accent.solid }
+            val disc = (size.diameter * GlyphShare).coerceIn(GlyphMin, GlyphMax)
+            Box(
+                silent
+                    .clip(round)
+                    .background(ground)
+                    .padding(ring)
+                    .size(disc)
+                    .clip(round)
+                    .background(container)
+                    .optionalBorder(edge, round),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = decoration.icon,
+                    contentDescription = null,
+                    tint = contentColourFor(container),
+                    size = disc * GlyphIconShare,
+                )
+            }
+        }
+
+        is AvatarDecoration.Custom -> Box(silent) { decoration.content() }
+    }
+}
+
+/** cos 45°: how far along each axis the rim is from the centre, as a share of the radius. */
+private const val RimDiagonal: Float = 0.70710677f
+
+/** A status dot, as a share of the avatar's diameter, and its limits. */
+private const val StatusShare: Float = 0.25f
+private val StatusMin: Dp = 8.dp
+private val StatusMax: Dp = 16.dp
+
+/** A glyph's disc, as a share of the avatar's diameter, and its limits; and the glyph in it. */
+private const val GlyphShare: Float = 0.34f
+private val GlyphMin: Dp = 14.dp
+private val GlyphMax: Dp = 26.dp
+private const val GlyphIconShare: Float = 0.64f
 
 /**
  * Overlapping avatars, for "these people are on this trip".
