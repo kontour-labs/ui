@@ -166,10 +166,11 @@ class RubberBand internal constructor() {
      * the same approach to [limit] that [pull] uses, so however hard the flick,
      * the band gives less than [limit] and never looks like somewhere to stop.
      *
-     * It ends the moment it is home. An under-damped [spec] would carry on through
-     * nothing and back, and a critically damped one never quite arrives: both
-     * leave the thing it moves a pixel or two off where it rests for a good part
-     * of a second, which is what was reported on a two-row drum (below).
+     * An under-damped [spec] ends the moment it passes home, rather than carrying
+     * on through nothing and back. A critically damped one should say when it is
+     * close enough, with a visibility threshold, or it spends a good part of a
+     * second a pixel or two short — which is what was reported on a two-row drum
+     * (below).
      *
      * Written for the wheel picker, where a flick into the first or last row
      * stopped dead: "add bounce-back animation when flicking to end".
@@ -223,9 +224,13 @@ class RubberBand internal constructor() {
             sequentialAnimation = sinceNanos != AnimationConstants.UnspecifiedTime,
         ) {
             place(value)
-            // Home: the rest of an under-damped spring is a lobe the other side
-            // of nothing, which the clamp above would hold at nothing anyway.
-            if (value <= 0f) cancelAnimation()
+            // Home, for a spring that goes through it: the rest of an under-damped
+            // one is a lobe the other side of nothing, which the clamp above would
+            // hold at nothing anyway. *Through*, not at: the first frame is at the
+            // value it starts from, which is nothing when the motion ran out of
+            // room exactly at the boundary — and stopping there was a bounce that
+            // never happened, the drum stopping dead.
+            if (value < 0f) cancelAnimation()
         }
         offset = 0f
     }

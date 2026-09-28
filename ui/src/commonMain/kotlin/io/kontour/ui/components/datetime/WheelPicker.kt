@@ -6,6 +6,7 @@ import androidx.compose.animation.core.AnimationConstants
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.calculateTargetValue
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -220,16 +221,20 @@ fun <T> WheelPicker(
                 var past = 0f
                 var arrivedAt = AnimationConstants.UnspecifiedTime
                 var travelled = 0f
+                // Where the end is, once, from the fling's own start. Read from the
+                // decay's distance rather than from where the list says it is each
+                // frame: a list that reports its position a frame late would put
+                // the arrival a frame late, and the drum would stop at its end for
+                // that frame and then jump out into the band.
+                val toEnd = room()
                 AnimationState(0f, initialVelocity).animateDecay(decay) {
-                    val step = value - travelled
-                    val before = room()
-                    scrollBy(step)
+                    scrollBy(value - travelled)
                     travelled = value
-                    if (room() < 0.5f) {
-                        // What this frame's step had no room for, and when: the
+                    if (abs(value) >= toEnd - ArrivalSlopPx) {
+                        // What this frame's travel had no room for, and when: the
                         // band takes up from here, in this frame, rather than the
                         // drum stopping on its end row first. See `carryOn`.
-                        past = (abs(step) - before).coerceAtLeast(0f)
+                        past = (abs(value) - toEnd).coerceAtLeast(0f)
                         arrival = velocity
                         arrivedAt = lastFrameTimeNanos
                         cancelAnimation()
@@ -238,16 +243,23 @@ fun <T> WheelPicker(
                 // Out the way the drum was going: a list scrolling forward moves
                 // its rows up, and the band's offset is a downward translation.
                 //
-                // Snappy and under-damped, and over the moment it is home. It was
-                // `springGentle`, critically damped: it goes out once, but comes
-                // back so slowly that the end row sat a pixel or two off centre
-                // for half a second after it had visibly arrived.
+                // Critically damped — out once and back, never through — as stiff
+                // as the theme's snappy spring, and done within half a pixel. It was
+                // `springGentle`, which came back so slowly that the end row sat
+                // a pixel or two off centre for half a second after it had
+                // visibly arrived. It was then `springDefault` as it stands,
+                // under-damped and stopped as it passed home, which was reported
+                // as "jumpy", and sometimes as snapping into place.
                 if (arrival != 0f) {
                     band.carryOn(
                         past = past,
                         velocity = -arrival,
                         limit = bandLimit,
-                        spec = wheelMotion.springOrTween(wheelMotion.springDefault),
+                        spec = spring(
+                            dampingRatio = 1f,
+                            stiffness = wheelMotion.springSnappy.stiffness,
+                            visibilityThreshold = BounceSettledPx,
+                        ),
                         sinceNanos = arrivedAt,
                     )
                 }
@@ -1058,6 +1070,12 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
  * same judgement the sheet makes with a twelfth of its container.
  */
 private const val WheelOverscrollRows = 1.5f
+
+/** How close to home a bounce is home: under a pixel, where the eye cannot see the rest. */
+private const val BounceSettledPx = 0.5f
+
+/** How close to its end a fling has reached it: the list's own positions are whole pixels. */
+private const val ArrivalSlopPx = 0.5f
 
 /** What a [WheelPicker] takes by default. */
 object WheelPickerDefaults {
