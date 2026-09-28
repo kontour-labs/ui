@@ -413,7 +413,10 @@ private fun MenuPanel(
  */
 @Composable
 private fun LevelStack(below: () -> MenuLevel?, levels: MenuLevels, surface: @Composable () -> Unit) {
-    Box {
+    // Passes the minimum width on: a select's menu is given its field's width as
+    // a minimum, and a box that dropped it left the panel hugging its rows
+    // inside that width, narrower than the field it opened from.
+    Box(propagateMinConstraints = true) {
         surface()
         val above = below()
         if (above != null) {
