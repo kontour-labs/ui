@@ -233,12 +233,24 @@ closes the sheet in one, where it used to take one flick per detent. A throw of
 the sheet itself, by its handle or its surface, counts from 125dp/s and always
 moves it at least one detent the way it was thrown.
 
-**A flick from the content has to be firmer.** Below 300dp/s a fling that
-started in the list settles the sheet where it already is rather than being read
-as an instruction to change detent. A reader who scrolled the list and let go was
-moving the list, and its leftovers are not a request. The floor was 500dp/s, and
-closing a sheet was reported as taking too much effort; both numbers are for
-tuning on a device.
+**A sheet being pulled when the finger lets go owns the release**, as a sheet on
+an iPhone does. If the content has handed the drag to the sheet, the release
+belongs to the sheet: it carries on at the finger's speed, and it moves at least
+one detent the way it was thrown. That holds even when the gesture scrolled the
+list up to its top first. A release used to stop the sheet dead for a few frames
+and then ease it away from rest. A pull that followed a scroll was also read as
+the list's, and sprang back.
+
+**A flick from the content has to be firmer.** Below 300dp/s, a release settles
+by position. A fling the list spent on itself does not move the sheet at all: a
+reader who scrolled the list and let go was moving the list, and its leftovers
+are not a request. The floor was 500dp/s, and closing a sheet was reported as
+taking too much effort; both numbers are for tuning on a device.
+
+**A sheet thrown away gives the page back as it goes.** The scrim stops taking
+taps, and the page is readable again, from the moment the sheet is let go on its
+way out, not once it has landed. If the sheet is caught again, or put back
+because `onDismissRequest` declined, it holds the page again.
 
 A sheet that may not be dismissed by hand is never flicked shut, however hard it
 is thrown: its lowest resting place is the floor a drag already stops at.

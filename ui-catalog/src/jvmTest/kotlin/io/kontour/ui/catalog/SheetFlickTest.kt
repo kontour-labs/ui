@@ -1,6 +1,7 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -109,6 +110,118 @@ class SheetFlickTest {
                 "list — the reader was scrolling it, and what it could not spend " +
                 "is not an instruction to take the sheet away.",
         )
+    }
+
+    /**
+     * Scrolling a sheet's list up to its top and pulling on down, then letting go
+     * with a flick, puts the sheet away — the way a sheet on an iPhone is closed.
+     *
+     * It used to be ignored: the list had moved in the gesture, so the release
+     * was taken for the list's and the sheet was settled by position alone, and
+     * sprang back from 120px down after a 3600px/s throw. Here the finger is
+     * still on the sheet, moving it, when it lets go; the list's part was over.
+     */
+    @Test
+    fun aFlickThatScrollsTheListHomeAndPullsOnClosesTheSheet() {
+        assertTrue(
+            closedBy(pixelsPerFrame = FlickPerFrame, scrolledTo = ListNearTop),
+            "scrolling the list to its top and flicking on down left the sheet open",
+        )
+    }
+
+    /**
+     * A flick from the content carries on at the finger's speed, as a throw of the
+     * handle always did, rather than stopping dead where the finger let go.
+     *
+     * Measured before: the sheet stood still for three frames after the release
+     * and then eased away from rest — Foundation's `animateTo` starts from the
+     * last velocity the drag recorded, and a sheet moved by its content records
+     * none. Reported from an iPhone, where a sheet is flicked by its content far
+     * more than by its handle, as closing a sheet feeling "like such an effort".
+     */
+    @Test
+    fun aFlickFromTheListCarriesItsSpeedIntoTheSheet() {
+        val track = releaseTrack(scrolledTo = 0)
+        // The release frame and the next: the settle starts on the second, and
+        // should be going at most of the finger's pace when it does — it moved
+        // 0px here before, and about 49 after.
+        val travel = track[2] - track[0]
+        assertTrue(
+            travel >= FlickPerFrame / 2,
+            "two frames after a ${FlickPerFrame}px-a-frame flick was let go, the sheet had moved ${travel}px: $track",
+        )
+    }
+
+    /**
+     * A sheet thrown away gives the page back as it is let go, not when it has
+     * landed: a tap on the page two frames later is the page's.
+     */
+    @Test
+    fun aSheetThrownAwayGivesThePageBackAtOnce() {
+        var taps = 0
+        val track = releaseTrack(scrolledTo = 0, page = { taps++ }) { scene, sheet ->
+            scene.frames(2)
+            val landed = sheet.currentDetent == SheetDetent.Hidden
+            scene.tap(Offset(300f, 40f))
+            assertTrue(!landed, "the sheet had already landed, so this says nothing about letting go early")
+        }
+        assertEquals(1, taps, "a tap on the page just after the sheet was thrown away went to its scrim: $track")
+    }
+
+    /**
+     * The sheet's offset each frame from the release of a flick of its list, the
+     * release frame first. [afterRelease] runs straight after the release instead.
+     */
+    private fun releaseTrack(
+        scrolledTo: Int,
+        page: (() -> Unit)? = null,
+        afterRelease: ((Scene, SheetState) -> Unit)? = null,
+    ): List<Float> {
+        var state: SheetState? = null
+        var visible by mutableStateOf(true)
+        val track = mutableListOf<Float>()
+        Scene(width = 600, height = 900) {
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(
+                    Modifier.fillMaxSize().background(Color.White)
+                        .then(if (page != null) Modifier.clickable { page() } else Modifier)
+                )
+                val sheet = rememberSheetState(
+                    detents = listOf(SheetDetent.Hidden, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.Expanded,
+                )
+                state = sheet
+                ModalBottomSheet(visible = visible, onDismissRequest = { visible = false }, state = sheet) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .verticalScroll(rememberScrollState(initial = scrolledTo))
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(900.dp).background(Color.LightGray))
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(80)
+            val sheet = requireNotNull(state)
+            val from = Offset(300f, 600f)
+            scene.press(from)
+            repeat(FlickSteps) { step ->
+                scene.move(Offset(from.x, from.y + FlickPerFrame * (step + 1)))
+                scene.frame()
+            }
+            scene.release(Offset(from.x, from.y + FlickPerFrame * FlickSteps))
+            if (afterRelease != null) {
+                afterRelease(scene, sheet)
+            } else {
+                repeat(6) {
+                    track += sheet.offset
+                    scene.frame()
+                }
+            }
+        }
+        return track
     }
 
     /**
@@ -272,5 +385,8 @@ class SheetFlickTest {
          * is the handoff under test.
          */
         const val ListStart = 300
+
+        /** Close enough to the top that a flick scrolls the list home in its first frames and pulls the sheet with the rest. */
+        const val ListNearTop = 100
     }
 }

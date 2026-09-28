@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.runtime.Composable
@@ -1036,6 +1037,12 @@ class SheetState internal constructor(
     private var offeredToChild: Float = 0f
 
     /**
+     * Whether `onPreFling` settled the release itself, because the sheet was the
+     * thing moving when the finger lifted. Read and cleared in `onPostFling`.
+     */
+    private var releasedBySheet: Boolean = false
+
+    /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
      * when the finger left.
      *
@@ -1077,9 +1084,51 @@ class SheetState internal constructor(
         velocity: Float,
         spec: AnimationSpec<Float>,
         minVelocity: Float,
+        atLeastOne: Boolean = false,
     ) {
-        val aimed = detentAimedAt(velocity, minVelocity)
-        if (aimed == null) anchoredState.settle(spec) else anchoredState.animateTo(aimed, spec)
+        val from = anchoredState.offset
+        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne) ?: (if (from.isNaN()) null else nearestAllowed(from))
+        if (aimed == null) anchoredState.settle(spec) else carryTo(aimed, velocity, spec)
+    }
+
+    /**
+     * Animates to [target] **starting at the finger's speed**.
+     *
+     * Foundation's `animateTo` starts from the velocity the anchored state last
+     * recorded, and a sheet moved by its content never records one: the content
+     * moves it by raw deltas. So a flick from a sheet's list stopped the sheet
+     * dead where the finger left it — three frames in a row, measured — and then
+     * eased it away from rest on a gentle spring, where a UIKit sheet carries on
+     * at the speed it was thrown and is gone. Reported from an iPhone as closing
+     * a sheet feeling "like such an effort", against Android, where the same
+     * sheet is usually dragged by its handle, whose fling carried the speed all
+     * along.
+     */
+    private suspend fun carryTo(target: SheetDetent, velocity: Float, spec: AnimationSpec<Float>) {
+        anchoredState.anchoredDrag(targetValue = target) { anchors, latest ->
+            val to = anchors.positionOf(latest)
+            if (to.isNaN()) return@anchoredDrag
+            val from = anchoredState.offset.takeUnless { it.isNaN() } ?: to
+            // Already there: nothing to animate, as Foundation's own `animateTo`
+            // decides, and no frame to wait for.
+            if (from == to) return@anchoredDrag
+            animate(from, to, velocity, spec) { value, speed -> dragTo(value, speed) }
+        }
+    }
+
+    /**
+     * Whether the sheet is resting at one of its detents, rather than somewhere a
+     * finger has put it on the way between.
+     */
+    private fun restingAtADetent(): Boolean {
+        val at = anchoredState.offset
+        if (at.isNaN()) return true
+        val anchors = anchoredState.anchors
+        for (index in 0 until anchors.size) {
+            val position = anchors.positionAt(index)
+            if (!position.isNaN() && abs(position - at) < 0.5f) return true
+        }
+        return false
     }
 
     /**
@@ -1257,6 +1306,28 @@ class SheetState internal constructor(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                // **The sheet was moving under the finger when it let go**, so
+                // the release is the sheet's, whatever the list did earlier in
+                // the gesture. UIKit's rule: once a scroll view at its top has
+                // handed the pan to its sheet, the sheet's pan decides where it
+                // goes, at the speed it was going.
+                //
+                // Before, a downward release went to the list first, and the
+                // sheet read what its fling handed back a frame or two later —
+                // or, if the list had moved at all in the gesture, nothing: a
+                // reader who scrolled up to the top and pulled on down, the most
+                // natural way to put a sheet away on an iPhone, had the flick
+                // ignored and the sheet spring back.
+                //
+                // At least one detent, as for a throw of the handle: the finger
+                // was on the sheet, moving it, and a flick of it is meant.
+                if (!restingAtADetent()) {
+                    listScrolled = false
+                    releasedBySheet = true
+                    settleWhereAimed(available.y, settleSpec, flickVelocity, atLeastOne = true)
+                    releaseOvershoot(settleSpec)
+                    return available
+                }
                 // A fling that started in the list belongs to the sheet only
                 // while the sheet is the thing that has been moving.
                 val offset = anchoredState.offset
@@ -1322,6 +1393,11 @@ class SheetState internal constructor(
                 // reaches here — with a zero velocity if the finger simply
                 // stopped — so this is the reliable place to forget it.
                 listScrolled = false
+                // Already answered, in `onPreFling`, with nothing left over.
+                if (releasedBySheet) {
+                    releasedBySheet = false
+                    return Velocity.Zero
+                }
                 if (wasTheList) {
                     anchoredState.settle(settleSpec)
                 } else {

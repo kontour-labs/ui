@@ -1028,6 +1028,30 @@ fun ModalBottomSheet(
         }
     }
 
+    // **Thrown away is already gone, as far as the page is concerned.** A release
+    // aimed at hidden lets go of the page the moment it is made, not when the
+    // sheet has landed: UIKit counts a sheet as dismissed when the finger lets go
+    // of it, and a scrim that kept taking taps for the rest of the slide was the
+    // "extra split second" reported from a phone. Caught again, or put back
+    // because the caller declined, it holds the page again.
+    LaunchedEffect(state, host, key) {
+        // Three answers, not two: landing hidden is neither — the caller decides
+        // what happens next — and a sheet then put back has to read as a change.
+        snapshotFlow {
+            when {
+                state.targetDetent != SheetDetent.Hidden -> SheetHold.Held
+                state.isMoving -> SheetHold.Away
+                else -> SheetHold.Landed
+            }
+        }.collect { hold ->
+            when (hold) {
+                SheetHold.Away -> host.letGo(key)
+                SheetHold.Held -> if (showing) host.takeBack(key)
+                SheetHold.Landed -> Unit
+            }
+        }
+    }
+
     LaunchedEffect(visible) {
         if (visible) {
             host.show(
@@ -1113,6 +1137,9 @@ fun ModalBottomSheet(
         }
     }
 }
+
+/** Whether a modal sheet is holding the page: see its `letGo`. */
+private enum class SheetHold { Held, Away, Landed }
 
 @Composable
 private fun BoxScope.SheetSurface(

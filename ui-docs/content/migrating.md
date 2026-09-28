@@ -543,7 +543,10 @@ these change what an existing call does.
   layout lambda, or behind `derivedStateOf`.
 - **One flick closes a bottom sheet**, past any middle detent, where it used to
   take one flick per detent; a flick from the sheet's content counts from 300dp/s
-  rather than 500dp/s.
+  rather than 500dp/s. **A sheet being pulled by its content when it is let go
+  carries on at the finger's speed** and moves at least one detent, even if the
+  gesture first scrolled its list to the top, and a sheet thrown away gives the
+  page back as soon as it is let go.
 - **A rail's labels end in an ellipsis** instead of at the last whole word, at
   every width.
 - **A `NavSearch` or `NavExpandingSlot` panel grows out of its pill** and goes back
