@@ -767,21 +767,34 @@ What it does depends on `LocalScrollFeel`:
 
 | Platform | `LocalScrollFeel` | The fling |
 |---|---|---|
-| iOS | `ScrollFeel()` | The library's: slows at UIKit's rate, and flicks add up |
+| iOS | `ScrollFeel(velocityScale = 1.2f)` | The library's: slows at UIKit's rate, reads a throw a fifth faster, and flicks add up |
 | Android, desktop, web | `null` | The platform's own, unchanged |
 
 The iOS default exists because flings on iOS were reported to "stop too soon".
 Compose's iOS fling already slows at UIKit's rate, so the rate was not the
 difference. The difference was **accumulation**. On an iPhone, a flick while a
 list is still moving adds to the speed it already has, so a run of flicks goes
-further each time. In Compose, each flick started again from rest.
+further each time. In Compose, each flick started again from rest. Once that was
+in, flings were still reported to have "a bit of friction", so the iOS default
+reads each throw a fifth faster. That figure is a starting point to tune against
+a native scroll view, not a measurement.
+
+**A flick after a rest carries on, in every list.** Compose's iOS velocity
+tracker reads a thumb laid on a list, rested a moment, then flicked as no speed
+at all, and a late frame just before the lift does the same, so the list
+stopped dead where the finger left it. On iOS the root of a `KontourTheme`
+follows the finger, and when a release reports exactly nothing while the finger
+was still moving, it hands the list the finger's own speed. That happens through
+nested scroll, before any list starts its fling, so your own lists get it too,
+whether or not they use `ScrollDefaults.flingBehavior()`. A finger that stopped
+before it lifted still stops the list.
 
 A `ScrollFeel` has three settings:
 
 | Property | Default | What it changes |
 |---|---|---|
 | `decelerationRate` | `0.998` | How much speed is kept each millisecond. This is UIKit's `normal` rate: a throw at `v` travels about `v × 0.5s` |
-| `velocityScale` | `1` | A multiplier on the release velocity, for a throw that Compose reads slower than UIKit does |
+| `velocityScale` | `1` (`1.2` in the iOS default) | A multiplier on the release velocity, for a throw that Compose reads slower than UIKit does |
 | `accumulates` | `true` | Whether a flick in the same direction, within 0.6s and faster than 300dp/s, adds to what was left of the last one |
 
 Provide a different `ScrollFeel` to tune it, or to give another platform the

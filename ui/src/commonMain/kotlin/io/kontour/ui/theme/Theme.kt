@@ -29,6 +29,9 @@ import io.kontour.ui.locale.forLocale
 import io.kontour.ui.locale.layoutDirection
 import io.kontour.ui.locale.platformLocale
 import io.kontour.ui.locale.rememberLocaleFormats
+import io.kontour.ui.motion.FingerTrail
+import io.kontour.ui.motion.catchRestedFlicks
+import io.kontour.ui.platform.platformLosesRestedFlicks
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.platform.platformReportAppearance
@@ -411,7 +414,13 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
             LocalInputModality provides modality.current,
             LocalInputModalityInstalled provides true,
         ) {
-            Box(Modifier.trackInputModality(modality)) {
+            // Once, at the outermost theme: see `catchRestedFlicks`.
+            val trail = remember { FingerTrail() }
+            Box(
+                Modifier
+                    .trackInputModality(modality)
+                    .then(if (platformLosesRestedFlicks) Modifier.catchRestedFlicks(trail) else Modifier)
+            ) {
                 content()
             }
         }

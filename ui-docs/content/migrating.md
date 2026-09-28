@@ -563,7 +563,11 @@ these change what an existing call does.
   Menus, dialogs, popovers, tooltips, tables, tabs, breadcrumbs, the rail, the
   command palette and the timelines all use `ScrollDefaults.flingBehavior()`.
   Your own lists keep Compose's fling until they are handed it too — see
-  [Flings](tokens.md#flings). Other platforms are unchanged.
+  [Flings](tokens.md#flings). The iOS default reads a throw a fifth faster
+  (`velocityScale = 1.2f`). Other platforms are unchanged.
+- **On iOS a list flicked after a rest carries on**, your own lists included: a
+  release Compose's tracker reads as no speed, while the finger was still moving,
+  is given the finger's own speed at the root of a `KontourTheme`.
 
 **Changed, and a call that names them stops compiling:**
 

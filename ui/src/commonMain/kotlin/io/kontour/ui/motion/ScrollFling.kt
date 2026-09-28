@@ -29,8 +29,11 @@ import kotlin.time.TimeSource
  * adds to the speed it already had, so a run of flicks goes faster and further
  * the way a long list on an iPhone does, where each one used to start again from
  * rest. And a **velocity scale**, for a throw that Compose reads slower than UIKit
- * does — 1 until a phone says otherwise, which is what the catalog's diagnostics
- * page is for.
+ * does: 1.2 on iOS, since a phone said flings there still had "a bit of friction",
+ * and tunable live on the catalog's diagnostics page.
+ *
+ * A throw Compose's iOS tracker reads as no speed at all — a flick after a rest —
+ * is a separate problem with a separate answer; see `catchRestedFlicks`.
  *
  * @property decelerationRate How much of its speed a fling keeps each
  *   millisecond: UIKit's `UIScrollView.DecelerationRate.normal`, 0.998, by default.

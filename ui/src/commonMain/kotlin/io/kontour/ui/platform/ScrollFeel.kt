@@ -8,3 +8,11 @@ import io.kontour.ui.motion.ScrollFeel
  * See [ScrollFeel].
  */
 internal expect val platformScrollFeel: ScrollFeel?
+
+/**
+ * Whether this platform's velocity tracker reports a thrown finger as still:
+ * iOS's, whose rule is the one [io.kontour.ui.motion.FingerTrail] explains. Where
+ * it is true, the root of a `KontourTheme` reads a release that reports nothing
+ * from the finger's own path.
+ */
+internal expect val platformLosesRestedFlicks: Boolean
