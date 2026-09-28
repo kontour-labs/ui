@@ -1,8 +1,9 @@
 # Migrating
 
-What moved in the API consistency pass, old name to new. The library is
-pre-1.0 and this was a clean break: nothing old is kept as a deprecated alias,
-so each line here is a compile error until it is made.
+From **0.1.0 to 0.2.0**: what moved, old name to new, and what behaves
+differently. The library is pre-1.0 and 0.2.0 is a clean break: nothing old is
+kept as a deprecated alias, so each line here is a compile error until it is
+made.
 
 Most of it is mechanical, and the compiler finds every site. Three kinds of
 change are worth reading rather than fixing one error at a time:

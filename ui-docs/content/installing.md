@@ -29,7 +29,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 // build.gradle.kts
-implementation("io.kontour:ui:0.1.0")
+implementation("io.kontour:ui:0.2.0")
 ```
 
 **`content { includeGroup("io.kontour") }` is not tidiness.** Without it Gradle
