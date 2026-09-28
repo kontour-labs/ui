@@ -336,7 +336,7 @@ class CalendarSwipePagingTest {
                 }
             }
         }
-        runOnIdle { kotlinx.coroutines.runBlocking { list.scrollToItem(1, 10_000) } }
+        runOnIdle { list.requestScrollToItem(1, 10_000) }
         waitForIdle()
         val march = onNodeWithTag("picker").fetchSemanticsNode().size.height
         val scrolled = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset

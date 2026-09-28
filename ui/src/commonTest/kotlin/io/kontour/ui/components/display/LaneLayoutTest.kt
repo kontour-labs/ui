@@ -170,8 +170,8 @@ class LaneLayoutTest {
             val raw = graph(*history.toTypedArray())
             for ((name, g) in listOf("as laid out" to raw, "bent early" to raw.bentEarly())) {
                 g.rows.zipWithNext().forEachIndexed { i, (above, below) ->
-                    val leaving = (above.passing + above.outgoing).map { it.to }.toSortedSet()
-                    val arriving = (below.passing + below.incoming).map { it.from }.toSortedSet()
+                    val leaving = (above.passing + above.outgoing).map { it.to }.distinct().sorted()
+                    val arriving = (below.passing + below.incoming).map { it.from }.distinct().sorted()
                     assertEquals(
                         leaving, arriving,
                         "${history.map { it.first }} $name: lanes leaving row $i are not the lanes arriving at row ${i + 1}",
