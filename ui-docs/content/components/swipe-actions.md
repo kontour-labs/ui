@@ -129,7 +129,9 @@ On a desktop a sideways scroll moves the row as a drag would. A trackpad's
 two-finger push follows the fingers — on a Mac it arrives as a pan, in pixels — and
 settles when they lift; a mouse's sideways wheel moves the row 24dp a notch — two
 clicks open a single action, four the first of several — and settles shortly after
-the last. Either one is the
+the last. In a browser, where a scroll arrives in pixels rather than notches, a
+trackpad follows the fingers a pixel at a time and one event never moves the row
+more than a notch would. Either one is the
 row's only if it begins mostly sideways, and a vertical scroll with a little drift
 in it stays the list's. It never commits.
 
