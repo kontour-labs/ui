@@ -17,6 +17,7 @@ import io.kontour.ui.theme.kontourSizing
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A bigger touch target must not draw a bigger component.
@@ -56,6 +57,7 @@ import kotlin.test.assertTrue
  * pixels as before, whereas a pill drawn at 48dp instead of 34dp draws
  * considerably more.
  */
+@Category(Slow::class)
 class TouchTargetOrderingTest {
 
     @Test

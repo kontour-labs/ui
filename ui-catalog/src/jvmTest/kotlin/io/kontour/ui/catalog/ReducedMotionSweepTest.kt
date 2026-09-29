@@ -12,6 +12,7 @@ import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * Under reduced motion, pressing any component in the library is over quickly
@@ -38,6 +39,7 @@ import kotlin.test.assertTrue
  * travelling along its own track. That is the small-amplitude tail the
  * setting leaves alone by design, and `check-settings.py`'s rule M names each one.
  */
+@Category(Slow::class)
 class ReducedMotionSweepTest {
 
     @Test

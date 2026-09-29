@@ -80,6 +80,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDate
+import org.junit.experimental.categories.Category
 
 /**
  * What the library is allowed to buzz for.
@@ -139,6 +140,7 @@ import kotlinx.datetime.LocalDate
  * for a detent is that the ticks come one per boundary rather than one per
  * frame, and for a threshold that it fires exactly once.
  */
+@Category(Slow::class)
 class DetentHapticsTest {
 
     // -----------------------------------------------------------------------

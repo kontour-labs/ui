@@ -10,7 +10,8 @@
 # Jobs, separate because they fail for different reasons and at different speeds:
 #
 #   changes  decides what a push to main has to run, from the files it changed
-#   test     the one that catches a regression
+#   test     the one that catches a regression; the catalog's slow classes
+#            only on a manual run with **full** ticked
 #   targets  the one that catches a component compiling on the JVM and nowhere else
 #   site     the documentation site and the API reference, and the slowest thing here
 #   deploy   uploads the site to Cloudflare Pages, docs.kontour.io/ui
@@ -27,7 +28,17 @@
 # is billed, and a pull request's run was about 17 minutes of `test` alone on a
 # public 4-core runner — more on the 2-core runners a private repository gets.
 # A branch that wants the checks before it merges asks for them: Actions → CI →
-# Run workflow, on that branch. That run is the whole suite and never deploys.
+# Run workflow, on that branch, with **full** ticked for the catalog's slow
+# classes. That run never deploys.
+#
+# ### The slow classes
+#
+# The catalog suite was about 83 minutes of test time, which is 45 minutes of
+# `test` on these runners, and 26 classes were 70 of those minutes. They are
+# marked `@Category(Slow::class)` and run only when **full** is ticked, or
+# locally with `-Pkontour.tests.full=true`. What is left is the libraries'
+# suites, every golden except the phone pages, and most of the catalog's
+# behaviour tests.
 #
 # Branch protection must therefore not require status checks from pull
 # requests, or every merge waits for a check that never starts.
@@ -47,6 +58,16 @@ on:
           `GITHUB_REF_NAME` is a branch name and the build refuses it.
         required: false
         default: ''
+      full:
+        description: >-
+          Run the catalog's slow tests as well: the sweeps over every
+          component, width and setting, and the long gesture suites. About
+          70 of the suite's 83 minutes of test time, and off on every push.
+          Tick it before merging a change to how components lay out, move or
+          take input.
+        type: boolean
+        required: false
+        default: false
       renders:
         description: >-
           Draw every page of the site at four widths and upload the contact
@@ -158,6 +179,8 @@ jobs:
       LIBRARY: ${{ needs.changes.result != 'success' || needs.changes.outputs.library == 'true' }}
       CATALOG: ${{ needs.changes.result != 'success' || needs.changes.outputs.catalog == 'true' }}
       DOCS: ${{ needs.changes.result != 'success' || needs.changes.outputs.docs == 'true' }}
+      # The catalog's `@Category(Slow::class)` classes, only when asked for.
+      FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full }}
     steps:
       - uses: actions/checkout@v4
 
@@ -247,6 +270,10 @@ jobs:
           fi
           if [ "$CATALOG" = true ]; then
             tasks+=(:ui-catalog:jvmTest :ui-catalog:checkScreenshotAssertions)
+            # Without it, the 26 slow classes are left out: see `Slow`.
+            if [ "$FULL" = true ]; then
+              tasks=(-Pkontour.tests.full=true "${tasks[@]}")
+            fi
           fi
           if [ "$DOCS" = true ]; then
             tasks+=(:ui-docs:jvmTest :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples)

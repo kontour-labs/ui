@@ -23,6 +23,7 @@ import io.kontour.ui.sheet.rememberSheetState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A sheet can be flicked shut, and a slow drag of the same length cannot.
@@ -51,6 +52,7 @@ import kotlin.test.assertTrue
  * reader who was scrolling its content and stopped. So the same travel is
  * performed slowly and has to leave the sheet open.
  */
+@Category(Slow::class)
 class SheetFlickTest {
 
     @Test

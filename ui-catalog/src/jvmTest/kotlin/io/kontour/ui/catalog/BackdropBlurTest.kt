@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * The content behind a modal is really blurred, and the shadows in it survive.
@@ -47,6 +48,7 @@ import kotlin.test.assertTrue
  * about the blur. Every comparison here is the same scene at the same frame with
  * `KontourTheme(backdropBlur = …)` as the only difference.
  */
+@Category(Slow::class)
 class BackdropBlurTest {
 
     @Test

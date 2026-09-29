@@ -16,6 +16,7 @@ import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A two-row drum comes to rest on a row, exactly, and gets there smoothly —
@@ -38,6 +39,7 @@ import kotlin.test.assertTrue
  *   than spending frames a pixel or two short.
  * - **No snap** — its last move into place is a small one.
  */
+@Category(Slow::class)
 class WheelPickerSettleTest {
 
     @Test

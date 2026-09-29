@@ -23,6 +23,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every action a screen reader can reach, performed.
@@ -81,6 +82,7 @@ import kotlin.test.fail
  * library, and a failure would be somebody else's to fix.
  */
 @OptIn(ExperimentalTestApi::class)
+@Category(Slow::class)
 class SemanticsActionSweepTest {
 
     // **Floors measured, not guessed.** Every one below came from a run with the

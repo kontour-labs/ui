@@ -23,6 +23,7 @@ import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * What a theme switch costs in the state a reader is actually in when they make
@@ -147,6 +148,7 @@ import kotlin.test.assertTrue
  * A **diagnostic, not a gate**: the assertion is a catastrophe bound and the
  * useful output is the table.
  */
+@Category(Slow::class)
 class ThemeSwitchCostDiagnostic {
 
     @Test

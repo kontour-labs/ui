@@ -19,6 +19,7 @@ import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * While a range is dragged, the band flows into the days about to be chosen and
@@ -35,6 +36,7 @@ import kotlin.test.assertTrue
  * August 2026 with Monday first: five blanks, six rows, and a 700px scene makes
  * every cell 100px square. Day *d* is cell `d + 4`.
  */
+@Category(Slow::class)
 class DateRangeReachTest {
 
     /** Leaning toward the 13th from the 12th, the part of the 12th the cap has left is band. */
