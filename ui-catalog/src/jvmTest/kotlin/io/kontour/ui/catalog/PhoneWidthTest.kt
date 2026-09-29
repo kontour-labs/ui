@@ -20,6 +20,7 @@ import javax.imageio.ImageIO
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every page of the gallery, drawn on a phone.
@@ -89,6 +90,7 @@ import kotlin.test.fail
  * these pages scroll, and a page cut off at 800dp would hide whatever is below
  * the fold from the very test meant to look at it.
  */
+@Category(Slow::class)
 class PhoneWidthTest {
 
     @Test

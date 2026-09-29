@@ -29,6 +29,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlin.math.ceil
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * What a blurred backdrop costs per frame, on this machine.
@@ -90,6 +91,7 @@ import kotlin.test.assertTrue
  * showcase has a `Frames` page whose arms switch on the device — see
  * `FramesPage`.
  */
+@Category(Slow::class)
 class BackdropCostDiagnostic {
 
     @Test

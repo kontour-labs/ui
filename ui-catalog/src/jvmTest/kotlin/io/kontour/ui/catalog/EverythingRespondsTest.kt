@@ -25,6 +25,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
+import org.junit.experimental.categories.Category
 
 /**
  * Every control in the gallery does something when you press it.
@@ -78,6 +79,7 @@ import kotlin.time.Duration.Companion.minutes
  * wiring leaves this test green — the one hole known in it.
  */
 @OptIn(ExperimentalTestApi::class)
+@Category(Slow::class)
 class EverythingRespondsTest {
 
     /**

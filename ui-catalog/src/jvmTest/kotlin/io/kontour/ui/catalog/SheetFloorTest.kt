@@ -22,6 +22,7 @@ import io.kontour.ui.sheet.rememberSheetState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A sheet that cannot be dismissed has a bottom, and it is one the finger feels.
@@ -53,6 +54,7 @@ import kotlin.test.assertTrue
  * components in this library have now been fixed for. So the sheet is checked
  * for movement first and for staying put second.
  */
+@Category(Slow::class)
 class SheetFloorTest {
 
     @Test

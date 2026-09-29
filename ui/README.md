@@ -31,7 +31,7 @@ KontourTheme {
 ./gradlew :ui:checkNoMaterial     # fails if Material reaches the classpath
 ./gradlew :ui:checkApiConventions # the eighteen API-shape rules
 ./gradlew :ui:checkKotlinAbi      # the public API against api/
-./gradlew :ui-catalog:jvmTest     # compares the screenshot goldens
+./gradlew :ui-catalog:jvmTest     # the goldens and behaviour; -Pkontour.tests.full=true adds the sweeps
 ./gradlew :ui-samples:compileKotlinJvm  # the documentation's examples
 ./gradlew :ui:dokkaGenerateHtml   # the API reference, into build/dokka/html
 ```

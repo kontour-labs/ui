@@ -38,6 +38,7 @@ import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A floating sheet expanded to its top detent **is** an edge sheet.
@@ -53,6 +54,7 @@ import kotlin.test.assertTrue
  * detent below the top to the top, and follows the sheet's position rather than a
  * clock. Below it the sheet is the floating panel it always was.
  */
+@Category(Slow::class)
 class FloatingSheetMorphTest {
 
     @Test

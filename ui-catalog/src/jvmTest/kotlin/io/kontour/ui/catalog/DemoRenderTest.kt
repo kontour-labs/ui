@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every demo draws something, at a phone's width and at a desktop's.
@@ -46,6 +47,7 @@ import kotlin.test.fail
  * from selects to segmented controls above Compact and that branch would
  * otherwise never run in a test.
  */
+@Category(Slow::class)
 class DemoRenderTest {
 
     @Test

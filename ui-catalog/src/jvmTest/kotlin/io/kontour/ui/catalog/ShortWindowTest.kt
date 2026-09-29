@@ -28,6 +28,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * The things that own the screen still fit when the screen is short.
@@ -67,6 +68,7 @@ import kotlin.test.fail
  * for — and a defect if it cannot, because the part past the fold is then simply
  * unreachable.
  */
+@Category(Slow::class)
 class ShortWindowTest {
 
     @Test

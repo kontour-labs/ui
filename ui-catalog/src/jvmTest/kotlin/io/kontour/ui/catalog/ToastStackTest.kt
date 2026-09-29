@@ -27,6 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import org.junit.experimental.categories.Category
 
 /**
  * Toasts stack, and each one runs its own clock.
@@ -40,6 +41,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * screen: the state has always held everything that was shown, and the question
  * is how much of it a user can see.
  */
+@Category(Slow::class)
 class ToastStackTest {
 
     @Test

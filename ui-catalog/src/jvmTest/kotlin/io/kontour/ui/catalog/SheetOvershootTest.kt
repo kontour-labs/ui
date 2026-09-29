@@ -19,6 +19,7 @@ import io.kontour.ui.sheet.rememberSheetState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A sheet pulled above its tallest detent stretches, and comes back.
@@ -34,6 +35,7 @@ import kotlin.test.assertTrue
  * move further; what makes it read as a rubber band rather than as a second,
  * shorter track is that each pixel of finger buys less than the last.
  */
+@Category(Slow::class)
 class SheetOvershootTest {
 
     @Test

@@ -23,6 +23,7 @@ import io.kontour.ui.theme.kontourSizing
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every component, at every width it might be given.
@@ -51,6 +52,7 @@ import kotlin.test.fail
  * supposed to get taller — text wraps, rows become columns — and calling that a
  * failure would be asking every component to be as short as its widest form.
  */
+@Category(Slow::class)
 abstract class WidthSweepTest(private val shard: Int) {
 
     /**

@@ -23,6 +23,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.experimental.categories.Category
 
 /**
  * A knob follows a straight drag — up or right is more, from anywhere on it —
@@ -32,6 +33,7 @@ import kotlin.test.assertTrue
  * A 200dp knob at density 2. A drag's whole travel is 200dp, which is 400px here,
  * so 100px is a quarter of the range.
  */
+@Category(Slow::class)
 class KnobGestureTest {
 
     /**

@@ -13,13 +13,38 @@ python3 docs/check-components.py
 python3 docs/check-settings.py
 ```
 
+### The everyday run, and the full one
+
+`:ui-catalog:jvmTest` leaves out 26 slow classes unless it is asked for them:
+
+```sh
+./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true
+```
+
+They were 70 of the suite's 83 minutes of test time: the sweeps that render
+every component at eight widths, at 200% type, under reduced motion and high
+contrast, that press every control in every demo, and the long gesture suites
+that drive a sheet or a picker through dozens of frames. Without them the
+catalog runs in five to seven minutes here and still holds every golden except
+the phone pages, and most of its behaviour tests.
+
+They are not optional, only not every time. Run the full suite before a pull
+request that changes how components lay out, move or take input, and in CI
+tick **full** under Actions → CI → Run workflow. Pushes to `main` run without
+them. Which classes, and why those, is in the KDoc of `Slow` in the catalog's
+tests; a class joins by being measured at half a minute or more, not by what
+it tests.
+
+The golden-orphan check still runs on the everyday run, and skips only
+`screenshots/phone/`, which only a slow class draws.
+
 | Gate | Asks |
 |---|---|
 | [The contract suite](#the-contract-suite) | Is every component operable, named and reachable? |
 | [`checkNoMaterial`](#checknomaterial) | Did anything pull Material in? |
 | [`checkApiConventions`](#checkapiconventions) | Do the signatures follow the house order? |
 | [`checkKotlinAbi`](#checkkotlinabi) | Has the public API changed from the dump checked in? |
-| [`EverythingRespondsTest`](#everythingrespondstest) | Does every control in the catalog do something? |
+| [`EverythingRespondsTest`](#everythingrespondstest) | Does every control in the catalog do something? (Full run only.) |
 | [Screenshot goldens](#screenshot-goldens) | Did anything change how it looks? |
 | [`:ui-samples`](#the-examples-compile) | Do the documentation's examples still compile? |
 | [`checkDocSamples`](#the-examples-compile) | Is the copy on the page the code that was compiled? |
@@ -278,9 +303,10 @@ again.
 To accept an intended change:
 
 ```sh
-./gradlew :ui-catalog:jvmTest -Pkontour.screenshots.update=true
+./gradlew :ui-catalog:jvmTest -Pkontour.screenshots.update=true -Pkontour.tests.full=true
 ```
 
+— with the full suite, or the phone pages are not drawn and stay as they were —
 then **look at the result** before committing it. That step is the point — a
 golden nobody looked at pins whatever was broken when it was recorded, and every
 visual bug found in this project was found by looking rather than by a test.

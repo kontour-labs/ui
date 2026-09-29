@@ -60,7 +60,8 @@ implementation("io.kontour:ui-nav3:0.2.0")
 be used on its own, with no Compose in it: see
 [`haptics.md`](ui-docs/content/haptics.md).
 
-[`installing.md`](ui-docs/content/installing.md) has the whole of it: why
+[`installing.md`](ui-docs/content/installing.md) has the whole of it: the three
+modules and the setup each needs on each platform, why
 `content { includeGroup }` is not tidiness but the difference between a working
 build and every dependency failing first, why a workflow in another repository
 cannot use its own `GITHUB_TOKEN` at any permission level, where the token goes,

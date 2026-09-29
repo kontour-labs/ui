@@ -37,6 +37,7 @@ import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.kontourSizing
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every gesture still works when the component is narrow.
@@ -61,6 +62,7 @@ import kotlin.test.fail
  * is the gallery's width and is here as the control: a gesture that fails at 600
  * is broken outright rather than broken narrow, and the message says which.
  */
+@Category(Slow::class)
 class NarrowGestureTest {
 
     @Test

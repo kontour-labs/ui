@@ -186,6 +186,23 @@ tasks.withType<Test>().configureEach {
 
 val screenshotGoldens = layout.projectDirectory.dir("screenshots")
 
+// ---------------------------------------------------------------------------
+// The everyday run, and the full one
+// ---------------------------------------------------------------------------
+//
+// 26 classes were 70 of this suite's 83 minutes: the sweeps over every
+// component and width, and the long gesture suites. They are marked
+// `@Category(Slow::class)` and left out of `jvmTest` unless asked for:
+//
+//     ./gradlew :ui-catalog:jvmTest -Pkontour.tests.full=true
+//
+// CI's pushes run without them; its "Run workflow" button runs them when
+// **full** is ticked. `Slow`'s KDoc says which classes and why.
+val fullSuite = providers.gradleProperty("kontour.tests.full").map { it.toBoolean() }.getOrElse(false)
+
+/** Goldens only a `Slow` class renders, which a run without them leaves alone. */
+val slowGoldenDirs = listOf("phone/")
+
 /**
  * Every test file that renders a golden also asserts on the result.
  *
@@ -296,6 +313,7 @@ tasks.named("check") {
  * | run | status | this check |
  * |---|---|---|
  * | full suite | `complete` | reports orphans |
+ * | without `Slow` | `complete except slow` | reports orphans outside `slowGoldenDirs` |
  * | `--tests X` | `filtered: …` | skips, and says so |
  * | a test failed | absent — `doLast` does not run on a failed `Test` | skips |
  * | up to date / from cache | restored with the rest of the outputs | reports against the last real run, which its inputs guarantee is current |
@@ -316,6 +334,9 @@ val checkGoldenOrphans = tasks.register("checkGoldenOrphans") {
 
     val manifests = layout.buildDirectory.dir("screenshot-manifests").get().asFile
     val goldens = screenshotGoldens.asFile
+    // Copied into the task: the configuration cache cannot carry a reference
+    // to the build script itself into `doLast`.
+    val slowOnly = slowGoldenDirs.toList()
     // A finalizer of a test task runs at most as often as the tests do, and the
     // work is a directory listing plus a handful of short text files. Up-to-date
     // checking would cost more than it saves, and its inputs are another task's
@@ -329,9 +350,15 @@ val checkGoldenOrphans = tasks.register("checkGoldenOrphans") {
             return@doLast
         }
         val status = statusFile.readText().trim()
-        if (status != "complete") {
-            logger.lifecycle("checkGoldenOrphans: skipped — $status")
-            return@doLast
+        // Without the slow classes, the goldens only they draw were not drawn;
+        // everything else was, and is still checked.
+        val unchecked = when (status) {
+            "complete" -> emptyList()
+            "complete except slow" -> slowOnly
+            else -> {
+                logger.lifecycle("checkGoldenOrphans: skipped — $status")
+                return@doLast
+            }
         }
 
         val rendered = manifests.listFiles().orEmpty()
@@ -343,6 +370,7 @@ val checkGoldenOrphans = tasks.register("checkGoldenOrphans") {
         val committed = goldens.walkTopDown()
             .filter { it.isFile && it.extension == "png" }
             .map { it.relativeTo(goldens).path.removeSuffix(".png").replace(File.separatorChar, '/') }
+            .filterNot { name -> unchecked.any { name.startsWith(it) } }
             .toSortedSet()
 
         val orphans = committed - rendered
@@ -361,6 +389,10 @@ val checkGoldenOrphans = tasks.register("checkGoldenOrphans") {
 }
 
 tasks.named<Test>("jvmTest") {
+    val full = fullSuite
+    inputs.property("fullSuite", full)
+    if (!full) useJUnit { excludeCategories("io.kontour.ui.catalog.Slow") }
+
     val manifests = layout.buildDirectory.dir("screenshot-manifests").get().asFile
     systemProperty("kontour.screenshots.manifestDir", manifests.path)
     // Declared so Gradle treats the manifests like any other result of this
@@ -396,6 +428,7 @@ tasks.named<Test>("jvmTest") {
                     "filtered: includePatterns ${filter.includePatterns.joinToString(" ")}"
                 filter.excludePatterns.isNotEmpty() ->
                     "filtered: excludePatterns ${filter.excludePatterns.joinToString(" ")}"
+                !full -> "complete except slow"
                 else -> "complete"
             }
         )

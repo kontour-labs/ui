@@ -20,6 +20,7 @@ import java.io.File
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.fail
+import org.junit.experimental.categories.Category
 
 /**
  * Every page at every window size class the library documents.
@@ -47,6 +48,7 @@ import kotlin.test.fail
  * every assertion had passed, and this round found a dialog drawing on top of
  * itself the same way.
  */
+@Category(Slow::class)
 class WindowClassTest {
 
     @Test

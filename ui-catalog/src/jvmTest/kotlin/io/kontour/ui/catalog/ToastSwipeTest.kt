@@ -26,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
+import org.junit.experimental.categories.Category
 
 /**
  * What a toast does when the finger lets go.
@@ -56,6 +57,7 @@ import kotlin.time.Duration
  * same thing about `swipeRight`. So the drags here send their moves **without a
  * frame between them**, which is what a finger does.
  */
+@Category(Slow::class)
 class ToastSwipeTest {
 
     @Test
