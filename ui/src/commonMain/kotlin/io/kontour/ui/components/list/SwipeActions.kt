@@ -89,6 +89,7 @@ import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.platform.platformScrollDeltaInPixels
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -266,6 +267,12 @@ object SwipeActionsDefaults {
      * action, and four bring the first of several out in full, which is where a
      * released row opens. A trackpad on a Mac pans instead, and follows the
      * fingers.
+     *
+     * On the web it is a ceiling rather than a step. A browser's scroll comes in
+     * CSS pixels, not notches, so a pixel moves the row a dp and follows the
+     * trackpad the way a pan does, and no one event moves it further than this —
+     * which is about what one click of a mouse wheel reports. Treated as notches,
+     * as they were, one trackpad event of ten pixels moved the row 240dp.
      */
     val ScrollStep: Dp = 24.dp
 
@@ -750,6 +757,11 @@ fun SwipeActions(
              * pan moves the row with the fingers, the way a finger's drag does,
              * and a notch moves it [SwipeActionsDefaults.ScrollStep].
              *
+             * **And then it was far too easy**, on the web: a browser's scroll
+             * is in pixels, not notches, and at a notch's step each trackpad
+             * event threw the row a couple of hundred dp. See
+             * [sideScrollDistance].
+             *
              * **Sideways, or not at all.** Each gesture — a pan from its start,
              * a burst of scroll from the first event after a quiet spell — is
              * the row's if it begins mostly sideways, and the list's otherwise,
@@ -766,6 +778,7 @@ fun SwipeActions(
                     // read the actions, and a row given new ones starts afresh.
                     Modifier.pointerInput(state, scope, isRtl, startTravel, endTravel, actionWidthPx) {
                         val stepPx = SwipeActionsDefaults.ScrollStep.toPx()
+                        val dpPx = 1.dp.toPx()
                         val decidePx = viewConfiguration.touchSlop * SideScrollDecisionShare
                         var waiting: Job? = null
                         // The gesture's direction: undecided, the row's, or the list's.
@@ -836,7 +849,7 @@ fun SwipeActions(
                                         // A notch is a whole decision on its own.
                                         if (decide(delta, 0f) != true || delta.x == 0f) continue
                                         changes.forEach { it.consume() }
-                                        move(-delta.x * stepPx)
+                                        move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
                                         waiting = scope.launch {
                                             delay(SwipeActionsDefaults.SettleAfterScroll)
                                             committing = false
@@ -1465,6 +1478,18 @@ fun SwipeToDismiss(
 private class ConfirmDraw {
     var job: Job? = null
 }
+
+/**
+ * How far one scroll event moves a swipe row, in pixels, from its delta.
+ *
+ * A delta in notches — everywhere but the web — moves the row [stepPx] a notch.
+ * A delta in CSS pixels — the web, see [platformScrollDeltaInPixels] — moves it one
+ * dp a pixel, and never more than [stepPx] in one event: a trackpad's few pixels
+ * follow the fingers, and a mouse wheel's hundred-pixel click moves the row as far
+ * as a notch does anywhere else.
+ */
+internal fun sideScrollDistance(delta: Float, stepPx: Float, density: Float, inPixels: Boolean): Float =
+    if (inPixels) (delta * density).coerceIn(-stepPx, stepPx) else delta * stepPx
 
 /**
  * How much of the touch slop a trackpad's pan gathers before the row decides

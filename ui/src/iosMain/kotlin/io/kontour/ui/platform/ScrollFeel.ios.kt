@@ -15,3 +15,6 @@ internal actual val platformScrollFeel: ScrollFeel? = ScrollFeel(velocityScale =
 
 /** Compose's UIKit tracker: a rest before a flick, or a late frame, reads as no speed. */
 internal actual val platformLosesRestedFlicks: Boolean = true
+
+/** Notches, as Compose reports them for a pointer on an iPad. */
+internal actual val platformScrollDeltaInPixels: Boolean = false

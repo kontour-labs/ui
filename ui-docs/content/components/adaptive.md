@@ -12,11 +12,11 @@
 | [`Modifier.pointerCursor`](modifier-pointer-cursor.md) | The mouse cursor over a component, named for what it is |
 | `Motion.fadeThrough` / `sharedAxis` / `containerTransform` | Transition presets |
 | [`PageTransition`](page-transition.md) | Whole-page changes, carrying shared elements across |
-| `Modifier.revealOnScroll` | Fades content in the first time it appears |
-| `Modifier.parallax` | Scroll-linked drift |
-| `Modifier.shimmer` | The travelling highlight behind a skeleton |
-| `Modifier.atmosphere` | The radial glow both websites use behind a hero |
-| `Modifier.edgeVignette` | Soft falloff at the edges of a scrolling page |
+| [`Modifier.revealOnScroll`](scroll-effects.md) | Fades content in the first time it appears |
+| [`Modifier.parallax`](scroll-effects.md#modifierparallax) | Scroll-linked drift |
+| [`Modifier.edgeVignette`](scroll-effects.md#modifieredgevignette) | Soft falloff at the edges of a scrolling page |
+| [`Modifier.atmosphere`](atmosphere.md) | The radial glow both websites use behind a hero |
+| [`Modifier.shimmer`](skeleton.md#modifiershimmer) | A skeleton's travelling highlight, for any shape |
 
 ---
 

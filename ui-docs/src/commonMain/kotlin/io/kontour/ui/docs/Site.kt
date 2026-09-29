@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.AdjustmentsHorizontal
+import com.composables.icons.tabler.outline.Api
 import com.composables.icons.tabler.outline.FileOff
 import com.composables.icons.tabler.outline.FileText
 import com.composables.icons.tabler.outline.Home
@@ -198,6 +199,16 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
                         } else {
                             ButtonVariant.Ghost
                         },
+                    )
+                    // The generated reference, which is Dokka's HTML mounted at
+                    // `api/` beside the app rather than a route inside it — so a
+                    // new tab, as the per-entry "reference" links open, and never
+                    // the selected style: the site is never showing it.
+                    IconButton(
+                        icon = Tabler.Outline.Api,
+                        contentDescription = "API reference",
+                        onClick = { openExternal(ApiReferenceHome) },
+                        variant = ButtonVariant.Ghost,
                     )
                     // A `Popover` anchored on its own button, which is what
                     // this always wanted to be. It used to be a `Card` inside a
@@ -632,6 +643,12 @@ private fun DocPageView(path: String) {
         }
     }
 }
+
+/**
+ * The reference's front page: `docs/lay-out-site.py --api` mounts Dokka's HTML at
+ * `api/`, relative to the app, and each entry's "reference" link goes further in.
+ */
+internal const val ApiReferenceHome = "api/index.html"
 
 /** Where `docs/lay-out-site.py` mirrors this page as Markdown, relative to the site. */
 internal val DocPage.textUrl: String get() = "md/$path.md"

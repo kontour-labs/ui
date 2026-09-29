@@ -3,9 +3,14 @@ package io.kontour.ui.overlay
 import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -83,11 +88,13 @@ import io.kontour.ui.interaction.freeDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.motion.enterOrFade
 import io.kontour.ui.motion.exitOrFade
+import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlin.math.abs
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -118,6 +125,54 @@ internal class Toast(
      * rather than in the card.
      */
     internal val presence = MutableTransitionState(false).apply { targetState = true }
+
+    /**
+     * Whether it is leaving because a finger swiped it away, rather than running
+     * out of time or being closed. Set before [presence] turns, because the card
+     * reads it to choose how to leave — see the exit in `ToastCard`.
+     */
+    internal var swipedAway by mutableStateOf(false)
+
+    /**
+     * Where a swiped card was let go, which is where it leaves from.
+     *
+     * Its own copy, because the drag it came from is the stack's and goes home
+     * the moment the card is let go — the cards behind lean with it, and waiting
+     * for this one to finish leaving before they went back made them snap there
+     * in one frame, after it had gone.
+     */
+    internal var leftFrom by mutableStateOf(Offset.Zero)
+}
+
+/**
+ * The stack's drag going home: sprung, one at a time, and stoppable.
+ *
+ * One of these rather than a launch at each place that needs it, because two of
+ * them running at once write the same value from two starting points — which is
+ * a card that jumps between them — and a finger that lands while one runs has to
+ * be able to stop it.
+ */
+private class PullSettle(
+    private val scope: CoroutineScope,
+    private val pull: MutableState<Offset>,
+) {
+    private var job: Job? = null
+
+    val isRunning: Boolean get() = job?.isActive == true
+
+    fun start(spec: AnimationSpec<Float>) {
+        val from = pull.value
+        job?.cancel()
+        job = scope.launch {
+            animate(initialValue = 0f, targetValue = 1f, animationSpec = spec) { fraction, _ ->
+                pull.value = from * (1f - fraction)
+            }
+        }
+    }
+
+    fun stop() {
+        job?.cancel()
+    }
 }
 
 /**
@@ -849,8 +904,11 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val held = remember { mutableStateOf(false) }
 
     val frontId = visible.lastOrNull()?.id
+    val settle = remember(stackScope, pull) { PullSettle(stackScope, pull) }
     LaunchedEffect(frontId) {
-        pull.value = Offset.Zero
+        // A spring already on its way home finishes there; cutting it short to
+        // zero is the snap it exists to avoid.
+        if (!settle.isRunning) pull.value = Offset.Zero
         // A card dismissed mid-gesture never reaches its own release handler, and a
         // stuck flag here would stop every clock in the stack for good.
         held.value = false
@@ -991,6 +1049,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     onFrontMeasured = { frontHeightPx = it },
                     swipe = swipe,
                     pull = pull,
+                    settle = settle,
                     held = held,
                     scope = stackScope,
                     modifier = config.modifier,
@@ -1028,6 +1087,8 @@ private fun ToastCard(
      * onto whatever the last composition happened to see. See `ToastStack`.
      */
     pull: MutableState<Offset>,
+    /** Sends [pull] home. See `PullSettle`. */
+    settle: PullSettle,
     /** Set while a finger is on this card. See `ToastStack`, which owns it. */
     held: MutableState<Boolean>,
     /** The stack's scope — see the settle in the gesture below. */
@@ -1147,12 +1208,38 @@ private fun ToastCard(
         // exists to say. Measured on a four-deep stack: the pill's exit moved
         // the top of the stack on **two** frames of a nine-frame tween and then
         // sat still, which reads as a jump because it is one.
-        exit = if (depth == 0) {
+        exit = if (depth == 0 && !toast.swipedAway) {
             motion.exitOrFade(
                 slideOutVertically(motion.tweenExit()) { if (towardEdge) it / 2 else -it / 2 } +
                     fadeOut(motion.tweenExit()) +
                     scaleOut(motion.tweenExit(), targetScale = 0.94f),
             )
+        } else if (depth == 0) {
+            // **Swiped away: it shrinks where the finger left it.**
+            //
+            // Reported: *"if I drag it away but not off the screen, it should
+            // shrink out in place rather than just disappearing"*. It used to take
+            // the branch above, which is a departure from where a card *rests* —
+            // half its height toward the edge from wherever the finger had put it,
+            // fading as fast as it moved — and read as a card that jumped and was
+            // gone.
+            //
+            // The pill's departure below, and for the pill's reasons — but none of
+            // it out here. This node sits where the card *rests*, and the drag is
+            // a layer inside it:
+            //
+            // - a `scaleOut` scales about the resting centre, so the card would
+            //   slide back toward where it started as it got smaller;
+            // - a `fadeOut` draws this node offscreen, **clipped to its resting
+            //   bounds**, so a card dragged sideways was cut off at the resting
+            //   edge on the exit's first frame. Most of it simply went, which is
+            //   the "just disappearing" that was reported, and it had been doing
+            //   that since toasts could be swiped sideways at all.
+            //
+            // So both are `swipedShrink` and `swipedFade`, in the inner layer, on
+            // the card where it is. Reduced motion keeps the fade and drops the
+            // shrink there too.
+            ExitTransition.None
         } else {
             // **Shrunk on the spot, toward its own centre.**
             //
@@ -1175,17 +1262,27 @@ private fun ToastCard(
             // small. Shrink first, then disappear; the earlier version faded and
             // shrank at the same rate, which is a pill going translucent in place.
             motion.exitOrFade(
-                fadeOut(
-                    tween(
-                        durationMillis = motion.fast - motion.fast / 3,
-                        delayMillis = motion.fast / 3,
-                        easing = motion.exit,
-                    )
-                ) +
+                fadeOut(leaveFade(motion)) +
                     scaleOut(motion.tweenExit(), targetScale = ToastDefaults.PillExitScale),
             )
         },
     ) {
+        // The swiped card's departure — see its exit above. Driven by this
+        // visibility's own transition, so the exit is not over until they are.
+        val swipedShrink by transition.animateFloat(
+            transitionSpec = { motion.tweenExit() },
+            label = "toastSwipedShrink",
+        ) { phase ->
+            if (phase == EnterExitState.PostExit && toast.swipedAway && !motion.reduceMotion) {
+                ToastDefaults.PillExitScale
+            } else {
+                1f
+            }
+        }
+        val swipedFade by transition.animateFloat(
+            transitionSpec = { if (motion.reduceMotion) motion.tweenFast() else leaveFade(motion) },
+            label = "toastSwipedFade",
+        ) { phase -> if (phase == EnterExitState.PostExit && toast.swipedAway) 0f else 1f }
         ToastSurface(
             toast = toast,
             depth = depth,
@@ -1212,7 +1309,12 @@ private fun ToastCard(
                             // travels entirely alone and takes the first pixel
                             // that does.
                             claimsOn = DragClaim.Movement,
-                            onStart = { held.value = true },
+                            onStart = {
+                                // A finger takes the drag from a spring still
+                                // taking it home, rather than both writing it.
+                                settle.stop()
+                                held.value = true
+                            },
                             onDelta = { delta ->
                                 // A plain accumulator, read and written live.
                                 // Where the card actually goes is `toastTravel`,
@@ -1260,35 +1362,70 @@ private fun ToastCard(
                                 val dismissing = dismissesOnRelease()
                                 pastLine.value = false
                                 if (dismissing) {
+                                    // The card keeps where it was let go and
+                                    // shrinks there; the drag, which the cards
+                                    // behind lean with, goes home now, so they
+                                    // ease back while it leaves rather than
+                                    // snapping back once it has.
+                                    toast.leftFrom = swipe()
+                                    toast.swipedAway = true
                                     state.dismiss(toast.id)
-                                } else {
-                                    // Sprung, not snapped. Letting go below the
-                                    // threshold used to put the card back in a
-                                    // single frame, which looks like a glitch
-                                    // rather than like a control returning.
-                                    //
-                                    // On the stack's scope rather than the
-                                    // gesture's: this node exists only while its
-                                    // card is at `depth == 0`, so a toast
-                                    // arriving mid-spring would otherwise
-                                    // detach it and freeze the card part-way.
-                                    val from = pull.value
-                                    scope.launch {
-                                        animate(
-                                            initialValue = 0f,
-                                            targetValue = 1f,
-                                            animationSpec = motion.springOrTween(motion.springSnappy),
-                                        ) { fraction, _ ->
-                                            pull.value = from * (1f - fraction)
-                                        }
-                                    }
                                 }
+                                // Sprung, not snapped, either way. Letting go
+                                // below the threshold used to put the card back
+                                // in a single frame, which looks like a glitch
+                                // rather than like a control returning.
+                                //
+                                // On the stack's scope rather than the gesture's:
+                                // this node exists only while its card is at
+                                // `depth == 0`, so a toast arriving mid-spring
+                                // would otherwise detach it and freeze the card
+                                // part-way.
+                                settle.start(motion.springOrTween(motion.springSnappy))
                             },
                         )
                     } else {
                         Modifier
                     }
                 )
+                // Where the card *is*: its place in the stack, the finger's pull,
+                // and a swiped card's departure. Outside the padding, and the
+                // swiped fade is why. A fading layer is drawn offscreen, clipped
+                // to its own bounds, and the card's shadow lies outside the card —
+                // so a fade on the card itself cut the shadow off on its first
+                // frame. The padding is the ring the shadow is drawn in, and it
+                // is centred on the card, so the shrink's pivot is the card's
+                // centre either way.
+                .graphicsLayer {
+                    // **The pills lean; only the front card travels.**
+                    //
+                    // The third position this has been in, and the two before it
+                    // were each reported. Every card reading the full `swipe` was
+                    // the answer to "the stack came apart under a finger: only the
+                    // card moved and the pills it is the front of stayed where they
+                    // were" — and reading none of it was what that replaced. The
+                    // report against *this* one: *"when you drag away the main
+                    // tooltip, the secondary ones shouldn't move with it. They
+                    // should just get pulled slightly in the direction that the user
+                    // is dragging, but they should still be anchored to the main
+                    // position."*
+                    //
+                    // Which is a stack that is one object *and* has a front: the
+                    // pills acknowledge the pull without going with it, so letting
+                    // go a card that does not dismiss returns one thing rather than
+                    // four, and swiping one away leaves the others where the eye
+                    // already had them.
+                    val lean = if (depth == 0) 1f else PillLean
+                    val swiped = if (toast.swipedAway) toast.leftFrom else swipe()
+                    translationX = swiped.x * lean
+                    translationY = depthOffset.toPx() + swiped.y * lean
+                    scaleX = swipedShrink
+                    scaleY = swipedShrink
+                    // One for the whole of the card's life except a swiped exit,
+                    // which is the only departure that fades here rather than
+                    // outside — see the exit.
+                    alpha = swipedFade
+                }
                 .padding(Theme.spacing.md)
                 // Measured in the layout phase, not read out of the draw phase:
                 // writing state from inside `graphicsLayer` is a write during
@@ -1313,28 +1450,6 @@ private fun ToastCard(
                 // movement they have to follow. `check-settings.py`'s rule M
                 // names this function for that reason.
                 .graphicsLayer {
-                    // **The pills lean; only the front card travels.**
-                    //
-                    // The third position this has been in, and the two before it
-                    // were each reported. Every card reading the full `swipe` was
-                    // the answer to "the stack came apart under a finger: only the
-                    // card moved and the pills it is the front of stayed where they
-                    // were" — and reading none of it was what that replaced. The
-                    // report against *this* one: *"when you drag away the main
-                    // tooltip, the secondary ones shouldn't move with it. They
-                    // should just get pulled slightly in the direction that the user
-                    // is dragging, but they should still be anchored to the main
-                    // position."*
-                    //
-                    // Which is a stack that is one object *and* has a front: the
-                    // pills acknowledge the pull without going with it, so letting
-                    // go a card that does not dismiss returns one thing rather than
-                    // four, and swiping one away leaves the others where the eye
-                    // already had them.
-                    val lean = if (depth == 0) 1f else PillLean
-                    val swiped = swipe()
-                    translationX = swiped.x * lean
-                    translationY = depthOffset.toPx() + swiped.y * lean
                     scaleX = depthScale
                     scaleY = depthScale
                     // No alpha. Fading the ones behind made them *translucent*
@@ -1565,6 +1680,17 @@ private fun ToastSurface(
  * four is gone within a second of the first leaving.
  */
 private const val ToastStagger = 250L
+
+/**
+ * A leaving card's fade, held back so it is still nearly opaque while it gets
+ * small: shrink first, then disappear. A fade at the shrink's own rate reads as a
+ * card going translucent in place — see the pill's exit in `ToastCard`.
+ */
+private fun leaveFade(motion: Motion): FiniteAnimationSpec<Float> = tween(
+    durationMillis = motion.fast - motion.fast / 3,
+    delayMillis = motion.fast / 3,
+    easing = motion.exit,
+)
 
 /**
  * How far back inside the dismiss point a swipe has to come, once past it, before

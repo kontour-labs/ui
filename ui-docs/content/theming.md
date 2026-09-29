@@ -170,11 +170,12 @@ keeps the rest of the palette intact.
 **Change the typeface:**
 
 ```kotlin
-KontourTheme(typography = kontourTypography(family = myBrandFamily)) { … }
+KontourTheme(typography = kontourTypography(myBrandFamily, jetBrainsMonoFontFamily())) { … }
 ```
 
 The scale — sizes, weights, line heights, tracking — is preserved; only the
-family changes.
+family changes. Name the mono face as well: left out, the brand face takes the
+mono role too, and code and figures stop being monospaced.
 
 **Change a component's geometry, everywhere:**
 

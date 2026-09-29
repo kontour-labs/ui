@@ -217,6 +217,30 @@ desktop and the web:
 4. `NavDisplay`, which pops the page;
 5. the platform.
 
+**Without Navigation 3.** The same motion is there for an app that runs its own
+`AnimatedContent` between pages. `rememberPageMotion()` gives a `PageMotion` for
+the platform's back style, whose `push()`, `pop()` and `predictivePop(edge)` are
+the three `ContentTransform`s, and `Modifier.pageEffects(motion, this, isPop)` on
+each page draws what a transform cannot: the dim beneath and the shadow above
+while one page slides over another. Paint the page's ground before it, in
+`LocalContainerColour` — inside a sheet, the dim fades towards that colour rather
+than to black, so it never draws an edge where the stack stops. Under reduced
+motion the transforms are a crossfade and the modifier draws nothing.
+
+```kotlin
+val motion = rememberPageMotion()
+AnimatedContent(
+    targetState = page,
+    transitionSpec = { if (targetState.depth > initialState.depth) motion.push() else motion.pop() },
+) { shown ->
+    Box(
+        Modifier
+            .background(LocalContainerColour.current.takeOrElse { Theme.colours.background })
+            .pageEffects(motion, this, isPop = { shown.depth < page.depth }),
+    ) { Page(shown) }
+}
+```
+
 **On Android**, the predictive animation needs
 `android:enableOnBackInvokedCallback="true"` on the application in the manifest
 on Android 13 to 15; an app targeting Android 16 has it already.

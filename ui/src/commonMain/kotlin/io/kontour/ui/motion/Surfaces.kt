@@ -1,20 +1,12 @@
 package io.kontour.ui.motion
 
-import androidx.compose.animation.core.InfiniteRepeatableSpec
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -22,14 +14,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.display.SkeletonSweep
+import io.kontour.ui.components.display.skeletonFill
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The radial glow both websites use behind a hero.
@@ -172,57 +164,36 @@ fun Modifier.edgeVignette(
 }
 
 /**
- * A travelling highlight, for a loading placeholder.
+ * The sweep a [io.kontour.ui.components.display.Skeleton] is drawn with, for a
+ * placeholder the skeletons do not cover.
  *
  * ```kotlin
- * Box(Modifier.size(120.dp, 16.dp).clip(Theme.shapes.small).shimmer())
+ * Box(Modifier.size(120.dp).clip(Theme.shapes.medium).shimmer())
  * ```
  *
- * Used by [io.kontour.ui.components.display.Skeleton]; exposed for placeholders
- * the skeleton components do not cover.
+ * A map tile, a chart, a photo in a shape of its own: clip the box to the shape
+ * and this fills it with the same ground and the same travelling band as the
+ * skeletons beside it, at the same speed, so they read as one loading screen.
+ * The band runs from the start of the line to its end, so right to left in a
+ * right-to-left layout.
+ *
+ * It only paints, *behind* the node's content, and adds no semantics: a
+ * placeholder has nothing to say, so give the loading region its own
+ * description.
  *
  * **Stops under reduced motion**, holding a flat tone instead. A looping
  * animation is the category the preference exists to stop, and a shimmer runs
  * for as long as the load takes.
+ *
+ * @param colour The ground. A placeholder has to stand apart from whatever it
+ *   sits on; on a `surfaceSunken` container, pass a colour that does.
+ * @param highlight The band. `Unspecified` takes the skeleton's: `surface` in a
+ *   light scheme, `outline` in a dark one, where `surface` would barely show.
+ * @param duration One pass, start to end.
  */
 @Composable
 fun Modifier.shimmer(
     colour: Color = Theme.colours.surfaceSunken,
-    highlight: Color = Theme.colours.surface,
-    duration: Duration = 1_400.milliseconds,
-): Modifier {
-    val motion = Theme.motion
-    if (motion.reduceMotion) return drawBehind { drawRect(colour) }
-
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(duration.inWholeMilliseconds.toInt()),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "shimmerProgress",
-    )
-
-    return drawWithCache {
-        // Travels one and a half widths, so the highlight is fully off screen
-        // between passes rather than wrapping visibly at the edge.
-        val travel = size.width * 1.5f
-        val start = -size.width * 0.5f
-        // Built once, where the pass starts, and moved each frame rather than
-        // rebuilt there — see `Skeleton`, which does the same.
-        val band = Brush.horizontalGradient(
-            colors = listOf(Color.Transparent, highlight, Color.Transparent),
-            startX = start,
-            endX = start + size.width * 0.5f,
-        )
-        onDrawBehind {
-            drawRect(colour)
-            val along = travel * progress
-            translate(along, 0f) {
-                drawRect(brush = band, topLeft = Offset(-along, 0f), size = size)
-            }
-        }
-    }
-}
+    highlight: Color = Color.Unspecified,
+    duration: Duration = SkeletonSweep,
+): Modifier = skeletonFill(base = colour, highlight = highlight, duration = duration)

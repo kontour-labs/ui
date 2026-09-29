@@ -407,8 +407,8 @@ was recorded.
 - **The API dump.** `./gradlew :ui:updateKotlinAbi` (and `:ui-nav3`, `:haptics`)
   rewrites the dump under the module's `api/` directory, and CI's
   `checkKotlinAbi` fails on any difference from it. Adding to the API is a new
-  line in the dump; changing or removing something is a break, and goes in
-  `ui-docs/content/migrating.md` in the same commit.
+  line in the dump; changing or removing something is a break, and gets a
+  line in the next release's notes.
 
 ---
 

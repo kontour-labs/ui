@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +40,7 @@ import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.text.TextField
@@ -54,9 +57,14 @@ import io.kontour.ui.foundation.richText
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.clearFocusOnTap
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.motion.atmosphere
+import io.kontour.ui.motion.edgeVignette
+import io.kontour.ui.motion.parallax
+import io.kontour.ui.motion.revealOnScroll
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun TextBasics() {
@@ -115,6 +123,29 @@ fun RichTextIcons() {
             +"Route 950 "
             tone(Tone.Warning) { icon(Tabler.Outline.AlertTriangle, "disrupted"); +" 12 minutes late" }
         },
+    )
+}
+
+@Composable
+fun RichTextStyles() {
+    // A size from the type scale, a marker behind what changed, an underline:
+    // each from the theme, as the verbs above are.
+    Text(
+        richText {
+            +"Next train in "; style(typography.titleLarge, "4 min"); +". "
+            +"Tonight it leaves from "; highlight("platform 3"); +". "
+            +"Tap on "; underline("and"); +" off."
+        },
+    )
+
+    // A colour or a gradient a brand asks for, read before the builder because
+    // it is not composable. Nothing holds these to a contrast: for a colour that
+    // means something, `tone` is the one held to 4.5:1.
+    val brand = Theme.colours.brand
+    val sky = Theme.colours.info.solid
+    Text(
+        richText { +"Meet "; gradient(listOf(brand, sky), "Kontour"); +", in "; colour(sky, "sky"); +"." },
+        style = Theme.typography.headlineSmall,
     )
 }
 
@@ -241,6 +272,38 @@ fun AspectRatioBoxBasics() {
             .background(Theme.colours.surfaceSunken),
     ) {
         Screen()
+    }
+}
+
+@Composable
+fun AtmosphereBasics() {
+    // Behind a hero, not behind every screen: a wash under each list is one
+    // nobody notices and everybody pays for.
+    Box(Modifier.fillMaxWidth().height(320.dp).atmosphere()) {
+        Hero()
+    }
+}
+
+@Composable
+fun ScrollEffectsBasics() {
+    val scroll = rememberScrollState()
+    Box(
+        // A soft edge only where there is more page past it: at the top once
+        // it has scrolled, at the bottom until the end arrives.
+        Modifier.edgeVignette(
+            topFade = (scroll.value / 120f).coerceIn(0f, 1f),
+            bottomFade = ((scroll.maxValue - scroll.value) / 120f).coerceIn(0f, 1f),
+        ),
+    ) {
+        Column(Modifier.verticalScroll(scroll)) {
+            // Drifts against the scroll, from how far it is from the middle of
+            // the window.
+            Hero(Modifier.parallax())
+            // Each arrives once, the first time a tenth of it is showing; the
+            // second a beat behind the first.
+            Card(Modifier.revealOnScroll()) { Text("Plan a trip") }
+            Card(Modifier.revealOnScroll(delay = 80.milliseconds)) { Text("Keep it for later") }
+        }
     }
 }
 

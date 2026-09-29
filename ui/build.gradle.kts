@@ -57,9 +57,9 @@ dokka {
     // and every link on the index carried an unencoded space. This matches the
     // root project and the repository, and stays a legal path segment.
     moduleName = "kontour-ui"
-    // The same value the artifact gets, so a page and a jar cannot disagree
-    // about which release they are.
-    moduleVersion = version.toString()
+    // The release a reader installs: this build's own version when it is a
+    // release, and otherwise the latest release tag. See `kontourDocsVersion`.
+    moduleVersion = kontourDocsVersion()
 
     dokkaSourceSets.configureEach {
         // The module and package overviews. Without this every package index is

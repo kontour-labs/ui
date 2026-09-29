@@ -1,7 +1,6 @@
 package io.kontour.ui.docs
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,9 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
-import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mono
 
@@ -88,15 +88,18 @@ private fun EntryBlock(entry: ApiEntry) {
             // rather than a link to the reference's front door: a link that
             // does not go where it says is worse than no link, and the reader
             // has no way to tell the two apart until they have followed it.
+            //
+            // A `TextButton`, not a `Text` made clickable. The page is one
+            // selection region, and selectable text puts its own I-beam on its
+            // node, beneath any cursor the caller's modifier asks for — so a
+            // clickable `Text` in it showed the text cursor, and a reader
+            // hovering "reference" was told it was words to select. A
+            // `TextButton` keeps its label out of the selection, as every
+            // control does, and so keeps its hand.
             entry.reference?.let { url ->
-                Text(
-                    text = "reference",
-                    style = Theme.typography.eyebrow,
-                    colour = Theme.colours.accent.solid,
-                    modifier = Modifier
-                        .pointerCursor()
-                        .clickable { openExternal(url) },
-                )
+                ProvideTextStyle(Theme.typography.eyebrow) {
+                    TextButton(onClick = { openExternal(url) }) { +"reference" }
+                }
             }
         }
 

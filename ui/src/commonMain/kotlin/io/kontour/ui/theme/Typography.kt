@@ -228,17 +228,20 @@ internal fun rememberDefaultTypography(): Typography {
 /**
  * The default type scale, in Outfit with JetBrains Mono for figures and code.
  *
- * Pass a different [family] to reskin the whole system's typography in one line:
+ * Pass a different [family] to reskin the whole system's typography in one line,
+ * and the bundled mono beside it to keep code, key caps and figures monospaced:
  * ```
- * KontourTheme(typography = kontourTypography(family = myBrandFamily)) { … }
+ * KontourTheme(typography = kontourTypography(myBrandFamily, jetBrainsMonoFontFamily())) { … }
  * ```
  *
  * @param mono The face for [Typography.mono] — code, keyboard keys and figures.
- *   Defaults to [family] rather than to the bundled mono, because a brand that
- *   supplies its own text face and says nothing about a second one has asked for
- *   *its* face, not for its face beside somebody else's. A caller who wants both
- *   says so: `kontourTypography(brand, jetBrainsMonoFontFamily())`. The default
- *   scale does exactly that, one function up.
+ *   **Name it.** Left out, it is [family], and a proportional face in the mono
+ *   role is code whose columns do not line up and figures that jitter as they
+ *   count: the documentation site's own code blocks were drawn in Outfit that
+ *   way until they were looked at closely. It cannot default to the bundled
+ *   JetBrains Mono because a bundled font is loaded by a composable and this
+ *   function is not one; the library's own default scale passes it, one
+ *   function up.
  */
 fun kontourTypography(family: FontFamily, mono: FontFamily = family): Typography = Typography(
     // Display — the marketing hero voice. -0.02em tracking keeps large Outfit

@@ -1890,12 +1890,23 @@ final class io.kontour.ui.foundation/Hsv { // io.kontour.ui.foundation/Hsv|null[
 }
 
 final class io.kontour.ui.foundation/RichTextScope { // io.kontour.ui.foundation/RichTextScope|null[0]
+    final val typography // io.kontour.ui.foundation/RichTextScope.typography|{}typography[0]
+        final fun <get-typography>(): io.kontour.ui.theme/Typography // io.kontour.ui.foundation/RichTextScope.typography.<get-typography>|<get-typography>(){}[0]
+
     final fun (androidx.compose.ui.graphics.vector/ImageVector).unaryPlus() // io.kontour.ui.foundation/RichTextScope.unaryPlus|unaryPlus@androidx.compose.ui.graphics.vector.ImageVector(){}[0]
     final fun (androidx.compose.ui.text/AnnotatedString).unaryPlus() // io.kontour.ui.foundation/RichTextScope.unaryPlus|unaryPlus@androidx.compose.ui.text.AnnotatedString(){}[0]
     final fun (kotlin/String).unaryPlus() // io.kontour.ui.foundation/RichTextScope.unaryPlus|unaryPlus@kotlin.String(){}[0]
     final fun bold(kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.bold|bold(kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
     final fun bold(kotlin/String) // io.kontour.ui.foundation/RichTextScope.bold|bold(kotlin.String){}[0]
     final fun code(kotlin/String) // io.kontour.ui.foundation/RichTextScope.code|code(kotlin.String){}[0]
+    final fun colour(androidx.compose.ui.graphics/Color, kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.colour|colour(androidx.compose.ui.graphics.Color;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun colour(androidx.compose.ui.graphics/Color, kotlin/String) // io.kontour.ui.foundation/RichTextScope.colour|colour(androidx.compose.ui.graphics.Color;kotlin.String){}[0]
+    final fun gradient(androidx.compose.ui.graphics/Brush, kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.gradient|gradient(androidx.compose.ui.graphics.Brush;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun gradient(androidx.compose.ui.graphics/Brush, kotlin/String) // io.kontour.ui.foundation/RichTextScope.gradient|gradient(androidx.compose.ui.graphics.Brush;kotlin.String){}[0]
+    final fun gradient(kotlin.collections/List<androidx.compose.ui.graphics/Color>, kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.gradient|gradient(kotlin.collections.List<androidx.compose.ui.graphics.Color>;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun gradient(kotlin.collections/List<androidx.compose.ui.graphics/Color>, kotlin/String) // io.kontour.ui.foundation/RichTextScope.gradient|gradient(kotlin.collections.List<androidx.compose.ui.graphics.Color>;kotlin.String){}[0]
+    final fun highlight(androidx.compose.ui.graphics/Color = ..., kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.highlight|highlight(androidx.compose.ui.graphics.Color;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun highlight(kotlin/String, androidx.compose.ui.graphics/Color = ...) // io.kontour.ui.foundation/RichTextScope.highlight|highlight(kotlin.String;androidx.compose.ui.graphics.Color){}[0]
     final fun icon(androidx.compose.ui.graphics.vector/ImageVector, kotlin/String?, androidx.compose.ui.graphics/Color = ..., androidx.compose.ui.unit/TextUnit = ...) // io.kontour.ui.foundation/RichTextScope.icon|icon(androidx.compose.ui.graphics.vector.ImageVector;kotlin.String?;androidx.compose.ui.graphics.Color;androidx.compose.ui.unit.TextUnit){}[0]
     final fun italic(kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.italic|italic(kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
     final fun italic(kotlin/String) // io.kontour.ui.foundation/RichTextScope.italic|italic(kotlin.String){}[0]
@@ -1905,8 +1916,12 @@ final class io.kontour.ui.foundation/RichTextScope { // io.kontour.ui.foundation
     final fun markdown(kotlin/String, kotlin/Function1<kotlin/String, kotlin/Unit>? = ...) // io.kontour.ui.foundation/RichTextScope.markdown|markdown(kotlin.String;kotlin.Function1<kotlin.String,kotlin.Unit>?){}[0]
     final fun strikethrough(kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.strikethrough|strikethrough(kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
     final fun strikethrough(kotlin/String) // io.kontour.ui.foundation/RichTextScope.strikethrough|strikethrough(kotlin.String){}[0]
+    final fun style(androidx.compose.ui.text/TextStyle, kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.style|style(androidx.compose.ui.text.TextStyle;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun style(androidx.compose.ui.text/TextStyle, kotlin/String) // io.kontour.ui.foundation/RichTextScope.style|style(androidx.compose.ui.text.TextStyle;kotlin.String){}[0]
     final fun tone(io.kontour.ui.theme/Tone, kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.tone|tone(io.kontour.ui.theme.Tone;kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
     final fun tone(io.kontour.ui.theme/Tone, kotlin/String) // io.kontour.ui.foundation/RichTextScope.tone|tone(io.kontour.ui.theme.Tone;kotlin.String){}[0]
+    final fun underline(kotlin/Function1<io.kontour.ui.foundation/RichTextScope, kotlin/Unit>) // io.kontour.ui.foundation/RichTextScope.underline|underline(kotlin.Function1<io.kontour.ui.foundation.RichTextScope,kotlin.Unit>){}[0]
+    final fun underline(kotlin/String) // io.kontour.ui.foundation/RichTextScope.underline|underline(kotlin.String){}[0]
 }
 
 final class io.kontour.ui.foundation/RichTextStyles { // io.kontour.ui.foundation/RichTextStyles|null[0]
@@ -4066,6 +4081,8 @@ final object io.kontour.ui.nav/NavBarDefaults { // io.kontour.ui.nav/NavBarDefau
         final fun <get-ItemGap>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.ItemGap.<get-ItemGap>|<get-ItemGap>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
     final val MinHeight // io.kontour.ui.nav/NavBarDefaults.MinHeight|{}MinHeight[0]
         final fun <get-MinHeight>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.MinHeight.<get-MinHeight>|<get-MinHeight>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+    final val SlotMaxWidth // io.kontour.ui.nav/NavBarDefaults.SlotMaxWidth|{}SlotMaxWidth[0]
+        final fun <get-SlotMaxWidth>(): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.SlotMaxWidth.<get-SlotMaxWidth>|<get-SlotMaxWidth>(){}[0]
 
     final fun arrangementFor(kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.foundation.layout/Arrangement.Horizontal // io.kontour.ui.nav/NavBarDefaults.arrangementFor|arrangementFor(kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 }
@@ -4629,6 +4646,7 @@ final val io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextDefaults$sta
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextScope$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextScope$stableprop|#static{}io_kontour_ui_foundation_RichTextScope$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextStyles$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextStyles$stableprop|#static{}io_kontour_ui_foundation_RichTextStyles$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_SelectionIndicatorState$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_SelectionIndicatorState$stableprop|#static{}io_kontour_ui_foundation_SelectionIndicatorState$stableprop[0]
+final val io.kontour.ui.foundation/io_kontour_ui_foundation_SpanGradients_Span$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_SpanGradients_Span$stableprop|#static{}io_kontour_ui_foundation_SpanGradients_Span$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_SurfaceDefaults$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_SurfaceDefaults$stableprop|#static{}io_kontour_ui_foundation_SurfaceDefaults$stableprop[0]
 final val io.kontour.ui.foundation/io_kontour_ui_foundation_SystemIcons$stableprop // io.kontour.ui.foundation/io_kontour_ui_foundation_SystemIcons$stableprop|#static{}io_kontour_ui_foundation_SystemIcons$stableprop[0]
 final val io.kontour.ui.generated.resources/io_kontour_ui_generated_resources_Res_array$stableprop // io.kontour.ui.generated.resources/io_kontour_ui_generated_resources_Res_array$stableprop|#static{}io_kontour_ui_generated_resources_Res_array$stableprop[0]
@@ -5089,6 +5107,7 @@ final fun io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextDefaults$sta
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextScope$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextScope$stableprop_getter|io_kontour_ui_foundation_RichTextScope$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextStyles$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_RichTextStyles$stableprop_getter|io_kontour_ui_foundation_RichTextStyles$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_SelectionIndicatorState$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_SelectionIndicatorState$stableprop_getter|io_kontour_ui_foundation_SelectionIndicatorState$stableprop_getter(){}[0]
+final fun io.kontour.ui.foundation/io_kontour_ui_foundation_SpanGradients_Span$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_SpanGradients_Span$stableprop_getter|io_kontour_ui_foundation_SpanGradients_Span$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_SurfaceDefaults$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_SurfaceDefaults$stableprop_getter|io_kontour_ui_foundation_SurfaceDefaults$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/io_kontour_ui_foundation_SystemIcons$stableprop_getter(): kotlin/Int // io.kontour.ui.foundation/io_kontour_ui_foundation_SystemIcons$stableprop_getter|io_kontour_ui_foundation_SystemIcons$stableprop_getter(){}[0]
 final fun io.kontour.ui.foundation/markdownText(kotlin/String, io.kontour.ui.foundation/RichTextStyles?, kotlin/Function1<kotlin/String, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui.text/AnnotatedString // io.kontour.ui.foundation/markdownText|markdownText(kotlin.String;io.kontour.ui.foundation.RichTextStyles?;kotlin.Function1<kotlin.String,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]

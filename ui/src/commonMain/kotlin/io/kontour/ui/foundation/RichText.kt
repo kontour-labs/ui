@@ -7,13 +7,16 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.em
 import io.kontour.ui.theme.ColourScheme
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.theme.Typography
 
 /**
  * Text with emphasis, code and links in it, for [Text].
@@ -44,10 +48,23 @@ import io.kontour.ui.theme.Tone
  *
  * Every verb draws from the theme — the bold weight the type scale has, the mono
  * family on the sunken ground for [code][RichTextScope.code], a tone's own text
- * colour — so a span looks like the rest of the library without the call site
- * choosing a weight or a hex value. That is the mistake it deletes: a
- * hand-built `SpanStyle(fontWeight = FontWeight.Bold)` is a weight the face may
- * not have, and `FontFamily.Monospace` is not the theme's mono.
+ * colour, the scale's own roles for [style][RichTextScope.style], a marker's tint
+ * for [highlight][RichTextScope.highlight] — so a span looks like the rest of the
+ * library without the call site choosing a weight or a hex value. That is the
+ * mistake it deletes: a hand-built `SpanStyle(fontWeight = FontWeight.Bold)` is a
+ * weight the face may not have, and `FontFamily.Monospace` is not the theme's
+ * mono. [colour][RichTextScope.colour] and [gradient][RichTextScope.gradient] are
+ * the two that take what they are given, for the colour a brand or a chart needs.
+ *
+ * | Verb | Draws |
+ * |---|---|
+ * | [bold][RichTextScope.bold], [italic][RichTextScope.italic], [underline][RichTextScope.underline], [strikethrough][RichTextScope.strikethrough] | emphasis |
+ * | [style][RichTextScope.style] | a role from the type scale: `style(typography.titleLarge, "4 min")` |
+ * | [highlight][RichTextScope.highlight] | a marker behind the words |
+ * | [tone][RichTextScope.tone] | a tone's text colour, held to contrast |
+ * | [colour][RichTextScope.colour], [gradient][RichTextScope.gradient] | any colour or brush |
+ * | [code][RichTextScope.code] | the mono family on the sunken ground |
+ * | [link][RichTextScope.link], [icon][RichTextScope.icon], [markdown][RichTextScope.markdown] | links, icons, inline Markdown |
  *
  * **A link inside a sentence is not a
  * [TextButton][io.kontour.ui.components.action.TextButton] placed next to one.** A
@@ -90,9 +107,10 @@ fun richText(
     // the tag is the index. Running during composition is safe here because it
     // is a plain object rather than snapshot state: an abandoned composition
     // leaves a list that the next one overwrites before anything reads it.
+    val typography = Theme.typography
     links.begin()
     return buildAnnotatedString {
-        RichTextScope(this, links, styles, colours).build()
+        RichTextScope(this, links, styles, colours, typography).build()
     }
 }
 
@@ -136,6 +154,13 @@ class RichTextScope internal constructor(
     private val links: LinkHandlers,
     private val styles: RichTextStyles,
     private val colours: ColourScheme,
+    /**
+     * The theme's type scale, for [style]: `style(typography.titleLarge, "4 min")`.
+     *
+     * Here because the builder is not composable, so `Theme.typography` cannot be
+     * read inside it; [richText] reads it once and hands it in.
+     */
+    val typography: Typography,
 ) {
 
     /** Plain text, in whatever style the [Text] is drawn with. */
@@ -165,6 +190,99 @@ class RichTextScope internal constructor(
 
     /** Whatever [content] appends, struck through. */
     fun strikethrough(content: RichTextScope.() -> Unit) = styled(styles.strikethrough, content)
+
+    /**
+     * [text] underlined.
+     *
+     * Sparingly: inside a paragraph an underline is what says "link" — the reason
+     * [LinkDefaults] underlines every link — so an underlined word that does
+     * nothing when pressed is one a reader will try to press. For a word that
+     * matters, [bold] or [highlight] say so without that promise.
+     */
+    fun underline(text: String) = underline { +text }
+
+    /** Whatever [content] appends, underlined. See [underline]. */
+    fun underline(content: RichTextScope.() -> Unit) =
+        styled(SpanStyle(textDecoration = TextDecoration.Underline), content)
+
+    /**
+     * [text] marked, the way a highlighter pen marks a line.
+     *
+     * The words keep their own colour and a tint goes behind them — the theme's
+     * warning container, a marker's yellow, unless [colour] says otherwise. That
+     * tint is one the text colours are held legible on, which is not true of an
+     * arbitrary [colour]: choose one against the ink that will be drawn on it.
+     */
+    fun highlight(text: String, colour: Color = Color.Unspecified) = highlight(colour) { +text }
+
+    /** Whatever [content] appends, marked. See [highlight]. */
+    fun highlight(colour: Color = Color.Unspecified, content: RichTextScope.() -> Unit) =
+        styled(SpanStyle(background = colour.takeOrElse { colours.warning.container }), content)
+
+    /**
+     * [text] in one of the type scale's roles — a size, and the weight and
+     * spacing that go with it.
+     *
+     * ```kotlin
+     * Text(richText { +"Next train in "; style(typography.titleLarge, "4 min") })
+     * ```
+     *
+     * [typography] is the theme's scale. A role's line height is the paragraph's
+     * business, not a span's, so a role much larger than the text around it sits
+     * in a line spaced for the smaller text: for a size that big, give it a line —
+     * or a [Text] — of its own.
+     */
+    fun style(style: TextStyle, text: String) = style(style) { +text }
+
+    /** Whatever [content] appends, in one of the type scale's roles. See [style]. */
+    fun style(style: TextStyle, content: RichTextScope.() -> Unit) = styled(style.toSpanStyle(), content)
+
+    /**
+     * [text] in [colour].
+     *
+     * The escape hatch, and the one verb here that does not come from the theme:
+     * nothing holds [colour] to any contrast against the ground it lands on, in
+     * light or dark or at high contrast. For a colour that means something —
+     * success, a warning, the accent — [tone] is the one to reach for, because
+     * its colours are held to 4.5:1 in every scheme.
+     */
+    fun colour(colour: Color, text: String) = colour(colour) { +text }
+
+    /** Whatever [content] appends, in [colour]. See [colour]. */
+    fun colour(colour: Color, content: RichTextScope.() -> Unit) = styled(SpanStyle(color = colour), content)
+
+    /**
+     * [text] filled with a gradient, laid across these words and no others.
+     *
+     * ```kotlin
+     * Text(richText { +"Meet "; gradient(Brush.horizontalGradient(listOf(Violet, Sky)), "Kontour"); +"." })
+     * ```
+     *
+     * A gradient in a Compose span is sized to the whole paragraph, so a word in
+     * the middle of a sentence shows only the slice that lies under it; [Text]
+     * draws these words itself so that the gradient starts where they start and
+     * ends where they end. A span that wraps takes one gradient across the box
+     * around all of its lines. Like [colour], nothing holds a gradient's colours
+     * to any contrast.
+     *
+     * Drawn by this library's [Text]. Anything else that draws the string shows
+     * the brush the way Compose sizes it.
+     */
+    fun gradient(brush: Brush, text: String) = gradient(brush) { +text }
+
+    /** Whatever [content] appends, filled with [brush]. See [gradient]. */
+    fun gradient(brush: Brush, content: RichTextScope.() -> Unit) {
+        builder.withAnnotation(SpanGradients.Tag, "") {
+            builder.withStyle(SpanStyle(brush = brush)) { content() }
+        }
+    }
+
+    /** [text] filled with a gradient running through [colours], start to end. See [gradient]. */
+    fun gradient(colours: List<Color>, text: String) = gradient(Brush.horizontalGradient(colours), text)
+
+    /** Whatever [content] appends, filled with a gradient running through [colours]. See [gradient]. */
+    fun gradient(colours: List<Color>, content: RichTextScope.() -> Unit) =
+        gradient(Brush.horizontalGradient(colours), content)
 
     /**
      * [text] as code, in the theme's mono family on the sunken ground.

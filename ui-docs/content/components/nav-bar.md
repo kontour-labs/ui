@@ -21,7 +21,11 @@ NavBar(style = NavBarStyle.Docked, showLabels = true) {
 The content is a [`NavScope`](nav-scope.md) with one addition: `slot`, for anything
 that shares the bar without being a destination — a search, a floating action.
 A slot at `weight = 0f` takes its content's width; above zero it takes that share
-of what is left, which is what a search wants.
+of what is left, which is what a search wants — up to `NavBarDefaults.SlotMaxWidth`,
+320dp. Without the cap a search on a wide window took all of the room the
+destinations left, and a floating bar ran from one edge of the window to the other
+around three circles; with it, the bar hugs what it holds on anything wider than a
+phone.
 
 ### Two styles
 

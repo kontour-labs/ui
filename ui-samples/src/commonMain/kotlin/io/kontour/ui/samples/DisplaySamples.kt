@@ -77,6 +77,10 @@ import io.kontour.ui.motion.marquee
 import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import io.kontour.ui.motion.shimmer
 
 @Composable
 fun StatBasics() {
@@ -454,6 +458,9 @@ fun SkeletonBasics() {
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
         Skeleton(Modifier.width(180.dp).height(20.dp))
         Skeleton(Modifier.width(120.dp).height(16.dp))
+        // A shape no skeleton comes in — a map tile — clipped, with the same
+        // sweep, so it loads in step with the lines above it.
+        Box(Modifier.size(96.dp).clip(Theme.shapes.medium).shimmer())
     }
 }
 

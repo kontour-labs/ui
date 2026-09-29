@@ -65,9 +65,12 @@ Text(
 
 | Verb | Draws |
 |---|---|
-| `bold`, `italic`, `strikethrough` | the theme's bold weight — SemiBold, which the face ships — italic, a line through |
+| `bold`, `italic`, `underline`, `strikethrough` | the theme's bold weight — SemiBold, which the face ships — italic, a line under, a line through |
+| `style(typography.x)` | a role from the type scale: its size, weight and spacing |
+| `highlight` | a marker behind the words: the warning container's tint, or a colour given |
 | `code` | the theme's mono face on `surfaceSunken`, never `FontFamily.Monospace` |
 | `tone(Tone.X)` | the text colour a `Tag` of that tone is lettered in |
+| `colour(colour)`, `gradient(brush)` | any colour, or a gradient across these words — the two that do not come from the theme |
 | `link(text) { … }` | a link that calls you back |
 | `link(text, url)` | a link the platform opens; only `http`, `https`, `mailto` and `tel` |
 | `markdown(source)` | inline Markdown, into the same string |
@@ -78,6 +81,49 @@ The string comes out **equal to itself** between compositions — the link
 listener is remembered, the styles are values — so a recomposition does not lay
 the text out again. Hand-built strings with a lambda in a `LinkAnnotation` are
 the thing this replaces, because they are never equal and re-shape every frame.
+
+### Size, marker, colour and gradient
+
+<!--sample:RichTextStyles-->
+```kotlin
+// A size from the type scale, a marker behind what changed, an underline:
+// each from the theme, as the verbs above are.
+Text(
+    richText {
+        +"Next train in "; style(typography.titleLarge, "4 min"); +". "
+        +"Tonight it leaves from "; highlight("platform 3"); +". "
+        +"Tap on "; underline("and"); +" off."
+    },
+)
+
+// A colour or a gradient a brand asks for, read before the builder because
+// it is not composable. Nothing holds these to a contrast: for a colour that
+// means something, `tone` is the one held to 4.5:1.
+val brand = Theme.colours.brand
+val sky = Theme.colours.info.solid
+Text(
+    richText { +"Meet "; gradient(listOf(brand, sky), "Kontour"); +", in "; colour(sky, "sky"); +"." },
+    style = Theme.typography.headlineSmall,
+)
+```
+
+`style` takes a role from `typography`, which the scope holds because the builder
+is not composable and cannot read `Theme` itself. A role's line height belongs to
+the paragraph, so a role much larger than the words around it sits in a line
+spaced for them: give a size that big a line of its own.
+
+An underline is what says *link* inside a paragraph, which is why every link has
+one, so an underlined word that does nothing when pressed will be pressed. Use it
+where a reader knows it is not a link — one word of an instruction, say — and
+`bold` or `highlight` where they might not.
+
+`colour` and `gradient` are the escape hatches. Nothing holds them to any contrast,
+in either scheme or at high contrast, so they are for display — a brand's name, a
+chart's key — and not for meaning, which is what `tone` is for. A gradient in a
+Compose span is sized to the whole paragraph, so a gradient word in a sentence
+would show only the slice under it; `Text` draws these words itself, and the
+gradient starts where they start and ends where they end. A gradient that wraps
+lies across the box around all of its lines.
 
 ### Icons in the line
 

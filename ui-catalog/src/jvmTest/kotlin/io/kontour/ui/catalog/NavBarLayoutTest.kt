@@ -3,6 +3,8 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -13,6 +15,7 @@ import com.composables.icons.tabler.outline.Bus
 import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarScope
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -123,6 +126,45 @@ class NavBarLayoutTest {
             abs(action.center.y - middle.center.y) <= 4f,
             "without labels the action's centre is at ${action.center.y} and the " +
                 "row's is at ${middle.center.y} — nothing should have moved",
+        )
+    }
+
+    @Test
+    fun aSearchOnAWideWindowStopsAtItsMaximumWidth() {
+        // Reported: *"search should not try to make the bar full width. It should
+        // have a maximum width."* A weighted slot took all the room the
+        // destinations left, so on a wide window a bar with a search in it ran
+        // edge to edge — a floating capsule the width of the screen around three
+        // circles and a very long search pill. Measured before the fix: 2048px of
+        // search on a 2400px window.
+        var search = Rect.Zero
+        val density = 2f
+        val window = 2400 // 1200dp: an expanded window, where a floating bar hugs.
+
+        Scene(width = window, height = 300, density = density) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                NavBar {
+                    items()
+                    slot(weight = 1f) {
+                        Box(Modifier.fillMaxWidth().height(40.dp).reportBounds { search = it })
+                    }
+                }
+            }
+        }.use { scene -> scene.frames(6) }
+
+        val cap = NavBarDefaults.SlotMaxWidth.value * density
+        assertTrue(search.width > 0f, "the search slot never reported a size")
+        assertTrue(
+            search.width <= cap + Slack,
+            "the search is ${search.width}px wide on a ${window}px window, past its " +
+                "maximum of ${cap}px",
+        )
+        // And the bar hugs what it holds again, rather than keeping the full width
+        // with the slack left empty: the search ends well short of the window's edge.
+        assertTrue(
+            search.right < window - cap,
+            "the search ends at ${search.right}px of $window — the bar still spans " +
+                "the window",
         )
     }
 

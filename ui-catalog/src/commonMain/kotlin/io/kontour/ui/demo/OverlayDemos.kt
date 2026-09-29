@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,10 +26,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Bookmark
 import com.composables.icons.tabler.outline.Copy
 import com.composables.icons.tabler.outline.Dots
 import com.composables.icons.tabler.outline.InfoCircle
+import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Share
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Trash
@@ -47,6 +51,11 @@ import io.kontour.ui.overlay.Dialog
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.LocalOverlayHost
+import io.kontour.ui.overlay.LocalOverlayQueue
+import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.coachmarkStep
+import io.kontour.ui.overlay.rememberCoachmarkTour
+import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.overlay.MenuDivider
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.MenuSectionHeader
@@ -382,6 +391,82 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
     }
 }
 
+private val coachmarkSide = Knob.Choice("Side", OverlaySide.entries.toList(), initial = OverlaySide.Bottom)
+
+/**
+ * Both kinds, side by side, because the page is about telling them apart.
+ *
+ * The single tip starts switched off: left to the queue it would fire the moment
+ * the stage appeared, over a page the reader is still reading, which is the one
+ * thing a coach mark must not do. "Show the tip" is the app deciding the moment
+ * has come; the queue then shows it, and shows it again only after a reset.
+ */
+internal val CoachmarkDemo = ComponentDemo(slug = "coachmark", knobs = listOf(coachmarkSide)) {
+    val side = this[coachmarkSide]
+    var tipWanted by remember { mutableStateOf(false) }
+    Stage {
+        // Inside the stage, so the queue watches the stage's own host.
+        val queue = rememberOverlayQueue()
+        val tour = rememberCoachmarkTour("plan", "saved", "alerts")
+        CompositionLocalProvider(LocalOverlayQueue provides queue) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+                    IconButton(
+                        icon = Tabler.Outline.Route,
+                        contentDescription = "Plan a trip",
+                        onClick = { echo("Plan a trip") },
+                        modifier = Modifier.coachmarkStep(
+                            tour, id = "plan", title = "Plan a trip",
+                            message = "From here to anywhere on the network.", side = side,
+                        ),
+                    )
+                    IconButton(
+                        icon = Tabler.Outline.Bookmark,
+                        contentDescription = "Saved trips",
+                        onClick = { echo("Saved trips") },
+                        modifier = Modifier
+                            .coachmarkStep(
+                                tour, id = "saved", title = "Saved trips",
+                                message = "The ones you keep show up here.", side = side,
+                            )
+                            .coachmark(
+                                id = "save-trip",
+                                title = "Save this trip",
+                                message = "Trips you save show up on the home screen.",
+                                side = side,
+                                enabled = tipWanted,
+                            ),
+                    )
+                    IconButton(
+                        icon = Tabler.Outline.Bell,
+                        contentDescription = "Alerts",
+                        onClick = { echo("Alerts") },
+                        modifier = Modifier.coachmarkStep(
+                            tour, id = "alerts", title = "Alerts",
+                            message = "Tell us your line and we will tell you when it changes.", side = side,
+                        ),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+                    Button(
+                        onClick = {
+                            queue.reset("save-trip")
+                            tipWanted = true
+                        },
+                        variant = ButtonVariant.Secondary,
+                        size = ButtonSize.Small,
+                    ) { +"Show the tip" }
+                    Button(onClick = tour::start, size = ButtonSize.Small) { +"Show me around" }
+                }
+            }
+        }
+    }
+}
+
 // Which edge they come from. Bottom is the default and the one most apps want;
 // top is for a screen whose bottom edge is already busy — a map with a sheet
 // over it, say — and the stack recedes the other way to match.
@@ -655,6 +740,7 @@ internal val overlayDemos = listOf(
     DropdownMenuDemo,
     ContextMenuAreaDemo,
     TooltipDemo,
+    CoachmarkDemo,
     ToastDemo,
     LoadingOverlayDemo,
     CommandPaletteDemo,

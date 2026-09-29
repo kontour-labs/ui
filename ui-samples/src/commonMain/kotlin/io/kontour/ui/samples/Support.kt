@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
 
@@ -38,6 +39,8 @@ internal fun nearby() = Unit
 internal fun saveAndClose() = Unit
 internal fun saveCopy() = Unit
 internal fun showTour() = Unit
+/** How many times the app has been opened, as the app itself keeps count. */
+internal val launches = 4
 internal fun forgot() = Unit
 
 /** A colour the app is holding for something the reader named. */
@@ -61,6 +64,10 @@ internal fun LazyListScope.stopRows() {
 /** The screen behind an overlay, where a sample needs one to sit over. */
 @Composable
 internal fun Screen() = Unit
+
+/** The opening of a landing or onboarding page, where a sample needs one. */
+@Composable
+internal fun Hero(modifier: Modifier = Modifier) = Unit
 
 /** The two things a rider reports about a stop, where a menu needs entries. */
 internal fun report() = Unit

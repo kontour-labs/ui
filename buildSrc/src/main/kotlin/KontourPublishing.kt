@@ -122,3 +122,36 @@ fun Project.kontourPublishing(
         }
     }
 }
+
+/**
+ * The version the API reference shows, which is not always the version this
+ * build would publish as.
+ *
+ * The documentation is deployed from `main`, and a build of `main` is a
+ * snapshot, so the reference said `0.3.0-SNAPSHOT` above documentation for the
+ * release people were installing. A release build, from a tag or with
+ * `-Pkontour.version`, shows its own version. Anything else shows the latest
+ * release tag, meaning the version a reader installs, and the snapshot only
+ * before the first release is tagged. A tag push also deploys the site (see
+ * `ci.yml`), so the reference says the new version as soon as it is tagged.
+ *
+ * Read with `git tag`, not `git describe`, because CI checks out one commit:
+ * the tags are fetched as refs (`fetch-tags` on the site job), and their
+ * history is not. Only plain `vX.Y.Z` tags count, so a release candidate never
+ * becomes what the reference claims is current.
+ */
+fun Project.kontourDocsVersion(): String {
+    val own = version.toString()
+    if (!own.endsWith("-SNAPSHOT")) return own
+    val latest = runCatching {
+        providers.exec {
+            workingDir = rootDir
+            commandLine("git", "tag", "--list", "v*", "--sort=-v:refname")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get()
+            .lineSequence()
+            .map(String::trim)
+            .firstOrNull { Regex("""^v\d+\.\d+\.\d+$""").matches(it) }
+    }.getOrNull()
+    return latest?.removePrefix("v") ?: own
+}
