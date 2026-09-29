@@ -77,6 +77,18 @@ internal val TextDemo = ComponentDemo(slug = "text") {
             ),
             style = Theme.typography.bodyMedium,
         )
+        // The rest: a size from the type scale, a marker, an underline, and the
+        // two that take any colour — the gradient laid across its own words.
+        val brand = Theme.colours.brand
+        val sky = Theme.colours.info.solid
+        Text(
+            richText {
+                style(typography.titleLarge, "Larger"); +", "; highlight("marked"); +", "
+                underline("underlined"); +", "; colour(sky, "coloured"); +" and "
+                gradient(listOf(brand, sky), "a gradient across these words")
+            },
+            style = Theme.typography.bodyMedium,
+        )
     }
 }
 

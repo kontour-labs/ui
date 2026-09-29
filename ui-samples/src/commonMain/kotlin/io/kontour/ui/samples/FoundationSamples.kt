@@ -119,6 +119,29 @@ fun RichTextIcons() {
 }
 
 @Composable
+fun RichTextStyles() {
+    // A size from the type scale, a marker behind what changed, an underline:
+    // each from the theme, as the verbs above are.
+    Text(
+        richText {
+            +"Next train in "; style(typography.titleLarge, "4 min"); +". "
+            +"Tonight it leaves from "; highlight("platform 3"); +". "
+            +"Tap on "; underline("and"); +" off."
+        },
+    )
+
+    // A colour or a gradient a brand asks for, read before the builder because
+    // it is not composable. Nothing holds these to a contrast: for a colour that
+    // means something, `tone` is the one held to 4.5:1.
+    val brand = Theme.colours.brand
+    val sky = Theme.colours.info.solid
+    Text(
+        richText { +"Meet "; gradient(listOf(brand, sky), "Kontour"); +", in "; colour(sky, "sky"); +"." },
+        style = Theme.typography.headlineSmall,
+    )
+}
+
+@Composable
 fun IconBasics() {
     // A decorative icon beside a label that already says the same thing takes
     // `null`, so a screen reader announces the label once rather than twice.

@@ -1974,6 +1974,17 @@ public final class io/kontour/ui/foundation/RichTextScope {
 	public final fun bold (Ljava/lang/String;)V
 	public final fun bold (Lkotlin/jvm/functions/Function1;)V
 	public final fun code (Ljava/lang/String;)V
+	public final fun colour-DxMtmZc (JLjava/lang/String;)V
+	public final fun colour-DxMtmZc (JLkotlin/jvm/functions/Function1;)V
+	public final fun getTypography ()Lio/kontour/ui/theme/Typography;
+	public final fun gradient (Landroidx/compose/ui/graphics/Brush;Ljava/lang/String;)V
+	public final fun gradient (Landroidx/compose/ui/graphics/Brush;Lkotlin/jvm/functions/Function1;)V
+	public final fun gradient (Ljava/util/List;Ljava/lang/String;)V
+	public final fun gradient (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public final fun highlight-4WTKRHQ (Ljava/lang/String;J)V
+	public static synthetic fun highlight-4WTKRHQ$default (Lio/kontour/ui/foundation/RichTextScope;Ljava/lang/String;JILjava/lang/Object;)V
+	public final fun highlight-DxMtmZc (JLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun highlight-DxMtmZc$default (Lio/kontour/ui/foundation/RichTextScope;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun icon-OxQ4cp8 (Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;JJ)V
 	public static synthetic fun icon-OxQ4cp8$default (Lio/kontour/ui/foundation/RichTextScope;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;JJILjava/lang/Object;)V
 	public final fun italic (Ljava/lang/String;)V
@@ -1985,11 +1996,15 @@ public final class io/kontour/ui/foundation/RichTextScope {
 	public static synthetic fun markdown$default (Lio/kontour/ui/foundation/RichTextScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun strikethrough (Ljava/lang/String;)V
 	public final fun strikethrough (Lkotlin/jvm/functions/Function1;)V
+	public final fun style (Landroidx/compose/ui/text/TextStyle;Ljava/lang/String;)V
+	public final fun style (Landroidx/compose/ui/text/TextStyle;Lkotlin/jvm/functions/Function1;)V
 	public final fun tone (Lio/kontour/ui/theme/Tone;Ljava/lang/String;)V
 	public final fun tone (Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function1;)V
 	public final fun unaryPlus (Landroidx/compose/ui/graphics/vector/ImageVector;)V
 	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
 	public final fun unaryPlus (Ljava/lang/String;)V
+	public final fun underline (Ljava/lang/String;)V
+	public final fun underline (Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class io/kontour/ui/foundation/RichTextStyles {

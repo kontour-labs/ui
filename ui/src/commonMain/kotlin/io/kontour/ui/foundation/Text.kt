@@ -179,10 +179,24 @@ fun Text(
         inlineContent
     }
 
+    // Gradients laid across their own words — see `SpanGradients`. The same one
+    // scan as the icons, and nothing more, for a string without one.
+    val gradients = if (!redaction.redacted && text.hasStringAnnotations(SpanGradients.Tag, 0, text.length)) {
+        remember(text) { SpanGradients.find(text) }
+    } else {
+        emptyList()
+    }
+    val shown = if (gradients.isEmpty()) text else remember(text, gradients) { SpanGradients.shown(text, gradients) }
+    val painted = if (gradients.isEmpty()) {
+        Modifier
+    } else {
+        Modifier.spanGradients(text, gradients, resolved, overflow, softWrap, maxLines, content)
+    }
+
     ExcludeFromSelection(redaction.redacted) {
         BasicText(
-            text = text,
-            modifier = modifier.then(redaction.modifier),
+            text = shown,
+            modifier = modifier.then(redaction.modifier).then(painted),
             style = resolved,
             onTextLayout = redaction.layoutCallback(onTextLayout),
             overflow = overflow,
