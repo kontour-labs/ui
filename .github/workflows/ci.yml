@@ -223,8 +223,8 @@ jobs:
       #
       # `checkKotlinAbi` holds each library's public API to the dump checked in
       # under its `api/` directory. A change it catches is either a mistake or a
-      # deliberate break, and a deliberate one is `updateKotlinAbi` and a line in
-      # `ui-docs/content/migrating.md` in the same commit.
+      # deliberate break, and a deliberate one is `updateKotlinAbi` in the same
+      # commit and a line in the release's notes.
       #
       # Naming tasks rather than running `check` is why `checkScreenshotAssertions`
       # has to be listed: `:ui-catalog:check` never runs here. Its sibling
