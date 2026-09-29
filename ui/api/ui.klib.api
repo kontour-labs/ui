@@ -4066,6 +4066,8 @@ final object io.kontour.ui.nav/NavBarDefaults { // io.kontour.ui.nav/NavBarDefau
         final fun <get-ItemGap>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.ItemGap.<get-ItemGap>|<get-ItemGap>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
     final val MinHeight // io.kontour.ui.nav/NavBarDefaults.MinHeight|{}MinHeight[0]
         final fun <get-MinHeight>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.MinHeight.<get-MinHeight>|<get-MinHeight>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+    final val SlotMaxWidth // io.kontour.ui.nav/NavBarDefaults.SlotMaxWidth|{}SlotMaxWidth[0]
+        final fun <get-SlotMaxWidth>(): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarDefaults.SlotMaxWidth.<get-SlotMaxWidth>|<get-SlotMaxWidth>(){}[0]
 
     final fun arrangementFor(kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.foundation.layout/Arrangement.Horizontal // io.kontour.ui.nav/NavBarDefaults.arrangementFor|arrangementFor(kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 }

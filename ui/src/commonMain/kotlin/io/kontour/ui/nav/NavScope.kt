@@ -157,8 +157,9 @@ sealed interface NavBarScope : NavScope {
      * action. Not counted among the destinations a screen reader hears.
      *
      * @param weight Zero, the default, sizes it to its content. Above zero it
-     *   takes that share of the room the rest leave, which is what a search
-     *   wants and what makes an empty slot a spacer.
+     *   takes that share of the room the rest leave, up to
+     *   [NavBarDefaults.SlotMaxWidth], which is what a search wants and what
+     *   makes an empty slot a spacer.
      */
     @Composable
     fun slot(weight: Float = 0f, content: @Composable () -> Unit)

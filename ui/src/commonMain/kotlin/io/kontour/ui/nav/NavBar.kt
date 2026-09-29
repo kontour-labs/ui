@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
@@ -73,6 +74,17 @@ object NavBarDefaults {
     val MinHeight: Dp
         @Composable @ReadOnlyComposable get() = maxOf(Theme.sizing.minTouchTarget, CircleSize.height)
 
+    /**
+     * The widest a weighted [NavBarScope.slot] grows — the search, most often.
+     *
+     * A weighted slot takes the room the destinations leave, and on a wide window
+     * that was all of it: a bar with a search in it ran the window's full width
+     * however few destinations it held, a 900dp search field beside three
+     * circles. Capped, the slot takes what is left up to here, and a floating
+     * bar on anything wider than a phone hugs its contents again.
+     */
+    val SlotMaxWidth: Dp = 320.dp
+
     /** The gap between destinations when they are gathered in the middle. */
     val ItemGap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navBarItemGap
@@ -82,7 +94,8 @@ object NavBarDefaults {
      * gathered in the middle on anything wider, where spreading three circles
      * across 1200dp stops them reading as one bar.
      *
-     * Moot once a weighted slot is in the row: the slot takes the slack.
+     * Moot once a weighted slot is in the row: the slot takes the slack, up to
+     * [SlotMaxWidth], and the row is packed and centred around it.
      *
      * @param spans Whether the bar has the window's whole width to itself — a
      *   [WindowWidthClass.Compact] window.
@@ -364,12 +377,15 @@ private fun BarRow(
             }
         }
         val totalWeight = ordered.sumOf { it.barChild.weight.toDouble() }.toFloat()
+        // A weighted child's share of the room left over, but never more than
+        // `SlotMaxWidth`: see there.
+        val slotCap = NavBarDefaults.SlotMaxWidth.roundToPx()
         if (totalWeight > 0f) {
             val left = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else 0
             ordered.forEachIndexed { i, child ->
                 val weight = child.barChild.weight
                 if (weight > 0f) {
-                    val width = (left * weight / totalWeight).roundToInt()
+                    val width = (left * weight / totalWeight).roundToInt().coerceAtMost(slotCap)
                     placeables[i] = child.measure(loose.copy(minWidth = width, maxWidth = width))
                     used += width
                 }
@@ -377,7 +393,9 @@ private fun BarRow(
         }
         val all = placeables.map { it!! }
         val contentWidth = all.sumOf { it.width } + gaps
-        val width = if ((fill || totalWeight > 0f) && constraints.hasBoundedWidth) {
+        // A weighted child no longer implies the full width: capped, it can
+        // leave room over, and a bar that hugs its contents should.
+        val width = if (fill && constraints.hasBoundedWidth) {
             constraints.maxWidth
         } else {
             contentWidth.coerceIn(constraints.minWidth, constraints.maxWidth)

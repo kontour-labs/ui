@@ -2716,6 +2716,7 @@ public final class io/kontour/ui/nav/NavBarDefaults {
 	public final fun getInset (Landroidx/compose/runtime/Composer;I)F
 	public final fun getItemGap (Landroidx/compose/runtime/Composer;I)F
 	public final fun getMinHeight (Landroidx/compose/runtime/Composer;I)F
+	public final fun getSlotMaxWidth-D9Ej5fM ()F
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
