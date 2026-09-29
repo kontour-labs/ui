@@ -358,21 +358,19 @@ def public_modifiers() -> dict[str, Path]:
 #
 # Motion and infrastructure: nothing a reader would look for in the component
 # list, and each belongs with the idea it is part of. Rule 5 reads the named page
-# to check that it still says so. A modifier that *draws something a user sees
-# and answers* — a coach mark, a tooltip — is a component and gets a page.
+# to check that it still says so. A modifier that *draws something a user sees*
+# — a coach mark, a tooltip, a glow behind a hero, content that fades in as it is
+# scrolled to — is a component and gets a page and a demo: `atmosphere`,
+# `revealOnScroll`, `parallax` and `edgeVignette` were filed here once, as a row
+# each in the adaptive index, and nobody could see one without writing it.
 MODIFIERS_IN_GUIDES = {
-    "Modifier.atmosphere": "components/adaptive.md",
     "Modifier.concentric": "tokens.md",
     "Modifier.contentSwipeBack": "navigation3.md",
-    "Modifier.edgeVignette": "components/adaptive.md",
     "Modifier.focusRing": "accessibility.md",
     "Modifier.pageEffects": "navigation3.md",
-    "Modifier.parallax": "components/adaptive.md",
-    "Modifier.revealOnScroll": "components/adaptive.md",
     "Modifier.sharedBounds": "components/page-transition.md",
     "Modifier.sharedElement": "components/page-transition.md",
     "Modifier.sheetPeekAnchor": "components/bottom-sheet.md",
-    "Modifier.shimmer": "components/adaptive.md",
     "Modifier.tabSwipe": "components/tab-bar.md",
 }
 

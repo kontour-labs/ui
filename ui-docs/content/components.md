@@ -22,7 +22,7 @@ prose that is about the family rather than any one of them.
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavScope` `NavBar` `NavRail` `ModalNavRail` `NavSearch` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Modifier.coachmark` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `ModalSideSheet` `SheetHeader` `DragHandle` |
-| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `Modifier.pointerCursor` `PageTransition` `Motion.*` |
+| [**Adaptive**](components/adaptive.md) | Layout and motion by window | `Scaffold` `ListDetailPaneScaffold` `WindowSizeClass` `AspectRatioBox` `Modifier.pointerCursor` `PageTransition` `Motion.*` `Modifier.revealOnScroll` `Modifier.parallax` `Modifier.edgeVignette` `Modifier.atmosphere` |
 | [**Foundation**](components/foundation.md) | What the rest is built from | `Text` `SelectableText` `Icon` `Surface` `HorizontalDivider` `VerticalDivider` `Scrim` `SelectionIndicatorBox` `Modifier.clearFocusOnTap` |
 
 Cross-cutting reading:

@@ -34,6 +34,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A placeholder in the shape of the content that is loading.
@@ -109,6 +111,8 @@ internal fun Modifier.skeletonFill(
      */
     base: Color = Color.Unspecified,
     highlight: Color = Color.Unspecified,
+    /** One pass of the band, start to end. `Modifier.shimmer` lets a caller set it. */
+    duration: Duration = SkeletonSweep,
 ): Modifier {
     val colours = Theme.colours
     val reduceMotion = Theme.motion.reduceMotion
@@ -133,7 +137,7 @@ internal fun Modifier.skeletonFill(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                animation = tween(durationMillis = duration.inWholeMilliseconds.toInt(), easing = LinearEasing),
             ),
             label = "skeletonSweep",
         )
@@ -275,3 +279,11 @@ fun SkeletonListItem(
  * of the two and the right one for something that repeats forever.
  */
 private const val BandShare = 0.6f
+
+/**
+ * One pass of the lit band across a placeholder.
+ *
+ * `Modifier.shimmer` defaults to it as well, so a hand-built placeholder beside a
+ * row of skeletons sweeps in step with them rather than drifting out of phase.
+ */
+internal val SkeletonSweep: Duration = 1_200.milliseconds

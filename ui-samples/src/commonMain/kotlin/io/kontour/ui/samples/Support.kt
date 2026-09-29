@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
 
@@ -63,6 +64,10 @@ internal fun LazyListScope.stopRows() {
 /** The screen behind an overlay, where a sample needs one to sit over. */
 @Composable
 internal fun Screen() = Unit
+
+/** The opening of a landing or onboarding page, where a sample needs one. */
+@Composable
+internal fun Hero(modifier: Modifier = Modifier) = Unit
 
 /** The two things a rider reports about a stop, where a menu needs entries. */
 internal fun report() = Unit

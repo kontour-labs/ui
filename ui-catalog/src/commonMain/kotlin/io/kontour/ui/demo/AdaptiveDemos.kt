@@ -6,14 +6,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,17 +41,24 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.list.ListGroup
+import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.motion.PageTransition
+import io.kontour.ui.motion.RevealVariant
+import io.kontour.ui.motion.atmosphere
+import io.kontour.ui.motion.edgeVignette
+import io.kontour.ui.motion.parallax
+import io.kontour.ui.motion.revealOnScroll
 import io.kontour.ui.motion.sharedBounds
 import io.kontour.ui.motion.sharedElement
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuiteTypeFor
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Where both pane demos open: just past the 840dp two-pane breakpoint.
@@ -209,6 +221,129 @@ internal val AspectRatioBoxDemo = ComponentDemo(slug = "aspect-ratio-box") {
         ) { +(if (loaded) "Unload" else "Load the photo") }
     }
 }
+
+/** How far the glow is turned up, either side of the default. */
+private val atmosphereIntensity = Knob.Choice(
+    "Intensity",
+    listOf(0.5f, 1f, 1.5f),
+    initial = 1f,
+    name = { if (it == 1f) "Default" else "×$it" },
+)
+
+internal val AtmosphereDemo = ComponentDemo(slug = "atmosphere", knobs = listOf(atmosphereIntensity)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp)
+            .clip(Theme.shapes.large)
+            .background(Theme.colours.background)
+            // Before the padding, so the glow fills the whole hero and not
+            // just the space inside its margins.
+            .atmosphere(intensity = this[atmosphereIntensity])
+            .padding(Theme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm, Alignment.CenterVertically),
+    ) {
+        Text("Every line, one map", style = Theme.typography.headlineSmall)
+        Text(
+            "Trains, buses and ferries across the city, planned in one go.",
+            style = Theme.typography.bodyMedium,
+            colour = Theme.colours.contentMuted,
+        )
+        Button(onClick = { echo("Plan a trip") }, size = ButtonSize.Small) { +"Plan a trip" }
+    }
+}
+
+/**
+ * Where the revealed cards arrive from.
+ *
+ * `FadeStart` and `FadeEnd` are the ones worth trying in right to left, where
+ * they swap sides with the line.
+ */
+private val revealVariant = Knob.Choice("Reveal", RevealVariant.entries.toList())
+
+/**
+ * All three on one page, because they are all read by scrolling.
+ *
+ * The reveal and the drift measure against the window, so they are shown on the
+ * page's own scroll: the cards arrive when the demo does, and "Play again"
+ * brings them in again without scrolling away. The vignette needs a scroll of
+ * its own to read from, so it gets a small scrolling box.
+ */
+internal val ScrollEffectsDemo = ComponentDemo(slug = "scroll-effects", knobs = listOf(revealVariant)) {
+    val variant = this[revealVariant]
+    var plays by remember { mutableIntStateOf(0) }
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        // Keyed, so a new variant or a replay is a new arrival: the reveal
+        // plays once per element, and these are new elements.
+        key(variant, plays) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+                listOf("Plan", "Keep", "Go").forEachIndexed { index, word ->
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .revealOnScroll(variant, delay = (index * 120).milliseconds),
+                    ) {
+                        Text(word, style = Theme.typography.titleSmall)
+                    }
+                }
+            }
+        }
+        Button(
+            onClick = { plays++ },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+        ) { +"Play again" }
+
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .clip(Theme.shapes.medium)
+                .background(Theme.colours.surfaceSunken),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier = Modifier.parallax(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(Tabler.Outline.Star, contentDescription = null)
+                Text(
+                    "Scroll the page: this drifts against it",
+                    style = Theme.typography.labelMedium,
+                    colour = Theme.colours.contentMuted,
+                )
+            }
+        }
+
+        val scroll = rememberScrollState()
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .clip(Theme.shapes.medium)
+                .background(Theme.colours.surfaceSunken)
+                .edgeVignette(
+                    topFade = (scroll.value / 120f).coerceIn(0f, 1f),
+                    bottomFade = ((scroll.maxValue - scroll.value) / 120f).coerceIn(0f, 1f),
+                    height = 48.dp,
+                    colour = Theme.colours.surfaceSunken,
+                ),
+        ) {
+            Column(
+                modifier = Modifier.verticalScroll(scroll).padding(Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            ) {
+                VignetteStops.forEach { Text(it) }
+            }
+        }
+    }
+}
+
+/** Enough stops to scroll past, for the vignette. */
+private val VignetteStops = listOf(
+    "Perth Underground", "Elizabeth Quay", "Perth Busport", "McIver", "Claisebrook",
+    "East Perth", "Mount Lawley", "Maylands", "Meltham", "Bayswater",
+)
 
 /**
  * The input the frame pretends to have.
@@ -453,4 +588,6 @@ internal val adaptiveDemos = listOf(
     AspectRatioBoxDemo,
     PointerCursorDemo,
     PageTransitionDemo,
+    ScrollEffectsDemo,
+    AtmosphereDemo,
 )
