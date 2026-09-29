@@ -12,6 +12,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
@@ -78,7 +82,11 @@ fun Modifier.revealOnScroll(
         animationSpec = motion.springOrTween(motion.springGentle),
         label = "reveal",
     )
-    val distancePx = with(androidx.compose.ui.platform.LocalDensity.current) { distance.toPx() }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val distancePx = with(density) { distance.toPx() }
+    // The largest shadow in the scale, so whatever this is put on keeps its own.
+    val roomPx = with(density) { Theme.elevation.overlay.bleed.toPx() }
+    val fade = remember { Paint() }
     // Start and end are the line's: in right to left, "from the start" is from the right.
     val towardsEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
 
@@ -95,8 +103,11 @@ fun Modifier.revealOnScroll(
                 maxOf(bounds.top, 0f)).coerceAtLeast(0f)
             if (shown / height >= threshold) visible = true
         }
+        // Moves only. An `alpha` here would composite into a buffer the size of
+        // the element, and a card's shadow lies outside the card: for the whole
+        // fade the shadow was cut off at the card's edge, then came back in one
+        // frame as the fade ended. `overlayAppearance` has the full analysis.
         .graphicsLayer {
-            alpha = progress
             val remaining = 1f - progress
             when (variant) {
                 RevealVariant.FadeUp -> translationY = distancePx * remaining
@@ -107,6 +118,21 @@ fun Modifier.revealOnScroll(
 
                 RevealVariant.FadeStart -> translationX = -distancePx * remaining * towardsEnd
                 RevealVariant.FadeEnd -> translationX = distancePx * remaining * towardsEnd
+            }
+        }
+        // The fade, in a buffer with room around the element for its shadow, so
+        // the shadow fades with the card rather than vanishing under it. Only
+        // while it is arriving: at rest nothing is composited at all.
+        .drawWithContent {
+            val alpha = progress
+            when {
+                alpha >= 1f -> drawContent()
+                alpha > 0f -> drawIntoCanvas { canvas ->
+                    fade.alpha = alpha
+                    canvas.saveLayer(Rect(-roomPx, -roomPx, size.width + roomPx, size.height + roomPx), fade)
+                    drawContent()
+                    canvas.restore()
+                }
             }
         }
 }
