@@ -13,6 +13,7 @@ mechanism, and the pages below are the components themselves.
 | [`Dialog`](dialog.md) | A decision that must be made before anything else | A `Popover`, when the answer is required |
 | [`AlertDialog`](alert-dialog.md) | The common two- or three-button case | Building the buttons yourself |
 | [`Tooltip`](tooltip.md) | The name of a control being pointed at | A label, when there is no room for one |
+| [`Modifier.coachmark`](coachmark.md) | Introducing a control the user has not found, or a tour of several | A tooltip, which only answers a pointer |
 | [`Toast`](toast.md) | Confirmation of something just done | A `Banner`, which is about the screen |
 | [`LoadingOverlay`](loading-overlay.md) | Whole-screen, must-not-interrupt work | A `Skeleton` or an inline `Spinner`, nearly always |
 | [`CommandPalette`](command-palette.md) | Every action, by name, from the keyboard | A menu bar |

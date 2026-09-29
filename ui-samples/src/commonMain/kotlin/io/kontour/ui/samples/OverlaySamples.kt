@@ -1,9 +1,11 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +17,7 @@ import com.composables.icons.tabler.outline.Bookmark
 import com.composables.icons.tabler.outline.Copy
 import com.composables.icons.tabler.outline.Dots
 import com.composables.icons.tabler.outline.InfoCircle
+import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Share
 import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
@@ -22,6 +25,11 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.AlertDialog
+import io.kontour.ui.overlay.LocalOverlayQueue
+import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.coachmarkStep
+import io.kontour.ui.overlay.rememberCoachmarkTour
+import io.kontour.ui.overlay.rememberOverlayQueue
 import io.kontour.ui.overlay.Command
 import io.kontour.ui.overlay.CommandPalette
 import io.kontour.ui.overlay.ContextMenuArea
@@ -159,6 +167,44 @@ fun TooltipBasics() {
         Button(onClick = { open = !open }, variant = ButtonVariant.Secondary) { +"Recentre" }
         Tooltip(visible = open) { +"Bring the map back to you" }
     }
+}
+
+@Composable
+fun CoachmarkBasics() {
+    // One tip, shown when the app decides — through a queue, so six features do
+    // not all introduce themselves on one launch, and never over a dialog.
+    CompositionLocalProvider(LocalOverlayQueue provides rememberOverlayQueue(sessionCount = launches)) {
+        IconButton(
+            icon = Tabler.Outline.Bookmark,
+            contentDescription = "Save this trip",
+            onClick = { save() },
+            modifier = Modifier.coachmark(
+                id = "save-trip",
+                title = "Save this trip",
+                message = "Trips you save show up on the home screen.",
+                minSessions = 3,
+            ),
+        )
+    }
+
+    // A tour the user asked for: the order here, and each step's words at the
+    // control they explain.
+    val tour = rememberCoachmarkTour("plan", "saved")
+    Row {
+        IconButton(
+            icon = Tabler.Outline.Route,
+            contentDescription = "Plan a trip",
+            onClick = { plan() },
+            modifier = Modifier.coachmarkStep(tour, id = "plan", title = "Plan a trip", message = "From here to anywhere on the network."),
+        )
+        IconButton(
+            icon = Tabler.Outline.Bookmark,
+            contentDescription = "Saved trips",
+            onClick = { save() },
+            modifier = Modifier.coachmarkStep(tour, id = "saved", title = "Saved trips", message = "The ones you keep show up here."),
+        )
+    }
+    Button(onClick = tour::start, variant = ButtonVariant.Secondary) { +"Show me around" }
 }
 
 @Composable

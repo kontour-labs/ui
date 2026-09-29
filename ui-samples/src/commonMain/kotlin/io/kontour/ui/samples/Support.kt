@@ -38,6 +38,8 @@ internal fun nearby() = Unit
 internal fun saveAndClose() = Unit
 internal fun saveCopy() = Unit
 internal fun showTour() = Unit
+/** How many times the app has been opened, as the app itself keeps count. */
+internal val launches = 4
 internal fun forgot() = Unit
 
 /** A colour the app is holding for something the reader named. */

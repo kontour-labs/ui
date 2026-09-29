@@ -26,7 +26,8 @@ Twenty-two rules:
      demo is in a family the gallery renders.
   5. Every public `@Composable` in `:ui` is claimed by some page — the one rule
      anchored to the library rather than to a list, and so the only one that
-     could have caught a component nobody remembered to register.
+     could have caught a component nobody remembered to register. A composable
+     modifier too, or else it is named with the guide that explains it.
   6. Every page shows an example that compiles.
   7. Every page says what is particular about its accessibility.
   8. Every page title names a declaration that exists in `:ui`.
@@ -335,6 +336,45 @@ def public_composables() -> dict[str, Path]:
                 continue
             found[f"{receiver}.{name}" if receiver else name] = path
     return found
+
+
+def public_modifiers() -> dict[str, Path]:
+    """Every public `@Composable fun Modifier.x` in `:ui`, as `Modifier.x`.
+
+    The lowercase half of what `public_composables` leaves out. `remember*`
+    factories stay out: they are documented beside what they remember.
+    """
+    found: dict[str, Path] = {}
+    for path in Path("ui/src/commonMain/kotlin").rglob("*.kt"):
+        for match in COMPOSABLE_HEADER.finditer(path.read_text()):
+            visibility, receiver, name = match.group(1).strip(), match.group(2), match.group(3)
+            if visibility in ("internal", "private") or receiver != "Modifier":
+                continue
+            found[f"Modifier.{name}"] = path
+    return found
+
+
+# Modifiers explained in a guide rather than on a page of their own, and where.
+#
+# Motion and infrastructure: nothing a reader would look for in the component
+# list, and each belongs with the idea it is part of. Rule 5 reads the named page
+# to check that it still says so. A modifier that *draws something a user sees
+# and answers* — a coach mark, a tooltip — is a component and gets a page.
+MODIFIERS_IN_GUIDES = {
+    "Modifier.atmosphere": "components/adaptive.md",
+    "Modifier.concentric": "tokens.md",
+    "Modifier.contentSwipeBack": "navigation3.md",
+    "Modifier.edgeVignette": "components/adaptive.md",
+    "Modifier.focusRing": "accessibility.md",
+    "Modifier.pageEffects": "navigation3.md",
+    "Modifier.parallax": "components/adaptive.md",
+    "Modifier.revealOnScroll": "components/adaptive.md",
+    "Modifier.sharedBounds": "components/page-transition.md",
+    "Modifier.sharedElement": "components/page-transition.md",
+    "Modifier.sheetPeekAnchor": "components/bottom-sheet.md",
+    "Modifier.shimmer": "components/adaptive.md",
+    "Modifier.tabSwipe": "components/tab-bar.md",
+}
 
 
 KDOC_PARAM = re.compile(r"^\s*\*\s*@(?:param|property)\s+\w+", re.MULTILINE)
@@ -1422,6 +1462,37 @@ def main() -> int:
             f"give it a page, name it in an *Also on this page* line, or make it "
             f"internal if callers were never meant to reach it"
         )
+
+    # Rule 5, for modifiers — which the loop above cannot see.
+    #
+    # It takes TitleCase names only, on the reasoning that a modifier is
+    # documented on the page of whatever it attaches to. A coach mark attaches
+    # to anything, so it had no such page: `Modifier.coachmark` and the whole of
+    # `CoachmarkTour` shipped with a paragraph in a guide and no page, no demo
+    # and no example, and this rule was green. `Modifier.pageEffects` was not
+    # mentioned anywhere at all.
+    #
+    # So a public composable modifier is either the subject of a page, or named
+    # in `MODIFIERS_IN_GUIDES` with the page that explains it — and that page is
+    # read to check it really does.
+    for symbol, path in sorted(public_modifiers().items()):
+        if symbol in documented_symbols:
+            continue
+        guide = MODIFIERS_IN_GUIDES.get(symbol)
+        if guide is None:
+            problems.append(
+                f"`{symbol}` is public in {path.name} and no page claims it — give "
+                f"it a page, or an *Also on this page* line on the page of what it "
+                f"attaches to; if a guide explains it, name that guide in "
+                f"MODIFIERS_IN_GUIDES"
+            )
+        elif symbol.split(".", 1)[1] not in (CONTENT / guide).read_text():
+            problems.append(
+                f"`{symbol}` is filed under {guide} in MODIFIERS_IN_GUIDES, and "
+                f"{guide} never mentions it"
+            )
+    for symbol in sorted(set(MODIFIERS_IN_GUIDES) - set(public_modifiers())):
+        problems.append(f"MODIFIERS_IN_GUIDES names `{symbol}`, which is not a public modifier any more")
 
     # Rule 6 — every page shows an example that compiles.
     #
