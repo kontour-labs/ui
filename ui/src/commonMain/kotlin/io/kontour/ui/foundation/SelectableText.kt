@@ -43,6 +43,17 @@ import io.kontour.ui.theme.ColourScheme
  * - Anything the caller wraps in Compose's own `DisableSelection` — a live demo,
  *   a canvas that takes drags.
  *
+ * ### A word to press is a link or a `TextButton`, not a clickable `Text`
+ *
+ * A [Text] inside a region is selectable whatever its modifier says, and
+ * selectable text puts the I-beam on its own node, beneath any cursor the
+ * modifier asks for. So `Text("reference", Modifier.pointerCursor().clickable
+ * { … })` shows the text cursor here, and a drag across it selects it. A link
+ * in [richText] shows the hand over its own words; a
+ * [io.kontour.ui.components.action.TextButton] is a control, so its label stays
+ * out of the selection and keeps the hand. The documentation site's
+ * "reference" links were the clickable `Text`, until someone hovered one.
+ *
  * ### Colours and copying
  *
  * The highlight and handles are the theme's accent, the same pair a
