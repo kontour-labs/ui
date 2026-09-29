@@ -438,12 +438,21 @@ jobs:
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.docs == 'true') }}
     runs-on: ubuntu-latest
     steps:
-      # The tags as refs, not their history: the API reference names the latest
-      # release tag as its version (`kontourDocsVersion` in buildSrc) rather than
-      # the snapshot a build of `main` is.
       - uses: actions/checkout@v4
-        with:
-          fetch-tags: true
+
+      # The release tags as refs, not their history: the API reference names the
+      # latest release tag as its version (`kontourDocsVersion` in buildSrc)
+      # rather than the snapshot a build of `main` is.
+      #
+      # A step of its own, not `fetch-tags: true` on the checkout, which is what
+      # this was and what broke the v0.2.0 and v0.2.1 runs. That option drops
+      # the checkout's `--no-tags`, so on a tag push git follows the tag that
+      # points at the commit being built into `refs/tags/<tag>` — the ref the
+      # checkout is already writing it to — and refuses: "Cannot fetch both
+      # <sha> and refs/tags/v0.2.1 to refs/tags/v0.2.1". A push to `main` has no
+      # tag on its commit, so only a release ever hit it.
+      - name: Fetch the release tags
+        run: git fetch --no-tags --depth=1 origin '+refs/tags/v*:refs/tags/v*'
 
       - uses: actions/setup-java@v4
         with:
