@@ -20,6 +20,7 @@ import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastHostState
 import io.kontour.ui.overlay.ToastPosition
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -329,6 +330,38 @@ class ToastSwipeTest {
         )
     }
 
+    @Test
+    fun theCardsBehindASwipedToastEaseBackRatherThanSnap() {
+        // Reported from Android as a toast that "flashes back and forth real
+        // quick, then disappears". The cards behind the front one lean with the
+        // finger, and they kept leaning until the swiped card had finished
+        // leaving — then went home in a single frame, 17px at once after a swipe
+        // down, just as the card they were following vanished.
+        val tops = mutableListOf<Int>()
+        Scene(width = 600, height = SceneHeight) {
+            val state = remember { ToastHostState() }
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Color.White))
+                ToastHost(state, position = ToastPosition.Bottom)
+                LaunchedEffect(Unit) { repeat(3) { state.show("Toast number $it", duration = Duration.INFINITE) } }
+            }
+        }.use { scene ->
+            val settled = scene.frames(60)
+            val from = Offset(settled.width / 2f, settled.stackBottom() - Inside.toFloat())
+            scene.press(from)
+            for (step in 1..Steps) scene.move(from + Offset(0f, DismissTravel * step / Steps))
+            tops += scene.frames(2).stackTop()
+            scene.release(from + Offset(0f, DismissTravel))
+            repeat(SettleFrames) { tops += scene.frame().stackTop() }
+        }
+        val jumps = tops.zipWithNext { a, b -> abs(b - a) }
+        assertTrue(
+            jumps.max() <= MaxStep,
+            "the stack's top moved ${jumps.max()}px in one frame after a swipe: $tops",
+        )
+        assertTrue(tops.first() - tops.drop(1).min() > MaxStep, "the cards behind never leaned with the swipe: $tops")
+    }
+
     private class Swiped(
         /** Where the top of the stack sat before the gesture. */
         val before: Int,
@@ -484,5 +517,8 @@ class ToastSwipeTest {
          * a shrinking card rounds to whole pixels at both ends.
          */
         const val MaxDrift = 4f
+
+        /** The most the stack's top may move in one frame while it settles. */
+        const val MaxStep = 8
     }
 }
