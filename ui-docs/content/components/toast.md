@@ -70,6 +70,13 @@ only thing there. A pill has no such direction — sliding that way takes it und
 the cards in front, so the last frame it is drawn on is a full-size one and the
 next frame it is simply gone.
 
+**A card swiped away shrinks where the finger left it.** Letting go past the
+dismiss point used to send it off the way a toast that times out goes, from
+wherever the finger had put it — and a card dragged sideways was cut off at the
+edge of where it rests on the first frame of that fade, so most of it just went.
+It now leaves as a pill does: smaller toward its own centre first, then fading,
+at the place it was let go.
+
 Both leave on the **exit** easing rather than the house one. That is not a
 detail: `Motion.standard` is a hard ease-out, three quarters done one frame in,
 and on a departure it puts a nine-frame tween into the first two. The shrink was
@@ -143,7 +150,8 @@ drawn thicker and in full ink rather than faded, and the action and close
 buttons, which are ghosts, gain an outline in the toast's text colour.
 
 Under reduced motion a toast arrives and leaves by fading where it rests, the
-front card and the pills behind it alike, and a swipe still follows the finger.
+front card and the pills behind it alike, and a swipe still follows the finger;
+a card swiped away fades where it was let go, without the shrink.
 When one leaves, the cards behind it still step forward into its place, over a
 short tween with no overshoot — a few pixels of the stack's resting depth — and
 a toast whose message changes takes its new size at once.
