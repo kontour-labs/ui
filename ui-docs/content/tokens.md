@@ -263,15 +263,18 @@ Which one to reach for:
 - **mono** — anything a reader is meant to compare column-wise or copy verbatim:
   telemetry, prices, identifiers, code.
 
-A brand that supplies its own faces passes both:
+The mono role is JetBrains Mono, bundled, on every platform. A brand that
+supplies its own text face keeps it by naming it beside its own:
 
 ```kotlin
-KontourTheme(typography = kontourTypography(myBrandFace, myMonoFace)) { … }
+KontourTheme(typography = kontourTypography(myBrandFace, jetBrainsMonoFontFamily())) { … }
 ```
 
-The second argument defaults to the first rather than to the bundled mono — a
-brand that named one face and said nothing about a second has asked for *its*
-face, not for its face beside somebody else's.
+Name the second face, whichever it is. Left out it is the first, and a
+proportional face in the mono role is code whose columns do not line up — which
+is how the documentation site's own code blocks came to be drawn in Outfit. It
+cannot default to the bundled font because loading one needs a composable, and
+`kontourTypography` is not one.
 
 ---
 

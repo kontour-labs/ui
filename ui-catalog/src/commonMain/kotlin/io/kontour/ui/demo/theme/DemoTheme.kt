@@ -23,6 +23,7 @@ import io.kontour.ui.theme.kontourElevation
 import io.kontour.ui.theme.kontourMotion
 import io.kontour.ui.theme.kontourSizing
 import io.kontour.ui.theme.kontourTypography
+import io.kontour.ui.theme.jetBrainsMonoFontFamily
 import io.kontour.ui.theme.outfitFontFamily
 
 /** Which grounds a theme is willing to be drawn on. */
@@ -69,7 +70,10 @@ class DemoTheme(
     val elevation: (dark: Boolean) -> Elevation = ::kontourElevation,
     val motion: (reduceMotion: Boolean) -> Motion = ::kontourMotion,
     val sizing: (contrast: ContrastLevel) -> Sizing = ::kontourSizing,
-    val typography: @Composable () -> Typography = { kontourTypography(outfitFontFamily()) },
+    // Both faces named. `kontourTypography(outfitFontFamily())` alone puts Outfit
+    // in the mono role too, and that is what the gallery and the documentation
+    // site drew every code block, key cap and tabular figure in.
+    val typography: @Composable () -> Typography = { kontourTypography(outfitFontFamily(), jetBrainsMonoFontFamily()) },
     val componentDefaults: ComponentDefaults = ComponentDefaults(),
 ) {
     init {
