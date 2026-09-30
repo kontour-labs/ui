@@ -1577,7 +1577,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = Role.Tab,
             control = ControlLocator.SelectedOption,
             states = listOf(
-                RenderState("labels") { modifier ->
+                // Taller than the default canvas: a bar with its labels is a
+                // few dp more than the 88dp the frame leaves, and squeezed into
+                // that it clipped every label mid-word in the picture while the
+                // bar itself was fine.
+                RenderState("labels", height = 160) { modifier ->
                     NavBar(modifier = modifier, showLabels = true) { specimenDestinations(onClick = {}) }
                 },
                 RenderState("docked") { modifier ->
