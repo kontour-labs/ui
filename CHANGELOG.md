@@ -10,4 +10,6 @@ It is published with the rest of the docs:
   which `llms.txt` links from its first lines.
 
 Each entry lists what a release changed, newest first. What an upgrade has to
-change is under **Breaking**.
+change is under **Breaking**, and
+[`ui-docs/content/migrating.md`](ui-docs/content/migrating.md) has each of those
+changes as code, before and after.

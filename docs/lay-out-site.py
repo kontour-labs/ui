@@ -307,6 +307,8 @@ def llms_index(sections, base_url: str) -> str:
         "If you are an agent working in an app built on this library, the Agents guide",
         "below says what to read in what order. What changed in each release, and",
         f"what an upgrade has to change, is the Changelog: {base_url}md/changelog.md",
+        "Each change an upgrade has to make, as code before and after, is in the",
+        f"Migrating guide: {base_url}md/migrating.md",
     ]
     for heading, paths in sections:
         if not paths:

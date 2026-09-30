@@ -412,8 +412,9 @@ was recorded.
   `checkKotlinAbi` fails on any difference from it. Adding to the API is a new
   line in the dump; changing or removing something is a break, and gets a
   line under **Breaking** in the
-  [changelog](../../ui-docs/content/changelog.md)'s Unreleased section, saying
-  what to write instead. A change that compiles but looks or behaves
+  [changelog](../../ui-docs/content/changelog.md)'s Unreleased section, and
+  the code before and after in [`migrating.md`](../../ui-docs/content/migrating.md)'s
+  section for the next release. A change that compiles but looks or behaves
   differently gets one under **Changed**, and an addition one under
   **Added**.
 

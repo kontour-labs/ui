@@ -13,7 +13,8 @@ those rather than finding them on a device.
 
 1. Read every entry after the version the app is on, up to and including the one
    it is moving to.
-2. Make each **Breaking** change.
+2. Make each **Breaking** change. [Migrating](migrating.md) has each one as
+   code, before and after.
 3. Check each **Changed** line against the screens that use it.
 
 The version an app is on is the `kontour` entry in its version catalog. See
