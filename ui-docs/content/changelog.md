@@ -73,6 +73,10 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   pages, panes and overlays alike. Before, it finished at a fixed pace, so a
   flick slowed down when it was released. A back button press goes through at
   once.
+- **A trackpad or a mouse can make a full swipe on a `SwipeActions` row.**
+  Carried past the point of no return by a sideways scroll or a two-finger pan,
+  the row runs its outermost action when the gesture ends there, as it does
+  under a finger. Before, a scroll could open the actions but never run one.
 - **A `RangeSlider` takes a finger on each thumb**, and both thumbs can be
   dragged at the same time. Before, a second finger did nothing.
 

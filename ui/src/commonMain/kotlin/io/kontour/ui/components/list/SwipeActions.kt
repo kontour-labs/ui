@@ -752,8 +752,15 @@ fun SwipeActions(
              *
              * On a desktop there is no finger to drag the row with, and a
              * trackpad's two-finger sideways push is the gesture that means
-             * exactly this everywhere else on the platform. It never commits: a
-             * scroll has no point of no return to feel.
+             * exactly this everywhere else on the platform.
+             *
+             * **It commits as a drag does.** Carried past the point of no return
+             * the outermost action takes the strip, and it runs when the gesture
+             * ends there — a pan when the fingers lift, a scroll once it has been
+             * quiet. It used to stop short of that, on the argument that a scroll
+             * has no point of no return to feel, and the report was that a full
+             * swipe could not be done from a trackpad or a mouse at all: the row
+             * went out to the edge and came back to its actions.
              *
              * **It was far too hard to move**, reported as wanting it "more
              * sensitive to side scrolling" on a trackpad and a mouse, and for
@@ -800,6 +807,9 @@ fun SwipeActions(
                             settling?.cancel()
                             waiting?.cancel()
                             state.anchoredState.dispatchRawDelta(if (isRtl) -physical else physical)
+                            // The drag's own line, latch and buzz: past it, the
+                            // settle this gesture ends in runs the action.
+                            updateCommitting(state.anchoredState.offset)
                             dealt.at(state.anchoredState.offset)
                         }
 
@@ -814,6 +824,8 @@ fun SwipeActions(
                         fun begin() {
                             ours = null
                             gathered = Offset.Zero
+                            pointOfNoReturn.reset()
+                            pointOfNoReturn.at(0)
                             dealt.arm(state.anchoredState.offset, actionWidthPx, start.size, end.size, hysteresisPx)
                         }
 
@@ -840,7 +852,6 @@ fun SwipeActions(
                                     PointerEventType.PanEnd -> {
                                         if (ours == true) {
                                             changes.forEach { it.consume() }
-                                            committing = false
                                             val velocity = panVelocity.calculateVelocity()
                                             settle(if (isRtl) -velocity else velocity)
                                         }
@@ -860,7 +871,6 @@ fun SwipeActions(
                                         move(-sideScrollDistance(delta.x, stepPx, dpPx, platformScrollDeltaInPixels))
                                         waiting = scope.launch {
                                             delay(SwipeActionsDefaults.SettleAfterScroll)
-                                            committing = false
                                             dealt.reset()
                                             settle(0f)
                                         }
