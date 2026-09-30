@@ -3383,10 +3383,12 @@ public final class io/kontour/ui/sheet/DragHandleDefaults {
 
 public abstract interface class io/kontour/ui/sheet/SheetContentScope : androidx/compose/foundation/layout/ColumnScope {
 	public abstract fun part (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun pinned (Lio/kontour/ui/sheet/SheetPin;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/sheet/SheetContentScope$ComposeDefaultImpls {
 	public static final fun part$default (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun pinned$default (Lio/kontour/ui/sheet/SheetPin;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/sheet/SheetDetent {
@@ -3408,6 +3410,8 @@ public final class io/kontour/ui/sheet/SheetDetent$Companion {
 	public final fun getHidden ()Lio/kontour/ui/sheet/SheetDetent;
 	public final fun height-3ABfNKs (Ljava/lang/String;F)Lio/kontour/ui/sheet/SheetDetent;
 	public final fun peek-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
+	public final fun pinned-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
+	public static synthetic fun pinned-0680j_4$default (Lio/kontour/ui/sheet/SheetDetent$Companion;FILjava/lang/Object;)Lio/kontour/ui/sheet/SheetDetent;
 }
 
 public final class io/kontour/ui/sheet/SheetEdgeMorph {
@@ -3440,6 +3444,14 @@ public final class io/kontour/ui/sheet/SheetHeaderStyle : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetHeaderStyle;
 	public static fun values ()[Lio/kontour/ui/sheet/SheetHeaderStyle;
+}
+
+public final class io/kontour/ui/sheet/SheetPin : java/lang/Enum {
+	public static final field Bottom Lio/kontour/ui/sheet/SheetPin;
+	public static final field Top Lio/kontour/ui/sheet/SheetPin;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetPin;
+	public static fun values ()[Lio/kontour/ui/sheet/SheetPin;
 }
 
 public final class io/kontour/ui/sheet/SheetPresentation : java/lang/Enum {

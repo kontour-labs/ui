@@ -114,8 +114,70 @@ bottom of the window a part cannot be seen or tapped, and it is not read out
 either.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
-with `part` added — so `weight`, `align` and everything else a column offers are
-unchanged, and content written before this existed reads and behaves the same.
+with `part` and `pinned` added — so `weight`, `align` and everything else a
+column offers are unchanged, and content written before this existed reads and
+behaves the same.
+
+---
+
+## `pinned` — a part that stays at an edge, with the content passing behind
+
+<!--sample:BottomSheetPinnedSearch-->
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.pinned(),
+)
+val query = rememberTextFieldState()
+
+BottomSheet(state = sheet) { padding ->
+    // On the bottom of what the sheet shows at every size, over the list
+    // and on the sheet's own colour. Collapsed, it is all there is.
+    pinned {
+        SearchField(
+            query,
+            modifier = Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
+            placeholder = "Search stops",
+        )
+    }
+    // The padding has grown by the field's height, so the last row
+    // scrolls out from behind it.
+    LazyColumn(contentPadding = padding) { stopRows() }
+}
+```
+
+Asked for as *"a way to pin a component to certain parts of the sheet… a
+[search] bar to the bottom of the sheet. Content should be scrollable behind it,
+and when the sheet is collapsed, only the search bar should show."*
+
+**`SheetPin.Bottom`, the default, rides the bottom of what the sheet shows.**
+That is the window's edge for an edge sheet and the sheet's own for a floating
+one, above the safe area, at every detent and on every frame of a drag. Pulled
+down past the point where it would cover the handle, it stops there and leaves
+with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
+starts.
+
+**It is drawn over the content, on the sheet's own colour,** so whatever scrolls
+behind it is hidden rather than showing through. The sheet's colour runs the full
+width and, at the bottom, down through the safe area. At high contrast a line
+marks the edge the content passes behind, where the two grounds would otherwise
+be the same colour.
+
+**The padding the content is handed grows by the pinned parts' heights.** A
+`LazyColumn` given it as `contentPadding` scrolls its first and last rows out from
+behind them, just as it does for the safe area. Content that ignores the padding
+runs under them.
+
+**`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
+whatever is pinned to the top, and whatever is pinned to the bottom with the
+safe area under it. That is the collapsed sheet that is only a search field, at
+whatever height the field turns out to be at the reader's font scale. Until the
+parts have been measured, and on a sheet with none, it uses its `fallback`.
+
+Where `pinned` is written in the content does not decide where it is drawn.
+Several at one edge stack in the order they were first composed. A pinned part is
+always on screen, so it is always in the assistive tree, and read after the
+content.
 
 ---
 

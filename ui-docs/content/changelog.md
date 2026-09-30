@@ -86,6 +86,11 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   your own pressable the way the library's are. It brings the press, hover,
   focus ring, cursor and 48dp target, and takes a long press, felt once, and a
   double click.
+- `pinned { }` in a sheet's content: a part pinned to the bottom of what the
+  sheet shows, or with `SheetPin.Top` under its handle, drawn over the content,
+  which scrolls behind it. `SheetDetent.pinned()` is the size that shows the
+  pinned parts and nothing else: a sheet that collapses to its search field. See
+  [`BottomSheet`](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind).
 - `SelectionRow(onClick)`, and `position` on both `SelectionRow` overloads, so
   a group can mix toggles, rows that open a choice, and plain rows.
 - [`NavBar`](components/nav-bar.md): `shape`; `itemWidth`

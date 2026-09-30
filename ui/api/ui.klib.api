@@ -860,6 +860,17 @@ final enum class io.kontour.ui.sheet/SheetHeaderStyle : kotlin/Enum<io.kontour.u
     final fun values(): kotlin/Array<io.kontour.ui.sheet/SheetHeaderStyle> // io.kontour.ui.sheet/SheetHeaderStyle.values|values#static(){}[0]
 }
 
+final enum class io.kontour.ui.sheet/SheetPin : kotlin/Enum<io.kontour.ui.sheet/SheetPin> { // io.kontour.ui.sheet/SheetPin|null[0]
+    enum entry Bottom // io.kontour.ui.sheet/SheetPin.Bottom|null[0]
+    enum entry Top // io.kontour.ui.sheet/SheetPin.Top|null[0]
+
+    final val entries // io.kontour.ui.sheet/SheetPin.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.ui.sheet/SheetPin> // io.kontour.ui.sheet/SheetPin.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.kontour.ui.sheet/SheetPin // io.kontour.ui.sheet/SheetPin.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.kontour.ui.sheet/SheetPin> // io.kontour.ui.sheet/SheetPin.values|values#static(){}[0]
+}
+
 final enum class io.kontour.ui.sheet/SheetPresentation : kotlin/Enum<io.kontour.ui.sheet/SheetPresentation> { // io.kontour.ui.sheet/SheetPresentation|null[0]
     enum entry Edge // io.kontour.ui.sheet/SheetPresentation.Edge|null[0]
     enum entry Floating // io.kontour.ui.sheet/SheetPresentation.Floating|null[0]
@@ -1005,9 +1016,11 @@ abstract interface io.kontour.ui.overlay/MenuScope : androidx.compose.foundation
 
 abstract interface io.kontour.ui.sheet/SheetContentScope : androidx.compose.foundation.layout/ColumnScope { // io.kontour.ui.sheet/SheetContentScope|null[0]
     abstract fun part(io.kontour.ui.sheet/SheetDetent?, kotlin/Function3<androidx.compose.foundation.layout/ColumnScope, androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int) // io.kontour.ui.sheet/SheetContentScope.part|part(io.kontour.ui.sheet.SheetDetent?;kotlin.Function3<androidx.compose.foundation.layout.ColumnScope,androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+    abstract fun pinned(io.kontour.ui.sheet/SheetPin, kotlin/Function3<androidx.compose.foundation.layout/ColumnScope, androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int) // io.kontour.ui.sheet/SheetContentScope.pinned|pinned(io.kontour.ui.sheet.SheetPin;kotlin.Function3<androidx.compose.foundation.layout.ColumnScope,androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 
     final class ComposeDefaultImpls { // io.kontour.ui.sheet/SheetContentScope.ComposeDefaultImpls|null[0]
         final fun part$default(io.kontour.ui.sheet/SheetDetent?, kotlin/Function3<androidx.compose.foundation.layout/ColumnScope, androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, io.kontour.ui.sheet/SheetContentScope, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.sheet/SheetContentScope.ComposeDefaultImpls.part$default|part$default#static(io.kontour.ui.sheet.SheetDetent?;kotlin.Function3<androidx.compose.foundation.layout.ColumnScope,androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;io.kontour.ui.sheet.SheetContentScope;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+        final fun pinned$default(io.kontour.ui.sheet/SheetPin?, kotlin/Function3<androidx.compose.foundation.layout/ColumnScope, androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, io.kontour.ui.sheet/SheetContentScope, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.sheet/SheetContentScope.ComposeDefaultImpls.pinned$default|pinned$default#static(io.kontour.ui.sheet.SheetPin?;kotlin.Function3<androidx.compose.foundation.layout.ColumnScope,androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;io.kontour.ui.sheet.SheetContentScope;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
     }
 }
 
@@ -2474,6 +2487,7 @@ final class io.kontour.ui.sheet/SheetDetent { // io.kontour.ui.sheet/SheetDetent
         final fun fraction(kotlin/String, kotlin/Float): io.kontour.ui.sheet/SheetDetent // io.kontour.ui.sheet/SheetDetent.Companion.fraction|fraction(kotlin.String;kotlin.Float){}[0]
         final fun height(kotlin/String, androidx.compose.ui.unit/Dp): io.kontour.ui.sheet/SheetDetent // io.kontour.ui.sheet/SheetDetent.Companion.height|height(kotlin.String;androidx.compose.ui.unit.Dp){}[0]
         final fun peek(androidx.compose.ui.unit/Dp): io.kontour.ui.sheet/SheetDetent // io.kontour.ui.sheet/SheetDetent.Companion.peek|peek(androidx.compose.ui.unit.Dp){}[0]
+        final fun pinned(androidx.compose.ui.unit/Dp = ...): io.kontour.ui.sheet/SheetDetent // io.kontour.ui.sheet/SheetDetent.Companion.pinned|pinned(androidx.compose.ui.unit.Dp){}[0]
     }
 }
 
