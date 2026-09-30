@@ -411,7 +411,11 @@ was recorded.
   rewrites the dump under the module's `api/` directory, and CI's
   `checkKotlinAbi` fails on any difference from it. Adding to the API is a new
   line in the dump; changing or removing something is a break, and gets a
-  line in the next release's notes.
+  line under **Breaking** in the
+  [changelog](../../ui-docs/content/changelog.md)'s Unreleased section, saying
+  what to write instead. A change that compiles but looks or behaves
+  differently gets one under **Changed**, and an addition one under
+  **Added**.
 
 ---
 

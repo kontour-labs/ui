@@ -236,7 +236,8 @@ otherwise fail the check without the API having moved.
 
 The point is the diff. A rename that reaches a consumer shows up as a pair of
 lines a reviewer reads, rather than as a build that breaks after a release —
-and a deliberate one comes with its line in the release's notes.
+and a deliberate one comes with its line under **Breaking** in the
+[changelog](../../ui-docs/content/changelog.md).
 
 ## `EverythingRespondsTest`
 

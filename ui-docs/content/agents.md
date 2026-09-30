@@ -46,6 +46,18 @@ shell.
 An agent working in this repository needs none of this: `ui-docs/content` is
 the same Markdown, and reading it there is faster.
 
+## Upgrading
+
+`md/changelog.md` lists what each release changed, newest first. Moving an app
+from one version to another is:
+
+1. Read every entry after the version the app is on, up to and including the
+   one it is moving to.
+2. Make each **Breaking** change it lists.
+3. Check each **Changed** line against the screens that use it.
+
+The compiler finds the rest.
+
 ## A `CLAUDE.md` for an app built on the library
 
 Paste this into the app's `CLAUDE.md`, and set the two variables in the
@@ -60,3 +72,5 @@ agent's environment:
 > Before writing a screen, find the component for it in the index and read its
 > page: prefer the library's component to a hand-built one, and its tokens
 > (`Theme.spacing`, `Theme.colours`, `Theme.typography`) to literal values.
+> When the app moves to a newer `io.kontour` version, read `…/ui/md/changelog.md`
+> for every release in between, and make each **Breaking** change it lists.

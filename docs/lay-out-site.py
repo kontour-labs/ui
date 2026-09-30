@@ -305,7 +305,8 @@ def llms_index(sections, base_url: str) -> str:
         f"{base_url}api/. Everything in one file: {base_url}llms-full.txt",
         "",
         "If you are an agent working in an app built on this library, the Agents guide",
-        "below says what to read in what order.",
+        "below says what to read in what order. What changed in each release, and",
+        f"what an upgrade has to change, is the Changelog: {base_url}md/changelog.md",
     ]
     for heading, paths in sections:
         if not paths:

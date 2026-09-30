@@ -29,7 +29,8 @@ the same pages as Markdown with a service token, as
 [tokens](ui-docs/content/tokens.md) ·
 [theming](ui-docs/content/theming.md) ·
 [accessibility](ui-docs/content/accessibility.md) ·
-[the `+` vocabulary](ui-docs/content/dsls.md)
+[the `+` vocabulary](ui-docs/content/dsls.md) ·
+[changelog](ui-docs/content/changelog.md)
 
 Adding to the library instead? [`docs/`](docs/README.md) is the other half:
 [contributing](docs/building/contributing.md) ·
@@ -143,7 +144,9 @@ asks and what each has caught is in
 
 ## Releasing
 
-A release is a tag, and nothing else:
+First, in [the changelog](ui-docs/content/changelog.md), turn **Unreleased**
+into the version and its date, and start a new, empty Unreleased above it.
+Then a release is a tag, and nothing else:
 
 ```sh
 git tag v0.2.0 && git push origin v0.2.0
