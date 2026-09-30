@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -87,6 +88,38 @@ object NavBarDefaults {
     val SlotMaxWidth: Dp = 320.dp
 
     /**
+     * The widest a destination grows under [NavBarItemWidth.Equal]: shares of a
+     * phone's width, and on anything wider the bar hugs destinations this wide
+     * rather than spreading three of them across the window.
+     */
+    val EqualItemMaxWidth: Dp = 168.dp
+
+    /**
+     * The default marker: a circle behind the glyph, [CircleSize] across.
+     *
+     * @param size Its size. A square is a circle, anything else a capsule.
+     * @param shape Its shape, where neither is wanted.
+     */
+    @Composable
+    fun glyphMarker(
+        size: DpSize = CircleSize,
+        shape: Shape = navItemShape(size),
+    ): NavBarMarker = NavBarMarker.Glyph(size, shape)
+
+    /**
+     * A marker around the whole destination, glyph and label: a tab bar's
+     * highlight rather than a circle.
+     *
+     * @param shape Its shape; the theme's medium corner by default.
+     * @param inset How far in from the destination's own edges it stops.
+     */
+    @Composable
+    fun destinationMarker(
+        shape: Shape = Theme.shapes.medium,
+        inset: Dp = 0.dp,
+    ): NavBarMarker = NavBarMarker.Destination(shape, inset)
+
+    /**
      * The gap between a floating bar's capsule and the action beside it: wider
      * than the gap between destinations, so the two read as neighbours rather
      * than as one bar with a bulge.
@@ -113,6 +146,45 @@ object NavBarDefaults {
     @ReadOnlyComposable
     fun arrangementFor(spans: Boolean): Arrangement.Horizontal =
         if (spans) Arrangement.SpaceEvenly else Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
+}
+
+/** How wide a [NavBar]'s destinations are. */
+enum class NavBarItemWidth {
+    /**
+     * As wide as each needs, spread across a phone's bar and gathered in the
+     * middle of a wider one — see [NavBarDefaults.arrangementFor]. The default.
+     */
+    Natural,
+
+    /**
+     * All the same width, sharing the bar between them, up to
+     * [NavBarDefaults.EqualItemMaxWidth] each: a tab bar's cells, and the
+     * width a [NavBarMarker.Destination] wants to fill.
+     */
+    Equal,
+}
+
+/**
+ * The marker behind a [NavBar]'s current destination: what it covers, and its
+ * shape. Made by [NavBarDefaults.glyphMarker] and
+ * [NavBarDefaults.destinationMarker].
+ */
+@Immutable
+sealed interface NavBarMarker {
+    /**
+     * Behind the glyph, [size] and in [shape] — a 40dp circle by default, with
+     * the label, when there is one, under it.
+     */
+    @Immutable
+    data class Glyph(val size: DpSize, val shape: Shape) : NavBarMarker
+
+    /**
+     * Around the whole destination, glyph and label, [inset] in from its edges
+     * and in [shape]. Pair it with [NavBarItemWidth.Equal] for cells that fill
+     * the bar, and with labels, or it is only a larger circle.
+     */
+    @Immutable
+    data class Destination(val shape: Shape, val inset: Dp) : NavBarMarker
 }
 
 /**
@@ -169,6 +241,14 @@ enum class NavBarStyle {
  *   labels are still announced.
  * @param arrangement How the row distributes its children. Null derives it from
  *   the window's width: see [NavBarDefaults.arrangementFor].
+ * @param shape The bar's own shape: a capsule for a floating bar and square for
+ *   a docked one when null. A floating bar in a rounded rectangle is
+ *   `RoundedCornerShape(16.dp)`.
+ * @param itemWidth How wide each destination is: [NavBarItemWidth.Natural], or
+ *   [NavBarItemWidth.Equal] cells sharing the bar.
+ * @param marker What marks the current destination, and in what shape: a
+ *   circle behind the glyph by default, or [NavBarDefaults.destinationMarker]
+ *   around the whole destination.
  * @param action Something the screen does rather than somewhere it goes — a
  *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
  *   bar puts it **beside** the capsule, on the page and centred on the capsule's
@@ -183,6 +263,9 @@ fun NavBar(
     showLabels: Boolean = false,
     colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
+    shape: Shape? = null,
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
+    marker: NavBarMarker = NavBarDefaults.glyphMarker(),
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
@@ -197,6 +280,9 @@ fun NavBar(
         search = null,
         searchIndex = null,
         action = action,
+        shape = shape,
+        itemWidth = itemWidth,
+        marker = marker,
         content = content,
     )
 }
@@ -219,11 +305,22 @@ internal fun NavBarLayout(
     search: (@Composable () -> Unit)?,
     searchIndex: Int?,
     action: (@Composable () -> Unit)?,
+    shape: Shape? = null,
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
+    marker: NavBarMarker = NavBarDefaults.glyphMarker(),
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
     val keys = remember { NavKeys() }
-    val circle = NavBarDefaults.CircleSize
+    // The glyph's box: the marker's size where the marker is behind the glyph,
+    // and a circle's where it is around the whole destination.
+    val circle = (marker as? NavBarMarker.Glyph)?.size ?: NavBarDefaults.CircleSize
+    val markerShape = when (marker) {
+        is NavBarMarker.Glyph -> marker.shape
+        is NavBarMarker.Destination -> marker.shape
+    }
+    val coversItem = marker is NavBarMarker.Destination
+    val equal = itemWidth == NavBarItemWidth.Equal
     val labelGap = Theme.spacing.xxs
 
     // A phone spans; anything wider takes only the room it needs.
@@ -243,8 +340,13 @@ internal fun NavBarLayout(
     // to match what the targets add between two circles. Gathered in the middle
     // of a wider window, the ends take the whole gap. A caller's own
     // arrangement keeps the old padding, since it is not this sum.
+    //
+    // Cells that share the bar have no slack to spread: their ends are the
+    // capsule's own padding, the same as its top and bottom, so a marker around
+    // a whole cell sits the same distance from every edge.
     val inset = ((Theme.sizing.minTouchTarget - circle.width) / 2).coerceAtLeast(0.dp)
     val floatingEnds = when {
+        equal -> Theme.spacing.xs
         arrangement != null -> Theme.spacing.sm
         spans -> inset
         else -> NavBarDefaults.ItemGap + inset
@@ -253,21 +355,25 @@ internal fun NavBarLayout(
     // A new scope when anything it draws with changes: the destinations are
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
-    val scope = remember(keys, showLabels, colours, circle, labelGap) {
-        BarScope(keys, showLabels, colours, circle, labelGap)
+    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem) {
+        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem)
     }
 
     @Composable
     fun Destinations(rowModifier: Modifier, inlineAction: (@Composable () -> Unit)?) {
         SelectionIndicatorBox(
             state = indicator,
-            // The circle is the marker, sized to the glyph rather than the
-            // destination, and against the top when a label hangs under it.
-            sizing = IndicatorSizing.Fixed(
-                width = circle.width,
-                height = circle.height,
-                verticalBias = if (showLabels) 0f else 0.5f,
-            ),
+            sizing = when (marker) {
+                // The circle is the marker, sized to the glyph rather than the
+                // destination, and against the top when a label hangs under it.
+                is NavBarMarker.Glyph -> IndicatorSizing.Fixed(
+                    width = circle.width,
+                    height = circle.height,
+                    verticalBias = if (showLabels) 0f else 0.5f,
+                )
+                // Or the destination itself, glyph and label.
+                is NavBarMarker.Destination -> IndicatorSizing.Inset(marker.inset, marker.inset)
+            },
             modifier = rowModifier,
             indicator = {
                 // No shadow: the bar is the raised thing, and a marker casting
@@ -275,15 +381,16 @@ internal fun NavBarLayout(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .clip(navItemShape(circle))
+                        .clip(markerShape)
                         .background(colours.indicator)
-                        .optionalBorder(selectionEdge(), navItemShape(circle))
+                        .optionalBorder(selectionEdge(), markerShape)
                 )
             },
         ) {
             BarRow(
                 arrangement = rowArrangement,
                 fill = !hug,
+                equal = equal,
                 searchIndex = searchIndex,
                 slotsCentred = !showLabels,
                 modifier = Modifier.selectableGroup(),
@@ -310,7 +417,7 @@ internal fun NavBarLayout(
         // inside it, so its colour runs under the gesture bar.
         NavBarStyle.Docked -> BarGround(
             modifier = modifier.fillMaxWidth(),
-            shape = RectangleShape,
+            shape = shape ?: RectangleShape,
             colours = colours,
             shadow = Theme.elevation.low,
         ) {
@@ -337,7 +444,7 @@ internal fun NavBarLayout(
             // radius and `xs` around them is half the bar's height.
             BarGround(
                 modifier = Modifier,
-                shape = Theme.shapes.pill,
+                shape = shape ?: Theme.shapes.pill,
                 colours = colours,
                 shadow = Theme.elevation.high,
             ) {
@@ -466,6 +573,8 @@ private val BarChild.weight: Float
 private fun BarRow(
     arrangement: Arrangement.Horizontal,
     fill: Boolean,
+    /** Destinations share the room, as a weighted slot does: [NavBarItemWidth.Equal]. */
+    equal: Boolean,
     searchIndex: Int?,
     slotsCentred: Boolean,
     modifier: Modifier,
@@ -490,28 +599,33 @@ private fun BarRow(
             }
         }
 
-        val gap = arrangement.spacing.roundToPx()
+        // Equal cells touch: the space between them is inside them.
+        val gap = if (equal) 0 else arrangement.spacing.roundToPx()
         val gaps = gap * (ordered.size - 1).coerceAtLeast(0)
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val placeables = arrayOfNulls<Placeable>(ordered.size)
+        fun weightOf(child: Measurable): Float =
+            if (equal && child.barChild == BarChild.Destination) 1f else child.barChild.weight
         var used = gaps
         ordered.forEachIndexed { i, child ->
-            if (child.barChild.weight == 0f) {
+            if (weightOf(child) == 0f) {
                 val room = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else Constraints.Infinity
                 placeables[i] = child.measure(loose.copy(maxWidth = room))
                 used += placeables[i]!!.width
             }
         }
-        val totalWeight = ordered.sumOf { it.barChild.weight.toDouble() }.toFloat()
+        val totalWeight = ordered.sumOf { weightOf(it).toDouble() }.toFloat()
         // A weighted child's share of the room left over, but never more than
-        // `SlotMaxWidth`: see there.
+        // `SlotMaxWidth`: see there. An equal destination's cap is its own.
         val slotCap = NavBarDefaults.SlotMaxWidth.roundToPx()
+        val cellCap = NavBarDefaults.EqualItemMaxWidth.roundToPx()
         if (totalWeight > 0f) {
             val left = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else 0
             ordered.forEachIndexed { i, child ->
-                val weight = child.barChild.weight
+                val weight = weightOf(child)
                 if (weight > 0f) {
-                    val width = (left * weight / totalWeight).roundToInt().coerceAtMost(slotCap)
+                    val cap = if (child.barChild == BarChild.Destination) cellCap else slotCap
+                    val width = (left * weight / totalWeight).roundToInt().coerceAtMost(cap)
                     placeables[i] = child.measure(loose.copy(minWidth = width, maxWidth = width))
                     used += width
                 }
@@ -563,6 +677,8 @@ private class BarScope(
     private val colours: NavColours,
     private val circle: DpSize,
     private val labelGap: Dp,
+    private val markerShape: Shape,
+    private val coversItem: Boolean,
 ) : NavBarScope {
 
     @Composable
@@ -598,6 +714,8 @@ private class BarScope(
             badge = badge,
             interactionSource = interactionSource,
             labelGap = labelGap,
+            markerShape = markerShape,
+            markerCoversItem = coversItem,
         )
     }
 
@@ -642,6 +760,8 @@ private class BarScope(
             badge = badge,
             interactionSource = interactionSource,
             labelGap = labelGap,
+            markerShape = markerShape,
+            markerCoversItem = coversItem,
         )
         // Above the bar, the only side with room.
         AnchoredDropdownMenu(

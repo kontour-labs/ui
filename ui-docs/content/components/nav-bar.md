@@ -101,6 +101,44 @@ button belongs in a `slot`.
 
 A `Docked` bar has no beside: it puts the action inside, after everything else.
 
+### Its shape, and its cells
+
+<!--sample:NavBarTabCells-->
+```kotlin
+var here by remember { mutableStateOf("drive") }
+
+// A tab bar's look: a rounded rectangle rather than a capsule, cells that
+// share it, and the current one highlighted whole, label and all.
+NavBar(
+    shape = RoundedCornerShape(20.dp),
+    showLabels = true,
+    itemWidth = NavBarItemWidth.Equal,
+    marker = NavBarDefaults.destinationMarker(),
+) {
+    item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
+    item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }
+    item(here == "you", { here = "you" }, key = "you", icon = Tabler.Outline.User) { +"You" }
+}
+```
+
+Three parameters change how the bar is drawn without changing what it holds:
+
+| | |
+|---|---|
+| `shape` | The bar's own outline. `null` is a capsule when floating and square when docked; `RoundedCornerShape(20.dp)` is a floating rounded rectangle. |
+| `itemWidth` | `Natural`, each destination as wide as it needs, spread across a phone and gathered on anything wider; or `Equal`, cells that share the bar, touching, up to `NavBarDefaults.EqualItemMaxWidth` each. |
+| `marker` | `NavBarDefaults.glyphMarker(size, shape)`, the circle behind the glyph, in any size or shape; or `NavBarDefaults.destinationMarker(shape, inset)`, a highlight around the whole destination, glyph and label. |
+
+Together, as above, they make a tab bar: a rounded rectangle, three cells, and
+the current one highlighted whole. `Equal` cells are what a destination marker
+wants to fill — on natural widths it only outlines each word — and a destination
+marker wants labels, or it is a larger circle. With cells, the capsule's padding
+at the ends is the same as at its top and bottom, so the highlight sits the same
+distance from every edge. A press washes the whole cell rather than the glyph.
+
+`NavigationSuiteScaffold` passes all three on as `barShape`, `barItemWidth` and
+`barMarker`; a rail's marker stays its own.
+
 ### A group in a bar
 
 A `group` is a circle that opens a menu of its destinations above the bar. While

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,8 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.NavRail
@@ -193,9 +196,18 @@ private val barSearchPlacement =
 /** A floating action button, beside a floating bar and inside a docked one. */
 private val barAction = Knob.Flag("Action")
 
+/** Cells that share the bar, a tab bar's, or each destination as wide as it needs. */
+private val barItemWidth = Knob.Choice("Item width", NavBarItemWidth.entries.toList(), NavBarItemWidth.Natural)
+
+/** The circle behind the glyph, or a highlight around the whole destination. */
+private val barMarker = Knob.Choice("Marker", listOf(false, true), name = { if (it) "Destination" else "Glyph" })
+
+/** The capsule, or a rounded rectangle. */
+private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })
+
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -207,6 +219,13 @@ internal val NavBarDemo = ComponentDemo(
             NavBar(
                 style = this@ComponentDemo[barStyle],
                 showLabels = this@ComponentDemo[barLabels],
+                shape = if (this@ComponentDemo[barRounded]) RoundedCornerShape(20.dp) else null,
+                itemWidth = this@ComponentDemo[barItemWidth],
+                marker = if (this@ComponentDemo[barMarker]) {
+                    NavBarDefaults.destinationMarker()
+                } else {
+                    NavBarDefaults.glyphMarker()
+                },
                 action = if (this@ComponentDemo[barAction]) {
                     {
                         FloatingActionButton(

@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
@@ -9,9 +10,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Basket
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
+import com.composables.icons.tabler.outline.Car
 import com.composables.icons.tabler.outline.Filter
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
@@ -28,6 +32,8 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavExpandingSlot
 import io.kontour.ui.nav.NavRail
@@ -152,6 +158,24 @@ fun NavBarAction() {
         item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
         item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
         item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+
+@Composable
+fun NavBarTabCells() {
+    var here by remember { mutableStateOf("drive") }
+
+    // A tab bar's look: a rounded rectangle rather than a capsule, cells that
+    // share it, and the current one highlighted whole, label and all.
+    NavBar(
+        shape = RoundedCornerShape(20.dp),
+        showLabels = true,
+        itemWidth = NavBarItemWidth.Equal,
+        marker = NavBarDefaults.destinationMarker(),
+    ) {
+        item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
+        item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }
+        item(here == "you", { here = "you" }, key = "you", icon = Tabler.Outline.User) { +"You" }
     }
 }
 

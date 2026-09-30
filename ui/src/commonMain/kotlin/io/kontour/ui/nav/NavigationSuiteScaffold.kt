@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -122,6 +123,10 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param type Override the automatic choice — [NavigationSuiteType.ModalRail],
  *   which is never chosen automatically, is the common reason.
  * @param barStyle The bar's style, when there is one.
+ * @param barShape The bar's shape; see [NavBar]'s `shape`.
+ * @param barItemWidth How wide the bar's destinations are; see [NavBarItemWidth].
+ * @param barMarker What marks the bar's current destination; see [NavBarMarker].
+ *   A rail's marker is its own.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
  *   the bar, which does not; a rail shows labels whenever it is wide enough.
  * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
@@ -145,6 +150,9 @@ fun NavigationSuiteScaffold(
     state: NavigationSuiteState = rememberNavigationSuiteState(),
     type: NavigationSuiteType = navigationSuiteTypeFor(LocalWindowSizeClass.current.width),
     barStyle: NavBarStyle = NavBarStyle.Floating,
+    barShape: Shape? = null,
+    barItemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
+    barMarker: NavBarMarker = NavBarDefaults.glyphMarker(),
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -181,6 +189,9 @@ fun NavigationSuiteScaffold(
                     search = search,
                     searchIndex = searchIndex,
                     action = action,
+                    shape = barShape,
+                    itemWidth = barItemWidth,
+                    marker = barMarker,
                 ) {
                     destinations()
                 }

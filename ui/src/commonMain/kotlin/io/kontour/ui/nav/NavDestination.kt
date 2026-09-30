@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -122,10 +123,18 @@ internal fun NavDestination(
     labelFade: (() -> Float)? = null,
     labelDrawn: Boolean = showLabel,
     initialFade: (() -> Float)? = null,
+    /** The marker's shape, when a bar was given one; the size's own otherwise. */
+    markerShape: Shape? = null,
+    /**
+     * The bar's marker covers the whole destination rather than its glyph, so
+     * the press wash does too, in [markerShape]. Stacked destinations only.
+     */
+    markerCoversItem: Boolean = false,
 ) {
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = navItemShape(indicatorSize)
+    val shape = markerShape ?: navItemShape(indicatorSize)
+    val washesItem = markerCoversItem && layout == NavLayout.Stacked
     val grouped = LocalSelectionIndicator.current != null
 
     val emphasis by animateFloatAsState(
@@ -212,7 +221,7 @@ internal fun NavDestination(
                         // by; an inline one is marked by a pill around its whole
                         // row, which takes the press instead, below.
                         .then(
-                            if (layout == NavLayout.Stacked) {
+                            if (layout == NavLayout.Stacked && !washesItem) {
                                 Modifier.indication(interactions, kontourIndication(shape, pressScale = 1f))
                             } else {
                                 Modifier
@@ -319,7 +328,20 @@ internal fun NavDestination(
             NavLayout.Stacked -> Column(
                 // Air under the label and none above the glyph, so the marker sized
                 // to the glyph lands on it.
-                modifier = interaction.padding(bottom = if (showLabel) Theme.spacing.xxs else 0.dp),
+                modifier = interaction
+                    // A marker around the whole destination takes the press on
+                    // the whole destination, where the eye expects it.
+                    .then(if (washesItem) Modifier.indication(interactions, kontourIndication(shape, pressScale = 1f)) else Modifier)
+                    // Around the whole destination the marker is seen to have
+                    // a bottom as well as a top: as much air under the label as
+                    // the glyph's box leaves over the icon.
+                    .padding(
+                        bottom = when {
+                            !showLabel -> 0.dp
+                            washesItem -> ((indicatorSize.height - Theme.sizing.iconLarge) / 2).coerceAtLeast(Theme.spacing.xxs)
+                            else -> Theme.spacing.xxs
+                        },
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 // Centred in what the touch target leaves. With a label the two
                 // fill it and this is the top, as before; without one the glyph
