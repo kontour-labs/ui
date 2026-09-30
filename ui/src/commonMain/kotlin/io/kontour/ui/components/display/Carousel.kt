@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -766,6 +767,11 @@ private fun Modifier.heroPage(
  * @param onPageClick `null` makes the dots decorative, and hides them from the
  *   accessibility tree entirely: the carousel already announces "3 of 5", and a
  *   screen reader walking five unlabelled dots after it is noise.
+ * @param orientation Which way the dots run. [Orientation.Vertical] stacks them
+ *   top to bottom — beside a vertical pager, or down the edge of a full-screen
+ *   story — and the current one grows downwards, the pill travels down, and the
+ *   step buttons go above and below. The first page is at the top whatever the
+ *   layout direction.
  */
 @Composable
 fun PageIndicator(
@@ -774,6 +780,7 @@ fun PageIndicator(
     enabled: Boolean = true,
     onPageClick: ((Int) -> Unit)? = null,
     style: PageIndicatorStyle = PageIndicatorStyle.Pill,
+    orientation: Orientation = Orientation.Horizontal,
     activeColour: Color = Theme.colours.primary,
     inactiveColour: Color = Theme.colours.inactive,
     pageDescription: (page: Int, count: Int) -> String = PageIndicatorDefaults.pageDescription(),
@@ -798,18 +805,19 @@ fun PageIndicator(
     previousLabel: String = Theme.strings.previous,
     nextLabel: String = Theme.strings.next,
 ) {
+    val vertical = orientation == Orientation.Vertical
     if (previousIcon == null && nextIcon == null) {
-        PageDots(state, modifier, enabled, onPageClick, style, activeColour, inactiveColour, pageDescription)
+        PageDots(state, modifier, enabled, onPageClick, style, activeColour, inactiveColour, pageDescription, vertical)
         return
     }
 
     val count = state.pageCount
     val current = state.currentPage
 
-    Row(
+    Line(
+        vertical = vertical,
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+        spacing = Theme.spacing.xxs,
     ) {
         if (previousIcon != null) {
             IconButton(
@@ -830,6 +838,7 @@ fun PageIndicator(
             activeColour = activeColour,
             inactiveColour = inactiveColour,
             label = pageDescription,
+            vertical = vertical,
         )
 
         if (nextIcon != null) {
@@ -841,6 +850,24 @@ fun PageIndicator(
                 size = ButtonSize.Small,
             )
         }
+    }
+}
+
+/** A row, or a column when [vertical], of things centred across it and [spacing] apart. */
+@Composable
+private fun Line(vertical: Boolean, modifier: Modifier, spacing: Dp, content: @Composable () -> Unit) {
+    if (vertical) {
+        Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing),
+        ) { content() }
+    } else {
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+        ) { content() }
     }
 }
 
@@ -862,6 +889,12 @@ private fun PageDots(
     activeColour: Color,
     inactiveColour: Color,
     label: (Int, Int) -> String,
+    /**
+     * Down rather than across. Everything below is written along "the axis" —
+     * a dot's length, the pill's travel, where a tap lands — and this says which
+     * axis that is.
+     */
+    vertical: Boolean,
 ) {
     // A worm rests as a row of identical dots, which says where you are only
     // by colour. At the enhanced tier that is not enough, so it rests the way
@@ -891,7 +924,9 @@ private fun PageDots(
     // handler has to be read at tap time rather than captured.
     val select = rememberUpdatedState(onPageClick)
 
-    Row(
+    Line(
+        vertical = vertical,
+        spacing = PageIndicatorDefaults.Gap,
         modifier = modifier
             .then(if (onPageClick != null) Modifier.selectableGroup() else Modifier)
             .then(
@@ -932,9 +967,10 @@ private fun PageDots(
                                     detectTapGestures { at ->
                                         var nearest = 0
                                         var best = Float.MAX_VALUE
+                                        val along = if (vertical) at.y else at.x
                                         for (page in 0 until count) {
                                             val x = dotCentre[page]
-                                            val away = kotlin.math.abs(x - at.x)
+                                            val away = kotlin.math.abs(x - along)
                                             if (away < best) {
                                                 best = away
                                                 nearest = page
@@ -992,10 +1028,16 @@ private fun PageDots(
                         val trailHalf = (wa + (wb - wa) * behind) / 2f
                         val left = minOf(lead - leadHalf, trail - trailHalf)
                         val right = maxOf(lead + leadHalf, trail + trailHalf)
+                        // "Left" and "right" along the axis: down the column
+                        // when it runs down.
                         drawRoundRect(
                             color = activeColour,
-                            topLeft = Offset(left, (size.height - dotRadius * 2f) / 2f),
-                            size = Size(right - left, dotRadius * 2f),
+                            topLeft = if (vertical) {
+                                Offset((size.width - dotRadius * 2f) / 2f, left)
+                            } else {
+                                Offset(left, (size.height - dotRadius * 2f) / 2f)
+                            },
+                            size = if (vertical) Size(dotRadius * 2f, right - left) else Size(right - left, dotRadius * 2f),
                             cornerRadius = CornerRadius(dotRadius),
                         )
                     }
@@ -1011,8 +1053,6 @@ private fun PageDots(
                     isTraversalGroup = false
                 }
             },
-        horizontalArrangement = Arrangement.spacedBy(PageIndicatorDefaults.Gap),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { page ->
             // **Which page you are on, and which dot is drawn wide, are two
@@ -1036,8 +1076,8 @@ private fun PageDots(
             val dot = @Composable {
                 Surface(
                     modifier = Modifier
-                        .width(width)
-                        .height(PageIndicatorDefaults.DotSize)
+                        .width(if (vertical) PageIndicatorDefaults.DotSize else width)
+                        .height(if (vertical) width else PageIndicatorDefaults.DotSize)
                         .clip(Theme.shapes.capsule),
                     shape = Theme.shapes.capsule,
                     // Under a travelling style every dot is a track, and the pill
@@ -1048,11 +1088,11 @@ private fun PageDots(
             }
 
             if (onPageClick == null) {
-                Box(Modifier.reportBox(dotCentre, dotWidth, page)) { dot() }
+                Box(Modifier.reportBox(dotCentre, dotWidth, page, vertical)) { dot() }
             } else {
                 Box(
                     modifier = Modifier
-                        .reportBox(dotCentre, dotWidth, page)
+                        .reportBox(dotCentre, dotWidth, page, vertical)
                         // **Semantics, and no touch target of its own.** The
                         // strip's `pointerInput` above owns the pointer route and
                         // picks the nearest dot to where the finger landed; what
@@ -1169,14 +1209,19 @@ object PageIndicatorDefaults {
 }
 
 
-/** Records this dot's centre, relative to the indicator row, for the worm. */
+/**
+ * Records this dot's centre and length along the indicator — across a row, down
+ * a column — relative to it, for the worm.
+ */
 private fun Modifier.reportBox(
     centres: FloatArray,
     widths: FloatArray,
     index: Int,
+    vertical: Boolean,
 ): Modifier = onGloballyPositioned {
-    centres[index] = it.positionInParent().x + it.size.width / 2f
-    widths[index] = it.size.width.toFloat()
+    val at = it.positionInParent()
+    centres[index] = if (vertical) at.y + it.size.height / 2f else at.x + it.size.width / 2f
+    widths[index] = (if (vertical) it.size.height else it.size.width).toFloat()
 }
 
 /**

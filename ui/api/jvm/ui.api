@@ -702,7 +702,7 @@ public final class io/kontour/ui/components/display/CarouselDefaults {
 
 public final class io/kontour/ui/components/display/CarouselKt {
 	public static final fun Carousel-hW5Ac_0 (Lio/kontour/ui/components/display/CarouselState;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/CarouselStyle;Landroidx/compose/foundation/layout/PaddingValues;FFFLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
-	public static final fun PageIndicator-gsb-d_E (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/PageIndicatorStyle;JJLkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;III)V
+	public static final fun PageIndicator-zgQg56Y (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/PageIndicatorStyle;Landroidx/compose/foundation/gestures/Orientation;JJLkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberCarouselState (Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/components/display/CarouselState;
 }
 
