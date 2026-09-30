@@ -47,16 +47,28 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class SheetPinnedTest {
 
+    /**
+     * And with the same space all round it: *"when the sheet is collapsed and only
+     * the header (or the part that is pinned) is shown, padding should be uniform
+     * around that part"*. The handle's band above, the sheet's inset beside and
+     * below, all [Inset].
+     */
     @Test
     fun collapsedTheSheetIsTheHandleAndThePinnedPart() {
         runComposeUiTest {
+            lateinit var sheet: SheetState
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.pinned()) {} }
+            setContent { Harness(SheetDetent.pinned()) { sheet = it } }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             val first = onNodeWithTag(row(0)).getBoundsInRoot()
-            near(window.bottom, bar.bottom, "the bar's bottom against the window's")
+            val sheetTop = window.bottom - with(density) { sheet.visibleHeight.toDp() }
+            near(Inset, bar.top - sheetTop, "the space above the bar, from the sheet's top edge")
+            // From the sheet's side, which the rows fill: on this wide window the
+            // sheet is capped and centred.
+            near(Inset, bar.left - first.left, "the space beside the bar")
+            near(Inset, window.bottom - bar.bottom, "the space below the bar")
             // The content starts under the handle, and so does the bar: nothing of
             // the content shows above the bar or below it.
             near(first.top, bar.top, "the bar's top against where the content starts")
@@ -85,7 +97,7 @@ class SheetPinnedTest {
                 )
                 val window = onRoot().getBoundsInRoot()
                 val bar = onNodeWithTag(Bar).getBoundsInRoot()
-                near(window.bottom, bar.bottom, "at $detent, the bar's bottom against the window's")
+                near(window.bottom - Inset, bar.bottom, "at $detent, the bar's bottom against the window's")
             }
         }
     }
@@ -100,7 +112,8 @@ class SheetPinnedTest {
             settle()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             val last = onNodeWithTag(row(Rows - 1)).getBoundsInRoot()
-            near(bar.top, last.bottom, "the last row's bottom against the bar's top, scrolled to the end")
+            // Clear of the bar, and of the inset of the sheet's colour above it.
+            near(bar.top - Inset, last.bottom, "the last row's bottom against the bar's top, scrolled to the end")
         }
     }
 
@@ -112,7 +125,7 @@ class SheetPinnedTest {
             settle()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             val first = onNodeWithTag(row(0)).getBoundsInRoot()
-            near(bar.bottom, first.top, "the first row's top against the bar's bottom")
+            near(bar.bottom + Inset, first.top, "the first row's top against the bar's bottom")
         }
     }
 
@@ -182,6 +195,9 @@ class SheetPinnedTest {
         const val Rows = 30
         const val SettleFrames = 90
         val BarHeight = 56.dp
+
+        /** `BottomSheetDefaults.ContentPadding` in the default theme. */
+        val Inset = 16.dp
         val RowHeight = 48.dp
 
         /** Far from the handle and the bar together, so the control can tell them apart. */

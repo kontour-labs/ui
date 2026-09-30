@@ -132,14 +132,9 @@ val query = rememberTextFieldState()
 
 BottomSheet(state = sheet) { padding ->
     // On the bottom of what the sheet shows at every size, over the list
-    // and on the sheet's own colour. Collapsed, it is all there is.
-    pinned {
-        SearchField(
-            query,
-            modifier = Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
-            placeholder = "Search stops",
-        )
-    }
+    // and on the sheet's own colour, with the sheet's inset round it.
+    // Collapsed, it is all there is.
+    pinned { SearchField(query, placeholder = "Search stops") }
     // The padding has grown by the field's height, so the last row
     // scrolls out from behind it.
     LazyColumn(contentPadding = padding) { stopRows() }
@@ -157,15 +152,20 @@ down past the point where it would cover the handle, it stops there and leaves
 with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
 starts.
 
-**It is drawn over the content, on the sheet's own colour,** so whatever scrolls
-behind it is hidden rather than showing through. The sheet's colour runs the full
+**It is drawn over the content, on the sheet's own colour, with the sheet's inset
+round it.** The sheet pads it by `BottomSheetDefaults.ContentPadding` at the sides
+and below, and the handle's band above is the space over it, so a sheet collapsed
+to its search field shows the field with the same 16dp all round. Whatever scrolls
+behind it is hidden rather than showing through; once a bottom part has risen off
+the band, it has the inset in the sheet's colour above it too, so the content
+never meets it edge to edge. The sheet's colour runs the full
 width and, at the bottom, down through the safe area. At high contrast a line
 marks the edge the content passes behind, where the two grounds would otherwise
 be the same colour.
 
-**The padding the content is handed grows by the pinned parts' heights.** A
-`LazyColumn` given it as `contentPadding` scrolls its first and last rows out from
-behind them, just as it does for the safe area. Content that ignores the padding
+**The padding the content is handed grows by the pinned parts' heights**, and by
+the inset above a bottom part. A `LazyColumn` given it as `contentPadding` scrolls
+its first and last rows out from behind them, just as it does for the safe area. Content that ignores the padding
 runs under them.
 
 **`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,

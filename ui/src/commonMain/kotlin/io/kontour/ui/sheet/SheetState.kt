@@ -1581,6 +1581,14 @@ internal fun detentOffset(
 val LocalSheetState = staticCompositionLocalOf<SheetState?> { null }
 
 /**
+ * Whether the content is under a sheet's handle band, which is its top padding.
+ *
+ * Read by [SheetHeader], which then leaves its own top padding to the band rather
+ * than adding a second one under it.
+ */
+internal val LocalSheetBand = staticCompositionLocalOf { false }
+
+/**
  * Marks the part of a sheet that [SheetDetent.peek] shows.
  *
  * Put it on the header. The sheet then peeks exactly far enough to show that,

@@ -4305,6 +4305,8 @@ final object io.kontour.ui.overlay/TooltipDefaults { // io.kontour.ui.overlay/To
 final object io.kontour.ui.sheet/BottomSheetDefaults { // io.kontour.ui.sheet/BottomSheetDefaults|null[0]
     final val ActionsGap // io.kontour.ui.sheet/BottomSheetDefaults.ActionsGap|{}ActionsGap[0]
         final fun <get-ActionsGap>(): androidx.compose.ui.unit/Dp // io.kontour.ui.sheet/BottomSheetDefaults.ActionsGap.<get-ActionsGap>|<get-ActionsGap>(){}[0]
+    final val ContentPadding // io.kontour.ui.sheet/BottomSheetDefaults.ContentPadding|{}ContentPadding[0]
+        final fun <get-ContentPadding>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.sheet/BottomSheetDefaults.ContentPadding.<get-ContentPadding>|<get-ContentPadding>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
     final val Detents // io.kontour.ui.sheet/BottomSheetDefaults.Detents|{}Detents[0]
         final fun <get-Detents>(): kotlin.collections/List<io.kontour.ui.sheet/SheetDetent> // io.kontour.ui.sheet/BottomSheetDefaults.Detents.<get-Detents>|<get-Detents>(){}[0]
     final val MaxWidth // io.kontour.ui.sheet/BottomSheetDefaults.MaxWidth|{}MaxWidth[0]

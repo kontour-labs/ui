@@ -39,6 +39,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
@@ -171,11 +174,16 @@ object DragHandleDefaults {
      * Not `minTouchTarget`. The handle is not the only way to move a sheet —
      * the whole sheet is draggable — so this does not have to clear the
      * platform minimum, and a header that reserved 48dp for a decorative bar
-     * would push every sheet's content down by that much. 24dp is enough to
-     * land on deliberately and small enough that the header still reads as a
-     * header.
+     * would push every sheet's content down by that much.
+     *
+     * 16dp, the sheet's [BottomSheetDefaults.ContentPadding]: in a sheet the
+     * handle is the band above the content, and that band is the content's top
+     * padding, the same as its sides. It was 24dp, a row of its own over a header
+     * that then added its own padding, and a collapsed sheet had a forehead —
+     * *"a fair bit of extra space between the top of the sheet header … and the
+     * sheet handle"*. Full width, so 16dp is still easy to land on.
      */
-    val Target: Dp = 24.dp
+    val Target: Dp = 16.dp
 }
 
 /**
@@ -333,25 +341,40 @@ fun SheetHeader(
     // rest at the trailing end. The horizontal half is handed to the bar rather
     // than put round it, so it counts towards the centre: padding outside the bar
     // moved a centred title 4dp towards the trailing edge.
-    val start = Theme.spacing.md
+    val inset = BottomSheetDefaults.ContentPadding
+    val start = inset
     val end = Theme.spacing.xs
-    val vertical = Modifier.padding(top = Theme.spacing.xs, bottom = Theme.spacing.sm)
+    val banded = LocalSheetBand.current
+    val controls = actions != null || onClose != null
+    val icon = Theme.sizing.iconLarge
+    // What is drawn, as against what is laid out: a 48dp button is a 24dp icon
+    // with 12dp of nothing round it, and the space round a header is measured to
+    // what is drawn. Written as the pieces measure, read as the header does.
+    val drawn = remember { DrawnHeights() }
 
     when {
         style != SheetHeaderStyle.Large -> CentredBar(
-            modifier = modifier.fillMaxWidth().then(vertical),
+            modifier = modifier
+                .fillMaxWidth()
+                .uniformInset(inset, banded) { bar ->
+                    val visual = maxOf(drawn.title, drawn.leading, if (controls) icon.roundToPx() else 0)
+                    val slack = (bar - visual) / 2
+                    slack to slack
+                },
             centred = style == SheetHeaderStyle.Centred,
             startInset = start,
             endInset = end,
             leading = {
-                slots.leading?.let { leading -> ContentSlot(content = leading) }
+                slots.leading?.let { leading ->
+                    Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
+                }
             },
             title = {
                 // No padding of its own. The bar already insets the whole header
                 // by `md`, which is the sheet's own content padding, and a second
                 // `sm` on top of that put the title and its supporting line
                 // further in than everything they head.
-                Title(textStyle = Theme.typography.titleMedium)
+                Title(textStyle = Theme.typography.titleMedium, modifier = Modifier.recordHeight { drawn.title = it })
             },
             trailing = {
                 Row(
@@ -368,15 +391,25 @@ fun SheetHeader(
         // It shared the controls' line for a while when nothing led it, and was
         // put back: the title on a line of its own is what the style is for.
         else -> Column(
-            modifier = modifier.fillMaxWidth().then(vertical).padding(start = start, end = end),
+            modifier = modifier
+                .fillMaxWidth()
+                .uniformInset(inset, banded) {
+                    // Above: the controls' row, whose buttons are icons with
+                    // slack round them. Below: the title, which has none.
+                    val visual = maxOf(drawn.leading, if (controls) icon.roundToPx() else 0)
+                    ((drawn.row - visual) / 2).coerceAtLeast(0) to 0
+                }
+                .padding(start = start, end = end),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().recordHeight { drawn.row = it },
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                slots.leading?.let { leading -> ContentSlot(content = leading) }
+                slots.leading?.let { leading ->
+                    Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
+                }
                 Spacer(Modifier.weight(1f))
                 Controls(this)
             }
@@ -384,5 +417,46 @@ fun SheetHeader(
             Title(textStyle = Theme.typography.titleLarge)
         }
     }
+}
+
+/** The heights of a header's pieces, as they last measured. Plain: read in the same pass. */
+private class DrawnHeights {
+    var title = 0
+    var leading = 0
+    var row = 0
+}
+
+/** Reports this node's measured height, in the measure pass. */
+private fun Modifier.recordHeight(onHeight: (Int) -> Unit): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    onHeight(placeable.height)
+    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+}
+
+/**
+ * One [inset] above what the header draws and one below it, whatever its buttons
+ * reserve round their icons.
+ *
+ * [slack] is the space above and below what is drawn, inside the measured header —
+ * a 48dp close button round a 24dp title leaves 12dp each way. The header gives
+ * that back: it is laid out [inset] tall above what it draws and [inset] below,
+ * and the slack overlaps those instead of adding to them. Under a sheet's handle
+ * band ([banded]), the band is the space above, so the header adds none there.
+ *
+ * Drawn above its own top by the slack when banded, into the band: the button's
+ * empty top reaches under the handle, which draws nothing there, and the header
+ * is composed after the band, so the button still takes the presses there.
+ */
+private fun Modifier.uniformInset(
+    inset: Dp,
+    banded: Boolean,
+    slack: Density.(height: Int) -> Pair<Int, Int>,
+): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minHeight = 0))
+    val insetPx = inset.roundToPx()
+    val (over, under) = slack(placeable.height).let { (a, b) -> a.coerceIn(0, insetPx) to b.coerceIn(0, insetPx) }
+    val top = if (banded) 0 else insetPx
+    val height = constraints.constrainHeight(top - over + placeable.height - under + insetPx)
+    layout(placeable.width, height) { placeable.placeRelative(0, top - over) }
 }
 

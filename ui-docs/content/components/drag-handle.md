@@ -28,6 +28,14 @@ handle, which is why it is not marked decorative. It widens slightly on hover an
 under a press — the one hint a pointer user gets that a sheet is draggable at
 all.
 
+**Its band is the content's top padding.** In a sheet the handle sits in a band
+one `BottomSheetDefaults.ContentPadding` tall, 16dp: the same space above the
+content as beside it, so a sheet collapsed to its header has no forehead. It used
+to be a 24dp row of its own above the header, which then added its own padding
+under it — reported as *"a fair bit of extra space between the top of the sheet
+header … and the sheet handle"*. The band is full width, so 16dp is still easy to
+land on.
+
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
 slot to replace or remove it. [Sheets](sheets.md) is where the detents, the
 nested scrolling and the rest of the sheet story live.

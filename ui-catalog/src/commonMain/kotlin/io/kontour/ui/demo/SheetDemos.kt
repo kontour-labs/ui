@@ -201,13 +201,7 @@ internal val BottomSheetDemo = ComponentDemo(
             if (pinnedSearch) {
                 // Over the list, on the sheet's own colour, on the bottom of
                 // what the sheet shows at every size.
-                pinned {
-                    SearchField(
-                        query,
-                        modifier = Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
-                        placeholder = "Search stops",
-                    )
-                }
+                pinned { SearchField(query, placeholder = "Search stops") }
                 // The padding grows by the field's height, so the last stop
                 // scrolls out from behind it.
                 LazyColumn(contentPadding = padding) {

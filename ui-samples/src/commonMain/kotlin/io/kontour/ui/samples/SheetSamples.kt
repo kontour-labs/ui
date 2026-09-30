@@ -188,14 +188,9 @@ fun BottomSheetPinnedSearch() {
 
     BottomSheet(state = sheet) { padding ->
         // On the bottom of what the sheet shows at every size, over the list
-        // and on the sheet's own colour. Collapsed, it is all there is.
-        pinned {
-            SearchField(
-                query,
-                modifier = Modifier.padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),
-                placeholder = "Search stops",
-            )
-        }
+        // and on the sheet's own colour, with the sheet's inset round it.
+        // Collapsed, it is all there is.
+        pinned { SearchField(query, placeholder = "Search stops") }
         // The padding has grown by the field's height, so the last row
         // scrolls out from behind it.
         LazyColumn(contentPadding = padding) { stopRows() }

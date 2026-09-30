@@ -77,6 +77,14 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   Carried past the point of no return by a sideways scroll or a two-finger pan,
   the row runs its outermost action when the gesture ends there, as it does
   under a finger. Before, a scroll could open the actions but never run one.
+- **A bottom sheet has the same 16dp all round a collapsed header or pinned
+  part**, `BottomSheetDefaults.ContentPadding`, and no forehead. The handle's band
+  is the content's top padding: 16dp where the handle was a 24dp row of its own
+  (`DragHandleDefaults.Target` is 16dp). A `SheetHeader` measures to what it
+  draws, so its close button's empty top reaches into the band, and it has 16dp
+  below. Pinned parts get the inset at the sides and below from the sheet. Before,
+  a collapsed header had 44dp above its title and 16dp beside it. Content that
+  starts a sheet under a handle begins 8dp higher than it did.
 - **A bottom sheet is at most 480dp wide on a wide window**, a side sheet's
   width, where it was 640dp: half of a modest desktop. Set
   `ComponentDefaults.sheetMaxWidth` to keep the old width.
@@ -104,6 +112,8 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   (`NavBarItemWidth.Natural` or `Equal`); `marker`
   (`NavBarDefaults.glyphMarker()` or `destinationMarker()`); `markerDraggable`;
   and `action`.
+- `BottomSheetDefaults.ContentPadding`, the one inset a sheet keeps round its
+  content.
 - `NavigationSuiteScaffold` passes those on as `barShape`, `barItemWidth`,
   `barMarker` and `barMarkerDraggable`.
 - `PageIndicator(orientation = Orientation.Vertical)`.
