@@ -172,6 +172,11 @@ shape as `actionShape`.
 
 ### Check: the nav bar
 
+- **The destinations share the bar in equal cells**, and the marker is round the
+  whole current destination, glyph and label, in the bar's shape. In 0.2 each
+  destination was a circle with the marker behind its glyph. To keep that:
+  `NavBar(itemWidth = NavBarItemWidth.Natural, marker = NavBarDefaults.glyphMarker())`,
+  or `barItemWidth` and `barMarker` on `NavigationSuiteScaffold`.
 - **The marker can be dragged** from destination to destination. The one under
   the finger when it lifts has its `onClick` run once, and a tap is still a tap.
   `markerDraggable = false` turns it off; on `NavigationSuiteScaffold`, it is

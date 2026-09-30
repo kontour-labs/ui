@@ -2,8 +2,9 @@
 
 *Also on this page: `NavBarScope`, `NavBarStyle`, `NavBarDefaults`.*
 
-The primary navigation on a phone, **at the bottom of the screen**. Each
-destination is a circle, and one marker travels between them.
+The primary navigation on a phone, **at the bottom of the screen**. The
+destinations share the bar in equal cells, and one marker, round the whole of the
+current one, travels between them.
 
 <!--sample:NavBarBasics-->
 ```kotlin
@@ -42,8 +43,9 @@ navigation, and every other surface in the library has a ground.
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.
 
-`NavBarDefaults.arrangementFor(spans)` spreads the circles across a phone's width
-and gathers them in the middle of anything wider.
+With circles rather than cells (see below), `NavBarDefaults.arrangementFor(spans)`
+spreads them across a phone's width and gathers them in the middle of anything
+wider.
 
 ### A search in the middle of it
 
@@ -101,19 +103,29 @@ button belongs in a `slot`.
 
 A `Docked` bar has no beside: it puts the action inside, after everything else.
 
-### Its shape, and its cells
+### Its shape, cells or circles
 
-<!--sample:NavBarTabCells-->
+By default the bar is a tab bar: **cells that share it**, and **a marker round the
+whole of the current destination**, glyph and label. The marker's shape follows
+the bar's. In a floating bar it is a capsule inside the capsule, as far from the
+bar's ends as from its top and bottom, so with labels, which make the bar tall and
+its ends round, it is still the bar's shape a size smaller. It used to be the
+theme's medium corner whatever the bar, a box inside a pill: *"our new defaults
+look really terrible with labels enabled"*. A docked bar has no corners to follow,
+and has the medium corner.
+
+The other look is circles:
+
+<!--sample:NavBarCircles-->
 ```kotlin
 var here by remember { mutableStateOf("drive") }
 
-// A tab bar's look: a rounded rectangle rather than a capsule, cells that
-// share it, and the current one highlighted whole, label and all.
+// Circles rather than cells: each destination as wide as it needs, spread
+// across a phone and gathered in the middle of anything wider, and the
+// marker a circle behind the glyph.
 NavBar(
-    shape = RoundedCornerShape(20.dp),
-    showLabels = true,
-    itemWidth = NavBarItemWidth.Equal,
-    marker = NavBarDefaults.destinationMarker(),
+    itemWidth = NavBarItemWidth.Natural,
+    marker = NavBarDefaults.glyphMarker(),
 ) {
     item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
     item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }
@@ -126,15 +138,15 @@ Three parameters change how the bar is drawn without changing what it holds:
 | | |
 |---|---|
 | `shape` | The bar's own outline. `null` is a capsule when floating and square when docked; `RoundedCornerShape(20.dp)` is a floating rounded rectangle. |
-| `itemWidth` | `Natural`, each destination as wide as it needs, spread across a phone and gathered on anything wider; or `Equal`, cells that share the bar, touching, up to `NavBarDefaults.EqualItemMaxWidth` each. |
-| `marker` | `NavBarDefaults.glyphMarker(size, shape)`, the circle behind the glyph, in any size or shape; or `NavBarDefaults.destinationMarker(shape, inset)`, a highlight around the whole destination, glyph and label. |
+| `itemWidth` | `Equal`, the default: cells that share the bar, touching, up to `NavBarDefaults.EqualItemMaxWidth` each. Beside a search they are only as wide as the widest destination needs, and the search has the rest. Or `Natural`: each destination as wide as it needs, spread across a phone and gathered on anything wider. |
+| `marker` | `NavBarDefaults.destinationMarker(shape, inset)`, the default: a highlight round the whole destination, in the bar's shape unless given one. Or `NavBarDefaults.glyphMarker(size, shape)`: the circle behind the glyph, in any size or shape. |
 
-Together, as above, they make a tab bar: a rounded rectangle, three cells, and
-the current one highlighted whole. `Equal` cells are what a destination marker
-wants to fill — on natural widths it only outlines each word — and a destination
-marker wants labels, or it is a larger circle. With cells, the capsule's padding
-at the ends is the same as at its top and bottom, so the highlight sits the same
-distance from every edge. A press washes the whole cell rather than the glyph.
+A destination marker wants cells to fill: on natural widths it only outlines each
+word. With cells, the capsule's padding at the ends is the same as at its top and
+bottom, so the highlight sits the same distance from every edge, and a slot or an
+action beside the cells keeps the usual gap from them. A press washes the whole
+cell rather than the glyph. A bar with a `shape` of its own gets the medium corner:
+pass the marker's shape too to match it.
 
 `NavigationSuiteScaffold` passes all three on as `barShape`, `barItemWidth` and
 `barMarker`; a rail's marker stays its own.

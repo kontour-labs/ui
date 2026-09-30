@@ -113,7 +113,8 @@ object NavBarDefaults {
     val EqualItemMaxWidth: Dp = 168.dp
 
     /**
-     * The default marker: a circle behind the glyph, [CircleSize] across.
+     * A circle behind the glyph, [CircleSize] across: the marker a bar of
+     * [NavBarItemWidth.Natural] destinations wants.
      *
      * @param size Its size. A square is a circle, anything else a capsule.
      * @param shape Its shape, where neither is wanted.
@@ -125,15 +126,18 @@ object NavBarDefaults {
     ): NavBarMarker = NavBarMarker.Glyph(size, shape)
 
     /**
-     * A marker around the whole destination, glyph and label: a tab bar's
-     * highlight rather than a circle.
+     * The default marker: around the whole destination, glyph and label — a tab
+     * bar's highlight rather than a circle.
      *
-     * @param shape Its shape; the theme's medium corner by default.
+     * @param shape Its shape. By default it follows the bar's: a capsule in a
+     *   floating bar's capsule, the same distance from its edges all round, and
+     *   the theme's medium corner in a docked bar, which has no corners to
+     *   follow.
      * @param inset How far in from the destination's own edges it stops.
      */
     @Composable
     fun destinationMarker(
-        shape: Shape = Theme.shapes.medium,
+        shape: Shape? = null,
         inset: Dp = 0.dp,
     ): NavBarMarker = NavBarMarker.Destination(shape, inset)
 
@@ -170,14 +174,14 @@ object NavBarDefaults {
 enum class NavBarItemWidth {
     /**
      * As wide as each needs, spread across a phone's bar and gathered in the
-     * middle of a wider one — see [NavBarDefaults.arrangementFor]. The default.
+     * middle of a wider one — see [NavBarDefaults.arrangementFor].
      */
     Natural,
 
     /**
      * All the same width, sharing the bar between them, up to
      * [NavBarDefaults.EqualItemMaxWidth] each: a tab bar's cells, and the
-     * width a [NavBarMarker.Destination] wants to fill.
+     * width a [NavBarMarker.Destination] wants to fill. The default.
      */
     Equal,
 }
@@ -198,16 +202,17 @@ sealed interface NavBarMarker {
 
     /**
      * Around the whole destination, glyph and label, [inset] in from its edges
-     * and in [shape]. Pair it with [NavBarItemWidth.Equal] for cells that fill
-     * the bar, and with labels, or it is only a larger circle.
+     * and in [shape], or in the bar's own when that is null. Pair it with
+     * [NavBarItemWidth.Equal] for cells that fill the bar.
      */
     @Immutable
-    data class Destination(val shape: Shape, val inset: Dp) : NavBarMarker
+    data class Destination(val shape: Shape?, val inset: Dp) : NavBarMarker
 }
 
 /**
  * How a [NavBar] presents itself. A container decision only: the destinations
- * are circles either way.
+ * are the same either way, and a destination marker follows the container's
+ * shape.
  */
 enum class NavBarStyle {
     /**
@@ -235,9 +240,11 @@ enum class NavBarStyle {
  * }
  * ```
  *
- * Each destination is a circle; one marker travels between them. The content is
- * a [NavBarScope]: destinations are [NavScope.item]s, a [NavScope.group] is a
- * circle that opens a menu of its children above the bar, sections run inline
+ * The destinations share the bar in equal cells, and one marker, round the whole
+ * of the current one, travels between them; [itemWidth] and [marker] give
+ * circles instead. The content is a [NavBarScope]: destinations are
+ * [NavScope.item]s, a [NavScope.group] is a destination that opens a menu of its
+ * children above the bar, sections run inline
  * and dividers are left out, and [NavBarScope.slot] holds anything else that
  * belongs in the row — a search, a button.
  *
@@ -262,11 +269,11 @@ enum class NavBarStyle {
  * @param shape The bar's own shape: a capsule for a floating bar and square for
  *   a docked one when null. A floating bar in a rounded rectangle is
  *   `RoundedCornerShape(16.dp)`.
- * @param itemWidth How wide each destination is: [NavBarItemWidth.Natural], or
- *   [NavBarItemWidth.Equal] cells sharing the bar.
- * @param marker What marks the current destination, and in what shape: a
- *   circle behind the glyph by default, or [NavBarDefaults.destinationMarker]
- *   around the whole destination.
+ * @param itemWidth How wide each destination is: [NavBarItemWidth.Equal] cells
+ *   sharing the bar by default, or [NavBarItemWidth.Natural].
+ * @param marker What marks the current destination, and in what shape: round
+ *   the whole destination by default, in the bar's shape, or
+ *   [NavBarDefaults.glyphMarker] behind the glyph.
  * @param markerDraggable Whether the marker can be dragged from one destination
  *   to another, as a segmented control's thumb can: it follows the finger and
  *   snaps from destination to destination, with a tick at each, and the one
@@ -287,8 +294,8 @@ fun NavBar(
     colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
     shape: Shape? = null,
-    itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
-    marker: NavBarMarker = NavBarDefaults.glyphMarker(),
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
+    marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDraggable: Boolean = true,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
@@ -331,8 +338,8 @@ internal fun NavBarLayout(
     searchIndex: Int?,
     action: (@Composable () -> Unit)?,
     shape: Shape? = null,
-    itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
-    marker: NavBarMarker = NavBarDefaults.glyphMarker(),
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
+    marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDraggable: Boolean = true,
     content: @Composable NavBarScope.() -> Unit,
 ) {
@@ -355,7 +362,15 @@ internal fun NavBarLayout(
     val circle = (marker as? NavBarMarker.Glyph)?.size ?: NavBarDefaults.CircleSize
     val markerShape = when (marker) {
         is NavBarMarker.Glyph -> marker.shape
-        is NavBarMarker.Destination -> marker.shape
+        // Concentric with the bar: a capsule inside a floating bar's capsule,
+        // [Destinations] keeping it the same distance from every edge, where a
+        // fixed corner was a box in a pill once labels made the bar tall. A
+        // docked bar is straight-edged, and a caller's own bar shape is theirs
+        // to match.
+        is NavBarMarker.Destination -> marker.shape ?: when {
+            style == NavBarStyle.Floating && shape == null -> Theme.shapes.pill
+            else -> Theme.shapes.medium
+        }
     }
     val coversItem = marker is NavBarMarker.Destination
     val equal = itemWidth == NavBarItemWidth.Equal
@@ -632,6 +647,8 @@ private fun BarRow(
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
+    // Between equal cells and anything else in the row: see `gapAfter`.
+    val cellToSlot = NavBarDefaults.ItemGap
     Layout(content = content, modifier = modifier) { measurables, constraints ->
         val search = measurables.firstOrNull { it.barChild == BarChild.Search }
         val rest = measurables.filter { it !== search }
@@ -651,18 +668,42 @@ private fun BarRow(
             }
         }
 
-        // Equal cells touch: the space between them is inside them.
-        val gap = if (equal) 0 else arrangement.spacing.roundToPx()
-        val gaps = gap * (ordered.size - 1).coerceAtLeast(0)
+        // Equal cells touch: the space between them is inside them. A slot or an
+        // action beside one keeps the usual gap, or a marker round the last
+        // destination met the action beside it edge to edge.
+        val gap = arrangement.spacing.roundToPx()
+        val slotGap = cellToSlot.roundToPx()
+        fun gapAfter(i: Int): Int = when {
+            i >= ordered.lastIndex -> 0
+            !equal -> gap
+            ordered[i].barChild == BarChild.Destination && ordered[i + 1].barChild == BarChild.Destination -> 0
+            else -> slotGap
+        }
+        val gaps = ordered.indices.sumOf { gapAfter(it) }
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val placeables = arrayOfNulls<Placeable>(ordered.size)
+        // With a weighted slot in the row — a search — equal cells are equal to
+        // each other but no wider than the widest needs, and the slot has the
+        // rest. Sharing the room with it, four destinations left a phone's search
+        // a fifth of the bar.
+        val slotted = ordered.any { it.barChild != BarChild.Destination && it.barChild.weight > 0f }
+        val cellWidth = if (equal && slotted) {
+            ordered.filter { it.barChild == BarChild.Destination }.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0
+        } else {
+            0
+        }
         fun weightOf(child: Measurable): Float =
-            if (equal && child.barChild == BarChild.Destination) 1f else child.barChild.weight
+            if (equal && !slotted && child.barChild == BarChild.Destination) 1f else child.barChild.weight
         var used = gaps
         ordered.forEachIndexed { i, child ->
             if (weightOf(child) == 0f) {
                 val room = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else Constraints.Infinity
-                placeables[i] = child.measure(loose.copy(maxWidth = room))
+                placeables[i] = if (equal && slotted && child.barChild == BarChild.Destination) {
+                    val width = cellWidth.coerceAtMost(room)
+                    child.measure(loose.copy(minWidth = width, maxWidth = width))
+                } else {
+                    child.measure(loose.copy(maxWidth = room))
+                }
                 used += placeables[i]!!.width
             }
         }
@@ -702,7 +743,7 @@ private fun BarRow(
                 var at = ((width - contentWidth) / 2).coerceAtLeast(0)
                 for (i in all.indices) {
                     x[i] = at
-                    at += all[i].width + gap
+                    at += all[i].width + gapAfter(i)
                 }
                 all.forEachIndexed { i, p -> p.placeRelative(x[i], childTop(aligned[i], p, height, slotsCentred)) }
             } else {

@@ -873,7 +873,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 28
+MAX_CIRCLES = 29
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -970,6 +970,14 @@ def circles() -> list[str]:
     control and to the morph that leaves it, which draws whatever it is given —
     so the morph stays consistent whichever shape the control has, and the
     choice of pill is the design's, not a constraint of the animation.
+
+    **28 to 29, for a floating nav bar's destination marker**, on the switch's
+    argument. The floating bar is a `pill`, and the marker round a whole
+    destination sits inside it at the same distance from every edge, so it has
+    to be the same shape a size smaller: capped, it stops being concentric the
+    moment a theme lowers `capsuleCap`, and with labels, which make the bar tall,
+    it was a box inside a pill — reported as the new defaults looking "really
+    terrible with labels enabled". One site: `NavBar` resolves the shape once.
 
     The second count is stricter and is a ban rather than a ratchet.
     `RoundedCornerShape` no longer appears in `:ui` at all; it used to appear

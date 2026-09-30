@@ -162,16 +162,15 @@ fun NavBarAction() {
 }
 
 @Composable
-fun NavBarTabCells() {
+fun NavBarCircles() {
     var here by remember { mutableStateOf("drive") }
 
-    // A tab bar's look: a rounded rectangle rather than a capsule, cells that
-    // share it, and the current one highlighted whole, label and all.
+    // Circles rather than cells: each destination as wide as it needs, spread
+    // across a phone and gathered in the middle of anything wider, and the
+    // marker a circle behind the glyph.
     NavBar(
-        shape = RoundedCornerShape(20.dp),
-        showLabels = true,
-        itemWidth = NavBarItemWidth.Equal,
-        marker = NavBarDefaults.destinationMarker(),
+        itemWidth = NavBarItemWidth.Natural,
+        marker = NavBarDefaults.glyphMarker(),
     ) {
         item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
         item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }

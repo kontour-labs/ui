@@ -20,6 +20,8 @@ import com.composables.icons.tabler.outline.User
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowSizeClass
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarScope
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -77,7 +79,9 @@ class NavBarSurfaceTest {
             val window = if (wide) WindowSizeClass.of(1200.dp, 800.dp) else LocalWindowSizeClass.current
             CompositionLocalProvider(LocalWindowSizeClass provides window) {
                 Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
-                    NavBar { four() }
+                    // Natural circles: the spacing this measures is theirs. Equal
+                    // cells touch, and their ends are `NavBarShapeTest`'s.
+                    NavBar(itemWidth = NavBarItemWidth.Natural, marker = NavBarDefaults.glyphMarker()) { four() }
                 }
             }
         }.use { it.frames(6) }

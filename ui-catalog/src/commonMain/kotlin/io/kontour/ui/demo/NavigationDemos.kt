@@ -197,10 +197,10 @@ private val barSearchPlacement =
 private val barAction = Knob.Flag("Action")
 
 /** Cells that share the bar, a tab bar's, or each destination as wide as it needs. */
-private val barItemWidth = Knob.Choice("Item width", NavBarItemWidth.entries.toList(), NavBarItemWidth.Natural)
+private val barItemWidth = Knob.Choice("Item width", NavBarItemWidth.entries.toList(), NavBarItemWidth.Equal)
 
-/** The circle behind the glyph, or a highlight around the whole destination. */
-private val barMarker = Knob.Choice("Marker", listOf(false, true), name = { if (it) "Destination" else "Glyph" })
+/** A highlight around the whole destination, the default, or the circle behind the glyph. */
+private val barMarker = Knob.Choice("Marker", listOf(true, false), name = { if (it) "Destination" else "Glyph" })
 
 /** The capsule, or a rounded rectangle. */
 private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })

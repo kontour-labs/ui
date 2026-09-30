@@ -20,6 +20,7 @@ import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarMarker
+import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavDefaults
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -49,6 +50,7 @@ class NavBarShapeTest {
     private val cells = mutableListOf(Rect.Zero, Rect.Zero, Rect.Zero)
 
     private fun render(
+        style: NavBarStyle = NavBarStyle.Floating,
         shape: Shape? = null,
         itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
         marker: @Composable () -> NavBarMarker = { NavBarDefaults.glyphMarker() },
@@ -56,6 +58,7 @@ class NavBarShapeTest {
     ): BufferedImage = Scene(width = 800, height = 300, density = Density, reduceMotion = true) {
         Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
             NavBar(
+                style = style,
                 shape = shape,
                 showLabels = showLabels,
                 itemWidth = itemWidth,
@@ -132,6 +135,56 @@ class NavBarShapeTest {
         assertTrue(
             abs(box.top - cell.top) <= Slack && abs(box.bottom - cell.bottom) <= Slack,
             "the marker runs ${box.top}–${box.bottom}px down a cell of ${cell.top}–${cell.bottom}px",
+        )
+    }
+
+    /** How much of the marker's colour there is along one row. */
+    private fun inkAcross(image: BufferedImage, y: Float): Int =
+        (0 until image.width).count { isMarker(image.getRGB(it, y.toInt())) }
+
+    /**
+     * By default the marker follows a floating bar's capsule: a capsule itself,
+     * as far from the bar's end as from its top.
+     *
+     * Reported as the new defaults looking *"really terrible with labels
+     * enabled"*: labels make the bar tall, its ends round, and a marker in the
+     * theme's medium corner sat inside them as a box in a pill, closer to the
+     * rounding at the corners than anywhere else.
+     */
+    @Test
+    fun byDefaultTheMarkerIsACapsuleConcentricWithAFloatingBar() {
+        val image = render(itemWidth = NavBarItemWidth.Equal, marker = { NavBarDefaults.destinationMarker() })
+        val box = markerBox(image)
+        // Four dp in from its top a capsule this tall is 30dp narrower than its
+        // middle; the medium corner, about 12.
+        val across = inkAcross(image, box.top + 4f * Density)
+        assertTrue(
+            across < box.width - 24f * Density,
+            "4dp into the marker it is ${across}px across, of ${box.width}px — its ends are not a capsule's",
+        )
+        // The bar's own white, not the first pixel off the page: its shadow falls
+        // further below than beside it.
+        fun isBar(x: Int, y: Int) = image.getRGB(x, y).let { (it shr 16 and 0xFF) > 240 && (it and 0xFF) > 240 }
+        val barLeft = (0 until image.width).first { isBar(it, box.center.y.toInt()) }
+        val barTop = (0 until image.height).first { isBar(box.center.x.toInt(), it) }
+        val end = box.left - barLeft
+        val top = box.top - barTop
+        assertTrue(abs(end - top) <= Slack * 2, "the marker is ${end}px from the bar's end and ${top}px from its top")
+    }
+
+    /** And in a docked bar, which has no corners to follow, the theme's medium corner. */
+    @Test
+    fun inADockedBarTheMarkerHasTheMediumCorner() {
+        val image = render(
+            style = NavBarStyle.Docked,
+            itemWidth = NavBarItemWidth.Equal,
+            marker = { NavBarDefaults.destinationMarker() },
+        )
+        val box = markerBox(image)
+        val across = inkAcross(image, box.top + 4f * Density)
+        assertTrue(
+            across > box.width - 24f * Density,
+            "4dp into a docked bar's marker it is ${across}px across, of ${box.width}px — a capsule, not a corner",
         )
     }
 

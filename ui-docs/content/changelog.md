@@ -60,6 +60,13 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   `SwipeToDismiss` now draw their actions in `actionShape`, which defaults to
   `ListItemDefaults.Shape`. If your rows have their own corners, pass the same
   shape as `actionShape`.
+- **A `NavBar`'s destinations share it in equal cells, and its marker is round
+  the whole current destination**, glyph and label, in the bar's own shape: a
+  capsule in a floating bar. Before, each destination was a circle and the marker
+  a circle behind its glyph. For that look, pass
+  `itemWidth = NavBarItemWidth.Natural` and
+  `marker = NavBarDefaults.glyphMarker()` (on `NavigationSuiteScaffold`,
+  `barItemWidth` and `barMarker`).
 - **A `NavBar`'s marker can be dragged** from destination to destination, with
   a snap at each. The destination under the finger when it lifts has its
   `onClick` run once, and a tap is still a tap. `markerDraggable = false` turns

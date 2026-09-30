@@ -23,6 +23,8 @@ import io.kontour.ui.adaptive.WindowSizeClass
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarScope
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavigationSuiteScaffold
@@ -214,11 +216,15 @@ class NavBarActionTest {
         val bounds = Bounds()
         val width = 2400
         render(width = width, wide = true) {
-            NavBar(action = { Fab(bounds) }) { items(bounds) }
+            NavBar(
+                itemWidth = NavBarItemWidth.Natural,
+                marker = NavBarDefaults.glyphMarker(),
+                action = { Fab(bounds) },
+            ) { items(bounds) }
         }
 
         // The capsule hugs: its destinations are packed, with `sm` of the
-        // capsule either side of them.
+        // capsule either side of them — natural circles', which this counts in.
         val capsuleLeft = bounds.items.minOf { it.left } - 12f * Density
         val middle = (capsuleLeft + bounds.action.right) / 2f
         assertTrue(

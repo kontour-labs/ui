@@ -1110,16 +1110,16 @@ sealed interface io.kontour.ui.foundation/IndicatorSizing { // io.kontour.ui.fou
 
 sealed interface io.kontour.ui.nav/NavBarMarker { // io.kontour.ui.nav/NavBarMarker|null[0]
     final class Destination : io.kontour.ui.nav/NavBarMarker { // io.kontour.ui.nav/NavBarMarker.Destination|null[0]
-        constructor <init>(androidx.compose.ui.graphics/Shape, androidx.compose.ui.unit/Dp) // io.kontour.ui.nav/NavBarMarker.Destination.<init>|<init>(androidx.compose.ui.graphics.Shape;androidx.compose.ui.unit.Dp){}[0]
+        constructor <init>(androidx.compose.ui.graphics/Shape?, androidx.compose.ui.unit/Dp) // io.kontour.ui.nav/NavBarMarker.Destination.<init>|<init>(androidx.compose.ui.graphics.Shape?;androidx.compose.ui.unit.Dp){}[0]
 
         final val inset // io.kontour.ui.nav/NavBarMarker.Destination.inset|{}inset[0]
             final fun <get-inset>(): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarMarker.Destination.inset.<get-inset>|<get-inset>(){}[0]
         final val shape // io.kontour.ui.nav/NavBarMarker.Destination.shape|{}shape[0]
-            final fun <get-shape>(): androidx.compose.ui.graphics/Shape // io.kontour.ui.nav/NavBarMarker.Destination.shape.<get-shape>|<get-shape>(){}[0]
+            final fun <get-shape>(): androidx.compose.ui.graphics/Shape? // io.kontour.ui.nav/NavBarMarker.Destination.shape.<get-shape>|<get-shape>(){}[0]
 
-        final fun component1(): androidx.compose.ui.graphics/Shape // io.kontour.ui.nav/NavBarMarker.Destination.component1|component1(){}[0]
+        final fun component1(): androidx.compose.ui.graphics/Shape? // io.kontour.ui.nav/NavBarMarker.Destination.component1|component1(){}[0]
         final fun component2(): androidx.compose.ui.unit/Dp // io.kontour.ui.nav/NavBarMarker.Destination.component2|component2(){}[0]
-        final fun copy(androidx.compose.ui.graphics/Shape = ..., androidx.compose.ui.unit/Dp = ...): io.kontour.ui.nav/NavBarMarker.Destination // io.kontour.ui.nav/NavBarMarker.Destination.copy|copy(androidx.compose.ui.graphics.Shape;androidx.compose.ui.unit.Dp){}[0]
+        final fun copy(androidx.compose.ui.graphics/Shape? = ..., androidx.compose.ui.unit/Dp = ...): io.kontour.ui.nav/NavBarMarker.Destination // io.kontour.ui.nav/NavBarMarker.Destination.copy|copy(androidx.compose.ui.graphics.Shape?;androidx.compose.ui.unit.Dp){}[0]
         final fun equals(kotlin/Any?): kotlin/Boolean // io.kontour.ui.nav/NavBarMarker.Destination.equals|equals(kotlin.Any?){}[0]
         final fun hashCode(): kotlin/Int // io.kontour.ui.nav/NavBarMarker.Destination.hashCode|hashCode(){}[0]
         final fun toString(): kotlin/String // io.kontour.ui.nav/NavBarMarker.Destination.toString|toString(){}[0]
