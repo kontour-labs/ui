@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -196,6 +197,110 @@ internal fun Modifier.horizontalDragOwning(
         along = Axis.Horizontal,
     ) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
+    }
+}
+
+/**
+ * [horizontalDragOwning], one drag per finger.
+ *
+ * For a control with more than one thing to hold — a range slider's two thumbs,
+ * which two fingers can take at once. Every finger that lands on the node is
+ * offered to [onStart]; the ones it takes are each a drag of their own, told
+ * apart by their [PointerId], and end one at a time as each lifts. A finger it
+ * declines is still consumed, as every change on the node is: the node owns the
+ * gesture, and a finger it is not using is not one to hand to the scroller
+ * under it either.
+ *
+ * Claimed on the press, as [DragClaim.Press] is, and with everything else
+ * [horizontalDragOwning] says about ownership, including being taken over from
+ * above: a finger an ancestor consumes first ends there, as cancelled.
+ *
+ * @param onStart Offered each finger as it lands, at its position in this
+ *   node's coordinates. True takes it.
+ * @param onDeltas The taken fingers' horizontal movement since their last
+ *   change, **all of one event's at once**, in the order they were taken. Not
+ *   one call per finger: two fingers moving in the same event moved at the same
+ *   time, and a control that settles them one after the other settles the first
+ *   against where the second *was* — a range slider's thumb pinned against a
+ *   thumb that is already on its way somewhere else.
+ * @param onEnd A taken finger lifting, or its drag cancelled.
+ */
+@Composable
+internal fun Modifier.horizontalDragsOwning(
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    scope: CoroutineScope,
+    onStart: (finger: PointerId, at: Offset) -> Boolean,
+    onDeltas: (Map<PointerId, Float>) -> Unit,
+    onEnd: (finger: PointerId) -> Unit,
+): Modifier {
+    // Read live, for the reason `horizontalDragOwning` gives at length.
+    val currentStart by rememberUpdatedState(onStart)
+    val currentDeltas by rememberUpdatedState(onDeltas)
+    val currentEnd by rememberUpdatedState(onEnd)
+
+    return if (!enabled) this else this.pointerInput(enabled, interactionSource) {
+        awaitEachGesture {
+            val first = awaitFirstDown(requireUnconsumed = false)
+            // In the order they were taken, each with the interaction it began.
+            val held = LinkedHashMap<PointerId, DragInteraction.Start>()
+
+            fun take(change: PointerInputChange) {
+                change.consume()
+                if (!currentStart(change.id, change.position)) return
+                val started = DragInteraction.Start()
+                held[change.id] = started
+                interactionSource?.let { source -> scope.launch { source.emit(started) } }
+            }
+
+            fun letGo(finger: PointerId, cancelled: Boolean) {
+                val started = held.remove(finger) ?: return
+                interactionSource?.let { source ->
+                    scope.launch {
+                        source.emit(if (cancelled) DragInteraction.Cancel(started) else DragInteraction.Stop(started))
+                    }
+                }
+                currentEnd(finger)
+            }
+
+            take(first)
+            try {
+                while (held.isNotEmpty()) {
+                    val event = awaitPointerEvent()
+                    val moved = LinkedHashMap<PointerId, Float>()
+                    val ended = ArrayList<Pair<PointerId, Boolean>>()
+                    for (finger in held.keys) {
+                        val change = event.changes.firstOrNull { it.id == finger }
+                        when {
+                            // Gone from the event, or taken by an ancestor looking
+                            // first: either way this finger's drag is not ours.
+                            change == null || change.isConsumed -> ended += finger to true
+                            !change.pressed -> {
+                                change.consume()
+                                ended += finger to false
+                            }
+                            else -> {
+                                val dx = change.positionChange().x
+                                if (dx != 0f) moved[finger] = dx
+                            }
+                        }
+                    }
+                    if (moved.isNotEmpty()) currentDeltas(moved)
+                    for ((finger, cancelled) in ended) letGo(finger, cancelled)
+                    // A finger arriving while another is held.
+                    for (change in event.changes) {
+                        if (change.pressed && !change.previousPressed && change.id !in held && !change.isConsumed) {
+                            take(change)
+                        }
+                    }
+                    event.changes.forEach { it.consume() }
+                }
+            } finally {
+                // Cancelled, or the coroutine gone with fingers still down —
+                // see `ownedDrag` for when Compose does that. Each drag ends.
+                for (finger in held.keys.toList()) letGo(finger, cancelled = true)
+            }
+        }
     }
 }
 

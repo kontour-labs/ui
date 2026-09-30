@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.rememberTextMeasurer
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDragTexture
@@ -47,7 +50,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberRubberBand
 import io.kontour.ui.interaction.rememberDetentTicker
-import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.interaction.horizontalDragsOwning
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -86,6 +89,13 @@ import kotlinx.coroutines.launch
  * finger and the thumb together, which is the whole contract of a drag. The
  * pushed thumb lags a little as it goes and stretches while it lags, so being
  * shoved looks like being shoved.
+ *
+ * ### Two fingers, two thumbs
+ *
+ * A finger on each thumb drags both at once, each as far as its own finger
+ * takes it. Two fingers put down together each take the thumb on their side.
+ * A thumb a finger holds is not pushed by the other one: brought together, the
+ * two meet and stop, as two fingers pinching anything do.
  *
  * @param value The current range. Clamped into [valueRange], and never inverted.
  *   Not corrected against [minDistance] on arrival: a caller that starts a range
@@ -146,9 +156,10 @@ fun RangeSlider(
     stateDescription: ((ClosedFloatingPointRange<Float>) -> String)? = null,
     /**
      * The value under the finger, in a bubble above the head being held. See
-     * [Slider]'s: off unless given, and drawn outside the control's bounds. One
-     * label, over the thumb the finger has — a thumb being shoved along by it is
-     * not the one being read.
+     * [Slider]'s: off unless given, and drawn outside the control's bounds. Over
+     * the thumb a finger has — a thumb being shoved along by it is not the one
+     * being read — and over both when a finger has each, moved apart if the two
+     * would overlap.
      */
     valueLabel: ((Float) -> String)? = null,
     onValueChangeFinished: (() -> Unit)? = null,
@@ -227,26 +238,46 @@ fun RangeSlider(
     val currentFinished by rememberUpdatedState(onValueChangeFinished)
 
     /**
-     * Which thumb this drag is moving, decided once when it starts.
+     * Each thumb's hold: whether a finger has it, where the finger has taken it,
+     * and whether it has moved it yet.
      *
-     * Re-deciding per event would hand the drag to the other thumb the moment
-     * the finger crossed the midpoint between them, which reads as the range
-     * collapsing and then reopening from the other side.
+     * **Per thumb, because two fingers can hold the two at once.** This was one
+     * `activeThumb` for the one gesture the control could have, and a second
+     * finger landing on the other thumb was consumed and ignored — asked for as
+     * "both heads of the range slider can be dragged simultaneously". Now each
+     * finger is a drag of its own ([fingers]) and each thumb knows whether one of
+     * them has it; everything that asked `activeThumb == thumb` asks the thumb.
+     *
+     * A finger's thumb is decided once, when it lands, and kept: re-deciding per
+     * event would hand the drag to the other thumb the moment the finger crossed
+     * the midpoint between them, which reads as the range collapsing and then
+     * reopening from the other side.
      */
-    var activeThumb by remember { mutableStateOf(Thumb.None) }
+    val startHold = remember { ThumbHold() }
+    val endHold = remember { ThumbHold() }
+    fun hold(thumb: Thumb): ThumbHold = if (thumb == Thumb.Start) startHold else endHold
 
-    // The label's thumb outlives the drag by as long as the label takes to fade:
-    // `activeThumb` goes back to `None` the moment the finger lifts.
-    val labelled = remember { LabelledThumb() }
-    if (activeThumb != Thumb.None) labelled.thumb = activeThumb
-    // Up for a second after the finger lifts, over the thumb that moved last —
-    // see `LabelLinger`. A press that picked neither thumb picks nothing to show.
-    val holding = active && activeThumb != Thumb.None
-    val linger = rememberLabelLinger(holding)
-    val labelProgress = animateFloatAsState(
-        targetValue = if (valueLabel != null && (holding || (linger.lingering && labelled.thumb != Thumb.None))) 1f else 0f,
+    /** Whether the finger holding [thumb] has moved it, which is when it tracks the finger exactly. */
+    fun carried(thumb: Thumb): Boolean = hold(thumb).let { it.held && it.carrying }
+
+    /** The fingers on the control, each with the thumb it has. At most two. Read only by the gesture. */
+    val fingers = remember { LinkedHashMap<PointerId, Finger>() }
+
+    // Up for half a second after a finger lifts, over the thumb it held — see
+    // `LabelLinger`. Per thumb, so two fingers read two values; and a thumb taken
+    // up puts out the other's lingering label, so one finger still reads one.
+    val startLinger = rememberLabelLinger(active && startHold.held)
+    val endLinger = rememberLabelLinger(active && endHold.held)
+    fun linger(thumb: Thumb): LabelLinger = if (thumb == Thumb.Start) startLinger else endLinger
+    val startLabel = animateFloatAsState(
+        targetValue = if (valueLabel != null && (active && startHold.held || startLinger.lingering)) 1f else 0f,
         animationSpec = motion.springOrTween(motion.springSnappy),
-        label = "rangeSliderValueLabel",
+        label = "rangeSliderStartLabel",
+    )
+    val endLabel = animateFloatAsState(
+        targetValue = if (valueLabel != null && (active && endHold.held || endLinger.lingering)) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "rangeSliderEndLabel",
     )
 
     /**
@@ -257,13 +288,13 @@ fun RangeSlider(
      * of the range made the other end swell at the same moment, so a range
      * slider under a finger read as two handles being held at once.
      *
-     * [activeThumb] already knew which one it was — it decides `reach` and which
+     * Which thumb the finger had was already known — it decides `reach` and which
      * value the drag moves — and simply was not asked here. A thumb is now held
-     * when the control is held *and* the gesture belongs to it, which for a press
-     * that has not yet chosen a thumb is neither of them, and that is right: a
-     * press on the bare track has not picked one up.
+     * when the control is held *and* a finger has it, which for a press that has
+     * not yet chosen a thumb is neither of them, and that is right: a press on the
+     * bare track has not picked one up.
      */
-    fun held(thumb: Thumb): Boolean = active && activeThumb == thumb && !motion.reduceMotion
+    fun held(thumb: Thumb): Boolean = active && hold(thumb).held && !motion.reduceMotion
 
     /**
      * The grab is bouncy; the return is not, and the return is the reported bug.
@@ -328,55 +359,43 @@ fun RangeSlider(
     )
 
     /**
-     * Which thumb the rubber band's stretch belongs to.
-     *
-     * **Not [activeThumb], and the difference is the whole of a reported bug.**
-     * `activeThumb` is about the *gesture*: `onEnd` clears it, because it drives
-     * the deferred tap emit and the painter order and both are finished when the
-     * finger lifts. The band is not finished when the finger lifts — that is
-     * precisely when it springs home — so a squash gated on `activeThumb`
-     * vanishes on the frame the gesture ends.
-     *
-     * What that looked like: `band.release` runs on `springGentle` so the stretch
-     * gets home before the squash unwinds, which is what keeps a released thumb
-     * from passing back out through the full-width pill. `RangeSlider` was given
-     * that spec and never showed it. `activeThumb = Thumb.None` is a snapshot
-     * write that lands immediately, while `scope.launch` does not render its first
-     * frame synchronously — so from the next composition the squash read zero for
-     * the whole release, `pull` stepped from nearly one to exactly zero between
-     * two frames while the thumb was still a stretched capsule, and the drawn
-     * width jumped to the pill in a single frame. Not a bad animation: no
-     * animation.
-     *
-     * Keyed here instead and cleared when `release` **returns**, so the band's
-     * whole life is drawn. It also makes a second state unrepresentable: one band
-     * serves two thumbs, so a leftover offset from a gesture on one used to be
-     * read as the other's squash the moment a new gesture picked it up — a thumb
-     * drawn pre-squashed against a wall it had never touched.
+     * See [Slider]'s: the ticker, which is also where the rate limit is. One per
+     * thumb, because a ticker remembers the detent it last saw, and two fingers
+     * moving two thumbs would each read the other's as a crossing.
      */
-    var bandThumb by remember { mutableStateOf(Thumb.None) }
-
-    /** See [Slider]'s `dragFraction`. `NaN` when no drag is in progress. */
-    var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
-
-    /** See [Slider]'s `carrying`: a press moves the value, a drag moves the thumb. */
-    var carrying by remember { mutableStateOf(false) }
-
-    /** See [Slider]'s: the shared ticker, which is also where the rate limit is. */
-    val ticker = rememberDetentTicker()
+    val startTicker = rememberDetentTicker()
+    val endTicker = rememberDetentTicker()
+    fun ticker(thumb: Thumb) = if (thumb == Thumb.Start) startTicker else endTicker
 
     /**
-     * What a drag pushing past the **track's** ends does instead of nothing.
+     * What a drag pushing past the **track's** ends does instead of nothing: one
+     * per thumb, each the squash of the thumb that ran into its wall.
      *
      * Only 0 and 1. The inner stop — a thumb brought up against the other one —
      * already reads as being shoved, because the pushed thumb deforms through
      * the reach below; a band there would be a second deformation of the same
-     * contact and would need one instance per thumb to know which.
+     * contact.
+     *
+     * **Per thumb, and the squash reads each one's own offset directly.** One
+     * band used to serve both, with a `bandThumb` saying whose it was, and that
+     * key had a bug of its own: it was the gesture's thumb, which the finger
+     * lifting clears, while the band is not finished when the finger lifts —
+     * that is precisely when it springs home — so the squash read zero from the
+     * frame the gesture ended, and a thumb still stretched against the wall
+     * jumped to the full pill in one frame. `bandThumb` fixed that by clearing
+     * only when `release` returned. Two bands have no key to get wrong: a thumb's
+     * squash is its own band for the whole of the band's life, and a leftover
+     * offset from one thumb cannot be read as the other's.
      */
-    val band = rememberRubberBand()
+    val startBand = rememberRubberBand()
+    val endBand = rememberRubberBand()
+    fun band(thumb: Thumb) = if (thumb == Thumb.Start) startBand else endBand
 
     // Once each time a thumb runs into the end of the track — see `Slider`'s.
-    val endStop = rememberEndStopLatch()
+    // One per thumb, for two fingers running into the two ends at once.
+    val startWall = rememberEndStopLatch()
+    val endWall = rememberEndStopLatch()
+    fun wall(thumb: Thumb) = if (thumb == Thumb.Start) startWall else endWall
 
     // And once, lighter, each time it runs into the other thumb. That is not a
     // wall — the other one gives, and is shoved along, and the shove is drawn —
@@ -385,8 +404,11 @@ fun RangeSlider(
     // the wall, so shoving on is not a second meeting and parting is not one.
     val bump = rememberEndStopLatch(FeedbackIntent.Bump)
 
-    // A range without steps drags with the slider's texture. See `Slider`'s.
-    val texture = rememberDragTexture()
+    // A range without steps drags with the slider's texture. See `Slider`'s. Per
+    // thumb: a texture reads speed from the last position it was given.
+    val startTexture = rememberDragTexture()
+    val endTexture = rememberDragTexture()
+    fun texture(thumb: Thumb) = if (thumb == Thumb.Start) startTexture else endTexture
 
     // The label over the held thumb. See `Slider`'s.
     val labelMeasurer = rememberTextMeasurer()
@@ -405,16 +427,8 @@ fun RangeSlider(
     val tickSize = Theme.componentDefaults.sliderTickSize
 
     /**
-     * Where the press landed, kept for the gesture that never moves.
-     *
-     * With the thumbs coincident the choice of thumb is deferred to the first
-     * delta's direction — and a tap has no deltas at all. Without this, tapping
-     * a collapsed range does nothing.
-     */
-    var pressFraction by remember { mutableFloatStateOf(Float.NaN) }
-
-    /**
-     * What this gesture last emitted, or `null` between gestures.
+     * What this gesture last emitted, or `null` between gestures. One gesture
+     * while any finger is down: two fingers build on each other's emits.
      *
      * See [emit]. A gesture has to build on its own last answer rather than on
      * one that has been round a recomposition, or the push rule compares against
@@ -433,8 +447,8 @@ fun RangeSlider(
     /**
      * The detent tick, if a **drag** just crossed one.
      *
-     * `carrying` is the whole of the condition — see [Slider]'s `emit`, which
-     * carries the reasoning. Here the tap case is even plainer: a press that
+     * Whether the thumb is carried is the whole of the condition — see
+     * [Slider]'s `emit`, which carries the reasoning. Here the tap case is even plainer: a press that
      * never moved emits from `onEnd`, so a stepped range slider fired once on
      * touch and once on release for a gesture that crossed nothing. Both are the
      * same non-event, and both are gone.
@@ -442,10 +456,11 @@ fun RangeSlider(
      * The index is still recorded either way, so the first pixel of a drag that
      * follows a tap does not tick for the detent the thumb is already on.
      */
-    fun tick(next: Float) {
+    fun tick(thumb: Thumb, next: Float) {
         if (steps <= 0) return
         val index = ((next - valueRange.start) / span * (steps + 1)).roundToInt().toFloat()
-        if (carrying) ticker.at(index) else { ticker.reset(); ticker.at(index) }
+        val ticker = ticker(thumb)
+        if (carried(thumb)) ticker.at(index) else { ticker.reset(); ticker.at(index) }
     }
 
     /**
@@ -478,18 +493,32 @@ fun RangeSlider(
      * caller that clamps *during* one is the case this deliberately does not
      * chase, because a gesture that argues with itself mid-drag is the thing
      * being fixed.
+     *
+     * ### A thumb a finger holds is not pushed
+     *
+     * With a finger on each thumb, the one being brought up against the other
+     * stops there rather than shoving it: the other is where its own finger put
+     * it, and moving it anyway would have the two fingers fight over it a frame
+     * at a time. Two fingers pinching a range closed meet in the middle, as two
+     * fingers on anything do.
      */
     fun emit(thumb: Thumb, rawFraction: Float) {
         val next = snap(rawFraction)
-        tick(next)
+        tick(thumb, next)
         val current = emitted ?: value
         val updated = when (thumb) {
-            Thumb.Start -> {
+            Thumb.Start -> if (endHold.held) {
+                val start = next.coerceIn(valueRange.start, (current.endInclusive - gap).coerceAtLeast(valueRange.start))
+                start..current.endInclusive
+            } else {
                 val start = next.coerceIn(valueRange.start, valueRange.endInclusive - gap)
                 start..maxOf(current.endInclusive, start + gap)
                     .coerceAtMost(valueRange.endInclusive)
             }
-            Thumb.End -> {
+            Thumb.End -> if (startHold.held) {
+                val end = next.coerceIn((current.start + gap).coerceAtMost(valueRange.endInclusive), valueRange.endInclusive)
+                current.start..end
+            } else {
                 val end = next.coerceIn(valueRange.start + gap, valueRange.endInclusive)
                 minOf(current.start, end - gap).coerceAtLeast(valueRange.start)..end
             }
@@ -503,15 +532,15 @@ fun RangeSlider(
     // impossible — the weld, the painter order, and which thumb the band belongs
     // to. Two sliders in one library that answer the same gesture differently is
     // worse than either of them being wrong, and the one place that drifted is
-    // worth naming rather than burying: the squash was gated on `activeThumb`,
-    // which `onEnd` clears, so the band's spring home was computed and never
-    // drawn. See [bandThumb].
+    // worth naming rather than burying: the squash was gated on the gesture's
+    // thumb, which the finger lifting clears, so the band's spring home was
+    // computed and never drawn. See [startBand].
     val detented = steps > 0 && !motion.reduceMotion
 
     /** The detent one thumb is on, pulled toward the finger if it is the one being dragged. */
     fun targetFor(thumb: Thumb, base: Float): Float =
-        if (detented && carrying && activeThumb == thumb) {
-            base + (dragFraction - base) * SliderDefaults.DetentPull
+        if (detented && carried(thumb)) {
+            base + (hold(thumb).drag - base) * SliderDefaults.DetentPull
         } else {
             base
         }
@@ -538,7 +567,7 @@ fun RangeSlider(
      * something other than a finger.
      */
     fun tapSpec(thumb: Thumb) =
-        if (carrying && activeThumb == thumb) {
+        if (carried(thumb)) {
             snapSpec()
         } else {
             motion.springOrTween<Float>(motion.springSnappy)
@@ -559,7 +588,7 @@ fun RangeSlider(
         detented -> settled.coerceIn(0f, 1f)
         // Only the thumb under the finger tracks it exactly; the other one is
         // standing still and may as well ease if something moved it.
-        carrying && activeThumb == thumb -> base
+        carried(thumb) -> base
         else -> tapEased.coerceIn(0f, 1f)
     }
 
@@ -600,8 +629,16 @@ fun RangeSlider(
      * lagging spring — which is the two merging into one shape. Sized to the
      * arithmetic instead: well under a pixel on any real track, and orders above
      * the error.
+     *
+     * Only ever one thumb pushing: with a finger on each, neither is shoved (see
+     * [emit]), so neither is welded to the other.
      */
-    val pushing = activeThumb != Thumb.None &&
+    val pusher = when {
+        startHold.held && !endHold.held -> Thumb.Start
+        endHold.held && !startHold.held -> Thumb.End
+        else -> Thumb.None
+    }
+    val pushing = pusher != Thumb.None &&
         endFraction - startFraction <= gapFraction + ContactTolerance
 
     /**
@@ -645,12 +682,12 @@ fun RangeSlider(
          * epsilon, so the weld engages and releases on the same frame the values do
          * rather than a per-cent of the track early and late.
          */
-        val drawnStart = if (activeThumb == Thumb.End && pushing) {
+        val drawnStart = if (pusher == Thumb.End && pushing) {
             minOf(easedStart, easedEnd - gapFraction).coerceIn(0f, 1f)
         } else {
             easedStart
         }
-        val drawnEnd = if (activeThumb == Thumb.Start && pushing) {
+        val drawnEnd = if (pusher == Thumb.Start && pushing) {
             maxOf(easedEnd, easedStart + gapFraction).coerceIn(0f, 1f)
         } else {
             easedEnd
@@ -666,7 +703,7 @@ fun RangeSlider(
          * to know about the other.
          */
         fun reach(thumb: Thumb, base: Float, drawnAt: Float): Float = when {
-            carrying && activeThumb == thumb -> dragFraction - drawnAt
+            carried(thumb) -> hold(thumb).drag - drawnAt
             detented -> targetFor(thumb, base) - drawnAt
             else -> base - drawnAt
         }
@@ -681,17 +718,104 @@ fun RangeSlider(
         // neighbour but stretching on its own spring is the same two-dynamics
         // problem one level down — the position stopped ringing and the shape
         // carried on. It takes the strain of the thumb pushing it instead.
-        val reachStart = if (activeThumb == Thumb.End && pushing) ownReachEnd else ownReachStart
-        val reachEnd = if (activeThumb == Thumb.Start && pushing) ownReachStart else ownReachEnd
+        val reachStart = if (pusher == Thumb.End && pushing) ownReachEnd else ownReachStart
+        val reachEnd = if (pusher == Thumb.Start && pushing) ownReachStart else ownReachEnd
 
         // The end stop's squash belongs to the thumb that ran into the wall, and to
-        // that one only — the other has not hit anything. [bandThumb] rather than
-        // `activeThumb`: the band outlives the gesture by exactly the length of its
-        // own spring home, and gating on the gesture threw that away.
-        val squashStart = if (bandThumb == Thumb.Start) band.offset else 0f
-        val squashEnd = if (bandThumb == Thumb.End) band.offset else 0f
+        // that one only — the other has not hit anything. Its own band, for the
+        // whole of the band's life: see [startBand].
+        val squashStart = startBand.offset
+        val squashEnd = endBand.offset
 
         return RangeDrawn(drawnStart, drawnEnd, reachStart, reachEnd, squashStart, squashEnd)
+    }
+
+    /**
+     * [finger] takes up [thumb], starting from [from] — the press, so the thumb
+     * comes to the finger on its first movement, or the thumb's own place when
+     * the choice waited for a direction.
+     */
+    fun grab(finger: Finger, thumb: Thumb, from: Float) {
+        finger.thumb = thumb
+        hold(thumb).apply {
+            held = true
+            drag = from
+            carrying = false
+        }
+        wall(thumb).arm()
+        // One finger reads one label: the thumb taken up puts out the other's,
+        // unless a finger has that one too.
+        val other = if (thumb == Thumb.Start) Thumb.End else Thumb.Start
+        if (!hold(other).held) linger(other).lapse()
+    }
+
+    /** No finger has [thumb] any more. */
+    fun release(thumb: Thumb) {
+        hold(thumb).apply {
+            held = false
+            drag = Float.NaN
+            carrying = false
+        }
+    }
+
+    /**
+     * Both thumbs held, and [moved] the ones whose fingers moved this event:
+     * where the pair goes, together.
+     *
+     * Together because they moved together. Settled one after the other, the
+     * first was measured against where the second *was* — so two fingers put
+     * down either side of the end thumb, each taking the thumb on its side,
+     * pinned the start thumb against the end one before the end one had left,
+     * and the start thumb then trailed its finger by the difference for the
+     * rest of the drag.
+     *
+     * Neither is pushed (see [emit]). A thumb whose finger has not moved yet is
+     * where its value is, not where its finger landed: it has not been brought
+     * there. Brought closer than the gap, the thumb that moved stops against the
+     * one that did not; both moved, and they meet halfway. Whatever was refused
+     * is taken off the fingers' accumulators too, so no travel is banked past
+     * the meeting and coming back apart moves at once.
+     */
+    fun settle(moved: List<Thumb>) {
+        val now = emitted ?: value
+        var s = if (carried(Thumb.Start)) startHold.drag else fractionOf(now.start)
+        var e = if (carried(Thumb.End)) endHold.drag else fractionOf(now.endInclusive)
+        if (e - s < gapFraction) {
+            val startMoved = Thumb.Start in moved
+            val endMoved = Thumb.End in moved
+            when {
+                startMoved && !endMoved -> s = e - gapFraction
+                endMoved && !startMoved -> e = s + gapFraction
+                else -> {
+                    val middle = (s + e) / 2f
+                    s = middle - gapFraction / 2f
+                    e = middle + gapFraction / 2f
+                }
+            }
+            // Kept on the track, where each thumb's own reach already was.
+            if (s < 0f) {
+                s = 0f
+                e = maxOf(e, gapFraction)
+            }
+            if (e > 1f) {
+                e = 1f
+                s = minOf(s, 1f - gapFraction)
+            }
+            if (carried(Thumb.Start)) startHold.drag = s
+            if (carried(Thumb.End)) endHold.drag = e
+        }
+        var start = snap(s)
+        var end = snap(e)
+        // Snapped to the nearest notch each, the two can round towards each
+        // other by one; the gap is on the grid, so moving either back by it
+        // lands on a notch.
+        start = minOf(start, end - gap).coerceAtLeast(valueRange.start)
+        end = maxOf(end, start + gap).coerceAtMost(valueRange.endInclusive)
+        tick(Thumb.Start, start)
+        tick(Thumb.End, end)
+        val updated = start..end
+        emitted = updated
+        currentOnValueChange(updated)
     }
 
     Box(
@@ -736,80 +860,118 @@ fun RangeSlider(
                     // scrolling above it, so a finger that wanders off the track
                     // hands the gesture away mid-drag. See `horizontalDragOwning`.
                     .pointerCursor(enabled = enabled)
-                    .horizontalDragOwning(
+                    // One drag per finger, so a finger on each thumb moves
+                    // both. See `horizontalDragsOwning`.
+                    .horizontalDragsOwning(
                         enabled = enabled,
                         interactionSource = interactions,
                         scope = scope,
-                        onStart = { start ->
-                            val f = toFraction(start.x).coerceIn(0f, 1f)
-                            pressFraction = f
-                            val toStart = abs(f - startFraction)
-                            val toEnd = abs(f - endFraction)
-                            activeThumb = when {
-                                // Equidistant means coincident, or a press
-                                // exactly between them. Defer to the first delta.
-                                abs(toStart - toEnd) < CoincidenceEpsilon -> Thumb.None
-                                toStart < toEnd -> Thumb.Start
-                                else -> Thumb.End
+                        onStart = { id, at ->
+                            val f = toFraction(at.x).coerceIn(0f, 1f)
+                            val first = fingers.values.firstOrNull()
+                            when {
+                                // Two thumbs, two fingers: a third has nothing to hold.
+                                fingers.size >= 2 -> false
+                                first == null -> {
+                                    val finger = Finger(press = f)
+                                    fingers[id] = finger
+                                    val toStart = abs(f - startFraction)
+                                    val toEnd = abs(f - endFraction)
+                                    val thumb = when {
+                                        // Equidistant means coincident, or a press
+                                        // exactly between them. Defer to the first delta.
+                                        abs(toStart - toEnd) < CoincidenceEpsilon -> Thumb.None
+                                        toStart < toEnd -> Thumb.Start
+                                        else -> Thumb.End
+                                    }
+                                    // A press picks a thumb. It does not move one.
+                                    //
+                                    // `Slider` brings its thumb to the finger, and that
+                                    // is right where there is one thumb and therefore
+                                    // one answer. With two, "the nearer thumb comes to
+                                    // the finger" means every press between them drags
+                                    // one inwards — and near the midpoint a pixel either
+                                    // way picks a *different* one, so pressing to start a
+                                    // drag would send whichever thumb you were not
+                                    // aiming at off to meet your finger. Measured on a
+                                    // `3f..5f` range with no movement at all: a press at
+                                    // 0.45 of the track moved the end thumb from 5.00 to
+                                    // 4.43, and one at 0.65 moved it to 6.69.
+                                    //
+                                    // A range is two values, and narrowing one of them
+                                    // without being asked is destructive in a way that
+                                    // moving a single slider's only thumb is not. So the
+                                    // thumb still comes to the finger — on the first
+                                    // *delta*, below, which is where a tap and a drag
+                                    // become distinguishable — and a press on its own
+                                    // changes nothing.
+                                    if (thumb != Thumb.None) grab(finger, thumb, from = f)
+                                    emitted = null
+                                    // Already together is not a meeting: a drag that
+                                    // starts in contact has to part them first.
+                                    bump.arm(resting = if (endFraction - startFraction - gapFraction <= ContactTolerance) 1 else 0)
+                                    true
+                                }
+                                else -> {
+                                    // A second finger, and the other thumb for it.
+                                    //
+                                    // Which one is "the other" is the first finger's
+                                    // to say once it has moved a thumb. Until then
+                                    // neither has, and the two fingers together say
+                                    // it better than either did alone: the one nearer
+                                    // the start takes the start thumb. So two fingers
+                                    // put down either side of a thumb, or on a
+                                    // collapsed range, each take the thumb on their
+                                    // own side rather than the first grabbing the
+                                    // nearer thumb and the second being left to pull
+                                    // the other one across it.
+                                    val finger = Finger(press = f)
+                                    fingers[id] = finger
+                                    if (first.thumb == Thumb.None || !first.moved) {
+                                        if (first.thumb != Thumb.None) release(first.thumb)
+                                        val (low, high) = if (f < first.press) finger to first else first to finger
+                                        grab(low, Thumb.Start, from = low.press)
+                                        grab(high, Thumb.End, from = high.press)
+                                    } else {
+                                        val other = if (first.thumb == Thumb.Start) Thumb.End else Thumb.Start
+                                        grab(finger, other, from = f)
+                                    }
+                                    true
+                                }
                             }
-                            // A press picks a thumb. It does not move one.
-                            //
-                            // `Slider` brings its thumb to the finger, and that
-                            // is right where there is one thumb and therefore
-                            // one answer. With two, "the nearer thumb comes to
-                            // the finger" means every press between them drags
-                            // one inwards — and near the midpoint a pixel either
-                            // way picks a *different* one, so pressing to start a
-                            // drag would send whichever thumb you were not
-                            // aiming at off to meet your finger. Measured on a
-                            // `3f..5f` range with no movement at all: a press at
-                            // 0.45 of the track moved the end thumb from 5.00 to
-                            // 4.43, and one at 0.65 moved it to 6.69.
-                            //
-                            // A range is two values, and narrowing one of them
-                            // without being asked is destructive in a way that
-                            // moving a single slider's only thumb is not. So the
-                            // thumb still comes to the finger — on the first
-                            // *delta*, below, which is where a tap and a drag
-                            // become distinguishable — and a press on its own
-                            // changes nothing.
-                            dragFraction = when (activeThumb) {
-                                Thumb.Start, Thumb.End -> f
-                                Thumb.None -> Float.NaN
-                            }
-                            carrying = false
-                            emitted = null
-                            endStop.arm()
-                            // Already together is not a meeting: a drag that
-                            // starts in contact has to part them first.
-                            bump.arm(resting = if (endFraction - startFraction - gapFraction <= ContactTolerance) 1 else 0)
                         },
-                        onDelta = { delta ->
-                            val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
-                            // The thumbs can start coincident — a zero-width
-                            // range, which is exactly what "no filter yet" looks
-                            // like. Distance alone cannot tell them apart there,
-                            // and picking either one arbitrarily leaves the range
-                            // able to open in one direction only. The first
-                            // delta's sign is the answer the user just gave.
-                            //
-                            // A zero delta carries no direction, and the first
-                            // one after touch is routinely exactly zero.
-                            // Treating it as "not negative" silently picks the
-                            // end thumb, which is right half the time — and now
-                            // that the thumbs push rather than block, the wrong
-                            // half opens the range in the direction nobody
-                            // asked for.
-                            carrying = true
-                            if (activeThumb == Thumb.None && signed != 0f) {
-                                activeThumb = if (signed < 0f) Thumb.Start else Thumb.End
-                                dragFraction = if (activeThumb == Thumb.Start) startFraction else endFraction
-                            }
-                            if (activeThumb != Thumb.None) {
-                                val from = if (dragFraction.isNaN()) {
-                                    if (activeThumb == Thumb.Start) startFraction else endFraction
+                        onDeltas = { deltas ->
+                            val moved = ArrayList<Thumb>(2)
+                            for ((id, delta) in deltas) {
+                                val finger = fingers[id] ?: continue
+                                val signed = if (layoutDirection == LayoutDirection.Rtl) -delta else delta
+                                finger.moved = true
+                                // The thumbs can start coincident — a zero-width
+                                // range, which is exactly what "no filter yet" looks
+                                // like. Distance alone cannot tell them apart there,
+                                // and picking either one arbitrarily leaves the range
+                                // able to open in one direction only. The first
+                                // delta's sign is the answer the user just gave.
+                                //
+                                // A zero delta carries no direction, and the first
+                                // one after touch is routinely exactly zero.
+                                // Treating it as "not negative" silently picks the
+                                // end thumb, which is right half the time — and now
+                                // that the thumbs push rather than block, the wrong
+                                // half opens the range in the direction nobody
+                                // asked for.
+                                if (finger.thumb == Thumb.None && signed != 0f) {
+                                    val thumb = if (signed < 0f) Thumb.Start else Thumb.End
+                                    grab(finger, thumb, from = if (thumb == Thumb.Start) startFraction else endFraction)
+                                }
+                                val thumb = finger.thumb
+                                if (thumb == Thumb.None) continue
+                                val hold = hold(thumb)
+                                hold.carrying = true
+                                val from = if (hold.drag.isNaN()) {
+                                    if (thumb == Thumb.Start) startFraction else endFraction
                                 } else {
-                                    dragFraction
+                                    hold.drag
                                 }
                                 // Clamped to what this thumb can actually
                                 // reach, not to the whole track.
@@ -825,13 +987,16 @@ fun RangeSlider(
                                 // dead travel at `minDistance = 1f` on a
                                 // `0f..10f` range, and past 80px at 2f. Zero at
                                 // the default, which is why nothing caught it.
-                                val reach = when (activeThumb) {
+                                // The other thumb, when a finger holds it, is the
+                                // same kind of limit, and `settle` below applies it.
+                                val reach = when (thumb) {
                                     Thumb.Start -> 0f to (1f - gapFraction)
                                     else -> gapFraction to 1f
                                 }
+                                val band = band(thumb)
                                 val offered = signed - band.payBack(signed)
                                 val raw = from + offered / widthPx
-                                dragFraction = raw.coerceIn(reach.first, reach.second)
+                                hold.drag = raw.coerceIn(reach.first, reach.second)
                                 // Measured against the **track**, not against
                                 // `reach`: running into the other thumb is a
                                 // shove, reported as one below, and only the
@@ -850,88 +1015,91 @@ fun RangeSlider(
                                     raw < 0f -> raw
                                     else -> 0f
                                 }
-                                endStop.at(raw)
-                                if (past != 0f && !motion.reduceMotion) {
-                                    // The band is this thumb's until it has
-                                    // sprung all the way home. See [bandThumb].
-                                    bandThumb = activeThumb
-                                    band.pull(past * widthPx, thumbSquashPx)
+                                wall(thumb).at(raw)
+                                if (past != 0f && !motion.reduceMotion) band.pull(past * widthPx, thumbSquashPx)
+                                moved += thumb
+                            }
+                            if (moved.isNotEmpty()) {
+                                if (startHold.held && endHold.held) {
+                                    settle(moved)
+                                } else {
+                                    moved.forEach { emit(it, hold(it).drag) }
                                 }
-                                emit(activeThumb, dragFraction)
-                                if (steps <= 0) texture.at(dragFraction)
+                                if (steps <= 0) moved.forEach { texture(it).at(hold(it).drag) }
                                 // From the values just emitted, which are exact,
                                 // as `pushing` is: in contact while the pair is
                                 // no more than the gap apart.
-                                emitted?.let { now ->
-                                    val apart = fractionOf(now.endInclusive) - fractionOf(now.start)
+                                emitted?.let { next ->
+                                    val apart = fractionOf(next.endInclusive) - fractionOf(next.start)
                                     bump.touching(apart - gapFraction - ContactTolerance)
                                 }
                             }
                         },
-                        onEnd = {
-                            scope.launch {
-                                // **Slower than the stretch, and that is the whole
-                                // fix.** The thumb's drawn width is
-                                // `width·(1−pull) + 1.5r·pull`, so a squash that
-                                // unwinds while `width` is still a stretched capsule
-                                // takes the thumb *out* through the full pill on its way
-                                // home — reported as "snapping to the full-width pill
-                                // before animating back".
+                        onEnd = { id ->
+                            val finger = fingers.remove(id)
+                            if (finger != null) {
+                                val thumb = finger.thumb
+                                if (thumb != Thumb.None) {
+                                    val band = band(thumb)
+                                    scope.launch {
+                                        // **Slower than the stretch, and that is the whole
+                                        // fix.** The thumb's drawn width is
+                                        // `width·(1−pull) + 1.5r·pull`, so a squash that
+                                        // unwinds while `width` is still a stretched capsule
+                                        // takes the thumb *out* through the full pill on its way
+                                        // home — reported as "snapping to the full-width pill
+                                        // before animating back".
+                                        //
+                                        // Matching the two springs was the obvious answer and it
+                                        // is not enough: traced frame by frame, a shared spring
+                                        // still peaks 9.8% over resting size, because `width`
+                                        // starts at `2r·1.25·1.5` and the lerp between a wide
+                                        // number and a narrow one bulges in the middle whatever
+                                        // rate they share.
+                                        //
+                                        // Letting the stretch get home *first* removes the bulge
+                                        // rather than shrinking it. Once `width` is back to `2r`
+                                        // the same expression reads `2r·(1−pull) + 1.5r·pull`,
+                                        // which climbs from the squashed size to the resting one
+                                        // and cannot exceed it. `springGentle` is 300 against
+                                        // `springSnappy`'s 1400 — a little over twice as slow,
+                                        // and critically damped, so the squash eases out from
+                                        // under a wall that is no longer being pushed.
+                                        band.release(motion.springOrTween(motion.springGentle))
+                                    }
+                                }
+                                // A press that never moved is a tap, and a tap
+                                // moves the nearer thumb to it.
                                 //
-                                // Matching the two springs was the obvious answer and it
-                                // is not enough: traced frame by frame, a shared spring
-                                // still peaks 9.8% over resting size, because `width`
-                                // starts at `2r·1.25·1.5` and the lerp between a wide
-                                // number and a narrow one bulges in the middle whatever
-                                // rate they share.
+                                // This is where that belongs, and it is where it now
+                                // happens for *every* tap rather than only for one
+                                // on a collapsed range. Doing it on the press
+                                // committed to an answer before the gesture had said
+                                // whether it was a tap at all, so a press that was
+                                // about to become a drag sent a thumb — sometimes
+                                // the wrong one, near the midpoint — off to meet the
+                                // finger first. Deferred here, a drag never jumps and
+                                // a tap behaves exactly as it did.
                                 //
-                                // Letting the stretch get home *first* removes the bulge
-                                // rather than shrinking it. Once `width` is back to `2r`
-                                // the same expression reads `2r·(1−pull) + 1.5r·pull`,
-                                // which climbs from the squashed size to the resting one
-                                // and cannot exceed it. `springGentle` is 300 against
-                                // `springSnappy`'s 1400 — a little over twice as slow,
-                                // and critically damped, so the squash eases out from
-                                // under a wall that is no longer being pushed.
-                                band.release(motion.springOrTween(motion.springGentle))
-                                // Only now. Released before the spring finished —
-                                // which is what gating on `activeThumb` amounted
-                                // to — the squash is computed and never drawn.
-                                bandThumb = Thumb.None
+                                // Ties still go to the start thumb, as they did when
+                                // the tap was a separate detector: on a collapsed
+                                // range no thumb was ever chosen, and one of them has
+                                // to answer.
+                                val tapped = if (thumb == Thumb.None) Thumb.Start else thumb
+                                if (!finger.moved) emit(tapped, finger.press)
+                                ticker(tapped).reset()
+                                if (thumb != Thumb.None) {
+                                    wall(thumb).reset()
+                                    texture(thumb).reset()
+                                    release(thumb)
+                                }
+                                // The gesture is over when the last finger is.
+                                if (fingers.isEmpty()) {
+                                    bump.reset()
+                                    emitted = null
+                                    currentFinished?.invoke()
+                                }
                             }
-                            // A press that never moved is a tap, and a tap
-                            // moves the nearer thumb to it.
-                            //
-                            // This is where that belongs, and it is where it now
-                            // happens for *every* tap rather than only for one
-                            // on a collapsed range. Doing it in `onStart`
-                            // committed to an answer before the gesture had said
-                            // whether it was a tap at all, so a press that was
-                            // about to become a drag sent a thumb — sometimes
-                            // the wrong one, near the midpoint — off to meet the
-                            // finger first. Deferred here, a drag never jumps and
-                            // a tap behaves exactly as it did.
-                            //
-                            // Ties still go to the start thumb, as they did when
-                            // the tap was a separate detector: on a collapsed
-                            // range no thumb was ever chosen, and one of them has
-                            // to answer.
-                            if (!carrying && !pressFraction.isNaN()) {
-                                emit(
-                                    if (activeThumb == Thumb.None) Thumb.Start else activeThumb,
-                                    pressFraction,
-                                )
-                            }
-                            ticker.reset()
-                            endStop.reset()
-                            bump.reset()
-                            texture.reset()
-                            dragFraction = Float.NaN
-                            pressFraction = Float.NaN
-                            carrying = false
-                            activeThumb = Thumb.None
-                            emitted = null
-                            currentFinished?.invoke()
                         },
                     )
                     .drawWithCache {
@@ -990,7 +1158,7 @@ fun RangeSlider(
                                     // up to one, which is why the shared drawing
                                     // takes a predicate. Not the *only*
                                     // difference from `Slider`: the painter order
-                                    // below and [bandThumb] are the others.
+                                    // below and the per-thumb bands are the others.
                                     covered = { x -> x in bandLeft..bandRight },
                                 )
                             }
@@ -1028,9 +1196,10 @@ fun RangeSlider(
                             // touching and a 21px crescent of the held one
                             // showing either side of it.
                             //
-                            // `Thumb.None` at rest, so the resting order is
-                            // unchanged and no render moves. Two calls rather
-                            // than a list of the two, which was a list a frame.
+                            // Neither held at rest, so the resting order is
+                            // unchanged and no render moves; both held, and
+                            // neither is under the other. Two calls rather than
+                            // a list of the two, which was a list a frame.
                             fun paint(drawn: DrawnThumb) {
                                 sliderThumb(
                                     centreX = drawn.x,
@@ -1046,7 +1215,7 @@ fun RangeSlider(
                                     capsule = pill,
                                 )
                             }
-                            if (activeThumb == Thumb.Start) {
+                            if (startHold.held && !endHold.held) {
                                 paint(endThumb)
                                 paint(startThumb)
                             } else {
@@ -1054,28 +1223,47 @@ fun RangeSlider(
                                 paint(endThumb)
                             }
 
-                            val held = when (labelled.thumb) {
-                                Thumb.Start -> startThumb
-                                Thumb.End -> endThumb
-                                Thumb.None -> null
-                            }
-                            val labelShown = labelProgress.value
-                            if (valueLabel != null && labelShown > 0f && held != null) {
-                                sliderValueLabel(
-                                    text = labelMeasurer.measure(
-                                        valueLabel(if (held === startThumb) value.start else value.endInclusive),
-                                        labelStyle,
-                                    ),
-                                    centreX = held.x,
-                                    thumbTop = centreY - thumbRadiusPx * held.scale,
-                                    progress = labelShown,
-                                    scaleIn = !motion.reduceMotion,
-                                    container = colours.valueLabel,
-                                    paddingHorizontal = labelPaddingH,
-                                    paddingVertical = labelPaddingV,
-                                    gap = labelGap,
-                                    shape = pill,
-                                )
+                            if (valueLabel != null) {
+                                val startShown = startLabel.value
+                                val endShown = endLabel.value
+                                val startText = if (startShown > 0f) labelMeasurer.measure(valueLabel(value.start), labelStyle) else null
+                                val endText = if (endShown > 0f) labelMeasurer.measure(valueLabel(value.endInclusive), labelStyle) else null
+                                // Two up at once — a finger on each thumb — and
+                                // the bubbles are moved apart until they clear,
+                                // each by half the overlap, rather than printing
+                                // one number over the other.
+                                var startCentre = startThumb.x
+                                var endCentre = endThumb.x
+                                if (startText != null && endText != null) {
+                                    fun bubbleWidth(text: TextLayoutResult): Float {
+                                        val height = text.size.height + labelPaddingV * 2f
+                                        return maxOf(text.size.width + labelPaddingH * 2f, height)
+                                    }
+                                    val clearance = (bubbleWidth(startText) + bubbleWidth(endText)) / 2f + labelPaddingH
+                                    val apart = abs(endCentre - startCentre)
+                                    if (apart < clearance) {
+                                        val nudge = (clearance - apart) / 2f
+                                        startCentre -= nudge * sense
+                                        endCentre += nudge * sense
+                                    }
+                                }
+                                fun label(text: TextLayoutResult?, centre: Float, thumb: DrawnThumb, shown: Float) {
+                                    if (text == null) return
+                                    sliderValueLabel(
+                                        text = text,
+                                        centreX = centre,
+                                        thumbTop = centreY - thumbRadiusPx * thumb.scale,
+                                        progress = shown,
+                                        scaleIn = !motion.reduceMotion,
+                                        container = colours.valueLabel,
+                                        paddingHorizontal = labelPaddingH,
+                                        paddingVertical = labelPaddingV,
+                                        gap = labelGap,
+                                        shape = pill,
+                                    )
+                                }
+                                label(startText, startCentre, startThumb, startShown)
+                                label(endText, endCentre, endThumb, endShown)
                             }
                         }
                     }
@@ -1102,8 +1290,8 @@ fun RangeSlider(
                 onSet = { emit(Thumb.Start, fractionOf(it)) },
                 onFinished = { currentFinished?.invoke() },
                 onKeyed = {
-                    labelled.thumb = Thumb.Start
-                    linger.poke()
+                    endLinger.lapse()
+                    startLinger.poke()
                 },
             )
             ThumbSemantics(
@@ -1119,8 +1307,8 @@ fun RangeSlider(
                 onSet = { emit(Thumb.End, fractionOf(it)) },
                 onFinished = { currentFinished?.invoke() },
                 onKeyed = {
-                    labelled.thumb = Thumb.End
-                    linger.poke()
+                    startLinger.lapse()
+                    endLinger.poke()
                 },
             )
         }
@@ -1216,12 +1404,42 @@ private class RangeDrawn(
     val squashEnd: Float,
 )
 
-/** Which thumb a gesture is moving. */
+/** Which thumb a finger is moving. */
 private enum class Thumb { Start, End, None }
 
-/** Which thumb the value label is over. Not state: only the draw reads it. */
-private class LabelledThumb {
+/**
+ * One thumb's hold. State, because the thumb's grab, stretch and detent pull are
+ * drawn from it.
+ */
+@Stable
+private class ThumbHold {
+    /** A finger has this thumb. */
+    var held by mutableStateOf(false)
+
+    /**
+     * Where the finger has taken it, as a fraction, unclamped by the detents —
+     * see [Slider]'s `dragFraction`. `NaN` while no finger has it.
+     */
+    var drag by mutableFloatStateOf(Float.NaN)
+
+    /** The finger has moved it: see [Slider]'s `carrying` — a press moves the value, a drag moves the thumb. */
+    var carrying by mutableStateOf(false)
+}
+
+/**
+ * One finger on the control. Read only by the gesture, so not state.
+ *
+ * @property press Where it landed, kept for the gesture that never moves. With
+ *   the thumbs coincident the choice of thumb is deferred to the first delta's
+ *   direction — and a tap has no deltas at all. Without this, tapping a
+ *   collapsed range does nothing.
+ */
+private class Finger(val press: Float) {
+    /** The thumb it has, or [Thumb.None] until a direction says which. */
     var thumb: Thumb = Thumb.None
+
+    /** It has moved: this finger is a drag, not a tap. */
+    var moved: Boolean = false
 }
 
 /**
