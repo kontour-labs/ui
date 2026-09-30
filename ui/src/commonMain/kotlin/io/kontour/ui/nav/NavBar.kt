@@ -12,6 +12,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,12 +29,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layoutId
@@ -47,12 +58,19 @@ import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SurfaceDefaults
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.components.selection.SliderDefaults
+import io.kontour.ui.interaction.DetentTicker
+import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 import kotlin.math.max
+import kotlinx.coroutines.CoroutineScope
 import kotlin.math.roundToInt
 
 /** What a [NavBar] takes by default. */
@@ -249,6 +267,11 @@ enum class NavBarStyle {
  * @param marker What marks the current destination, and in what shape: a
  *   circle behind the glyph by default, or [NavBarDefaults.destinationMarker]
  *   around the whole destination.
+ * @param markerDraggable Whether the marker can be dragged from one destination
+ *   to another, as a segmented control's thumb can: it follows the finger and
+ *   snaps from destination to destination, with a tick at each, and the one
+ *   under the finger when it lifts is chosen — its `onClick` runs then, once.
+ *   A tap is still a tap.
  * @param action Something the screen does rather than somewhere it goes — a
  *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
  *   bar puts it **beside** the capsule, on the page and centred on the capsule's
@@ -266,6 +289,7 @@ fun NavBar(
     shape: Shape? = null,
     itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
     marker: NavBarMarker = NavBarDefaults.glyphMarker(),
+    markerDraggable: Boolean = true,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
@@ -283,6 +307,7 @@ fun NavBar(
         shape = shape,
         itemWidth = itemWidth,
         marker = marker,
+        markerDraggable = markerDraggable,
         content = content,
     )
 }
@@ -308,9 +333,22 @@ internal fun NavBarLayout(
     shape: Shape? = null,
     itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
     marker: NavBarMarker = NavBarDefaults.glyphMarker(),
+    markerDraggable: Boolean = true,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    val motion = Theme.motion
+    val drag = remember { MarkerDrag() }
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
+    val dragScope = rememberCoroutineScope()
+    // How much of the lean toward the finger is applied: 1 while dragging, 0 at
+    // rest, springing between. Off under reduced motion, as a segmented
+    // control's is: the marker still goes where the finger takes it.
+    val engaged = animateFloatAsState(
+        targetValue = if (drag.dragging && !motion.reduceMotion) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "navMarkerStrain",
+    )
     val keys = remember { NavKeys() }
     // The glyph's box: the marker's size where the marker is behind the glyph,
     // and a circle's where it is around the whole destination.
@@ -355,8 +393,9 @@ internal fun NavBarLayout(
     // A new scope when anything it draws with changes: the destinations are
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
-    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem) {
-        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem)
+    val dragging = if (markerDraggable) DragWiring(drag, ticker, dragScope) else null
+    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, dragging) {
+        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, drag, dragging)
     }
 
     @Composable
@@ -381,6 +420,16 @@ internal fun NavBarLayout(
                 Box(
                     Modifier
                         .fillMaxSize()
+                        // Where the marker is placed, before the lean: in the
+                        // row's coordinates, which the finger shares. Globally,
+                        // because what moves it is its parent: the marker's own
+                        // place inside that never changes.
+                        .onGloballyPositioned { placed -> drag.placed(placed) }
+                        .graphicsLayer {
+                            // No lean under reduced motion: the marker still goes
+                            // where the finger takes it, without reaching for it.
+                            translationX = if (motion.reduceMotion) 0f else drag.lean(engaged.value)
+                        }
                         .clip(markerShape)
                         .background(colours.indicator)
                         .optionalBorder(selectionEdge(), markerShape)
@@ -393,7 +442,10 @@ internal fun NavBarLayout(
                 equal = equal,
                 searchIndex = searchIndex,
                 slotsCentred = !showLabels,
-                modifier = Modifier.selectableGroup(),
+                // The row itself takes no pointer input: a press between two
+                // destinations has to fall through to the surface's blocker
+                // under it. The drag is each destination's; see `BarScope.item`.
+                modifier = Modifier.selectableGroup().onPlaced { drag.row = it },
             ) {
                 scope.content()
                 if (search != null) {
@@ -679,6 +731,9 @@ private class BarScope(
     private val labelGap: Dp,
     private val markerShape: Shape,
     private val coversItem: Boolean,
+    private val drag: MarkerDrag,
+    /** Null when the marker cannot be dragged. */
+    private val dragging: DragWiring?,
 ) : NavBarScope {
 
     @Composable
@@ -697,17 +752,33 @@ private class BarScope(
     ) {
         val text = navLabel(label)
         ClaimNavKey(keys, key)
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = onClick
+            target.enabled = enabled
+            target.selected = selected
+        }
+        DisposableEffect(drag, key) {
+            drag.targets[key] = target
+            onDispose { drag.targets.remove(key) }
+        }
         NavDestination(
             label = text,
             icon = icon,
             selected = selected,
+            // While the marker is dragged, the destination under the finger
+            // wears it — colours and all — and the chosen one waits for the lift.
+            marked = drag.marks(key, selected),
             onClick = onClick,
             markerKey = key,
             colours = colours,
             layout = NavLayout.Stacked,
             showLabel = showLabels,
             indicatorSize = circle,
-            modifier = modifier.layoutId(BarChild.Destination),
+            modifier = modifier
+                .layoutId(BarChild.Destination)
+                .onPlaced { target.coordinates = it }
+                .then(if (dragging != null) Modifier.markerDrag(dragging, target, enabled) else Modifier),
             enabled = enabled,
             selectedIcon = selectedIcon,
             contentDescription = contentDescription,
@@ -747,7 +818,9 @@ private class BarScope(
             label = text,
             icon = icon,
             selected = false,
-            marked = selection.any,
+            // Not a place the marker can be dragged to: while it is being
+            // dragged it is wherever the finger is, never on the group.
+            marked = selection.any && !drag.previewing,
             onClick = { open = !open },
             markerKey = key,
             colours = colours,
@@ -792,6 +865,192 @@ private class BarScope(
                 contentAlignment = Alignment.Center,
             ) { BarSlot(content) }
         }
+    }
+}
+
+/** A destination the marker can be dragged to. Written in composition's apply phase, read by the gesture. */
+private class DragTarget {
+    var coordinates: LayoutCoordinates? = null
+    var onClick: () -> Unit = {}
+    var enabled: Boolean = true
+    var selected: Boolean = false
+}
+
+/** What a destination needs to start dragging the marker. Stable per bar. */
+@Immutable
+private data class DragWiring(val drag: MarkerDrag, val ticker: DetentTicker, val scope: CoroutineScope)
+
+/**
+ * The marker's drag, started from this destination.
+ *
+ * On the destination rather than on the row: a gesture stays with the node it
+ * went down on however far the finger then goes, so the drag carries on across
+ * the others all the same — and the row is left with no pointer input of its
+ * own, so a press *between* destinations still falls through to the surface's
+ * blocker rather than stopping on the row and reaching the page. Sideways only:
+ * a tap stays a tap. A slot — a search — has none, and keeps its own gestures.
+ */
+@Composable
+private fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled: Boolean): Modifier {
+    val drag = wiring.drag
+    val ticker = wiring.ticker
+    return horizontalDragOwning(
+        enabled = enabled,
+        interactionSource = null,
+        scope = wiring.scope,
+        claimsOn = DragClaim.Direction,
+        onStart = { at -> drag.begin(drag.inRow(target, at), ticker) },
+        onDelta = { dx -> drag.move(dx, ticker) },
+        onRelease = { drag.released = true },
+        onEnd = { drag.end(ticker) },
+    )
+}
+
+/**
+ * The bar's marker, dragged: which destination it is over and where the finger
+ * is, as a segmented control's thumb is.
+ *
+ * **The choice waits for the finger to lift.** A segmented control changes its
+ * value at every boundary it crosses, because a value is cheap to change and
+ * change back. A destination is a page: choosing each one the finger passed over
+ * would build and throw away every screen on the way. So the marker, and the
+ * colours that go with it, follow the finger at once, a tick marks each
+ * crossing, and the destination under the finger when it lifts has its
+ * `onClick` run, once. A drag that ends where it started, or is taken away by
+ * something else, changes nothing.
+ *
+ * Only the bar's: a rail scrolls, and a sideways drag is the one thing a
+ * vertical list cannot be sure is not a scroll.
+ */
+@Stable
+private class MarkerDrag {
+    /** The destinations, by key. Not state: read when a finger moves, never in composition. */
+    val targets = LinkedHashMap<Any, DragTarget>()
+
+    /** The row's coordinates: the finger's, and the marker's before its lean. */
+    var row: LayoutCoordinates? = null
+
+    /** The destination under the finger while it drags the marker, or null. */
+    var over: Any? by mutableStateOf(null)
+        private set
+
+    val previewing: Boolean get() = over != null
+
+    /** Whether a finger is dragging the marker. */
+    var dragging: Boolean by mutableStateOf(false)
+        private set
+
+    /** The drag ended with the finger lifting, rather than being taken away. */
+    var released: Boolean = false
+
+    /**
+     * Where the finger is along the row, or NaN before the first drag. Kept
+     * after it lifts, so the lean relaxes out of where it was rather than
+     * losing the number.
+     */
+    private var fingerAt by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The marker's own placement, before the lean; see [placed]. State, read
+     * only by the marker's layer: the marker carries on travelling after the
+     * finger stops, and a lean worked out against where it was mid-journey
+     * would be kept all the way to the end of it.
+     */
+    private var markerLeft by mutableFloatStateOf(Float.NaN)
+    private var markerWidth by mutableFloatStateOf(0f)
+
+    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: selected
+
+    private fun boundsOf(target: DragTarget): Rect? {
+        val row = row ?: return null
+        val at = target.coordinates ?: return null
+        if (!row.isAttached || !at.isAttached) return null
+        return row.localBoundingBoxOf(at, clipBounds = false)
+    }
+
+    /** The enabled destinations, start to end of the row as it is drawn. */
+    private fun ordered(): List<Pair<Any, Rect>> = targets.mapNotNull { (key, target) ->
+        if (!target.enabled) null else boundsOf(target)?.let { key to it }
+    }.sortedBy { it.second.left }
+
+    /** [at], in [target]'s coordinates, along the row. */
+    fun inRow(target: DragTarget, at: Offset): Float {
+        val row = row ?: return at.x
+        val own = target.coordinates ?: return at.x
+        if (!row.isAttached || !own.isAttached) return at.x
+        return row.localPositionOf(own, at).x
+    }
+
+    private fun pick(ticker: DetentTicker) {
+        val all = ordered()
+        if (all.isEmpty()) return
+        val index = all.indices.minBy { kotlin.math.abs(all[it].second.center.x - fingerAt) }
+        ticker.at(index)
+        over = all[index].first
+    }
+
+    /**
+     * The delta that arrives with the claim, already counted: the drag claims
+     * where the finger *is* once it has decided the direction, and then hands
+     * over the movement it gathered deciding — which [begin] has in its
+     * position. Counted twice it put the finger a touch slop ahead of itself.
+     */
+    private var claimed = false
+
+    fun begin(x: Float, ticker: DetentTicker) {
+        released = false
+        claimed = true
+        fingerAt = x.coerceIn(0f, (row?.size?.width ?: 0).toFloat())
+        dragging = true
+        pick(ticker)
+    }
+
+    fun move(dx: Float, ticker: DetentTicker) {
+        if (claimed) {
+            claimed = false
+            return
+        }
+        fingerAt = (fingerAt + dx).coerceIn(0f, (row?.size?.width ?: 0).toFloat())
+        pick(ticker)
+    }
+
+    fun end(ticker: DetentTicker) {
+        val chosen = over?.let { targets[it] }
+        val lifted = released
+        released = false
+        dragging = false
+        ticker.reset()
+        // In one breath with the app's own change, so the marker heads straight
+        // for the destination rather than back to the old one first.
+        over = null
+        if (lifted && chosen != null && chosen.enabled && !chosen.selected) chosen.onClick()
+    }
+
+    /** The marker's placement, in the row's coordinates, as laid out this frame. */
+    fun placed(coordinates: LayoutCoordinates) {
+        val row = row ?: return
+        if (!row.isAttached || !coordinates.isAttached) return
+        val box = row.localBoundingBoxOf(coordinates, clipBounds = false)
+        markerLeft = box.left
+        markerWidth = box.width
+    }
+
+    /**
+     * How far the marker leans toward the finger: [SliderDefaults.DetentPull]
+     * of the way, measured from where the marker **is** rather than from the
+     * destination it belongs to — crossing a boundary sends the marker on its
+     * way, and measured from the new destination the lean would flip sign on
+     * that frame and throw it backwards. Never off the row.
+     */
+    fun lean(engaged: Float): Float {
+        // `engaged` first: at rest it is the only thing read, so a tap's marker
+        // travelling does not redraw this layer at every step.
+        if (engaged == 0f) return 0f
+        val finger = fingerAt
+        if (finger.isNaN() || markerLeft.isNaN() || markerWidth <= 0f) return 0f
+        val width = (row?.size?.width ?: return 0f).toFloat()
+        val pulled = (finger - (markerLeft + markerWidth / 2f)) * SliderDefaults.DetentPull * engaged
+        return pulled.coerceIn(-markerLeft, (width - markerLeft - markerWidth).coerceAtLeast(-markerLeft))
     }
 }
 

@@ -205,9 +205,12 @@ private val barMarker = Knob.Choice("Marker", listOf(false, true), name = { if (
 /** The capsule, or a rounded rectangle. */
 private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })
 
+/** Drag the marker along the bar, and let go on a destination to go there. */
+private val barDrag = Knob.Flag("Drag the marker", initial = true)
+
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded, barDrag),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -226,6 +229,7 @@ internal val NavBarDemo = ComponentDemo(
                 } else {
                     NavBarDefaults.glyphMarker()
                 },
+                markerDraggable = this@ComponentDemo[barDrag],
                 action = if (this@ComponentDemo[barAction]) {
                     {
                         FloatingActionButton(

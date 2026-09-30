@@ -2747,7 +2747,7 @@ public final class io/kontour/ui/nav/NavBarItemWidth : java/lang/Enum {
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;ZLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarMarker {
@@ -2909,7 +2909,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-btZlvrw (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Ljava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavigationSuiteScaffold-iYTjmak (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;ZLjava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
 }

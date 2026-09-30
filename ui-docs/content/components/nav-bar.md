@@ -139,6 +139,25 @@ distance from every edge. A press washes the whole cell rather than the glyph.
 `NavigationSuiteScaffold` passes all three on as `barShape`, `barItemWidth` and
 `barMarker`; a rail's marker stays its own.
 
+### Dragging the marker
+
+The marker can be dragged, as a segmented control's thumb can. Put a finger on
+a destination and slide it sideways: the marker comes with the finger, leaning
+toward it, and snaps from destination to destination with a tick at each, the
+colours following. Let go on one and it is chosen — its `onClick` runs then,
+once.
+
+**The choice waits for the finger to lift.** A segmented control changes its
+value at every boundary it crosses, because a value is cheap to change back. A
+destination is a page: choosing each one the finger passed over would build and
+throw away every screen on the way. A drag that comes back to where it started,
+or that something else takes away, chooses nothing, and a tap is still a tap.
+
+Only sideways, and only from a destination: a slot — a search — keeps its own
+gestures. `markerDraggable = false` turns it off. A rail's marker cannot be
+dragged at all: a rail scrolls, and a drag along it could not be told from a
+scroll.
+
 ### A group in a bar
 
 A `group` is a circle that opens a menu of its destinations above the bar. While
@@ -152,11 +171,15 @@ Destinations are `Role.Tab` inside a `selectableGroup()`. A slot is outside the
 count, so a search is not announced as "3 of 5" among four destinations. A group
 is a `Role.Button` that opens a menu.
 
+Dragging the marker is a shortcut for a finger and adds nothing to the tree:
+each destination is still its own tab, chosen by a screen reader's activation,
+a switch or a key exactly as before.
+
 At high contrast the bar takes an edge. The travelling marker takes an accent outline, `selectionEdge()`,
 because a tint alone is too faint at that tier, and the focus ring is drawn
 thicker.
 
 Under reduced motion the marker does not travel: it fades out and fades up on
-the new destination. The selected icon's slight growth is a short tween with no
+the new destination, and a dragged marker does not lean toward the finger. The selected icon's slight growth is a short tween with no
 overshoot, a press is a tonal wash at every setting, and a group's menu fades in
 rather than growing out of the bar.
