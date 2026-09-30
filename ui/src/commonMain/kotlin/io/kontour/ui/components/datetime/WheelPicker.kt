@@ -74,6 +74,10 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.channels.Channel
 
 /**
  * A scrolling drum of values, snapping to the one in the middle.
@@ -134,6 +138,112 @@ fun <T> WheelPicker(
     visibleItems: Int = WheelPickerDefaults.VisibleItems,
     itemHeight: Dp = WheelPickerDefaults.ItemHeight,
     infinite: Boolean = false,
+) = WheelDrum(
+    items = items,
+    selectedIndex = selectedIndex,
+    onSelectedIndexChange = onSelectedIndexChange,
+    itemLabel = itemLabel,
+    modifier = modifier,
+    enabled = enabled,
+    contentDescription = contentDescription,
+    visibleItems = visibleItems,
+    itemHeight = itemHeight,
+    infinite = infinite,
+)
+
+/**
+ * A drag begun somewhere other than on the drum, played into it as though it
+ * had been: a [io.kontour.ui.components.text.WheelSelect]'s closed field, which
+ * the drum opens around while the finger is still moving.
+ *
+ * A session is the deltas of one drag and then the velocity it was let go at,
+ * and the drum plays it inside its own `scroll`, so the ticks, the end stop's
+ * give and the fling that lands on a row are the ones a finger on the drum
+ * gets — nothing about them is imitated. Buffered, because the drum is composed
+ * a frame after the drag claims, in an overlay.
+ */
+internal class WheelDrive {
+    internal sealed interface Event {
+        class Drag(val dy: Float) : Event
+        class Release(val velocity: Float) : Event
+    }
+
+    internal val sessions = Channel<Channel<Event>>(Channel.UNLIMITED)
+    private var current: Channel<Event>? = null
+
+    /** Called when a session's drum has come to rest on a row. */
+    var onSettled: () -> Unit = {}
+
+    fun begin() {
+        current?.close()
+        val session = Channel<Event>(Channel.UNLIMITED)
+        current = session
+        sessions.trySend(session)
+    }
+
+    /** The finger moved by [dy], down being positive. */
+    fun drag(dy: Float) {
+        current?.trySend(Event.Drag(dy))
+    }
+
+    /**
+     * Plays [session]'s movement through [move], a frame at a time, until the
+     * finger lets go, and returns the velocity it let go at.
+     *
+     * **Inside the frame callback, not as each delta arrives.** A delta applied
+     * where the channel hands it over is applied on whichever thread resumed the
+     * coroutine — in a desktop scene that is the event thread, remeasuring the
+     * drum while another thread draws it. Done in `withFrameNanos` it happens
+     * where every animated scroll does, on the thread that renders, and in the
+     * same frame the finger moved in.
+     */
+    internal suspend fun play(session: Channel<Event>, move: (Float) -> Unit): Float {
+        while (true) {
+            var letGo: Float? = null
+            withFrameNanos {
+                while (letGo == null) {
+                    val next = session.tryReceive()
+                    // Closed without a release: a new drag began before this
+                    // one let go, and this one lands where it is.
+                    if (next.isClosed) letGo = 0f
+                    when (val event = next.getOrNull() ?: break) {
+                        is Event.Drag -> move(event.dy)
+                        is Event.Release -> letGo = event.velocity
+                    }
+                }
+            }
+            letGo?.let { return it }
+        }
+    }
+
+    /** And lifted at [velocity], down being positive; zero for a drag taken away. */
+    fun release(velocity: Float) {
+        val session = current ?: return
+        session.trySend(Event.Release(velocity))
+        session.close()
+        current = null
+    }
+}
+
+/**
+ * [WheelPicker], with the two things only the library's own callers need: a
+ * [drive] for a drag that started elsewhere, and [onCentreTap] for a press on the
+ * row already chosen, which on a plain wheel does nothing.
+ */
+@Composable
+internal fun <T> WheelDrum(
+    items: List<T>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    itemLabel: (T) -> String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    contentDescription: String? = null,
+    visibleItems: Int = WheelPickerDefaults.VisibleItems,
+    itemHeight: Dp = WheelPickerDefaults.ItemHeight,
+    infinite: Boolean = false,
+    drive: WheelDrive? = null,
+    onCentreTap: (() -> Unit)? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
@@ -161,6 +271,8 @@ fun <T> WheelPicker(
             contentDescription = contentDescription,
             visibleItems = visibleItems,
             itemHeight = itemHeight,
+            drive = drive,
+            onCentreTap = onCentreTap,
         )
         return
     }
@@ -469,6 +581,27 @@ fun <T> WheelPicker(
      * that scrolls because a drum ran out of numbers is a page nobody asked to
      * scroll.
      */
+    // A drag from elsewhere, played in the drum's own scroll: the same payback,
+    // the same give past the ends, the same fling onto a row as `draggable`
+    // below and the list's own scrolling have.
+    if (drive != null) {
+        LaunchedEffect(drive, listState) {
+            for (session in drive.sessions) {
+                listState.scroll {
+                    val letGo = drive.play(session) { dy ->
+                        val offered = dy - band.payBack(dy)
+                        val consumed = -scrollBy(-offered)
+                        val leftOver = offered - consumed
+                        if (leftOver != 0f) band.pull(leftOver, bandLimit)
+                    }
+                    scope.launch { band.release(homeSpec) }
+                    with(flingBehavior) { performFling(-letGo) }
+                }
+                drive.onSettled()
+            }
+        }
+    }
+
     val containment = remember(band, bandLimit, wheelMotion) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -659,7 +792,10 @@ fun <T> WheelPicker(
                 detectTapGestures { at ->
                     val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
                     val target = (centredIndex + rows).coerceIn(0, items.lastIndex)
-                    if (target == centredIndex) return@detectTapGestures
+                    if (target == centredIndex) {
+                        if (rows == 0) onCentreTap?.invoke()
+                        return@detectTapGestures
+                    }
                     scope.launch {
                         driving = true
                         try {
@@ -775,6 +911,8 @@ private fun <T> InfiniteWheel(
     contentDescription: String?,
     visibleItems: Int,
     itemHeight: Dp,
+    drive: WheelDrive? = null,
+    onCentreTap: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
@@ -830,6 +968,7 @@ private fun <T> InfiniteWheel(
      */
     val tapToTurn: (Offset, Float) -> Unit = { at, height ->
         val rows = ((at.y - height / 2f) / itemPx).roundToInt()
+        if (rows == 0) onCentreTap?.invoke()
         if (rows != 0) {
             scope.launch {
                 offset.animateTo(
@@ -883,6 +1022,25 @@ private fun <T> InfiniteWheel(
             val nearest = (offset.value / itemPx).roundToInt() * itemPx
             if (offset.value != nearest) {
                 offset.animateTo(nearest, motion.springOrTween(motion.springSnappy))
+            }
+        }
+    }
+
+    // A drag from elsewhere, played through the same scrollable state: the
+    // ticks follow `isScrollInProgress`, and the settle above follows its end.
+    if (drive != null) {
+        val fling = ScrollableDefaults.flingBehavior()
+        LaunchedEffect(drive, scrollState) {
+            for (session in drive.sessions) {
+                scrollState.scroll {
+                    // Reversed, as the scrollable's own input is.
+                    val letGo = drive.play(session) { dy -> scrollBy(-dy) }
+                    with(fling) { performFling(-letGo) }
+                }
+                // The settle onto a row starts once the scroll has ended.
+                withFrameNanos { }
+                snapshotFlow { offset.isRunning }.first { !it }
+                drive.onSettled()
             }
         }
     }

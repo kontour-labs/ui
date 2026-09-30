@@ -147,6 +147,7 @@ import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
+import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
@@ -1357,6 +1358,25 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
                 label = "When",
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "WheelSelect",
+            role = Role.DropdownList,
+            expectsMinimumTarget = false,
+            control = ControlLocator.Clickable,
+            accessibleName = "Passengers",
+        ) { modifier, enabled, onClick ->
+            WheelSelect(
+                value = 2,
+                options = (1..9).toList(),
+                onValueChange = { onClick() },
+                modifier = modifier,
+                enabled = enabled,
+                label = "Passengers",
             )
         }
     )

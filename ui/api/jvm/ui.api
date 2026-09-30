@@ -1786,6 +1786,10 @@ public final class io/kontour/ui/components/text/TransformationsKt {
 	public static final fun timeMask ()Landroidx/compose/foundation/text/input/OutputTransformation;
 }
 
+public final class io/kontour/ui/components/text/WheelSelectKt {
+	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+}
+
 public final class io/kontour/ui/foundation/ColourSpacesKt {
 	public static final fun colourFromHex (Ljava/lang/String;)Landroidx/compose/ui/graphics/Color;
 	public static final fun toColour (Lio/kontour/ui/foundation/Hsl;F)J
@@ -2069,6 +2073,7 @@ public final class io/kontour/ui/foundation/SystemIcons {
 	public final fun getChevronLeft ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronRight ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronUp ()Landroidx/compose/ui/graphics/vector/ImageVector;
+	public final fun getChevronUpDown ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getClose ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getDanger ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getDash ()Landroidx/compose/ui/graphics/vector/ImageVector;

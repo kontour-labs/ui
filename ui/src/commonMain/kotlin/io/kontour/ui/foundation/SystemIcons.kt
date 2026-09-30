@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Dots
+import com.composables.icons.tabler.outline.Selector
 import com.composables.icons.tabler.outline.AlertCircle
 import com.composables.icons.tabler.outline.AlertTriangle
 import com.composables.icons.tabler.outline.ArrowDown
@@ -115,6 +116,13 @@ object SystemIcons {
 
     /** Collapses upward. */
     val ChevronUp: ImageVector get() = Tabler.Outline.ChevronUp
+
+    /**
+     * Up and down at once — a field whose value turns on a wheel either way,
+     * [io.kontour.ui.components.text.WheelSelect]'s, rather than one that drops
+     * a list below it.
+     */
+    val ChevronUpDown: ImageVector get() = Tabler.Outline.Selector
 
     /** Physically rightward, regardless of layout direction. */
     val ChevronRight: ImageVector get() = Tabler.Outline.ChevronRight

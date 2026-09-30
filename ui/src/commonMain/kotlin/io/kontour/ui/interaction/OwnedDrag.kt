@@ -334,9 +334,16 @@ internal fun Modifier.verticalDragOwning(
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
+    /** The vertical velocity the finger lifted with, before [onEnd]. See [horizontalDragOwning]. */
+    onRelease: (Float) -> Unit = {},
 ): Modifier {
     val currentDelta by rememberUpdatedState(onDelta)
-    return ownedDrag(enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd, along = Axis.Vertical) { delta ->
+    val currentRelease by rememberUpdatedState(onRelease)
+    return ownedDrag(
+        enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd,
+        onRelease = { velocity -> currentRelease(velocity.y) },
+        along = Axis.Vertical,
+    ) { delta ->
         if (delta.y != 0f) currentDelta(delta.y)
     }
 }

@@ -21,6 +21,7 @@ import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
+import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextFieldVariant
 
@@ -108,6 +109,20 @@ fun SelectBasics() {
         options = modes,
         onValueChange = { mode = it },
         label = "Mode",
+    )
+}
+
+@Composable
+fun WheelSelectBasics() {
+    var passengers by remember { mutableStateOf(2) }
+
+    // A tap opens the wheel over the field; a drag up or down on the closed
+    // field turns it straight away, and it folds back once it comes to rest.
+    WheelSelect(
+        value = passengers,
+        options = (1..9).toList(),
+        onValueChange = { passengers = it },
+        label = "Passengers",
     )
 }
 

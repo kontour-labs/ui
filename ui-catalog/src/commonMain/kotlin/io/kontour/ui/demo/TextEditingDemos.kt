@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -30,6 +31,7 @@ import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
+import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.TextFieldVariant
@@ -198,6 +200,30 @@ internal val SelectDemo = ComponentDemo(slug = "select") {
     }
 }
 
+/** A wheel that wraps round, as hours and months do. */
+private val wheelInfinite = Knob.Flag("Wraps round")
+
+/** Whether a drag on the closed field turns the wheel, or only a tap opens it. */
+private val wheelDrag = Knob.Flag("Drag to pick", initial = true)
+
+internal val WheelSelectDemo = ComponentDemo(slug = "wheel-select", knobs = listOf(wheelDrag, wheelInfinite)) {
+    var minutes by remember { mutableStateOf(15) }
+    // Centred, so the wheel has room to open either side of the field; see
+    // `MenuRoom` for why the card keeps that room whether it is open or not.
+    Box(Modifier.fillMaxWidth().height(MenuRoom), contentAlignment = Alignment.Center) {
+        WheelSelect(
+            value = minutes,
+            options = (0..55 step 5).toList(),
+            onValueChange = { minutes = it },
+            label = "Remind me before",
+            optionLabel = { "$it min" },
+            dragToPick = this@ComponentDemo[wheelDrag],
+            infinite = this@ComponentDemo[wheelInfinite],
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
 internal val MultiSelectDemo = ComponentDemo(slug = "multi-select") {
     var modes by remember { mutableStateOf(setOf(Mode.Bus, Mode.Train)) }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
@@ -271,6 +297,7 @@ internal val textEditingDemos = listOf(
     TextAreaDemo,
     SpecialisedFieldsDemo,
     SelectDemo,
+    WheelSelectDemo,
     MultiSelectDemo,
     ComboboxDemo,
     ImeChainDemo,
