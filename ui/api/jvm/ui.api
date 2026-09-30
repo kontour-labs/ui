@@ -3384,12 +3384,12 @@ public final class io/kontour/ui/sheet/DragHandleDefaults {
 
 public abstract interface class io/kontour/ui/sheet/SheetContentScope : androidx/compose/foundation/layout/ColumnScope {
 	public abstract fun part (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
-	public abstract fun pinned (Lio/kontour/ui/sheet/SheetPin;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun pinned-iJQMabo (Lio/kontour/ui/sheet/SheetPin;JLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/sheet/SheetContentScope$ComposeDefaultImpls {
 	public static final fun part$default (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
-	public static final fun pinned$default (Lio/kontour/ui/sheet/SheetPin;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun pinned$default-sW7UJKQ (Lio/kontour/ui/sheet/SheetPin;JLkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/sheet/SheetDetent {

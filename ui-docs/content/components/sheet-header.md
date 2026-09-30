@@ -36,20 +36,22 @@ extra — lined up correctly.
 
 ---
 
-## The same space all round
+## The space round it
 
-**In a sheet, the header has the sheet's inset on every side of what it draws.**
-`BottomSheetDefaults.ContentPadding`, 16dp: from the sheet's side to the title,
-from the icon's edge to the sheet's other side, from the sheet's top edge to the
-header's row, and from the row to the bottom of a sheet collapsed to the header.
-The handle's band above it is its top padding, so it adds none of its own there.
+**In a sheet, the header has the sheet's inset at the sides of what it draws and
+below it, and the handle's band above.** `BottomSheetDefaults.ContentPadding`,
+16dp, from the sheet's side to the title, from the icon's edge to the sheet's
+other side, and from the header's row to the bottom of a sheet collapsed to it.
+Above, the drag handle's 24dp band is the header's top padding, so it adds none
+of its own there: the row starts at the band's foot, with the handle in the middle
+of the band over it.
 
 It measures to what is drawn rather than to what is laid out. A close button is a
 48dp target round a 24dp icon, and the 12dp of nothing above the icon used to sit
-under the handle's own 24dp row and the header's padding: 44dp above the title,
-16 beside it. The header now gives that slack back, reaching up into the band
-where nothing is drawn — and the button keeps all 48dp of its target, since the
-header is on top of the band.
+under the handle's band and the header's padding: 44dp above the title, 16 beside
+it. The header now gives that slack back, reaching up into the band where nothing
+is drawn — and the button keeps all 48dp of its target, since the header is on top
+of the band.
 
 Outside a sheet with a handle it has the inset above as well as below.
 

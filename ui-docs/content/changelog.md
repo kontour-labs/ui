@@ -80,14 +80,13 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   Carried past the point of no return by a sideways scroll or a two-finger pan,
   the row runs its outermost action when the gesture ends there, as it does
   under a finger. Before, a scroll could open the actions but never run one.
-- **A bottom sheet has the same 16dp all round a collapsed header or pinned
-  part**, `BottomSheetDefaults.ContentPadding`, and no forehead. The handle's band
-  is the content's top padding: 16dp where the handle was a 24dp row of its own
-  (`DragHandleDefaults.Target` is 16dp). A `SheetHeader` measures to what it
-  draws, so its close button's empty top reaches into the band, and it has 16dp
-  below. Pinned parts get the inset at the sides and below from the sheet. Before,
-  a collapsed header had 44dp above its title and 16dp beside it. Content that
-  starts a sheet under a handle begins 8dp higher than it did.
+- **A bottom sheet's header has no forehead.** The drag handle's 24dp band is
+  the content's top padding, and a `SheetHeader` under it adds nothing more: it
+  measures to what it draws, so its close button's empty top reaches into the
+  band, and its title is 16dp higher than it was. It has
+  `BottomSheetDefaults.ContentPadding`, 16dp, beside it and below it, and so do
+  pinned parts. Before, a collapsed header had 44dp above its title and 16dp
+  beside it.
 - **A bottom sheet is at most 480dp wide on a wide window**, a side sheet's
   width, where it was 640dp: half of a modest desktop. Set
   `ComponentDefaults.sheetMaxWidth` to keep the old width.
@@ -106,8 +105,10 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   double click.
 - `pinned { }` in a sheet's content: a part pinned to the bottom of what the
   sheet shows, or with `SheetPin.Top` under its handle, drawn over the content,
-  which scrolls behind it. `SheetDetent.pinned()` is the size that shows the
-  pinned parts and nothing else: a sheet that collapses to its search field. See
+  which scrolls behind it. On the sheet's colour, or with
+  `containerColour = Color.Transparent` the content goes under it and shows
+  round it. `SheetDetent.pinned()` is the size that shows the pinned parts and
+  nothing else: a sheet that collapses to its search field. See
   [`BottomSheet`](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind).
 - `SelectionRow(onClick)`, and `position` on both `SelectionRow` overloads, so
   a group can mix toggles, rows that open a choice, and plain rows.

@@ -176,14 +176,18 @@ object DragHandleDefaults {
      * platform minimum, and a header that reserved 48dp for a decorative bar
      * would push every sheet's content down by that much.
      *
-     * 16dp, the sheet's [BottomSheetDefaults.ContentPadding]: in a sheet the
-     * handle is the band above the content, and that band is the content's top
-     * padding, the same as its sides. It was 24dp, a row of its own over a header
-     * that then added its own padding, and a collapsed sheet had a forehead —
-     * *"a fair bit of extra space between the top of the sheet header … and the
-     * sheet handle"*. Full width, so 16dp is still easy to land on.
+     * In a sheet it is the band above the content, and the band is the content's
+     * top padding: nothing under it adds any more. That is what took the
+     * forehead away — *"a fair bit of extra space between the top of the sheet
+     * header … and the sheet handle"* — which was this band with a header's own
+     * padding and its close button's slack stacked under it.
+     *
+     * 24dp, with the bar in the middle of it. It was 16dp for a while, the same
+     * as the sheet's sides, and the bar then sat 6dp over the content — *"the top
+     * of it looks a bit cramped now"*. So the top is the one side with more than
+     * [BottomSheetDefaults.ContentPadding], by the handle's own room.
      */
-    val Target: Dp = 16.dp
+    val Target: Dp = 24.dp
 }
 
 /**

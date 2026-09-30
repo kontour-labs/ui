@@ -50,8 +50,8 @@ class SheetPinnedTest {
     /**
      * And with the same space all round it: *"when the sheet is collapsed and only
      * the header (or the part that is pinned) is shown, padding should be uniform
-     * around that part"*. The handle's band above, the sheet's inset beside and
-     * below, all [Inset].
+     * around that part"*. The sheet's inset beside and below, [Inset], and the
+     * handle's band above, [Band].
      */
     @Test
     fun collapsedTheSheetIsTheHandleAndThePinnedPart() {
@@ -64,7 +64,7 @@ class SheetPinnedTest {
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             val first = onNodeWithTag(row(0)).getBoundsInRoot()
             val sheetTop = window.bottom - with(density) { sheet.visibleHeight.toDp() }
-            near(Inset, bar.top - sheetTop, "the space above the bar, from the sheet's top edge")
+            near(Band, bar.top - sheetTop, "the space above the bar, from the sheet's top edge")
             // From the sheet's side, which the rows fill: on this wide window the
             // sheet is capped and centred.
             near(Inset, bar.left - first.left, "the space beside the bar")
@@ -198,6 +198,9 @@ class SheetPinnedTest {
 
         /** `BottomSheetDefaults.ContentPadding` in the default theme. */
         val Inset = 16.dp
+
+        /** `DragHandleDefaults.Target`: the handle's band, the space above. */
+        val Band = 24.dp
         val RowHeight = 48.dp
 
         /** Far from the handle and the bar together, so the control can tell them apart. */

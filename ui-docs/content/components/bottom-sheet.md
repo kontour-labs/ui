@@ -136,8 +136,12 @@ BottomSheet(state = sheet) { padding ->
     // Collapsed, it is all there is.
     pinned { SearchField(query, placeholder = "Search stops") }
     // The padding has grown by the field's height, so the last row
-    // scrolls out from behind it.
-    LazyColumn(contentPadding = padding) { stopRows() }
+    // scrolls out from behind it. At the sides, the sheet's inset, the
+    // same as the field's.
+    LazyColumn(
+        modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+        contentPadding = padding,
+    ) { stopRows() }
 }
 ```
 
@@ -152,21 +156,31 @@ down past the point where it would cover the handle, it stops there and leaves
 with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
 starts.
 
-**It is drawn over the content, on the sheet's own colour, with the sheet's inset
-round it.** The sheet pads it by `BottomSheetDefaults.ContentPadding` at the sides
-and below, and the handle's band above is the space over it, so a sheet collapsed
-to its search field shows the field with the same 16dp all round. Whatever scrolls
-behind it is hidden rather than showing through; once a bottom part has risen off
-the band, it has the inset in the sheet's colour above it too, so the content
-never meets it edge to edge. The sheet's colour runs the full
-width and, at the bottom, down through the safe area. At high contrast a line
-marks the edge the content passes behind, where the two grounds would otherwise
-be the same colour.
+**It is drawn over the content, with the sheet's inset round it.** The sheet pads
+it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
+drag handle's 24dp band above is the space over it. A sheet collapsed to its
+search field shows the field with the handle in the middle of the band above it
+and 16dp beside and below it.
+
+**On the sheet's own colour by default**, so whatever scrolls behind it is hidden
+rather than showing through. Once a bottom part has risen off the band, it has the
+inset in the sheet's colour above it too, so the content never meets it edge to
+edge. The colour runs the full width and, at the bottom, down through the safe
+area. At high contrast a line marks the edge the content passes behind, where the
+two grounds would otherwise be the same colour.
+
+**`containerColour = Color.Transparent` lets the content go under it** and show
+round it, with only the part itself — a search field's own ground — drawn over
+the rows. Asked for as *"the ability for the content to go under the pinned
+item"*. The padding is the same either way, so the last row can still be scrolled
+clear of the part. Any other colour is drawn where the sheet's would be.
 
 **The padding the content is handed grows by the pinned parts' heights**, and by
 the inset above a bottom part. A `LazyColumn` given it as `contentPadding` scrolls
 its first and last rows out from behind them, just as it does for the safe area. Content that ignores the padding
-runs under them.
+runs under them. The padding has no inset at the sides, so rows that should line
+up with the pinned part take `BottomSheetDefaults.ContentPadding` there
+themselves, as the example does.
 
 **`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
 whatever is pinned to the top, and whatever is pinned to the bottom with the

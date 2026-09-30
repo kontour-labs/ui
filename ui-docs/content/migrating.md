@@ -120,20 +120,18 @@ room, and keeps `collapseProgress(listState)`. See
 
 ### Check: the space round a sheet's content
 
-A bottom sheet keeps one inset round its content,
-`BottomSheetDefaults.ContentPadding`, which is 16dp. The band the handle sits in
-is the content's top padding: 16dp, where the handle used to be a 24dp row of
-its own. A `SheetHeader` has 16dp above and below what it draws. Before, a
-collapsed header had 44dp above its title and 16dp beside it.
+The drag handle's 24dp band is the content's top padding, as it was, and a
+`SheetHeader` under it no longer adds padding of its own, or its close button's
+empty space, on top of it. Its title is 16dp higher than in 0.2. Beside it and
+below it is the sheet's inset, `BottomSheetDefaults.ContentPadding`, 16dp.
+Before, a collapsed header had 44dp above its title and 16dp beside it.
 
-- **Content under a handle starts 8dp higher.** A peek set with
-  `sheetPeekAnchor` follows on its own. A peek written as a number may want 8dp
-  less.
+- **A header is 20dp shorter.** A peek set with `sheetPeekAnchor` follows on its
+  own. A peek written as a number shows more of what is under the header.
 - **A `SheetHeader` padded by its container is now padded twice.** Make it the
   first thing in the sheet's content, and pad what follows it instead, as below.
 - **A header of your own** wants `BottomSheetDefaults.ContentPadding` at its
   sides and below, and nothing above: the handle's band is the space above it.
-- **`DragHandleDefaults.Target` is 16dp,** from 24dp.
 
 ```kotlin
 // 0.2: the column's padding reached the header too

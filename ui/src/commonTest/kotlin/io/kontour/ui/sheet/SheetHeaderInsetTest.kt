@@ -25,14 +25,17 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * A sheet collapsed to its header shows the header with the same space all round.
+ * A sheet collapsed to its header shows the header with the same space round it,
+ * and the handle's band above it.
  *
  * Asked for as *"less of a forehead … there's a fair bit of extra space between the
  * top of the sheet header (or whatever content is peeking), and the sheet handle"*,
  * and *"padding should be uniform around that part, and whatever that padding value
  * is should stay throughout all sheets"*. The handle was a 24dp row, the header
  * added 4dp of its own, and its 48dp close button centred the title 12dp further
- * down: 40dp over the title against 16 beside it.
+ * down: 40dp over the title against 16 beside it. Now the band is all there is
+ * above: 24dp, the handle's room, since 16 left the handle sitting on the title —
+ * *"the top of it looks a bit cramped now"*.
  *
  * Measured from the header's drawn row — the close button's 24dp icon, the
  * tallest thing in it, with the title's line centred on it: from the sheet's top
@@ -56,7 +59,7 @@ class SheetHeaderInsetTest {
             val sheetTop = window.bottom - with(density) { sheet.visibleHeight.toDp() }
             // The row is the icon's height; the title's line sits centred in it.
             val centring = (Icon - (title.bottom - title.top)) / 2
-            near(Inset + centring, title.top - sheetTop, "above the title, from the sheet's top edge")
+            near(Band + centring, title.top - sheetTop, "above the title, from the sheet's top edge")
             near(Inset, title.left - body.left, "beside the title, from the sheet's side")
             near(Inset + centring, window.bottom - title.bottom, "below the title, to the bottom of the collapsed sheet")
         }
@@ -74,7 +77,7 @@ class SheetHeaderInsetTest {
             val title = onNodeWithText(Title, useUnmergedTree = true).getBoundsInRoot()
             val sheetTop = window.bottom - with(density) { sheet.visibleHeight.toDp() }
             val centring = (Icon - (title.bottom - title.top)) / 2
-            near(Inset + centring, title.top - sheetTop, "above a centred title")
+            near(Band + centring, title.top - sheetTop, "above a centred title")
             near(Inset + centring, window.bottom - title.bottom, "below a centred title")
         }
     }
@@ -113,6 +116,9 @@ class SheetHeaderInsetTest {
         const val Title = "Perth Underground"
         const val Body = "body"
         val Inset = 16.dp
+
+        /** `DragHandleDefaults.Target`: the handle's band, the space above. */
+        val Band = 24.dp
 
         /** The close button's icon, the tallest thing the header draws. */
         val Icon = 24.dp

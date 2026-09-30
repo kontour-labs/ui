@@ -24,6 +24,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
@@ -192,7 +193,11 @@ fun BottomSheetPinnedSearch() {
         // Collapsed, it is all there is.
         pinned { SearchField(query, placeholder = "Search stops") }
         // The padding has grown by the field's height, so the last row
-        // scrolls out from behind it.
-        LazyColumn(contentPadding = padding) { stopRows() }
+        // scrolls out from behind it. At the sides, the sheet's inset, the
+        // same as the field's.
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+            contentPadding = padding,
+        ) { stopRows() }
     }
 }

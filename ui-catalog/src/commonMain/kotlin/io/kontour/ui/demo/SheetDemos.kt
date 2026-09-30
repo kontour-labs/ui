@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -38,6 +39,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
@@ -158,9 +160,15 @@ private val sheetControlsAlignment =
  */
 private val sheetPinnedSearch = Knob.Flag("Pinned search")
 
+/**
+ * The pinned field on no ground of its own, so the list goes under it and shows
+ * round it. Does nothing without the field.
+ */
+private val sheetUnderPinned = Knob.Flag("Content under the field")
+
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetPinnedSearch),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetPinnedSearch, sheetUnderPinned),
 ) {
     val presentation = this[sheetPresentation]
     val pinnedSearch = this[sheetPinnedSearch]
@@ -199,12 +207,19 @@ internal val BottomSheetDemo = ComponentDemo(
             },
         ) { padding ->
             if (pinnedSearch) {
-                // Over the list, on the sheet's own colour, on the bottom of
-                // what the sheet shows at every size.
-                pinned { SearchField(query, placeholder = "Search stops") }
+                // Over the list, on the bottom of what the sheet shows at every
+                // size: on the sheet's own colour, or on nothing with the list
+                // going under it.
+                pinned(
+                    containerColour = if (this@ComponentDemo[sheetUnderPinned]) Color.Transparent else Color.Unspecified,
+                ) { SearchField(query, placeholder = "Search stops") }
                 // The padding grows by the field's height, so the last stop
-                // scrolls out from behind it.
-                LazyColumn(contentPadding = padding) {
+                // scrolls out from behind it; the sides are the sheet's inset,
+                // the same as the field's.
+                LazyColumn(
+                    modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+                    contentPadding = padding,
+                ) {
                     items(PinnedStops) { stop ->
                         ListItem(onClick = { echo(stop) }) { +stop }
                     }
