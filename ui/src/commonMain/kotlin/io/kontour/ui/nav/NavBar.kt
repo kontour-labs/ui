@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
@@ -230,6 +231,25 @@ internal fun NavBarLayout(
     val rowArrangement = arrangement ?: NavBarDefaults.arrangementFor(spans)
     val hug = style == NavBarStyle.Floating && !spans
 
+    // **The capsule's ends, as much room as between two circles.** They were
+    // `sm` on top of the arrangement's own spacing, which on a phone spreads the
+    // destinations *evenly* — with a share of the slack before the first and
+    // after the last as well as between — so each end had its share *and* the
+    // padding: about a third more room than between two circles, reported as
+    // too much width on either side of the items. What is seen is the circle,
+    // not its touch target, so the sum is done in circles: a destination's
+    // target is wider than its circle by `inset` each side. Spread evenly, the
+    // arrangement's own share is at the ends already, and the padding only has
+    // to match what the targets add between two circles. Gathered in the middle
+    // of a wider window, the ends take the whole gap. A caller's own
+    // arrangement keeps the old padding, since it is not this sum.
+    val inset = ((Theme.sizing.minTouchTarget - circle.width) / 2).coerceAtLeast(0.dp)
+    val floatingEnds = when {
+        arrangement != null -> Theme.spacing.sm
+        spans -> inset
+        else -> NavBarDefaults.ItemGap + inset
+    }
+
     // A new scope when anything it draws with changes: the destinations are
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
@@ -322,7 +342,7 @@ internal fun NavBarLayout(
                 shadow = Theme.elevation.high,
             ) {
                 Destinations(
-                    Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
+                    Modifier.padding(horizontal = floatingEnds, vertical = Theme.spacing.xs),
                     inlineAction = null,
                 )
             }
@@ -388,8 +408,31 @@ private fun BarGround(
         // A floating bar is `surface` on `background` with a shadow for an
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
         border = contrastEdge(),
-        content = content,
-    )
+    ) {
+        // **A tap on the bar is the bar's.** Between two destinations there is
+        // nothing to press, and with nothing there to take it a tap went
+        // through to whatever the page had under the bar — a row opened from
+        // underneath its navigation. So the surface has a floor: a layer under
+        // the destinations that takes every tap reaching it, which is only
+        // those that land where no destination is. Under them rather than
+        // around them, because a parent that took the taps would take them from
+        // the destinations too — a parent consuming after its children is a
+        // press they give up on. And inside the surface, so it is the capsule's
+        // shape that stops a tap and not its box: just off the rounded ends is
+        // still the page.
+        Box(propagateMinConstraints = true) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                        }
+                    },
+            )
+            content()
+        }
+    }
 }
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */
