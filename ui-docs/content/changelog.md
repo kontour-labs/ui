@@ -24,7 +24,15 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.3.0 — 30 September 2026
+
+Sheets that pin a part and keep one inset, a nav bar you can drag across, three
+new components, and one break: `SettingRow`. [Migrating](migrating.md#02-to-03)
+has everything an upgrade from 0.2 has to change, as code.
 
 ### Breaking
 

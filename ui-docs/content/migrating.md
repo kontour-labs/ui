@@ -17,8 +17,9 @@ from the version the app is on.
 
 ## 0.2 to 0.3
 
-From 0.2.2 to 0.3.0. One component is removed, seven take new parameters, and a
-few behaviours changed that an app may have been built around.
+From 0.2.2 to 0.3.0, released on 30 September 2026. One component is removed,
+seven take new parameters, and a few behaviours changed that an app may have
+been built around.
 
 ### Before you start
 
