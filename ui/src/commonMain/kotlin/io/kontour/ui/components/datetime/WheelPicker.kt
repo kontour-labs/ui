@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.SnapPosition
@@ -35,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,9 +76,10 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.gestures.ScrollableDefaults
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.Channel
 
 /**
@@ -171,8 +174,12 @@ internal class WheelDrive {
     internal val sessions = Channel<Channel<Event>>(Channel.UNLIMITED)
     private var current: Channel<Event>? = null
 
-    /** Called when a session's drum has come to rest on a row. */
-    var onSettled: () -> Unit = {}
+    /**
+     * Whether the drum is moving — under a finger, in a fling, or settling onto
+     * a row — whoever moved it. Set by the drum; state, so a reader is told when
+     * it changes.
+     */
+    var moving: () -> Boolean by mutableStateOf({ false })
 
     fun begin() {
         current?.close()
@@ -585,19 +592,26 @@ internal fun <T> WheelDrum(
     // the same give past the ends, the same fling onto a row as `draggable`
     // below and the list's own scrolling have.
     if (drive != null) {
+        SideEffect { drive.moving = { listState.isScrollInProgress } }
         LaunchedEffect(drive, listState) {
             for (session in drive.sessions) {
-                listState.scroll {
-                    val letGo = drive.play(session) { dy ->
-                        val offered = dy - band.payBack(dy)
-                        val consumed = -scrollBy(-offered)
-                        val leftOver = offered - consumed
-                        if (leftOver != 0f) band.pull(leftOver, bandLimit)
+                try {
+                    listState.scroll {
+                        val letGo = drive.play(session) { dy ->
+                            val offered = dy - band.payBack(dy)
+                            val consumed = -scrollBy(-offered)
+                            val leftOver = offered - consumed
+                            if (leftOver != 0f) band.pull(leftOver, bandLimit)
+                        }
+                        scope.launch { band.release(homeSpec) }
+                        with(flingBehavior) { performFling(-letGo) }
                     }
-                    scope.launch { band.release(homeSpec) }
-                    with(flingBehavior) { performFling(-letGo) }
+                } catch (taken: CancellationException) {
+                    // A finger on the drum took the scroll mid-fling, which
+                    // cancels this one, and the loop has to outlive that for the
+                    // next drag. Only a cancelled effect ends it.
+                    ensureActive()
                 }
-                drive.onSettled()
             }
         }
     }
@@ -789,10 +803,14 @@ internal fun <T> WheelDrum(
              */
             .pointerInput(items.size, itemPx, enabled) {
                 if (!enabled) return@pointerInput
-                detectTapGestures { at ->
+                // Whether the drum was still turning when the finger came down.
+                var spinning = false
+                detectTapGestures(onPress = { spinning = listState.isScrollInProgress }) { at ->
                     val rows = ((at.y - size.height / 2f) / itemPx).roundToInt()
-                    val target = (centredIndex + rows).coerceIn(0, items.lastIndex)
-                    if (target == centredIndex) {
+                    // A tap on a turning drum catches it on the row in the
+                    // middle; it is not a choice, so it does not close anything.
+                    val target = if (spinning) centredIndex else (centredIndex + rows).coerceIn(0, items.lastIndex)
+                    if (target == centredIndex && !spinning) {
                         if (rows == 0) onCentreTap?.invoke()
                         return@detectTapGestures
                     }
@@ -951,6 +969,22 @@ private fun <T> InfiniteWheel(
 
     val ticker = rememberDetentTicker()
 
+    val scrollState = rememberScrollableState { delta ->
+        // Every pixel, always. There is no end to over-scroll past, so nothing
+        // is ever left over for a parent to take — which is the other half of
+        // the wheel-escaping report, answered by construction rather than by a
+        // nested-scroll connection that has to catch it.
+        //
+        // Added, not subtracted. `reverseDirection = true` on the `scrollable`
+        // below already turns a drag upward into a positive delta, which is the
+        // whole of the "dragging up rolls the drum forward" convention; negating
+        // it again here undid it and the drum ran backwards. Two negations, one
+        // in a modifier with a comment explaining itself and one in the
+        // arithmetic without — only the unexplained one survived review.
+        scope.launch { offset.snapTo(offset.value + delta) }
+        delta
+    }
+
     /**
      * The same tap-to-turn as the finite drum, by the short way round.
      *
@@ -966,10 +1000,20 @@ private fun <T> InfiniteWheel(
      * throw that away and occasionally turn the long way past a row the finger
      * was pointing at.
      */
-    val tapToTurn: (Offset, Float) -> Unit = { at, height ->
+    val tapToTurn: (Offset, Float, Boolean) -> Unit = { at, height, spinning ->
         val rows = ((at.y - height / 2f) / itemPx).roundToInt()
-        if (rows == 0) onCentreTap?.invoke()
-        if (rows != 0) {
+        if (spinning) {
+            // Caught while turning: onto the nearest row, and nothing chosen.
+            scope.launch {
+                scrollState.stopScroll()
+                offset.animateTo(
+                    targetValue = (offset.value / itemPx).roundToInt() * itemPx,
+                    animationSpec = motion.springOrTween(motion.springSnappy),
+                )
+            }
+        } else if (rows == 0) {
+            onCentreTap?.invoke()
+        } else {
             scope.launch {
                 offset.animateTo(
                     targetValue = offset.value + rows * itemPx,
@@ -977,22 +1021,6 @@ private fun <T> InfiniteWheel(
                 )
             }
         }
-    }
-
-    val scrollState = rememberScrollableState { delta ->
-        // Every pixel, always. There is no end to over-scroll past, so nothing
-        // is ever left over for a parent to take — which is the other half of
-        // the wheel-escaping report, answered by construction rather than by a
-        // nested-scroll connection that has to catch it.
-        //
-        // Added, not subtracted. `reverseDirection = true` on the `scrollable`
-        // below already turns a drag upward into a positive delta, which is the
-        // whole of the "dragging up rolls the drum forward" convention; negating
-        // it again here undid it and the drum ran backwards. Two negations, one
-        // in a modifier with a comment explaining itself and one in the
-        // arithmetic without — only the unexplained one survived review.
-        scope.launch { offset.snapTo(offset.value + delta) }
-        delta
     }
 
     // A detent crossed by a finger, and by nothing else.
@@ -1029,18 +1057,20 @@ private fun <T> InfiniteWheel(
     // A drag from elsewhere, played through the same scrollable state: the
     // ticks follow `isScrollInProgress`, and the settle above follows its end.
     if (drive != null) {
+        SideEffect { drive.moving = { scrollState.isScrollInProgress || offset.isRunning } }
         val fling = ScrollableDefaults.flingBehavior()
         LaunchedEffect(drive, scrollState) {
             for (session in drive.sessions) {
-                scrollState.scroll {
-                    // Reversed, as the scrollable's own input is.
-                    val letGo = drive.play(session) { dy -> scrollBy(-dy) }
-                    with(fling) { performFling(-letGo) }
+                try {
+                    scrollState.scroll {
+                        // Reversed, as the scrollable's own input is.
+                        val letGo = drive.play(session) { dy -> scrollBy(-dy) }
+                        with(fling) { performFling(-letGo) }
+                    }
+                } catch (taken: CancellationException) {
+                    // Taken by a finger on the drum, as above.
+                    ensureActive()
                 }
-                // The settle onto a row starts once the scroll has ended.
-                withFrameNanos { }
-                snapshotFlow { offset.isRunning }.first { !it }
-                drive.onSettled()
             }
         }
     }
@@ -1121,7 +1151,10 @@ private fun <T> InfiniteWheel(
             // for why this is a pointer node and not a row of `selectable`s.
             .pointerInput(items.size, itemPx, enabled) {
                 if (!enabled) return@pointerInput
-                detectTapGestures { at -> tapToTurn(at, size.height.toFloat()) }
+                var spinning = false
+                detectTapGestures(onPress = { spinning = scrollState.isScrollInProgress || offset.isRunning }) { at ->
+                    tapToTurn(at, size.height.toFloat(), spinning)
+                }
             },
         contentAlignment = Alignment.TopStart,
     ) {

@@ -8,7 +8,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,10 +62,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * How long a wheel opened by a drag stays open once it has come to rest on a
- * row, before it folds back into the field: long enough to read the value it
- * landed on among its neighbours, short enough that the field is back before
- * the next thing is reached for.
+ * How long a wheel opened by a drag stays open once it has been left alone —
+ * no finger on it and the drum at rest on a row — before it folds back into the
+ * field: long enough to read the value it landed on among its neighbours, or to
+ * reach in for another flick, short enough that the field is back before the
+ * next thing is reached for.
  */
 private const val FoldAfterRestMillis = 350L
 
@@ -86,8 +92,9 @@ private const val FoldAfterRestMillis = 350L
  * or down on the closed field turns the wheel *at once*: it opens around the
  * finger, follows it — the same ticks, the same give at either end and the same
  * fling onto a row as a finger on the drum — and folds back into the field once
- * it has come to rest. The second is the one a regular reaches for; the first is
- * the one a newcomer finds.
+ * it has been left alone a moment. A finger back on it before then keeps it open
+ * for another flick, as many as a long list needs. The second is the one a
+ * regular reaches for; the first is the one a newcomer finds.
  *
  * **What the drag costs.** A vertical drag that starts on the field turns the
  * wheel rather than scrolling the page, as a slider's sideways drag is its own
@@ -145,9 +152,12 @@ fun <T> WheelSelect(
 
     /**
      * Opened by a drag rather than a tap, so it folds away again by itself once
-     * the drum rests. A tap on the field, or on the wheel, makes it stay.
+     * it has been left alone. A tap on the field opens it to stay.
      */
     var transient by remember { mutableStateOf(false) }
+
+    /** A finger on the field's drag, or anywhere on the open wheel. */
+    var held by remember { mutableStateOf(false) }
     val expanded = state.expanded
     val usable = enabled && options.isNotEmpty()
     val index = options.indexOf(value).coerceAtLeast(0)
@@ -158,19 +168,24 @@ fun <T> WheelSelect(
         state.collapse()
     }
 
-    SideEffect {
-        drive.onSettled = {
-            if (transient) {
-                scope.launch {
-                    // Counted in frames rather than slept: the pause is about
-                    // what is on screen, and a paused frame clock is a paused
-                    // screen.
-                    val since = withFrameNanos { it }
-                    var now = since
-                    while (now - since < FoldAfterRestMillis * 1_000_000L) now = withFrameNanos { it }
-                    if (transient) close()
-                }
-            }
+    // Folds once the wheel has been left alone for the pause: no finger on the
+    // field or the wheel, and the drum at rest. Another flick before then starts
+    // the pause over, so a long list can take as many as it needs — *"longer
+    // lists might require multiple flicks"*. It used to fold a fixed pause after
+    // the drag it opened with came to rest, so a second flick could be folded
+    // away under the finger; and a flick that caught the wheel still turning
+    // took the drum's scroll from that drag, whose rest was then never
+    // reported, and the wheel stayed open for good.
+    LaunchedEffect(transient, expanded) {
+        if (!transient || !expanded) return@LaunchedEffect
+        snapshotFlow { held || drive.moving() }.collectLatest { busy ->
+            if (busy) return@collectLatest
+            // Counted in frames rather than slept: the pause is about what is
+            // on screen, and a paused frame clock is a paused screen.
+            val since = withFrameNanos { it }
+            var now = since
+            while (now - since < FoldAfterRestMillis * 1_000_000L) now = withFrameNanos { it }
+            close()
         }
     }
 
@@ -210,6 +225,7 @@ fun <T> WheelSelect(
                 scope = scope,
                 claimsOn = DragClaim.Direction,
                 onStart = {
+                    held = true
                     drive.begin()
                     if (!state.expanded) {
                         transient = true
@@ -217,10 +233,16 @@ fun <T> WheelSelect(
                     }
                 },
                 onDelta = { dy -> drive.drag(dy) },
-                onRelease = { velocity -> drive.release(velocity) },
+                onRelease = { velocity ->
+                    held = false
+                    drive.release(velocity)
+                },
                 // A drag taken away rather than let go still has to land on a
                 // row; after a release this finds no session and does nothing.
-                onEnd = { drive.release(0f) },
+                onEnd = {
+                    held = false
+                    drive.release(0f)
+                },
             )
             .clickable(
                 interactionSource = interactions,
@@ -255,7 +277,23 @@ fun <T> WheelSelect(
                 selectedIndex = index,
                 onSelectedIndexChange = { i -> options.getOrNull(i)?.let(onValueChange) },
                 itemLabel = optionLabel,
-                modifier = Modifier.padding(Theme.spacing.xxs),
+                modifier = Modifier
+                    // Watched, not handled: a finger anywhere on the wheel holds
+                    // off the fold until it lifts.
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            held = true
+                            try {
+                                do {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                } while (event.changes.any { it.pressed })
+                            } finally {
+                                held = false
+                            }
+                        }
+                    }
+                    .padding(Theme.spacing.xxs),
                 enabled = enabled,
                 contentDescription = label,
                 visibleItems = visibleItems,

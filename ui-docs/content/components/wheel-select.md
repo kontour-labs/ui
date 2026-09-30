@@ -29,10 +29,14 @@ or going back.
 **A drag turns it straight away.** Put a finger on the closed field and move it
 up or down: the wheel opens around the finger and follows it, with the same
 tick at each row, the same give at either end and the same fling onto a row as
-a finger on the drum itself. Once it comes to rest it waits a moment, so the
-value it landed on can be read among its neighbours, then folds back into the
-field. It is the quick way for someone who knows what they want, and the tap is
-the way a newcomer finds.
+a finger on the drum itself. Once it is left alone — no finger on it and the
+drum at rest — it waits a moment, so the value it landed on can be read among
+its neighbours, then folds back into the field. **A finger back on the wheel
+within that moment keeps it open** for another flick, as many as a long list
+needs, and the wait starts again after the last: *"longer lists might require
+multiple flicks"*. A tap that catches the drum still turning stops it on the row
+in the middle rather than choosing it. It is the quick way for someone who knows
+what they want, and the tap is the way a newcomer finds.
 
 **What the drag costs.** A vertical drag that starts on the field turns the
 wheel instead of scrolling the page, the way a slider's sideways drag stays with

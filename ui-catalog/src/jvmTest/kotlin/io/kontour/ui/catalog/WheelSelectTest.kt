@@ -126,6 +126,43 @@ class WheelSelectTest {
         }
     }
 
+    /**
+     * A wheel opened by a drag takes another flick, and folds after the last.
+     *
+     * Asked for as *"if you start it by dragging it and then tap it again to keep
+     * the wheel scrolling, it auto-closes? Because longer lists might require
+     * multiple flicks"*. The fold was timed from the first drag's rest, so a
+     * finger back on the wheel within the pause had it folded away underneath
+     * it; and a flick that caught the drum still turning took its scroll from
+     * the first drag, whose rest was then never reported, and the wheel never
+     * folded at all.
+     */
+    @Test
+    fun aWheelOpenedByADragTakesAnotherFlickAndFoldsAfterTheLast() {
+        val rig = rig()
+        rig.scene.use { scene ->
+            val from = field.center
+            val first = Offset(from.x, from.y - Row * 2.2f)
+            scene.drag(from = from, to = first, steps = 24)
+            scene.settle(5)
+            assertTrue(rig.state().expanded, "the wheel did not open under the first drag")
+
+            // Back on the wheel — its middle row is over the field — and up by
+            // three more rows, then held there for longer than the pause.
+            val second = Offset(from.x, from.y - Row * 3.2f)
+            scene.drag(from = from, to = second, steps = 24, release = false)
+            scene.settle(45)
+            assertTrue(rig.state().expanded, "the wheel folded away under a finger on it")
+            scene.release(second)
+            scene.settle(20)
+            assertEquals(10, rig.value(), "two drags of two and three rows from 5 left the value at ${rig.value()}")
+
+            scene.settle(60)
+            assertFalse(rig.state().expanded, "the wheel stayed open after the last flick came to rest")
+            assertEquals(10, rig.value())
+        }
+    }
+
     /** The control: with the drag off, the same gesture turns nothing. */
     @Test
     fun withDragToPickOffTheSameDragDoesNothing() {
