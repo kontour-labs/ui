@@ -1,7 +1,9 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,26 +39,29 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
-import io.kontour.ui.nav.collapseProgress
+import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
 
 @Composable
 fun TopBarCollapsing() {
-    val listState = rememberLazyListState()
+    val collapse = rememberTopBarCollapseState()
 
-    // The bar does not own the scroll state, so the caller hands it the
-    // progress. `collapseProgress` computes it from a `LazyListState`.
-    TopBar(
-        style = TopBarStyle.Large,
-        collapseProgress = collapseProgress(listState),
-    ) {
-        +"Perth Underground"
-        supporting { +"Platform 2" }
-    }
-
-    LazyColumn(state = listState) {
-        stopRows()
+    // The bar collapses as the list scrolls: its connection goes on something
+    // that holds both, so the bar takes the scroll until it has collapsed and
+    // the rows move with the finger the whole way.
+    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+        TopBar(
+            style = TopBarStyle.Large,
+            onBack = { back() },
+            collapseState = collapse,
+        ) {
+            +"Perth Underground"
+            supporting { +"Platform 2" }
+        }
+        LazyColumn {
+            stopRows()
+        }
     }
 }
 

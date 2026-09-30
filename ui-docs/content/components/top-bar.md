@@ -8,27 +8,53 @@ and where the controls leave it too little room it is laid out exactly as
 
 <!--sample:TopBarCollapsing-->
 ```kotlin
-val listState = rememberLazyListState()
+val collapse = rememberTopBarCollapseState()
 
-// The bar does not own the scroll state, so the caller hands it the
-// progress. `collapseProgress` computes it from a `LazyListState`.
-TopBar(
-    style = TopBarStyle.Large,
-    collapseProgress = collapseProgress(listState),
-) {
-    +"Perth Underground"
-    supporting { +"Platform 2" }
-}
-
-LazyColumn(state = listState) {
-    stopRows()
+// The bar collapses as the list scrolls: its connection goes on something
+// that holds both, so the bar takes the scroll until it has collapsed and
+// the rows move with the finger the whole way.
+Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+    TopBar(
+        style = TopBarStyle.Large,
+        onBack = { back() },
+        collapseState = collapse,
+    ) {
+        +"Perth Underground"
+        supporting { +"Platform 2" }
+    }
+    LazyColumn {
+        stopRows()
+    }
 }
 ```
 
-`Large` collapses to `Small` as the content scrolls. The bar does not own the
-scroll state, so the caller passes the progress — `collapseProgress(listState)`
-computes it from a `LazyListState`, and there is a raw
-`collapseProgress(scrolled, distance)` for anything else.
+### `Large`, and how it collapses
+
+`Large` puts the actions on a first line and a large title on a second, and
+collapses into a `Small` bar as the content scrolls. **The title travels**: it
+rises into the first line, shrinking from the large type to the small as it
+goes, and lands where a `Small` bar's title sits — beside the back button when
+there is one, at the margin when there is not, so without one it rises straight
+up. The bar grows shorter in step, from both lines to one. Over the last part of
+the way the small title takes over from the large one, drawn at the same size on
+the same baseline, so what shows is the weight easing rather than one title
+fading into another; a title the large type wraps onto two lines lets its second
+line go early, as its words arrive beside the first. The subtitle goes with the
+large title and fades before it arrives.
+
+The bar does not own the scroll. `rememberTopBarCollapseState()` is the usual
+way to drive it: put its `nestedScrollConnection` on something that holds both
+the bar and the list, as above, and hand the state to the bar. The bar then
+takes the scroll until it has collapsed, and the rows move exactly with the
+finger the whole way — a bar that shrank while the list scrolled under it would
+carry the rows twice as far as the finger. Scrolling back, the list returns to
+its top first and the bar opens after it, and a collapse the finger leaves
+part-way finishes to whichever end is nearer.
+
+To drive it from anything else, pass `collapseProgress` directly: 0 open, 1
+collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
+for a bar drawn over its list rather than above it, and
+`collapseProgress(scrolled, distance)` from any two numbers.
 
 ---
 
@@ -41,8 +67,9 @@ The back button carries `backLabel`. Action icons need their own
 `contentDescription`; the bar cannot invent one.
 
 `windowInsets` defaults to the top edge, so the bar is not under the status bar
-on an iOS PWA. `collapseProgress` animates the title and changes nothing about
-what is announced.
+on an iOS PWA. A `Large` bar's collapse moves the title and changes nothing about
+what is announced: the title is heard once, from the large one, however far the
+bar has collapsed.
 
 At high contrast the bar takes the enhanced scheme's colours and adds no edge of
 its own — it is the page's ground by default — and the rule `showDivider` draws
@@ -50,6 +77,6 @@ under it thickens with the tier. The back button is a ghost
 [`IconButton`](icon-button.md), so it gains a ring there.
 
 Reduced motion leaves the large title's collapse as it is: it is driven by the
-scroll position rather than by a clock, so it moves only as the content under it
-does, and the title slides a few pixels as it fades. The back button keeps its
-press wash and loses its shrink.
+scroll position rather than by a clock, so the title moves only as the content
+under it does. A collapse left part-way lands at once rather than travelling the
+rest of the way. The back button keeps its press wash and loses its shrink.

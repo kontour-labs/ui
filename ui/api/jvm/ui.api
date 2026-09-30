@@ -2938,6 +2938,12 @@ public final class io/kontour/ui/nav/TabBarScope {
 	public static final field $stable I
 }
 
+public final class io/kontour/ui/nav/TopBarCollapseState {
+	public static final field $stable I
+	public final fun getNestedScrollConnection ()Landroidx/compose/ui/input/nestedscroll/NestedScrollConnection;
+	public final fun getProgress ()F
+}
+
 public final class io/kontour/ui/nav/TopBarDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/TopBarDefaults;
@@ -2946,9 +2952,10 @@ public final class io/kontour/ui/nav/TopBarDefaults {
 }
 
 public final class io/kontour/ui/nav/TopBarKt {
-	public static final fun TopBar-KkMT8bM (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;JJZFLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun TopBar-zgQg56Y (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;JJZFLio/kontour/ui/nav/TopBarCollapseState;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun collapseProgress (FF)F
 	public static final fun collapseProgress-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)F
+	public static final fun rememberTopBarCollapseState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/nav/TopBarCollapseState;
 }
 
 public final class io/kontour/ui/nav/TopBarStyle : java/lang/Enum {

@@ -30,6 +30,7 @@ internal fun delete() = Unit
 internal fun dismiss() = Unit
 internal fun add() = Unit
 internal fun newTrip() = Unit
+internal fun back() = Unit
 internal fun start() = Unit
 internal fun zoomIn() = Unit
 internal fun zoomOut() = Unit

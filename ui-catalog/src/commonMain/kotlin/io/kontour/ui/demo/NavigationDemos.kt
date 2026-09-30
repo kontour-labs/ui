@@ -67,6 +67,11 @@ import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.components.list.ListItem
 
 /**
  * A bordered box a navigation surface can fill.
@@ -395,14 +400,36 @@ internal val TopBarDemo = ComponentDemo(
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
-    TopBar(
-        style = style,
-        onBack = if (back) ({ echo("Back") }) else null,
-        showDivider = true,
-        actions = { OverflowMenu(::echo) },
-    ) {
-        +"Perth Underground"
-        supporting { +"Platform 2 · Joondalup line" }
+    // Over a list that scrolls, which is the only way to see a Large bar
+    // collapse: the bar takes the scroll until its title has gone up into
+    // the first line, then the rows move.
+    val collapse = rememberTopBarCollapseState()
+    Frame(height = 320.dp) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Theme.colours.background)
+                .nestedScroll(collapse.nestedScrollConnection),
+        ) {
+            TopBar(
+                style = style,
+                onBack = if (back) ({ echo("Back") }) else null,
+                showDivider = true,
+                actions = { OverflowMenu(::echo) },
+                collapseState = collapse,
+            ) {
+                +"Perth Underground"
+                supporting { +"Platform 2 · Joondalup line" }
+            }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(12) { index ->
+                    ListItem {
+                        +"Departure ${index + 1}"
+                        supporting { +"${4 + index * 6} min · Joondalup" }
+                    }
+                }
+            }
+        }
     }
 }
 
