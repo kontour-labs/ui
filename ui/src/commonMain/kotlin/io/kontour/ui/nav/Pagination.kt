@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
@@ -96,10 +95,11 @@ fun Pagination(
      * Whether tapping an ellipsis opens a box to type a page number into.
      *
      * Off by default, because it changes what the ellipsis *is*: with this on it
-     * is a control and gets a touch target, an outline when focused and a label
-     * a screen reader will read out; with it off it is punctuation, announced as
-     * nothing. Both are right, for different rows — a forty-page result set
-     * wants it, a five-page one has no ellipsis to tap.
+     * is a control and gets a press, an outline when focused and a label a screen
+     * reader will read out; with it off it is punctuation, announced as nothing.
+     * Both are right, for different rows — a forty-page result set wants it, a
+     * five-page one has no ellipsis to tap. Either way it takes the same room, so
+     * turning it on does not move the row: see `JumpGap`.
      *
      * The gap is the only sensible place for it. It is the part of the row that
      * stands for the pages you cannot see, which is exactly the set you would be
@@ -120,18 +120,9 @@ fun Pagination(
             value = value,
             pageCount = pageCount,
             button = maxOf(PageButtonSize, Theme.sizing.minTouchTarget),
-            // A jumpable gap is a control, and a control reserves a touch
-            // target: `JumpGap` carries `minimumTouchTarget`, which is 48dp on
-            // Android against the 24dp an ellipsis costs. Priced at [GapWidth]
-            // either way, the arithmetic under-counted a long row by 24dp per
-            // gap and the component came out wider than the space it was
-            // measuring against — which is why `allowJump` appeared to add
-            // padding from nowhere.
-            ellipsis = if (allowJump) {
-                maxOf(GapWidth, Theme.sizing.minTouchTarget)
-            } else {
-                GapWidth
-            },
+            // The same whether the gap can be tapped or not: `JumpGap` keeps an
+            // ellipsis's width.
+            ellipsis = GapWidth,
             gap = Theme.spacing.xxs,
         )
 
@@ -182,17 +173,20 @@ fun Pagination(
                             confirmLabel = jumpConfirmLabel,
                         )
                     } else {
-                        Text(
-                            text = "…",
-                            modifier = Modifier
-                                .padding(horizontal = Theme.spacing.xxs)
-                                // Announcing "ellipsis" between two page numbers
-                                // tells a screen-reader user nothing they can act
-                                // on. When it *is* a control, `JumpGap` labels it.
-                                .semantics { contentDescription = "" },
-                            style = Theme.typography.bodyMedium,
-                            colour = Theme.colours.contentSubtle,
-                        )
+                        // The same room as a gap that can be tapped, so turning
+                        // `allowJump` on moves nothing.
+                        Box(Modifier.sizeIn(minWidth = GapWidth), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "…",
+                                modifier = Modifier
+                                    // Announcing "ellipsis" between two page numbers
+                                    // tells a screen-reader user nothing they can act
+                                    // on. When it *is* a control, `JumpGap` labels it.
+                                    .semantics { contentDescription = "" },
+                                style = Theme.typography.bodyMedium,
+                                colour = Theme.colours.contentSubtle,
+                            )
+                        }
                     }
                 }
             }
@@ -212,6 +206,14 @@ fun Pagination(
  *
  * The pages it stands for are exactly the ones you cannot reach by tapping, so
  * it is the one part of the row where a number is worth typing.
+ *
+ * **As wide as the ellipsis it replaces**, [GapWidth], and as tall as a page
+ * button's square. It used to reserve a whole touch target — 44dp on iOS and the
+ * web, 48 on Android, round a 12dp glyph — and turning `allowJump` on spread the
+ * row out: *"it suddenly becomes very expanded and spread out"*, with fewer pages
+ * left room on a phone. 24dp is the pointer minimum WCAG asks of a target, and a
+ * finger that lands just beside it still reaches it: touch hit-testing extends a
+ * small target to the platform's minimum wherever no other control is hit.
  *
  * Typed one-based, because that is what the row shows and what
  * `contentDescription` announces — "Page 1" for index zero. Clamped rather than
@@ -245,14 +247,13 @@ private fun JumpGap(
         Box(
             modifier = Modifier
                 .semantics(mergeDescendants = true) { contentDescription = label }
-                .minimumTouchTarget()
                 .focusRing(interactions, shape)
+                .sizeIn(minWidth = GapWidth, minHeight = PageButtonSize)
                 .clip(shape)
                 .pointerCursor()
                 .clickable(interactionSource = interactions, indication = kontourIndication(shape)) {
                     onOpenChange(!open)
-                }
-                .padding(horizontal = Theme.spacing.xxs),
+                },
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -290,10 +291,7 @@ private val JumpFieldWidth: Dp = 96.dp
  *
  * Arithmetic rather than a measure pass, because the row's width is a sum of
  * known parts: every page and arrow is a [button] square, every gap is an
- * [ellipsis] wide, and there is a [gap] between each pair. [ellipsis] is passed
- * rather than taken from [GapWidth] because a jumpable gap is a control and
- * reserves a touch target, which on Android is twice the width of the "…" the
- * constant describes.
+ * [ellipsis] wide, and there is a [gap] between each pair.
  * The estimate is deliberately a little generous — erring towards a narrower
  * window costs one page number, while erring the other way puts the last page
  * off the edge of the screen, which is the failure this exists to stop.
@@ -376,7 +374,7 @@ private fun PageButton(number: Int, selected: Boolean, enabled: Boolean, onClick
 /** The visible square of a page number, before any touch target around it. */
 private val PageButtonSize = 36.dp
 
-/** About what an ellipsis and its side padding come to at `bodyMedium`. */
+/** What a gap takes, tappable or not: the pointer minimum a target may be. */
 private val GapWidth = 24.dp
 
 /** What goes in one position of a [Pagination] row. */

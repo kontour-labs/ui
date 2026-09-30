@@ -41,9 +41,17 @@ row that stands for the pages you cannot reach by tapping, which is exactly the
 set you would be typing a number to get to.
 
 Off by default, because it changes what the ellipsis *is*. With it on the gap
-gets a touch target, a focus ring and a name a screen reader reads out; with it
-off it is punctuation, announced as nothing. Both are right, for different rows:
-a forty-page result set wants it, and a five-page one has no ellipsis to tap.
+gets a press, a focus ring and a name a screen reader reads out; with it off it
+is punctuation, announced as nothing. Both are right, for different rows: a
+forty-page result set wants it, and a five-page one has no ellipsis to tap.
+
+**Turning it on does not move the row.** Either way a gap is 24dp wide, the
+pointer minimum WCAG asks of a target, and as tall as a page button. It used to
+reserve a whole touch target, 44dp on iOS and the web and 48 on Android, round a
+12dp ellipsis, so the row spread out and a phone had room for fewer pages:
+*"it suddenly becomes very expanded and spread out"*. A finger that lands just
+beside the ellipsis still reaches it, since touch hit-testing extends a small
+target wherever no other control is hit.
 
 The number is typed **one-based** — "3" is the third page — because that is what
 the row shows and what each button announces. Out of range is clamped rather

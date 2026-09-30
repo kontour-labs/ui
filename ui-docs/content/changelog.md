@@ -128,6 +128,11 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
 
 ### Fixed
 
+- **A `Pagination` with `allowJump` spread out.** Each tappable ellipsis
+  reserved a whole touch target, 44dp on iOS and the web and 48 on Android, so
+  the row grew and a phone showed fewer pages. A gap is now 24dp wide whether it
+  can be tapped or not, so turning `allowJump` on moves nothing. A plain gap is
+  a few dp wider than it was.
 - **A long press lost after switching input.** A component's long press
   stopped working after the input changed between mouse, keyboard and touch,
   for example after the first tap on a laptop with a touchscreen.
