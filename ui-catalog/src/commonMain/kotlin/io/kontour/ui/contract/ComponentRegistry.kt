@@ -1507,7 +1507,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         expanded = true,
                         onExpandedChange = {},
                         header = { +"Why is my train late?" },
-                        modifier = modifier,
+                        // A row's width, as a list would give it: unbounded,
+                        // the body is one line as wide as its sentence.
+                        modifier = modifier.width(SpecimenProseWidth),
                     ) {
                         Text("Trains give way to freight between Midland and Bellevue.")
                     }
