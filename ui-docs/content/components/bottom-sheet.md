@@ -258,7 +258,7 @@ it right on every size of device without a rule per size:
 | Window | Where the expanded sheet ends up |
 |---|---|
 | Phone, portrait or landscape | The bottom and both sides, top corners concentric with the display's |
-| Tablet or desktop, wider than the 640dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
+| Tablet or desktop, wider than the 480dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
 | Cutouts, side insets, a gesture bar | The surface reaches the window's edge and the **content** is handed the insets, exactly as an edge sheet's is |
 
 It follows the sheet's position rather than a clock, like the margin paid back on
@@ -303,8 +303,10 @@ nothing is re-measured across the step.
 
 ## `alignment` — where a sheet sits once the window is wider than it
 
-A sheet stops at 640dp. On a phone that is wider than the screen, so the sheet is
-the screen and nothing on this section applies: **a phone never sees any of it.**
+A sheet stops at 480dp, a side sheet's width, so on a wide window the two kinds of
+sheet are one width. It stopped at 640dp until a modest desktop showed that as half
+the screen. On a phone 480dp is wider than the screen, so the sheet is the screen
+and nothing in this section applies: **a phone never sees any of it.**
 On a tablet in landscape or a desktop window the sheet is a panel with room either
 side of it, and `alignment` says where the panel goes — `Center` by default, or
 against the `Start` or `End` edge. Start and end follow the layout direction, so an
@@ -320,8 +322,8 @@ BottomSheet(
 ```
 
 **The cap is older than the parameter, and did not work until the parameter
-arrived.** The width was always meant to stop at 640dp; the sheet was built as
-`fillMaxWidth()` and then `widthIn(max = 640.dp)`, and `fillMaxWidth` fixes the
+arrived.** The width was always meant to stop at a cap; the sheet was built as
+`fillMaxWidth()` and then `widthIn(max = …)`, and `fillMaxWidth` fixes the
 minimum width at the window's, which a later maximum cannot lower. So every sheet on
 every desktop spanned the whole window. The fix is the other order — cap, then fill
 — and a capped sheet then has to sit *somewhere*, which is what this decides.

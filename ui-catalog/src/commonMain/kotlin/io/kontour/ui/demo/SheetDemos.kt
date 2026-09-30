@@ -124,7 +124,7 @@ private val sheetPresentation =
     Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
 
 /**
- * Where the sheet sits once the card is wider than the sheet's 640dp cap.
+ * Where the sheet sits once the card is wider than the sheet's 480dp cap.
  *
  * **Does nothing on a phone, and that is the feature.** Below the cap the sheet
  * is the card, and there is nowhere for it to go; the knob moves something only

@@ -77,6 +77,9 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   Carried past the point of no return by a sideways scroll or a two-finger pan,
   the row runs its outermost action when the gesture ends there, as it does
   under a finger. Before, a scroll could open the actions but never run one.
+- **A bottom sheet is at most 480dp wide on a wide window**, a side sheet's
+  width, where it was 640dp: half of a modest desktop. Set
+  `ComponentDefaults.sheetMaxWidth` to keep the old width.
 - **A `RangeSlider` takes a finger on each thumb**, and both thumbs can be
   dragged at the same time. Before, a second finger did nothing.
 

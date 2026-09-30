@@ -91,7 +91,7 @@ detents.
 
 ### `alignment` follows the window while the sheet is open
 
-On a window wider than a sheet's 640dp cap, `alignment` puts the sheet at the start,
+On a window wider than a sheet's 480dp cap, `alignment` puts the sheet at the start,
 centre or end of the bottom edge — see [`BottomSheet`](bottom-sheet.md), where the
 cap and the reason for it are explained. On a phone it does nothing.
 

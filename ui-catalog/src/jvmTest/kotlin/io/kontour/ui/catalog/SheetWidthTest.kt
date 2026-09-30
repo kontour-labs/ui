@@ -314,7 +314,7 @@ class SheetWidthTest {
         const val Phone = 390
 
         /** `BottomSheetDefaults.MaxWidth`, in this scene's pixels. */
-        const val Cap = 640f * Density
+        const val Cap = 480f * Density
 
         /** Long enough for a reduced-motion open to come to rest. */
         const val Frames = 60

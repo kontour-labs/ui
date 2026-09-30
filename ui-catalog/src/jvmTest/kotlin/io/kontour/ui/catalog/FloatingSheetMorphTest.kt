@@ -166,9 +166,10 @@ class FloatingSheetMorphTest {
     @Test
     fun onAWideWindowItMeetsOnlyTheBottom() {
         val centred = settled(SheetDetent.Expanded, width = 1400)
-        // 640dp at a density of 2, centred in 1400px: 60 to 1340.
+        // 480dp at a density of 2, centred in 1400px: 220 to 1180.
         assertEquals(0, centred.gapUnderTheSheet(), "an expanded floating sheet on a wide window is still off the bottom")
-        assertTrue(centred.isSheet(62, centred.height - 2), "the capped sheet did not reach its own full width")
+        assertTrue(centred.isSheet(222, centred.height - 2), "the capped sheet did not reach its own full width")
+        assertTrue(!centred.isSheet(200, centred.height - 2), "the capped sheet spread past its cap")
         assertTrue(!centred.isSheet(5, centred.height - 2), "the capped sheet spread to the window's side")
         assertTrue(!centred.isSheet(1395, centred.height - 2), "the capped sheet spread to the window's side")
 
