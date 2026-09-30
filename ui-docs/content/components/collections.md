@@ -6,7 +6,6 @@ Rows, and the things that happen to them.
 |---|---|---|
 | [`ListItem`](list-item.md) | One row of anything | — |
 | [`ExpandingListItem`](expanding-list-item.md) | A row that unfolds more rows | `Accordion`, when what opens is *content* |
-| [`SettingRow`](setting-row.md) | The settings shape: icon, label, value | `SelectionRow`, when the row *is* the toggle |
 | [`ListSection`](list-section.md) | A titled group of rows | — |
 | [`SwipeActions`](swipe-actions.md) | Actions behind a sideways drag | A menu, which you owe anyway |
 | [`SwipeToDismiss`](swipe-actions.md) | Removing a row by dragging it away | — |

@@ -64,7 +64,8 @@ import kotlin.test.fail
  * ### What this has actually caught
  *
  * Written after phases 0–12, it failed on its first run and found six real bugs
- * that had survived every screenshot review: `ListItem` and `SettingRow` dropped
+ * that had survived every screenshot review: `ListItem` and `SettingRow` (since
+ * merged into `SelectionRow`) dropped
  * their `clickable` when disabled and so announced as plain text with no role;
  * `IconToggleButton` wrapped a button in a switch; a disabled `Slider` still
  * exposed `setProgress`, so assistive tech could move a control that looked

@@ -38,8 +38,9 @@ A `String` cannot carry a second colour, an inline tag, an `AnnotatedString`, or
 whatever the design wants next. So a component that takes one grows a parallel
 slot beside it the first time anybody needs any of those, and then has two
 vocabularies in one signature. `ListItem` had reached three strings and two
-slots. `SettingRow` had a `value: String?` whose entire job was to build a
-default for its `trailing` slot.
+slots. The settings row that has since become `SelectionRow` had a
+`value: String?` whose entire job was to build a default for its `trailing`
+slot.
 
 Slots cost brevity, which is why Material call sites run long. The `+` is what
 buys it back.
@@ -148,7 +149,7 @@ writes only the words:
 | `TimelineItem` | `+` the stop; `supporting`, `overline`, `trailing` | `titleSmall`; `bodySmall`, muted |
 | `Dialog`, `Popover` | `title` | `titleLarge`, `titleSmall`; a heading |
 | `Gauge`, `Meter`, `Knob` | `+` the figure; `label` | sized by the component; `labelSmall`, muted |
-| `ListItem`, `SettingRow`, `SelectionRow` | `trailing` | `bodyMedium`, muted |
+| `ListItem`, `SelectionRow` | `trailing` | `bodyMedium`, muted |
 
 It stays out of bodies that are genuinely anything — a `Card`, a `Dialog`'s or a
 sheet's content, an `Accordion`'s panel — and out of holders of controls, like a

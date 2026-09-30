@@ -125,7 +125,6 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
@@ -701,6 +700,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     ) {
                         +"Notify me about delays"
                         trailing { Checkbox(checked = true, onCheckedChange = null) }
+                    }
+                },
+                // A row of a group: a list row's ground, the corners that meet a
+                // neighbour squared.
+                RenderState("grouped") { modifier ->
+                    SelectionRow(
+                        selected = true,
+                        onSelectedChange = {},
+                        modifier = modifier,
+                        role = Role.Switch,
+                        position = GroupPosition.First,
+                    ) {
+                        +"Show live vehicles"
+                        trailing { Switch(checked = true, onCheckedChange = null) }
+                    }
+                },
+                // And the other kind of setting, which opens its choice — what
+                // `SettingRow` was.
+                RenderState("opens a choice") { modifier ->
+                    SelectionRow(onClick = {}, modifier = modifier, position = GroupPosition.Last) {
+                        +"Distances"
+                        trailing { +"Kilometres" }
                     }
                 },
             ),
@@ -1705,19 +1726,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("SettingRow", Role.Button) { modifier, enabled, onClick ->
-            SettingRow(
-                onClick = onClick,
-                modifier = modifier,
-                enabled = enabled,
-            ) {
-                +"Theme"
-                trailing { +"Match system" }
-            }
-        }
-    )
-
-    add(
         // Stateless by construction, which is what this list needs and what a
         // picker looks like it cannot be. `colour` is fixed and the change is
         // routed into `onActivate`; the internal `hsv` and `alpha` only move on
@@ -1786,7 +1794,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 supporting = { +"How the app looks on this device" },
                 footer = { +"Always dark keeps the screen dark even in daylight." },
             ) {
-                SettingRow(
+                SelectionRow(
                     onClick = onClick,
                     enabled = enabled,
                     position = GroupPosition.First,
@@ -1794,7 +1802,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     +"Theme"
                     trailing { +"Always dark" }
                 }
-                SettingRow(
+                SelectionRow(
                     onClick = onClick,
                     enabled = enabled,
                     position = GroupPosition.Last,

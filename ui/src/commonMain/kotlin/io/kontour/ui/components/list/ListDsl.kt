@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.GroupPosition
@@ -106,7 +107,11 @@ class ListGroupScope internal constructor() {
         }
     }
 
-    /** One settings row — an icon, a label and the value it is currently set to. */
+    /**
+     * One settings row — an icon, a label and the value it is currently set to —
+     * as a [SelectionRow] that opens the choice: pressed, it goes to where the
+     * value is picked.
+     */
     fun setting(
         label: String,
         value: String? = null,
@@ -116,9 +121,9 @@ class ListGroupScope internal constructor() {
         onClick: (() -> Unit)? = null,
     ) {
         rows += { position ->
-            SettingRow(
-                enabled = enabled,
+            SelectionRow(
                 onClick = onClick,
+                enabled = enabled,
                 position = position,
             ) {
                 +label

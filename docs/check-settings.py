@@ -165,6 +165,8 @@ QUIET_FILL_ALLOWED = {
     "button; its label, at 7:1, is the control",
     "TimelineList.kt": "its rows are list rows, which draw the tier's edge "
     "themselves (`edged`) and the selection's",
+    "SelectionRow.kt": "a grouped row is drawn by the list row, which draws the "
+    "tier's edge itself (`edged`); a bare row has no ground at all",
     "NavScope.kt": "names the default indicator colour; the bar and the rail "
     "that draw the indicator give it the selection edge",
     "NavigationSuiteScaffold.kt": "hands the rail a raised ground; `NavRail` "

@@ -178,7 +178,8 @@ component nothing checks *and* nothing draws.
 The suite was written after twelve phases of components had already been
 reviewed by eye, in every scheme, in a screenshot. It failed on its first run:
 
-- **`ListItem` and `SettingRow` dropped their `clickable` when disabled.** The
+- **`ListItem` and `SettingRow` (since merged into `SelectionRow`) dropped their
+  `clickable` when disabled.** The
   callback could not fire, so it looked right. But the node then had no role and
   no disabled flag: a disabled row announced as plain text, and there was no way
   to tell it was unavailable rather than broken.

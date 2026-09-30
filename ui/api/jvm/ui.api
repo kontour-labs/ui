@@ -1171,7 +1171,6 @@ public final class io/kontour/ui/components/list/ListItemKt {
 	public static final fun ListItem-IJAUjLM (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;ZILio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/Shape;JJJFLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun ListSection-PfoAEA0 (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;FLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SectionHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SettingRow (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Lio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun listPositions (I)Ljava/util/List;
 }
 
@@ -1433,7 +1432,8 @@ public final class io/kontour/ui/components/selection/SegmentedControlKt {
 }
 
 public final class io/kontour/ui/components/selection/SelectionRowKt {
-	public static final fun SelectionRow-Ge35cas (ZLkotlin/jvm/functions/Function1;ILandroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SelectionRow (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SelectionRow-W2cDOtw (ZLkotlin/jvm/functions/Function1;ILandroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/selection/SliderColours {

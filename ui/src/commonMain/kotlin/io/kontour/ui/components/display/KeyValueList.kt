@@ -36,17 +36,17 @@ import io.kontour.ui.theme.Theme
  * }
  * ```
  *
- * ### Not a [io.kontour.ui.components.list.SettingRow]
+ * ### Not a [io.kontour.ui.components.selection.SelectionRow]
  *
  * They draw almost the same row, and the difference is the whole reason both
- * exist. A `SettingRow` is a **control**: it is `clickable`, announces
- * `Role.Button`, has a touch target and opens something. A `KeyValueList` row is
+ * exist. A `SelectionRow` is a **control**: it is pressed, announces a role,
+ * has a touch target and changes or opens something. A `KeyValueList` row is
  * **text**: no role, no target, nothing to press.
  *
  * Using a setting row for facts gives a screen-reader user a list of buttons
  * that do nothing, which is worse than the visual duplication it saves. If a row
  * here needs to become tappable, it is not one of these — move it out into a
- * `SettingRow` and leave the rest.
+ * `SelectionRow` and leave the rest.
  *
  * ### Each row announces as one thing
  *

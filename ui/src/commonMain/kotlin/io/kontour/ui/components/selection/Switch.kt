@@ -362,7 +362,7 @@ fun Switch(
                     // nothing a screen reader reads the row as a button with a
                     // name and no on or off. The row publishes this too when it
                     // is `toggleable`; the same value merged twice is harmless,
-                    // and a `SettingRow` — which is `clickable`, not
+                    // and a row that opens a choice — which is `clickable`, not
                     // `toggleable` — publishes nothing at all without it.
                     Modifier.semantics {
                         role = Role.Switch

@@ -42,13 +42,14 @@ import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderHandleSide
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.selection.Switch
+import androidx.compose.ui.semantics.Role
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.table.SortDirection
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableLines
@@ -134,6 +135,7 @@ internal val ListSectionDemo = ComponentDemo(
     knobs = listOf(sectionFooter),
 ) {
     var theme by remember { mutableStateOf(0) }
+    var alerts by remember { mutableStateOf(true) }
     val themes = listOf("Match system", "Always light", "Always dark")
     ListSection(
         modifier = Modifier.fillMaxWidth(),
@@ -145,40 +147,25 @@ internal val ListSectionDemo = ComponentDemo(
             null
         },
     ) {
-        SettingRow(
-            position = GroupPosition.First,
+        // One of each: a row that opens a choice, and a row that is one.
+        SelectionRow(
             onClick = { theme = (theme + 1) % themes.size },
+            position = GroupPosition.First,
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
             trailing { +themes[theme] }
         }
-        SettingRow(position = GroupPosition.Last, onClick = { echo("Delay alerts") }) {
-            +"Delay alerts"
-            supporting { +"Only for favourited routes" }
-            leading { +Tabler.Outline.Bell }
-        }
-    }
-}
-
-internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
-    var theme by remember { mutableStateOf(0) }
-    var notify by remember { mutableStateOf(true) }
-    val themes = listOf("Match system", "Always light", "Always dark")
-    Column(Modifier.fillMaxWidth()) {
-        SettingRow(
-            position = GroupPosition.First,
-            onClick = { theme = (theme + 1) % themes.size },
+        SelectionRow(
+            selected = alerts,
+            onSelectedChange = { alerts = it },
+            role = Role.Switch,
+            position = GroupPosition.Last,
         ) {
-            +"Theme"
-            leading { +Tabler.Outline.Moon }
-            trailing { +themes[theme] }
-        }
-        SettingRow(position = GroupPosition.Last, onClick = { notify = !notify }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
-            trailing { Switch(checked = notify, onCheckedChange = null) }
+            trailing { Switch(checked = alerts, onCheckedChange = null) }
         }
     }
 }
@@ -536,7 +523,6 @@ internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
     ListSectionDemo,
-    SettingRowDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,
     PullToRefreshDemo,

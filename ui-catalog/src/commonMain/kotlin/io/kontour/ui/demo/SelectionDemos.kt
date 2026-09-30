@@ -41,6 +41,7 @@ import io.kontour.ui.components.selection.RangeSlider
 import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
@@ -164,14 +165,22 @@ internal val SwitchDemo = ComponentDemo(
     }
 }
 
-internal val SelectionRowDemo = ComponentDemo(slug = "selection-row") {
+/** Rows of a group, on a list row's ground with the corners that meet squared, or bare rows. */
+private val selectionRowGrouped = Knob.Flag("In a group", initial = true)
+
+internal val SelectionRowDemo = ComponentDemo(slug = "selection-row", knobs = listOf(selectionRowGrouped)) {
     var delays by remember { mutableStateOf(true) }
     var live by remember { mutableStateOf(false) }
+    var units by remember { mutableStateOf(0) }
+    val unitNames = listOf("Kilometres", "Miles")
+    val grouped = this[selectionRowGrouped]
+    fun at(index: Int) = if (grouped) GroupPosition.of(index, 3) else null
     Column(Modifier.fillMaxWidth()) {
         SelectionRow(
             selected = delays,
             onSelectedChange = { delays = it },
             role = Role.Checkbox,
+            position = at(0),
             modifier = Modifier.fillMaxWidth(),
         ) {
             +"Notify me about delays"
@@ -182,10 +191,21 @@ internal val SelectionRowDemo = ComponentDemo(slug = "selection-row") {
             selected = live,
             onSelectedChange = { live = it },
             role = Role.Switch,
+            position = at(1),
             modifier = Modifier.fillMaxWidth(),
         ) {
             +"Show live vehicles"
             trailing { Switch(checked = live, onCheckedChange = null) }
+        }
+        // A setting chosen somewhere else: pressed, it opens the choice — here,
+        // just the next one — and shows what is chosen now.
+        SelectionRow(
+            onClick = { units = (units + 1) % unitNames.size },
+            position = at(2),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            +"Distances"
+            trailing { +unitNames[units] }
         }
     }
 }

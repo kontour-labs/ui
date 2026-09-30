@@ -201,7 +201,8 @@ fun TriStateCheckbox(
                     // Not interactive, but still *state*, which is what the
                     // `@param` above promises. A box handed a null callback is
                     // showing what a row decided, and a row that is `clickable`
-                    // rather than `toggleable` — every `SettingRow` — publishes
+                    // rather than `toggleable` — a `SelectionRow` that opens a
+                    // choice, or a plain `ListItem` — publishes
                     // no checked state of its own, so without this a screen
                     // reader reads the row as a button with a name and no tick.
                     // `SelectionRow` publishes it too; the same value merged

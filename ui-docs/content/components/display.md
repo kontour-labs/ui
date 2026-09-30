@@ -23,7 +23,7 @@ Things that show rather than take input.
 | [`BranchTimeline`](branch-timeline.md) | A history that forks and merges, like `git log --graph` | `TimelineList`, when nothing branches |
 | [`Accordion`](accordion.md) | Disclosure, with hoisted state | — |
 | [`Stat`](stat.md) | One figure, said loudly | `KeyValueList`, when none of them is the headline |
-| [`KeyValueList`](key-value-list.md) | Label-and-value facts about one thing | `SettingRow`, only if the rows are tappable |
+| [`KeyValueList`](key-value-list.md) | Label-and-value facts about one thing | `SelectionRow`, only if the rows are tappable |
 | [`Carousel`](carousel.md) | Pages one at a time, that snap | A scrolling `Row`, when they are not pages |
 | [`PageIndicator`](page-indicator.md) | Which page of how many | — |
 | [`AnimatedCounter`](animated-counter.md) | A number that changes while you watch | A `Text`, when it changes off-screen |

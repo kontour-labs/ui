@@ -36,7 +36,7 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.table.TableSort
@@ -141,22 +141,14 @@ fun ListSectionBasics() {
         // Above the rows is what the group *is*; below them is what it *does*.
         footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
-        SettingRow(position = GroupPosition.First, onClick = { save() }) {
+        SelectionRow(onClick = { save() }, position = GroupPosition.First) {
             +"Theme"
             supporting { +"Match system" }
         }
-        SettingRow(position = GroupPosition.Last, onClick = { save() }) {
+        SelectionRow(onClick = { save() }, position = GroupPosition.Last) {
             +"Text size"
             supporting { +"Default" }
         }
-    }
-}
-
-@Composable
-fun SettingRowBasics() {
-    SettingRow(onClick = { save() }) {
-        +"Live vehicle positions"
-        supporting { +"Uses more data" }
     }
 }
 

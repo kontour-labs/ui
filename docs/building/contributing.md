@@ -374,7 +374,8 @@ Reach for these only when the component really is that shape. Every one of them
 narrows what is checked, and the six bugs the suite found on its first run were
 all in components that looked fine:
 
-- `ListItem` and `SettingRow` dropped their `clickable` entirely when disabled,
+- `ListItem` and `SettingRow` (since merged into `SelectionRow`) dropped their
+  `clickable` entirely when disabled,
   so a disabled row announced as plain text with no role and no disabled state.
 - `IconToggleButton` put its toggle semantics on a `Box` wrapping an
   `IconButton`, producing a node tree that read as a switch containing a button
