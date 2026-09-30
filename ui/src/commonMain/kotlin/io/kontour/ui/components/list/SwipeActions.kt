@@ -359,6 +359,13 @@ object SwipeActionsDefaults {
  *   the far edge a moment longer to show it. Off runs the action the moment the
  *   row arrives, for a list where the next thing on screen is confirmation
  *   enough.
+ * @param shape The row's shape. In a group of rows, the row's grouped shape —
+ *   `position.shape(…)`, square where it meets a neighbour — so the row clips
+ *   as it is drawn.
+ * @param actionShape Each action's shape: a row on its own, whatever [shape]
+ *   the row has. A button squared off where the row meets its neighbour, on a
+ *   side where the button meets nothing, reads as a fragment of a button. Pass
+ *   the rows' own shape when they are not [ListItemDefaults.Shape].
  * @param tapConfirmation The same for a tap on a revealed action: its icon turns
  *   into the same tick, drawn, held a moment, and then the action runs and the
  *   row closes. On by default, as asked for from a phone — a tapped action used
@@ -373,6 +380,7 @@ fun SwipeActions(
     end: List<SwipeAction> = emptyList(),
     state: SwipeActionsState = rememberSwipeActionsState(),
     shape: Shape = Theme.shapes.container,
+    actionShape: Shape = ListItemDefaults.Shape,
     actionWidth: Dp = SwipeActionsDefaults.ActionWidth,
     fullSwipeConfirmation: Boolean = true,
     tapConfirmation: Boolean = true,
@@ -878,7 +886,7 @@ fun SwipeActions(
                 modifier = Modifier.matchParentSize(),
                 actions = fromEdge,
                 fromLeadingEdge = side > 0,
-                shape = shape,
+                shape = actionShape,
                 gap = gapPx,
                 reveal = { if (side > 0) startTravel else -endTravel },
                 offset = { state.anchoredState.offset + band.offset },
@@ -1438,6 +1446,7 @@ private const val TickEndY: Float = 0.3f
  * a gesture — pair it with a
  * [io.kontour.ui.overlay.Toast] carrying an undo action.
  *
+ * @param actionShape The action's shape; see [SwipeActions].
  * @param fullSwipeConfirmation Whether the row shows a tick at the far edge before
  *   it is dismissed, as [SwipeActions] does. Off dismisses it the moment it gets
  *   there.
@@ -1452,6 +1461,7 @@ fun SwipeToDismiss(
     background: Color = Theme.colours.danger.solid,
     state: SwipeActionsState = rememberSwipeActionsState(),
     shape: Shape = Theme.shapes.container,
+    actionShape: Shape = ListItemDefaults.Shape,
     fullSwipeConfirmation: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -1469,6 +1479,7 @@ fun SwipeToDismiss(
         state = state,
         enabled = enabled,
         shape = shape,
+        actionShape = actionShape,
         fullSwipeConfirmation = fullSwipeConfirmation,
         content = content,
     )

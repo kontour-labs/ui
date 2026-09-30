@@ -1276,8 +1276,8 @@ public final class io/kontour/ui/components/list/SwipeActionsDefaults {
 }
 
 public final class io/kontour/ui/components/list/SwipeActionsKt {
-	public static final fun SwipeActions-cJHQLPU (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SwipeToDismiss-Yod850M (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SwipeActions-seJ8HY0 (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SwipeToDismiss-kWc7xho (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberSwipeActionsState (Lio/kontour/ui/components/list/SwipeValue;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/SwipeActionsState;
 }
 

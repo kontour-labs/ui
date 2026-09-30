@@ -153,6 +153,17 @@ SwipeToDismiss(
 }
 ```
 
+### In a group of rows
+
+A row joined to its neighbours takes their shape — `shape =
+position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner,
+Orientation.Vertical)`, the same the `ListItem` inside it is given — so it clips
+square where it meets the next row. **Its actions do not.** Each is always the
+shape of a row on its own, `actionShape`, which is `ListItemDefaults.Shape`: a
+button squared off on the side that faces another row, when on that side it
+faces nothing at all, reads as a broken piece of one. Pass `actionShape` only
+when your rows are not the default shape.
+
 ---
 
 ## Accessibility
