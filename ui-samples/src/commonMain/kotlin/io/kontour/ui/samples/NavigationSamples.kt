@@ -13,10 +13,12 @@ import com.composables.icons.tabler.outline.Calendar
 import com.composables.icons.tabler.outline.Filter
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.User
+import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.foundation.Text
@@ -126,6 +128,23 @@ fun NavBarCentreSearch() {
         item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
         item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
         slot(weight = 1f) { NavSearch(state = search, searchIcon = Tabler.Outline.Search) }
+        item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+        item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+
+@Composable
+fun NavBarAction() {
+    var here by remember { mutableStateOf("map") }
+
+    // Beside the capsule, not in it: a floating action button has a surface of
+    // its own, and on a phone the capsule narrows to make room for it.
+    NavBar(
+        action = {
+            FloatingActionButton(onClick = { newTrip() }, icon = Tabler.Outline.Plus, contentDescription = "New trip")
+        },
+    ) {
+        item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
         item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
         item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
     }

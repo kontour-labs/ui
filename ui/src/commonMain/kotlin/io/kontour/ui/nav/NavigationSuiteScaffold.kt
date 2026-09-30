@@ -134,7 +134,9 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param header Above the destinations in a rail or a modal rail.
  * @param search In the bar, among the destinations — usually a [NavSearch]. A
  *   rail's is the app's to put in [header].
- * @param action In the bar, after everything; at the foot of a rail.
+ * @param action A floating action button, usually. Beside a floating bar's
+ *   capsule, inside a docked bar after everything else, at the foot of a rail:
+ *   see [NavBar]'s `action`.
  */
 @Composable
 fun NavigationSuiteScaffold(
@@ -178,9 +180,9 @@ fun NavigationSuiteScaffold(
                     windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                     search = search,
                     searchIndex = searchIndex,
+                    action = action,
                 ) {
                     destinations()
-                    if (action != null) slot { action() }
                 }
             }
 

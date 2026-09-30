@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -85,6 +85,14 @@ object NavBarDefaults {
      */
     val SlotMaxWidth: Dp = 320.dp
 
+    /**
+     * The gap between a floating bar's capsule and the action beside it: wider
+     * than the gap between destinations, so the two read as neighbours rather
+     * than as one bar with a bulge.
+     */
+    val ActionGap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.sm
+
     /** The gap between destinations when they are gathered in the middle. */
     val ItemGap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navBarItemGap
@@ -139,8 +147,19 @@ enum class NavBarStyle {
  * Each destination is a circle; one marker travels between them. The content is
  * a [NavBarScope]: destinations are [NavScope.item]s, a [NavScope.group] is a
  * circle that opens a menu of its children above the bar, sections run inline
- * and dividers are left out, and [NavBarScope.slot] holds anything that is not a
- * destination — a search, a floating action.
+ * and dividers are left out, and [NavBarScope.slot] holds anything else that
+ * belongs in the row — a search, a button.
+ *
+ * A floating action goes in [action], not in a slot:
+ *
+ * ```kotlin
+ * NavBar(
+ *     action = { FloatingActionButton(onClick = ::newTrip, icon = Tabler.Outline.Plus, contentDescription = "New trip") },
+ * ) {
+ *     item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *     item(here == Map, { go(Map) }, key = Map, icon = Tabler.Outline.Map) { +"Map" }
+ * }
+ * ```
  *
  * @param style [NavBarStyle.Floating], a capsule over the content, or
  *   [NavBarStyle.Docked], a surface along the bottom edge.
@@ -149,6 +168,12 @@ enum class NavBarStyle {
  *   labels are still announced.
  * @param arrangement How the row distributes its children. Null derives it from
  *   the window's width: see [NavBarDefaults.arrangementFor].
+ * @param action Something the screen does rather than somewhere it goes — a
+ *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
+ *   bar puts it **beside** the capsule, on the page and centred on the capsule's
+ *   height, and on a phone the capsule narrows to make room; so it has to bring
+ *   its own surface, which a floating action button does. A docked bar has no
+ *   beside, and puts it inside, after everything else.
  */
 @Composable
 fun NavBar(
@@ -158,6 +183,7 @@ fun NavBar(
     colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
+    action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     NavBarLayout(
@@ -169,6 +195,7 @@ fun NavBar(
         windowInsets = windowInsets,
         search = null,
         searchIndex = null,
+        action = action,
         content = content,
     )
 }
@@ -190,6 +217,7 @@ internal fun NavBarLayout(
     windowInsets: WindowInsets,
     search: (@Composable () -> Unit)?,
     searchIndex: Int?,
+    action: (@Composable () -> Unit)?,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -210,7 +238,7 @@ internal fun NavBarLayout(
     }
 
     @Composable
-    fun Destinations(rowModifier: Modifier) {
+    fun Destinations(rowModifier: Modifier, inlineAction: (@Composable () -> Unit)?) {
         SelectionIndicatorBox(
             state = indicator,
             // The circle is the marker, sized to the glyph rather than the
@@ -244,6 +272,15 @@ internal fun NavBarLayout(
                 if (search != null) {
                     Box(Modifier.layoutId(BarChild.Search), propagateMinConstraints = true) { BarSlot(search) }
                 }
+                if (inlineAction != null) {
+                    // A slot at the end, but at least a circle's height rather
+                    // than exactly one: a floating action button is taller than
+                    // a circle, and a slot's fixed height would squash it.
+                    Box(
+                        Modifier.layoutId(BarChild.Slot(0f)).heightIn(min = circle.height),
+                        contentAlignment = Alignment.Center,
+                    ) { inlineAction() }
+                }
             }
         }
     }
@@ -261,28 +298,74 @@ internal fun NavBarLayout(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(windowInsets)
-                    .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs)
+                    .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
+                inlineAction = action,
             )
         }
 
         // Inset from every edge, so the page visibly continues underneath.
-        NavBarStyle.Floating -> Box(
-            modifier
+        NavBarStyle.Floating -> FloatingBar(
+            modifier = modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(windowInsets)
                 .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
-            contentAlignment = Alignment.Center,
+            hug = hug,
+            gap = NavBarDefaults.ActionGap,
+            action = action,
         ) {
             // A capsule, concentric with the circles it holds: 20dp of their
             // radius and `xs` around them is half the bar's height.
             BarGround(
-                modifier = if (hug) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
+                modifier = Modifier,
                 shape = Theme.shapes.pill,
                 colours = colours,
                 shadow = Theme.elevation.high,
             ) {
-                Destinations(Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs))
+                Destinations(
+                    Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs),
+                    inlineAction = null,
+                )
             }
+        }
+    }
+}
+
+/**
+ * A floating bar: the capsule, and the action beside it at its end.
+ *
+ * Laid out rather than put in a `Row`, because the two are sized against each
+ * other: the action takes what it needs first, and the capsule has what is left
+ * — all of it when the bar spans a phone, so the capsule narrows as an action
+ * arrives rather than the action being pushed off the edge. When the bar hugs,
+ * the two are centred together, as one group. Each is centred on the other's
+ * height, so a floating action button taller than the capsule stands level with
+ * it rather than on the same floor.
+ */
+@Composable
+private fun FloatingBar(
+    modifier: Modifier,
+    hug: Boolean,
+    gap: Dp,
+    action: (@Composable () -> Unit)?,
+    capsule: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(capsule, action ?: {}), modifier = modifier) { (capsules, actions), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val beside = actions.firstOrNull()?.measure(loose)
+        val gapPx = if (beside != null) gap.roundToPx() else 0
+        val taken = (beside?.width ?: 0) + gapPx
+        val bounded = constraints.hasBoundedWidth
+        val room = if (bounded) (constraints.maxWidth - taken).coerceAtLeast(0) else Constraints.Infinity
+        val bar = capsules.first().measure(
+            loose.copy(minWidth = if (hug || !bounded) 0 else room, maxWidth = room),
+        )
+        val group = bar.width + taken
+        val width = if (bounded) constraints.maxWidth else group
+        val height = max(max(bar.height, beside?.height ?: 0), constraints.minHeight)
+        layout(width, height) {
+            val start = ((width - group) / 2).coerceAtLeast(0)
+            bar.placeRelative(start, (height - bar.height) / 2)
+            beside?.placeRelative(start + bar.width + gapPx, (height - beside.height) / 2)
         }
     }
 }

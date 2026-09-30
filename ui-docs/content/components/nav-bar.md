@@ -19,7 +19,7 @@ NavBar(style = NavBarStyle.Docked, showLabels = true) {
 ```
 
 The content is a [`NavScope`](nav-scope.md) with one addition: `slot`, for anything
-that shares the bar without being a destination — a search, a floating action.
+else that belongs inside the bar — a search, a button.
 A slot at `weight = 0f` takes its content's width; above zero it takes that share
 of what is left, which is what a search wants — up to `NavBarDefaults.SlotMaxWidth`,
 320dp. Without the cap a search on a wide window took all of the room the
@@ -67,6 +67,39 @@ Two destinations either side of the thing people came to do. The search is a
 [`NavSearch`](nav-search.md), a pill that opens a field over the screen rather than
 raising the keyboard inside the bar. `NavigationSuiteScaffold` puts one there by
 counting destinations: `searchIndex = 2`.
+
+### A floating action beside it
+
+<!--sample:NavBarAction-->
+```kotlin
+var here by remember { mutableStateOf("map") }
+
+// Beside the capsule, not in it: a floating action button has a surface of
+// its own, and on a phone the capsule narrows to make room for it.
+NavBar(
+    action = {
+        FloatingActionButton(onClick = { newTrip() }, icon = Tabler.Outline.Plus, contentDescription = "New trip")
+    },
+) {
+    item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+    item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+    item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+}
+```
+
+A floating action button goes in `action`, not in a slot. A floating bar puts it
+**beside** the capsule, a small gap after it, on the page and centred on the
+capsule's height: a round button squeezed into a capsule of round destinations
+reads as one more destination, and a 56dp button in a 64dp capsule has 4dp
+round it where the circles have 12. On a phone the capsule narrows to make room; on anything wider the two
+are centred together. It sits after the bar in reading order, so in a
+right-to-left layout it is on the left.
+
+Beside the capsule the action is on the page, with nothing behind it, so it has
+to bring its own surface, which a floating action button does. A plain icon
+button belongs in a `slot`.
+
+A `Docked` bar has no beside: it puts the action inside, after everything else.
 
 ### A group in a bar
 

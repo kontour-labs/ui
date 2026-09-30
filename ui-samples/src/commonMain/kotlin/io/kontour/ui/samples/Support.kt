@@ -29,6 +29,7 @@ internal fun plan() = Unit
 internal fun delete() = Unit
 internal fun dismiss() = Unit
 internal fun add() = Unit
+internal fun newTrip() = Unit
 internal fun start() = Unit
 internal fun zoomIn() = Unit
 internal fun zoomOut() = Unit

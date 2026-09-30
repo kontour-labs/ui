@@ -153,8 +153,11 @@ sealed interface NavScope {
 sealed interface NavBarScope : NavScope {
 
     /**
-     * Anything that is not a destination: a search, a wide button, a floating
-     * action. Not counted among the destinations a screen reader hears.
+     * Anything else that belongs inside the bar: a search, a button. Not counted
+     * among the destinations a screen reader hears.
+     *
+     * A floating action button goes in [NavBar]'s `action` instead, which puts
+     * it beside a floating bar rather than squeezing it into the capsule.
      *
      * @param weight Zero, the default, sizes it to its content. Above zero it
      *   takes that share of the room the rest leave, up to

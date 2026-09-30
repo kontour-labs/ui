@@ -2727,6 +2727,7 @@ public final class io/kontour/ui/nav/NavBarDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/NavBarDefaults;
 	public final fun arrangementFor (ZLandroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/Arrangement$Horizontal;
+	public final fun getActionGap (Landroidx/compose/runtime/Composer;I)F
 	public final fun getCircleSize (Landroidx/compose/runtime/Composer;I)J
 	public final fun getInset (Landroidx/compose/runtime/Composer;I)F
 	public final fun getItemGap (Landroidx/compose/runtime/Composer;I)F
@@ -2735,7 +2736,7 @@ public final class io/kontour/ui/nav/NavBarDefaults {
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarScope : io/kontour/ui/nav/NavScope {

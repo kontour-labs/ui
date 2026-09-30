@@ -27,6 +27,7 @@ import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Pin
+import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Ticket
@@ -184,9 +185,12 @@ private val barSearch = Knob.Flag("Search in the bar")
 private val barSearchPlacement =
     Knob.Choice("Panel", NavExpandPlacement.entries.toList(), NavExpandPlacement.AboveKeyboard)
 
+/** A floating action button, beside a floating bar and inside a docked one. */
+private val barAction = Knob.Flag("Action")
+
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -198,6 +202,17 @@ internal val NavBarDemo = ComponentDemo(
             NavBar(
                 style = this@ComponentDemo[barStyle],
                 showLabels = this@ComponentDemo[barLabels],
+                action = if (this@ComponentDemo[barAction]) {
+                    {
+                        FloatingActionButton(
+                            onClick = { echo("New trip") },
+                            icon = Tabler.Outline.Plus,
+                            contentDescription = "New trip",
+                        )
+                    }
+                } else {
+                    null
+                },
             ) {
                 val first = allDestinations.take(if (withSearch) 2 else 4)
                 first.forEach { d ->
