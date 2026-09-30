@@ -1134,6 +1134,10 @@ public abstract class io/kontour/ui/components/display/TimelineRowScope {
 	public static synthetic fun item-uDo3WH8$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 }
 
+public final class io/kontour/ui/components/list/DisclosureListItemKt {
+	public static final fun DisclosureListItem (ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+}
+
 public final class io/kontour/ui/components/list/ExpandingListItemKt {
 	public static final fun ExpandingListItem-k3FuEkE (ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/vector/ImageVector;FLjava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }

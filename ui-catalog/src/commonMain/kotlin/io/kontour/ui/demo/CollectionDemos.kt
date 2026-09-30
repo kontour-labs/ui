@@ -1,5 +1,8 @@
 package io.kontour.ui.demo
 
+import com.composables.icons.tabler.outline.Bike
+import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -116,6 +119,39 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
         item(label = "Platform 1", supporting = "Mandurah line")
         item(label = "Platform 2", supporting = "Joondalup line")
         item(label = "Platform 3", supporting = "Airport line")
+    }
+}
+
+/** Its question's glyph before the words, and the body lined up under the words. */
+private val disclosureIcon = Knob.Flag("Leading icon", initial = true)
+
+internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item", knobs = listOf(disclosureIcon)) {
+    var first by remember { mutableStateOf(true) }
+    var second by remember { mutableStateOf(false) }
+    val icon = this[disclosureIcon]
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        DisclosureListItem(
+            expanded = first,
+            onExpandedChange = { first = it },
+            position = GroupPosition.First,
+            header = {
+                +"Why is my train late?"
+                if (icon) leading { +Tabler.Outline.HelpCircle }
+            },
+        ) {
+            Text("Trains give way to freight between Midland and Bellevue. A delay there reaches every stop after it.")
+        }
+        DisclosureListItem(
+            expanded = second,
+            onExpandedChange = { second = it },
+            position = GroupPosition.Last,
+            header = {
+                +"Can I take my bike?"
+                if (icon) leading { +Tabler.Outline.Bike }
+            },
+        ) {
+            Text("Outside the peaks, in the marked carriage, as long as it does not block a door.")
+        }
     }
 }
 
@@ -522,6 +558,7 @@ private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toStr
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
+    DisclosureListItemDemo,
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,

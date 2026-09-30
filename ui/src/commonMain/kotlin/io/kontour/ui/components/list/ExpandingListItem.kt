@@ -171,7 +171,7 @@ fun ExpandingListItem(
  * `First` or a `Middle` — the two ends are equal and the lerp is a no-op.
  */
 @Composable
-private fun headerShape(position: GroupPosition, fraction: Float): CornerBasedShape {
+internal fun headerShape(position: GroupPosition, fraction: Float): CornerBasedShape {
     val base = ListItemDefaults.Shape
     val inner = ListItemDefaults.InnerCorner
     // Quantised rather than built per frame — see `rememberMorphedShape`.
@@ -189,7 +189,7 @@ private fun headerShape(position: GroupPosition, fraction: Float): CornerBasedSh
  * its run becomes the first of one, and a header that was the last becomes a
  * middle. Shut, it is exactly what the caller said it was.
  */
-private fun GroupPosition.opening(expanded: Boolean): GroupPosition =
+internal fun GroupPosition.opening(expanded: Boolean): GroupPosition =
     if (!expanded) {
         this
     } else {

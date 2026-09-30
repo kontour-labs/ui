@@ -118,6 +118,7 @@ import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.GroupPosition
@@ -1490,6 +1491,38 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
                 onClick = onClick,
             )
+        }
+    )
+
+    add(
+        // Photographed open as well as shut: the claim is that the body opens
+        // inside the row's own card, under the header's words.
+        ComponentSpec(
+            name = "DisclosureListItem",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            states = listOf(
+                RenderState("expanded", height = 220) { modifier ->
+                    DisclosureListItem(
+                        expanded = true,
+                        onExpandedChange = {},
+                        header = { +"Why is my train late?" },
+                        modifier = modifier,
+                    ) {
+                        Text("Trains give way to freight between Midland and Bellevue.")
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            DisclosureListItem(
+                expanded = false,
+                onExpandedChange = { onClick() },
+                header = { +"Why is my train late?" },
+                modifier = modifier,
+                enabled = enabled,
+            ) {
+                Text("Trains give way to freight between Midland and Bellevue.")
+            }
         }
     )
 

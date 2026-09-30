@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -127,6 +129,24 @@ fun ExpandingListItemBasics() {
     ) {
         item(label = "Platform 1", supporting = "Mandurah line")
         item(label = "Platform 2", supporting = "Joondalup line")
+    }
+}
+
+@Composable
+fun DisclosureListItemBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    // The row grows to show the answer inside itself: one card, nothing new
+    // appearing underneath it.
+    DisclosureListItem(
+        expanded = open,
+        onExpandedChange = { open = it },
+        header = {
+            leading { +Tabler.Outline.HelpCircle }
+            +"Why is my train late?"
+        },
+    ) {
+        Text("Trains give way to freight between Midland and Bellevue. A delay there reaches every stop after it.")
     }
 }
 
