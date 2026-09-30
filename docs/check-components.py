@@ -783,6 +783,7 @@ HAPTIC_FILE_NAMES = {
     "NavRail": "NavScope",
     "Select": "MultiSelect",
     "TableRows": "Table",
+    "Pressable": "Modifier.pressable",
 }
 
 # The mechanism rather than a component: one defines the dispatcher, the other
@@ -828,7 +829,7 @@ def policy_named() -> set[str]:
     """The components the haptics table names. For the summary line."""
     named = set()
     for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
-        for name in re.findall(r"`([A-Z]\w+)", row):
+        for name in re.findall(r"`(Modifier\.\w+|[A-Z]\w+)", row):
             named.add(name)
     return named
 
@@ -852,7 +853,7 @@ def haptics_policy_drift() -> list[str]:
     """
     policy = set()
     for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
-        for name in re.findall(r"`([A-Z]\w+)", row):
+        for name in re.findall(r"`(Modifier\.\w+|[A-Z]\w+)", row):
             policy.add(name)
 
     firing = set()

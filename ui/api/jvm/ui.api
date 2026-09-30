@@ -2272,6 +2272,10 @@ public final class io/kontour/ui/interaction/KontourIndication : androidx/compos
 	public fun rememberUpdatedInstance (Landroidx/compose/foundation/interaction/InteractionSource;Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/IndicationInstance;
 }
 
+public final class io/kontour/ui/interaction/PressableKt {
+	public static final fun pressable--JlUKpU (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/Shape;ZLandroidx/compose/ui/semantics/Role;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function0;FZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+}
+
 public final class io/kontour/ui/interaction/RowInteractionKt {
 	public static final fun getLocalRowInteractionSource ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 	public static final fun getLocalRowToggle ()Landroidx/compose/runtime/ProvidableCompositionLocal;

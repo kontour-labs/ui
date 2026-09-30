@@ -3,6 +3,12 @@ package io.kontour.ui.demo
 import io.kontour.ui.components.action.VerticalButtonGroup
 import io.kontour.ui.components.action.ButtonGroupScope
 import androidx.compose.foundation.gestures.Orientation
+import io.kontour.ui.interaction.pressable
+import io.kontour.ui.interaction.IndicationDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -390,6 +396,58 @@ internal val ToolbarDemo = ComponentDemo(slug = "toolbar") {
     }
 }
 
+// --- Modifier.pressable -----------------------------------------------------
+
+private val pressableEnabled = Knob.Flag("Enabled", initial = true)
+private val pressableLong = Knob.Flag("Long press", initial = true)
+private val pressableShrinks = Knob.Flag("Shrinks", initial = true)
+
+/**
+ * Two tiles of the demo's own making, pressed as the library's buttons are.
+ *
+ * Tiles rather than a button, because a button already has all of this: the
+ * point is a thing the library does not ship. Two, so a reader can see that the
+ * wash stays in each one's shape and that a long press on one pins that one.
+ * "Shrinks" off is `pressScale = 1f`, what a large surface should use.
+ */
+internal val PressableDemo = ComponentDemo(
+    slug = "modifier-pressable",
+    knobs = listOf(pressableEnabled, pressableLong, pressableShrinks),
+) {
+    val enabled = this[pressableEnabled]
+    val long = this[pressableLong]
+    val shrinks = this[pressableShrinks]
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+    ) {
+        for ((name, routes) in listOf("Perth Underground" to 4, "Elizabeth Quay" to 3)) {
+            Column(
+                Modifier
+                    .width(160.dp)
+                    .pressable(
+                        onClick = { echo("Opened $name") },
+                        enabled = enabled,
+                        onLongClick = if (long) ({ echo("Pinned $name") }) else null,
+                        onLongClickLabel = "Pin",
+                        pressScale = if (shrinks) IndicationDefaults.PressScale else 1f,
+                    )
+                    .clip(Theme.shapes.container)
+                    .background(Theme.colours.surfaceSunken)
+                    .padding(Theme.spacing.md),
+            ) {
+                val ink = if (enabled) Theme.colours.content else Theme.colours.contentDisabled
+                Text(name, style = Theme.typography.titleSmall, colour = ink)
+                Text(
+                    "$routes routes",
+                    style = Theme.typography.bodySmall,
+                    colour = if (enabled) Theme.colours.contentMuted else Theme.colours.contentDisabled,
+                )
+            }
+        }
+    }
+}
+
 // --- Spinner --------------------------------------------------------------
 
 internal val actionDemos = listOf(
@@ -403,4 +461,5 @@ internal val actionDemos = listOf(
     SplitButtonDemo,
     FabMenuDemo,
     ToolbarDemo,
+    PressableDemo,
 )
