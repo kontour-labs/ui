@@ -39,8 +39,10 @@ up. The bar grows shorter in step, from both lines to one. Over the last part of
 the way the small title takes over from the large one, drawn at the same size on
 the same baseline, so what shows is the weight easing rather than one title
 fading into another; a title the large type wraps onto two lines lets its second
-line go early, as its words arrive beside the first. The subtitle goes with the
-large title and fades before it arrives.
+line go early, as its words arrive beside the first. **The subtitle travels
+too**, under the title the whole way, and lands under the small title as a
+`Small` bar has it: collapsed, the bar is a `Small` bar with its subtitle. It
+used to fade out early, and the collapsed bar lost it.
 
 The bar does not own the scroll. `rememberTopBarCollapseState()` is the usual
 way to drive it: put its `nestedScrollConnection` on something that holds both

@@ -255,15 +255,22 @@ fun TopBar(
  * it is exactly the small title a [TopBarStyle.Small] bar draws, where it draws
  * it.
  *
- * The subtitle goes with the large title and fades out early: the collapsed bar,
- * like the one the title came from, has one line. **So does a large title's
- * second line**, and for the same reason. A title the large type wraps arrives
- * as two lines where the small title has one, and the handover showed both — the
- * small title's one line with the large one's second line hanging under it,
- * the same word twice. The first line of the large title is the start of the
- * small one, glyph over glyph; everything under it fades out early, cut at the
- * gap between the lines, as the rest of the small title fades in beside the
- * first line.
+ * **The subtitle travels too**, under the title all the way, and lands where a
+ * [TopBarStyle.Small] bar puts its supporting line: under the small title, the
+ * two centred in the bar together. It used to fade out early, and the collapsed
+ * bar lost it — *"can we also keep the subtitle text? we basically want it to
+ * morph into a small top bar"*. It is the same type at both ends, so it does not
+ * scale; it is laid out twice, at the large title's width and at the small
+ * title's, and the two hand over with the titles, which shows only where the
+ * narrower one had to cut the line short.
+ *
+ * **A large title's second line** does not travel. A title the large type wraps
+ * arrives as two lines where the small title has one, and the handover showed
+ * both — the small title's one line with the large one's second line hanging
+ * under it, the same word twice. The first line of the large title is the start
+ * of the small one, glyph over glyph; the second fades out early, cut at the gap
+ * between the lines, as the rest of the small title fades in beside the first
+ * line. The subtitle rises into the room it leaves.
  *
  * Laid out rather than composed from rows, because the positions are all read
  * from each other — the small title's start from the back button's width, its
@@ -316,7 +323,7 @@ private fun LargeBar(
                             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                             .drawWithContent {
                                 drawContent()
-                                val gone = ((progress() - SecondLineFrom) / (SecondLineGoneBy - SecondLineFrom)).coerceIn(0f, 1f)
+                                val gone = secondLineGone(progress())
                                 if (gone > 0f && cut.y > 0f && cut.y < size.height) {
                                     drawRect(
                                         color = Color.Black,
@@ -351,9 +358,24 @@ private fun LargeBar(
                     }
                 }
             },
+            {
+                // The same line at the small title's width. Said once, by the
+                // one above.
+                if (subtitle != null) {
+                    Box(Modifier.clearAndSetSemantics {}) {
+                        ProvideContentColour(Theme.colours.contentMuted) {
+                            ProvideTextStyle(Theme.typography.bodySmall) {
+                                ContentSlot(maxLines = 1, overflow = TextOverflow.Ellipsis, content = subtitle)
+                            }
+                        }
+                    }
+                }
+            },
         ),
         modifier = Modifier.fillMaxWidth().clipToBounds(),
-    ) { (leadingPart, actionsPart, largePart, smallPart, subtitlePart), constraints ->
+    ) { parts, constraints ->
+        val (leadingPart, actionsPart, largePart, smallPart, subtitlePart) = parts
+        val smallSubtitlePart = parts[5]
         val width = constraints.maxWidth
         val row = rowHeight.roundToPx()
         val gutterPx = gutter.roundToPx()
@@ -370,20 +392,28 @@ private fun LargeBar(
         val smallStart = if (leadWidth > 0) gutterPx + leadWidth + gutterPx else marginPx
         val smallEnd = width - gutterPx - actsWidth - gutterPx
         val largeWidth = (width - marginPx * 2).coerceAtLeast(0)
+        val smallWidth = (smallEnd - smallStart).coerceAtLeast(0)
         val big = largePart.firstOrNull()?.measure(Constraints(maxWidth = largeWidth))
-        val tiny = smallPart.firstOrNull()?.measure(Constraints(maxWidth = (smallEnd - smallStart).coerceAtLeast(0)))
+        val tiny = smallPart.firstOrNull()?.measure(Constraints(maxWidth = smallWidth))
         val sub = subtitlePart.firstOrNull()?.measure(Constraints(maxWidth = largeWidth))
+        val subSmall = smallSubtitlePart.firstOrNull()?.measure(Constraints(maxWidth = smallWidth))
 
+        // Collapsed, it is a Small bar: the title and the subtitle under it,
+        // centred in the bar together, and the bar at least a row tall.
+        val stack = (tiny?.height ?: 0) + (subSmall?.height ?: 0)
+        val collapsed = maxOf(row, stack)
         val top = if (hasControls) row else 0
-        val expanded = maxOf(top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx(), row)
-        val shrink = (expanded - row).toFloat()
+        val expanded = maxOf(top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx(), collapsed)
+        val shrink = (expanded - collapsed).toFloat()
         onMeasured(shrink, maxOf(shrink, leastTravel.toPx()))
         val p = progress().coerceIn(0f, 1f)
-        val height = (expanded + (row - expanded) * p).roundToInt()
+        val height = (expanded + (collapsed - expanded) * p).roundToInt()
 
         layout(width, height) {
-            lead?.placeRelative(gutterPx, (row - lead.height) / 2)
-            acts?.placeRelative(width - gutterPx - actsWidth, (row - acts.height) / 2)
+            // The first line: a row, and the whole collapsed bar by the end.
+            val line = (row + (collapsed - row) * p).roundToInt()
+            lead?.placeRelative(gutterPx, (line - lead.height) / 2)
+            acts?.placeRelative(width - gutterPx - actsWidth, (line - acts.height) / 2)
 
             // Anchored on the first baseline, so the two titles meet line on
             // line whatever their line heights; a title that is not text falls
@@ -403,7 +433,9 @@ private fun LargeBar(
                 0f
             }
             val fromBaseline = top + bigBaseline
-            val toBaseline = (tiny?.let { (row - it.height) / 2 } ?: 0) + tinyBaseline
+            // Rounded as `CentredBar` rounds it, so it lands on the Small bar's pixel.
+            val stackTop = Alignment.CenterVertically.align(stack, collapsed)
+            val toBaseline = stackTop + tinyBaseline
 
             val start = marginPx + (smallStart - marginPx) * p
             val baseline = fromBaseline + (toBaseline - fromBaseline) * p
@@ -428,13 +460,31 @@ private fun LargeBar(
                     alpha = handover
                 }
             }
-            sub?.let {
-                // Under the large title as it goes, and gone well before it
-                // arrives.
-                val underTitle = baseline - bigBaseline * scale + (big?.height ?: 0) * scale
-                it.placeRelativeWithLayer(start.roundToInt(), underTitle.roundToInt()) {
-                    alpha = (1f - p / SubtitleGoneBy).coerceIn(0f, 1f)
-                }
+            // Under what still shows of the large title — both of its lines,
+            // then the first as the second fades — and corrected along the way
+            // onto the small subtitle's place, which is under the small title.
+            fun shown(gone: Float): Float {
+                val whole = (big?.height ?: 0).toFloat()
+                return if (cut.y > 0f) whole + (cut.y - whole) * gone else whole
+            }
+            val underTitle = baseline - bigBaseline * scale + shown(secondLineGone(p)) * scale
+            val underTitleCollapsed = toBaseline - bigBaseline * ratio + shown(1f) * ratio
+            val landing = stackTop + (tiny?.height ?: 0)
+            val subTop = if (big != null) {
+                underTitle + (landing - underTitleCollapsed) * p
+            } else {
+                top + (landing - top) * p
+            }
+            // One of the two is drawn throughout when the line fits both
+            // widths: two copies of a line half-faded over each other read
+            // lighter than either. They hand over only where the narrower one
+            // had to cut the line short.
+            val same = sub != null && subSmall != null && sub.width == subSmall.width && sub.height == subSmall.height
+            sub?.placeRelativeWithLayer(start.roundToInt(), subTop.roundToInt()) {
+                alpha = if (same) 1f else 1f - handover
+            }
+            subSmall?.placeRelativeWithLayer(start.roundToInt(), subTop.roundToInt()) {
+                alpha = if (same) 0f else handover
             }
         }
     }
@@ -450,9 +500,6 @@ private fun LargeBar(
 private const val HandoverFrom = 0.4f
 private const val HandoverTo = 0.95f
 
-/** How far into the collapse the subtitle has faded out by. */
-private const val SubtitleGoneBy = 0.35f
-
 /**
  * When a large title's second line fades, as shares of the collapse. It
  * overlaps the handover's start, and that is deliberate: the small title's
@@ -462,6 +509,10 @@ private const val SubtitleGoneBy = 0.35f
  */
 private const val SecondLineFrom = 0.15f
 private const val SecondLineGoneBy = 0.6f
+
+/** How much of a large title's second line has faded, at [progress] of the collapse. */
+private fun secondLineGone(progress: Float): Float =
+    ((progress - SecondLineFrom) / (SecondLineGoneBy - SecondLineFrom)).coerceIn(0f, 1f)
 
 /** Where a large title's first line ends, in its own pixels; 0 for a title of one line. */
 private class LineCut {

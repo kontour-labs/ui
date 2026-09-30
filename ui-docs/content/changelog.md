@@ -65,6 +65,8 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   inside it. A docked bar keeps it at the end.
 - **A `Large` `TopBar` collapses by carrying its title into the bar, and the bar
   shrinks.** Before, the title faded between two sizes at a fixed height.
+  Its subtitle travels with it, and the collapsed bar is a `Small` bar with
+  the subtitle under its title, where before the subtitle faded out.
   Because the bar now shrinks, a list under it moves too, so driving
   `collapseProgress` from the list's scroll now moves the rows twice as far as
   the finger. Pass `collapseState = rememberTopBarCollapseState()` instead, and

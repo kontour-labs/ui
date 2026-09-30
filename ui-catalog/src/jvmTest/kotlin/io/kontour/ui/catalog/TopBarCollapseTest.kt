@@ -56,13 +56,21 @@ class TopBarCollapseTest {
         const val Density = 2f
         const val Width = 360
         const val Title = "Perth"
+        const val Subtitle = "Platform 2"
 
         /** Near-black: the title's own colour, not a half-faded one. */
         const val Ink = 0x60
     }
 
     @Composable
-    private fun Bar(style: TopBarStyle, back: Boolean, progress: Float = 0f, titled: Boolean = true, onBounds: (Rect) -> Unit = {}) {
+    private fun Bar(
+        style: TopBarStyle,
+        back: Boolean,
+        progress: Float = 0f,
+        titled: Boolean = true,
+        subtitled: Boolean = false,
+        onBounds: (Rect) -> Unit = {},
+    ) {
         TopBar(
             modifier = Modifier.reportBounds(onBounds),
             style = style,
@@ -70,18 +78,43 @@ class TopBarCollapseTest {
             actions = { IconButton(icon = Tabler.Outline.Star, contentDescription = "Save", onClick = {}) },
             collapseProgress = progress,
             windowInsets = WindowInsets(0),
-        ) { if (titled) +Title }
+        ) {
+            if (titled) +Title
+            if (subtitled) supporting { +Subtitle }
+        }
     }
 
     /** The bar at [progress], and its bounds. */
-    private fun render(style: TopBarStyle, back: Boolean, progress: Float = 0f, titled: Boolean = true): Pair<BufferedImage, Rect> {
+    private fun render(
+        style: TopBarStyle,
+        back: Boolean,
+        progress: Float = 0f,
+        titled: Boolean = true,
+        subtitled: Boolean = false,
+    ): Pair<BufferedImage, Rect> {
         var bounds = Rect.Zero
         val image = Scene(width = Width * 2, height = 300, density = Density, reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
-                Bar(style, back, progress, titled) { bounds = it }
+                Bar(style, back, progress, titled, subtitled) { bounds = it }
             }
         }.use { it.frames(4) }
         return image to bounds
+    }
+
+    /** How many of the pixels in [bar]'s height differ between two renders. */
+    private fun differing(a: BufferedImage, b: BufferedImage, bar: Rect): Pair<Int, Int> {
+        var differ = 0
+        var total = 0
+        for (y in 0 until bar.height.toInt()) {
+            for (x in 0 until a.width) {
+                total++
+                val p = a.getRGB(x, y)
+                val q = b.getRGB(x, y)
+                val d = maxOf(abs((p shr 16 and 0xFF) - (q shr 16 and 0xFF)), abs((p shr 8 and 0xFF) - (q shr 8 and 0xFF)), abs((p and 0xFF) - (q and 0xFF)))
+                if (d > 24) differ++
+            }
+        }
+        return differ to total
     }
 
     /**
@@ -137,17 +170,7 @@ class TopBarCollapseTest {
             val (large, lb) = render(TopBarStyle.Large, back, 1f)
             val (small, sb) = render(TopBarStyle.Small, back)
             assertEquals(sb.height, lb.height, 1f)
-            var differ = 0
-            var total = 0
-            for (y in 0 until sb.height.toInt()) {
-                for (x in 0 until small.width) {
-                    total++
-                    val a = large.getRGB(x, y)
-                    val b = small.getRGB(x, y)
-                    val d = maxOf(abs((a shr 16 and 0xFF) - (b shr 16 and 0xFF)), abs((a shr 8 and 0xFF) - (b shr 8 and 0xFF)), abs((a and 0xFF) - (b and 0xFF)))
-                    if (d > 24) differ++
-                }
-            }
+            val (differ, total) = differing(large, small, sb)
             assertTrue(
                 differ <= total / 500,
                 "back = $back: a collapsed Large bar differs from a Small one in $differ of $total pixels",
@@ -180,6 +203,63 @@ class TopBarCollapseTest {
             // nearly full strength. A cross-fade halfway is grey throughout.
             for ((p, _, dark) in frames) {
                 assertTrue(dark < Ink, "back = $back: at $p the darkest of the title is 0x${dark.toString(16)} — it is fading rather than moving")
+            }
+        }
+    }
+
+    /**
+     * And with a subtitle, which a Small bar keeps under its title: *"can we also
+     * keep the subtitle text? we basically want it to morph into a small top bar
+     * when you scroll"*. It used to fade out, and the collapsed bar was a Small
+     * bar without its second line.
+     */
+    @Test
+    fun collapsedWithASubtitleItIsTheSmallBarToThePixel() {
+        for (back in listOf(true, false)) {
+            val (large, lb) = render(TopBarStyle.Large, back, 1f, subtitled = true)
+            val (small, sb) = render(TopBarStyle.Small, back, subtitled = true)
+            assertEquals(sb.height, lb.height, 1f, "back = $back: collapsed, the bar is ${lb.height}px, a Small bar ${sb.height}")
+            val (differ, total) = differing(large, small, sb)
+            assertTrue(
+                differ <= total / 500,
+                "back = $back: a collapsed Large bar with a subtitle differs from a Small one in $differ of $total pixels",
+            )
+        }
+    }
+
+    /**
+     * On the way, the subtitle is drawn in full and moves: what a bar with a
+     * subtitle draws and the same bar without one does not, at every point of
+     * the collapse, rising the whole way.
+     */
+    @Test
+    fun theSubtitleTravelsWithTheTitleRatherThanFading() {
+        for (back in listOf(true, false)) {
+            // What a subtitle adds to the bar. Open, the title is where it is
+            // without one, so the difference is the subtitle's ink alone; later
+            // the title sits differently too, but the subtitle is always the
+            // lowest of what differs, and as tall as it was open.
+            fun added(p: Float): Rect {
+                val (image, bar) = render(TopBarStyle.Large, back, p, subtitled = true)
+                val bare = render(TopBarStyle.Large, back, p).first
+                return checkNotNull(titleInk(image, bare, bar)) { "back = $back: a subtitle added nothing at $p" }
+            }
+            val tall = added(0f).height
+            val frames = listOf(0f, 0.25f, 0.5f, 0.75f, 1f).map { p ->
+                val image = render(TopBarStyle.Large, back, p, subtitled = true).first
+                val all = added(p)
+                val ink = Rect(all.left, all.bottom - tall, all.right, all.bottom)
+                Triple(p, ink, darkest(image, ink))
+            }
+            val bottoms = frames.map { it.second.bottom }
+            assertTrue(bottoms.zipWithNext().all { (a, b) -> b <= a }, "back = $back: the subtitle's bottom went $bottoms — it should rise the whole way")
+            assertTrue(bottoms.first() - bottoms.last() > 20f * Density, "back = $back: the subtitle rose only from ${bottoms.first()} to ${bottoms.last()}")
+            val open = frames.first().third
+            for ((p, _, dark) in frames) {
+                assertTrue(
+                    dark <= open + 16,
+                    "back = $back: at $p the darkest of the subtitle is 0x${dark.toString(16)}, against 0x${open.toString(16)} open — it is fading rather than moving",
+                )
             }
         }
     }
