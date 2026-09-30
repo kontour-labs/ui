@@ -49,6 +49,7 @@ import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.EdgePanWidth
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.RelaySystemBack
 import io.kontour.ui.motion.rememberSwipeBackInput
 import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.theme.Theme
@@ -682,16 +683,25 @@ fun OverlayHost(
     //
     // On iOS the outermost host builds that tree on a dispatcher of its own
     // rather than under the platform's, and tracks the swipe itself: see
-    // `libraryTracksBackSwipe`. Everywhere else the tree hangs off the
-    // platform's, as the system's back and Escape arrive there.
-    val ownBack = if (LocalTakesBackSwipe.current) rememberOwnBackDispatcher() else null
-    val backRoot = ownBack ?: LocalNavigationEventDispatcherOwner.current
+    // `libraryTracksBackSwipe`. On Android it builds one too, and relays the
+    // system's gesture into it, so a released gesture finishes at the finger's
+    // speed: see `SystemBackRelay`. Elsewhere the tree hangs off the
+    // platform's, as Escape and the browser's back arrive there.
+    val platformBack = LocalNavigationEventDispatcherOwner.current
+    val tracksSwipe = LocalTakesBackSwipe.current
+    val relays = LocalRelaysSystemBack.current && !tracksSwipe && platformBack != null
+    val ownBack = if (tracksSwipe || relays) rememberOwnBackDispatcher() else null
+    val backRoot = ownBack ?: platformBack
+    if (relays && ownBack != null) {
+        RelaySystemBack(platform = platformBack.navigationEventDispatcher, into = ownBack.navigationEventDispatcher)
+    }
     val backTarget = state.backTarget
     val pageBack = rememberChildBackDispatcher(enabled = backTarget == null, parent = backRoot)
 
     CompositionLocalProvider(
         LocalOverlayHost provides state,
         LocalTakesBackSwipe provides false,
+        LocalRelaysSystemBack provides false,
         *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
     ) {
         Box(
@@ -699,7 +709,7 @@ fun OverlayHost(
                 .fillMaxSize()
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
-                .then(if (ownBack != null) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
+                .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(
                 Modifier

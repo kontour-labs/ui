@@ -7,3 +7,5 @@ internal actual val platformBackStyle: BackStyle = BackStyle.Swipe
 
 /** Compose's UIKit edge pan stops for a frame at the release; the library's own carries on. */
 internal actual val libraryTracksBackSwipe: Boolean = true
+
+internal actual val libraryRelaysSystemBack: Boolean = false

@@ -7,3 +7,5 @@ internal actual val platformBackStyle: BackStyle = BackStyle.Predictive
 
 /** The system's predictive back. */
 internal actual val libraryTracksBackSwipe: Boolean = false
+
+internal actual val libraryRelaysSystemBack: Boolean = true

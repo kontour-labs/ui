@@ -98,11 +98,22 @@ fun Modifier.contentSwipeBack(enabled: Boolean = true): Modifier {
  * already where the pop leaves it.
  */
 @Stable
-internal class SwipeBackInput : NavigationEventInput() {
+internal class SwipeBackInput(
+    /**
+     * How a release finishes. Null, the default, is iOS's: a critically damped
+     * spring, UIKit's pace. Otherwise the least speed, in progress per second,
+     * of a release paced by the finger instead — see `SystemBackRelay`, which
+     * is Android's and why.
+     */
+    private val pacedAtLeast: Float? = null,
+) : NavigationEventInput() {
 
     /** Whether anything would answer back; no pan is claimed while nothing would. */
     var armed = false
         private set
+
+    /** Told whenever [armed] changes — how a relay knows whether to take the platform's back. */
+    var onArmedChanged: ((Boolean) -> Unit)? = null
 
     /** A released gesture is still carrying on; a new pan waits for it. */
     var releasing = false
@@ -120,10 +131,12 @@ internal class SwipeBackInput : NavigationEventInput() {
     override fun onRemoved() {
         added = false
         armed = false
+        onArmedChanged?.invoke(false)
     }
 
     override fun onHasEnabledHandlersChanged(hasEnabledHandlers: Boolean) {
         armed = hasEnabledHandlers
+        onArmedChanged?.invoke(hasEnabledHandlers)
     }
 
     fun start(edge: Int, at: Offset) {
@@ -153,22 +166,7 @@ internal class SwipeBackInput : NavigationEventInput() {
         releasing = true
         try {
             val target = if (commit) 1f else 0f
-            // Aimed a little past the end and stopped where it crosses it, so it
-            // arrives at speed rather than creeping over the last few pixels,
-            // which is how a critically damped spring ends and how UIKit's
-            // does not.
-            val aim = if (commit) 1f + Overshoot else -Overshoot
-            val spring = TargetBasedAnimation(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = ReleaseStiffness,
-                    visibilityThreshold = 1f / 1000f,
-                ),
-                typeConverter = Float.VectorConverter,
-                initialValue = progress,
-                targetValue = aim,
-                initialVelocity = velocity,
-            )
+            val at = releaseCurve(progress, target, velocity)
             // Timed from the moment the finger lifted, taken as a frame before
             // the first one this sees, rather than from that first frame: an
             // animation timed from its first frame spends it at where it
@@ -179,10 +177,8 @@ internal class SwipeBackInput : NavigationEventInput() {
             while (!done) {
                 done = withFrameNanos { now ->
                     if (start == Long.MIN_VALUE) start = now - FrameNanos
-                    val played = now - start
-                    val value = spring.getValueFromNanos(played)
-                    val finished = spring.isFinishedFromNanos(played) || (if (commit) value >= 1f else value <= 0f)
-                    move(if (finished) target else value, at)
+                    val (value, finished) = at(now - start)
+                    move(if (finished) target else value, this.at)
                     finished
                 }
             }
@@ -197,16 +193,74 @@ internal class SwipeBackInput : NavigationEventInput() {
         }
     }
 
+    /**
+     * Where a release from [from] to [target], let go at [velocity], is after a
+     * time in nanoseconds, and whether it has arrived.
+     */
+    private fun releaseCurve(from: Float, target: Float, velocity: Float): (Long) -> Pair<Float, Boolean> {
+        val least = pacedAtLeast
+        if (least == null) {
+            // Aimed a little past the end and stopped where it crosses it, so it
+            // arrives at speed rather than creeping over the last few pixels,
+            // which is how a critically damped spring ends and how UIKit's
+            // does not.
+            val aim = if (target >= 1f) 1f + Overshoot else -Overshoot
+            val spring = TargetBasedAnimation(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = ReleaseStiffness,
+                    visibilityThreshold = 1f / 1000f,
+                ),
+                typeConverter = Float.VectorConverter,
+                initialValue = from,
+                targetValue = aim,
+                initialVelocity = velocity,
+            )
+            return { played ->
+                val value = spring.getValueFromNanos(played)
+                value to (spring.isFinishedFromNanos(played) || (if (target >= 1f) value >= 1f else value <= 0f))
+            }
+        }
+        // Paced by the finger: the rest of the way at the speed it let go at,
+        // or at [least] if it was slower, leaving at exactly the finger's speed
+        // and easing a little into the end. A cubic from where it is to where
+        // it is going, its first slope the finger's and its last half the
+        // pace's — which keeps it moving forwards throughout.
+        val distance = target - from
+        val remaining = abs(distance)
+        if (remaining < 1e-4f) return { target to true }
+        val along = if (distance > 0f) velocity else -velocity
+        val pace = maxOf(along, least)
+        val seconds = (remaining / pace).coerceIn(MinReleaseSeconds, MaxReleaseSeconds)
+        val leaving = (along.coerceAtLeast(0f) * seconds / remaining).coerceAtMost(2f)
+        val arriving = 0.5f
+        return { played ->
+            val u = (played / 1e9f / seconds).coerceIn(0f, 1f)
+            val u2 = u * u
+            val u3 = u2 * u
+            val eased = (u3 - 2f * u2 + u) * leaving + (-2f * u3 + 3f * u2) + (u3 - u2) * arriving
+            (from + distance * eased) to (u >= 1f)
+        }
+    }
+
     /** Ends a gesture whose finger went away without lifting — another gesture took it. */
     fun abandon() {
         if (added) dispatchOnBackCancelled()
+    }
+
+    /** Back with no gesture at all — a key, a button: completed at once. */
+    fun complete() {
+        if (added) dispatchOnBackCompleted()
     }
 }
 
 /** A [SwipeBackInput] added to [dispatcher] for as long as this is composed. */
 @Composable
-internal fun rememberSwipeBackInput(dispatcher: NavigationEventDispatcher): SwipeBackInput {
-    val input = remember { SwipeBackInput() }
+internal fun rememberSwipeBackInput(
+    dispatcher: NavigationEventDispatcher,
+    pacedAtLeast: Float? = null,
+): SwipeBackInput {
+    val input = remember(pacedAtLeast) { SwipeBackInput(pacedAtLeast) }
     DisposableEffect(dispatcher, input) {
         dispatcher.addInput(input)
         onDispose { dispatcher.removeInput(input) }
@@ -377,6 +431,10 @@ private const val FrameNanos = 16_666_667L
  * reaches the end in about a quarter of a second — UIKit's pace.
  */
 private const val ReleaseStiffness = Spring.StiffnessLow
+
+/** The longest and shortest a paced release takes, in seconds. */
+private const val MinReleaseSeconds = 0.016f
+private const val MaxReleaseSeconds = 0.3f
 
 /** How far past the end the release aims, as a fraction of the travel. */
 private const val Overshoot = 0.05f
