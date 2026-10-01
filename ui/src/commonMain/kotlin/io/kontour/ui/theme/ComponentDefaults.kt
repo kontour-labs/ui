@@ -235,7 +235,15 @@ data class ComponentDefaults(
      * move with it.
      */
     val sheetFloatingInset: Dp = 12.dp,
-    val sheetMaxWidth: Dp = 640.dp,
+    /**
+     * The widest a bottom sheet gets, on a window wider than that.
+     *
+     * The width of a side sheet, [sideSheetWidth]: on a wide window the two are
+     * one kind of panel, and two widths a few dp apart read as a mistake. It was
+     * 640dp, Material's number, and on a modest desktop that was half the screen
+     * — reported as *"it still takes up like half the screen"*.
+     */
+    val sheetMaxWidth: Dp = 480.dp,
     val sideSheetWidth: Dp = 480.dp,
     /** How much of the toast beneath the top one shows. */
     val toastPeek: Dp = 12.dp,

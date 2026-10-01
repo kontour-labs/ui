@@ -118,6 +118,7 @@ import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.foundation.GroupPosition
@@ -125,7 +126,6 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberReorderableState
@@ -147,6 +147,7 @@ import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
+import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
@@ -700,6 +701,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     ) {
                         +"Notify me about delays"
                         trailing { Checkbox(checked = true, onCheckedChange = null) }
+                    }
+                },
+                // A row of a group: a list row's ground, the corners that meet a
+                // neighbour squared.
+                RenderState("grouped") { modifier ->
+                    SelectionRow(
+                        selected = true,
+                        onSelectedChange = {},
+                        modifier = modifier,
+                        role = Role.Switch,
+                        position = GroupPosition.First,
+                    ) {
+                        +"Show live vehicles"
+                        trailing { Switch(checked = true, onCheckedChange = null) }
+                    }
+                },
+                // And the other kind of setting, which opens its choice — what
+                // `SettingRow` was.
+                RenderState("opens a choice") { modifier ->
+                    SelectionRow(onClick = {}, modifier = modifier, position = GroupPosition.Last) {
+                        +"Distances"
+                        trailing { +"Kilometres" }
                     }
                 },
             ),
@@ -1362,6 +1385,25 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        ComponentSpec(
+            name = "WheelSelect",
+            role = Role.DropdownList,
+            expectsMinimumTarget = false,
+            control = ControlLocator.Clickable,
+            accessibleName = "Passengers",
+        ) { modifier, enabled, onClick ->
+            WheelSelect(
+                value = 2,
+                options = (1..9).toList(),
+                onValueChange = { onClick() },
+                modifier = modifier,
+                enabled = enabled,
+                label = "Passengers",
+            )
+        }
+    )
+
+    add(
         // Drawn at rest, which for a counter is a number. The roll is what it is
         // *for* and a still cannot show it — `AnimatedCounterTest` is where that
         // claim is checked, and a second render mid-roll would be a picture of
@@ -1453,6 +1495,40 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // Photographed open as well as shut: the claim is that the body opens
+        // inside the row's own card, under the header's words.
+        ComponentSpec(
+            name = "DisclosureListItem",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            states = listOf(
+                RenderState("expanded", height = 220) { modifier ->
+                    DisclosureListItem(
+                        expanded = true,
+                        onExpandedChange = {},
+                        header = { +"Why is my train late?" },
+                        // A row's width, as a list would give it: unbounded,
+                        // the body is one line as wide as its sentence.
+                        modifier = modifier.width(SpecimenProseWidth),
+                    ) {
+                        Text("Trains give way to freight between Midland and Bellevue.")
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            DisclosureListItem(
+                expanded = false,
+                onExpandedChange = { onClick() },
+                header = { +"Why is my train late?" },
+                modifier = modifier,
+                enabled = enabled,
+            ) {
+                Text("Trains give way to freight between Midland and Bellevue.")
+            }
+        }
+    )
+
+    add(
         // The near-twin of `Accordion`, and the pair is why both are here: an
         // accordion is a header over a *panel*, this is a row over more *rows*.
         // Two renders of the same collapsed row would be the duplicate the
@@ -1501,7 +1577,11 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = Role.Tab,
             control = ControlLocator.SelectedOption,
             states = listOf(
-                RenderState("labels") { modifier ->
+                // Taller than the default canvas: a bar with its labels is a
+                // few dp more than the 88dp the frame leaves, and squeezed into
+                // that it clipped every label mid-word in the picture while the
+                // bar itself was fine.
+                RenderState("labels", height = 160) { modifier ->
                     NavBar(modifier = modifier, showLabels = true) { specimenDestinations(onClick = {}) }
                 },
                 RenderState("docked") { modifier ->
@@ -1685,19 +1765,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("SettingRow", Role.Button) { modifier, enabled, onClick ->
-            SettingRow(
-                onClick = onClick,
-                modifier = modifier,
-                enabled = enabled,
-            ) {
-                +"Theme"
-                trailing { +"Match system" }
-            }
-        }
-    )
-
-    add(
         // Stateless by construction, which is what this list needs and what a
         // picker looks like it cannot be. `colour` is fixed and the change is
         // routed into `onActivate`; the internal `hsv` and `alpha` only move on
@@ -1766,7 +1833,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 supporting = { +"How the app looks on this device" },
                 footer = { +"Always dark keeps the screen dark even in daylight." },
             ) {
-                SettingRow(
+                SelectionRow(
                     onClick = onClick,
                     enabled = enabled,
                     position = GroupPosition.First,
@@ -1774,7 +1841,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                     +"Theme"
                     trailing { +"Always dark" }
                 }
-                SettingRow(
+                SelectionRow(
                     onClick = onClick,
                     enabled = enabled,
                     position = GroupPosition.Last,

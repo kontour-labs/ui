@@ -28,6 +28,16 @@ handle, which is why it is not marked decorative. It widens slightly on hover an
 under a press — the one hint a pointer user gets that a sheet is draggable at
 all.
 
+**Its band is the content's top padding, and all of it.** In a sheet the handle
+sits in the middle of a 24dp band, `DragHandleDefaults.Target`, and nothing under
+it adds more: a `SheetHeader` or a pinned part starts at the band's foot. The
+header used to add its own padding and its close button's empty space under the
+band, reported as *"a fair bit of extra space between the top of the sheet header
+… and the sheet handle"*. For a while the band was 16dp, the sheet's inset at the
+sides, and the handle then sat on the content: *"the top of it looks a bit cramped
+now"*. So the top has the handle's room, and the sides and the bottom have
+`BottomSheetDefaults.ContentPadding`, 16dp.
+
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
 slot to replace or remove it. [Sheets](sheets.md) is where the detents, the
 nested scrolling and the rest of the sheet story live.

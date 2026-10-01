@@ -1,6 +1,9 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -8,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Bike
 import com.composables.icons.tabler.outline.Bus
@@ -42,6 +47,7 @@ import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.richText
+import io.kontour.ui.interaction.pressable
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Theme
 
@@ -248,4 +254,25 @@ fun InlineLink() {
             link("See replacement buses") { replacements() }
         }
     )
+}
+
+@Composable
+fun PressableBasics() {
+    val stop = stops.first()
+    // First in the chain: what follows is what it presses, and a clip before
+    // it would cut off its focus ring.
+    Column(
+        Modifier
+            .pressable(
+                onClick = { openStop(stop.name) },
+                onLongClick = { pin(stop.name) },
+                onLongClickLabel = "Pin",
+            )
+            .clip(Theme.shapes.container)
+            .background(Theme.colours.surfaceSunken)
+            .padding(Theme.spacing.md),
+    ) {
+        Text(stop.name, style = Theme.typography.titleSmall)
+        Text("${stop.routes} routes", style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+    }
 }

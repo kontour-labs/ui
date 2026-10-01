@@ -165,6 +165,8 @@ QUIET_FILL_ALLOWED = {
     "button; its label, at 7:1, is the control",
     "TimelineList.kt": "its rows are list rows, which draw the tier's edge "
     "themselves (`edged`) and the selection's",
+    "SelectionRow.kt": "a grouped row is drawn by the list row, which draws the "
+    "tier's edge itself (`edged`); a bare row has no ground at all",
     "NavScope.kt": "names the default indicator colour; the bar and the rail "
     "that draw the indicator give it the selection edge",
     "NavigationSuiteScaffold.kt": "hands the rail a raised ground; `NavRail` "
@@ -344,7 +346,7 @@ MOVEMENT_ALLOWED = {
     "SearchField.kt:SearchField": "the clear button appearing inside the field",
     "Transitions.kt:chevronTurn": "a chevron turning half a circle in its own box, as state",
     "NavDestination.kt:NavDestination": "the selected icon's emphasis, a few percent in its own box",
-    "TopBar.kt:TopBar": "the collapse follows the scroll the reader is making",
+    "TopBar.kt:LargeBar": "the collapse follows the scroll the reader is making",
     "Scrollbar.kt:Scrollbar": "the thumb follows the scroll the reader is making",
     "BottomSheet.kt:BottomSheet": "places the sheet at the offset its state holds; the "
     "animations that move that offset are what this rule checks",

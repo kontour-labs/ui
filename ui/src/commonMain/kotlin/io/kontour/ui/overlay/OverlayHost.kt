@@ -16,6 +16,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +50,7 @@ import io.kontour.ui.motion.BackPan
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.EdgePanWidth
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.RelaySystemBack
 import io.kontour.ui.motion.rememberSwipeBackInput
 import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.theme.Theme
@@ -233,19 +235,54 @@ class OverlayHostState {
     internal var edgesFromRoot: AnchorInsets by mutableStateOf(AnchorInsets.None)
 
     /**
-     * How far the entry that owns the backdrop is in, or null when none does.
+     * How far in each entry is, by key: what the scrims and the backdrop are
+     * drawn from.
      *
-     * A lambda rather than a value, and for the same reason [io.kontour.ui.foundation.Scrim] takes one:
-     * this changes every frame, and the thing reading it is a `graphicsLayer`
-     * wrapped around the *whole application*. Reading a float here in
-     * composition would recompose every screen in the app once per frame of
-     * every dialog opening.
+     * Lambdas rather than values, and for the same reason [io.kontour.ui.foundation.Scrim] takes one:
+     * these change every frame, and one of the things reading them is a
+     * `graphicsLayer` wrapped around the *whole application*. Reading a float
+     * here in composition would recompose every screen in the app once per
+     * frame of every dialog opening.
      *
-     * Published by the entry rather than owned here, because the progress
+     * Published by each entry rather than owned here, because the progress
      * animatable lives in `EntryHost` and a sheet supplies its own
-     * [OverlayEntry.visibility] instead. Cleared by whoever set it.
+     * [OverlayEntry.visibility] instead.
+     *
+     * **One per entry, not one for the stack.** This was a single slot that the
+     * topmost dimmed entry took over, so a dialog opening over a sheet handed
+     * the page from the sheet's fraction, at 1, to the dialog's, at 0: the page
+     * came forward to full size in one frame and receded again only once the
+     * dialog had gone. Every entry keeps its own now, and what is behind them
+     * is drawn from all of them — see [furthestIn] and [scrimShare].
      */
-    internal var backdropFraction: (() -> Float)? by mutableStateOf(null)
+    private val fractions = mutableStateMapOf<Any, () -> Float>()
+
+    /** Publishes [fraction] as how far in the entry [key] is. */
+    internal fun publishFraction(key: Any, fraction: () -> Float) {
+        fractions[key] = fraction
+    }
+
+    /** Withdraws [fraction], if it is still the one published for [key]. */
+    internal fun withdrawFraction(key: Any, fraction: () -> Float) {
+        if (fractions[key] === fraction) fractions.remove(key)
+    }
+
+    /** How far in the entry [key] is, 0..1; 0 for one that has not published. */
+    internal fun fractionOf(key: Any): Float = (fractions[key]?.invoke() ?: 0f).coerceIn(0f, 1f)
+
+    /**
+     * The furthest in of [keys]: how far an effect that any of them asks for
+     * has gone.
+     *
+     * A maximum rather than a sum, so a second entry asking for what is
+     * already in place — a dialog over a sheet, a sheet over a sheet — neither
+     * doubles it nor, arriving from zero, takes it away.
+     */
+    internal fun furthestIn(keys: List<Any>): Float {
+        var furthest = 0f
+        for (key in keys) furthest = maxOf(furthest, fractionOf(key))
+        return furthest
+    }
 
     /** The stack, bottom to top. Sorted by layer, then by push order within a layer. */
     val visible: List<OverlayEntry>
@@ -402,7 +439,10 @@ private fun EntryHost(
     state: OverlayHostState,
     entry: OverlayEntry,
     index: Int,
-    dimmed: Boolean,
+    /** The keys of every entry that dims, bottom to top. */
+    dimmers: List<Any>,
+    /** The keys of the entries above this one that blur what is behind them. */
+    blurredBy: List<Any>,
     takesBack: Boolean,
 ) {
     val motion = Theme.motion
@@ -487,13 +527,24 @@ private fun EntryHost(
     // length of its exit without recomposing to find out it is leaving.
     val leavingReader: () -> Boolean = remember(state, entry.key) { { state.isLeaving(entry.key) } }
 
-    DisposableEffect(state, dimmed, fraction) {
-        if (dimmed) state.backdropFraction = fraction
-        onDispose {
-            // Only if it is still ours. A second dialog opening over this one
-            // takes the backdrop over, and this entry's disposal must not then
-            // clear the newer entry's fraction and un-blur the screen.
-            if (state.backdropFraction === fraction) state.backdropFraction = null
+    DisposableEffect(state, entry.key, fraction) {
+        state.publishFraction(entry.key, fraction)
+        onDispose { state.withdrawFraction(entry.key, fraction) }
+    }
+
+    // This entry's share of the dimming: all of it on its own, and less as
+    // something that dims arrives above it, so what is under the two is never
+    // darker than one scrim makes it — see [scrimShare]. Read in draw, as the
+    // fraction is.
+    val dimIndex = dimmers.indexOf(entry.key)
+    val scrimAlpha = Theme.colours.scrim.alpha
+    val scrimFraction: () -> Float = remember(state, dimmers, dimIndex, scrimAlpha, fraction) {
+        when {
+            dimIndex < 0 -> fraction
+            // Alone, the share is the fraction itself, and the lookup is not
+            // worth doing on every frame of every sheet.
+            dimmers.size == 1 -> fraction
+            else -> { { scrimShare(dimmers.map { state.fractionOf(it) }, scrimAlpha, dimIndex) } }
         }
     }
 
@@ -528,11 +579,12 @@ private fun EntryHost(
         }
         ScrimLayer(
             // The same number the panel is drawn with, so the dimming and the
-            // thing it dims are one movement — see `Scrim`.
-            fraction = fraction,
+            // thing it dims are one movement — see `Scrim` — and, with
+            // something dimming above it, its share of that: see [scrimShare].
+            fraction = scrimFraction,
             onDismissRequest = dismiss,
             dismissLabel = entry.dismissLabel,
-            colour = if (dimmed) Theme.colours.scrim else Color.Transparent,
+            colour = if (dimIndex >= 0) Theme.colours.scrim else Color.Transparent,
             onScrollRequest = scrolled,
             // Once it is going, a tap is the page's: what the scrim was keeping
             // it from is already on its way off the screen. Material's scrim
@@ -542,10 +594,15 @@ private fun EntryHost(
     }
 
     Box(
-        Modifier.semantics {
-            isTraversalGroup = true
-            traversalIndex = (index + 1).toFloat()
-        }
+        Modifier
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = (index + 1).toFloat()
+            }
+            // Softened with the page by whatever above it blurs what is behind
+            // it: a dialog over a sheet blurs the sheet too, not only the strip
+            // of page beside it. See [blurredBehind].
+            .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
     ) {
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,
@@ -599,16 +656,56 @@ internal val LocalOverlayProgress = compositionLocalOf<() -> Float> { { 1f } }
 internal val LocalOverlayLeaving = compositionLocalOf<() -> Boolean> { { false } }
 
 /**
- * The one entry in [stack] whose scrim is actually drawn dark.
- *
- * Every scrim-requesting entry gets a scrim, because each has to block input to
- * whatever is under *it* — a menu opened over a sheet must not let taps through
- * to the sheet. But only the topmost dimming entry draws colour. Dimming each of
- * them would composite: two dialogs over a sheet would darken the background
- * three times over, and the third overlay would sit on near-black.
+ * The topmost entry in [stack] that dims: the one the page is shut behind, for
+ * a screen reader. See `OverlayHost`.
  */
 internal fun topDimmedEntry(stack: List<OverlayEntry>): OverlayEntry? =
     stack.lastOrNull { it.scrim == ScrimStyle.Dimmed }
+
+/**
+ * How much of a full scrim the dimmed entry at [index] draws, given how far in
+ * each dimmed entry is, bottom to top, and the scrim colour's own [alpha].
+ *
+ * Every dimmed entry gets a scrim, directly under itself, because each has to
+ * dim what is under *it*: a dialog over a sheet darkens the sheet as well as
+ * the page. Drawn at full strength they would composite, and two dialogs over a
+ * sheet would sit on near-black. So each is drawn at the share that brings
+ * everything under it to what **one** scrim does, and no darker.
+ *
+ * Worked from the top down. What is under entry `k` is darkened by its own
+ * scrim and every one above it, and should come to the darker of its own full
+ * scrim and what is above already does:
+ *
+ * ```
+ * dark(k)  = max(alpha * fraction(k), dark(k + 1))
+ * share(k) = (dark(k) - dark(k + 1)) / (1 - dark(k + 1))
+ * ```
+ *
+ * The second line is solving `1 - (1 - share)(1 - above) = dark` for `share`,
+ * which is how two layers of one colour composite. So a sheet under a dialog
+ * arriving from nothing keeps the page exactly as dark as it was on every
+ * frame, handing the dimming over to the dialog's scrim as it comes in rather
+ * than fading its own out on a clock of its own. This replaced "only the
+ * topmost dims", which was right at rest and wrong in between: the sheet's scrim
+ * went clear over 220ms while the dialog's came in on the dialog's spring, and
+ * on the way out the page went light and then dark again.
+ *
+ * @return A fraction of the full scrim, 0..1, for `ScrimLayer` to multiply
+ *   the colour's alpha by.
+ */
+internal fun scrimShare(fractions: List<Float>, alpha: Float, index: Int): Float {
+    if (alpha <= 0f || index !in fractions.indices) return 0f
+    var above = 0f
+    for (k in fractions.lastIndex downTo index) {
+        val dark = maxOf(alpha * fractions[k].coerceIn(0f, 1f), above)
+        if (k == index) {
+            val share = if (above >= 1f) 0f else (dark - above) / (1f - above)
+            return (share / alpha).coerceIn(0f, 1f)
+        }
+        above = dark
+    }
+    return 0f
+}
 
 /** Remembers an [OverlayHostState], the stack an [OverlayHost] draws. */
 @Composable
@@ -667,11 +764,21 @@ fun OverlayHost(
     val trapping = state.visible.any { it.trapFocus }
 
     // Computed here rather than beside the loop below, because the content
-    // sibling needs it too — it is the node the backdrop is applied to.
-    val dimming = topDimmedEntry(stack)
-    val backdrop = dimming?.backdrop ?: BackdropStyle.None
-    // What the page is shut behind for a reader: the same, but only while it is
-    // still here. One on its way out gives the page back to a screen reader as
+    // sibling needs them too — it is the node the backdrop is applied to.
+    //
+    // **Every entry that dims, not the topmost.** The page is behind all of
+    // them, and each keeps doing to it what it asked to for as long as it is
+    // in: a dialog over a sheet adds its blur to the sheet's recede rather than
+    // replacing it. Taking the backdrop from the topmost alone brought the page
+    // forward to full size the moment a dialog opened over a sheet, and pushed
+    // it back again when the dialog had gone. A backdrop still needs a dim —
+    // see [OverlayEntry.backdrop].
+    val dimmers = stack.filter { it.scrim == ScrimStyle.Dimmed }
+    val dimmerKeys = dimmers.map { it.key }
+    val receding = dimmers.filter { it.backdrop.scales }.map { it.key }
+    val blurring = dimmers.filter { it.backdrop.blurs }.map { it.key }
+    // What the page is shut behind for a reader: the topmost that dims, but
+    // only while it is still here. One on its way out gives the page back to a screen reader as
     // it gives it back to a finger — see `OverlayHostState.letGo`.
     val shutBy = topDimmedEntry(state.visible)
 
@@ -682,16 +789,25 @@ fun OverlayHost(
     //
     // On iOS the outermost host builds that tree on a dispatcher of its own
     // rather than under the platform's, and tracks the swipe itself: see
-    // `libraryTracksBackSwipe`. Everywhere else the tree hangs off the
-    // platform's, as the system's back and Escape arrive there.
-    val ownBack = if (LocalTakesBackSwipe.current) rememberOwnBackDispatcher() else null
-    val backRoot = ownBack ?: LocalNavigationEventDispatcherOwner.current
+    // `libraryTracksBackSwipe`. On Android it builds one too, and relays the
+    // system's gesture into it, so a released gesture finishes at the finger's
+    // speed: see `SystemBackRelay`. Elsewhere the tree hangs off the
+    // platform's, as Escape and the browser's back arrive there.
+    val platformBack = LocalNavigationEventDispatcherOwner.current
+    val tracksSwipe = LocalTakesBackSwipe.current
+    val relays = LocalRelaysSystemBack.current && !tracksSwipe && platformBack != null
+    val ownBack = if (tracksSwipe || relays) rememberOwnBackDispatcher() else null
+    val backRoot = ownBack ?: platformBack
+    if (relays && ownBack != null) {
+        RelaySystemBack(platform = platformBack.navigationEventDispatcher, into = ownBack.navigationEventDispatcher)
+    }
     val backTarget = state.backTarget
     val pageBack = rememberChildBackDispatcher(enabled = backTarget == null, parent = backRoot)
 
     CompositionLocalProvider(
         LocalOverlayHost provides state,
         LocalTakesBackSwipe provides false,
+        LocalRelaysSystemBack provides false,
         *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
     ) {
         Box(
@@ -699,7 +815,7 @@ fun OverlayHost(
                 .fillMaxSize()
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
-                .then(if (ownBack != null) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
+                .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
         ) {
             Box(
                 Modifier
@@ -716,8 +832,8 @@ fun OverlayHost(
                     // host for one round, where `drawContent` is the app **and
                     // the overlay stack**, so the band painted black across the
                     // sheet it was supposed to be framing.
-                    .backdropGround(state, backdrop)
-                    .overlayBackdrop(state, backdrop)
+                    .backdropGround(state, receding, blurring)
+                    .overlayBackdrop(state, receding, blurring)
                     .semantics {
                         isTraversalGroup = true
                         traversalIndex = 0f
@@ -777,21 +893,25 @@ fun OverlayHost(
 
             // Each scrim-requesting entry gets its own scrim directly beneath
             // it, so an outside tap always dismisses the thing it is under.
-            // Only the topmost dimming one draws colour — see [topDimmedEntry].
+            // Each dimming one draws its share, so the stack is never darker
+            // than one scrim — see [scrimShare].
             stack.forEachIndexed { index, entry ->
                 // Keyed by identity, not by slot. Without this, removing an
                 // entry that is not the top one shifts every entry above it
                 // down a slot, and each inherits the removed entry's remembered
-                // state — including the scrim's colour animatable. A surviving
-                // transparent scrim would inherit one sitting at full dim and
-                // spend 220ms animating down from it, which is a dim that
-                // visibly outlives whatever caused it.
+                // state — its progress, its back handler, its scrim's gesture
+                // detector — from the entry that used to sit there.
                 key(entry.key) {
                     EntryHost(
                         state = state,
                         entry = entry,
                         index = index,
-                        dimmed = entry === dimming,
+                        dimmers = dimmerKeys,
+                        // What above this one blurs: everything behind it, so
+                        // this as well as the page.
+                        blurredBy = stack.subList(index + 1, stack.size)
+                            .filter { it.scrim == ScrimStyle.Dimmed && it.backdrop.blurs }
+                            .map { it.key },
                         takesBack = entry === backTarget,
                     )
                 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,7 @@ import com.composables.icons.tabler.outline.DotsVertical
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
 import com.composables.icons.tabler.outline.Pin
+import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Ticket
@@ -44,6 +46,8 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavScope
 import io.kontour.ui.nav.NavRail
@@ -66,6 +70,11 @@ import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.components.list.ListItem
 
 /**
  * A bordered box a navigation surface can fill.
@@ -184,9 +193,24 @@ private val barSearch = Knob.Flag("Search in the bar")
 private val barSearchPlacement =
     Knob.Choice("Panel", NavExpandPlacement.entries.toList(), NavExpandPlacement.AboveKeyboard)
 
+/** A floating action button, beside a floating bar and inside a docked one. */
+private val barAction = Knob.Flag("Action")
+
+/** Cells that share the bar, a tab bar's, or each destination as wide as it needs. */
+private val barItemWidth = Knob.Choice("Item width", NavBarItemWidth.entries.toList(), NavBarItemWidth.Equal)
+
+/** A highlight around the whole destination, the default, or the circle behind the glyph. */
+private val barMarker = Knob.Choice("Marker", listOf(true, false), name = { if (it) "Destination" else "Glyph" })
+
+/** The capsule, or a rounded rectangle. */
+private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })
+
+/** Drag the marker along the bar, and let go on a destination to go there. */
+private val barDrag = Knob.Flag("Drag the marker", initial = true)
+
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded, barDrag),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -198,6 +222,25 @@ internal val NavBarDemo = ComponentDemo(
             NavBar(
                 style = this@ComponentDemo[barStyle],
                 showLabels = this@ComponentDemo[barLabels],
+                shape = if (this@ComponentDemo[barRounded]) RoundedCornerShape(20.dp) else null,
+                itemWidth = this@ComponentDemo[barItemWidth],
+                marker = if (this@ComponentDemo[barMarker]) {
+                    NavBarDefaults.destinationMarker()
+                } else {
+                    NavBarDefaults.glyphMarker()
+                },
+                markerDraggable = this@ComponentDemo[barDrag],
+                action = if (this@ComponentDemo[barAction]) {
+                    {
+                        FloatingActionButton(
+                            onClick = { echo("New trip") },
+                            icon = Tabler.Outline.Plus,
+                            contentDescription = "New trip",
+                        )
+                    }
+                } else {
+                    null
+                },
             ) {
                 val first = allDestinations.take(if (withSearch) 2 else 4)
                 first.forEach { d ->
@@ -380,14 +423,36 @@ internal val TopBarDemo = ComponentDemo(
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
-    TopBar(
-        style = style,
-        onBack = if (back) ({ echo("Back") }) else null,
-        showDivider = true,
-        actions = { OverflowMenu(::echo) },
-    ) {
-        +"Perth Underground"
-        supporting { +"Platform 2 · Joondalup line" }
+    // Over a list that scrolls, which is the only way to see a Large bar
+    // collapse: the bar takes the scroll until its title has gone up into
+    // the first line, then the rows move.
+    val collapse = rememberTopBarCollapseState()
+    Frame(height = 320.dp) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Theme.colours.background)
+                .nestedScroll(collapse.nestedScrollConnection),
+        ) {
+            TopBar(
+                style = style,
+                onBack = if (back) ({ echo("Back") }) else null,
+                showDivider = true,
+                actions = { OverflowMenu(::echo) },
+                collapseState = collapse,
+            ) {
+                +"Perth Underground"
+                supporting { +"Platform 2 · Joondalup line" }
+            }
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(12) { index ->
+                    ListItem {
+                        +"Departure ${index + 1}"
+                        supporting { +"${4 + index * 6} min · Joondalup" }
+                    }
+                }
+            }
+        }
     }
 }
 

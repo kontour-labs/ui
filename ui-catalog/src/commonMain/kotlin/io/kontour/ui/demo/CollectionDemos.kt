@@ -1,5 +1,8 @@
 package io.kontour.ui.demo
 
+import com.composables.icons.tabler.outline.Bike
+import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,13 +45,14 @@ import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderHandleSide
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeToDismiss
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.components.list.rememberReorderableState
 import io.kontour.ui.components.selection.Switch
+import androidx.compose.ui.semantics.Role
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.table.SortDirection
 import io.kontour.ui.components.table.Table
 import io.kontour.ui.components.table.TableLines
@@ -118,6 +122,39 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
     }
 }
 
+/** Its question's glyph before the words, and the body lined up under the words. */
+private val disclosureIcon = Knob.Flag("Leading icon", initial = true)
+
+internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item", knobs = listOf(disclosureIcon)) {
+    var first by remember { mutableStateOf(true) }
+    var second by remember { mutableStateOf(false) }
+    val icon = this[disclosureIcon]
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        DisclosureListItem(
+            expanded = first,
+            onExpandedChange = { first = it },
+            position = GroupPosition.First,
+            header = {
+                +"Why is my train late?"
+                if (icon) leading { +Tabler.Outline.HelpCircle }
+            },
+        ) {
+            Text("Trains give way to freight between Midland and Bellevue. A delay there reaches every stop after it.")
+        }
+        DisclosureListItem(
+            expanded = second,
+            onExpandedChange = { second = it },
+            position = GroupPosition.Last,
+            header = {
+                +"Can I take my bike?"
+                if (icon) leading { +Tabler.Outline.Bike }
+            },
+        ) {
+            Text("Outside the peaks, in the marked carriage, as long as it does not block a door.")
+        }
+    }
+}
+
 /**
  * The sentence under the rows, which is the slot the page explains and the
  * demo did not show.
@@ -134,6 +171,7 @@ internal val ListSectionDemo = ComponentDemo(
     knobs = listOf(sectionFooter),
 ) {
     var theme by remember { mutableStateOf(0) }
+    var alerts by remember { mutableStateOf(true) }
     val themes = listOf("Match system", "Always light", "Always dark")
     ListSection(
         modifier = Modifier.fillMaxWidth(),
@@ -145,40 +183,25 @@ internal val ListSectionDemo = ComponentDemo(
             null
         },
     ) {
-        SettingRow(
-            position = GroupPosition.First,
+        // One of each: a row that opens a choice, and a row that is one.
+        SelectionRow(
             onClick = { theme = (theme + 1) % themes.size },
+            position = GroupPosition.First,
         ) {
             +"Theme"
             leading { +Tabler.Outline.Moon }
             trailing { +themes[theme] }
         }
-        SettingRow(position = GroupPosition.Last, onClick = { echo("Delay alerts") }) {
-            +"Delay alerts"
-            supporting { +"Only for favourited routes" }
-            leading { +Tabler.Outline.Bell }
-        }
-    }
-}
-
-internal val SettingRowDemo = ComponentDemo(slug = "setting-row") {
-    var theme by remember { mutableStateOf(0) }
-    var notify by remember { mutableStateOf(true) }
-    val themes = listOf("Match system", "Always light", "Always dark")
-    Column(Modifier.fillMaxWidth()) {
-        SettingRow(
-            position = GroupPosition.First,
-            onClick = { theme = (theme + 1) % themes.size },
+        SelectionRow(
+            selected = alerts,
+            onSelectedChange = { alerts = it },
+            role = Role.Switch,
+            position = GroupPosition.Last,
         ) {
-            +"Theme"
-            leading { +Tabler.Outline.Moon }
-            trailing { +themes[theme] }
-        }
-        SettingRow(position = GroupPosition.Last, onClick = { notify = !notify }) {
             +"Delay alerts"
             supporting { +"Only for favourited routes" }
             leading { +Tabler.Outline.Bell }
-            trailing { Switch(checked = notify, onCheckedChange = null) }
+            trailing { Switch(checked = alerts, onCheckedChange = null) }
         }
     }
 }
@@ -535,8 +558,8 @@ private fun dollars(cents: Int): String = "$${cents / 100}.${(cents % 100).toStr
 internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
+    DisclosureListItemDemo,
     ListSectionDemo,
-    SettingRowDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,
     PullToRefreshDemo,

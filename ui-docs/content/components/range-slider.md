@@ -49,6 +49,15 @@ on is the same meeting, and parting and meeting again is another.
 the thumb that pushed it comes back — the two separate from the moment the finger
 turns round, rather than travelling home together.
 
+**A finger on each thumb drags both.** Each finger is a drag of its own, so
+the two ends of a range can be set in one gesture — spread to widen it, pinch to
+narrow it. Two fingers put down together each take the thumb on their own side,
+even when both land beside the same thumb. A thumb a finger is holding is not
+pushed: brought together, the two meet and stop there, as two fingers pinching
+anything do, rather than one shoving the other out from under its finger. Each
+held thumb shows its value label, moved apart if the two would overlap, and
+`onValueChangeFinished` runs once, when the last finger lifts.
+
 **A press picks a thumb; it does not move one.** Tap the track and the nearer
 thumb comes to you, the way a single [`Slider`](slider.md)'s does. But a press
 that has not travelled yet might be the start of a drag, and with two thumbs a

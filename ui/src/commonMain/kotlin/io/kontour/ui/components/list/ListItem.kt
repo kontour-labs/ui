@@ -206,6 +206,14 @@ internal fun ListItemImpl(
     labelModifier: Modifier = Modifier,
     edged: Boolean = true,
     disabledContainerColour: Color = Theme.colours.surfaceSunken.copy(alpha = 0.5f),
+    /**
+     * A caller's own interaction in place of [onClick]'s — a
+     * [io.kontour.ui.components.selection.SelectionRow]'s `toggleable` or
+     * `selectable` — applied where the click would be, and counted as one: the
+     * row takes a control's touch target and focus ring and keeps its words out
+     * of a text selection, as a row with an `onClick` does.
+     */
+    interaction: Modifier? = null,
 ) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -225,13 +233,15 @@ internal fun ListItemImpl(
     // `rememberLiveShape`: a row whose corners morph lost its held press wash.
     val indicationShape = rememberLiveShape(shape)
 
-    val interactive = onClick != null && enabled
+    val controls = onClick != null || interaction != null
+    val interactive = controls && enabled
     // Note the two conditions. A row with no `onClick` is not a control and gets
     // no click modifier at all; a row *with* one that is disabled is still a
     // control, and keeps the modifier with `enabled = false`. Dropping it would
     // block the callback silently — the row would announce as plain text, with
     // no role and no "disabled", and a screen-reader user would keep trying it.
     val clickModifier = when {
+        interaction != null -> interaction
         onClick == null -> Modifier
         selected || role == Role.RadioButton -> Modifier.pointerCursor(enabled = enabled)
             .selectable(
@@ -267,7 +277,7 @@ internal fun ListItemImpl(
         // A row with an `onClick` is a control, and its text is chrome; one
         // without is content — a stop's address, a fare — and stays selectable
         // inside a `SelectableText`.
-        ExcludeFromSelection(excluded = onClick != null) {
+        ExcludeFromSelection(excluded = controls) {
             Row(
                 modifier = modifier
                     .fillMaxWidth()
@@ -275,7 +285,7 @@ internal fun ListItemImpl(
                     .defaultMinSize(minHeight = resolvedMinHeight)
                     // Keyed on being a control at all, not on being enabled — a row that
                     // changed height when it greyed out would jump the list around it.
-                    .then(if (onClick != null) Modifier.minimumTouchTarget() else Modifier)
+                    .then(if (controls) Modifier.minimumTouchTarget() else Modifier)
                     .focusRing(interactions, shape, enabled = interactive)
                     .clip(shape)
                     .background(container, shape)
@@ -485,28 +495,3 @@ fun SectionHeader(
  */
 fun listPositions(count: Int): List<GroupPosition> =
     List(count) { index -> GroupPosition.of(index, count) }
-
-/**
- * A row with an icon, a label and a value — the settings-screen shape.
- *
- * A thin wrapper over [ListItem], here because the alternative is every settings
- * screen assembling the same four arguments slightly differently.
- */
-@Composable
-fun SettingRow(
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    onClick: (() -> Unit)? = null,
-    position: GroupPosition = GroupPosition.Only,
-    interactionSource: MutableInteractionSource? = null,
-    content: ListItemScope.() -> Unit,
-) {
-    ListItem(
-        modifier = modifier,
-        onClick = onClick,
-        enabled = enabled,
-        position = position,
-        interactionSource = interactionSource,
-        content = content,
-    )
-}

@@ -1,11 +1,9 @@
 package io.kontour.ui.foundation
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -42,9 +40,12 @@ import io.kontour.ui.theme.Theme
  * every frame, and reading it during composition would recompose the scrim and
  * everything under it for each one.
  *
- * The *colour* still animates, because that is a different event — a scrim stops
- * being the darkened one when another overlay opens above it, and that swap is
- * not tied to anything appearing or leaving.
+ * Nor does its colour, any more. It animated while an overlay host drew only its
+ * topmost dimmed entry's scrim dark, so that a scrim going clear under a newly
+ * opened dialog did not do it in one frame — and that swap was on a 220ms clock
+ * of its own, which is what made the page lighten and darken again round a
+ * dialog opened over a sheet. The host hands the dimming over by the dialog's
+ * own fraction now, so there is no swap left to animate.
  *
  * @param onDismissRequest Called when the scrim is tapped. Pass `null` for a modal that
  *   must be dismissed explicitly — a destructive confirmation, say — and the
@@ -94,18 +95,12 @@ internal fun ScrimLayer(
     onScrollRequest: (() -> Unit)? = null,
     blocks: Boolean = true,
 ) {
-    val animated by animateColorAsState(
-        targetValue = colour,
-        animationSpec = Theme.motion.tweenDefault(),
-        label = "scrimColor",
-    )
-
     Box(
         modifier
             .fillMaxSize()
             .drawBehind {
                 val f = fraction().coerceIn(0f, 1f)
-                if (f > 0f) drawRect(animated.copy(alpha = animated.alpha * f))
+                if (f > 0f) drawRect(colour.copy(alpha = colour.alpha * f))
             }
             .then(
                 if (blocks && onScrollRequest != null) {

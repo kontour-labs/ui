@@ -7,3 +7,5 @@ internal actual val platformBackStyle: BackStyle = BackStyle.Predictive
 
 /** No swipe: Escape and the browser's button complete at once. */
 internal actual val libraryTracksBackSwipe: Boolean = false
+
+internal actual val libraryRelaysSystemBack: Boolean = false

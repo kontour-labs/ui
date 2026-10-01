@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import com.composables.icons.tabler.outline.Moon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.selection.Knob
 import androidx.compose.runtime.Composable
@@ -92,6 +93,17 @@ fun SelectionRowBasics() {
         supporting { +"Only for favourited routes" }
         // The row owns the interaction; the control is here to show state.
         trailing { Checkbox(notifyOnDelay, onCheckedChange = null) }
+    }
+}
+
+@Composable
+fun SelectionRowOpensChoice() {
+    // A setting whose value is chosen somewhere else: pressed, it opens the
+    // choice, and it shows what is chosen now.
+    SelectionRow(onClick = { save() }) {
+        +"Theme"
+        leading { +Tabler.Outline.Moon }
+        trailing { +"Match system" }
     }
 }
 

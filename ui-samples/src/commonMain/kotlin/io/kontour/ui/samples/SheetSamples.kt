@@ -3,24 +3,31 @@ package io.kontour.ui.samples
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import io.kontour.ui.components.text.SearchField
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.CurrentLocation
 import com.composables.icons.tabler.outline.Star
+import com.composables.icons.tabler.outline.User
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
@@ -172,5 +179,36 @@ fun DragHandleBasics() {
     BottomSheet(state = sheet, dragHandle = { DragHandle(state = sheet) }) {
         SheetHeader(modifier = Modifier.sheetPeekAnchor()) { +"Perth Underground" }
         Departures()
+    }
+}
+
+@Composable
+fun BottomSheetPinnedSearch() {
+    val sheet = rememberSheetState(
+        detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
+        initialDetent = SheetDetent.pinned(),
+    )
+    val query = rememberTextFieldState()
+
+    BottomSheet(state = sheet) { padding ->
+        // On the bottom of what the sheet shows at every size, over the list
+        // and on the sheet's own colour, with the sheet's inset round it.
+        // Collapsed, it is all there is: the search, and the account beside it.
+        pinned {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SearchField(query, placeholder = "Search stops", modifier = Modifier.weight(1f))
+                IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
+            }
+        }
+        // The padding has grown by the field's height, so the last row
+        // scrolls out from behind it. At the sides, the sheet's inset, the
+        // same as the field's.
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+            contentPadding = padding,
+        ) { stopRows() }
     }
 }

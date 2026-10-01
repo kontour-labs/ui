@@ -20,7 +20,7 @@ version number:
 | `io.kontour:haptics` | [Platform haptics](haptics.md), with no Compose in it | Never beside `:ui`, which brings it. On its own, for code that wants haptics without the design system |
 
 **Keep them on the same version.** They are built together from one commit and
-call each other's internals freely; `ui-nav3:0.2.0` over `ui:0.3.0` can compile
+call each other's internals freely; `ui-nav3:0.2.2` over `ui:0.3.0` can compile
 and then fail at run time with a missing method. A version catalog entry for all
 three, below, is the simplest way to make that impossible.
 
@@ -80,7 +80,7 @@ One version for all three, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.2.2"
+kontour = "0.3.0"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -103,7 +103,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.2.2")`, and so on.
+`implementation("io.kontour:ui:0.3.0")`, and so on.
 
 ---
 

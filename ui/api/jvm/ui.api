@@ -702,7 +702,7 @@ public final class io/kontour/ui/components/display/CarouselDefaults {
 
 public final class io/kontour/ui/components/display/CarouselKt {
 	public static final fun Carousel-hW5Ac_0 (Lio/kontour/ui/components/display/CarouselState;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/display/CarouselStyle;Landroidx/compose/foundation/layout/PaddingValues;FFFLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
-	public static final fun PageIndicator-gsb-d_E (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/PageIndicatorStyle;JJLkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;III)V
+	public static final fun PageIndicator-zgQg56Y (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/PageIndicatorStyle;Landroidx/compose/foundation/gestures/Orientation;JJLkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberCarouselState (Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/components/display/CarouselState;
 }
 
@@ -1134,6 +1134,10 @@ public abstract class io/kontour/ui/components/display/TimelineRowScope {
 	public static synthetic fun item-uDo3WH8$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 }
 
+public final class io/kontour/ui/components/list/DisclosureListItemKt {
+	public static final fun DisclosureListItem (ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+}
+
 public final class io/kontour/ui/components/list/ExpandingListItemKt {
 	public static final fun ExpandingListItem-k3FuEkE (ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/vector/ImageVector;FLjava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
@@ -1171,7 +1175,6 @@ public final class io/kontour/ui/components/list/ListItemKt {
 	public static final fun ListItem-IJAUjLM (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;ZILio/kontour/ui/foundation/GroupPosition;Landroidx/compose/ui/graphics/Shape;JJJFLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun ListSection-PfoAEA0 (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;FLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SectionHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SettingRow (Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Lio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun listPositions (I)Ljava/util/List;
 }
 
@@ -1276,8 +1279,8 @@ public final class io/kontour/ui/components/list/SwipeActionsDefaults {
 }
 
 public final class io/kontour/ui/components/list/SwipeActionsKt {
-	public static final fun SwipeActions-cJHQLPU (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SwipeToDismiss-Yod850M (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SwipeActions-seJ8HY0 (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SwipeToDismiss-kWc7xho (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberSwipeActionsState (Lio/kontour/ui/components/list/SwipeValue;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/SwipeActionsState;
 }
 
@@ -1433,7 +1436,8 @@ public final class io/kontour/ui/components/selection/SegmentedControlKt {
 }
 
 public final class io/kontour/ui/components/selection/SelectionRowKt {
-	public static final fun SelectionRow-Ge35cas (ZLkotlin/jvm/functions/Function1;ILandroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SelectionRow (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SelectionRow-W2cDOtw (ZLkotlin/jvm/functions/Function1;ILandroidx/compose/ui/Modifier;ZLio/kontour/ui/foundation/GroupPosition;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/selection/SliderColours {
@@ -1786,6 +1790,10 @@ public final class io/kontour/ui/components/text/TransformationsKt {
 	public static final fun timeMask ()Landroidx/compose/foundation/text/input/OutputTransformation;
 }
 
+public final class io/kontour/ui/components/text/WheelSelectKt {
+	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+}
+
 public final class io/kontour/ui/foundation/ColourSpacesKt {
 	public static final fun colourFromHex (Ljava/lang/String;)Landroidx/compose/ui/graphics/Color;
 	public static final fun toColour (Lio/kontour/ui/foundation/Hsl;F)J
@@ -2069,6 +2077,7 @@ public final class io/kontour/ui/foundation/SystemIcons {
 	public final fun getChevronLeft ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronRight ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronUp ()Landroidx/compose/ui/graphics/vector/ImageVector;
+	public final fun getChevronUpDown ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getClose ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getDanger ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getDash ()Landroidx/compose/ui/graphics/vector/ImageVector;
@@ -2261,6 +2270,10 @@ public final class io/kontour/ui/interaction/KontourIndication : androidx/compos
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun rememberUpdatedInstance (Landroidx/compose/foundation/interaction/InteractionSource;Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/IndicationInstance;
+}
+
+public final class io/kontour/ui/interaction/PressableKt {
+	public static final fun pressable--JlUKpU (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/Shape;ZLandroidx/compose/ui/semantics/Role;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function0;FZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/interaction/RowInteractionKt {
@@ -2727,15 +2740,58 @@ public final class io/kontour/ui/nav/NavBarDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/NavBarDefaults;
 	public final fun arrangementFor (ZLandroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/Arrangement$Horizontal;
+	public final fun destinationMarker-rAjV9yQ (Landroidx/compose/ui/graphics/Shape;FLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavBarMarker;
+	public final fun getActionGap (Landroidx/compose/runtime/Composer;I)F
 	public final fun getCircleSize (Landroidx/compose/runtime/Composer;I)J
+	public final fun getEqualItemMaxWidth-D9Ej5fM ()F
 	public final fun getInset (Landroidx/compose/runtime/Composer;I)F
 	public final fun getItemGap (Landroidx/compose/runtime/Composer;I)F
 	public final fun getMinHeight (Landroidx/compose/runtime/Composer;I)F
 	public final fun getSlotMaxWidth-D9Ej5fM ()F
+	public final fun glyphMarker-IbIYxLY (JLandroidx/compose/ui/graphics/Shape;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavBarMarker;
+}
+
+public final class io/kontour/ui/nav/NavBarItemWidth : java/lang/Enum {
+	public static final field Equal Lio/kontour/ui/nav/NavBarItemWidth;
+	public static final field Natural Lio/kontour/ui/nav/NavBarItemWidth;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/nav/NavBarItemWidth;
+	public static fun values ()[Lio/kontour/ui/nav/NavBarItemWidth;
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;ZLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+}
+
+public abstract interface class io/kontour/ui/nav/NavBarMarker {
+}
+
+public final class io/kontour/ui/nav/NavBarMarker$Destination : io/kontour/ui/nav/NavBarMarker {
+	public static final field $stable I
+	public synthetic fun <init> (Landroidx/compose/ui/graphics/Shape;FLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Landroidx/compose/ui/graphics/Shape;
+	public final fun component2-D9Ej5fM ()F
+	public final fun copy-3ABfNKs (Landroidx/compose/ui/graphics/Shape;F)Lio/kontour/ui/nav/NavBarMarker$Destination;
+	public static synthetic fun copy-3ABfNKs$default (Lio/kontour/ui/nav/NavBarMarker$Destination;Landroidx/compose/ui/graphics/Shape;FILjava/lang/Object;)Lio/kontour/ui/nav/NavBarMarker$Destination;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInset-D9Ej5fM ()F
+	public final fun getShape ()Landroidx/compose/ui/graphics/Shape;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/nav/NavBarMarker$Glyph : io/kontour/ui/nav/NavBarMarker {
+	public static final field $stable I
+	public synthetic fun <init> (JLandroidx/compose/ui/graphics/Shape;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-MYxV2XQ ()J
+	public final fun component2 ()Landroidx/compose/ui/graphics/Shape;
+	public final fun copy-itqla9I (JLandroidx/compose/ui/graphics/Shape;)Lio/kontour/ui/nav/NavBarMarker$Glyph;
+	public static synthetic fun copy-itqla9I$default (Lio/kontour/ui/nav/NavBarMarker$Glyph;JLandroidx/compose/ui/graphics/Shape;ILjava/lang/Object;)Lio/kontour/ui/nav/NavBarMarker$Glyph;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getShape ()Landroidx/compose/ui/graphics/Shape;
+	public final fun getSize-MYxV2XQ ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarScope : io/kontour/ui/nav/NavScope {
@@ -2866,7 +2922,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-47NDXZU (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Ljava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavigationSuiteScaffold-iYTjmak (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;ZLjava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
 }
@@ -2937,6 +2993,12 @@ public final class io/kontour/ui/nav/TabBarScope {
 	public static final field $stable I
 }
 
+public final class io/kontour/ui/nav/TopBarCollapseState {
+	public static final field $stable I
+	public final fun getNestedScrollConnection ()Landroidx/compose/ui/input/nestedscroll/NestedScrollConnection;
+	public final fun getProgress ()F
+}
+
 public final class io/kontour/ui/nav/TopBarDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/TopBarDefaults;
@@ -2945,9 +3007,10 @@ public final class io/kontour/ui/nav/TopBarDefaults {
 }
 
 public final class io/kontour/ui/nav/TopBarKt {
-	public static final fun TopBar-KkMT8bM (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;JJZFLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun TopBar-zgQg56Y (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;JJZFLio/kontour/ui/nav/TopBarCollapseState;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun collapseProgress (FF)F
 	public static final fun collapseProgress-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)F
+	public static final fun rememberTopBarCollapseState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/nav/TopBarCollapseState;
 }
 
 public final class io/kontour/ui/nav/TopBarStyle : java/lang/Enum {
@@ -3302,6 +3365,7 @@ public final class io/kontour/ui/sheet/BottomSheetDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/sheet/BottomSheetDefaults;
 	public final fun getActionsGap-D9Ej5fM ()F
+	public final fun getContentPadding (Landroidx/compose/runtime/Composer;I)F
 	public final fun getDetents ()Ljava/util/List;
 	public final fun getMaxWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun shapeFor (Lio/kontour/ui/sheet/SheetPresentation;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/graphics/Shape;
@@ -3320,10 +3384,12 @@ public final class io/kontour/ui/sheet/DragHandleDefaults {
 
 public abstract interface class io/kontour/ui/sheet/SheetContentScope : androidx/compose/foundation/layout/ColumnScope {
 	public abstract fun part (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun pinned-iJQMabo (Lio/kontour/ui/sheet/SheetPin;JLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/sheet/SheetContentScope$ComposeDefaultImpls {
 	public static final fun part$default (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun pinned$default-sW7UJKQ (Lio/kontour/ui/sheet/SheetPin;JLkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/sheet/SheetDetent {
@@ -3345,6 +3411,8 @@ public final class io/kontour/ui/sheet/SheetDetent$Companion {
 	public final fun getHidden ()Lio/kontour/ui/sheet/SheetDetent;
 	public final fun height-3ABfNKs (Ljava/lang/String;F)Lio/kontour/ui/sheet/SheetDetent;
 	public final fun peek-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
+	public final fun pinned-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
+	public static synthetic fun pinned-0680j_4$default (Lio/kontour/ui/sheet/SheetDetent$Companion;FILjava/lang/Object;)Lio/kontour/ui/sheet/SheetDetent;
 }
 
 public final class io/kontour/ui/sheet/SheetEdgeMorph {
@@ -3377,6 +3445,14 @@ public final class io/kontour/ui/sheet/SheetHeaderStyle : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetHeaderStyle;
 	public static fun values ()[Lio/kontour/ui/sheet/SheetHeaderStyle;
+}
+
+public final class io/kontour/ui/sheet/SheetPin : java/lang/Enum {
+	public static final field Bottom Lio/kontour/ui/sheet/SheetPin;
+	public static final field Top Lio/kontour/ui/sheet/SheetPin;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetPin;
+	public static fun values ()[Lio/kontour/ui/sheet/SheetPin;
 }
 
 public final class io/kontour/ui/sheet/SheetPresentation : java/lang/Enum {

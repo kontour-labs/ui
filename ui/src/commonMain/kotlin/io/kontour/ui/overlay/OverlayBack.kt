@@ -20,6 +20,7 @@ import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import io.kontour.ui.platform.libraryRelaysSystemBack
 import io.kontour.ui.platform.libraryTracksBackSwipe
 
 /**
@@ -266,6 +267,14 @@ internal fun rememberOverlayBack(
  * Tests provide true to exercise it on the desktop.
  */
 internal val LocalTakesBackSwipe = staticCompositionLocalOf { libraryTracksBackSwipe }
+
+/**
+ * Whether an [OverlayHost] here relays the platform's back gesture through a
+ * tree of its own: [libraryRelaysSystemBack] — Android — at the top, and false
+ * beneath the host that does. See `SystemBackRelay`. Tests provide true to
+ * exercise it on the desktop.
+ */
+internal val LocalRelaysSystemBack = staticCompositionLocalOf { libraryRelaysSystemBack }
 
 /**
  * A back dispatcher of the host's own, a root rather than a child of the

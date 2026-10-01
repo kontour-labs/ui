@@ -195,8 +195,12 @@ class SettingsPanelHeightTest {
          * Round 15 added the pseudo-locale row, 97dp at 100%: a label and a
          * segmented control, put last so that Text size, Haptics and Input
          * modality are where they were.
+         *
+         * The sheet's uniform inset took 12dp off at every scale: the header
+         * keeps the sheet's 16dp round what it draws, and the panel stopped
+         * padding it a second time.
          */
-        val Ceilings = listOf(1f to 923, 1.3f to 957, 2f to 1431)
+        val Ceilings = listOf(1f to 911, 1.3f to 945, 2f to 1419)
 
         /**
          * How much taller the panel is at the popover's width than at the sheet's.

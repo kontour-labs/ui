@@ -10,7 +10,6 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.components.action.IconToggleButton
-import io.kontour.ui.components.list.SettingRow
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
@@ -24,8 +23,8 @@ import kotlin.test.Test
  * in.
  *
  * The trap is that a *row* only publishes state when it is `toggleable` or
- * `selectable`. `SettingRow` is `clickable` — it is a row you tap to open
- * something, which happens to carry a switch — so nothing above the control
+ * `selectable`. A `SelectionRow` that opens a choice is `clickable` — a row
+ * you tap to open something, which may happen to carry a switch — so nothing above the control
  * says on or off. If the control also says nothing, the whole row announces as
  * a button with a name and no state, and a screen-reader user cannot tell a
  * setting that is on from one that is off.
@@ -47,7 +46,7 @@ class InertControlPublishesStateTest {
     fun checkboxInAClickableRowAnnouncesItsTick() = runComposeUiTest {
         setContent {
             KontourTheme {
-                SettingRow(modifier = Modifier.testTag("row"), onClick = {}) {
+                SelectionRow(onClick = {}, modifier = Modifier.testTag("row")) {
                     +"Notify me about delays"
                     trailing { Checkbox(checked = true, onCheckedChange = null) }
                 }
@@ -61,7 +60,7 @@ class InertControlPublishesStateTest {
     fun switchInAClickableRowAnnouncesItsPosition() = runComposeUiTest {
         setContent {
             KontourTheme {
-                SettingRow(modifier = Modifier.testTag("row"), onClick = {}) {
+                SelectionRow(onClick = {}, modifier = Modifier.testTag("row")) {
                     +"Live alerts"
                     trailing { Switch(checked = false, onCheckedChange = null) }
                 }
@@ -75,7 +74,7 @@ class InertControlPublishesStateTest {
     fun radioButtonInAClickableRowAnnouncesBeingChosen() = runComposeUiTest {
         setContent {
             KontourTheme {
-                SettingRow(modifier = Modifier.testTag("row"), onClick = {}) {
+                SelectionRow(onClick = {}, modifier = Modifier.testTag("row")) {
                     +"Fastest route"
                     trailing { RadioButton(selected = true, onClick = null) }
                 }

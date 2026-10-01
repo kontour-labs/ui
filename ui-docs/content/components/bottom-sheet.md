@@ -114,8 +114,94 @@ bottom of the window a part cannot be seen or tapped, and it is not read out
 either.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
-with `part` added — so `weight`, `align` and everything else a column offers are
-unchanged, and content written before this existed reads and behaves the same.
+with `part` and `pinned` added — so `weight`, `align` and everything else a
+column offers are unchanged, and content written before this existed reads and
+behaves the same.
+
+---
+
+## `pinned` — a part that stays at an edge, with the content passing behind
+
+<!--sample:BottomSheetPinnedSearch-->
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.pinned(),
+)
+val query = rememberTextFieldState()
+
+BottomSheet(state = sheet) { padding ->
+    // On the bottom of what the sheet shows at every size, over the list
+    // and on the sheet's own colour, with the sheet's inset round it.
+    // Collapsed, it is all there is: the search, and the account beside it.
+    pinned {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SearchField(query, placeholder = "Search stops", modifier = Modifier.weight(1f))
+            IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
+        }
+    }
+    // The padding has grown by the field's height, so the last row
+    // scrolls out from behind it. At the sides, the sheet's inset, the
+    // same as the field's.
+    LazyColumn(
+        modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+        contentPadding = padding,
+    ) { stopRows() }
+}
+```
+
+Asked for as *"a way to pin a component to certain parts of the sheet… a
+[search] bar to the bottom of the sheet. Content should be scrollable behind it,
+and when the sheet is collapsed, only the search bar should show."* And asked for
+again, separately, for a map: a search field with an account button beside it,
+in reach at every height the sheet is at, which is the example above.
+
+**`SheetPin.Bottom`, the default, rides the bottom of what the sheet shows.**
+That is the window's edge for an edge sheet and the sheet's own for a floating
+one, above the safe area, at every detent and on every frame of a drag. Pulled
+down past the point where it would cover the handle, it stops there and leaves
+with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
+starts.
+
+**It is drawn over the content, with the sheet's inset round it.** The sheet pads
+it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
+drag handle's 24dp band above is the space over it. A sheet collapsed to its
+search field shows the field with the handle in the middle of the band above it
+and 16dp beside and below it.
+
+**On the sheet's own colour by default**, so whatever scrolls behind it is hidden
+rather than showing through. Once a bottom part has risen off the band, it has the
+inset in the sheet's colour above it too, so the content never meets it edge to
+edge. The colour runs the full width and, at the bottom, down through the safe
+area. At high contrast a line marks the edge the content passes behind, where the
+two grounds would otherwise be the same colour.
+
+**`containerColour = Color.Transparent` lets the content go under it** and show
+round it, with only the part itself — a search field's own ground — drawn over
+the rows. Asked for as *"the ability for the content to go under the pinned
+item"*. The padding is the same either way, so the last row can still be scrolled
+clear of the part. Any other colour is drawn where the sheet's would be.
+
+**The padding the content is handed grows by the pinned parts' heights**, and by
+the inset above a bottom part. A `LazyColumn` given it as `contentPadding` scrolls
+its first and last rows out from behind them, just as it does for the safe area. Content that ignores the padding
+runs under them. The padding has no inset at the sides, so rows that should line
+up with the pinned part take `BottomSheetDefaults.ContentPadding` there
+themselves, as the example does.
+
+**`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
+whatever is pinned to the top, and whatever is pinned to the bottom with the
+safe area under it. That is the collapsed sheet that is only a search field, at
+whatever height the field turns out to be at the reader's font scale. Until the
+parts have been measured, and on a sheet with none, it uses its `fallback`.
+
+Where `pinned` is written in the content does not decide where it is drawn.
+Several at one edge stack in the order they were first composed. A pinned part is
+always on screen, so it is always in the assistive tree, and read after the
+content.
 
 ---
 
@@ -196,7 +282,7 @@ it right on every size of device without a rule per size:
 | Window | Where the expanded sheet ends up |
 |---|---|
 | Phone, portrait or landscape | The bottom and both sides, top corners concentric with the display's |
-| Tablet or desktop, wider than the 640dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
+| Tablet or desktop, wider than the 480dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
 | Cutouts, side insets, a gesture bar | The surface reaches the window's edge and the **content** is handed the insets, exactly as an edge sheet's is |
 
 It follows the sheet's position rather than a clock, like the margin paid back on
@@ -241,8 +327,10 @@ nothing is re-measured across the step.
 
 ## `alignment` — where a sheet sits once the window is wider than it
 
-A sheet stops at 640dp. On a phone that is wider than the screen, so the sheet is
-the screen and nothing on this section applies: **a phone never sees any of it.**
+A sheet stops at 480dp, a side sheet's width, so on a wide window the two kinds of
+sheet are one width. It stopped at 640dp until a modest desktop showed that as half
+the screen. On a phone 480dp is wider than the screen, so the sheet is the screen
+and nothing in this section applies: **a phone never sees any of it.**
 On a tablet in landscape or a desktop window the sheet is a panel with room either
 side of it, and `alignment` says where the panel goes — `Center` by default, or
 against the `Start` or `End` edge. Start and end follow the layout direction, so an
@@ -258,8 +346,8 @@ BottomSheet(
 ```
 
 **The cap is older than the parameter, and did not work until the parameter
-arrived.** The width was always meant to stop at 640dp; the sheet was built as
-`fillMaxWidth()` and then `widthIn(max = 640.dp)`, and `fillMaxWidth` fixes the
+arrived.** The width was always meant to stop at a cap; the sheet was built as
+`fillMaxWidth()` and then `widthIn(max = …)`, and `fillMaxWidth` fixes the
 minimum width at the window's, which a later maximum cannot lower. So every sheet on
 every desktop spanned the whole window. The fix is the other order — cap, then fill
 — and a capped sheet then has to sit *somewhere*, which is what this decides.

@@ -59,6 +59,7 @@ import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SelectionIndicatorBox
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.contentScope
@@ -173,7 +174,8 @@ fun TabBar(
     // container colour. The difference is `LocalContentColour`: a bar given a
     // solid ground has to recolour the tabs sitting on it, and a background
     // modifier paints the colour and tells the content nothing.
-    Surface(modifier = modifier, containerColour = containerColour) {
+    // A bar: a tap on it between the tabs goes no further. See [BarSurface].
+    BarSurface(modifier = modifier, containerColour = containerColour) {
         Column {
             // The indicator box sits *inside* the scroll container, so the anchor
             // and the tabs scroll together and the scroll offset never enters the

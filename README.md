@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and web from one source set.
-<!--counts-->151 public components across 121 pages<!--/counts-->, every one with
+<!--counts-->152 public components across 123 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -29,7 +29,9 @@ the same pages as Markdown with a service token, as
 [tokens](ui-docs/content/tokens.md) ·
 [theming](ui-docs/content/theming.md) ·
 [accessibility](ui-docs/content/accessibility.md) ·
-[the `+` vocabulary](ui-docs/content/dsls.md)
+[the `+` vocabulary](ui-docs/content/dsls.md) ·
+[changelog](ui-docs/content/changelog.md) ·
+[migrating](ui-docs/content/migrating.md)
 
 Adding to the library instead? [`docs/`](docs/README.md) is the other half:
 [contributing](docs/building/contributing.md) ·
@@ -51,9 +53,9 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 }
 
 // build.gradle.kts
-implementation("io.kontour:ui:0.2.2")
+implementation("io.kontour:ui:0.3.0")
 // Optional: Navigation 3 scene strategies over the pane scaffolds
-implementation("io.kontour:ui-nav3:0.2.2")
+implementation("io.kontour:ui-nav3:0.3.0")
 ```
 
 `io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can
@@ -143,7 +145,11 @@ asks and what each has caught is in
 
 ## Releasing
 
-A release is a tag, and nothing else:
+First, in [the changelog](ui-docs/content/changelog.md), turn **Unreleased**
+into the version and its date, and start a new, empty Unreleased above it. If
+the release breaks anything, [the migrating guide](ui-docs/content/migrating.md)
+gets a section for it, with each break as code before and after. Then a release
+is a tag, and nothing else:
 
 ```sh
 git tag v0.2.0 && git push origin v0.2.0
@@ -155,7 +161,7 @@ version comes from the tag, so the artifact cannot disagree with it.
 To cut one without tagging — from a branch, or to re-publish — run the **CI**
 workflow manually and give it a version. That is the only other way to get a
 publishable version out of the build: on a branch with no version supplied, the
-version is `0.3.0-SNAPSHOT` and the publish job does not run.
+version is `0.4.0-SNAPSHOT` and the publish job does not run.
 
 ```sh
 ./gradlew :ui:coordinate    # what this checkout would publish as

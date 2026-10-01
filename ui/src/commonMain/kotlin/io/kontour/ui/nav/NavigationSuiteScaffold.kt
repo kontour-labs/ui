@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -122,6 +123,12 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param type Override the automatic choice — [NavigationSuiteType.ModalRail],
  *   which is never chosen automatically, is the common reason.
  * @param barStyle The bar's style, when there is one.
+ * @param barShape The bar's shape; see [NavBar]'s `shape`.
+ * @param barItemWidth How wide the bar's destinations are; see [NavBarItemWidth].
+ * @param barMarker What marks the bar's current destination; see [NavBarMarker].
+ *   A rail's marker is its own.
+ * @param barMarkerDraggable Whether the bar's marker can be dragged between
+ *   destinations; see [NavBar]'s `markerDraggable`. A rail's cannot: it scrolls.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
  *   the bar, which does not; a rail shows labels whenever it is wide enough.
  * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
@@ -134,7 +141,9 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param header Above the destinations in a rail or a modal rail.
  * @param search In the bar, among the destinations — usually a [NavSearch]. A
  *   rail's is the app's to put in [header].
- * @param action In the bar, after everything; at the foot of a rail.
+ * @param action A floating action button, usually. Beside a floating bar's
+ *   capsule, inside a docked bar after everything else, at the foot of a rail:
+ *   see [NavBar]'s `action`.
  */
 @Composable
 fun NavigationSuiteScaffold(
@@ -143,6 +152,10 @@ fun NavigationSuiteScaffold(
     state: NavigationSuiteState = rememberNavigationSuiteState(),
     type: NavigationSuiteType = navigationSuiteTypeFor(LocalWindowSizeClass.current.width),
     barStyle: NavBarStyle = NavBarStyle.Floating,
+    barShape: Shape? = null,
+    barItemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
+    barMarker: NavBarMarker = NavBarDefaults.destinationMarker(),
+    barMarkerDraggable: Boolean = true,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -178,9 +191,13 @@ fun NavigationSuiteScaffold(
                     windowInsets = windowInsets ?: WindowInsets.bottomEdges,
                     search = search,
                     searchIndex = searchIndex,
+                    action = action,
+                    shape = barShape,
+                    itemWidth = barItemWidth,
+                    marker = barMarker,
+                    markerDraggable = barMarkerDraggable,
                 ) {
                     destinations()
-                    if (action != null) slot { action() }
                 }
             }
 

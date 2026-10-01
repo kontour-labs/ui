@@ -205,6 +205,99 @@ class SwipeBackTest {
         assertEquals(1, recorder.cancelled)
     }
 
+    // --- as little effort as UIKit asks for ----------------------------------------
+
+    /**
+     * Where a release comes to rest decides it, as UIKit's does: half a
+     * second's coast at the speed it was let go at, past half the width.
+     */
+    @Test
+    fun aReleaseGoesBackWhenItWouldComeToRestPastHalf() {
+        // A moderate swipe a third of the way across: it would coast past half.
+        assertTrue(releaseCommits(progress = 0.3f, velocity = 0.6f))
+        // The same place, let go slowly: it would not.
+        assertFalse(releaseCommits(progress = 0.3f, velocity = 0.2f))
+        // Past half and let go still.
+        assertTrue(releaseCommits(progress = 0.55f, velocity = 0f))
+        // Past half and flicked back: it coasts home.
+        assertFalse(releaseCommits(progress = 0.6f, velocity = -0.5f))
+    }
+
+    /**
+     * *"Sometimes swiping back on iOS feels like it takes a bit too much effort
+     * compared to native apps."* A swipe at an ordinary pace a third of the way
+     * across — about 600dp a second here — sprang back: under the old rule it
+     * had to pass half the width or go faster than 1000dp a second.
+     */
+    @Test
+    fun aSwipeAtAnOrdinaryPaceAThirdOfTheWayAcrossGoesBack() = runComposeUiTest {
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        setContent { Page(owner(dispatcher)) }
+        onNodeWithTag("page").performTouchInput {
+            down(Offset(width * 0.1f, centerY))
+            for (step in 1..20) {
+                // 30ms a step: `moveTo` adds its own 16 to this. Further apart
+                // than 40ms, Compose's velocity tracker takes the finger to have
+                // stopped, which no screen reporting at 60Hz or more would show.
+                advanceEventTime(14)
+                moveTo(Offset(width * (0.1f + 0.35f * step / 20), centerY))
+            }
+            up()
+        }
+        waitForIdle()
+        assertEquals(1, recorder.completed, "a swipe a third of the way across at an ordinary pace sprang back")
+    }
+
+    /**
+     * A thumb arcs. A swipe 30° off level went nowhere on the page, which asked
+     * for twice as much sideways as up or down; at the edge it was 45°.
+     */
+    @Test
+    fun aSwipeOnTheSlantStillGoesBack() = runComposeUiTest {
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        setContent { Page(owner(dispatcher)) }
+        onNodeWithTag("page").performTouchInput {
+            val from = Offset(width * 0.1f, centerY)
+            down(from)
+            for (step in 1..20) {
+                advanceEventTime(20)
+                val dx = width * 0.5f * step / 20
+                moveTo(from + Offset(dx, -dx * 0.577f))
+            }
+            up()
+        }
+        waitForIdle()
+        assertEquals(1, recorder.started, "a swipe 30° off level never became back")
+        assertEquals(1, recorder.completed)
+    }
+
+    /**
+     * The page is under the finger: as far across as the finger has gone since
+     * it went down, not since the pan was claimed, which left it a touch slop
+     * behind the whole way.
+     */
+    @Test
+    fun thePageIsWhereTheFingerIs() = runComposeUiTest {
+        val dispatcher = NavigationEventDispatcher()
+        val recorder = Recorder().also { dispatcher.addHandler(it) }
+        setContent { Page(owner(dispatcher)) }
+        var span = 0f
+        onNodeWithTag("page").performTouchInput {
+            span = width.toFloat()
+            down(Offset(width * 0.1f, centerY))
+            for (step in 1..20) {
+                advanceEventTime(40)
+                moveTo(Offset(width * (0.1f + 0.2f * step / 20), centerY))
+            }
+        }
+        waitForIdle()
+        assertEquals(0.2f, recorder.progress.last(), 1f / span, "the page is not where the finger is")
+        onNodeWithTag("page").performTouchInput { up() }
+        waitForIdle()
+    }
+
     // --- the host that takes the swipe over, as on iOS ------------------------------
 
     private fun ComposeUiTest.bounds(tag: String): Rect {

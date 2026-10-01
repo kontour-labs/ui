@@ -2,6 +2,14 @@ package io.kontour.ui.components.selection
 
 import io.kontour.ui.input.focusRing
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import io.kontour.ui.foundation.shape
+import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.components.list.ListItemImpl
+import io.kontour.ui.components.list.ListItemDefaults
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,6 +86,10 @@ import io.kontour.ui.theme.Theme
  *   report, and the group is what owns the pair.
  * @param role [Role.Checkbox], [Role.RadioButton] or [Role.Switch]. Drives what
  *   a screen reader calls the row, so it must match the control inside it.
+ * @param position Where the row sits in a group of rows. Given one, it is a
+ *   list row: a [io.kontour.ui.components.list.ListItem]'s sunken ground, with
+ *   the corners that meet a neighbour squared, so it sits among a group's other
+ *   rows as one of them. Null, the default, is a bare row with no ground.
  */
 @Composable
 fun SelectionRow(
@@ -86,6 +98,7 @@ fun SelectionRow(
     role: Role,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    position: GroupPosition? = null,
     interactionSource: MutableInteractionSource? = null,
     content: ListItemScope.() -> Unit,
 ) {
@@ -96,9 +109,8 @@ fun SelectionRow(
     // alone answered.
     val tap = rememberTapFeedback()
     val toggled = rememberToggleFeedback()
-    val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
-    val shape = Theme.shapes.container
+    val shape = rowShape(position)
 
     val selectionModifier = when {
         // Inert, but still a checkbox that reads as checked. Dropping the
@@ -153,6 +165,128 @@ fun SelectionRow(
         }
     }
 
+    SelectionRowFrame(
+        modifier = modifier,
+        enabled = enabled,
+        position = position,
+        shape = shape,
+        interactions = interactions,
+        focusable = enabled && onSelectedChange != null,
+        interaction = selectionModifier,
+        rowToggle = rowToggle,
+        slots = slots,
+    )
+}
+
+/**
+ * A row that opens a choice rather than making one: *Theme · Match system*,
+ * pressed to go and pick another.
+ *
+ * ```kotlin
+ * SelectionRow(onClick = { openThemePicker() }) {
+ *     +"Theme"
+ *     leading { +Tabler.Outline.Moon }
+ *     trailing { +"Match system" }
+ * }
+ * ```
+ *
+ * The other half of a settings screen. A setting whose value flips where it
+ * stands is the first [SelectionRow], a `Role.Checkbox` or `Role.Switch` with the
+ * control in it; a setting whose value is chosen somewhere else — a sheet, a
+ * menu, a screen of its own — is this one, a button with the current value in
+ * its trailing slot. There used to be a `SettingRow` for it, and two components
+ * for one settings screen was one too many: it was never clear which a row with
+ * a switch in it was.
+ *
+ * Silent when pressed, as a [io.kontour.ui.components.list.ListItem] is: what
+ * the press opens is the answer.
+ *
+ * @param onClick What pressing it opens. `null` shows a value that cannot be
+ *   changed here, announced as plain text.
+ * @param position See the other [SelectionRow]: given one, a list row among a
+ *   group's others; null, a bare row.
+ */
+@Composable
+fun SelectionRow(
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    position: GroupPosition? = null,
+    interactionSource: MutableInteractionSource? = null,
+    content: ListItemScope.() -> Unit,
+) {
+    val slots = listItemSlots(content)
+    val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val shape = rowShape(position)
+    val click = if (onClick == null) {
+        Modifier
+    } else {
+        Modifier.pointerCursor(enabled = enabled).clickable(
+            interactionSource = interactions,
+            indication = kontourIndication(shape, pressScale = 1f),
+            enabled = enabled,
+            role = Role.Button,
+            onClick = onClick,
+        )
+    }
+    SelectionRowFrame(
+        modifier = modifier,
+        enabled = enabled,
+        position = position,
+        shape = shape,
+        interactions = interactions,
+        focusable = enabled && onClick != null,
+        interaction = click,
+        rowToggle = null,
+        slots = slots,
+    )
+}
+
+/** A bare row's shape, or a grouped one's: see `position`. */
+@Composable
+private fun rowShape(position: GroupPosition?): Shape =
+    position?.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
+        ?: Theme.shapes.container
+
+/**
+ * What both [SelectionRow]s draw: in a group, a list row with [interaction] in
+ * place of its click; alone, the bare row.
+ */
+@Composable
+private fun SelectionRowFrame(
+    modifier: Modifier,
+    enabled: Boolean,
+    position: GroupPosition?,
+    shape: Shape,
+    interactions: MutableInteractionSource,
+    focusable: Boolean,
+    interaction: Modifier,
+    rowToggle: ((Boolean) -> Unit)?,
+    slots: ListItemScope,
+) {
+    val colours = Theme.colours
+    if (position != null) {
+        CompositionLocalProvider(LocalRowToggle provides rowToggle) {
+            DisableSelection {
+                ListItemImpl(
+                    modifier = modifier,
+                    enabled = enabled,
+                    onClick = null,
+                    selected = false,
+                    role = Role.Button,
+                    shape = shape,
+                    containerColour = colours.surfaceSunken,
+                    selectedContainerColour = colours.accent.container,
+                    contentColour = colours.content,
+                    minHeight = Dp.Unspecified,
+                    interactionSource = interactions,
+                    slots = slots,
+                    interaction = interaction,
+                )
+            }
+        }
+        return
+    }
     CompositionLocalProvider(
         LocalRowInteractionSource provides interactions,
         LocalRowToggle provides rowToggle,
@@ -162,9 +296,9 @@ fun SelectionRow(
                 modifier = modifier
                     .fillMaxWidth()
                     // The row is the control, so the row shows where the keyboard is.
-                    .focusRing(interactions, shape, enabled = enabled && onSelectedChange != null)
+                    .focusRing(interactions, shape, enabled = focusable)
                     .clip(shape)
-                    .then(selectionModifier)
+                    .then(interaction)
                     .padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,

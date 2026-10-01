@@ -16,6 +16,7 @@ import com.composables.icons.tabler.outline.MapPin
 import com.composables.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarScope
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -160,9 +161,11 @@ class NavBarLayoutTest {
                 "maximum of ${cap}px",
         )
         // And the bar hugs what it holds again, rather than keeping the full width
-        // with the slack left empty: the search ends well short of the window's edge.
+        // with the slack left empty: the search ends well short of the window's
+        // edge. Equal cells are wider than circles, so "well short" is a quarter
+        // of the cap rather than all of it; spanning, it ended at the bar's inset.
         assertTrue(
-            search.right < window - cap,
+            search.right < window - cap / 4,
             "the search ends at ${search.right}px of $window — the bar still spans " +
                 "the window",
         )
@@ -218,7 +221,8 @@ class NavBarLayoutTest {
      */
     @Test
     fun aCentreSearchLeavesTheSameGapsAsEverythingElse() {
-        val bounds = childBounds(searchIndex = 2)
+        // Natural circles, spaced by one arrangement. Equal cells touch; see below.
+        val bounds = childBounds(searchIndex = 2, itemWidth = NavBarItemWidth.Natural)
         val gaps = bounds.zipWithNext { left, right -> right.left - left.right }
 
         assertTrue(gaps.size == 4, "expected four gaps between five children, got ${gaps.size}")
@@ -230,6 +234,29 @@ class NavBarLayoutTest {
     }
 
     /**
+     * Equal cells beside a search: equal to each other, touching, and no wider
+     * than a destination needs, so the search has the rest of the bar with the
+     * same gap either side of it. Sharing the room with the search, four cells
+     * left it a fifth of a phone's bar.
+     */
+    @Test
+    fun equalCellsLeaveASearchTheRestOfTheBar() {
+        val bounds = childBounds(searchIndex = 2, itemWidth = NavBarItemWidth.Equal)
+        val cells = bounds.filterIndexed { i, _ -> i != 2 }
+        val search = bounds[2]
+        val widths = cells.map { it.width }
+        assertTrue(widths.max() - widths.min() <= Slack, "the cells are ${widths}dp wide — they should match")
+        assertTrue(abs(cells[1].left - cells[0].right) <= Slack, "the first two cells do not touch")
+        val before = search.left - cells[1].right
+        val after = cells[2].left - search.right
+        assertTrue(abs(before - after) <= Slack && before > Slack, "the search has ${before}dp before it and ${after}dp after")
+        assertTrue(
+            search.width > 2 * widths.max(),
+            "the search is ${search.width}dp wide beside ${widths.max()}dp cells — it should have the rest of the bar",
+        )
+    }
+
+    /**
      * Every child of the bar in order, with a search at [searchIndex].
      *
      * The destinations are found by content description and the search by tag,
@@ -237,7 +264,7 @@ class NavBarLayoutTest {
      * actually laid out, which is the point — a pill that draws narrower than the
      * box it was given would still report the box if this measured the box.
      */
-    private fun childBounds(searchIndex: Int): List<Rect> {
+    private fun childBounds(searchIndex: Int, itemWidth: NavBarItemWidth = NavBarItemWidth.Natural): List<Rect> {
         val order = listOf("Home", "Map", SearchTag, "Plan", "Profile")
         var bounds: List<Rect> = emptyList()
 
@@ -246,7 +273,15 @@ class NavBarLayoutTest {
                 KontourTheme(darkTheme = false, reduceMotion = true) {
                     Box(Modifier.fillMaxSize().background(Color.White)) {
                         val search = rememberNavSearchState()
-                        NavBar(modifier = Modifier.width(PhoneWidth)) {
+                        NavBar(
+                            modifier = Modifier.width(PhoneWidth),
+                            itemWidth = itemWidth,
+                            marker = if (itemWidth == NavBarItemWidth.Natural) {
+                                NavBarDefaults.glyphMarker()
+                            } else {
+                                NavBarDefaults.destinationMarker()
+                            },
+                        ) {
                             described.forEachIndexed { index, name ->
                                 if (index == searchIndex) {
                                     slot(weight = 1f) {

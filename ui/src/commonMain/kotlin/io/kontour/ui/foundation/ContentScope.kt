@@ -26,7 +26,7 @@ import io.kontour.ui.theme.Theme
  * Every slot in the library takes content, because a `String` cannot carry a
  * second colour, an inline tag, or whatever the design wants next — and a
  * component that takes a `String` grows a parallel slot beside it the first time
- * anyone needs one of those. `SettingRow` had reached that point already: a
+ * anyone needs one of those. A settings row had reached that point already: a
  * `value: String?` whose only job was to build a default for its `trailing`
  * slot.
  *

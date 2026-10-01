@@ -76,8 +76,10 @@ whether the rail is expanded, so it persists while the window stays a rail.
 
 `barStyle` reaches the bar; `search` goes in the bar
 after `searchIndex` destinations, counted — `null`, or a number at or past the
-count, puts it at the end; `action` goes after everything in a bar and at the foot
-of a rail; `header` goes above a rail's destinations.
+count, puts it at the end; `action` goes beside a floating bar, after everything
+in a docked one, and at the foot of a rail — see
+[`NavBar`](nav-bar.md#a-floating-action-beside-it); `header` goes above a rail's
+destinations.
 
 ---
 

@@ -341,7 +341,7 @@ class ComponentRenderTest {
         /**
          * 300×120dp at the goldens' 2×.
          *
-         * Wide enough for a full-width row — `ListItem` and `SettingRow` are the
+         * Wide enough for a full-width row — `ListItem` and `SelectionRow` are the
          * widest specimens — and short enough that a page of these reads as a
          * contact sheet rather than a stack of screenshots.
          */

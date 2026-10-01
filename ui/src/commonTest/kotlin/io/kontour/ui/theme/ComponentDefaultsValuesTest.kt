@@ -128,7 +128,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(8.dp, d.coachmarkSpotlightPadding)
         assertEquals(24.dp, d.backdropBlurRadius)
         assertEquals(12.dp, d.backdropInset)
-        assertEquals(640.dp, d.sheetMaxWidth)
+        assertEquals(480.dp, d.sheetMaxWidth)
         assertEquals(480.dp, d.sideSheetWidth)
         assertEquals(12.dp, d.toastPeek)
         assertEquals(420.dp, d.toastMaxWidth)
@@ -198,7 +198,7 @@ class ComponentDefaultsValuesTest {
                 coachmarkSpotlightPadding = 8.dp,
                 backdropBlurRadius = 24.dp,
                 backdropInset = 12.dp,
-                sheetMaxWidth = 640.dp,
+                sheetMaxWidth = 480.dp,
                 sideSheetWidth = 480.dp,
                 toastPeek = 12.dp,
                 toastMaxWidth = 420.dp,

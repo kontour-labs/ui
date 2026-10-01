@@ -374,7 +374,8 @@ Reach for these only when the component really is that shape. Every one of them
 narrows what is checked, and the six bugs the suite found on its first run were
 all in components that looked fine:
 
-- `ListItem` and `SettingRow` dropped their `clickable` entirely when disabled,
+- `ListItem` and `SettingRow` (since merged into `SelectionRow`) dropped their
+  `clickable` entirely when disabled,
   so a disabled row announced as plain text with no role and no disabled state.
 - `IconToggleButton` put its toggle semantics on a `Box` wrapping an
   `IconButton`, producing a node tree that read as a switch containing a button
@@ -410,7 +411,12 @@ was recorded.
   rewrites the dump under the module's `api/` directory, and CI's
   `checkKotlinAbi` fails on any difference from it. Adding to the API is a new
   line in the dump; changing or removing something is a break, and gets a
-  line in the next release's notes.
+  line under **Breaking** in the
+  [changelog](../../ui-docs/content/changelog.md)'s Unreleased section, and
+  the code before and after in [`migrating.md`](../../ui-docs/content/migrating.md)'s
+  section for the next release. A change that compiles but looks or behaves
+  differently gets one under **Changed**, and an addition one under
+  **Added**.
 
 ---
 

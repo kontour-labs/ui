@@ -102,6 +102,7 @@ import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.Orientation
 
 private val cardVariant = Knob.Choice("Variant", CardVariant.entries.toList())
 private val cardClickable = Knob.Flag("Clickable")
@@ -791,9 +792,16 @@ internal val CarouselDemo = ComponentDemo(
     }
 }
 
+/** Across, or down the side of something that pages vertically. */
+private val indicatorOrientation = Knob.Choice(
+    "Orientation",
+    listOf(Orientation.Horizontal, Orientation.Vertical),
+    name = { if (it == Orientation.Horizontal) "Horizontal" else "Vertical" },
+)
+
 internal val PageIndicatorDemo = ComponentDemo(
     slug = "page-indicator",
-    knobs = listOf(indicatorStyle),
+    knobs = listOf(indicatorStyle, indicatorOrientation),
 ) {
     val carousel = rememberCarouselState { 5 }
     val scope = rememberCoroutineScope()
@@ -802,6 +810,7 @@ internal val PageIndicatorDemo = ComponentDemo(
     PageIndicator(
         state = carousel,
         style = this[indicatorStyle],
+        orientation = this[indicatorOrientation],
         // Echoes as well as scrolls, like every other demo. Not decoration: the
         // scroll is a suspending animation, so pressing a dot changes nothing
         // observable until the clock advances — and under a hand-driven clock,

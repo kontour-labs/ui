@@ -14,6 +14,7 @@ Things the user presses to make something happen.
 | [`SplitButton`](split-button.md) | One usual action, with variants a tap away | A `Button` + menu, when there is no *usual* one |
 | [`ButtonGroup`](button-group.md) | Related actions that read as one control | `SegmentedControl`, when one is *selected* |
 | [`Toolbar`](toolbar.md) | A floating surface of actions over other content | `TopBar`, when it is the screen's own chrome |
+| [`Modifier.pressable`](modifier-pressable.md) | Something of your own, pressed as the library's buttons are | `clickable`, which gets you a press and nothing else |
 
 A button that is working shows a `Spinner` in place of its label. The spinner
 itself is filed under Display, beside `LinearProgress` and `Skeleton` — the rest

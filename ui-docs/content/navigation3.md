@@ -185,11 +185,17 @@ one-sided row, a slider and a carousel on its second page to try this on.
 
 **On iOS the library tracks the swipe itself** — the edge swipe as well as the
 pan from the content — through the outermost `OverlayHost`, so that letting go
-carries on at the finger's speed: past half the width, or on a flick, the page
-goes the rest of the way on a spring that starts at the speed the finger left
-it, with no pause at the moment it lifts; a flick back, or less than half,
-springs it home the same way. The platform's own swipe reports only that the
-finger lifted, and a `NavDisplay` finishes from there at the transition's pace.
+carries on at the finger's speed. The page goes the rest of the way on a spring
+that starts at the speed the finger left it, with no pause at the moment it
+lifts. The platform's own swipe reports only that the finger lifted, and a
+`NavDisplay` finishes from there at the transition's pace.
+
+**It asks for no more effort than UIKit's.** Letting go is decided by where the
+page would come to rest if it coasted on at the finger's speed, by UIKit's own
+deceleration: past half the width, it goes back. So a swipe at an ordinary pace
+a third of the way across goes back, a slow one springs home, and a flick back
+stays. Any swipe more sideways than up or down counts, from the content as from
+the edge, and the page stays under the finger from the moment it touches down.
 
 **A stack inside a sheet is the sheet's colour.** Each page paints
 `LocalContainerColour` — the ground of the `Surface` it is in — and inside an
@@ -245,6 +251,16 @@ AnimatedContent(
 `android:enableOnBackInvokedCallback="true"` on the application in the manifest
 on Android 13 to 15; an app targeting Android 16 has it already.
 
+**Let go, a back gesture finishes at the finger's speed, on both platforms.** On
+iOS the swipe is the library's own. On Android it is the system's, which reports
+the gesture as it goes and then only that it was let go — so the outermost
+`OverlayHost` takes it through a relay, measures its speed from the system's
+frame times, and carries the page the rest of the way at that speed, or briskly
+if it was let go slowly, before telling `NavDisplay` it is done. Whether it goes
+back is still the system's decision. The relay takes the system's back only while
+something inside would answer it, so at the root of an app the system keeps its
+own animation home.
+
 ---
 
 ## What is not here
@@ -253,9 +269,5 @@ A third pane — Material's list-detail has an "extra" one — because the libra
 has no three-pane scaffold to lay it out. Shared-element transitions between
 panes, which are `NavDisplay`'s to add and not a layout's.
 
-Android's back gesture, let go, finishes on the transition's own remaining
-curve, so the speed of a flick does not carry into it: the system reports only
-that it was let go, and it is the system's gesture rather than one the library
-could track. iOS's does carry it, above. In two panes, a detail being dragged away
-uncovers the pane's ground rather than the detail before it, which comes up
-once the gesture is let go.
+In two panes, a detail being dragged away uncovers the pane's ground rather
+than the detail before it, which comes up once the gesture is let go.

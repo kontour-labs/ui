@@ -49,7 +49,8 @@ already reported.
 a drag or nothing: the rows are boxes with text in them and nothing anywhere
 handled a click, so reaching a value two rows up meant dragging the drum by
 exactly two rows. On a phone that is a gesture; with a mouse it is a gesture
-nobody makes.
+nobody makes. **A tap on a drum that is still turning catches it** on the row in
+the middle, whichever row the finger is on, as a hand on a spinning wheel would.
 
 It is a pointer surface on the container rather than a click handler per row, and
 that is deliberate. Making each row `selectable` would turn a 24-hour drum into

@@ -27,6 +27,15 @@ The default style rests like a widened dot and travels like a worm; the three
 styles and what separates them are under
 [carousel § indicator styles](carousel.md#indicator-styles).
 
+### Vertical
+
+`orientation = Orientation.Vertical` stacks the dots top to bottom, for a pager
+that turns vertically or the edge of a full-screen story. Everything that runs
+along the row runs down the column instead: the current dot grows taller rather
+than wider, the pill travels down, a tap goes to the nearest dot by height, and
+`previousIcon` and `nextIcon` go above and below — pass glyphs that point up and
+down. The first page is at the top in either layout direction.
+
 **The gap between dots is 8dp**, up from six. Six was set while every dot reserved
 48dp of row and the gap that was drawn was not the gap anyone saw; once the strip
 stopped doing that, six read as cramped — which it had been all along.

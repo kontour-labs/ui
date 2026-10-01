@@ -12,15 +12,15 @@ KeyValueList {
 }
 ```
 
-**Not a [`SettingRow`](setting-row.md).** They draw almost the same
+**Not a [`SelectionRow`](selection-row.md).** They draw almost the same
 row, and the difference is the whole reason both exist:
 
-| | `KeyValueList` row | `SettingRow` |
+| | `KeyValueList` row | `SelectionRow` |
 |---|---|---|
 | What it is | text | a control |
-| Role | none | `Role.Button` |
+| Role | none | `Role.Button`, or the control's |
 | Touch target | none | yes |
-| Pressing it | nothing | opens something |
+| Pressing it | nothing | opens or changes something |
 
 Using a setting row for facts gives a screen-reader user a list of buttons that
 do nothing, which is worse than the visual duplication it saves. If one row needs
@@ -54,7 +54,7 @@ reader hears "Platform, 2" as one fact rather than two nodes it has to associate
 read aloud: "8m" announced as "8 minutes", "PLT 2" as "Platform 2".
 
 A row is **not** a control. It has no role, no touch target and no press — that
-is [`SettingRow`](setting-row.md), and the distinction is why a key-value list
+is [`SelectionRow`](selection-row.md), and the distinction is why a key-value list
 does not appear as a list of buttons a user has to try.
 
 At high contrast the rows take the enhanced scheme's colours, and the dividers

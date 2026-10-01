@@ -55,8 +55,7 @@ choosing rather than accepting: `Role.Button` for a row that navigates,
 The row carries the click and the role, and any control inside it takes
 `onClick = null` — otherwise there are two targets for one thing, and the smaller
 one is the control. That is the rule that runs through
-[`SelectionRow`](selection-row.md), [`SettingRow`](setting-row.md) and
-[`RadioGroup`](radio-group.md).
+[`SelectionRow`](selection-row.md) and [`RadioGroup`](radio-group.md).
 
 `label`, `supporting` and `overline` merge into one announcement in reading
 order. `leading` and `trailing` icons take `null` unless they carry meaning the

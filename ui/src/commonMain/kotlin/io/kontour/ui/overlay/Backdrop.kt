@@ -417,69 +417,40 @@ private fun backdropOpaqueBottom(): Float =
  * `Scrim` already uses for the dim it is matching.
  */
 @Composable
-internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropStyle): Modifier {
-    if (style == BackdropStyle.None) return this
+internal fun Modifier.overlayBackdrop(
+    state: OverlayHostState,
+    receding: List<Any>,
+    blurring: List<Any>,
+): Modifier {
+    if (receding.isEmpty() && blurring.isEmpty()) return this
 
-    val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
-    val blurring = style.blurs && LocalBackdropBlur.current && platformSupportsBackdropBlur
+    val blurs = blurring.isNotEmpty() && blurAvailable()
     // Read here rather than in the lambda below: `graphicsLayer` runs at draw
     // time, and a theme value has to be captured in composition.
     val insetDp = resolvedInset()
     val insetPx = with(LocalDensity.current) { insetDp.toPx() }
     val opaqueBottomPx = backdropOpaqueBottom()
-    val scaling = style.scales && insetPx > 0f
-    if (!blurring && !scaling) return this
+    val scaling = receding.isNotEmpty() && insetPx > 0f
+    if (!blurs && !scaling) return this
 
-    // Every blur the ramp can reach, built once — step 0 none at all.
-    //
-    // Grown with the fraction rather than switched on, so the screen
-    // softens as the panel arrives instead of going out of focus a frame
-    // before it appears.
-    //
-    // Quantised to the same [RampSteps] the corner ramp uses, and for
-    // the same reason: a `BlurEffect` is an object, and a radius read
-    // straight off `f` is a new one every frame — which is a new render
-    // effect on the layer every frame, which is the layer's cached
-    // rasterisation thrown away every frame. Twelve steps over a blur
-    // radius is under a pixel a step.
-    //
-    // Step for step what [blurFraction] measures, which `backdropGround`'s
-    // ring reads too. They are the same measurement and getting them out of
-    // step leaks the page behind straight through the content's edge. Kept as
-    // an array now rather than built per frame: an equal effect was already
-    // left alone by the layer, but it was still an object a frame.
-    //
-    // `TileMode.Clamp`, and it is the other half of the reported white
-    // flash. A blur samples beyond what it is blurring, and left to
-    // itself it treats everything outside as *transparent* — so the
-    // layer's own edge fades out over the blur radius, and this layer's
-    // edge is the whole screen. Inset by `Inset`, that fade
-    // lands exactly where the reporter saw it: a soft halo hugging the
-    // receding content, showing whatever the app is sitting on. Clamping
-    // extends the edge pixels instead, so the content stays opaque to
-    // its own boundary.
-    val blurs = remember(radiusPx) {
-        Array(RampSteps + 1) { step ->
-            if (step == 0) {
-                null
-            } else {
-                val radius = radiusPx * (step.toFloat() / RampSteps)
-                BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
-            }
-        }
-    }
+    // Every blur the ramp can reach, built once. See [rememberBlurRamp].
+    val ramp = rememberBlurRamp()
 
     return graphicsLayer {
-        val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
+        // Two numbers now, and each from every entry that asks for its effect:
+        // a dialog over a sheet blurs the page by its own arrival while the
+        // sheet goes on holding it back. See `OverlayHost`.
+        val f = state.furthestIn(receding)
+        val b = state.furthestIn(blurring)
 
-        // **The step, not `f`.** A step that has rounded down to zero must
+        // **The step, not `b`.** A step that has rounded down to zero must
         // leave the layer with *no render effect at all*, rather than one of
         // radius zero — the edge fade this backdrop's ring exists to cover is a
         // property of the offscreen an effect forces, not of how wide the blur
         // is, so a zero-radius `BlurEffect` produces the identical see-through
         // rim with nothing behind it. Which is what it did, on exactly the
         // frames where the round goes to zero.
-        renderEffect = if (blurring) blurs[rampStep(f)] else null
+        renderEffect = if (blurs) ramp[rampStep(b)] else null
 
         if (scaling) {
             val fit = backdropFit(size.width, size.height, insetPx, opaqueBottomPx)
@@ -576,8 +547,12 @@ internal fun Modifier.overlayBackdrop(state: OverlayHostState, style: BackdropSt
  * the kind of thing that changes underneath a modifier when its phase does.
  */
 @Composable
-internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropStyle): Modifier {
-    if (!style.scales) return this
+internal fun Modifier.backdropGround(
+    state: OverlayHostState,
+    receding: List<Any>,
+    blurring: List<Any>,
+): Modifier {
+    if (receding.isEmpty()) return this
 
     // `insetDp` rather than `inset`: there is a second `inset` further down in
     // this function, the halo's scale delta, and it is a fraction rather than a
@@ -589,7 +564,7 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
 
     // No blur, no halo, and therefore no ring: the content's edge is hard and
     // the band alone covers everything it has vacated.
-    val haloPx = if (style.blurs && LocalBackdropBlur.current && platformSupportsBackdropBlur) {
+    val haloPx = if (blurring.isNotEmpty() && blurAvailable()) {
         with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() } * HaloReach
     } else {
         0f
@@ -602,7 +577,11 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
     val opaqueBottomPx = backdropOpaqueBottom()
 
     return drawWithContent {
-        val f = (state.backdropFraction?.invoke() ?: 0f).coerceIn(0f, 1f)
+        // How far back the page is, and — separately — how far blurred, which
+        // is what the ring is as deep as. One entry can ask for both; a dialog
+        // over a sheet is two entries asking for one each.
+        val f = state.furthestIn(receding)
+        val b = state.furthestIn(blurring)
         if (f <= 0f) {
             drawContent()
             return@drawWithContent
@@ -730,9 +709,10 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // shared the hole's antialiased boundary would leave the same hairline
         // `SeamOverlap` exists to close. The black band is drawn over it.
         if (haloPx > 0f) {
-            // [blurFraction], not `f`: as deep as the blur actually is this
-            // frame rather than as deep as the animation has got. See its KDoc.
-            val reach = 2f * haloPx * blurFraction(f)
+            // [blurFraction] of the blur's own fraction: as deep as the blur
+            // actually is this frame rather than as deep as the animation has
+            // got, and the blur's rather than the recede's. See its KDoc.
+            val reach = 2f * haloPx * blurFraction(b)
             geometry.matrix.reset()
             geometry.matrix.translate(0f, -shift)
             geometry.matrix.translate(size.width / 2f, size.height / 2f)
@@ -772,6 +752,77 @@ internal fun Modifier.backdropGround(state: OverlayHostState, style: BackdropSty
         // underneath.
         drawContent()
         drawPath(geometry.band, Color.Black)
+    }
+}
+
+/** Whether a backdrop blur can be drawn here at all: the theme allows it, and the platform can. */
+@Composable
+@ReadOnlyComposable
+private fun blurAvailable(): Boolean = LocalBackdropBlur.current && platformSupportsBackdropBlur
+
+/**
+ * Every blur the ramp can reach, built once — step 0 none at all.
+ *
+ * Grown with the fraction rather than switched on, so the screen softens as the
+ * panel arrives instead of going out of focus a frame before it appears.
+ *
+ * Quantised to the same [RampSteps] the corner ramp uses, and for the same
+ * reason: a `BlurEffect` is an object, and a radius read straight off `f` is a
+ * new one every frame — which is a new render effect on the layer every frame,
+ * which is the layer's cached rasterisation thrown away every frame. Twelve
+ * steps over a blur radius is under a pixel a step.
+ *
+ * Step for step what [blurFraction] measures, which `backdropGround`'s ring
+ * reads too. They are the same measurement and getting them out of step leaks
+ * the page behind straight through the content's edge.
+ *
+ * `TileMode.Clamp`, and it is the other half of the reported white flash. A blur
+ * samples beyond what it is blurring, and left to itself it treats everything
+ * outside as *transparent* — so the layer's own edge fades out over the blur
+ * radius, and the page's layer edge is the whole screen. Inset by `Inset`, that
+ * fade lands exactly where the reporter saw it: a soft halo hugging the receding
+ * content, showing whatever the app is sitting on. Clamping extends the edge
+ * pixels instead, so the content stays opaque to its own boundary.
+ */
+@Composable
+private fun rememberBlurRamp(): Array<BlurEffect?> {
+    val radiusPx = with(LocalDensity.current) { BackdropDefaults.BlurRadius.toPx() }
+    return remember(radiusPx) {
+        Array(RampSteps + 1) { step ->
+            if (step == 0) {
+                null
+            } else {
+                val radius = radiusPx * (step.toFloat() / RampSteps)
+                BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
+            }
+        }
+    }
+}
+
+/**
+ * An overlay under one that blurs what is behind it, blurred with the page.
+ *
+ * A dialog over a sheet is over the sheet as well as the page, and blurring
+ * only the page — the strip of it the sheet leaves showing — put a sharp sheet
+ * beside a soft screen: two things at the same depth drawn at two depths. Each
+ * entry under a blurring one is softened by the same ramp as the page, to the
+ * same step, so everything behind the dialog reads as one surface.
+ *
+ * The cost is the page's again for as long as it lasts: an offscreen render of
+ * the entry's layer on each frame. It lasts while a blurring overlay is open
+ * over another — a dialog is up for one decision — and costs nothing
+ * otherwise: [blurring] is empty and this is never applied.
+ *
+ * No halo to cover. The page's needed a ring behind it because it is scaled as
+ * well as blurred, and a blur under a scale comes out see-through at its edge;
+ * an entry is not scaled, and its edges are its own transparent surround.
+ */
+@Composable
+internal fun Modifier.blurredBehind(state: OverlayHostState, blurring: List<Any>): Modifier {
+    if (blurring.isEmpty() || !blurAvailable()) return this
+    val ramp = rememberBlurRamp()
+    return graphicsLayer {
+        renderEffect = ramp[rampStep(state.furthestIn(blurring))]
     }
 }
 

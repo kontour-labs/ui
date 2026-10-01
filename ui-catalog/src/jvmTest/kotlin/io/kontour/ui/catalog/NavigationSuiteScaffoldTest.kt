@@ -127,7 +127,8 @@ class NavigationSuiteScaffoldTest {
             when (expected) {
                 NavigationSuiteType.Bar -> {
                     assertTrue(
-                        abs(home.center.y - stops.center.y) <= 1f && stops.left > home.right,
+                        // Equal cells touch, so after is at or past the edge.
+                        abs(home.center.y - stops.center.y) <= 1f && stops.left >= home.right,
                         "$where the destinations do not run across one row: Home $home, Stops $stops",
                     )
                     assertTrue(home.top > root.height / 2, "$where the bar is not at the bottom: Home at $home")

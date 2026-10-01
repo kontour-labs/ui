@@ -475,7 +475,6 @@ internal fun SettingsSheetContent(
     Column(
         Modifier
             .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
-            .padding(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm)
             // **Inside the scroller, which is the whole point of being handed
             // it.** Outside it — which is what the sheet used to do for every
             // caller — the viewport stops above the gesture bar and the last
@@ -485,12 +484,20 @@ internal fun SettingsSheetContent(
             // control is Input modality and it is exactly the one a reader
             // opened the panel for.
             .padding(bottom = safeArea.calculateBottomPadding()),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
+        // Full width and unpadded: the header keeps the sheet's inset round
+        // itself, under the handle and at its start. Padded here as well, it
+        // sat 8dp below the handle's band and its title 16dp in from the
+        // controls it heads.
         SheetHeader() {
             +"Display settings"
         }
-        DisplaySettingsControls(settings, systemDark, showFrameTimes = true)
+        Column(
+            Modifier.padding(start = Theme.spacing.md, end = Theme.spacing.md, bottom = Theme.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        ) {
+            DisplaySettingsControls(settings, systemDark, showFrameTimes = true)
+        }
     }
 }
 

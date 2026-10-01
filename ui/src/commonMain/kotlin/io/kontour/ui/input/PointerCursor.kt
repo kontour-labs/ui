@@ -87,19 +87,20 @@ enum class Cursor {
  * folding one into the other would have been one edit instead of thirty. But
  * [focusRing] returns `this` unchanged unless the element is *focused* — a
  * cursor is a **hover** affordance and has nothing to do with focus, so it
- * would appear only on elements the keyboard had already reached. Removing that
- * early return to make room for it would put a node on every one of those call
- * sites on every platform, including the touch ones where a cursor is
- * meaningless.
+ * would appear only on elements the keyboard had already reached.
  *
- * ### Gated on the modality, like every other hover affordance here
+ * ### Always there, whatever the input
  *
- * `pointerHoverIcon` is inert without a pointer, so this gate buys a node
- * rather than correctness — the same trade `kontourIndication` already makes
- * for its hover wash. On a hybrid device the first mouse movement is what sets
- * the modality, so the icon appears from the second event rather than the
- * first, which is invisible: the movement that reveals a cursor is the one that
- * created it.
+ * `pointerHoverIcon` is inert without a pointer, so this once returned `this`
+ * unless the modality was a mouse — a node saved on every touch screen, and the
+ * same trade `kontourIndication` makes for its hover wash. The trade was not
+ * free. The modality changes with the last input, so the first touch on a
+ * device that had a mouse, or the first Tab, took a node out of the middle of
+ * every control's chain — *during* that touch — and a `combinedClickable` after
+ * it stopped hearing long presses from then on. Measured, in
+ * `PressableTest`: a tap, then a long press, and the long press never came. A
+ * node that is always there cannot be taken out, so the chain keeps its shape
+ * and the cursor is right from the first movement rather than the second.
  *
  * ### There were four cursors, and the reason for stopping at four was wrong
  *
@@ -158,10 +159,7 @@ enum class Cursor {
 fun Modifier.pointerCursor(
     cursor: Cursor = Cursor.Pointer,
     enabled: Boolean = true,
-): Modifier {
-    if (!LocalInputModality.current.supportsHover) return this
-    return pointerHoverIcon(pointerIconFor(if (enabled) cursor else Cursor.Default))
-}
+): Modifier = pointerHoverIcon(pointerIconFor(if (enabled) cursor else Cursor.Default))
 
 /**
  * [Cursor.Grabbing] over this component and everything inside it, while [held].
@@ -181,13 +179,10 @@ fun Modifier.pointerCursor(
  * through exactly as if it were absent.
  */
 @Composable
-internal fun Modifier.heldCursor(held: Boolean): Modifier {
-    if (!LocalInputModality.current.supportsHover) return this
-    return pointerHoverIcon(
-        icon = pointerIconFor(if (held) Cursor.Grabbing else Cursor.Default),
-        overrideDescendants = held,
-    )
-}
+internal fun Modifier.heldCursor(held: Boolean): Modifier = pointerHoverIcon(
+    icon = pointerIconFor(if (held) Cursor.Grabbing else Cursor.Default),
+    overrideDescendants = held,
+)
 
 /**
  * What [cursor] draws on this platform: its own shape where it has one, and the

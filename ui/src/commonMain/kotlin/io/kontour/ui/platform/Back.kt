@@ -29,3 +29,13 @@ internal expect val platformBackStyle: BackStyle
  * Android's back is the system's, and the desktop and the web have no swipe.
  */
 internal expect val libraryTracksBackSwipe: Boolean
+
+/**
+ * Whether the outermost host relays the platform's back gesture through a tree
+ * of its own, to finish it at the finger's speed: true on Android. See
+ * `SystemBackRelay`.
+ *
+ * iOS's gesture is the library's own already ([libraryTracksBackSwipe]), and
+ * the desktop and the web have no gesture to finish.
+ */
+internal expect val libraryRelaysSystemBack: Boolean

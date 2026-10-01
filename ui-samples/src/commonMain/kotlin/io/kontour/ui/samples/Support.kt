@@ -29,6 +29,8 @@ internal fun plan() = Unit
 internal fun delete() = Unit
 internal fun dismiss() = Unit
 internal fun add() = Unit
+internal fun newTrip() = Unit
+internal fun back() = Unit
 internal fun start() = Unit
 internal fun zoomIn() = Unit
 internal fun zoomOut() = Unit
@@ -53,6 +55,7 @@ internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay",
 internal fun refresh() = Unit
 internal fun openStop(name: String) = Unit
 internal fun remove(name: String) = Unit
+internal fun pin(name: String) = Unit
 
 /** Rows, where a sample needs a list to be about something other than the list. */
 internal fun LazyListScope.stopRows() {

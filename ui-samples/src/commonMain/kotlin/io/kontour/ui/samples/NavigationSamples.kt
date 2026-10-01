@@ -1,22 +1,30 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
+import com.composables.icons.tabler.outline.Basket
 import com.composables.icons.tabler.outline.Bell
 import com.composables.icons.tabler.outline.Calendar
+import com.composables.icons.tabler.outline.Car
 import com.composables.icons.tabler.outline.Filter
 import com.composables.icons.tabler.outline.Home
 import com.composables.icons.tabler.outline.Map
+import com.composables.icons.tabler.outline.Plus
 import com.composables.icons.tabler.outline.Route
 import com.composables.icons.tabler.outline.Search
 import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.User
+import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.foundation.Text
@@ -24,6 +32,8 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarDefaults
+import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavExpandingSlot
 import io.kontour.ui.nav.NavRail
@@ -35,26 +45,29 @@ import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
-import io.kontour.ui.nav.collapseProgress
+import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
 
 @Composable
 fun TopBarCollapsing() {
-    val listState = rememberLazyListState()
+    val collapse = rememberTopBarCollapseState()
 
-    // The bar does not own the scroll state, so the caller hands it the
-    // progress. `collapseProgress` computes it from a `LazyListState`.
-    TopBar(
-        style = TopBarStyle.Large,
-        collapseProgress = collapseProgress(listState),
-    ) {
-        +"Perth Underground"
-        supporting { +"Platform 2" }
-    }
-
-    LazyColumn(state = listState) {
-        stopRows()
+    // The bar collapses as the list scrolls: its connection goes on something
+    // that holds both, so the bar takes the scroll until it has collapsed and
+    // the rows move with the finger the whole way.
+    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+        TopBar(
+            style = TopBarStyle.Large,
+            onBack = { back() },
+            collapseState = collapse,
+        ) {
+            +"Perth Underground"
+            supporting { +"Platform 2" }
+        }
+        LazyColumn {
+            stopRows()
+        }
     }
 }
 
@@ -128,6 +141,40 @@ fun NavBarCentreSearch() {
         slot(weight = 1f) { NavSearch(state = search, searchIcon = Tabler.Outline.Search) }
         item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
         item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+
+@Composable
+fun NavBarAction() {
+    var here by remember { mutableStateOf("map") }
+
+    // Beside the capsule, not in it: a floating action button has a surface of
+    // its own, and on a phone the capsule narrows to make room for it.
+    NavBar(
+        action = {
+            FloatingActionButton(onClick = { newTrip() }, icon = Tabler.Outline.Plus, contentDescription = "New trip")
+        },
+    ) {
+        item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+        item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+        item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+
+@Composable
+fun NavBarCircles() {
+    var here by remember { mutableStateOf("drive") }
+
+    // Circles rather than cells: each destination as wide as it needs, spread
+    // across a phone and gathered in the middle of anything wider, and the
+    // marker a circle behind the glyph.
+    NavBar(
+        itemWidth = NavBarItemWidth.Natural,
+        marker = NavBarDefaults.glyphMarker(),
+    ) {
+        item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
+        item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }
+        item(here == "you", { here = "you" }, key = "you", icon = Tabler.Outline.User) { +"You" }
     }
 }
 

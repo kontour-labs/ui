@@ -133,7 +133,15 @@ the last. In a browser, where a scroll arrives in pixels rather than notches, a
 trackpad follows the fingers a pixel at a time and one event never moves the row
 more than a notch would. Either one is the
 row's only if it begins mostly sideways, and a vertical scroll with a little drift
-in it stays the list's. It never commits.
+in it stays the list's.
+
+**A scroll can make a full swipe**, the way a drag does. Carried past the point of
+no return, the outermost action takes the strip with the same buzz, and it runs
+when the gesture ends there: a trackpad's pan when the fingers lift, a wheel's
+scroll once it has been quiet. Backing off before then undoes it, as it does under
+a finger. It used to stop short of committing, on the argument that a scroll has
+no point of no return to feel, and the report was that a full swipe could not be
+done from a trackpad or a mouse at all.
 
 `SwipeToDismiss` **needs an undo**. A dismissal with no way back is a data-loss
 bug wearing a gesture; pair it with a [`Toast`](../overlays.md) carrying the
@@ -152,6 +160,17 @@ SwipeToDismiss(
     }
 }
 ```
+
+### In a group of rows
+
+A row joined to its neighbours takes their shape — `shape =
+position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner,
+Orientation.Vertical)`, the same the `ListItem` inside it is given — so it clips
+square where it meets the next row. **Its actions do not.** Each is always the
+shape of a row on its own, `actionShape`, which is `ListItemDefaults.Shape`: a
+button squared off on the side that faces another row, when on that side it
+faces nothing at all, reads as a broken piece of one. Pass `actionShape` only
+when your rows are not the default shape.
 
 ---
 

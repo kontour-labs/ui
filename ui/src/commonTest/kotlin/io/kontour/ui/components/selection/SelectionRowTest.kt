@@ -4,6 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
+import io.kontour.ui.foundation.GroupPosition
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -92,6 +99,58 @@ class SelectionRowTest {
                 "a radio row reported false for a press on the already-selected " +
                     "option, which would clear a selection the group requires",
             )
+        }
+    }
+
+    /**
+     * In a group the row is drawn by the list row, and it is still one control
+     * named by its label, with its role and its state, that a press toggles.
+     */
+    @Test
+    fun aGroupedToggleRowIsOneNamedControlWithItsState() {
+        runComposeUiTest {
+            var on by mutableStateOf(false)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    SelectionRow(
+                        selected = on,
+                        onSelectedChange = { on = it },
+                        role = Role.Switch,
+                        position = GroupPosition.First,
+                    ) {
+                        +"Show live vehicles"
+                        trailing { Switch(checked = on, onCheckedChange = null) }
+                    }
+                }
+            }
+            onNode(hasText("Show live vehicles") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
+                .assertIsOff()
+                .performClick()
+            waitForIdle()
+            assertEquals(true, on, "the grouped row did not toggle")
+            onNode(hasText("Show live vehicles") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
+                .assertIsOn()
+        }
+    }
+
+    /** A row that opens a choice is a button named by its label, and runs its `onClick`. */
+    @Test
+    fun aRowThatOpensAChoiceIsANamedButton() {
+        runComposeUiTest {
+            var opened = 0
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    SelectionRow(onClick = { opened++ }, position = GroupPosition.Last) {
+                        +"Distances"
+                        trailing { +"Kilometres" }
+                    }
+                }
+            }
+            onNode(hasText("Distances") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+                .assertHasClickAction()
+                .performClick()
+            waitForIdle()
+            assertEquals(1, opened)
         }
     }
 }

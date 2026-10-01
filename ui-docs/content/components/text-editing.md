@@ -25,6 +25,7 @@ hoisting round-tripped through a recomposition.
 | [`PhoneField`](specialised-fields.md) | A number with a live mask | — |
 | [`EmailField`](specialised-fields.md) | An address | — |
 | [`Select`](select.md) | One of a fixed set | `RadioGroup`, at three or four options |
+| [`WheelSelect`](wheel-select.md) | One of an ordered run, nudged a step or two | `Select`, when the options are unrelated names |
 | [`MultiSelect`](multi-select.md) | Any number of a fixed set | `ChipGroup` of `FilterChip`, when they fit on screen |
 | [`Combobox`](combobox.md) | One of a *long* fixed set | `SearchField`, for free text |
 | [`rememberImeChain`](ime-chain.md) | Wiring a form's Next and Done | — |

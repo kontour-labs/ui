@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,7 +38,7 @@ import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
-import io.kontour.ui.components.list.SettingRow
+import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.table.TableSort
@@ -131,6 +133,24 @@ fun ExpandingListItemBasics() {
 }
 
 @Composable
+fun DisclosureListItemBasics() {
+    var open by remember { mutableStateOf(false) }
+
+    // The row grows to show the answer inside itself: one card, nothing new
+    // appearing underneath it.
+    DisclosureListItem(
+        expanded = open,
+        onExpandedChange = { open = it },
+        header = {
+            leading { +Tabler.Outline.HelpCircle }
+            +"Why is my train late?"
+        },
+    ) {
+        Text("Trains give way to freight between Midland and Bellevue. A delay there reaches every stop after it.")
+    }
+}
+
+@Composable
 fun ListSectionBasics() {
     // The section owns the rounding: `position` tells each row whether it is the
     // first, the last, both or neither, so a group reads as one card rather than
@@ -141,22 +161,14 @@ fun ListSectionBasics() {
         // Above the rows is what the group *is*; below them is what it *does*.
         footer = { +"Always dark keeps the screen dark even when the system is light." },
     ) {
-        SettingRow(position = GroupPosition.First, onClick = { save() }) {
+        SelectionRow(onClick = { save() }, position = GroupPosition.First) {
             +"Theme"
             supporting { +"Match system" }
         }
-        SettingRow(position = GroupPosition.Last, onClick = { save() }) {
+        SelectionRow(onClick = { save() }, position = GroupPosition.Last) {
             +"Text size"
             supporting { +"Default" }
         }
-    }
-}
-
-@Composable
-fun SettingRowBasics() {
-    SettingRow(onClick = { save() }) {
-        +"Live vehicle positions"
-        supporting { +"Uses more data" }
     }
 }
 

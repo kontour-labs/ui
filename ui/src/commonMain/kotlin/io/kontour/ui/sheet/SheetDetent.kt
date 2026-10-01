@@ -3,6 +3,7 @@ package io.kontour.ui.sheet
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 /**
  * One position a sheet can rest at, expressed as how much of it is *visible*.
@@ -89,6 +90,25 @@ class SheetDetent(
             minOf(fallback.toPx(), container)
         }
 
+        /**
+         * Showing the sheet's [pinned][io.kontour.ui.sheet.SheetContentScope.pinned]
+         * parts and nothing else: the drag handle, whatever is pinned to the top,
+         * and whatever is pinned to the bottom with the safe area under it.
+         *
+         * The collapsed size of a sheet that is a search field until it is pulled
+         * up. Put the field in `pinned { … }` and this in the detent list, and
+         * collapsed the sheet is exactly the field, at whatever height the field
+         * turns out to be — at every font scale, which a fixed height cannot
+         * follow.
+         *
+         * Falls back to [fallback] until the pinned parts have been measured, and
+         * if the sheet has none.
+         */
+        fun pinned(fallback: Dp = 96.dp): SheetDetent = SheetDetent(PinnedDetentId) { container, _ ->
+            // Replaced by the measured height once there is one, as `peek`'s is.
+            minOf(fallback.toPx(), container)
+        }
+
         /** A fixed height. */
         fun height(id: String, height: Dp): SheetDetent = SheetDetent(id) { container, _ ->
             minOf(height.toPx(), container)
@@ -108,5 +128,8 @@ class SheetDetent(
  * to be recognised makes it not data any more.
  */
 internal const val PeekDetentId: String = "peek"
+
+/** The id [SheetState] looks for when substituting the measured pinned height. */
+internal const val PinnedDetentId: String = "pinned"
 
 

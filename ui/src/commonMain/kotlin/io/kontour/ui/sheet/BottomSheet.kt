@@ -3,6 +3,16 @@ package io.kontour.ui.sheet
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.RememberObserver
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.anchoredDraggable
@@ -25,6 +35,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -42,6 +53,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +64,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -257,6 +270,31 @@ object BottomSheetDefaults {
         SheetPresentation.Floating -> Theme.shapes.panel
     }
 
+
+    /**
+     * The inset a sheet's content keeps from its edges: the sides of a
+     * [SheetHeader] and of a pinned part, and below them; and above them, when
+     * the sheet has no drag handle.
+     *
+     * One number, so a sheet collapsed to its header or its pinned part shows
+     * that part with the same space round it, and every sheet in an app the same
+     * space. Asked for as *"when the sheet is collapsed and only the header (or
+     * the part that is pinned) is shown, padding should be uniform around that
+     * part, and whatever that padding value is should stay throughout all
+     * sheets"*.
+     *
+     * **Under a drag handle, the top is the handle's band instead**,
+     * [DragHandleDefaults.Target], and nothing under it adds more. The band is
+     * taller, by the handle's own room: at 16dp the handle sat on the content
+     * (*"the top of it looks a bit cramped now"*). What the band replaced was a
+     * 24dp handle row with the header's own padding and its close button's slack
+     * stacked under it, twice as much above a collapsed title as beside it.
+     *
+     * `Theme.spacing.md`: what the sheet's content has always been inset by at
+     * the sides.
+     */
+    val ContentPadding: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.md
 
     /** A sheet wider than this is a panel; centre it rather than stretching it. */
     val MaxWidth: Dp
@@ -1274,193 +1312,318 @@ private fun BoxScope.SheetSurface(
         shadow = Theme.elevation.overlay,
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {
-            // Inside the surface: the sheet's own colour still runs to the
-            // bottom of the window, so the gesture bar sits on the sheet rather
-            // than on a strip of whatever is behind it.
-            Column(
+            val pins = remember(state) { SheetPins() }
+            // **Resolved by the consumer, not here.** `asPaddingValues`
+            // reads the inset where it is used, which for a `LazyColumn`'s
+            // `contentPadding` is the measure pass; calling
+            // `calculateBottomPadding()` in composition would recompose the
+            // whole of a sheet's content on every frame of the keyboard
+            // sliding up.
+            val safeArea = if (morph == null) {
+                windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
+            } else {
+                // The same, less what the bottom margin still clears —
+                // zero while floating, the whole inset as an edge sheet.
+                // Resolved by the consumer for the reason above.
+                remember(windowInsets, state, floatInsets, morph, density) {
+                    BottomInsetTheMarginNoLongerClears(windowInsets, state, floatInsets, morph, density)
+                }
+            }
+            // What the content is handed: the safe area, and the room the
+            // pinned parts take, so a list's rows scroll out from behind them.
+            val padding = remember(safeArea, pins) { PinnedPadding(safeArea, pins) }
+            val contentInset = BottomSheetDefaults.ContentPadding
+            // The pinned parts keep clear of the same sides the content does.
+            val sides = if (morph == null) {
+                Modifier.windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
+            } else {
+                Modifier
+                    .keepsTheFloatingWidth(state, floatInsets, morph)
+                    .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
+            }
+            Layout(
+                // Composed in this order on purpose: a `pinned` call in the
+                // content registers its part as the content composes, so the
+                // blocks after it find the part there in the same pass rather
+                // than a frame later.
+                contents = listOf(
+                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, padding, content) },
+                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins) },
+                    { PinnedBlock(pins.bottom, containerColour, sides, safeArea = safeArea, pins = pins) },
+                ),
+            ) { (column, top, bottom), constraints ->
+                // The blocks first, so the content's padding reads their
+                // heights in this pass rather than the next.
+                val loose = constraints.copy(minHeight = 0)
+                pins.insetForContent = contentInset
+                val topBlock = top.firstOrNull()?.measure(loose)
+                val bottomBlock = bottom.firstOrNull()?.measure(loose)
+                pins.topHeight = (topBlock?.height ?: 0).toDp()
+                pins.bottomHeight = if (bottomBlock == null) {
+                    0.dp
+                } else {
+                    (bottomBlock.height - safeArea.calculateBottomPadding().roundToPx())
+                        .coerceAtLeast(0)
+                        .toDp()
+                }
+                val sheet = column.first().measure(constraints)
+                val handle = pins.handleHeight
+                // Sized as the parts rest at that detent, not as they are now. A
+                // morphing sheet's bottom block grows by the safe area as the
+                // sheet becomes an edge sheet, and a detent that grew with it
+                // moved the anchors under a drag: each move snapped the sheet to
+                // its target, so a drag down from full height ran ahead of the
+                // finger and a drag on the content did not move it at all. The
+                // pinned detent is the lowest, where the sheet still floats.
+                val bottomAtRest = bottomBlock?.let { block ->
+                    val now = safeArea.calculateBottomPadding().roundToPx()
+                    val atRest = (safeArea as? BottomInsetTheMarginNoLongerClears)?.floating()?.roundToPx() ?: now
+                    block.height - now + atRest
+                } ?: 0
+                state.pinnedHeight = if (topBlock == null && bottomBlock == null) {
+                    0f
+                } else {
+                    (handle + (topBlock?.height ?: 0) + bottomAtRest).toFloat()
+                }
+                state.updateAnchors(this)
+                layout(sheet.width, sheet.height) {
+                    sheet.placeRelative(0, 0)
+                    // Where the content starts: under the handle, and under the
+                    // status bar while the sheet is (see [sheetTopInset]).
+                    val topEdge = sheetTop(state, floating, floatInsets, this@Layout, morph)
+                    val inset = windowInsets.getTop(this@Layout)
+                    val contentTop = (inset - topEdge).coerceIn(0, inset) + handle
+                    // Each in a layer of its own: a bottom block moves on every
+                    // frame the sheet does, and a layer moves without redrawing.
+                    topBlock?.placeRelativeWithLayer(0, contentTop)
+                    if (bottomBlock != null) {
+                        // The bottom of what the sheet shows: the window's, for
+                        // an edge sheet that hangs below it, and the surface's
+                        // own for a floating one, whose bottom edge is seen.
+                        val shown = minOf(
+                            constraints.maxHeight,
+                            (state.containerHeight - topEdge).roundToInt(),
+                        )
+                        // Never above the content's top, which is where it goes
+                        // with the sheet as the sheet leaves.
+                        val floor = contentTop + (topBlock?.height ?: 0)
+                        val y = maxOf(floor, shown - bottomBlock.height)
+                        pins.extension = (y - floor).coerceIn(0, contentInset.roundToPx()).toFloat()
+                        bottomBlock.placeRelativeWithLayer(0, y)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The sheet's own column: the drag handle, then the caller's content.
+ *
+ * Its own composable only so the surface can lay it out beside the pinned parts;
+ * nothing about it changed when they arrived.
+ */
+@Composable
+private fun SheetColumn(
+    state: SheetState,
+    floating: Boolean,
+    floatInsets: WindowInsets,
+    morph: SheetEdgeMorph?,
+    windowInsets: WindowInsets,
+    density: Density,
+    dragHandle: (@Composable () -> Unit)?,
+    pins: SheetPins,
+    padding: PaddingValues,
+    content: @Composable SheetContentScope.(PaddingValues) -> Unit,
+) {
+    // Inside the surface: the sheet's own colour still runs to the
+    // bottom of the window, so the gesture bar sits on the sheet rather
+    // than on a strip of whatever is behind it.
+    Column(
+        Modifier
+            .fillMaxWidth()
+            // A layer of its own, for a floating sheet only.
+            //
+            // The surface's size changes on every frame a floating sheet
+            // moves — see its layout block — and a size change
+            // invalidates that node's draw. Without a layer here the
+            // content is part of the same recording, so it is re-recorded
+            // with it: measured at 8 re-records over 40 frames of
+            // dragging, against 0 for an edge sheet. With one, the
+            // content is rasterised once and composited, and only the
+            // surface's own background and shadow redraw.
+            //
+            // Not given to an edge sheet, which does not need it: its
+            // surface never resizes, so there is nothing to isolate it
+            // from, and a layer is an offscreen buffer the size of the
+            // sheet on every platform that has one.
+            .then(if (floating) Modifier.graphicsLayer() else Modifier)
+            // The top inset, which only `windowInsetsPadding` looks like
+            // it could do. See [sheetTopInset].
+            .sheetTopInset(state, windowInsets, floating, floatInsets, morph)
+            // Free to be shorter than the surface, never taller.
+            //
+            // `SheetDetent.Expanded` means "as tall as the content", so
+            // the content's own height has to stay knowable after the
+            // surface stopped being sized by it — otherwise `Expanded`
+            // resolves to whatever the sheet is currently showing and
+            // the anchor chases itself. Dropping `minHeight` is what
+            // buys that: a `Column` wraps its children, so for content
+            // that fits, `placeable.height` is the content's height and
+            // `Expanded` resolves exactly where it always did.
+            //
+            // ### Why not `Constraints.Infinity` every time
+            //
+            // It used to be, and content taller than the window was
+            // **cropped rather than scrolled**. The child was told it
+            // had infinite room, laid itself out believing it, and was
+            // then placed in the room the surface actually has;
+            // everything past the window's bottom edge simply was not
+            // drawn. Reported from a phone: the gallery's settings panel
+            // is 728dp at 100% type and 863dp at 200%, against roughly
+            // 867dp of usable window on a Pixel-class phone — at 200% a
+            // reader lost Text size and Input modality, the two controls
+            // they opened the panel to use.
+            //
+            // A `verticalScroll` inside could not rescue it — Compose
+            // refuses a scroller measured at an infinite height by name
+            // and **throws**, so the recommended cure for a long sheet
+            // was a crash. Neither could a `LazyColumn`, which at an
+            // infinite viewport composes *every* item, exactly what the
+            // KDoc above recommends it for. A finite maxHeight is what
+            // makes both work; see `SheetContentConstraintsTest`.
+            //
+            // Nothing is lost at the tall end: `resolveAnchors` clamps
+            // the visible height to the container, so a `sheetHeight`
+            // that is now the window's height instead of the content's
+            // resolves `Expanded` to the same offset — the top of the
+            // container — that a taller number did.
+            //
+            // Two measure passes are not the alternative: a `Measurable`
+            // may be measured once. Nor are intrinsics — a `LazyColumn`
+            // has none.
+            .layout { measurable, constraints ->
+                // A `maxHeight` of zero is not a measurement, it is
+                // the absence of one, and measuring the content against
+                // it gives `sheetHeight = 0`, `Expanded` resolving to
+                // "hidden", and a sheet that never appears — which is
+                // what thirteen tests across five classes reported when
+                // the first draft of this took the incoming constraints
+                // unconditionally.
+                //
+                // A host with a size never reaches this now: the
+                // container is read in the measure phase above, so the
+                // surface has its real height on the very first pass.
+                // What is left is the host that is genuinely unbounded,
+                // where the sheet has no room to speak of and unbounded
+                // is the only honest answer. Note that a `verticalScroll`
+                // inside a sheet in *that* host will throw — Compose
+                // refuses a scroller measured at an infinite height —
+                // and that is Compose's rule rather than this one's.
+                //
+                // The container rather than the incoming constraints,
+                // which for a floating sheet is the difference between a
+                // sheet that can expand and one that cannot. See the
+                // surface's own layout block above. Less whatever the
+                // top edge has reserved — [sheetContentCeiling] has why.
+                val container = state.containerHeight
+                    .coerceAtLeast(0f)
+                    .roundToInt()
+                // A sheet that can morph measures as the edge sheet it
+                // becomes: a constant either way, so nothing re-measures
+                // as it moves and `Expanded` has one answer.
+                val window = sheetContentCeiling(
+                    container = container,
+                    insets = windowInsets,
+                    floating = floating && morph == null,
+                    floatInsets = floatInsets,
+                )
+                // Where a sheet this tall rests, for the single-size morph:
+                // below the status bar rather than at the gap.
+                if (container > 0) state.fullHeightTop = (container - window).toFloat()
+                // And no taller than the sheet can ever be seen. A sheet whose
+                // tallest detent is `Half` shows half a window of content at
+                // most; measured at the window, a list in it had rows past
+                // the bottom of the screen that no scrolling could reach.
+                // Only when every detent is independent of the content — see
+                // [SheetState.tallestFixedTop] — which is what keeps this from
+                // chasing its own tail through `Expanded`.
+                val fixedTop = state.tallestFixedTop()
+                val ceiling = if (fixedTop.isNaN() || container <= 0) {
+                    window
+                } else {
+                    val top = maxOf(fixedTop.roundToInt(), windowInsets.getTop(this))
+                    minOf(window, (container - top).coerceAtLeast(1))
+                }
+                val room = when {
+                    container > 0 ->
+                        constraints.copy(minHeight = 0, maxHeight = ceiling)
+
+                    constraints.hasBoundedHeight && constraints.maxHeight > 0 ->
+                        constraints.copy(minHeight = 0)
+
+                    else ->
+                        constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+                }
+                val placeable = measurable.measure(room)
+                state.sheetHeight = placeable.height.toFloat()
+                state.updateAnchors(density)
+                val height = placeable.height.coerceAtMost(constraints.maxHeight)
+                layout(placeable.width, height) { placeable.place(0, 0) }
+            }
+            // **Horizontal only, where this used to take the bottom as
+            // well.** The surface reaches the bottom of the window at
+            // every detent and the full width at all of them, so the
+            // sides apply in full whatever the sheet is doing — and the
+            // top is the hard one, which [sheetTopInset] above has.
+            //
+            // The bottom is now the content's to place, because the
+            // sheet cannot get inside a caller's scroller: padding here
+            // ends a `LazyColumn`'s viewport above the gesture bar, so
+            // the last row stops short of it instead of travelling
+            // through it and coming to rest clear. Reported as content
+            // being cut off at the safe zone. The value is handed to
+            // `content` below; see [BottomSheet]'s `content`.
+            //
+            // The drag handle keeps its own placement either way — it is
+            // at the top, where the bottom inset was never reaching it.
+            .then(
+                if (morph == null) {
+                    Modifier.windowInsetsPadding(
+                        windowInsets.only(WindowInsetsSides.Horizontal)
+                    )
+                } else {
+                    // Whatever of the side insets the margin has stopped
+                    // clearing, which is none of them while the sheet floats
+                    // and all of them once it is an edge sheet. Margin plus
+                    // padding never falls short of the inset on the way.
+                    Modifier
+                        .keepsTheFloatingWidth(state, floatInsets, morph)
+                        .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
+                }
+            )
+    ) {
+        if (dragHandle != null) {
+            // The band the handle sits in is the content's top padding: the
+            // handle's own height, and at least the sheet's inset. Measured, for
+            // where the pinned parts sit and how tall [SheetDetent.pinned] is.
+            Box(
                 Modifier
                     .fillMaxWidth()
-                    // A layer of its own, for a floating sheet only.
-                    //
-                    // The surface's size changes on every frame a floating sheet
-                    // moves — see its layout block — and a size change
-                    // invalidates that node's draw. Without a layer here the
-                    // content is part of the same recording, so it is re-recorded
-                    // with it: measured at 8 re-records over 40 frames of
-                    // dragging, against 0 for an edge sheet. With one, the
-                    // content is rasterised once and composited, and only the
-                    // surface's own background and shadow redraw.
-                    //
-                    // Not given to an edge sheet, which does not need it: its
-                    // surface never resizes, so there is nothing to isolate it
-                    // from, and a layer is an offscreen buffer the size of the
-                    // sheet on every platform that has one.
-                    .then(if (floating) Modifier.graphicsLayer() else Modifier)
-                    // The top inset, which only `windowInsetsPadding` looks like
-                    // it could do. See [sheetTopInset].
-                    .sheetTopInset(state, windowInsets, floating, floatInsets, morph)
-                    // Free to be shorter than the surface, never taller.
-                    //
-                    // `SheetDetent.Expanded` means "as tall as the content", so
-                    // the content's own height has to stay knowable after the
-                    // surface stopped being sized by it — otherwise `Expanded`
-                    // resolves to whatever the sheet is currently showing and
-                    // the anchor chases itself. Dropping `minHeight` is what
-                    // buys that: a `Column` wraps its children, so for content
-                    // that fits, `placeable.height` is the content's height and
-                    // `Expanded` resolves exactly where it always did.
-                    //
-                    // ### Why not `Constraints.Infinity` every time
-                    //
-                    // It used to be, and content taller than the window was
-                    // **cropped rather than scrolled**. The child was told it
-                    // had infinite room, laid itself out believing it, and was
-                    // then placed in the room the surface actually has;
-                    // everything past the window's bottom edge simply was not
-                    // drawn. Reported from a phone: the gallery's settings panel
-                    // is 728dp at 100% type and 863dp at 200%, against roughly
-                    // 867dp of usable window on a Pixel-class phone — at 200% a
-                    // reader lost Text size and Input modality, the two controls
-                    // they opened the panel to use.
-                    //
-                    // A `verticalScroll` inside could not rescue it — Compose
-                    // refuses a scroller measured at an infinite height by name
-                    // and **throws**, so the recommended cure for a long sheet
-                    // was a crash. Neither could a `LazyColumn`, which at an
-                    // infinite viewport composes *every* item, exactly what the
-                    // KDoc above recommends it for. A finite maxHeight is what
-                    // makes both work; see `SheetContentConstraintsTest`.
-                    //
-                    // Nothing is lost at the tall end: `resolveAnchors` clamps
-                    // the visible height to the container, so a `sheetHeight`
-                    // that is now the window's height instead of the content's
-                    // resolves `Expanded` to the same offset — the top of the
-                    // container — that a taller number did.
-                    //
-                    // Two measure passes are not the alternative: a `Measurable`
-                    // may be measured once. Nor are intrinsics — a `LazyColumn`
-                    // has none.
+                    .heightIn(min = BottomSheetDefaults.ContentPadding)
                     .layout { measurable, constraints ->
-                        // A `maxHeight` of zero is not a measurement, it is
-                        // the absence of one, and measuring the content against
-                        // it gives `sheetHeight = 0`, `Expanded` resolving to
-                        // "hidden", and a sheet that never appears — which is
-                        // what thirteen tests across five classes reported when
-                        // the first draft of this took the incoming constraints
-                        // unconditionally.
-                        //
-                        // A host with a size never reaches this now: the
-                        // container is read in the measure phase above, so the
-                        // surface has its real height on the very first pass.
-                        // What is left is the host that is genuinely unbounded,
-                        // where the sheet has no room to speak of and unbounded
-                        // is the only honest answer. Note that a `verticalScroll`
-                        // inside a sheet in *that* host will throw — Compose
-                        // refuses a scroller measured at an infinite height —
-                        // and that is Compose's rule rather than this one's.
-                        //
-                        // The container rather than the incoming constraints,
-                        // which for a floating sheet is the difference between a
-                        // sheet that can expand and one that cannot. See the
-                        // surface's own layout block above. Less whatever the
-                        // top edge has reserved — [sheetContentCeiling] has why.
-                        val container = state.containerHeight
-                            .coerceAtLeast(0f)
-                            .roundToInt()
-                        // A sheet that can morph measures as the edge sheet it
-                        // becomes: a constant either way, so nothing re-measures
-                        // as it moves and `Expanded` has one answer.
-                        val window = sheetContentCeiling(
-                            container = container,
-                            insets = windowInsets,
-                            floating = floating && morph == null,
-                            floatInsets = floatInsets,
-                        )
-                        // Where a sheet this tall rests, for the single-size morph:
-                        // below the status bar rather than at the gap.
-                        if (container > 0) state.fullHeightTop = (container - window).toFloat()
-                        // And no taller than the sheet can ever be seen. A sheet whose
-                        // tallest detent is `Half` shows half a window of content at
-                        // most; measured at the window, a list in it had rows past
-                        // the bottom of the screen that no scrolling could reach.
-                        // Only when every detent is independent of the content — see
-                        // [SheetState.tallestFixedTop] — which is what keeps this from
-                        // chasing its own tail through `Expanded`.
-                        val fixedTop = state.tallestFixedTop()
-                        val ceiling = if (fixedTop.isNaN() || container <= 0) {
-                            window
-                        } else {
-                            val top = maxOf(fixedTop.roundToInt(), windowInsets.getTop(this))
-                            minOf(window, (container - top).coerceAtLeast(1))
-                        }
-                        val room = when {
-                            container > 0 ->
-                                constraints.copy(minHeight = 0, maxHeight = ceiling)
-
-                            constraints.hasBoundedHeight && constraints.maxHeight > 0 ->
-                                constraints.copy(minHeight = 0)
-
-                            else ->
-                                constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
-                        }
-                        val placeable = measurable.measure(room)
-                        state.sheetHeight = placeable.height.toFloat()
-                        state.updateAnchors(density)
-                        val height = placeable.height.coerceAtMost(constraints.maxHeight)
-                        layout(placeable.width, height) { placeable.place(0, 0) }
-                    }
-                    // **Horizontal only, where this used to take the bottom as
-                    // well.** The surface reaches the bottom of the window at
-                    // every detent and the full width at all of them, so the
-                    // sides apply in full whatever the sheet is doing — and the
-                    // top is the hard one, which [sheetTopInset] above has.
-                    //
-                    // The bottom is now the content's to place, because the
-                    // sheet cannot get inside a caller's scroller: padding here
-                    // ends a `LazyColumn`'s viewport above the gesture bar, so
-                    // the last row stops short of it instead of travelling
-                    // through it and coming to rest clear. Reported as content
-                    // being cut off at the safe zone. The value is handed to
-                    // `content` below; see [BottomSheet]'s `content`.
-                    //
-                    // The drag handle keeps its own placement either way — it is
-                    // at the top, where the bottom inset was never reaching it.
-                    .then(
-                        if (morph == null) {
-                            Modifier.windowInsetsPadding(
-                                windowInsets.only(WindowInsetsSides.Horizontal)
-                            )
-                        } else {
-                            // Whatever of the side insets the margin has stopped
-                            // clearing, which is none of them while the sheet floats
-                            // and all of them once it is an edge sheet. Margin plus
-                            // padding never falls short of the inset on the way.
-                            Modifier
-                                .keepsTheFloatingWidth(state, floatInsets, morph)
-                                .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
-                        }
-                    )
-            ) {
-                dragHandle?.invoke()
-                // **Resolved by the consumer, not here.** `asPaddingValues`
-                // reads the inset where it is used, which for a `LazyColumn`'s
-                // `contentPadding` is the measure pass; calling
-                // `calculateBottomPadding()` in composition would recompose the
-                // whole of a sheet's content on every frame of the keyboard
-                // sliding up.
-                SheetParts(this, state).content(
-                    if (morph == null) {
-                        windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues()
-                    } else {
-                        // The same, less what the bottom margin still clears —
-                        // zero while floating, the whole inset as an edge sheet.
-                        // Resolved by the consumer for the reason above.
-                        remember(windowInsets, state, floatInsets, morph, density) {
-                            BottomInsetTheMarginNoLongerClears(windowInsets, state, floatInsets, morph, density)
-                        }
-                    }
-                )
-            }
+                        val placeable = measurable.measure(constraints)
+                        pins.handleHeight = placeable.height
+                        layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+                    },
+                contentAlignment = Alignment.Center,
+            ) { dragHandle() }
+        } else {
+            pins.handleHeight = 0
+        }
+        // A header knows the band above it is its top padding.
+        CompositionLocalProvider(LocalSheetBand provides (dragHandle != null)) {
+            SheetParts(this, state, pins).content(padding)
         }
     }
 }
@@ -1521,6 +1684,73 @@ interface SheetContentScope : ColumnScope {
      */
     @Composable
     fun part(from: SheetDetent? = null, content: @Composable ColumnScope.() -> Unit)
+
+    /**
+     * A piece of the sheet that stays at one edge of what the sheet shows, with
+     * the rest of the content passing behind it.
+     *
+     * ```kotlin
+     * val sheet = rememberSheetState(
+     *     detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
+     * )
+     *
+     * BottomSheet(sheet) { padding ->
+     *     pinned { SearchField(query, placeholder = "Search stops") }
+     *     LazyColumn(contentPadding = padding) {
+     *         items(stops) { stop -> ListItem { +stop.name } }
+     *     }
+     * }
+     * ```
+     *
+     * Asked for as a way *"to 'pin' a component to certain parts of the sheet"*:
+     * a search bar on the bottom of the sheet, where *"content should be
+     * scrollable behind it, and when the sheet is collapsed, only the search bar
+     * should show."*
+     *
+     * **[SheetPin.Bottom] rides the bottom of what the sheet shows** — the window's
+     * edge for an edge sheet, the sheet's own for a floating one — above the safe
+     * area, at every detent and through every frame of a drag. Pulled below the
+     * point where it would cover the handle, it stops, and leaves with the sheet.
+     * **[SheetPin.Top] sits under the drag handle**, where the content starts.
+     *
+     * **Drawn over the content, with the sheet's inset round it** —
+     * [BottomSheetDefaults.ContentPadding] at the sides and below, and the
+     * handle's band above — so a sheet collapsed to it shows it with the same
+     * space at the sides and below. The `PaddingValues` the sheet hands its
+     * content grows by the pinned parts' heights, so a `LazyColumn` given it as
+     * `contentPadding` scrolls its first and last rows out from behind them.
+     * Content that ignores it runs under them.
+     *
+     * **[containerColour] is what it is drawn on**, the width of the sheet and the
+     * inset round it: the sheet's own colour by default, so what scrolls behind it
+     * is hidden, and risen off the band a bottom part has the inset in the
+     * sheet's colour above it as well. `Color.Transparent` lets the content go
+     * under it and show round it — *"the ability for the content to go under the
+     * pinned item"* — with the part itself, a search field's own ground, drawn
+     * over the rows.
+     *
+     * [SheetDetent.pinned] is the size that shows the pinned parts and nothing
+     * else — the collapsed sheet that is only a search field.
+     *
+     * Always in the assistive tree, since it is always on screen. Several at one
+     * edge stack in the order they were first composed. Declare them anywhere in
+     * the content: where one is written does not decide where it is drawn.
+     */
+    @Composable
+    fun pinned(
+        to: SheetPin = SheetPin.Bottom,
+        containerColour: Color = Color.Unspecified,
+        content: @Composable ColumnScope.() -> Unit,
+    )
+}
+
+/** Which edge of what a sheet shows a [SheetContentScope.pinned] part stays at. */
+enum class SheetPin {
+    /** Under the drag handle, where the content starts. */
+    Top,
+
+    /** At the bottom of what the sheet shows, above the safe area. */
+    Bottom,
 }
 
 /**
@@ -1532,7 +1762,21 @@ interface SheetContentScope : ColumnScope {
 private class SheetParts(
     column: ColumnScope,
     private val state: SheetState,
+    private val pins: SheetPins,
 ) : SheetContentScope, ColumnScope by column {
+
+    @Composable
+    override fun pinned(to: SheetPin, containerColour: Color, content: @Composable ColumnScope.() -> Unit) {
+        // Registered as it composes, not in an effect: the blocks that draw the
+        // pinned parts compose after the content, so they find it in this pass.
+        // An effect would register it after the frame, and a sheet opened at
+        // `SheetDetent.pinned` would show its fallback height for one frame
+        // with nothing pinned in it.
+        val parts = if (to == SheetPin.Top) pins.top else pins.bottom
+        val part = remember(parts) { PinnedPart(parts).also { parts += it } }
+        part.content = content
+        part.containerColour = containerColour
+    }
 
     @Composable
     override fun part(from: SheetDetent?, content: @Composable ColumnScope.() -> Unit) {
@@ -1562,6 +1806,156 @@ private class SheetParts(
             modifier = if (reachable) Modifier else Modifier.clearAndSetSemantics {},
             content = content,
         )
+    }
+}
+
+/**
+ * A sheet's pinned parts, and the room they take.
+ *
+ * Written by the content as it composes and by the surface as it measures; read
+ * by the blocks that draw the parts and by the padding the content is handed.
+ */
+@Stable
+internal class SheetPins {
+    val top: SnapshotStateList<PinnedPart> = mutableStateListOf()
+    val bottom: SnapshotStateList<PinnedPart> = mutableStateListOf()
+
+    /** The top block's height. */
+    var topHeight by mutableStateOf(0.dp)
+
+    /** The sheet's inset, which the content clears above the bottom block too. */
+    var insetForContent by mutableStateOf(0.dp)
+
+    /** The bottom block's height, less the safe area under it. */
+    var bottomHeight by mutableStateOf(0.dp)
+
+    /**
+     * How much of the sheet's colour the bottom block draws above itself: the
+     * inset, once the block has risen far enough off its floor under the handle
+     * to have room for it, and less on the way down to it. Written where the
+     * block is placed and read where it is drawn, in the same frame.
+     */
+    var extension by mutableFloatStateOf(0f)
+
+    /**
+     * The drag handle's height, from the column's own measure. Plain rather
+     * than state: it is written and read in the same measure pass, and nothing
+     * outside layout reads it.
+     */
+    var handleHeight: Int = 0
+}
+
+/** One `pinned { }` call, for as long as it is composed. */
+internal class PinnedPart(private val list: SnapshotStateList<PinnedPart>) : RememberObserver {
+    var content: @Composable ColumnScope.() -> Unit by mutableStateOf({})
+
+    /** What it is drawn on; unspecified is the sheet's colour. */
+    var containerColour: Color by mutableStateOf(Color.Unspecified)
+
+    override fun onRemembered() = Unit
+    override fun onForgotten() {
+        list.remove(this)
+    }
+
+    // A composition thrown away still ran the `remember` that added it.
+    override fun onAbandoned() {
+        list.remove(this)
+    }
+}
+
+/** The safe area, plus the room the pinned parts take. Read where it is used. */
+@Stable
+private class PinnedPadding(
+    private val safeArea: PaddingValues,
+    private val pins: SheetPins,
+) : PaddingValues {
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp =
+        safeArea.calculateLeftPadding(layoutDirection)
+
+    override fun calculateTopPadding(): Dp = safeArea.calculateTopPadding() + pins.topHeight
+
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp =
+        safeArea.calculateRightPadding(layoutDirection)
+
+    // The bottom block and the inset of colour above it, which the last row
+    // clears as well.
+    override fun calculateBottomPadding(): Dp = safeArea.calculateBottomPadding() +
+        if (pins.bottomHeight > 0.dp) pins.bottomHeight + pins.insetForContent else 0.dp
+}
+
+/** Only the bottom of [safeArea]. Read where it is used, as the whole is. */
+@Stable
+private class BottomOf(private val safeArea: PaddingValues) : PaddingValues {
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateTopPadding(): Dp = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateBottomPadding(): Dp = safeArea.calculateBottomPadding()
+}
+
+/**
+ * The pinned parts at one edge, on the sheet's own colour.
+ *
+ * The colour runs the full width, past the sides the parts keep clear of, so the
+ * content cannot show beside them; a bottom block carries it down through the
+ * safe area too. At high contrast a line marks the edge the content passes
+ * behind, where the two grounds are the same colour.
+ */
+@Composable
+private fun PinnedBlock(
+    parts: SnapshotStateList<PinnedPart>,
+    ground: Color,
+    sides: Modifier,
+    safeArea: PaddingValues?,
+    pins: SheetPins,
+) {
+    if (parts.isEmpty()) return
+    val edge = contrastEdge()
+    val atTop = safeArea == null
+    // The sheet's one inset, at the sides and below, so a sheet collapsed to its
+    // pinned part shows it with the same space round it: the band under the
+    // handle is the space above.
+    val inset = BottomSheetDefaults.ContentPadding
+    Column(Modifier.fillMaxWidth().semantics { isTraversalGroup = true }) {
+        parts.forEachIndexed { index, part ->
+            key(part) {
+                // Each part on its own ground, so one can let the content show
+                // through while another hides it. The part nearest the content
+                // carries the block's edge, and the last carries the inset and
+                // the safe area under the block.
+                val first = index == 0
+                val last = index == parts.lastIndex
+                val colour = part.containerColour.takeOrElse { ground }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            if (colour.alpha == 0f) return@drawBehind
+                            // Above a bottom block that has risen off its floor,
+                            // the inset in the part's colour, so the content
+                            // passing behind never meets the part edge to edge.
+                            // None at the floor, where the handle's band is the
+                            // space above it.
+                            val above = if (!atTop && first) pins.extension else 0f
+                            drawRect(colour, topLeft = Offset(0f, -above), size = Size(size.width, size.height + above))
+                            val edgeHere = if (atTop) last else first
+                            if (edge != null && edgeHere) {
+                                val width = edge.width.toPx()
+                                drawRect(
+                                    brush = edge.brush,
+                                    topLeft = Offset(0f, if (atTop) size.height - width else -above),
+                                    size = Size(size.width, width),
+                                )
+                            }
+                        }
+                        .then(if (last && safeArea != null) Modifier.padding(BottomOf(safeArea)) else Modifier)
+                        .then(sides)
+                        .padding(start = inset, end = inset, bottom = if (last) inset else 0.dp),
+                ) {
+                    val content = part.content
+                    content()
+                }
+            }
+        }
     }
 }
 
@@ -1825,6 +2219,11 @@ private class BottomInsetTheMarginNoLongerClears(
         val kept = 1f - edgeness(state, morph)
         val margin = (floatInsets.getBottom(this) * kept).roundToInt()
         (insets.getBottom(this) - margin).coerceAtLeast(0).toDp()
+    }
+
+    /** The same while the sheet floats: what it is at a detent below the morph. */
+    fun floating(): Dp = with(density) {
+        (insets.getBottom(this) - floatInsets.getBottom(this)).coerceAtLeast(0).toDp()
     }
 }
 

@@ -17,8 +17,8 @@ show state. It is not the same as `enabled = false`, which says the choice is
 unavailable.
 
 Inert still means it announces `Role.Checkbox` and its tick. That matters inside
-a [`SettingRow`](setting-row.md), which is `clickable` rather than
-`toggleable` and so publishes no checked state of its own; without the control
+a [`SelectionRow`](selection-row.md) that opens a choice, which is `clickable`
+rather than `toggleable` and so publishes no checked state of its own; without the control
 saying it, the row announces as a button with a name and no on or off. All
 three controls are checked for it.
 

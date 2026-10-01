@@ -13,12 +13,12 @@ prose that is about the family rather than any one of them.
 
 | Family | | |
 |---|---|---|
-| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `TextButton` `TextIconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` |
+| [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `TextButton` `TextIconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` `Modifier.pressable` |
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `TriStateCheckbox` `RadioButton` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` `ColourSwatchPicker` `ColourPicker` `Knob` |
-| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `MultiSelect` `Combobox` `rememberImeChain` |
+| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `NumberField` `PhoneField` `EmailField` `Select` `WheelSelect` `MultiSelect` `Combobox` `rememberImeChain` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `ActivityCalendar` `CalendarMonth` `DatePicker` `DateRangePicker` `TimePicker` `TimeField` `WheelPicker` `RelativeTimeText` `LocaleFormats` |
 | [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Spinner` `Skeleton` `Redacted` `EmptyState` `Banner` `Callout` `Timeline` `TimelineList` `BranchTimeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `PageIndicator` `Kbd` `Gauge` `Meter` `ChatBubble` |
-| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `SettingRow` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` `Table` |
+| [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `DisclosureListItem` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.fadingEdges` `Table` |
 | [**Navigation**](components/navigation.md) | Getting between screens | `NavigationSuiteScaffold` `NavScope` `NavBar` `NavRail` `ModalNavRail` `NavSearch` `TopBar` `TabBar` `Breadcrumbs` `Pagination` |
 | [**Overlays**](components/overlays.md) | Things drawn over everything | `OverlayHost` `Dialog` `AlertDialog` `DropdownMenu` `SubMenu` `ContextMenuArea` `Popover` `Tooltip` `Modifier.coachmark` `Toast` `LoadingOverlay` `CommandPalette` |
 | [**Sheets**](components/sheets.md) | Bottom and side panels | `BottomSheet` `ModalBottomSheet` `SideSheet` `ModalSideSheet` `SheetHeader` `DragHandle` |
@@ -39,7 +39,7 @@ The comparisons that get made wrongly, and where each is argued:
 
 | | |
 |---|---|
-| `ListItem` vs `SettingRow` vs `SelectionRow` | [`SettingRow`](components/setting-row.md) |
+| `ListItem` vs `SelectionRow` | [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice) |
 | `Select` vs `Combobox` vs `MultiSelect` vs `RadioGroup` | [`Select`](components/select.md) |
 | `SegmentedControl` vs `TabBar` vs `ButtonGroup` | [`ButtonGroup`](components/button-group.md#not-a-segmentedcontrol) |
 | `Toolbar` vs `TopBar` | [`Toolbar`](components/toolbar.md) |
@@ -48,7 +48,7 @@ The comparisons that get made wrongly, and where each is argued:
 | `Chip` vs `Tag` | [`Tag`](components/tag.md) |
 | `Skeleton` vs `Spinner` | [`Skeleton`](components/skeleton.md) |
 | `CommandPalette` vs `Combobox` | [overlays](overlays.md#commandpalette) |
-| `Stat` vs `KeyValueList` vs `SettingRow` | [`KeyValueList`](components/key-value-list.md) |
+| `Stat` vs `KeyValueList` vs `SelectionRow` | [`KeyValueList`](components/key-value-list.md) |
 | `EmptyState` vs `ErrorState` | [`EmptyState`](components/empty-state.md) |
 | `Pagination` vs `LoadMore` | [navigation](components/pagination.md) |
 | The six sheet entry points | [sheets](components/sheets.md) |

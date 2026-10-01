@@ -8,11 +8,18 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -22,11 +29,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layoutId
@@ -42,15 +54,22 @@ import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SurfaceDefaults
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
+import io.kontour.ui.components.selection.SliderDefaults
+import io.kontour.ui.interaction.DetentTicker
+import io.kontour.ui.interaction.DragClaim
+import io.kontour.ui.interaction.horizontalDragOwning
+import io.kontour.ui.interaction.rememberDetentTicker
+import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
 import kotlin.math.max
+import kotlinx.coroutines.CoroutineScope
 import kotlin.math.roundToInt
 
 /** What a [NavBar] takes by default. */
@@ -85,6 +104,50 @@ object NavBarDefaults {
      */
     val SlotMaxWidth: Dp = 320.dp
 
+    /**
+     * The widest a destination grows under [NavBarItemWidth.Equal]: shares of a
+     * phone's width, and on anything wider the bar hugs destinations this wide
+     * rather than spreading three of them across the window.
+     */
+    val EqualItemMaxWidth: Dp = 168.dp
+
+    /**
+     * A circle behind the glyph, [CircleSize] across: the marker a bar of
+     * [NavBarItemWidth.Natural] destinations wants.
+     *
+     * @param size Its size. A square is a circle, anything else a capsule.
+     * @param shape Its shape, where neither is wanted.
+     */
+    @Composable
+    fun glyphMarker(
+        size: DpSize = CircleSize,
+        shape: Shape = navItemShape(size),
+    ): NavBarMarker = NavBarMarker.Glyph(size, shape)
+
+    /**
+     * The default marker: around the whole destination, glyph and label — a tab
+     * bar's highlight rather than a circle.
+     *
+     * @param shape Its shape. By default it follows the bar's: a capsule in a
+     *   floating bar's capsule, the same distance from its edges all round, and
+     *   the theme's medium corner in a docked bar, which has no corners to
+     *   follow.
+     * @param inset How far in from the destination's own edges it stops.
+     */
+    @Composable
+    fun destinationMarker(
+        shape: Shape? = null,
+        inset: Dp = 0.dp,
+    ): NavBarMarker = NavBarMarker.Destination(shape, inset)
+
+    /**
+     * The gap between a floating bar's capsule and the action beside it: wider
+     * than the gap between destinations, so the two read as neighbours rather
+     * than as one bar with a bulge.
+     */
+    val ActionGap: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.sm
+
     /** The gap between destinations when they are gathered in the middle. */
     val ItemGap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.navBarItemGap
@@ -106,9 +169,49 @@ object NavBarDefaults {
         if (spans) Arrangement.SpaceEvenly else Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
 }
 
+/** How wide a [NavBar]'s destinations are. */
+enum class NavBarItemWidth {
+    /**
+     * As wide as each needs, spread across a phone's bar and gathered in the
+     * middle of a wider one — see [NavBarDefaults.arrangementFor].
+     */
+    Natural,
+
+    /**
+     * All the same width, sharing the bar between them, up to
+     * [NavBarDefaults.EqualItemMaxWidth] each: a tab bar's cells, and the
+     * width a [NavBarMarker.Destination] wants to fill. The default.
+     */
+    Equal,
+}
+
+/**
+ * The marker behind a [NavBar]'s current destination: what it covers, and its
+ * shape. Made by [NavBarDefaults.glyphMarker] and
+ * [NavBarDefaults.destinationMarker].
+ */
+@Immutable
+sealed interface NavBarMarker {
+    /**
+     * Behind the glyph, [size] and in [shape] — a 40dp circle by default, with
+     * the label, when there is one, under it.
+     */
+    @Immutable
+    data class Glyph(val size: DpSize, val shape: Shape) : NavBarMarker
+
+    /**
+     * Around the whole destination, glyph and label, [inset] in from its edges
+     * and in [shape], or in the bar's own when that is null. Pair it with
+     * [NavBarItemWidth.Equal] for cells that fill the bar.
+     */
+    @Immutable
+    data class Destination(val shape: Shape?, val inset: Dp) : NavBarMarker
+}
+
 /**
  * How a [NavBar] presents itself. A container decision only: the destinations
- * are circles either way.
+ * are the same either way, and a destination marker follows the container's
+ * shape.
  */
 enum class NavBarStyle {
     /**
@@ -136,11 +239,24 @@ enum class NavBarStyle {
  * }
  * ```
  *
- * Each destination is a circle; one marker travels between them. The content is
- * a [NavBarScope]: destinations are [NavScope.item]s, a [NavScope.group] is a
- * circle that opens a menu of its children above the bar, sections run inline
- * and dividers are left out, and [NavBarScope.slot] holds anything that is not a
- * destination — a search, a floating action.
+ * The destinations share the bar in equal cells, and one marker, round the whole
+ * of the current one, travels between them; [itemWidth] and [marker] give
+ * circles instead. The content is a [NavBarScope]: destinations are
+ * [NavScope.item]s, a [NavScope.group] is a destination that opens a menu of its
+ * children above the bar, sections run inline
+ * and dividers are left out, and [NavBarScope.slot] holds anything else that
+ * belongs in the row — a search, a button.
+ *
+ * A floating action goes in [action], not in a slot:
+ *
+ * ```kotlin
+ * NavBar(
+ *     action = { FloatingActionButton(onClick = ::newTrip, icon = Tabler.Outline.Plus, contentDescription = "New trip") },
+ * ) {
+ *     item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *     item(here == Map, { go(Map) }, key = Map, icon = Tabler.Outline.Map) { +"Map" }
+ * }
+ * ```
  *
  * @param style [NavBarStyle.Floating], a capsule over the content, or
  *   [NavBarStyle.Docked], a surface along the bottom edge.
@@ -149,6 +265,25 @@ enum class NavBarStyle {
  *   labels are still announced.
  * @param arrangement How the row distributes its children. Null derives it from
  *   the window's width: see [NavBarDefaults.arrangementFor].
+ * @param shape The bar's own shape: a capsule for a floating bar and square for
+ *   a docked one when null. A floating bar in a rounded rectangle is
+ *   `RoundedCornerShape(16.dp)`.
+ * @param itemWidth How wide each destination is: [NavBarItemWidth.Equal] cells
+ *   sharing the bar by default, or [NavBarItemWidth.Natural].
+ * @param marker What marks the current destination, and in what shape: round
+ *   the whole destination by default, in the bar's shape, or
+ *   [NavBarDefaults.glyphMarker] behind the glyph.
+ * @param markerDraggable Whether the marker can be dragged from one destination
+ *   to another, as a segmented control's thumb can: it follows the finger and
+ *   snaps from destination to destination, with a tick at each, and the one
+ *   under the finger when it lifts is chosen — its `onClick` runs then, once.
+ *   A tap is still a tap.
+ * @param action Something the screen does rather than somewhere it goes — a
+ *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
+ *   bar puts it **beside** the capsule, on the page and centred on the capsule's
+ *   height, and on a phone the capsule narrows to make room; so it has to bring
+ *   its own surface, which a floating action button does. A docked bar has no
+ *   beside, and puts it inside, after everything else.
  */
 @Composable
 fun NavBar(
@@ -157,7 +292,12 @@ fun NavBar(
     showLabels: Boolean = false,
     colours: NavColours = NavDefaults.colours(),
     arrangement: Arrangement.Horizontal? = null,
+    shape: Shape? = null,
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
+    marker: NavBarMarker = NavBarDefaults.destinationMarker(),
+    markerDraggable: Boolean = true,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
+    action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     NavBarLayout(
@@ -169,6 +309,11 @@ fun NavBar(
         windowInsets = windowInsets,
         search = null,
         searchIndex = null,
+        action = action,
+        shape = shape,
+        itemWidth = itemWidth,
+        marker = marker,
+        markerDraggable = markerDraggable,
         content = content,
     )
 }
@@ -190,11 +335,44 @@ internal fun NavBarLayout(
     windowInsets: WindowInsets,
     search: (@Composable () -> Unit)?,
     searchIndex: Int?,
+    action: (@Composable () -> Unit)?,
+    shape: Shape? = null,
+    itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
+    marker: NavBarMarker = NavBarDefaults.destinationMarker(),
+    markerDraggable: Boolean = true,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
+    val motion = Theme.motion
+    val drag = remember { MarkerDrag() }
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
+    val dragScope = rememberCoroutineScope()
+    // How much of the lean toward the finger is applied: 1 while dragging, 0 at
+    // rest, springing between. Off under reduced motion, as a segmented
+    // control's is: the marker still goes where the finger takes it.
+    val engaged = animateFloatAsState(
+        targetValue = if (drag.dragging && !motion.reduceMotion) 1f else 0f,
+        animationSpec = motion.springOrTween(motion.springSnappy),
+        label = "navMarkerStrain",
+    )
     val keys = remember { NavKeys() }
-    val circle = NavBarDefaults.CircleSize
+    // The glyph's box: the marker's size where the marker is behind the glyph,
+    // and a circle's where it is around the whole destination.
+    val circle = (marker as? NavBarMarker.Glyph)?.size ?: NavBarDefaults.CircleSize
+    val markerShape = when (marker) {
+        is NavBarMarker.Glyph -> marker.shape
+        // Concentric with the bar: a capsule inside a floating bar's capsule,
+        // [Destinations] keeping it the same distance from every edge, where a
+        // fixed corner was a box in a pill once labels made the bar tall. A
+        // docked bar is straight-edged, and a caller's own bar shape is theirs
+        // to match.
+        is NavBarMarker.Destination -> marker.shape ?: when {
+            style == NavBarStyle.Floating && shape == null -> Theme.shapes.pill
+            else -> Theme.shapes.medium
+        }
+    }
+    val coversItem = marker is NavBarMarker.Destination
+    val equal = itemWidth == NavBarItemWidth.Equal
     val labelGap = Theme.spacing.xxs
 
     // A phone spans; anything wider takes only the room it needs.
@@ -202,24 +380,53 @@ internal fun NavBarLayout(
     val rowArrangement = arrangement ?: NavBarDefaults.arrangementFor(spans)
     val hug = style == NavBarStyle.Floating && !spans
 
+    // **The capsule's ends, as much room as between two circles.** They were
+    // `sm` on top of the arrangement's own spacing, which on a phone spreads the
+    // destinations *evenly* — with a share of the slack before the first and
+    // after the last as well as between — so each end had its share *and* the
+    // padding: about a third more room than between two circles, reported as
+    // too much width on either side of the items. What is seen is the circle,
+    // not its touch target, so the sum is done in circles: a destination's
+    // target is wider than its circle by `inset` each side. Spread evenly, the
+    // arrangement's own share is at the ends already, and the padding only has
+    // to match what the targets add between two circles. Gathered in the middle
+    // of a wider window, the ends take the whole gap. A caller's own
+    // arrangement keeps the old padding, since it is not this sum.
+    //
+    // Cells that share the bar have no slack to spread: their ends are the
+    // capsule's own padding, the same as its top and bottom, so a marker around
+    // a whole cell sits the same distance from every edge.
+    val inset = ((Theme.sizing.minTouchTarget - circle.width) / 2).coerceAtLeast(0.dp)
+    val floatingEnds = when {
+        equal -> Theme.spacing.xs
+        arrangement != null -> Theme.spacing.sm
+        spans -> inset
+        else -> NavBarDefaults.ItemGap + inset
+    }
+
     // A new scope when anything it draws with changes: the destinations are
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
-    val scope = remember(keys, showLabels, colours, circle, labelGap) {
-        BarScope(keys, showLabels, colours, circle, labelGap)
+    val dragging = if (markerDraggable) DragWiring(drag, ticker, dragScope) else null
+    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, dragging) {
+        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, drag, dragging)
     }
 
     @Composable
-    fun Destinations(rowModifier: Modifier) {
+    fun Destinations(rowModifier: Modifier, inlineAction: (@Composable () -> Unit)?) {
         SelectionIndicatorBox(
             state = indicator,
-            // The circle is the marker, sized to the glyph rather than the
-            // destination, and against the top when a label hangs under it.
-            sizing = IndicatorSizing.Fixed(
-                width = circle.width,
-                height = circle.height,
-                verticalBias = if (showLabels) 0f else 0.5f,
-            ),
+            sizing = when (marker) {
+                // The circle is the marker, sized to the glyph rather than the
+                // destination, and against the top when a label hangs under it.
+                is NavBarMarker.Glyph -> IndicatorSizing.Fixed(
+                    width = circle.width,
+                    height = circle.height,
+                    verticalBias = if (showLabels) 0f else 0.5f,
+                )
+                // Or the destination itself, glyph and label.
+                is NavBarMarker.Destination -> IndicatorSizing.Inset(marker.inset, marker.inset)
+            },
             modifier = rowModifier,
             indicator = {
                 // No shadow: the bar is the raised thing, and a marker casting
@@ -227,22 +434,45 @@ internal fun NavBarLayout(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .clip(navItemShape(circle))
+                        // Where the marker is placed, before the lean: in the
+                        // row's coordinates, which the finger shares. Globally,
+                        // because what moves it is its parent: the marker's own
+                        // place inside that never changes.
+                        .onGloballyPositioned { placed -> drag.placed(placed) }
+                        .graphicsLayer {
+                            // No lean under reduced motion: the marker still goes
+                            // where the finger takes it, without reaching for it.
+                            translationX = if (motion.reduceMotion) 0f else drag.lean(engaged.value)
+                        }
+                        .clip(markerShape)
                         .background(colours.indicator)
-                        .optionalBorder(selectionEdge(), navItemShape(circle))
+                        .optionalBorder(selectionEdge(), markerShape)
                 )
             },
         ) {
             BarRow(
                 arrangement = rowArrangement,
                 fill = !hug,
+                equal = equal,
                 searchIndex = searchIndex,
                 slotsCentred = !showLabels,
-                modifier = Modifier.selectableGroup(),
+                // The row itself takes no pointer input: a press between two
+                // destinations has to fall through to the surface's blocker
+                // under it. The drag is each destination's; see `BarScope.item`.
+                modifier = Modifier.selectableGroup().onPlaced { drag.row = it },
             ) {
                 scope.content()
                 if (search != null) {
                     Box(Modifier.layoutId(BarChild.Search), propagateMinConstraints = true) { BarSlot(search) }
+                }
+                if (inlineAction != null) {
+                    // A slot at the end, but at least a circle's height rather
+                    // than exactly one: a floating action button is taller than
+                    // a circle, and a slot's fixed height would squash it.
+                    Box(
+                        Modifier.layoutId(BarChild.Slot(0f)).heightIn(min = circle.height),
+                        contentAlignment = Alignment.Center,
+                    ) { inlineAction() }
                 }
             }
         }
@@ -253,7 +483,7 @@ internal fun NavBarLayout(
         // inside it, so its colour runs under the gesture bar.
         NavBarStyle.Docked -> BarGround(
             modifier = modifier.fillMaxWidth(),
-            shape = RectangleShape,
+            shape = shape ?: RectangleShape,
             colours = colours,
             shadow = Theme.elevation.low,
         ) {
@@ -261,28 +491,74 @@ internal fun NavBarLayout(
                 Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(windowInsets)
-                    .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs)
+                    .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
+                inlineAction = action,
             )
         }
 
         // Inset from every edge, so the page visibly continues underneath.
-        NavBarStyle.Floating -> Box(
-            modifier
+        NavBarStyle.Floating -> FloatingBar(
+            modifier = modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(windowInsets)
                 .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
-            contentAlignment = Alignment.Center,
+            hug = hug,
+            gap = NavBarDefaults.ActionGap,
+            action = action,
         ) {
             // A capsule, concentric with the circles it holds: 20dp of their
             // radius and `xs` around them is half the bar's height.
             BarGround(
-                modifier = if (hug) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
-                shape = Theme.shapes.pill,
+                modifier = Modifier,
+                shape = shape ?: Theme.shapes.pill,
                 colours = colours,
                 shadow = Theme.elevation.high,
             ) {
-                Destinations(Modifier.padding(horizontal = Theme.spacing.sm, vertical = Theme.spacing.xs))
+                Destinations(
+                    Modifier.padding(horizontal = floatingEnds, vertical = Theme.spacing.xs),
+                    inlineAction = null,
+                )
             }
+        }
+    }
+}
+
+/**
+ * A floating bar: the capsule, and the action beside it at its end.
+ *
+ * Laid out rather than put in a `Row`, because the two are sized against each
+ * other: the action takes what it needs first, and the capsule has what is left
+ * — all of it when the bar spans a phone, so the capsule narrows as an action
+ * arrives rather than the action being pushed off the edge. When the bar hugs,
+ * the two are centred together, as one group. Each is centred on the other's
+ * height, so a floating action button taller than the capsule stands level with
+ * it rather than on the same floor.
+ */
+@Composable
+private fun FloatingBar(
+    modifier: Modifier,
+    hug: Boolean,
+    gap: Dp,
+    action: (@Composable () -> Unit)?,
+    capsule: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(capsule, action ?: {}), modifier = modifier) { (capsules, actions), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val beside = actions.firstOrNull()?.measure(loose)
+        val gapPx = if (beside != null) gap.roundToPx() else 0
+        val taken = (beside?.width ?: 0) + gapPx
+        val bounded = constraints.hasBoundedWidth
+        val room = if (bounded) (constraints.maxWidth - taken).coerceAtLeast(0) else Constraints.Infinity
+        val bar = capsules.first().measure(
+            loose.copy(minWidth = if (hug || !bounded) 0 else room, maxWidth = room),
+        )
+        val group = bar.width + taken
+        val width = if (bounded) constraints.maxWidth else group
+        val height = max(max(bar.height, beside?.height ?: 0), constraints.minHeight)
+        layout(width, height) {
+            val start = ((width - group) / 2).coerceAtLeast(0)
+            bar.placeRelative(start, (height - bar.height) / 2)
+            beside?.placeRelative(start + bar.width + gapPx, (height - beside.height) / 2)
         }
     }
 }
@@ -296,7 +572,12 @@ private fun BarGround(
     shadow: Shadow,
     content: @Composable () -> Unit,
 ) {
-    Surface(
+    // **A tap on the bar is the bar's.** Between two destinations there is
+    // nothing to press, and with nothing there to take it a tap went through to
+    // whatever the page had under the bar — a row opened from underneath its
+    // navigation. A bar surface keeps what lands on it, inside the capsule's
+    // shape: just off the rounded ends is still the page. See [BarSurface].
+    BarSurface(
         modifier = modifier,
         shape = shape,
         containerColour = colours.container,
@@ -305,8 +586,9 @@ private fun BarGround(
         // A floating bar is `surface` on `background` with a shadow for an
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
         border = contrastEdge(),
-        content = content,
-    )
+    ) {
+        content()
+    }
 }
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */
@@ -340,11 +622,15 @@ private val BarChild.weight: Float
 private fun BarRow(
     arrangement: Arrangement.Horizontal,
     fill: Boolean,
+    /** Destinations share the room, as a weighted slot does: [NavBarItemWidth.Equal]. */
+    equal: Boolean,
     searchIndex: Int?,
     slotsCentred: Boolean,
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
+    // Between equal cells and anything else in the row: see `gapAfter`.
+    val cellToSlot = NavBarDefaults.ItemGap
     Layout(content = content, modifier = modifier) { measurables, constraints ->
         val search = measurables.firstOrNull { it.barChild == BarChild.Search }
         val rest = measurables.filter { it !== search }
@@ -364,28 +650,57 @@ private fun BarRow(
             }
         }
 
+        // Equal cells touch: the space between them is inside them. A slot or an
+        // action beside one keeps the usual gap, or a marker round the last
+        // destination met the action beside it edge to edge.
         val gap = arrangement.spacing.roundToPx()
-        val gaps = gap * (ordered.size - 1).coerceAtLeast(0)
+        val slotGap = cellToSlot.roundToPx()
+        fun gapAfter(i: Int): Int = when {
+            i >= ordered.lastIndex -> 0
+            !equal -> gap
+            ordered[i].barChild == BarChild.Destination && ordered[i + 1].barChild == BarChild.Destination -> 0
+            else -> slotGap
+        }
+        val gaps = ordered.indices.sumOf { gapAfter(it) }
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val placeables = arrayOfNulls<Placeable>(ordered.size)
+        // With a weighted slot in the row — a search — equal cells are equal to
+        // each other but no wider than the widest needs, and the slot has the
+        // rest. Sharing the room with it, four destinations left a phone's search
+        // a fifth of the bar.
+        val slotted = ordered.any { it.barChild != BarChild.Destination && it.barChild.weight > 0f }
+        val cellWidth = if (equal && slotted) {
+            ordered.filter { it.barChild == BarChild.Destination }.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0
+        } else {
+            0
+        }
+        fun weightOf(child: Measurable): Float =
+            if (equal && !slotted && child.barChild == BarChild.Destination) 1f else child.barChild.weight
         var used = gaps
         ordered.forEachIndexed { i, child ->
-            if (child.barChild.weight == 0f) {
+            if (weightOf(child) == 0f) {
                 val room = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else Constraints.Infinity
-                placeables[i] = child.measure(loose.copy(maxWidth = room))
+                placeables[i] = if (equal && slotted && child.barChild == BarChild.Destination) {
+                    val width = cellWidth.coerceAtMost(room)
+                    child.measure(loose.copy(minWidth = width, maxWidth = width))
+                } else {
+                    child.measure(loose.copy(maxWidth = room))
+                }
                 used += placeables[i]!!.width
             }
         }
-        val totalWeight = ordered.sumOf { it.barChild.weight.toDouble() }.toFloat()
+        val totalWeight = ordered.sumOf { weightOf(it).toDouble() }.toFloat()
         // A weighted child's share of the room left over, but never more than
-        // `SlotMaxWidth`: see there.
+        // `SlotMaxWidth`: see there. An equal destination's cap is its own.
         val slotCap = NavBarDefaults.SlotMaxWidth.roundToPx()
+        val cellCap = NavBarDefaults.EqualItemMaxWidth.roundToPx()
         if (totalWeight > 0f) {
             val left = if (constraints.hasBoundedWidth) (constraints.maxWidth - used).coerceAtLeast(0) else 0
             ordered.forEachIndexed { i, child ->
-                val weight = child.barChild.weight
+                val weight = weightOf(child)
                 if (weight > 0f) {
-                    val width = (left * weight / totalWeight).roundToInt().coerceAtMost(slotCap)
+                    val cap = if (child.barChild == BarChild.Destination) cellCap else slotCap
+                    val width = (left * weight / totalWeight).roundToInt().coerceAtMost(cap)
                     placeables[i] = child.measure(loose.copy(minWidth = width, maxWidth = width))
                     used += width
                 }
@@ -410,7 +725,7 @@ private fun BarRow(
                 var at = ((width - contentWidth) / 2).coerceAtLeast(0)
                 for (i in all.indices) {
                     x[i] = at
-                    at += all[i].width + gap
+                    at += all[i].width + gapAfter(i)
                 }
                 all.forEachIndexed { i, p -> p.placeRelative(x[i], childTop(aligned[i], p, height, slotsCentred)) }
             } else {
@@ -437,6 +752,11 @@ private class BarScope(
     private val colours: NavColours,
     private val circle: DpSize,
     private val labelGap: Dp,
+    private val markerShape: Shape,
+    private val coversItem: Boolean,
+    private val drag: MarkerDrag,
+    /** Null when the marker cannot be dragged. */
+    private val dragging: DragWiring?,
 ) : NavBarScope {
 
     @Composable
@@ -455,23 +775,41 @@ private class BarScope(
     ) {
         val text = navLabel(label)
         ClaimNavKey(keys, key)
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = onClick
+            target.enabled = enabled
+            target.selected = selected
+        }
+        DisposableEffect(drag, key) {
+            drag.targets[key] = target
+            onDispose { drag.targets.remove(key) }
+        }
         NavDestination(
             label = text,
             icon = icon,
             selected = selected,
+            // While the marker is dragged, the destination under the finger
+            // wears it — colours and all — and the chosen one waits for the lift.
+            marked = drag.marks(key, selected),
             onClick = onClick,
             markerKey = key,
             colours = colours,
             layout = NavLayout.Stacked,
             showLabel = showLabels,
             indicatorSize = circle,
-            modifier = modifier.layoutId(BarChild.Destination),
+            modifier = modifier
+                .layoutId(BarChild.Destination)
+                .onPlaced { target.coordinates = it }
+                .then(if (dragging != null) Modifier.markerDrag(dragging, target, enabled) else Modifier),
             enabled = enabled,
             selectedIcon = selectedIcon,
             contentDescription = contentDescription,
             badge = badge,
             interactionSource = interactionSource,
             labelGap = labelGap,
+            markerShape = markerShape,
+            markerCoversItem = coversItem,
         )
     }
 
@@ -503,7 +841,9 @@ private class BarScope(
             label = text,
             icon = icon,
             selected = false,
-            marked = selection.any,
+            // Not a place the marker can be dragged to: while it is being
+            // dragged it is wherever the finger is, never on the group.
+            marked = selection.any && !drag.previewing,
             onClick = { open = !open },
             markerKey = key,
             colours = colours,
@@ -516,6 +856,8 @@ private class BarScope(
             badge = badge,
             interactionSource = interactionSource,
             labelGap = labelGap,
+            markerShape = markerShape,
+            markerCoversItem = coversItem,
         )
         // Above the bar, the only side with room.
         AnchoredDropdownMenu(
@@ -546,6 +888,192 @@ private class BarScope(
                 contentAlignment = Alignment.Center,
             ) { BarSlot(content) }
         }
+    }
+}
+
+/** A destination the marker can be dragged to. Written in composition's apply phase, read by the gesture. */
+private class DragTarget {
+    var coordinates: LayoutCoordinates? = null
+    var onClick: () -> Unit = {}
+    var enabled: Boolean = true
+    var selected: Boolean = false
+}
+
+/** What a destination needs to start dragging the marker. Stable per bar. */
+@Immutable
+private data class DragWiring(val drag: MarkerDrag, val ticker: DetentTicker, val scope: CoroutineScope)
+
+/**
+ * The marker's drag, started from this destination.
+ *
+ * On the destination rather than on the row: a gesture stays with the node it
+ * went down on however far the finger then goes, so the drag carries on across
+ * the others all the same — and the row is left with no pointer input of its
+ * own, so a press *between* destinations still falls through to the surface's
+ * blocker rather than stopping on the row and reaching the page. Sideways only:
+ * a tap stays a tap. A slot — a search — has none, and keeps its own gestures.
+ */
+@Composable
+private fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled: Boolean): Modifier {
+    val drag = wiring.drag
+    val ticker = wiring.ticker
+    return horizontalDragOwning(
+        enabled = enabled,
+        interactionSource = null,
+        scope = wiring.scope,
+        claimsOn = DragClaim.Direction,
+        onStart = { at -> drag.begin(drag.inRow(target, at), ticker) },
+        onDelta = { dx -> drag.move(dx, ticker) },
+        onRelease = { drag.released = true },
+        onEnd = { drag.end(ticker) },
+    )
+}
+
+/**
+ * The bar's marker, dragged: which destination it is over and where the finger
+ * is, as a segmented control's thumb is.
+ *
+ * **The choice waits for the finger to lift.** A segmented control changes its
+ * value at every boundary it crosses, because a value is cheap to change and
+ * change back. A destination is a page: choosing each one the finger passed over
+ * would build and throw away every screen on the way. So the marker, and the
+ * colours that go with it, follow the finger at once, a tick marks each
+ * crossing, and the destination under the finger when it lifts has its
+ * `onClick` run, once. A drag that ends where it started, or is taken away by
+ * something else, changes nothing.
+ *
+ * Only the bar's: a rail scrolls, and a sideways drag is the one thing a
+ * vertical list cannot be sure is not a scroll.
+ */
+@Stable
+private class MarkerDrag {
+    /** The destinations, by key. Not state: read when a finger moves, never in composition. */
+    val targets = LinkedHashMap<Any, DragTarget>()
+
+    /** The row's coordinates: the finger's, and the marker's before its lean. */
+    var row: LayoutCoordinates? = null
+
+    /** The destination under the finger while it drags the marker, or null. */
+    var over: Any? by mutableStateOf(null)
+        private set
+
+    val previewing: Boolean get() = over != null
+
+    /** Whether a finger is dragging the marker. */
+    var dragging: Boolean by mutableStateOf(false)
+        private set
+
+    /** The drag ended with the finger lifting, rather than being taken away. */
+    var released: Boolean = false
+
+    /**
+     * Where the finger is along the row, or NaN before the first drag. Kept
+     * after it lifts, so the lean relaxes out of where it was rather than
+     * losing the number.
+     */
+    private var fingerAt by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The marker's own placement, before the lean; see [placed]. State, read
+     * only by the marker's layer: the marker carries on travelling after the
+     * finger stops, and a lean worked out against where it was mid-journey
+     * would be kept all the way to the end of it.
+     */
+    private var markerLeft by mutableFloatStateOf(Float.NaN)
+    private var markerWidth by mutableFloatStateOf(0f)
+
+    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: selected
+
+    private fun boundsOf(target: DragTarget): Rect? {
+        val row = row ?: return null
+        val at = target.coordinates ?: return null
+        if (!row.isAttached || !at.isAttached) return null
+        return row.localBoundingBoxOf(at, clipBounds = false)
+    }
+
+    /** The enabled destinations, start to end of the row as it is drawn. */
+    private fun ordered(): List<Pair<Any, Rect>> = targets.mapNotNull { (key, target) ->
+        if (!target.enabled) null else boundsOf(target)?.let { key to it }
+    }.sortedBy { it.second.left }
+
+    /** [at], in [target]'s coordinates, along the row. */
+    fun inRow(target: DragTarget, at: Offset): Float {
+        val row = row ?: return at.x
+        val own = target.coordinates ?: return at.x
+        if (!row.isAttached || !own.isAttached) return at.x
+        return row.localPositionOf(own, at).x
+    }
+
+    private fun pick(ticker: DetentTicker) {
+        val all = ordered()
+        if (all.isEmpty()) return
+        val index = all.indices.minBy { kotlin.math.abs(all[it].second.center.x - fingerAt) }
+        ticker.at(index)
+        over = all[index].first
+    }
+
+    /**
+     * The delta that arrives with the claim, already counted: the drag claims
+     * where the finger *is* once it has decided the direction, and then hands
+     * over the movement it gathered deciding — which [begin] has in its
+     * position. Counted twice it put the finger a touch slop ahead of itself.
+     */
+    private var claimed = false
+
+    fun begin(x: Float, ticker: DetentTicker) {
+        released = false
+        claimed = true
+        fingerAt = x.coerceIn(0f, (row?.size?.width ?: 0).toFloat())
+        dragging = true
+        pick(ticker)
+    }
+
+    fun move(dx: Float, ticker: DetentTicker) {
+        if (claimed) {
+            claimed = false
+            return
+        }
+        fingerAt = (fingerAt + dx).coerceIn(0f, (row?.size?.width ?: 0).toFloat())
+        pick(ticker)
+    }
+
+    fun end(ticker: DetentTicker) {
+        val chosen = over?.let { targets[it] }
+        val lifted = released
+        released = false
+        dragging = false
+        ticker.reset()
+        // In one breath with the app's own change, so the marker heads straight
+        // for the destination rather than back to the old one first.
+        over = null
+        if (lifted && chosen != null && chosen.enabled && !chosen.selected) chosen.onClick()
+    }
+
+    /** The marker's placement, in the row's coordinates, as laid out this frame. */
+    fun placed(coordinates: LayoutCoordinates) {
+        val row = row ?: return
+        if (!row.isAttached || !coordinates.isAttached) return
+        val box = row.localBoundingBoxOf(coordinates, clipBounds = false)
+        markerLeft = box.left
+        markerWidth = box.width
+    }
+
+    /**
+     * How far the marker leans toward the finger: [SliderDefaults.DetentPull]
+     * of the way, measured from where the marker **is** rather than from the
+     * destination it belongs to — crossing a boundary sends the marker on its
+     * way, and measured from the new destination the lean would flip sign on
+     * that frame and throw it backwards. Never off the row.
+     */
+    fun lean(engaged: Float): Float {
+        // `engaged` first: at rest it is the only thing read, so a tap's marker
+        // travelling does not redraw this layer at every step.
+        if (engaged == 0f) return 0f
+        val finger = fingerAt
+        if (finger.isNaN() || markerLeft.isNaN() || markerWidth <= 0f) return 0f
+        val width = (row?.size?.width ?: return 0f).toFloat()
+        val pulled = (finger - (markerLeft + markerWidth / 2f)) * SliderDefaults.DetentPull * engaged
+        return pulled.coerceIn(-markerLeft, (width - markerLeft - markerWidth).coerceAtLeast(-markerLeft))
     }
 }
 

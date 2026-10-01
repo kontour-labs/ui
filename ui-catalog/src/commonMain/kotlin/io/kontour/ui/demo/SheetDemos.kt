@@ -1,5 +1,11 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.text.SearchField
+import androidx.compose.runtime.key
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.composables.icons.tabler.Tabler
@@ -32,6 +39,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.BottomSheet
+import io.kontour.ui.sheet.BottomSheetDefaults
 import io.kontour.ui.sheet.DragHandle
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.ModalSideSheet
@@ -118,7 +126,7 @@ private val sheetPresentation =
     Knob.Choice("Presentation", SheetPresentation.entries.toList(), SheetPresentation.Floating)
 
 /**
- * Where the sheet sits once the card is wider than the sheet's 640dp cap.
+ * Where the sheet sits once the card is wider than the sheet's 480dp cap.
  *
  * **Does nothing on a phone, and that is the feature.** Below the cap the sheet
  * is the card, and there is nowhere for it to go; the knob moves something only
@@ -142,23 +150,45 @@ private val sheetEdgeMorph = Knob.Flag("Expands to edge", initial = true)
 private val sheetControlsAlignment =
     Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
 
+/**
+ * A search field pinned to the bottom of the sheet, over a list that scrolls
+ * behind it — and collapsed, the sheet is only the field.
+ *
+ * Asked for in those words. The sheet's detents change with it, to
+ * `SheetDetent.pinned()` in place of the peek, so the knob starts the sheet over
+ * rather than bending the one already open.
+ */
+private val sheetPinnedSearch = Knob.Flag("Pinned search")
+
+/**
+ * The pinned field on no ground of its own, so the list goes under it and shows
+ * round it. Does nothing without the field.
+ */
+private val sheetUnderPinned = Knob.Flag("Content under the field")
+
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetPinnedSearch, sheetUnderPinned),
 ) {
     val presentation = this[sheetPresentation]
-    val sheet = rememberSheetState(
-        detents = listOf(
-            SheetDetent.Hidden,
-            SheetDetent.peek(140.dp),
-            SheetDetent.Half,
-            SheetDetent.Expanded,
-        ),
-        initialDetent = SheetDetent.Hidden,
-    )
+    val pinnedSearch = this[sheetPinnedSearch]
+    // Where it rests collapsed: the header, or the pinned field.
+    val collapsed = if (pinnedSearch) SheetDetent.pinned() else SheetDetent.peek(140.dp)
+    val sheet = key(pinnedSearch) {
+        rememberSheetState(
+            detents = listOf(
+                SheetDetent.Hidden,
+                collapsed,
+                SheetDetent.Half,
+                SheetDetent.Expanded,
+            ),
+            initialDetent = SheetDetent.Hidden,
+        )
+    }
+    val query = rememberTextFieldState()
     // Opened to the peek, so the demo starts where a real screen would rather
     // than at Hidden, which draws nothing at all.
-    LaunchedEffect(Unit) { sheet.animateTo(SheetDetent.peek(140.dp)) }
+    LaunchedEffect(sheet) { sheet.animateTo(collapsed) }
 
     Screen {
         BottomSheet(
@@ -175,7 +205,27 @@ internal val BottomSheetDemo = ComponentDemo(
                     variant = ButtonVariant.Secondary,
                 )
             },
-        ) {
+        ) { padding ->
+            if (pinnedSearch) {
+                // Over the list, on the bottom of what the sheet shows at every
+                // size: on the sheet's own colour, or on nothing with the list
+                // going under it.
+                pinned(
+                    containerColour = if (this@ComponentDemo[sheetUnderPinned]) Color.Transparent else Color.Unspecified,
+                ) { SearchField(query, placeholder = "Search stops") }
+                // The padding grows by the field's height, so the last stop
+                // scrolls out from behind it; the sides are the sheet's inset,
+                // the same as the field's.
+                LazyColumn(
+                    modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+                    contentPadding = padding,
+                ) {
+                    items(PinnedStops) { stop ->
+                        ListItem(onClick = { echo(stop) }) { +stop }
+                    }
+                }
+                return@BottomSheet
+            }
             // Always there: it is what the peek detent is peeking *at*.
             part {
                 SheetHeader(
@@ -202,6 +252,14 @@ internal val BottomSheetDemo = ComponentDemo(
         }
     }
 }
+
+/** Enough stops that the list scrolls behind the pinned field at every size. */
+private val PinnedStops = listOf(
+    "Perth Underground", "Elizabeth Quay", "Esplanade", "McIver", "Claisebrook",
+    "East Perth", "Mount Lawley", "Maylands", "Meltham", "Bayswater",
+    "Ashfield", "Bassendean", "Success Hill", "Guildford", "East Guildford",
+    "Woodbridge", "Midland",
+)
 
 /**
  * Whether a press outside closes it.

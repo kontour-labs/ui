@@ -783,6 +783,7 @@ HAPTIC_FILE_NAMES = {
     "NavRail": "NavScope",
     "Select": "MultiSelect",
     "TableRows": "Table",
+    "Pressable": "Modifier.pressable",
 }
 
 # The mechanism rather than a component: one defines the dispatcher, the other
@@ -828,7 +829,7 @@ def policy_named() -> set[str]:
     """The components the haptics table names. For the summary line."""
     named = set()
     for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
-        for name in re.findall(r"`([A-Z]\w+)", row):
+        for name in re.findall(r"`(Modifier\.\w+|[A-Z]\w+)", row):
             named.add(name)
     return named
 
@@ -852,7 +853,7 @@ def haptics_policy_drift() -> list[str]:
     """
     policy = set()
     for row in HAPTIC_POLICY_ROW.findall(Path("ui-docs/content/theming.md").read_text()):
-        for name in re.findall(r"`([A-Z]\w+)", row):
+        for name in re.findall(r"`(Modifier\.\w+|[A-Z]\w+)", row):
             policy.add(name)
 
     firing = set()
@@ -872,7 +873,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 28
+MAX_CIRCLES = 29
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -969,6 +970,14 @@ def circles() -> list[str]:
     control and to the morph that leaves it, which draws whatever it is given —
     so the morph stays consistent whichever shape the control has, and the
     choice of pill is the design's, not a constraint of the animation.
+
+    **28 to 29, for a floating nav bar's destination marker**, on the switch's
+    argument. The floating bar is a `pill`, and the marker round a whole
+    destination sits inside it at the same distance from every edge, so it has
+    to be the same shape a size smaller: capped, it stops being concentric the
+    moment a theme lowers `capsuleCap`, and with labels, which make the bar tall,
+    it was a box inside a pill — reported as the new defaults looking "really
+    terrible with labels enabled". One site: `NavBar` resolves the shape once.
 
     The second count is stricter and is a ban rather than a ratchet.
     `RoundedCornerShape` no longer appears in `:ui` at all; it used to appear
