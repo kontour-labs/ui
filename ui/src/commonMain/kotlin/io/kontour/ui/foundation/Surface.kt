@@ -16,6 +16,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
@@ -51,6 +54,18 @@ import io.kontour.ui.theme.Theme
  *   default `TopStart` matches `Box`, but anything with a minimum size almost
  *   certainly wants `Center`; leaving it at the default is what puts an icon in
  *   the corner of a FAB.
+ * ### A tap on a surface is the surface's
+ *
+ * Whatever is drawn beneath a surface does not get the taps that land on it. A
+ * card floating over a map, a toolbar over a canvas, a toast or a tooltip over
+ * the page: a tap on the part of one with no control in it used to fall straight
+ * through to whatever was underneath, and pressed a row the reader could not
+ * see. The surface is a target now, within its [shape], so the hit stops there.
+ * It does not consume anything: its own controls and its own `modifier`'s
+ * gestures see every event as they did, and a clickable container *around* a
+ * surface still gets a tap on it, which is what makes a card inside a clickable
+ * row press the row. The same rule as Material's surface.
+ *
  * @param shadow A [Shadow] from `Theme.elevation`, not a raw dp. Pick the level
  *   that matches where the element sits in the overlay stack.
  */
@@ -64,6 +79,60 @@ fun Surface(
     shadow: Shadow = Shadow.None,
     contentAlignment: Alignment = Alignment.TopStart,
     propagateMinConstraints: Boolean = false,
+    content: @Composable () -> Unit,
+) = SurfaceBox(
+    modifier, shape, containerColour, contentColour, border, shadow,
+    contentAlignment, propagateMinConstraints, keepsPresses = false, content,
+)
+
+/**
+ * A [Surface] for a bar: one that also keeps a press from the container it sits
+ * in.
+ *
+ * A bar is chrome. A tap on the stretch of a top bar between its title and its
+ * actions, or between two buttons on a floating toolbar, is a tap on nothing —
+ * and it must not become a tap on the thing the bar sits inside either, which a
+ * plain [Surface] lets through on purpose. A toolbar over a drawing canvas is
+ * the case that matters: the canvas is its container, and a press between two
+ * tools put a point on the drawing.
+ *
+ * So the bar takes the presses and releases that nothing in it took. Only those:
+ * a drag that starts on a bar still reaches a scrolling page round it, which is
+ * what a bar drawn in a scrolling column — a gallery of them, or a title that
+ * scrolls away — needs to keep doing. See [keepsPresses].
+ *
+ * A press on a bar is therefore not a press on nothing, so it does not put the
+ * keyboard away as one on the page does (`OverlayHost(clearFocusOnTap)`): a
+ * field keeps its focus when the bar above it is tapped, as under UIKit's and
+ * Android's own bars.
+ */
+@Composable
+internal fun BarSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = RectangleShape,
+    containerColour: Color = Theme.colours.surface,
+    contentColour: Color = SurfaceDefaults.contentColour(containerColour),
+    border: BorderStroke? = null,
+    shadow: Shadow = Shadow.None,
+    contentAlignment: Alignment = Alignment.TopStart,
+    propagateMinConstraints: Boolean = false,
+    content: @Composable () -> Unit,
+) = SurfaceBox(
+    modifier, shape, containerColour, contentColour, border, shadow,
+    contentAlignment, propagateMinConstraints, keepsPresses = true, content,
+)
+
+@Composable
+private fun SurfaceBox(
+    modifier: Modifier,
+    shape: Shape,
+    containerColour: Color,
+    contentColour: Color,
+    border: BorderStroke?,
+    shadow: Shadow,
+    contentAlignment: Alignment,
+    propagateMinConstraints: Boolean,
+    keepsPresses: Boolean,
     content: @Composable () -> Unit,
 ) {
     // Remembered, and this is the one line in this file that is about the frame
@@ -101,12 +170,46 @@ fun Surface(
             modifier = modifier
                 .then(raised)
                 .clip(shape)
+                // After the clip, so it is the shape that stops a tap and not
+                // its box: just off a capsule's rounded end is still the page.
+                // See "A tap on a surface is the surface's" above.
+                .then(if (keepsPresses) Modifier.keepsPresses() else HitTarget)
                 .background(color = containerColour, shape = shape)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier),
             contentAlignment = contentAlignment,
             propagateMinConstraints = propagateMinConstraints,
             content = { content() },
         )
+    }
+}
+
+/**
+ * A pointer target that does nothing: what makes a surface stop a tap from
+ * reaching what is beneath it. Hit testing ends at the first sibling that has a
+ * pointer node under the finger, and this is one, everywhere on the surface.
+ */
+private val HitTarget = Modifier.pointerInput(Unit) {}
+
+/**
+ * Takes every press and release that reaches it and that nothing inside took.
+ *
+ * On the node itself rather than as a layer under the content, and conditional
+ * rather than wholesale, and both are what keeps the content's own gestures
+ * working. Children see each event first, so a button in the bar has consumed
+ * its press by the time this looks, and is left alone. What reaches here
+ * unconsumed is a press on nothing, and consuming it is what stops a clickable
+ * container round the bar from starting a tap. Moves are never consumed: a
+ * press that becomes a drag is the page's to scroll, and consuming moves is
+ * also what cancels a child's tap, since a tap gives up when it sees its
+ * movement taken.
+ */
+internal fun Modifier.keepsPresses(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            for (change in awaitPointerEvent().changes) {
+                if (change.changedToDown() || change.changedToUp()) change.consume()
+            }
+        }
     }
 }
 

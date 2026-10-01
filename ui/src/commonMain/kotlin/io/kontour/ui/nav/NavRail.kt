@@ -66,7 +66,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.LocalSelectionIndicatorLeaving
 import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SurfaceDefaults
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
@@ -207,7 +207,9 @@ fun NavRail(
     }
 
     CompositionLocalProvider(LocalNavExpansion provides room) {
-        Surface(
+        // A bar: a tap on the rail between its destinations goes no further.
+        // See [BarSurface].
+        BarSurface(
             modifier = modifier
                 .layout { measurable, constraints ->
                     val w = constraints.constrainWidth(railWidth.value.roundToPx())

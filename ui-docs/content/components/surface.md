@@ -23,6 +23,19 @@ dropped onto a dark card is legible without any of its children being told where
 they are. Setting a background with `Modifier.background` instead skips that
 step, and is how content ends up dark-on-dark.
 
+**A tap on a surface stays on it.** Whatever is drawn beneath a surface does
+not get the taps that land on it, within its shape: a card over a map, a toolbar
+over a canvas or a tooltip over the page does not pass a tap on its blank part
+to whatever is underneath. It takes nothing for itself, so its own controls and
+gestures work as before, and a clickable container *round* it still gets a tap
+on it: a card in a clickable row presses the row. This is Material's rule for
+its surface too.
+
+The bars — `TopBar`, `NavBar`, `NavRail`, `TabBar` and `Toolbar` — go one step
+further, because they are chrome: a press on one that nothing in it took goes
+nowhere, not even to a clickable container round it. A drag that starts on a bar
+still scrolls the page round it.
+
 `shadow` comes from `Theme.elevation` rather than a `Dp`, because elevation is a
 role — the same nominal height reads differently on a light scheme and a dark
 one, where a shadow has almost nothing to fall on and a lighter surface does the

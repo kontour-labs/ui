@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -55,7 +54,7 @@ import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
-import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SurfaceDefaults
 import io.kontour.ui.foundation.rememberSelectionIndicatorState
 import io.kontour.ui.components.selection.SliderDefaults
@@ -573,7 +572,12 @@ private fun BarGround(
     shadow: Shadow,
     content: @Composable () -> Unit,
 ) {
-    Surface(
+    // **A tap on the bar is the bar's.** Between two destinations there is
+    // nothing to press, and with nothing there to take it a tap went through to
+    // whatever the page had under the bar — a row opened from underneath its
+    // navigation. A bar surface keeps what lands on it, inside the capsule's
+    // shape: just off the rounded ends is still the page. See [BarSurface].
+    BarSurface(
         modifier = modifier,
         shape = shape,
         containerColour = colours.container,
@@ -583,29 +587,7 @@ private fun BarGround(
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
         border = contrastEdge(),
     ) {
-        // **A tap on the bar is the bar's.** Between two destinations there is
-        // nothing to press, and with nothing there to take it a tap went
-        // through to whatever the page had under the bar — a row opened from
-        // underneath its navigation. So the surface has a floor: a layer under
-        // the destinations that takes every tap reaching it, which is only
-        // those that land where no destination is. Under them rather than
-        // around them, because a parent that took the taps would take them from
-        // the destinations too — a parent consuming after its children is a
-        // press they give up on. And inside the surface, so it is the capsule's
-        // shape that stops a tap and not its box: just off the rounded ends is
-        // still the page.
-        Box(propagateMinConstraints = true) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) awaitPointerEvent().changes.forEach { it.consume() }
-                        }
-                    },
-            )
-            content()
-        }
+        content()
     }
 }
 

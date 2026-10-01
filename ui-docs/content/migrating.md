@@ -188,6 +188,15 @@ shape as `actionShape`.
 - **`NavigationSuiteScaffold`'s `action` sits beside a floating bar,** not
   inside it. A docked bar keeps it at the end.
 
+### Check: something tapped through a surface
+
+A `Surface` now stops a tap from reaching anything drawn *beneath* it, and the
+bars also stop a press on their blank parts from reaching a clickable container
+round them. That was always the intent, and fixes taps that went through a top
+bar or a card. If a layout relied on the old behaviour — a decorative surface
+drawn over a control and expected to let taps through — draw it under the
+control instead, or make it a plain `Box` with `Modifier.background`.
+
 ### Nothing to do
 
 These changed too, and ask nothing of an app:

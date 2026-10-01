@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.theme.Shapes
@@ -170,7 +171,9 @@ private fun ToolbarSurface(
     orientation: Orientation,
     content: @Composable () -> Unit,
 ) {
-    Surface(
+    // A bar: a press between two tools goes no further — not to the canvas the
+    // toolbar floats over, and not to one it sits inside. See [BarSurface].
+    BarSurface(
         modifier = modifier.semantics { isTraversalGroup = true },
         shape = shape,
         containerColour = containerColour,

@@ -153,6 +153,15 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   for example after the first tap on a laptop with a touchscreen.
   `Modifier.pointerCursor` removed its node from the modifier chain when the
   input changed. It now keeps it there.
+- **A tap on a bar or a panel reached what was underneath.** A tap on a
+  `TopBar` between its title and its actions pressed the row scrolled under it,
+  and the same went for any blank part of a `Surface`: a card over a map, a
+  toolbar over a canvas, a tooltip, coach mark or popover with no scrim over the
+  page. `NavBar` had been fixed for this on its own. Every surface now keeps
+  the taps that land on it from what is beneath it, as Material's does. The
+  bars — `TopBar`, `NavBar`, `NavRail`, `TabBar` and `Toolbar` — also keep a
+  press on nothing from a clickable container round them, so a toolbar inside
+  a drawing canvas no longer draws. A drag from a bar still scrolls the page.
 - **The page jumped when one overlay opened over another.** With a modal sheet
   open, a dialog brought the pushed-back page forward to full size in one frame,
   and pushed it back once the dialog had gone. A sheet over a sheet did the same,

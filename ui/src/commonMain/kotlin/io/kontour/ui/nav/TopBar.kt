@@ -33,7 +33,7 @@ import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
-import io.kontour.ui.foundation.Surface
+import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.theme.Theme
@@ -174,7 +174,10 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    Surface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
+    // A bar surface: a tap on the bar between its title and its actions is a
+    // tap on nothing, and goes no further — not to a list scrolled under the
+    // bar, and not to a clickable container round it. See [BarSurface].
+    BarSurface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
