@@ -133,8 +133,16 @@ val query = rememberTextFieldState()
 BottomSheet(state = sheet) { padding ->
     // On the bottom of what the sheet shows at every size, over the list
     // and on the sheet's own colour, with the sheet's inset round it.
-    // Collapsed, it is all there is.
-    pinned { SearchField(query, placeholder = "Search stops") }
+    // Collapsed, it is all there is: the search, and the account beside it.
+    pinned {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SearchField(query, placeholder = "Search stops", modifier = Modifier.weight(1f))
+            IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
+        }
+    }
     // The padding has grown by the field's height, so the last row
     // scrolls out from behind it. At the sides, the sheet's inset, the
     // same as the field's.
@@ -147,7 +155,9 @@ BottomSheet(state = sheet) { padding ->
 
 Asked for as *"a way to pin a component to certain parts of the sheet… a
 [search] bar to the bottom of the sheet. Content should be scrollable behind it,
-and when the sheet is collapsed, only the search bar should show."*
+and when the sheet is collapsed, only the search bar should show."* And asked for
+again, separately, for a map: a search field with an account button beside it,
+in reach at every height the sheet is at, which is the example above.
 
 **`SheetPin.Bottom`, the default, rides the bottom of what the sheet shows.**
 That is the window's edge for an edge sheet and the sheet's own for a floating
