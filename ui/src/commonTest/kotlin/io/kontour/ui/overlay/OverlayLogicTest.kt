@@ -90,15 +90,46 @@ class OverlayHostStateTest {
     }
 
     @Test
-    fun onlyTheTopmostDimmingEntryDrawsColour() {
-        val host = OverlayHostState()
-        host.show(entry("sheet", OverlayLayer.Sheet, scrim = ScrimStyle.Dimmed))
-        host.show(entry("dialog", OverlayLayer.Dialog, scrim = ScrimStyle.Dimmed))
+    fun aDimmedEntryOnItsOwnDrawsItsWholeScrim() {
+        for (f in listOf(0f, 0.3f, 1f)) {
+            assertEquals(f, scrimShare(listOf(f), alpha = 0.4f, index = 0), 1e-5f)
+        }
+    }
 
-        // Both still get a scrim — each has to block input to what is under it
-        // — but two dimmed scrims would composite and the background would go
-        // near-black under the second overlay.
-        assertEquals("dialog", topDimmedEntry(host.visible)?.key)
+    /**
+     * A dialog arriving over a sheet: the page under both stays exactly as
+     * dark as one scrim makes it on every frame, and the sheet darkens with
+     * the dialog.
+     *
+     * This replaced "only the topmost dimming entry draws colour", which was
+     * right at rest and wrong in between: the sheet's scrim went clear on a
+     * 220ms clock of its own while the dialog's came in on its spring, so the
+     * page lightened and darkened again round every dialog opened over a sheet.
+     */
+    @Test
+    fun aDialogOverASheetHandsTheDimOverWithoutTheRestChanging() {
+        val alpha = 0.4f
+        for (dialog in listOf(0f, 0.1f, 0.5f, 0.9f, 1f)) {
+            val fractions = listOf(1f, dialog)
+            val sheet = alpha * scrimShare(fractions, alpha, 0)
+            val top = alpha * scrimShare(fractions, alpha, 1)
+            val page = 1f - (1f - sheet) * (1f - top)
+            assertEquals(alpha, page, 1e-5f, "the page under a sheet with a dialog $dialog in")
+            assertEquals(alpha * dialog, top, 1e-5f, "the sheet under a dialog $dialog in")
+        }
+    }
+
+    @Test
+    fun twoDialogsOverASheetAreNoDarkerThanOne() {
+        val alpha = 0.4f
+        val fractions = listOf(1f, 1f, 1f)
+        val shares = fractions.indices.map { alpha * scrimShare(fractions, alpha, it) }
+        val page = 1f - shares.fold(1f) { clear, share -> clear * (1f - share) }
+        assertEquals(alpha, page, 1e-5f)
+        // The top one does all of it, and the two under it none.
+        assertEquals(0f, shares[0], 1e-5f)
+        assertEquals(0f, shares[1], 1e-5f)
+        assertEquals(alpha, shares[2], 1e-5f)
     }
 
     @Test

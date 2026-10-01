@@ -153,6 +153,14 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   for example after the first tap on a laptop with a touchscreen.
   `Modifier.pointerCursor` removed its node from the modifier chain when the
   input changed. It now keeps it there.
+- **The page jumped when one overlay opened over another.** With a modal sheet
+  open, a dialog brought the pushed-back page forward to full size in one frame,
+  and pushed it back once the dialog had gone. A sheet over a sheet did the same,
+  and the page lightened and darkened again round any second dimmed overlay. The
+  host took the backdrop and the dim from the topmost dimmed overlay alone. Every
+  open overlay now keeps doing what it asked to, so the page stays where it was.
+  The overlay underneath dims, and blurs under a dialog, with the one above it.
+  See [several overlays at once](overlays.md#several-overlays-at-once).
 
 ---
 

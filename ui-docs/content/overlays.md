@@ -80,13 +80,16 @@ enum class ScrimStyle {
 ```
 
 Every entry that asks for a scrim **gets** one, directly beneath itself, so an
-outside tap always dismisses the thing it is under. But only the topmost
-`Dimmed` entry actually draws colour.
+outside tap always dismisses the thing it is under. One shared scrim would mean
+a menu opened over a sheet dismisses the *sheet* when tapped outside.
 
-Both halves of that matter. One shared scrim would mean a menu opened over a
-sheet dismisses the *sheet* when tapped outside. Dimming every scrim would mean a
-dialog over a sheet darkens the background twice, and a third overlay would sit
-on near-black.
+**A stack is never darker than one scrim.** Each `Dimmed` entry dims what is
+under it, so a dialog over a sheet darkens the sheet as well as the page, but
+the page does not go twice as dark: each scrim draws only the share that brings
+what is under it to one scrim's worth. That share moves with the entry above it,
+frame by frame. As a dialog comes in over a sheet, the sheet's scrim gives way
+exactly as fast as the dialog's arrives, so the page stays as dark as it was
+throughout, and the same happens in reverse as the dialog leaves.
 
 ### The backdrop
 
@@ -286,6 +289,26 @@ performance dial rather than a design choice. Worth reaching for over a live map
 and worth measuring before you do. Android below API 31 has no `RenderEffect` and
 drops the effect silently, so the library skips building the layer there; the
 scrim still has to carry the separation on its own, and does.
+
+### Several overlays at once
+
+What an overlay does to the content behind it — dimming it, blurring it,
+pushing it back — lasts as long as that overlay is open, whatever opens over it.
+
+| Open | The page | The one underneath |
+|---|---|---|
+| A dialog over a sheet | Stays pushed back and dimmed, and blurs as the dialog arrives | Dims and blurs with the dialog |
+| A sheet over a sheet | Stays pushed back and dimmed | Dims with the sheet above |
+| A dialog over a dialog | Stays blurred and dimmed | Dims and blurs with the dialog above |
+| A menu over a sheet | Unchanged | Unchanged: a menu does not dim |
+
+Each effect is as far in as the furthest-in overlay asking for it, so a second
+overlay arriving from nothing neither doubles what is there nor takes it away.
+The page is not pushed further back for a second sheet.
+
+An overlay under one that blurs is blurred with the page, so everything behind a
+dialog reads as one surface. That is a second offscreen render while both are
+open, which a dialog, open for one decision, can afford.
 
 ### Back and dismissal
 

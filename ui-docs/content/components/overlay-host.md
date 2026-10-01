@@ -41,6 +41,11 @@ still using and has no business softening it.
 dims, because the scrim and the recede are one movement and half of it is worse
 than neither. Set `backdrop` on an undimmed entry and nothing happens.
 
+**Every dimmed entry's backdrop applies, not only the topmost's.** A dialog over
+a sheet blurs the page while the sheet keeps it pushed back, and each effect is
+as far in as the furthest-in entry asking for it. See
+[several overlays at once](../overlays.md#several-overlays-at-once).
+
 The blur is not free — see [the overlay guide](../overlays.md) for what it costs
 per frame, and why sheets recede rather than blur.
 
