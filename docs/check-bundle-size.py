@@ -75,9 +75,38 @@ import sys
 # `Site.kt`'s `Specimens` for a page with no hand-written demo, and every
 # component page has one. That is a tightening worth having, and short of the
 # 38% by a long way.
+#
+# Raised 2026-10-01 for 0.3.0, again from CI's own measurement on `main`
+# (9b78bf3), where `app` was 2,928,692 against 2,920,000 and failed the deploy.
+# 0.2.2 measured 2,845,409 (v0.2.2, 72452a9), so the release added 83,283 gzip
+# bytes, +2.9% (365,826 raw, +3.3%): the 3% of headroom, spent by one release.
+# The other four did not move by a byte, and `--update` would write what they
+# already are; `total` is not one of its groups and keeps 6,810,000, now the
+# tighter of the two at 99,862 to spare. Put through `--update`'s rule by hand,
+# as for 0.2.0, because the site builds only in CI.
+#
+# No dependency moved. Read by source, as the site cannot be built here to read
+# the binary by function name, the growth is 0.3.0's own features — net lines
+# since 0.2.2:
+#
+#   nav        +973  NavBar's shapes, cell widths and draggable marker; the
+#                    Large TopBar's collapse into the bar, subtitle and all
+#   sheet      +528  pinned parts, and the sheet's header band and inset
+#   text       +412  WheelSelect, new
+#   selection  +353  RangeSlider's finger on each thumb; SelectionRow takes
+#                    SettingRow's place
+#   motion,
+#   interaction +451 Android back relaying the system gesture at its speed;
+#                    Modifier.pressable
+#   lists,
+#   datetime,
+#   overlay    +558  DisclosureListItem, new; the wheel's multi-flick drive; the
+#                    backdrop drawn from every open overlay
+#   the site  +1,070 lines of pages, compiled into the binary: the changelog,
+#                    the migrating guide, and the new components' pages
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 2_920_000,
+    "app": 3_020_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
