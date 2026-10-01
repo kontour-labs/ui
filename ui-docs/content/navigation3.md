@@ -185,11 +185,17 @@ one-sided row, a slider and a carousel on its second page to try this on.
 
 **On iOS the library tracks the swipe itself** — the edge swipe as well as the
 pan from the content — through the outermost `OverlayHost`, so that letting go
-carries on at the finger's speed: past half the width, or on a flick, the page
-goes the rest of the way on a spring that starts at the speed the finger left
-it, with no pause at the moment it lifts; a flick back, or less than half,
-springs it home the same way. The platform's own swipe reports only that the
-finger lifted, and a `NavDisplay` finishes from there at the transition's pace.
+carries on at the finger's speed. The page goes the rest of the way on a spring
+that starts at the speed the finger left it, with no pause at the moment it
+lifts. The platform's own swipe reports only that the finger lifted, and a
+`NavDisplay` finishes from there at the transition's pace.
+
+**It asks for no more effort than UIKit's.** Letting go is decided by where the
+page would come to rest if it coasted on at the finger's speed, by UIKit's own
+deceleration: past half the width, it goes back. So a swipe at an ordinary pace
+a third of the way across goes back, a slow one springs home, and a flick back
+stays. Any swipe more sideways than up or down counts, from the content as from
+the edge, and the page stays under the finger from the moment it touches down.
 
 **A stack inside a sheet is the sheet's colour.** Each page paints
 `LocalContainerColour` — the ground of the `Surface` it is in — and inside an

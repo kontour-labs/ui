@@ -342,7 +342,9 @@ dismissed:
   dismissed. It follows a drag towards its own edge by its own slide: on the
   sheet, anywhere, after anything inside that scrolls sideways; or, for a sheet
   on the right, the edge swipe from the left, whose finger goes the same way.
-  Past half, or on a flick, it closes; otherwise it slides back. A drawer on the
+  It closes if it would come to rest past half its width, coasting on at the
+  speed it was let go at, as a page's swipe back does; otherwise it slides
+  back. A drawer on the
   left closes by its own drag left, and the edge swipe leaves it alone. A key
   closes a side sheet too.
 

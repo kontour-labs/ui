@@ -50,15 +50,16 @@ import kotlinx.coroutines.launch
  * **It yields.** The page watches the pan only after everything on it has had
  * its turn, so a carousel, a row's swipe actions, a slider or a horizontal list
  * takes the pan first, and a pan any of them consumed is never back. Only a pan
- * that goes mostly sideways — twice as far as up or down — past the touch slop
- * and towards the trailing edge becomes one. A pan starting at the leading edge
- * itself is left to the edge gesture.
+ * that goes more sideways than up or down past the touch slop, and towards the
+ * trailing edge, becomes one. A pan starting at the leading edge itself is left
+ * to the edge gesture.
  *
- * **Let go, it carries on at the finger's speed.** Past half the width, or on
- * a flick towards the trailing edge, the page goes the rest of the way on a
- * spring that starts at the speed the finger left it — no pause at the moment
- * of letting go, and a quick flick finishes quickly. A flick back, or less than
- * half, springs it home the same way.
+ * **Let go, it carries on at the finger's speed.** Decided as UIKit decides it:
+ * by where the page would come to rest if it coasted on at that speed, so a
+ * moderate swipe a third of the way across goes back and a slow one stays. The
+ * page goes the rest of the way on a spring that starts at the speed the finger
+ * left it — no pause at the moment of letting go, and a quick flick finishes
+ * quickly. A flick back springs it home the same way.
  *
  * Only under [BackStyle.Swipe] — iOS's — and only for touch; and only while
  * something would answer back, so on a page with nowhere to go it does nothing.
@@ -323,7 +324,6 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
     scope: CoroutineScope,
     travel: (() -> Float)?,
 ) {
-    val commitVelocity = CommitVelocity.toPx()
     val sign = if (pan.rightwards) 1f else -1f
     val claimAt = if (pan.early) slop * DirectionDecisionShare else slop
     awaitPointerEventScope {
@@ -348,7 +348,6 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             val tracker = VelocityTracker()
             tracker.addPosition(first.uptimeMillis, start)
             var claimed = false
-            var claimOffset = 0f
             while (true) {
                 val event = awaitPointerEvent(pan.pass)
                 val change = event.changes.firstOrNull { it.id == id }
@@ -364,12 +363,16 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                     // Somebody inside took it; it was theirs.
                     if (change.isConsumed || !change.pressed) break
                     if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
-                        // Early, a row's own test: within 45° of sideways. Later,
-                        // on the content, twice as far sideways as up or down.
-                        val sideways = if (pan.early) abs(delta.x) >= abs(delta.y) else abs(delta.x) > 2 * abs(delta.y)
+                        // Within 45° of sideways, on the content as at the edge:
+                        // the test a pan recogniser's delegate makes. It was
+                        // twice as far sideways as up or down on the content,
+                        // which a thumb arcing across the screen often is not,
+                        // and the swipe that missed it did nothing at all. A
+                        // list under the page that scrolls up and down has seen
+                        // every move first and took any that were more its own.
+                        val sideways = abs(delta.x) >= abs(delta.y)
                         if (along > claimAt && sideways) {
                             claimed = true
-                            claimOffset = along
                             input.start(pan.edge, at)
                         } else {
                             break
@@ -379,20 +382,19 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
                 if (!claimed) continue
                 change.consume()
                 val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
-                val progress = ((along - claimOffset) / span).coerceIn(0f, 1f)
+                // From where the finger went down, not from where the pan was
+                // claimed: the page is under the finger, as UIKit's is. Measured
+                // from the claim it trailed by the slop the whole way across, and
+                // half the width meant half the width and a slop more.
+                val progress = (along / span).coerceIn(0f, 1f)
                 if (change.pressed) {
                     input.move(progress, at)
                     continue
                 }
-                // Let go. A flick decides by its direction; anything slower, by
-                // how far it got.
+                // Let go: decided by where it would come to rest. See
+                // [releaseCommits].
                 val velocity = tracker.calculateVelocity().x * sign
-                val commit = when {
-                    velocity > commitVelocity -> true
-                    velocity < -commitVelocity -> false
-                    else -> progress > CommitFraction
-                }
-                scope.launch { input.release(commit, velocity / span) }
+                scope.launch { input.release(releaseCommits(progress, velocity / span), velocity / span) }
                 break
             }
         }
@@ -416,11 +418,31 @@ private class Placed {
  */
 internal val EdgePanWidth = 24.dp
 
-/** UIKit's: past half the width goes back. */
+/**
+ * Whether a swipe let go at [progress], moving at [velocity] in progress per
+ * second towards going back, goes back: whether the page would come to rest
+ * past half the width if it coasted on.
+ *
+ * The coast is UIKit's, `UIScrollView.DecelerationRate.normal`: a scroll view
+ * let go at `v` points a second travels `v / 1000 * r / (1 - r)` further, with
+ * `r` 0.998 — half a second's worth. It is how *Designing Fluid Interfaces*
+ * says to decide where a gesture ends, and what the sheets here decide by.
+ *
+ * It replaced a rule of two thresholds — past half the width, or faster than
+ * 1000dp a second — under which a swipe at an ordinary speed had to be dragged
+ * past the middle of the screen, and a moderate one a third of the way across
+ * sprang back. *"Sometimes swiping back on iOS feels like it takes a bit too
+ * much effort compared to native apps."* A flick back still stays: it coasts
+ * the other way.
+ */
+internal fun releaseCommits(progress: Float, velocity: Float): Boolean =
+    progress + velocity * CoastSeconds > CommitFraction
+
+/** UIKit's: a page that comes to rest past half the width goes back. */
 private const val CommitFraction = 0.5f
 
-/** A flick this fast decides on its own, whichever way it goes. */
-private val CommitVelocity = 1000.dp
+/** How far a release coasts, in seconds of its own speed. See [releaseCommits]. */
+private const val CoastSeconds = 0.998f / (1f - 0.998f) / 1000f
 
 /** One frame at sixty a second: how long before its first frame a release began. */
 private const val FrameNanos = 16_666_667L

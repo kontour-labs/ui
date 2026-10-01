@@ -91,6 +91,13 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   pages, panes and overlays alike. Before, it finished at a fixed pace, so a
   flick slowed down when it was released. A back button press goes through at
   once.
+- **On iOS, swiping back takes no more effort than in a native app.** Letting go
+  is decided by where the page would come to rest if it coasted on, by UIKit's
+  own deceleration, so a swipe at an ordinary pace a third of the way across
+  goes back. Before, it had to pass half the width or go faster than 1000dp a
+  second. A swipe more sideways than up or down counts from anywhere on the
+  page, not only one twice as sideways, and the page stays under the finger
+  rather than a touch slop behind it.
 - **A trackpad or a mouse can make a full swipe on a `SwipeActions` row.**
   Carried past the point of no return by a sideways scroll or a two-finger pan,
   the row runs its outermost action when the gesture ends there, as it does
