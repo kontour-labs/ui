@@ -243,6 +243,9 @@ fun CircularProgress(
  *   from a phone: "the current step fills up before the indeterminate animation
  *   moves to the next step". Ignored when [current] is `null`, which is already
  *   animating.
+ * @param gap The space between segments. `0.dp` draws one continuous bar with
+ *   round ends and no seams, filled to a step's end — a stepped bar that does
+ *   not show its steps, for where the count is said elsewhere.
  */
 @Composable
 fun StepProgress(
@@ -401,6 +404,11 @@ fun StepProgress(
         val gapPx = gap.toPx() * (1f - melt)
         val segmentWidth = (size.width - gapPx * (total - 1)) / total
         val radius = CornerRadius(size.height / 2f)
+        // How far the seams are hidden: as far as the row has melted, or all the
+        // way for a row asked for with no gap. Segments that merely touch meet
+        // at two round caps and pinch there, so a gapless row came out as a bar
+        // with a notch at every step.
+        val seam = if (gap <= 0.dp) 1f else melt
 
         /**
          * How far a segment reaches into its neighbour, to hide the seam.
@@ -416,8 +424,8 @@ fun StepProgress(
          * belong.
          */
         fun reach(index: Int): Pair<Float, Float> = Pair(
-            if (index == 0) 0f else radius.x * melt,
-            if (index == total - 1) 0f else radius.x * melt,
+            if (index == 0) 0f else radius.x * seam,
+            if (index == total - 1) 0f else radius.x * seam,
         )
 
         // Read here rather than in composition: the value changes every frame,
@@ -427,6 +435,9 @@ fun StepProgress(
         val phase = sweep?.value ?: 0f
         val chasePhase = if (animating && !indeterminate && chaseStep.intValue == current) chase.value else Float.NaN
 
+        // Every track before any fill. A segment reaching into its neighbour
+        // reaches under that neighbour's track too, and drawn in turn, the next
+        // track covered the end of a fill that had reached into it.
         for (index in 0 until total) {
             val left = index * (segmentWidth + gapPx)
             val (reachStart, reachEnd) = reach(index)
@@ -436,6 +447,10 @@ fun StepProgress(
                 size = Size(segmentWidth + reachStart + reachEnd, size.height),
                 cornerRadius = radius,
             )
+        }
+        for (index in 0 until total) {
+            val left = index * (segmentWidth + gapPx)
+            val (reachStart, reachEnd) = reach(index)
             // A band travels: across the whole row when the row is
             // indeterminate, inside one segment when a known step is working. A
             // segment that is both solid and animated says two things at once,
@@ -468,9 +483,12 @@ fun StepProgress(
             if (fill > 0f) {
                 // The same reach as the track, so a filled segment merges with
                 // its neighbours exactly as its track does — but only at the
-                // end it actually reaches. A part-filled segment's right edge is
-                // the value, and that end stays round wherever it stops.
-                val fillEnd = if (fill >= 1f) reachEnd else 0f
+                // end it actually reaches, and only into a neighbour the fill
+                // goes on into. A part-filled segment's right edge is the value,
+                // and the last full one's is the step it finished: either way
+                // that end stays round where it stops, and does not run on past
+                // it into a step that has not started.
+                val fillEnd = if (fill >= 1f && animated > index + 1) reachEnd else 0f
                 drawRoundRect(
                     color = colour,
                     topLeft = Offset(left - reachStart, 0f),

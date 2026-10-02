@@ -39,6 +39,7 @@ import io.kontour.ui.components.display.AvatarCorner
 import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.ProgressDefaults
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
@@ -233,12 +234,16 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
 private val progressIndeterminate = Knob.Flag("Indeterminate")
 private val progressWorking = Knob.Flag("Step working")
 
+/** `gap = 0.dp`: the steps as one continuous bar, with no seams between them. */
+private val progressGapless = Knob.Flag("No gap")
+
 internal val ProgressDemo = ComponentDemo(
     slug = "progress",
-    knobs = listOf(progressIndeterminate, progressWorking),
+    knobs = listOf(progressIndeterminate, progressWorking, progressGapless),
 ) {
     val indeterminate = this[progressIndeterminate]
     val working = this[progressWorking]
+    val gap = if (this[progressGapless]) 0.dp else ProgressDefaults.StepGap
     var step by remember { mutableStateOf(2) }
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -268,6 +273,7 @@ internal val ProgressDemo = ComponentDemo(
                 current = if (indeterminate) null else step,
                 total = 4,
                 working = working,
+                gap = gap,
                 modifier = Modifier.weight(1f),
             )
             Button(

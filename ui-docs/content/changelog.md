@@ -33,6 +33,9 @@ On `main`, and in the next release.
   takeover grows across the strip and not down it. Before, they were as tall
   as the row. `SwipeActions(maxActionHeight = Dp.Infinity)` keeps the old
   height.
+- **`StepProgress(gap = 0.dp)` is one continuous bar**, with no seams and a fill
+  that stops round at the end of its step. Before, its segments met at their
+  round ends and the bar pinched at every step.
 
 ---
 

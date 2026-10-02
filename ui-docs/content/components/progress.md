@@ -60,6 +60,11 @@ finished fills first, and only once it is full do the bars start in the next
 step, from its start — asked for from a phone, so the step "fills up before the
 indeterminate animation moves to the next step".
 
+**`gap = 0.dp` draws the steps as one bar**, with round ends and no seams, and
+its fill stops round at the end of the step it has reached. For where the count
+is said elsewhere and the row only has to show how far along it is. Before,
+the segments met at their round ends and the bar pinched at every step.
+
 At [high contrast](../accessibility.md#what-high-actually-changes) the track
 under the fill becomes `inactive` on all three, 3:1 from the default fill and
 4.5:1 on the page. The bar and the ring keep their thickness, and nothing else
