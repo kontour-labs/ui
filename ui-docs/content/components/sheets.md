@@ -85,6 +85,13 @@ frame.
 rows in it should be three rows tall, not an empty full-screen panel with three
 rows at the top.
 
+**And any of them can reach the top of the window.** A sheet at `Full`, or at
+`Expanded` with content taller than the window, has its top edge on the window's,
+under the status bar, with its top corners the display's own. Its drag handle and
+header are padded below the status bar; the sheet itself is not moved down. It
+used to stop 12dp short, with a strip of page showing above it. A floating sheet
+that does not become an edge sheet keeps its margin at the top as everywhere else.
+
 ### The detent list is reassignable
 
 ```kotlin

@@ -65,6 +65,11 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the current destination. A label is ellipsised where the marker's rounded
   bottom runs out, and a badge is moved in off the marker's edge. A bar with
   `NavBarDefaults.glyphMarker()` keeps its 40dp circle and the label under it.
+- **A sheet at full height reaches the top of the window**, under the status
+  bar, with its top corners the display's own, and its drag handle and header
+  padded below the bar. So does one at `Expanded` whose content is taller than
+  the window. Both used to stop 12dp short, and a tall `Expanded` sheet a status
+  bar short. A floating sheet without `edgeMorph` keeps its margin.
 - **A modal opening takes the focus off whatever had it, in another overlay
   too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
   opens over the sheet. Before, only the page lost its focus. A menu or a

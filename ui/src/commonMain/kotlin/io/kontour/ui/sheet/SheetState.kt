@@ -267,7 +267,7 @@ class SheetState internal constructor(
         return detentOffset(
             detent = detent,
             containerHeight = containerHeight,
-            sheetHeight = sheetHeight,
+            sheetHeight = resolvingHeight(),
             peekHeight = peekHeight,
             density = density,
             pinnedHeight = pinnedHeight,
@@ -365,12 +365,11 @@ class SheetState internal constructor(
      * it is one shape the whole way up and the whole way down.
      *
      * The top is [fullHeightTop], where a sheet whose content fills the window really
-     * rests: below the status bar, which on a phone is well below [SheetTopGap] — the
-     * number this used to measure from, so a full-height sheet rested half changed.
+     * rests: the top of the container, for a sheet that can become an edge sheet.
      */
     private fun nearTheTop(morph: SheetEdgeMorph, resting: Float): Float {
         val density = anchorDensity ?: return 0f
-        val top = fullHeightTop.takeUnless { it.isNaN() } ?: with(density) { SheetTopGap.toPx() }
+        val top = fullHeightTop.takeUnless { it.isNaN() } ?: 0f
         val reach = with(density) { morph.nearTop.toPx() }
         // Half a pixel, so a sheet resting exactly at the top is fully there.
         if (reach <= 0f) return if (resting <= top + 0.5f) 1f else 0f
@@ -383,6 +382,32 @@ class SheetState internal constructor(
      * is the one place that knows the insets. `NaN` until then.
      */
     internal var fullHeightTop by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The most room the content is given, in pixels: the window less the top
+     * inset, for a sheet that can reach the top. Written beside [fullHeightTop].
+     * `NaN` until then.
+     */
+    internal var contentCeiling by mutableFloatStateOf(Float.NaN)
+
+    /**
+     * The height the detents are resolved against: the content's, or, once the
+     * content fills all the room it was given, the height of a sheet that full.
+     *
+     * The two differ by the status bar. Content that fills its room is measured
+     * short of the container by the top inset, so its chrome can be padded below
+     * the status bar, and resolved at that height `Expanded` stopped a status bar
+     * short of the top. A sheet that full is meant to reach the top, so its
+     * `Expanded` is [fullHeightTop]'s offset: the container's own top, with the
+     * chrome padded down by `sheetTopInset`. No cycle: the content's room is a
+     * constant, and nothing here feeds back into it.
+     */
+    private fun resolvingHeight(): Float {
+        val ceiling = contentCeiling
+        val top = fullHeightTop
+        if (ceiling.isNaN() || top.isNaN() || ceiling <= 0f) return sheetHeight
+        return if (sheetHeight >= ceiling - 0.5f) (containerHeight - top).coerceAtLeast(sheetHeight) else sheetHeight
+    }
 
     /**
      * The offset of the tallest resting detent, when **every** resting detent is
@@ -959,9 +984,10 @@ class SheetState internal constructor(
      */
     internal fun updateAnchors(density: Density) {
         anchorDensity = density
+        val resolving = resolvingHeight()
         val inputs = AnchorInputs(
             container = containerHeight.roundToInt(),
-            sheet = sheetHeight.roundToInt(),
+            sheet = resolving.roundToInt(),
             peek = peekHeight.roundToInt(),
             pinned = pinnedHeight.roundToInt(),
             detents = allowedDetents,
@@ -975,7 +1001,7 @@ class SheetState internal constructor(
         val positions = resolveAnchors(
             detents = allowedDetents,
             containerHeight = containerHeight,
-            sheetHeight = sheetHeight,
+            sheetHeight = resolving,
             peekHeight = peekHeight,
             density = density,
             pinnedHeight = pinnedHeight,
@@ -1546,29 +1572,15 @@ internal fun detentOffset(
         detent.id == PinnedDetentId && pinnedHeight > 0f -> pinnedHeight
         else -> with(density) { detent.resolve(this, containerHeight, sheetHeight) }
     }
-    // **Nothing reaches the very top.** A sheet whose top edge lands on
-    // pixel zero has no page above it for its rounded corners to read
-    // against, and on a phone it also puts the drag handle and the header
-    // under the status bar — which is what was reported. `SheetTopGap` is
-    // the same 12dp the backdrop already insets a receding page by, so a
-    // sheet at full height and a page behind a sheet leave the same margin.
-    //
-    // Applied here rather than inside `Full` and `Expanded` because it is a
-    // fact about how far a sheet may travel, not about what either detent
-    // means: `Full` still resolves to "the whole container" and says so, and
-    // a caller's own `fraction(1f)` gets the same treatment without knowing
-    // about it.
-    //
-    // A container with no room for the gap does not get one. `minOf(gap,
-    // container)` is the obvious guard and it is the wrong one: on a 6px
-    // container it makes the gap the whole container, so every detent
-    // resolves to "entirely hidden" and the sheet has nowhere to be. A
-    // container that small is a measurement in progress rather than a
-    // window, and leaving it exactly the offsets it had is what does least
-    // harm to it.
-    val gap = with(density) { SheetTopGap.toPx() }
-    val raw = containerHeight - visible.coerceIn(0f, containerHeight)
-    return if (containerHeight > gap) raw.coerceAtLeast(gap) else raw
+    // **Any detent may reach the very top of the container**, `Full` and a
+    // caller's own `fraction(1f)` included. Asked for: "when a sheet expands to
+    // the top of the screen, can we make the top of it go all the way to the top
+    // of the screen". It used to stop 12dp short, so its rounded corners had a
+    // strip of page above them to read against; at the top they are the
+    // display's own corners now, and the drag handle and the header are kept
+    // below the status bar by `sheetTopInset`, which pads the chrome rather than
+    // moving the sheet.
+    return containerHeight - visible.coerceIn(0f, containerHeight)
 }
 
 /**
@@ -1680,7 +1692,7 @@ internal const val SheetProjectionSeconds: Float = 0.5f
  * [SheetHandleFlickVelocity], a quarter of this, because nothing else can have
  * been meant by it.
  *
- * Here rather than on `BottomSheetDefaults`, for the reason [SheetTopGap] is: it is a
+ * Here rather than on `BottomSheetDefaults`, like the other numbers here: it is a
  * fact about how a hand moves, not a number a brand restyles, and the literals
  * ratchet in `check-components.py` counts the ones that sit in a `Defaults`
  * object as knobs somebody is expected to reach for.
@@ -1705,26 +1717,6 @@ internal val SheetMinThrow: Dp = 14.dp
  * projects to; below it, the nearest detent.
  */
 internal val SheetHandleFlickVelocity: Dp = 125.dp
-
-/**
- * How far short of the screen's edge a sheet stops.
- *
- * Two reasons, and the second is the one that was reported. A sheet whose top
- * edge is at pixel zero has nothing above it for its rounded corners to read
- * against, so the corners stop being corners; and on a phone it puts the drag
- * handle and the header under the status bar and the notch.
- *
- * The chrome's own inset is the other half of that second one and is applied
- * separately, in `BottomSheet` — this gap is smaller than a status bar and is
- * not trying to clear it. What it does is leave the sheet looking like a sheet.
- *
- * 12dp, which is `ComponentDefaults.backdropInset`: a receding page behind a
- * sheet already stops that far short of the window on all four sides, so a
- * full-height sheet and the page behind it now leave the same margin. Not read
- * from the theme, because anchors are resolved against a `Density` and nothing
- * else — a sheet's reach is not a thing a brand restyles.
- */
-internal val SheetTopGap: Dp = 12.dp
 
 /** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
 private const val BackTravel = 0.95f

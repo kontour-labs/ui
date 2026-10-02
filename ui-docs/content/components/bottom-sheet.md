@@ -323,7 +323,7 @@ and the squircle's curve interpolate when both are corner-based shapes.
 on its default `[Hidden, Expanded]` — has no step to morph across, so **where it
 rests decides**: content tall enough to reach the top is an edge sheet from the
 first frame of opening to the last of closing, and short content floats the whole
-way. The top is where a full-height sheet actually stops, below the status bar.
+way. The top is where a full-height sheet actually stops: the top of the window.
 Content that rests within `nearTop` (64dp) of it is partly morphed, which is the
 edge of the rule and why the distance is short; say `from` to morph over a step
 of your own. It used to follow the live position over that last 64dp, and a tall

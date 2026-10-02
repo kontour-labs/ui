@@ -36,21 +36,24 @@ class SheetAnchorTest {
     }
 
     /**
-     * And the cap is a gap short of the container, not the container itself.
+     * And content taller than the container reaches its very top.
      *
-     * This asserted `0f` — the sheet's top edge on the container's first pixel —
-     * until a phone showed what that means. A sheet whose top edge is at pixel
-     * zero has no page above it for its rounded top corners to read against, so
-     * the corners stop being corners; and it puts the drag handle and the header
-     * under the status bar and the notch, which is what was actually reported.
-     *
-     * So every detent, `Full` and a caller's own `fraction(1f)` included, stops
-     * [SheetTopGap] short. See the constant for why that number.
+     * Asked for: *"when a sheet expands to the top of the screen, can we make
+     * the top of it go all the way to the top of the screen"*. It stopped 12dp
+     * short, so its rounded corners had a strip of page above them; at the top
+     * they are the display's own corners, and the drag handle and the header
+     * keep clear of the status bar by padding the chrome, not by moving the
+     * sheet. `Full` and a caller's own `fraction(1f)` reach it too.
      */
     @Test
-    fun expandedIsCappedAGapShortOfTheContainer() {
+    fun expandedReachesTheTopOfTheContainer() {
         val a = anchors(listOf(SheetDetent.Expanded), sheet = 3000f)
-        assertEquals(12f, a[SheetDetent.Expanded])
+        assertEquals(0f, a[SheetDetent.Expanded])
+    }
+
+    @Test
+    fun fullReachesTheTopOfTheContainer() {
+        assertEquals(0f, anchors(listOf(SheetDetent.Full))[SheetDetent.Full])
     }
 
     @Test
@@ -85,30 +88,9 @@ class SheetAnchorTest {
 
     @Test
     fun aPeekTallerThanTheContainerIsClamped() {
-        // To the same gap the cap above stops at, and for the same reasons.
+        // To the container's top, as the cap above is.
         val peek = SheetDetent.peek(fallback = 140.dp)
-        assertEquals(12f, anchors(listOf(peek), container = 200f, peek = 900f)[peek])
-    }
-
-    /**
-     * A container with no room for the gap does not get one.
-     *
-     * The degenerate case, and the one a clamp gets wrong by default. Clamping
-     * at `min(gap, container)` looks like the safe reading and is the worst
-     * answer available: on a 6px container the gap becomes the whole container,
-     * every detent resolves to "entirely hidden", and the sheet has nowhere left
-     * to be. A container that small is a measurement in progress rather than a
-     * window, and leaving it the offsets it already had is what does least harm.
-     */
-    @Test
-    fun aContainerWithNoRoomForTheGapDoesNotGetOne() {
-        val a = anchors(listOf(SheetDetent.Expanded), container = 6f, sheet = 600f)
-        assertEquals(
-            0f, a[SheetDetent.Expanded],
-            "a 6px container gave its sheet a 12px gap, which is the whole " +
-                "container and then some — so the sheet resolved to hidden at " +
-                "every detent it has",
-        )
+        assertEquals(0f, anchors(listOf(peek), container = 200f, peek = 900f)[peek])
     }
 
     // --- Duplicates ---------------------------------------------------------

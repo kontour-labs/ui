@@ -69,6 +69,13 @@ as the row. Pass `maxActionHeight = Dp.Infinity` to keep the old look.
 `StepProgress(gap = 0.dp)` draws one continuous bar now. It used to draw the
 segments end to end, pinched at each join.
 
+### Check: a sheet at full height
+
+A sheet at `SheetDetent.Full`, or at `Expanded` with content taller than the
+window, reaches the top of the window and draws under the status bar; its handle
+and header stay below the bar. It used to stop 12dp short. A screenshot test of
+a full sheet changes by that strip.
+
 ### Check: overlays in a container short of the window
 
 A sheet, a side sheet, a dialog and a toast count only the part of each inset
