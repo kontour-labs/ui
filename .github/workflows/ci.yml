@@ -335,8 +335,10 @@ jobs:
       # the 0.4.0 checks ran past an hour before they were cancelled, on a runner
       # too busy to report back: its log was never uploaded. So the compile runs
       # first, the Kotlin daemon is stopped, and the tests get the memory it
-      # held. The second invocation costs its own startup and task graph, about
-      # fifteen seconds, which is why this used to be one.
+      # held: 4.5 GB at most compiling and 5.0 GB testing, measured the same
+      # way, and 16 minutes rather than 21. The second invocation costs its
+      # own startup and task graph, about fifteen seconds, which is why this
+      # used to be one.
       #
       # `:ui-samples` answers a different question from the rest — `compileKotlinJvm`
       # asks whether the documentation examples still work against the real API,

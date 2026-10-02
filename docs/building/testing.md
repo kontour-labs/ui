@@ -167,6 +167,8 @@ and 9.3 GB at the worst moment. The 0.4.0 checks ran for over an hour on that
 before they were cancelled, on a runner too busy swapping to report back — its
 log was never uploaded. The ABI check reads the klib of every target, so it
 moved to `targets`, which compiles them anyway, and `test` is the JVM only.
+Split, the same measurement is 4.5 GB at most while compiling and 5.0 GB while
+testing, and the step takes 16 minutes rather than 21.
 
 #### What is cached
 
