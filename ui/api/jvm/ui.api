@@ -1273,13 +1273,14 @@ public final class io/kontour/ui/components/list/SwipeActionsDefaults {
 	public static final field MaxActionsPerSide I
 	public final fun getActionWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun getGap (Landroidx/compose/runtime/Composer;I)F
+	public final fun getMaxActionHeight (Landroidx/compose/runtime/Composer;I)F
 	public final fun getPositionalThreshold (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function1;
 	public final fun getScrollStep-D9Ej5fM ()F
 	public final fun getSettleAfterScroll-UwyO8pc ()J
 }
 
 public final class io/kontour/ui/components/list/SwipeActionsKt {
-	public static final fun SwipeActions-seJ8HY0 (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;FZZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SwipeActions-A9z7Kv4 (Landroidx/compose/ui/Modifier;ZLjava/util/List;Ljava/util/List;Lio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;FZZFLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun SwipeToDismiss-kWc7xho (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/Modifier;ZJLio/kontour/ui/components/list/SwipeActionsState;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberSwipeActionsState (Lio/kontour/ui/components/list/SwipeValue;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/SwipeActionsState;
 }

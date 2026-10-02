@@ -172,6 +172,16 @@ button squared off on the side that faces another row, when on that side it
 faces nothing at all, reads as a broken piece of one. Pass `actionShape` only
 when your rows are not the default shape.
 
+### On a tall row
+
+**An action is never taller than a two-line row, 64dp**, however tall the row it
+comes out from behind: on a row with a picture or a paragraph in it, it sits
+centred, and a full swipe's takeover grows across the strip and not down it.
+It used to be as tall as the row, *"ridiculously tall"* for an icon and a word.
+`maxActionHeight` moves the cap. It never goes below what the icon and label
+need, so at large type it grows with them, and `Dp.Infinity` gives the old
+full-height buttons back.
+
 ---
 
 ## Accessibility

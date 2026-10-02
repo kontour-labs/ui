@@ -302,6 +302,24 @@ internal val SwipeActionsDemo = ComponentDemo(
                 supporting { +"Actions on one side" }
             }
         }
+        // A tall row: its actions stop at an ordinary row's height and sit
+        // centred on it, rather than growing into slabs as tall as the row.
+        SwipeActions(
+            end = trailing.take(this@ComponentDemo[swipeActionCount]),
+            fullSwipeConfirmation = confirmation,
+            tapConfirmation = tapConfirmation,
+        ) {
+            ListItem(onClick = { echo("Fremantle") }) {
+                overline { +"Fremantle line · Terminus" }
+                +"Fremantle"
+                supporting {
+                    +(
+                        "A tall row. Heritage-listed, opened in 1907, at the end of the " +
+                            "Fremantle line and a short walk from the ferry to Rottnest Island."
+                        )
+                }
+            }
+        }
         SwipeToDismiss(
             onDismissRequest = { echo("Dismissed") },
             label = "Remove",

@@ -24,7 +24,15 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Changed
+
+- **A swipe row's actions are at most 64dp tall**, a two-line row's height,
+  however tall the row. On a taller row they sit centred, and a full swipe's
+  takeover grows across the strip and not down it. Before, they were as tall
+  as the row. `SwipeActions(maxActionHeight = Dp.Infinity)` keeps the old
+  height.
 
 ---
 
