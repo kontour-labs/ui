@@ -165,11 +165,20 @@ pass the marker's shape too to match it.
 `NavigationSuiteScaffold` passes all three on as `barShape`, `barItemWidth` and
 `barMarker`; a rail's marker stays its own.
 
+### The marker reaches for a press
+
+Press a destination other than the current one and, before the finger lifts, the
+marker leans a little toward it and stretches from the edge it is leaving: a
+promise of where it is going, not the trip. Let go and it goes. Slide off the
+destination instead and the press is cancelled, and the marker settles back.
+However far away the destination is, the lean is the same small nudge. A rail's,
+a tab bar's and a segmented control's markers do the same.
+
 ### Dragging the marker
 
 The marker can be dragged, as a segmented control's thumb can. Put a finger on
 a destination and slide it sideways: the marker comes with the finger, leaning
-toward it, and snaps from destination to destination with a tick at each, the
+and stretching toward it, and snaps from destination to destination with a tick at each, the
 colours following. Let go on one and it is chosen — its `onClick` runs then,
 once.
 
@@ -214,6 +223,7 @@ because a tint alone is too faint at that tier, and the focus ring is drawn
 thicker.
 
 Under reduced motion the marker does not travel: it fades out and fades up on
-the new destination, and a dragged marker does not lean toward the finger. The selected icon's slight growth is a short tween with no
+the new destination, and it does not lean toward a finger dragging it or a
+destination being pressed. The selected icon's slight growth is a short tween with no
 overshoot, a press is a tonal wash at every setting, and a group's menu fades in
 rather than growing out of the bar.

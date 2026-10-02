@@ -87,7 +87,9 @@ to the next once the value had already changed, which meant the only part of the
 gesture you could see was the part that was over. The gesture is on the track
 rather than on each segment: a drag from "Depart" to "Arrive" leaves the segment
 it began in, and a per-segment handler loses the pointer at the boundary. Taps
-still belong to the segment under them.
+still belong to the segment under them, and **a press on another segment** leans
+the thumb a little toward it, the same way, before the finger lifts and the
+value changes.
 
 **Carry it past the last segment and the thumb squashes against the end.** The
 lean above is clamped at the **thumb's own travel** — centre to centre, because
@@ -137,5 +139,5 @@ sets out that trade.
 
 Under reduced motion the thumb does not slide: it fades up on the segment
 chosen, and while a finger drags across the track it moves segment by segment
-the same way. It also stops leaning toward the finger and stretching past the
-ends.
+the same way. It also stops leaning toward the finger, or toward a segment
+being pressed, and stretching past the ends.

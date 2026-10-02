@@ -11,15 +11,20 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Layout
@@ -34,6 +39,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -232,6 +238,16 @@ class SelectionIndicatorState internal constructor() {
     /** Whether [drawn] is published. Set once, by the one control that reads it. */
     internal var publishesDrawn: Boolean = false
 
+    /**
+     * Where the marker is reaching toward before it moves, in [anchor]'s space,
+     * and how far of the way: a finger dragging it, or an item being pressed.
+     * Null at rest. See [SelectionIndicatorBox]'s anticipation.
+     */
+    internal var reach: IndicatorReach? by mutableStateOf(null)
+
+    /** The pressed item [reach] belongs to, when it is a press, so only its release lets it go. */
+    internal var reachKey: Any? = null
+
     internal fun report(key: Any, bounds: Rect) {
         targetKey = key
         target = bounds
@@ -353,6 +369,23 @@ fun SelectionIndicatorBox(
     // snap branch. The marker teleported back.
     var settledKey by remember { mutableStateOf<Any?>(null) }
     var headingTo by remember { mutableStateOf<Any?>(null) }
+
+    // **Anticipation**: the marker leaning, and stretching, toward where it is
+    // about to go before it goes. Asked for: "if you tap another option, the
+    // indicator stretches/moves a little bit towards it ... a little bit like
+    // the animation before the segmented control moves. same animation goes for
+    // dragging it". A press on another item, or a finger dragging the marker,
+    // sets [SelectionIndicatorState.reach]; this is how much of it is applied,
+    // springing in and out, and none under reduced motion, where the marker
+    // still goes where it is sent without reaching for it.
+    val reaching by remember(state) { derivedStateOf { state.reach != null } }
+    val engaged = remember { Animatable(0f) }
+    LaunchedEffect(reaching, motion.reduceMotion) {
+        engaged.animateTo(if (reaching && !motion.reduceMotion) 1f else 0f, motion.springOrTween(motion.springSnappy))
+    }
+    // The last reach, kept once it is let go so the marker relaxes out of
+    // where it was leaning rather than losing the number mid-spring.
+    val leaning = remember { LastReach() }
 
     LaunchedEffect(resolved, state.targetKey) {
         val target = resolved
@@ -562,7 +595,11 @@ fun SelectionIndicatorBox(
                 // would mirror it a second time. Placing both children from this
                 // node's own origin is what keeps one coordinate space.
                 if (drawIndicator) {
-                    marker.forEach { it.place(live.left.roundToInt(), live.top.roundToInt()) }
+                    marker.forEach {
+                        it.placeWithLayer(live.left.roundToInt(), live.top.roundToInt()) {
+                            lean(live, width.toFloat(), height.toFloat(), state, engaged.value, leaning, motion.reduceMotion)
+                        }
+                    }
                 }
                 body.forEach { it.place(0, 0) }
             }
@@ -690,3 +727,128 @@ private fun SelectionIndicatorState.reportIfPossible(
  */
 private const val FadedOut = 0.1f
 
+/** A point the marker reaches toward before it moves, and how far of the way. */
+@Immutable
+internal class IndicatorReach(
+    /** In the anchor's space. A NaN on one axis means the reach is along the other alone. */
+    val at: Offset,
+    /** The share of the distance the marker leans. */
+    val pull: Float,
+    /**
+     * Whether the distance counts for at most the marker's own span: a press
+     * three items away leans as far as one on the next, a nudge rather than a
+     * trip. A finger dragging the marker is followed however far it is.
+     */
+    val withinSpan: Boolean = false,
+)
+
+/** The last reach, held while the marker relaxes out of it. Not observed. */
+private class LastReach {
+    var value: IndicatorReach? = null
+}
+
+/**
+ * Leans the marker drawn at [live] toward the reach, by [engaged] of it, and
+ * stretches it along the same axis.
+ *
+ * **From where the marker is**, not from the item it belongs to: a press lets
+ * go into a selection that sends the marker travelling, and measured from the
+ * new item the lean would flip on that frame and throw it backwards.
+ *
+ * **Stretched from the edge it is leaving**, as a segmented control's thumb is,
+ * so it reaches toward where it is going: by the lean's share of its own span,
+ * at most [MaxAnticipationStretch]. Never past the group's own edges.
+ *
+ * A press leans [AnticipationPull] of the way toward the item, counting at most
+ * one span of the distance: 12% of its width, and 12% wider, toward an item next
+ * to it or at the far end alike.
+ */
+private fun GraphicsLayerScope.lean(
+    live: Rect,
+    width: Float,
+    height: Float,
+    state: SelectionIndicatorState,
+    engaged: Float,
+    last: LastReach,
+    reduceMotion: Boolean,
+) {
+    val now = state.reach
+    if (now != null) last.value = now
+    val reach = last.value ?: return
+    // `engaged` already stays at 0 under reduced motion; said here as well, so
+    // a marker that was leaning when the setting changed stops at once.
+    if (engaged <= 0f || reduceMotion) return
+    val centre = live.center
+    val dx = if (reach.at.x.isNaN()) 0f else reach.at.x - centre.x
+    val dy = if (reach.at.y.isNaN()) 0f else reach.at.y - centre.y
+    val across = abs(dx) >= abs(dy)
+    val span = if (across) live.width else live.height
+    if (span <= 0f) return
+    val distance = if (across) dx else dy
+    val raw = (if (reach.withinSpan) distance.coerceIn(-span, span) else distance) * reach.pull * engaged
+    val lean = if (across) {
+        raw.coerceIn(-live.left, (width - live.right).coerceAtLeast(-live.left))
+    } else {
+        raw.coerceIn(-live.top, (height - live.bottom).coerceAtLeast(-live.top))
+    }
+    val stretch = 1f + (abs(lean) / span).coerceAtMost(MaxAnticipationStretch)
+    val pivot = if (lean >= 0f) 0f else 1f
+    if (across) {
+        translationX = lean
+        scaleX = stretch
+        transformOrigin = TransformOrigin(pivot, 0.5f)
+    } else {
+        translationY = lean
+        scaleY = stretch
+        transformOrigin = TransformOrigin(0.5f, pivot)
+    }
+}
+
+/**
+ * Reports a press on this item to the enclosing indicator group, so the marker
+ * leans toward it before the press lets go and the selection moves: see
+ * [SelectionIndicatorBox]. Only a press on an item that is not already
+ * selected, and only from [interactionSource], which is the item's own.
+ */
+@Composable
+internal fun Modifier.anticipatesSelection(key: Any, selected: Boolean, interactionSource: InteractionSource): Modifier {
+    val state = LocalSelectionIndicator.current ?: return this
+    val coordinates = remember { LastCoordinates() }
+    LaunchedEffect(state, key, selected, interactionSource) {
+        if (selected) return@LaunchedEffect
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    val anchor = state.anchor
+                    val item = coordinates.value
+                    if (anchor != null && item != null && anchor.isAttached && item.isAttached) {
+                        val bounds = Rect(anchor.localPositionOf(item, Offset.Zero), item.size.toSize())
+                        state.reachKey = key
+                        state.reach = IndicatorReach(bounds.center, AnticipationPull, withinSpan = true)
+                    }
+                }
+                is PressInteraction.Release, is PressInteraction.Cancel -> letGo(state, key)
+            }
+        }
+    }
+    DisposableEffect(state, key) {
+        onDispose { letGo(state, key) }
+    }
+    return onGloballyPositioned { coordinates.value = it }
+}
+
+private fun letGo(state: SelectionIndicatorState, key: Any) {
+    if (state.reachKey == key) {
+        state.reachKey = null
+        state.reach = null
+    }
+}
+
+/**
+ * How far toward a pressed item the marker leans: a little, a promise of where
+ * it is about to go rather than the trip itself.
+ */
+internal const val AnticipationPull: Float = 0.12f
+
+/** The most a leaning marker stretches, as a share of its own span. */
+private const val MaxAnticipationStretch: Float = 0.2f

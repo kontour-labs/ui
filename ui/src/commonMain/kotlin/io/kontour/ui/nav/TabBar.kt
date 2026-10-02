@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.foundation.anticipatesSelection
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.IndicatorEdge
@@ -371,6 +372,7 @@ fun TabBarScope.Tab(
             // 36dp the label occupied.
             .fillMaxHeight()
             .selectionIndicatorItem(key, selected)
+            .anticipatesSelection(key, selected, interactions)
             // Kept for a tab measured outside the bar's fixed-height row, where
             // the fill above has no bounded height to take.
             .minimumTouchTarget()

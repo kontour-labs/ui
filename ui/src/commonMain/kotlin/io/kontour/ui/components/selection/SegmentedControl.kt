@@ -46,6 +46,7 @@ import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.SelectionIndicatorBox
+import io.kontour.ui.foundation.anticipatesSelection
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SelectionIndicatorState
 import io.kontour.ui.foundation.selectionIndicatorItem
@@ -821,6 +822,9 @@ private fun SegmentedOption(
     Box(
         modifier = modifier
             .selectionIndicatorItem(option, selected)
+            // A press on another segment leans the thumb toward it before the
+            // selection moves. A drag leans it from the track's own gesture.
+            .anticipatesSelection(option, selected, interactions)
             .focusRing(interactions, shape)
             .clip(shape)
             .pointerCursor(enabled = enabled)

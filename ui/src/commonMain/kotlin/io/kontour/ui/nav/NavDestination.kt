@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
+import io.kontour.ui.foundation.anticipatesSelection
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalSelectionIndicator
 import io.kontour.ui.foundation.Text
@@ -211,6 +212,9 @@ internal fun NavDestination(
             }
         }
         .selectionIndicatorItem(markerKey, marked)
+        // A press on another destination leans the marker toward it before the
+        // selection moves. See `SelectionIndicatorBox`.
+        .anticipatesSelection(markerKey, marked, interactions)
         // `fill`, so the row that lights up under a press is the whole 48dp the
         // marker covers, not the shorter content centred in it.
         .minimumTouchTarget(fill = true)

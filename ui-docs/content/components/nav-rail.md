@@ -109,5 +109,6 @@ titles thicken with the tier.
 
 Under reduced motion the rail takes its new width at once and its labels, chevrons
 and section titles fade in on their own, and the marker fades up on the new
-destination rather than travelling to it. A group's children take their room at
+destination rather than travelling to it, and does not lean toward one being
+pressed. A group's children take their room at
 once and fade in, and its chevron turns without overshooting.

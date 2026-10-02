@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -32,12 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
@@ -52,7 +49,9 @@ import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
+import io.kontour.ui.foundation.SelectionIndicatorState
 import io.kontour.ui.foundation.IndicatorSizing
+import io.kontour.ui.foundation.IndicatorReach
 import io.kontour.ui.foundation.SelectionIndicatorBox
 import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SurfaceDefaults
@@ -367,14 +366,10 @@ internal fun NavBarLayout(
     val drag = remember { MarkerDrag() }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val dragScope = rememberCoroutineScope()
-    // How much of the lean toward the finger is applied: 1 while dragging, 0 at
-    // rest, springing between. Off under reduced motion, as a segmented
-    // control's is: the marker still goes where the finger takes it.
-    val engaged = animateFloatAsState(
-        targetValue = if (drag.dragging && !motion.reduceMotion) 1f else 0f,
-        animationSpec = motion.springOrTween(motion.springSnappy),
-        label = "navMarkerStrain",
-    )
+    // The marker's lean toward the finger is the indicator's own now, so it
+    // stretches as it leans, as a press on another destination makes it — see
+    // `SelectionIndicatorBox`. The drag tells it where the finger is.
+    drag.indicator = indicator
     val keys = remember { NavKeys() }
     // The glyph's box: the marker's size where the marker is behind the glyph,
     // and a circle's where it is around the whole destination.
@@ -456,16 +451,6 @@ internal fun NavBarLayout(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        // Where the marker is placed, before the lean: in the
-                        // row's coordinates, which the finger shares. Globally,
-                        // because what moves it is its parent: the marker's own
-                        // place inside that never changes.
-                        .onGloballyPositioned { placed -> drag.placed(placed) }
-                        .graphicsLayer {
-                            // No lean under reduced motion: the marker still goes
-                            // where the finger takes it, without reaching for it.
-                            translationX = if (motion.reduceMotion) 0f else drag.lean(engaged.value)
-                        }
                         .clip(markerShape)
                         .background(colours.indicator)
                         .optionalBorder(selectionEdge(), markerShape)
@@ -1017,13 +1002,20 @@ private class MarkerDrag {
     private var fingerAt by mutableFloatStateOf(Float.NaN)
 
     /**
-     * The marker's own placement, before the lean; see [placed]. State, read
-     * only by the marker's layer: the marker carries on travelling after the
-     * finger stops, and a lean worked out against where it was mid-journey
-     * would be kept all the way to the end of it.
+     * The bar's indicator, told where the finger is so the marker leans and
+     * stretches toward it, by [SliderDefaults.DetentPull] of the way: far enough
+     * to read as straining toward the next destination, never so far that it
+     * is closer to that one than to its own.
      */
-    private var markerLeft by mutableFloatStateOf(Float.NaN)
-    private var markerWidth by mutableFloatStateOf(0f)
+    var indicator: SelectionIndicatorState? = null
+
+    private fun reachFinger() {
+        val state = indicator ?: return
+        // The drag's now, not the press it started as: a press that the drag
+        // takes over is cancelled, and must not take the lean with it.
+        state.reachKey = null
+        state.reach = if (fingerAt.isNaN()) null else IndicatorReach(Offset(fingerAt, Float.NaN), SliderDefaults.DetentPull)
+    }
 
     fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: selected
 
@@ -1074,6 +1066,7 @@ private class MarkerDrag {
         chosen = targets.entries.firstOrNull { it.value.selected }?.key
         fingerAt = x.coerceIn(0f, (row?.size?.width ?: 0).toFloat())
         dragging = true
+        reachFinger()
         pick(ticker)
     }
 
@@ -1083,6 +1076,7 @@ private class MarkerDrag {
             return
         }
         fingerAt = (fingerAt + dx).coerceIn(0f, (row?.size?.width ?: 0).toFloat())
+        reachFinger()
         pick(ticker)
     }
 
@@ -1091,6 +1085,7 @@ private class MarkerDrag {
         val lifted = released
         released = false
         dragging = false
+        indicator?.reach = null
         ticker.reset()
         // In one breath with the app's own change, so the marker heads straight
         // for the destination rather than back to the old one first.
@@ -1098,33 +1093,6 @@ private class MarkerDrag {
         // Chosen already, as the marker reached it, when it selects while dragging.
         if (selectsWhileDragging) return
         if (lifted && target != null && target.enabled && !target.selected) target.onClick()
-    }
-
-    /** The marker's placement, in the row's coordinates, as laid out this frame. */
-    fun placed(coordinates: LayoutCoordinates) {
-        val row = row ?: return
-        if (!row.isAttached || !coordinates.isAttached) return
-        val box = row.localBoundingBoxOf(coordinates, clipBounds = false)
-        markerLeft = box.left
-        markerWidth = box.width
-    }
-
-    /**
-     * How far the marker leans toward the finger: [SliderDefaults.DetentPull]
-     * of the way, measured from where the marker **is** rather than from the
-     * destination it belongs to — crossing a boundary sends the marker on its
-     * way, and measured from the new destination the lean would flip sign on
-     * that frame and throw it backwards. Never off the row.
-     */
-    fun lean(engaged: Float): Float {
-        // `engaged` first: at rest it is the only thing read, so a tap's marker
-        // travelling does not redraw this layer at every step.
-        if (engaged == 0f) return 0f
-        val finger = fingerAt
-        if (finger.isNaN() || markerLeft.isNaN() || markerWidth <= 0f) return 0f
-        val width = (row?.size?.width ?: return 0f).toFloat()
-        val pulled = (finger - (markerLeft + markerWidth / 2f)) * SliderDefaults.DetentPull * engaged
-        return pulled.coerceIn(-markerLeft, (width - markerLeft - markerWidth).coerceAtLeast(-markerLeft))
     }
 }
 

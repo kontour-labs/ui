@@ -72,6 +72,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Added
 
+- **A selection marker reaches for the item being pressed.** In a `NavBar`, a
+  `NavRail`, a `TabBar` and a `SegmentedControl`, a press on another item leans
+  the marker a little toward it, stretching from the edge it is leaving, before
+  the finger lifts and the marker goes there. A press that slides off lets it
+  settle back. A dragged nav-bar marker now stretches as it leans toward the
+  finger, as a segmented control's thumb does. None of it under reduced motion.
+  See [`NavBar`](components/nav-bar.md#the-marker-reaches-for-a-press).
 - [`CircularStepProgress`](components/progress.md): `StepProgress` round a
   ring, one arc a step from twelve o'clock, through the same animation.
   `gap = 0.dp` makes it one continuous ring.

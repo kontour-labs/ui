@@ -33,6 +33,8 @@ edge with a full-width rule under it, which was the most Material thing in the
 library and had no counterpart on any other platform. The mechanism is unchanged
 — the same shared indicator box, the same anchor arithmetic — it just says the
 same thing in the library's own vocabulary, which is already full of pills.
+Press another tab and the pill leans a little toward it before the finger lifts,
+as the [nav bar's marker](nav-bar.md#the-marker-reaches-for-a-press) does.
 
 The hairline rule under the bar used to stay, on the grounds that a bar squeezed
 narrow enough to clip its labels draws *nothing at all* without it. That was
@@ -144,4 +146,4 @@ round its tint. A scrolling bar's scrollbar stays at full ink when idle rather
 than half, and the focus ring and the rule `showDivider` draws are thicker.
 
 Under reduced motion the pill does not slide between tabs: it fades out and
-fades up on the tab chosen. A tab's press is a tonal wash at every setting.
+fades up on the tab chosen, and it does not lean toward a tab being pressed. A tab's press is a tonal wash at every setting.
