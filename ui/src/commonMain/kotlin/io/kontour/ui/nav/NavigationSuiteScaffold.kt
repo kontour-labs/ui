@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,7 +121,9 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  *
  * The bar **overlays** the content rather than sitting below it, so read the
  * padding handed to [content] and inset scrolling content by it. A rail sits
- * beside the content and hands it no padding.
+ * beside the content and hands it no padding. Content that is not written in
+ * [content] itself — a page that a navigation host shows inside it — reads the
+ * same padding with [navigationSuitePadding].
  *
  * @param type Override the automatic choice — [NavigationSuiteType.ModalRail],
  *   which is never chosen automatically, is the common reason.
@@ -178,7 +183,8 @@ fun NavigationSuiteScaffold(
                 var barHeight by remember { mutableStateOf(estimate) }
                 val density = LocalDensity.current
 
-                content(PaddingValues(bottom = barHeight))
+                val padding = PaddingValues(bottom = barHeight)
+                CompositionLocalProvider(LocalNavigationSuitePadding provides padding) { content(padding) }
 
                 NavBarLayout(
                     modifier = Modifier
@@ -218,11 +224,13 @@ fun NavigationSuiteScaffold(
                     footer = action?.let { { it() } },
                     content = destinations,
                 )
-                Box(Modifier.weight(1f)) { content(PaddingValues(0.dp)) }
+                Box(Modifier.weight(1f)) {
+                    CompositionLocalProvider(LocalNavigationSuitePadding provides NoPadding) { content(NoPadding) }
+                }
             }
 
             NavigationSuiteType.ModalRail -> Box(Modifier.fillMaxSize()) {
-                content(PaddingValues(0.dp))
+                CompositionLocalProvider(LocalNavigationSuitePadding provides NoPadding) { content(NoPadding) }
                 ModalNavRail(
                     visible = state.modalVisible,
                     onDismissRequest = state::hideModal,
@@ -243,6 +251,28 @@ fun NavigationSuiteScaffold(
         }
     }
 }
+
+/**
+ * What a [NavigationSuiteScaffold] around this content asks it to keep clear
+ * of: the bar's height at the bottom, and nothing for a rail, which sits beside
+ * the content. Nothing outside a scaffold.
+ *
+ * The same padding the scaffold hands its `content`, for a page that is not
+ * written there — one that a navigation host shows inside the scaffold, such as
+ * `:ui-nav3`'s navigation-suite scene:
+ *
+ * ```kotlin
+ * LazyColumn(contentPadding = navigationSuitePadding()) { stopRows() }
+ * ```
+ */
+@Composable
+@ReadOnlyComposable
+fun navigationSuitePadding(): PaddingValues = LocalNavigationSuitePadding.current
+
+/** See [navigationSuitePadding]. */
+internal val LocalNavigationSuitePadding = compositionLocalOf<PaddingValues> { NoPadding }
+
+private val NoPadding = PaddingValues(0.dp)
 
 /**
  * Which surface a window of this width gets: a bar on a phone, a rail on a

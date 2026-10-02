@@ -96,6 +96,14 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   detail; `LocalPageBack` and `rememberPageBack` for a host of your own. See
   [Navigation 3](navigation3.md#a-back-button-from-the-page).
 
+- **Pages over the nav bar, with one back stack:** `:ui-nav3`'s
+  `rememberNavigationSuiteSceneStrategy` puts a `NavigationSuiteScaffold`, or
+  any frame, round the pages of a `NavDisplay`, so the bar stays put as they
+  move, and an entry marked `coversNavigation()` slides in over the bar and the
+  page under it. `navigationSuitePadding()` is the bar's height, for a page
+  inside the scaffold that is not written in its `content`. See
+  [Navigation 3](navigation3.md#pages-inside-the-nav-bar-and-pages-over-it).
+
 ### Fixed
 
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom

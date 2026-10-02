@@ -2940,6 +2940,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
 	public static final fun NavigationSuiteScaffold-iYTjmak (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Ljava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun navigationSuitePadding (Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/PaddingValues;
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
 }
