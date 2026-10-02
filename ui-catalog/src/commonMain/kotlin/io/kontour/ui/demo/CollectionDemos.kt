@@ -37,6 +37,14 @@ import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.items
+import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.SectionHeader
+import io.kontour.ui.components.list.IndexScroller
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.components.list.IndexScrollerDefaults
+import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
@@ -467,6 +475,98 @@ internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar") {
     }
 }
 
+/**
+ * Names in each script the rail knows, so the alphabet knob shows each one
+ * filing its own words: kana by row, Hangul by first consonant.
+ */
+private val indexNames: Map<String, List<String>> = mapOf(
+    "Latin" to listOf(
+        "Armadale", "Ashfield", "Bassendean", "Bayswater", "Claremont", "Cottesloe", "Elizabeth Quay",
+        "Esplanade", "Fremantle", "Glendalough", "Joondalup", "Kelmscott", "Leederville", "Maddington",
+        "Mandurah", "Midland", "Mosman Park", "North Fremantle", "Perth", "Perth Underground", "Queens Park",
+        "Rockingham", "Showgrounds", "Subiaco", "Thornlie", "Victoria Park", "Warwick", "Whitfords",
+        "Yanchep", "1 Stop Shop",
+    ),
+    "Cyrillic" to listOf(
+        "Арбатская", "Бауманская", "Волжская", "Выхино", "Динамо", "Ёлки", "Жулебино", "Измайловская",
+        "Кропоткинская", "Лубянка", "Маяковская", "Новокузнецкая", "Охотный Ряд", "Парк культуры",
+        "Римская", "Сокольники", "Таганская", "Улица 1905 года", "Фили", "Цветной бульвар", "Чеховская",
+        "Шаболовская", "Электрозаводская", "Юго-Западная", "Ясенево", "Moscow City",
+    ),
+    "Greek" to listOf(
+        "Αθήνα", "Βόλος", "Γλυφάδα", "Δάφνη", "Ελληνικό", "Ζωγράφου", "Ηράκλειο", "Θεσσαλονίκη", "Ιωάννινα",
+        "Καλαμάτα", "Λάρισα", "Μαρούσι", "Νίκαια", "Ομόνοια", "Πειραιάς", "Ρόδος", "Σύνταγμα", "Τρίπολη",
+        "Φάληρο", "Χανιά", "Ωρωπός",
+    ),
+    "Hebrew" to listOf(
+        "אשדוד", "באר שבע", "גבעתיים", "דימונה", "הרצליה", "זכרון יעקב", "חיפה", "טבריה", "ירושלים", "כרמיאל",
+        "לוד", "מודיעין", "נתניה", "עכו", "פתח תקווה", "צפת", "קריית גת", "רחובות", "שדרות", "תל אביב",
+    ),
+    "Arabic" to listOf(
+        "أبوظبي", "إربد", "بيروت", "تونس", "جدة", "حلب", "دبي", "الرباط", "صنعاء", "طرابلس", "عمّان",
+        "غزة", "القاهرة", "مسقط", "نواكشوط", "وهران",
+    ),
+    "Kana" to listOf(
+        "あきはばら", "いけぶくろ", "うえの", "おおさか", "かんだ", "ぎんざ", "しぶや", "しながわ", "ちば",
+        "とうきょう", "なごや", "にっぽり", "はかた", "ひろしま", "ふくおか", "まいはま", "めぐろ", "よこはま",
+        "りょうごく", "わこう", "パリ", "ロンドン", "東京駅",
+    ),
+    "Hangul" to listOf(
+        "강남", "광주", "대구", "대전", "목포", "부산", "서울", "속초", "인천", "울산", "전주", "제주", "춘천",
+        "청주", "포항", "평택", "한강", "Seoul Station",
+    ),
+)
+
+private val indexAlphabets: Map<String, IndexAlphabet> = mapOf(
+    "Latin" to IndexAlphabet.Latin,
+    "Cyrillic" to IndexAlphabet.Cyrillic + IndexAlphabet.Latin,
+    "Greek" to IndexAlphabet.Greek + IndexAlphabet.Latin,
+    "Hebrew" to IndexAlphabet.Hebrew + IndexAlphabet.Latin,
+    "Arabic" to IndexAlphabet.Arabic + IndexAlphabet.Latin,
+    "Kana" to IndexAlphabet.Kana + IndexAlphabet.Latin,
+    "Hangul" to IndexAlphabet.Hangul + IndexAlphabet.Latin,
+)
+
+/** Which script's names, filed under that script's alphabet then Latin's. */
+private val indexScript = Knob.Choice("Alphabet", indexAlphabets.keys.toList(), "Latin", name = { it })
+
+private val indexEnabled = Knob.Flag("Enabled", initial = true)
+
+/** Every other name dropped, so more of the rail's letters have nothing under them. */
+private val indexSparse = Knob.Flag("Sparse")
+
+internal val IndexScrollerDemo = ComponentDemo(
+    slug = "index-scroller",
+    knobs = listOf(indexScript, indexEnabled, indexSparse),
+) {
+    val script = this[indexScript]
+    val alphabet = indexAlphabets.getValue(script)
+    val all = indexNames.getValue(script)
+    val names = if (this[indexSparse]) all.filterIndexed { i, _ -> i % 2 == 0 } else all
+    val formats = Theme.formats
+    val indexed = remember(names, alphabet, formats) { names.indexedBy(alphabet, formats) { it } }
+    val list = rememberLazyListState()
+    Box(Modifier.fillMaxWidth().height(360.dp)) {
+        LazyColumn(
+            state = list,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(end = IndexScrollerDefaults.Width),
+        ) {
+            indexed.groups.forEach { group ->
+                item(key = "header-${group.label}") { SectionHeader { +group.label } }
+                items(group.items, key = { it }) { name -> ListItem { +name } }
+            }
+        }
+        IndexScroller(
+            state = list,
+            sections = indexed.sections,
+            modifier = Modifier.align(Alignment.CenterEnd),
+            enabled = this@ComponentDemo[indexEnabled],
+            alphabet = alphabet,
+        )
+    }
+}
+
 internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxWidth().height(200.dp)) {
@@ -583,6 +683,7 @@ internal val collectionDemos = listOf(
     PullToRefreshDemo,
     LoadMoreDemo,
     ScrollbarDemo,
+    IndexScrollerDemo,
     FadingEdgesDemo,
     TableDemo,
 )

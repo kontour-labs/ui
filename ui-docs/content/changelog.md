@@ -118,6 +118,16 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   back button and actions sit on discs of the bar's colour until it collapses.
   `TopBarDefaults.HeroHeight`, 280dp, from `ComponentDefaults.topBarHeroHeight`.
 
+- [`IndexScroller`](components/index-scroller.md): an A–Z rail beside a long
+  list. Press a letter or run a finger down them and the list jumps to its
+  section, with a tick a letter and the letter shown large beside the finger.
+  Every letter stays on the rail, the empty ones dimmed and going to the next
+  section; a short rail folds runs of letters into dots and still reaches each.
+  `IndexAlphabet` files a word under its label in Latin, Cyrillic, Greek,
+  Hebrew, Arabic, kana rows and Hangul initials, by the reader's locale, and
+  `indexedBy` groups a list and says where each section starts. Four new
+  `Strings`: `sectionIndex`, `otherSection`, `nextSection`, `previousSection`.
+
 ### Fixed
 
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom

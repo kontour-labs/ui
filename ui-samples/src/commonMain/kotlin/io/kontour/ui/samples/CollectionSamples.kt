@@ -21,6 +21,13 @@ import com.composables.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.theme.Theme
+import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.SectionHeader
+import io.kontour.ui.components.list.IndexScroller
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.components.list.IndexScrollerDefaults
+import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
@@ -196,6 +203,27 @@ fun ScrollbarBasics() {
         // It hides itself unless the pointer can hover, so it costs a touch user
         // nothing. `alwaysVisible` is for a pane where the scroll is the point.
         Scrollbar(state = scroll, modifier = Modifier.align(Alignment.CenterEnd))
+    }
+}
+
+@Composable
+fun IndexScrollerBasics(stops: List<Stop>) {
+    val formats = Theme.formats
+    val alphabet = IndexAlphabet.forLocale(Theme.locale)
+    // Grouped under the reader's alphabet, with where each group starts in
+    // the list: one header item and its rows.
+    val indexed = remember(stops, alphabet, formats) { stops.indexedBy(alphabet, formats) { it.name } }
+    val list = rememberLazyListState()
+
+    Box {
+        // Room at the end for the letters, so no row runs under them.
+        LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
+            indexed.groups.forEach { group ->
+                item { SectionHeader { +group.label } }
+                items(group.items) { stop -> ListItem { +stop.name } }
+            }
+        }
+        IndexScroller(list, indexed.sections, Modifier.align(Alignment.CenterEnd), alphabet = alphabet)
     }
 }
 

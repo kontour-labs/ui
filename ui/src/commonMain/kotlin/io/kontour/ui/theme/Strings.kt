@@ -267,6 +267,16 @@ data class Strings(
     },
     /** A week of an activity calendar, named by the day it starts. */
     val weekOf: (date: String) -> String = { date -> "Week of $date" },
+
+    // Index scroller
+    /** The rail of letters beside a long list, as a screen reader names it. */
+    val sectionIndex: String = "Section index",
+    /** The rail's last label — `#` — said aloud: whatever no letter took. */
+    val otherSection: String = "Other",
+    /** Moving the rail on by one section. */
+    val nextSection: String = "Next section",
+    /** And back. */
+    val previousSection: String = "Previous section",
 ) {
     companion object {
         /**
@@ -389,6 +399,10 @@ data class Strings(
                 ?: fallback.activityOnDay(count, date)
         },
         weekOf = { date -> lookup.phrase("weekOf", null, date) ?: fallback.weekOf(date) },
+        sectionIndex = lookup.text("sectionIndex") ?: fallback.sectionIndex,
+        otherSection = lookup.text("otherSection") ?: fallback.otherSection,
+        nextSection = lookup.text("nextSection") ?: fallback.nextSection,
+        previousSection = lookup.text("previousSection") ?: fallback.previousSection,
         )
     }
 }
@@ -554,4 +568,8 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     activityMore = transform(activityMore),
     activityOnDay = { a0, a1 -> transform(activityOnDay(a0, a1)) },
     weekOf = { a0 -> transform(weekOf(a0)) },
+    sectionIndex = transform(sectionIndex),
+    otherSection = transform(otherSection),
+    nextSection = transform(nextSection),
+    previousSection = transform(previousSection),
 )

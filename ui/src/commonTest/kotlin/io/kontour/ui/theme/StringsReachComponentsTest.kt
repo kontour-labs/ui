@@ -5,7 +5,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.foundation.lazy.rememberLazyListState
 import io.kontour.ui.components.display.Banner
+import io.kontour.ui.components.list.IndexAlphabet
+import io.kontour.ui.components.list.IndexScroller
+import io.kontour.ui.components.list.IndexSection
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.foundation.SystemIcons
@@ -38,6 +42,7 @@ class StringsReachComponentsTest {
         decrease = "Weniger",
         increase = "Mehr",
         showPassword = "Passwort anzeigen",
+        sectionIndex = "Abschnittsindex",
     )
 
     @Test
@@ -81,6 +86,17 @@ class StringsReachComponentsTest {
         }
 
         onNodeWithContentDescription("Passwort anzeigen").assertIsDisplayed()
+    }
+
+    @Test
+    fun anIndexScrollerIsNamedInIt() = runComposeUiTest {
+        setContent {
+            KontourTheme(strings = german) {
+                IndexScroller(rememberLazyListState(), listOf(IndexSection("A", 0)), alphabet = IndexAlphabet.Latin)
+            }
+        }
+
+        onNodeWithContentDescription("Abschnittsindex").assertExists()
     }
 
     /**

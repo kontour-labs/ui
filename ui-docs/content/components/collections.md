@@ -15,6 +15,7 @@ Rows, and the things that happen to them.
 | [`LoadMore`](load-more.md) | The paging row at the end | — |
 | [`Modifier.fadingEdges`](modifier-fading-edges.md) | Fading content at a scrollable edge | — |
 | [`Scrollbar`](scrollbar.md) | Where you are in a long list | — |
+| [`IndexScroller`](index-scroller.md) | Jumping to a letter in a long sorted list | Search, which you may owe as well |
 | [`Table`](table.md) | Rows of records compared across columns | `ListItem`, when each row is one thing to open |
 
 ---
