@@ -46,6 +46,7 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarMarkerDrag
 import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
@@ -205,8 +206,17 @@ private val barMarker = Knob.Choice("Marker", listOf(true, false), name = { if (
 /** The capsule, or a rounded rectangle. */
 private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })
 
-/** Drag the marker along the bar, and let go on a destination to go there. */
-private val barDrag = Knob.Flag("Drag the marker", initial = true)
+/**
+ * Drag the marker along the bar: off, choosing the destination it is let go
+ * on, or choosing each one as it gets there.
+ */
+private val barDrag = Knob.Choice("Drag the marker", NavBarMarkerDrag.entries.toList(), NavBarMarkerDrag.SelectOnRelease, name = ::markerDragName)
+
+private fun markerDragName(drag: NavBarMarkerDrag): String = when (drag) {
+    NavBarMarkerDrag.Off -> "Off"
+    NavBarMarkerDrag.SelectOnRelease -> "Choose on lift"
+    NavBarMarkerDrag.SelectWhileDragging -> "Choose while dragging"
+}
 
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
@@ -229,7 +239,7 @@ internal val NavBarDemo = ComponentDemo(
                 } else {
                     NavBarDefaults.glyphMarker()
                 },
-                markerDraggable = this@ComponentDemo[barDrag],
+                markerDrag = this@ComponentDemo[barDrag],
                 action = if (this@ComponentDemo[barAction]) {
                     {
                         FloatingActionButton(

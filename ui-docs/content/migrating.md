@@ -15,6 +15,62 @@ from the version the app is on.
 
 ---
 
+## 0.3 to 0.4
+
+From 0.3.0 to 0.4.0. One parameter is replaced, and a few things look or behave
+differently enough to check.
+
+### Before you start
+
+- **Move all three modules at once.** `ui`, `ui-nav3` and `haptics` are one
+  version. See [Installing](installing.md).
+- **Rebuild anything compiled against 0.3.** Functions that took a new parameter
+  changed their signature, and a library of your own built against 0.3 fails
+  when it calls one, until it is rebuilt.
+
+### `markerDraggable` is now `markerDrag`
+
+`NavBar(markerDraggable: Boolean)` is replaced by
+`markerDrag: NavBarMarkerDrag`, which also says when a drag chooses a
+destination. On `NavigationSuiteScaffold` it is `barMarkerDrag`.
+
+```diff
+- NavBar(markerDraggable = false) { … }
++ NavBar(markerDrag = NavBarMarkerDrag.Off) { … }
+
+- NavigationSuiteScaffold(…, barMarkerDraggable = false) { … }
++ NavigationSuiteScaffold(…, barMarkerDrag = NavBarMarkerDrag.Off) { … }
+```
+
+`markerDraggable = true`, the default, is `NavBarMarkerDrag.SelectOnRelease`,
+and still the default. `NavBarMarkerDrag.SelectWhileDragging` is new: each
+destination is chosen as the marker reaches it.
+
+### Check: the nav bar with labels
+
+A bar with `showLabels = true` is about 18dp shorter: a floating one is 64dp with
+labels as without. The icon is 20dp, not 24. A screen that reserved room for the
+bar by a fixed number has more than it needs.
+
+### Check: disabled controls
+
+A disabled switch's, slider's and range slider's thumbs, and a knob's face, are
+the page's colour now, and a disabled knob is grey rather than its own colours
+faded. A `Checkbox`, `RadioButton` or `Switch` in a disabled `SelectionRow` or
+`ListItem` draws itself disabled without being told.
+
+### Check: tall swipe rows
+
+A swipe action on a row taller than 64dp is 64dp tall and centred, not as tall
+as the row. Pass `maxActionHeight = Dp.Infinity` to keep the old look.
+
+### Check: a gapless `StepProgress`
+
+`StepProgress(gap = 0.dp)` draws one continuous bar now. It used to draw the
+segments end to end, pinched at each join.
+
+---
+
 ## 0.2 to 0.3
 
 From 0.2.2 to 0.3.0, released on 30 September 2026. One component is removed,

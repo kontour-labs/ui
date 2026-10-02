@@ -173,14 +173,22 @@ toward it, and snaps from destination to destination with a tick at each, the
 colours following. Let go on one and it is chosen — its `onClick` runs then,
 once.
 
-**The choice waits for the finger to lift.** A segmented control changes its
-value at every boundary it crosses, because a value is cheap to change back. A
-destination is a page: choosing each one the finger passed over would build and
-throw away every screen on the way. A drag that comes back to where it started,
-or that something else takes away, chooses nothing, and a tap is still a tap.
+**By default the choice waits for the finger to lift.** A segmented control
+changes its value at every boundary it crosses, because a value is cheap to
+change back. A destination is a page: choosing each one the finger passed over
+would build and throw away every screen on the way. A drag that comes back to
+where it started, or that something else takes away, chooses nothing, and a tap
+is still a tap.
+
+**`markerDrag = NavBarMarkerDrag.SelectWhileDragging` chooses each destination
+as the marker reaches it**, once, the way a segmented control does, and the lift
+chooses nothing more. Use it for pages cheap enough to scrub across, where
+seeing each one as the finger passes is the point. Asked for as an option:
+*"when you drag the navbar selection indicator, it can switch tabs as you're
+dragging"*.
 
 Only sideways, and only from a destination: a slot — a search — keeps its own
-gestures. `markerDraggable = false` turns it off. A rail's marker cannot be
+gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
 dragged at all: a rail scrolls, and a drag along it could not be told from a
 scroll.
 

@@ -169,6 +169,25 @@ object NavBarDefaults {
         if (spans) Arrangement.SpaceEvenly else Arrangement.spacedBy(ItemGap, Alignment.CenterHorizontally)
 }
 
+/** Whether a [NavBar]'s marker can be dragged, and when a drag chooses a destination. */
+enum class NavBarMarkerDrag {
+    /** The marker cannot be dragged: a destination is chosen by a tap alone. */
+    Off,
+
+    /**
+     * The marker follows the finger, and the destination under it when it lifts
+     * is chosen, once. The default: a destination is a page, and each one passed
+     * over is not built and thrown away.
+     */
+    SelectOnRelease,
+
+    /**
+     * The marker follows the finger, and each destination is chosen as the
+     * marker reaches it, for pages cheap enough to scrub across.
+     */
+    SelectWhileDragging,
+}
+
 /** How wide a [NavBar]'s destinations are. */
 enum class NavBarItemWidth {
     /**
@@ -273,11 +292,12 @@ enum class NavBarStyle {
  * @param marker What marks the current destination, and in what shape: round
  *   the whole destination by default, in the bar's shape, or
  *   [NavBarDefaults.glyphMarker] behind the glyph.
- * @param markerDraggable Whether the marker can be dragged from one destination
- *   to another, as a segmented control's thumb can: it follows the finger and
- *   snaps from destination to destination, with a tick at each, and the one
- *   under the finger when it lifts is chosen — its `onClick` runs then, once.
- *   A tap is still a tap.
+ * @param markerDrag Whether the marker can be dragged from one destination to
+ *   another, as a segmented control's thumb can — it follows the finger and
+ *   snaps from destination to destination, with a tick at each — and when the
+ *   destination is chosen: [NavBarMarkerDrag.SelectOnRelease], the one under the
+ *   finger as it lifts, or [NavBarMarkerDrag.SelectWhileDragging], each as the
+ *   marker reaches it. A tap is still a tap either way.
  * @param action Something the screen does rather than somewhere it goes — a
  *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
  *   bar puts it **beside** the capsule, on the page and centred on the capsule's
@@ -295,7 +315,7 @@ fun NavBar(
     shape: Shape? = null,
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
-    markerDraggable: Boolean = true,
+    markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
@@ -313,7 +333,7 @@ fun NavBar(
         shape = shape,
         itemWidth = itemWidth,
         marker = marker,
-        markerDraggable = markerDraggable,
+        markerDrag = markerDrag,
         content = content,
     )
 }
@@ -339,7 +359,7 @@ internal fun NavBarLayout(
     shape: Shape? = null,
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
-    markerDraggable: Boolean = true,
+    markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -408,7 +428,8 @@ internal fun NavBarLayout(
     // A new scope when anything it draws with changes: the destinations are
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
-    val dragging = if (markerDraggable) DragWiring(drag, ticker, dragScope) else null
+    drag.selectsWhileDragging = markerDrag == NavBarMarkerDrag.SelectWhileDragging
+    val dragging = if (markerDrag != NavBarMarkerDrag.Off) DragWiring(drag, ticker, dragScope) else null
     val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, markerInset, dragging) {
         BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, markerInset, drag, dragging)
     }
@@ -937,14 +958,20 @@ private fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled:
  * The bar's marker, dragged: which destination it is over and where the finger
  * is, as a segmented control's thumb is.
  *
- * **The choice waits for the finger to lift.** A segmented control changes its
- * value at every boundary it crosses, because a value is cheap to change and
- * change back. A destination is a page: choosing each one the finger passed over
- * would build and throw away every screen on the way. So the marker, and the
- * colours that go with it, follow the finger at once, a tick marks each
- * crossing, and the destination under the finger when it lifts has its
- * `onClick` run, once. A drag that ends where it started, or is taken away by
- * something else, changes nothing.
+ * **By default the choice waits for the finger to lift.** A segmented control
+ * changes its value at every boundary it crosses, because a value is cheap to
+ * change and change back. A destination is a page: choosing each one the finger
+ * passed over would build and throw away every screen on the way. So the
+ * marker, and the colours that go with it, follow the finger at once, a tick
+ * marks each crossing, and the destination under the finger when it lifts has
+ * its `onClick` run, once. A drag that ends where it started, or is taken away
+ * by something else, changes nothing.
+ *
+ * **Or as the marker reaches each one**, under [NavBarMarkerDrag.SelectWhileDragging]
+ * — asked for as an option: "when you drag the navbar selection indicator, it
+ * can switch tabs as you're dragging". For pages that are cheap to show, where
+ * scrubbing across them is the point: each destination's `onClick` runs as the
+ * marker reaches it, once, and the lift chooses nothing more.
  *
  * Only the bar's: a rail scrolls, and a sideways drag is the one thing a
  * vertical list cannot be sure is not a scroll.
@@ -969,6 +996,18 @@ private class MarkerDrag {
 
     /** The drag ended with the finger lifting, rather than being taken away. */
     var released: Boolean = false
+
+    /** Whether each destination is chosen as the marker reaches it, rather than on the lift. */
+    var selectsWhileDragging: Boolean = false
+
+    /**
+     * The destination last chosen during this drag, by [selectsWhileDragging]:
+     * the one that was current when it began, and then each one reached. Its
+     * own record rather than each target's `selected`, which catches up a
+     * composition later — a finger back over the first destination in the same
+     * frame would otherwise find it still marked as current and not choose it.
+     */
+    private var chosen: Any? = null
 
     /**
      * Where the finger is along the row, or NaN before the first drag. Kept
@@ -1013,7 +1052,12 @@ private class MarkerDrag {
         if (all.isEmpty()) return
         val index = all.indices.minBy { kotlin.math.abs(all[it].second.center.x - fingerAt) }
         ticker.at(index)
-        over = all[index].first
+        val key = all[index].first
+        over = key
+        if (selectsWhileDragging && key != chosen) {
+            chosen = key
+            targets[key]?.takeIf { it.enabled }?.onClick?.invoke()
+        }
     }
 
     /**
@@ -1027,6 +1071,7 @@ private class MarkerDrag {
     fun begin(x: Float, ticker: DetentTicker) {
         released = false
         claimed = true
+        chosen = targets.entries.firstOrNull { it.value.selected }?.key
         fingerAt = x.coerceIn(0f, (row?.size?.width ?: 0).toFloat())
         dragging = true
         pick(ticker)
@@ -1042,7 +1087,7 @@ private class MarkerDrag {
     }
 
     fun end(ticker: DetentTicker) {
-        val chosen = over?.let { targets[it] }
+        val target = over?.let { targets[it] }
         val lifted = released
         released = false
         dragging = false
@@ -1050,7 +1095,9 @@ private class MarkerDrag {
         // In one breath with the app's own change, so the marker heads straight
         // for the destination rather than back to the old one first.
         over = null
-        if (lifted && chosen != null && chosen.enabled && !chosen.selected) chosen.onClick()
+        // Chosen already, as the marker reached it, when it selects while dragging.
+        if (selectsWhileDragging) return
+        if (lifted && target != null && target.enabled && !target.selected) target.onClick()
     }
 
     /** The marker's placement, in the row's coordinates, as laid out this frame. */

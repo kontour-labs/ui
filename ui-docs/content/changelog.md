@@ -26,6 +26,15 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Breaking
+
+**`NavBar(markerDraggable)` is now `markerDrag: NavBarMarkerDrag`**, and on
+`NavigationSuiteScaffold` `barMarkerDraggable` is `barMarkerDrag`.
+`markerDraggable = false` is `NavBarMarkerDrag.Off`, and the default is
+`NavBarMarkerDrag.SelectOnRelease`, as it was. The new
+`NavBarMarkerDrag.SelectWhileDragging` chooses each destination as the marker
+reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
+
 ### Changed
 
 - **A swipe row's actions are at most 64dp tall**, a two-line row's height,

@@ -127,8 +127,9 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param barItemWidth How wide the bar's destinations are; see [NavBarItemWidth].
  * @param barMarker What marks the bar's current destination; see [NavBarMarker].
  *   A rail's marker is its own.
- * @param barMarkerDraggable Whether the bar's marker can be dragged between
- *   destinations; see [NavBar]'s `markerDraggable`. A rail's cannot: it scrolls.
+ * @param barMarkerDrag Whether the bar's marker can be dragged between
+ *   destinations, and when a drag chooses one; see [NavBarMarkerDrag]. A
+ *   rail's cannot be dragged: it scrolls.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
  *   the bar, which does not; a rail shows labels whenever it is wide enough.
  * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
@@ -155,7 +156,7 @@ fun NavigationSuiteScaffold(
     barShape: Shape? = null,
     barItemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     barMarker: NavBarMarker = NavBarDefaults.destinationMarker(),
-    barMarkerDraggable: Boolean = true,
+    barMarkerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -195,7 +196,7 @@ fun NavigationSuiteScaffold(
                     shape = barShape,
                     itemWidth = barItemWidth,
                     marker = barMarker,
-                    markerDraggable = barMarkerDraggable,
+                    markerDrag = barMarkerDrag,
                 ) {
                     destinations()
                 }
