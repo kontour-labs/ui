@@ -17,16 +17,19 @@ from the version the app is on.
 
 ## 0.3 to 0.4
 
-From 0.3.0 to 0.4.0. One parameter is replaced, and a few things look or behave
-differently enough to check.
+From 0.3.0 to 0.4.0, released on 2 October 2026. One parameter is replaced,
+and a few things look or behave differently enough to check.
 
 ### Before you start
 
 - **Move all three modules at once.** `ui`, `ui-nav3` and `haptics` are one
-  version. See [Installing](installing.md).
+  version: in a version catalog, `kontour = "0.4.0"`. See
+  [Installing](installing.md).
 - **Rebuild anything compiled against 0.3.** Functions that took a new parameter
-  changed their signature, and a library of your own built against 0.3 fails
-  when it calls one, until it is rebuilt.
+  changed their signature — a chip's content is a `ChipScope` now, and
+  `Strings` has four more words — and a library of your own built against 0.3
+  fails when it calls one, until it is rebuilt. Source that calls them compiles
+  as it was.
 
 ### `markerDraggable` is now `markerDrag`
 
@@ -81,6 +84,14 @@ a full sheet changes by that strip.
 A `TopBar(onBack = if (backStack.size > 1) … else null)` shows its button on the
 root page while the page over it is swiped away: the stack holds both until the
 gesture ends. Pass `onBack = pageBack()` instead.
+
+### Check: a field with focus when a modal opens
+
+A dialog or a modal sheet opening takes the focus off a text field on the page,
+or in an overlay under it, and on a phone its keyboard goes. A screen that
+opened a dialog to ask about what was being typed, and expected the field to
+keep the focus, has to give it back when the dialog closes. A menu or a
+combobox's list leaves the field it opened from focused, as before.
 
 ### Check: overlays in a container short of the window
 

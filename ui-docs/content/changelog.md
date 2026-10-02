@@ -24,7 +24,17 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.0 — 2 October 2026
+
+Pages that cover the nav bar on one back stack, a back button that knows its
+page, three new components and a tag inside a chip, a sheet that reaches the top
+of the window and clears the keyboard once, and one break: `markerDraggable`.
+[Migrating](migrating.md#03-to-04) has everything an upgrade from 0.3 has to
+change, as code.
 
 ### Breaking
 
