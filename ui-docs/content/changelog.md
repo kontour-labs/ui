@@ -104,6 +104,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   inside the scaffold that is not written in its `content`. See
   [Navigation 3](navigation3.md#pages-inside-the-nav-bar-and-pages-over-it).
 
+- **A tag at the end of a chip:** `FilterChip { +"Buses"; tag { +"3" } }`. A
+  count or a "New" inside the chip's pill, read with the chip as one, "Buses,
+  3"; the chip's end comes in so the tag sits concentric with it. `Chip`,
+  `FilterChip` and `InputChip` take their content as a `ChipScope`, which is a
+  `RowContentScope` with `tag` added, so every existing chip compiles as it
+  was. See [`Chip`](components/chip.md#a-count-at-the-end).
+
 ### Fixed
 
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom

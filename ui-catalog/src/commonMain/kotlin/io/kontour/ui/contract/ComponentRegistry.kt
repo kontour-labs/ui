@@ -632,6 +632,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         +"Bus"
                     }
                 },
+                // A count at its end, in a neutral tag a step off the chip's
+                // sunken ground, the chip's end brought in round it.
+                RenderState("tag") { modifier ->
+                    Chip(onClick = {}, modifier = modifier) {
+                        +"Bus"
+                        tag { +"3" }
+                    }
+                },
             ),
         ) { modifier, enabled, onClick ->
             Chip(onClick = onClick, modifier = modifier, enabled = enabled) { +"Bus" }
@@ -651,6 +659,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // `selected` and nothing else.
                 RenderState("selected") { modifier ->
                     FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) { +"Bus" }
+                },
+                // Selected, with an accent count: solid on the accent tint.
+                RenderState("tag") { modifier ->
+                    FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) {
+                        +"Bus"
+                        tag(Tone.Accent) { +"3" }
+                    }
                 },
             ),
         ) { modifier, enabled, onClick ->

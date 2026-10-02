@@ -1323,6 +1323,14 @@ public final class io/kontour/ui/components/selection/ChipKt {
 	public static final fun InputChip (Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLandroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public abstract interface class io/kontour/ui/components/selection/ChipScope : io/kontour/ui/foundation/RowContentScope {
+	public abstract fun tag (Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class io/kontour/ui/components/selection/ChipScope$ComposeDefaultImpls {
+	public static final fun tag$default (Lio/kontour/ui/theme/Tone;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/components/selection/ChipScope;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/components/selection/ColourChannel : java/lang/Enum {
 	public static final field Alpha Lio/kontour/ui/components/selection/ColourChannel;
 	public static final field Blue Lio/kontour/ui/components/selection/ColourChannel;

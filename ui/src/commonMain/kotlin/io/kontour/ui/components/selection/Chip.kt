@@ -23,6 +23,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.offset
+import io.kontour.ui.foundation.RowContentScopeImpl
+import io.kontour.ui.theme.Tone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -36,6 +47,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.interaction.rememberToggleFeedback
@@ -109,13 +121,14 @@ fun Chip(
      */
     contentKey: Any? = null,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowContentScope.() -> Unit
+    content: @Composable ChipScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val shape = Theme.shapes.control
 
     ChipSurface(
+        enabled = enabled,
         modifier = modifier
             // Target first, then the visuals — the order every other component
             // in the library uses, and the one `Modifier.minimumTouchTarget`'s
@@ -164,9 +177,9 @@ fun Chip(
  * content this way for the same reason; only the keyed path was missing it.
  */
 @Composable
-private fun RowContentScope.KeyedChipContent(
+private fun ChipScope.KeyedChipContent(
     key: Any?,
-    content: @Composable RowContentScope.() -> Unit,
+    content: @Composable ChipScope.() -> Unit,
 ) {
     if (key == null) {
         content()
@@ -223,13 +236,14 @@ fun FilterChip(
     enabled: Boolean = true,
     selectedIcon: ImageVector? = null,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowContentScope.() -> Unit
+    content: @Composable ChipScope.() -> Unit
 ) {
     val toggled = rememberToggleFeedback()
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
     val shape = Theme.shapes.control
+    val ends = remember { ChipEnds() }
     // At the enhanced tier the selected chip keeps an edge, in the accent: its
     // tint alone is 1.25:1 from the page.
     val selectedBorder = selectionEdge()?.let { colours.accent.solid } ?: colours.outlineStrong.invisible()
@@ -294,7 +308,7 @@ fun FilterChip(
                         )
                 },
             )
-            .padding(horizontal = Theme.spacing.sm),
+            .chipPadding(ends),
         // No `spacedBy`: the tick carries its own gap, so the row does not lose
         // it in one frame when the tick leaves composition. See `AnimatedSlot`.
         verticalAlignment = Alignment.CenterVertically,
@@ -332,11 +346,9 @@ fun FilterChip(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ProvideTextStyle(Theme.typography.labelMedium) {
-                    contentScope(
-                        iconSize = Theme.sizing.iconSmall,
-                        maxLines = 1,
-                        content = content,
-                    )
+                    // A neutral tag on the page's own ground until the chip
+                    // fills in, so it does not vanish into it.
+                    chipContent(enabled, ends, if (selected) colours.surface else colours.surfaceSunken, content)
                 }
             }
         }
@@ -372,7 +384,7 @@ fun InputChip(
     removeIcon: ImageVector? = SystemIcons.Close,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowContentScope.() -> Unit
+    content: @Composable ChipScope.() -> Unit
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
@@ -407,11 +419,9 @@ fun InputChip(
             LocalContentColour provides if (enabled) colours.content else colours.contentDisabled
         ) {
             ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(
-                    iconSize = Theme.sizing.iconSmall,
-                    maxLines = 1,
-                    content = content,
-                )
+                // Its tag is not at its end — the remove button is — so the end
+                // keeps its padding.
+                chipContent(enabled, remember { ChipEnds() }, colours.surface, content)
             }
             if (removeIcon != null) {
                 val removeInteractions = remember { MutableInteractionSource() }
@@ -464,10 +474,12 @@ fun ChipGroup(
 
 @Composable
 private fun ChipSurface(
+    enabled: Boolean,
     modifier: Modifier,
     contentColour: Color,
-    content: @Composable RowContentScope.() -> Unit
+    content: @Composable ChipScope.() -> Unit
 ) {
+    val ends = remember { ChipEnds() }
     Row(
         // No `minimumTouchTarget` here, and that is the fix rather than an
         // omission.
@@ -484,18 +496,158 @@ private fun ChipSurface(
         // puts it now — see [Chip].
         modifier = modifier
             .heightIn(min = ChipHeight)
-            .padding(horizontal = Theme.spacing.sm),
+            .chipPadding(ends),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(LocalContentColour provides contentColour) {
             ProvideTextStyle(Theme.typography.labelMedium) {
-                contentScope(
-                    iconSize = Theme.sizing.iconSmall,
-                    maxLines = 1,
-                    content = content,
-                )
+                chipContent(enabled, ends, Theme.colours.surface, content)
             }
         }
     }
 }
+
+/**
+ * What a chip's content can hold: a label and an icon, as any control's can,
+ * and a [tag] after them.
+ */
+@LayoutScopeMarker
+@Stable
+interface ChipScope : RowContentScope {
+    /**
+     * A small tag at the end of the chip, inside its pill: a count, "New".
+     *
+     * ```kotlin
+     * FilterChip(selected = buses, onSelectedChange = { buses = it }) {
+     *     +"Buses"
+     *     tag { +"3" }
+     * }
+     * ```
+     *
+     * Part of the chip, not a control or a label of its own: a screen reader
+     * reads the two as one, "Buses, 3". Put it last. The chip then brings its end
+     * in, so the tag's round end sits concentric with the chip's.
+     *
+     * A [Tone.Neutral] tag is a step off the chip's own ground; any other tone
+     * is that tone's solid colour. On a disabled chip it is grey whatever its
+     * tone.
+     */
+    @Composable
+    fun tag(tone: Tone = Tone.Neutral, content: @Composable RowContentScope.() -> Unit)
+}
+
+private class ChipScopeImpl(
+    row: RowScope,
+    private val enabled: Boolean,
+    private val ends: ChipEnds,
+    private val neutral: Color,
+    iconSize: Dp,
+    uppercase: Boolean,
+) : RowContentScopeImpl(row, iconSize = iconSize, maxLines = 1, uppercase = uppercase), ChipScope {
+
+    @Composable
+    override fun tag(tone: Tone, content: @Composable RowContentScope.() -> Unit) {
+        DisposableEffect(ends) {
+            ends.tags++
+            onDispose { ends.tags-- }
+        }
+        ChipTag(tone, enabled, neutral, content)
+    }
+}
+
+/** Runs a chip's content in its [ChipScope]. A label, so never part of a text selection. */
+@Composable
+private fun RowScope.chipContent(
+    enabled: Boolean,
+    ends: ChipEnds,
+    neutral: Color,
+    content: @Composable ChipScope.() -> Unit,
+) {
+    val iconSize = Theme.sizing.iconSmall
+    val uppercase = Theme.componentDefaults.uppercaseLabels
+    DisableSelection {
+        ChipScopeImpl(this, enabled, ends, neutral, iconSize, uppercase).content()
+    }
+}
+
+/** Whether a chip holds a tag, which brings its end in. Read in layout only. */
+private class ChipEnds {
+    var tags by mutableIntStateOf(0)
+}
+
+/**
+ * A chip's padding at the sides: [Theme.spacing] `sm`, and `xs` at the end
+ * that holds a tag, which is what puts an 18dp tag's round end concentric with
+ * a 34dp chip's. Worked out in layout, so a tag arriving re-places the chip's
+ * content without recomposing it.
+ */
+@Composable
+private fun Modifier.chipPadding(ends: ChipEnds): Modifier {
+    val side = Theme.spacing.sm
+    val tagged = Theme.spacing.xs
+    return layout { measurable, constraints ->
+        val start = side.roundToPx()
+        val end = (if (ends.tags > 0) tagged else side).roundToPx()
+        val placeable = measurable.measure(constraints.offset(horizontal = -(start + end)))
+        layout(
+            (placeable.width + start + end).coerceIn(constraints.minWidth, constraints.maxWidth),
+            placeable.height.coerceIn(constraints.minHeight, constraints.maxHeight),
+        ) { placeable.placeRelative(start, 0) }
+    }
+}
+
+/**
+ * The tag itself: [labelSmall][io.kontour.ui.theme.Typography.labelSmall] in a
+ * capsule, with no semantics of its own, so the chip that holds it reads it.
+ */
+@Composable
+private fun ChipTag(
+    tone: Tone,
+    enabled: Boolean,
+    neutral: Color,
+    content: @Composable RowContentScope.() -> Unit,
+) {
+    val colours = Theme.colours
+    val role = when (tone) {
+        Tone.Neutral -> null
+        Tone.Info -> colours.info
+        Tone.Accent -> colours.accent
+        Tone.Success -> colours.success
+        Tone.Warning -> colours.warning
+        Tone.Danger -> colours.danger
+    }
+    val container = when {
+        !enabled -> colours.surfaceSunken
+        role == null -> neutral
+        else -> role.solid
+    }
+    val ink = when {
+        !enabled -> colours.contentDisabled
+        role == null -> colours.contentMuted
+        else -> role.onSolid
+    }
+    val shape = Theme.shapes.capsule
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(container, shape)
+            // A neutral tag is a step off its chip's ground, which is nothing at
+            // the enhanced tier; a solid one needs no help.
+            .optionalBorder(if (role == null || !enabled) contrastEdge() else null, shape)
+            .padding(horizontal = ChipTagPaddingH, vertical = ChipTagPaddingV),
+        horizontalArrangement = Arrangement.spacedBy(ChipTagGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompositionLocalProvider(LocalContentColour provides ink) {
+            ProvideTextStyle(Theme.typography.labelSmall) {
+                contentScope(iconSize = ChipTagIconSize, maxLines = 1, content = content)
+            }
+        }
+    }
+}
+
+private val ChipTagPaddingH = 6.dp
+private val ChipTagPaddingV = 2.dp
+private val ChipTagGap = 2.dp
+private val ChipTagIconSize = 12.dp

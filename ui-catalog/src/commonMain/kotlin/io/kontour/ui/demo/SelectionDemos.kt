@@ -34,6 +34,7 @@ import io.kontour.ui.components.selection.ColourPickerMode
 import io.kontour.ui.components.selection.ColourSwatchPicker
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.components.selection.InputChip
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.selection.KnobDefaults
 import io.kontour.ui.components.selection.RadioButton
 import io.kontour.ui.components.selection.RadioGroup
@@ -220,19 +221,30 @@ internal val SelectionRowDemo = ComponentDemo(slug = "selection-row", knobs = li
  */
 private val chipMorph = Knob.Flag("Morph", initial = true)
 
-internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph)) {
+/** A count in a tag at the end of each filter chip: `tag { +"3" }`. */
+private val chipCounts = Knob.Flag("Counts", initial = true)
+
+/** The counts' tone, neutral by default and any of the six. */
+private val chipTagTone = Knob.Choice("Count tone", Tone.entries.toList(), Tone.Neutral)
+
+internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph, chipCounts, chipTagTone)) {
     var buses by remember { mutableStateOf(true) }
     var trains by remember { mutableStateOf(false) }
     var cleared by remember { mutableStateOf(false) }
     var place by remember { mutableStateOf(true) }
     val morph = this[chipMorph]
+    val counts = this[chipCounts]
+    val tone = this[chipTagTone]
 
     ChipGroup {
         FilterChip(
             selected = buses,
             onSelectedChange = { buses = it },
             selectedIcon = Tabler.Outline.Check,
-        ) { +"Buses" }
+        ) {
+            +"Buses"
+            if (counts) tag(tone) { +"3" }
+        }
         FilterChip(
             selected = trains,
             onSelectedChange = { trains = it },
@@ -240,6 +252,7 @@ internal val ChipDemo = ComponentDemo(slug = "chip", knobs = listOf(chipMorph)) 
         ) {
             +Tabler.Outline.Bus
             +"Trains"
+            if (counts) tag(tone) { +"12" }
         }
         // One chip changing its mind, not one leaving and another arriving —
         // which is why both states are the same `Chip` rather than an

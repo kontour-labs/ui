@@ -62,6 +62,26 @@ in a row of five chips tells a screen-reader user nothing about which one goes.
 The remove button is a separate target with its own description, so a screen
 reader offers "Perth Station" and "Remove Perth Station" as distinct actions.
 
+### A count at the end
+
+```kotlin
+FilterChip(selected = buses, onSelectedChange = { buses = it }) {
+    +"Buses"
+    tag { +"3" }
+}
+```
+
+`tag` puts a small tag at the end of the chip, inside its pill: a count of what
+the filter would show, "New". It goes last, and the chip brings its end in for
+it, so the tag's round end sits as far from the chip's as from its top and
+bottom. A `Tone.Neutral` tag, the default, is a step off the chip's own ground;
+any other tone is that tone's solid colour, which on a selected chip reads
+against the accent tint. On a disabled chip it is grey, whatever its tone.
+
+It is part of the chip, not a [`Tag`](tag.md) placed in it. A `Tag` is a label
+of its own to a screen reader, so a chip holding one was two stops, "Buses" and
+then "3"; the chip's tag is read with it, "Buses, 3".
+
 `ChipGroup` wraps onto new lines rather than scrolling horizontally — a
 scrolling row hides options off the edge of the screen.
 
@@ -78,7 +98,7 @@ That last one matters: an input chip with no remove label is a chip a user can
 add and never take off.
 
 The selected tick is decorative and cleared; the state is announced by the role,
-not by the icon.
+not by the icon. A `tag` is read as part of the chip, after its label.
 
 At high contrast a `FilterChip`'s border is drawn thicker, and a selected one
 keeps an edge in the accent round its tint. `Chip` and `InputChip`, whose sunken
