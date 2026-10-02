@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -782,6 +783,30 @@ fun OverlayHost(
     // it gives it back to a finger — see `OverlayHostState.letGo`.
     val shutBy = topDimmedEntry(state.visible)
 
+    // **A modal opening takes the focus off whatever had it**, so a text field
+    // under it lets go, and on a phone its keyboard goes with it. Asked for in
+    // those words: "when a dialog or something pops up, any text fields lose
+    // focus (and therefore, the ime will hide)". The field kept its focus and
+    // its caret behind the dim, and its keyboard stayed up over the dialog.
+    //
+    // Only when a *new* modal comes to the top: one that dims, so a menu or a
+    // combobox's list — opened from a field, which goes on typing — leaves the
+    // focus where it is, and one that was not already open below, so closing
+    // a dialog over a sheet does not take the focus off the sheet again.
+    //
+    // A `SideEffect`, which runs as this composition is applied: before any
+    // effect launched by the modal's own content, so a modal that asks for the
+    // focus in itself — a command palette's field — has it given to it after
+    // the page's is taken away, not before.
+    val focusManager = LocalFocusManager.current
+    val opened = remember { OpenedModals() }
+    SideEffect {
+        val top = shutBy?.key
+        if (top != null && top != opened.top && top !in opened.dimmed) focusManager.clearFocus(force = true)
+        opened.top = top
+        opened.dimmed = state.visible.filter { it.scrim == ScrimStyle.Dimmed }.mapTo(HashSet()) { it.key }
+    }
+
     // Back goes to the page only while no overlay takes it. The page's
     // dispatcher is disabled rather than its handlers outranked, so it does not
     // matter what the page registers or when: a navigation stack composed after
@@ -918,6 +943,12 @@ fun OverlayHost(
             }
         }
     }
+}
+
+/** The modals that were open at the last composition: which was on top, and every one that dims. */
+private class OpenedModals {
+    var top: Any? = null
+    var dimmed: Set<Any> = emptySet()
 }
 
 /**

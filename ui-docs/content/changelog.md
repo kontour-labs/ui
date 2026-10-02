@@ -49,6 +49,11 @@ On `main`, and in the next release.
   `ListItem` draws itself disabled.** Before, it looked as if it could still be
   changed unless it was given `enabled = false` as well.
 
+- **A modal opening takes the focus off whatever had it, in another overlay
+  too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
+  opens over the sheet. Before, only the page lost its focus. A menu or a
+  combobox's list leaves the field it opened from focused, as before.
+
 ### Added
 
 - [`CircularStepProgress`](components/progress.md): `StepProgress` round a

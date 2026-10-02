@@ -385,6 +385,19 @@ walk into content behind a modal is a modal in name only.
 
 Each overlay gets a `traversalIndex` above the content, in stack order.
 
+### A modal opening puts the keyboard away
+
+**A modal coming to the top takes the focus off whatever had it**, so a text
+field under it lets go, and its keyboard goes with it. That includes a field in
+another overlay: a field in a sheet loses focus when a dialog opens over the
+sheet. It used to keep its focus, and its keyboard stayed up over the dialog.
+
+Only a modal does this, meaning an overlay that dims. A menu, or a combobox's list, opens
+*from* a field that goes on taking typing, so it leaves the focus where it is.
+A modal that puts the focus in itself, as `CommandPalette` does with its
+field, still gets it: the focus behind it goes first, and its own request
+comes after. Closing a dialog over a sheet takes nothing from the sheet.
+
 ### A press on nothing puts the keyboard away
 
 `OverlayHost` also owns the other half of focus, which is losing it. A press that
