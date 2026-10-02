@@ -25,6 +25,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -445,6 +446,8 @@ private fun EntryHost(
     /** The keys of the entries above this one that blur what is behind them. */
     blurredBy: List<Any>,
     takesBack: Boolean,
+    /** Told which entry the focus is in, so a modal is not taken out of its own. */
+    opened: OpenedModals,
 ) {
     val motion = Theme.motion
     val leaving = state.isLeaving(entry.key)
@@ -604,6 +607,9 @@ private fun EntryHost(
             // it: a dialog over a sheet blurs the sheet too, not only the strip
             // of page beside it. See [blurredBehind].
             .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
+            .onFocusChanged { focus ->
+                if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
+            }
     ) {
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,
@@ -792,7 +798,10 @@ fun OverlayHost(
     // Only when a *new* modal comes to the top: one that dims, so a menu or a
     // combobox's list — opened from a field, which goes on typing — leaves the
     // focus where it is, and one that was not already open below, so closing
-    // a dialog over a sheet does not take the focus off the sheet again.
+    // a dialog over a sheet does not take the focus off the sheet again. And
+    // never from inside the modal itself: one that has put the focus in its
+    // own field by the time it counts as on top — an expanded search, which
+    // is only on top once its morph is under way — keeps it.
     //
     // A `SideEffect`, which runs as this composition is applied: before any
     // effect launched by the modal's own content, so a modal that asks for the
@@ -802,7 +811,9 @@ fun OverlayHost(
     val opened = remember { OpenedModals() }
     SideEffect {
         val top = shutBy?.key
-        if (top != null && top != opened.top && top !in opened.dimmed) focusManager.clearFocus(force = true)
+        if (top != null && top != opened.top && top !in opened.dimmed && opened.focusIn != top) {
+            focusManager.clearFocus(force = true)
+        }
         opened.top = top
         opened.dimmed = state.visible.filter { it.scrim == ScrimStyle.Dimmed }.mapTo(HashSet()) { it.key }
     }
@@ -938,6 +949,7 @@ fun OverlayHost(
                             .filter { it.scrim == ScrimStyle.Dimmed && it.backdrop.blurs }
                             .map { it.key },
                         takesBack = entry === backTarget,
+                        opened = opened,
                     )
                 }
             }
@@ -945,10 +957,14 @@ fun OverlayHost(
     }
 }
 
-/** The modals that were open at the last composition: which was on top, and every one that dims. */
+/**
+ * The modals that were open at the last composition — which was on top, and
+ * every one that dims — and the entry the focus is in, if it is in one.
+ */
 private class OpenedModals {
     var top: Any? = null
     var dimmed: Set<Any> = emptySet()
+    var focusIn: Any? = null
 }
 
 /**
