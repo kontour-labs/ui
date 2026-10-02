@@ -111,6 +111,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   `RowContentScope` with `tag` added, so every existing chip compiles as it
   was. See [`Chip`](components/chip.md#a-count-at-the-end).
 
+- [`HeroTopBar`](components/top-bar.md#herotopbar-a-large-bar-over-a-picture):
+  a `Large` bar over a picture that runs under the status bar, collapsing into
+  a `Small` bar as `Large` does. The bar's colour fades in under the title
+  only, so the title reads on any picture and the rest is left alone; the
+  back button and actions sit on discs of the bar's colour until it collapses.
+  `TopBarDefaults.HeroHeight`, 280dp, from `ComponentDefaults.topBarHeroHeight`.
+
 ### Fixed
 
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom

@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -30,6 +31,7 @@ import io.kontour.ui.components.display.Badge
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
+import io.kontour.ui.nav.HeroTopBar
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
@@ -64,6 +66,27 @@ fun TopBarCollapsing() {
         ) {
             +"Perth Underground"
             supporting { +"Platform 2" }
+        }
+        LazyColumn {
+            stopRows()
+        }
+    }
+}
+
+@Composable
+fun HeroTopBarCollapsing() {
+    val collapse = rememberTopBarCollapseState()
+
+    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+        // The picture runs under the status bar; the title stands on the
+        // bar's colour, faded in under it, and collapses as a Large bar does.
+        HeroTopBar(
+            image = { StopPhoto(Modifier.fillMaxSize()) },
+            onBack = { back() },
+            collapseState = collapse,
+        ) {
+            +"Kings Park"
+            supporting { +"Fraser Avenue" }
         }
         LazyColumn {
             stopRows()

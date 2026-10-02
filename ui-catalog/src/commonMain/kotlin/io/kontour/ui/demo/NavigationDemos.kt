@@ -60,6 +60,9 @@ import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import io.kontour.ui.nav.HeroTopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
@@ -427,12 +430,16 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(
 private val topBarStyle = Knob.Choice("Style", TopBarStyle.entries.toList(), TopBarStyle.Small)
 private val topBarBack = Knob.Flag("Back", initial = true)
 
+/** A [HeroTopBar] over a picture instead: the Large bar's collapse, with a picture under the title. */
+private val topBarHero = Knob.Flag("Hero")
+
 internal val TopBarDemo = ComponentDemo(
     slug = "top-bar",
-    knobs = listOf(topBarStyle, topBarBack),
+    knobs = listOf(topBarStyle, topBarBack, topBarHero),
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
+    val hero = this[topBarHero]
     // Over a list that scrolls, which is the only way to see a Large bar
     // collapse: the bar takes the scroll until its title has gone up into
     // the first line, then the rows move.
@@ -444,15 +451,36 @@ internal val TopBarDemo = ComponentDemo(
                 .background(Theme.colours.background)
                 .nestedScroll(collapse.nestedScrollConnection),
         ) {
-            TopBar(
-                style = style,
-                onBack = if (back) ({ echo("Back") }) else null,
-                showDivider = true,
-                actions = { OverflowMenu(::echo) },
-                collapseState = collapse,
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
+            if (hero) {
+                HeroTopBar(
+                    image = {
+                        // A dusk over the river, drawn: pale at the top, dark at
+                        // the foot, so the fade under the title has work to do.
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.verticalGradient(listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF2B1F4A))),
+                            ),
+                        )
+                    },
+                    onBack = if (back) ({ echo("Back") }) else null,
+                    actions = { OverflowMenu(::echo) },
+                    expandedHeight = 200.dp,
+                    collapseState = collapse,
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
+            } else {
+                TopBar(
+                    style = style,
+                    onBack = if (back) ({ echo("Back") }) else null,
+                    showDivider = true,
+                    actions = { OverflowMenu(::echo) },
+                    collapseState = collapse,
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
             }
             LazyColumn(Modifier.fillMaxSize()) {
                 items(12) { index ->

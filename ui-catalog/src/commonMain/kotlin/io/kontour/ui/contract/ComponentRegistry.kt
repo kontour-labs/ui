@@ -104,6 +104,9 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.TopBar
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.background
+import io.kontour.ui.nav.HeroTopBar
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Carousel
@@ -2592,6 +2595,29 @@ val componentRegistry: List<ComponentSpec> = buildList {
     add(
         ComponentSpec("TopBar", role = null, underContract = false) { modifier, _, _ ->
             TopBar(modifier = modifier.width(SpecimenProseWidth)) { +"Perth Underground" }
+        }
+    )
+
+    add(
+        // Over a picture made to be hard: a dawn-to-dusk band that runs from pale
+        // to dark across the bar, so the title and the back button each meet
+        // both. Open, the title on the faded foot; the back button on its disc.
+        ComponentSpec("HeroTopBar", role = null, underContract = false, renderHeight = 240) { modifier, _, _ ->
+            HeroTopBar(
+                image = {
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.linearGradient(listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF2B1F4A))),
+                        ),
+                    )
+                },
+                modifier = modifier.width(SpecimenProseWidth),
+                onBack = {},
+                expandedHeight = 200.dp,
+            ) {
+                +"Kings Park"
+                supporting { +"Fraser Avenue" }
+            }
         }
     )
 

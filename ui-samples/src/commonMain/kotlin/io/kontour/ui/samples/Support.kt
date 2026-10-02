@@ -72,6 +72,10 @@ internal fun Screen() = Unit
 @Composable
 internal fun Hero(modifier: Modifier = Modifier) = Unit
 
+/** A photograph of a place, where a sample needs a picture. */
+@Composable
+internal fun StopPhoto(modifier: Modifier = Modifier) = Unit
+
 /** The two things a rider reports about a stop, where a menu needs entries. */
 internal fun report() = Unit
 internal fun suggest() = Unit

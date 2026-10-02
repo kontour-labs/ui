@@ -193,6 +193,8 @@ data class ComponentDefaults(
     val navNestIndent: Dp = 24.dp,
     val topBarHeight: Dp = 56.dp,
     val topBarLargeHeight: Dp = 112.dp,
+    /** A [io.kontour.ui.nav.HeroTopBar] open: its picture's height, the status bar included. */
+    val topBarHeroHeight: Dp = 280.dp,
     val tabBarHeight: Dp = 48.dp,
 
     // --- Overlays and surfaces ---

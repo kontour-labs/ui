@@ -1,5 +1,7 @@
 # `TopBar`
 
+*Also on this page: `HeroTopBar`.*
+
 Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
 `Large`. `Centred` centres the title on the bar where it fits — the title alone
 decides, and a subtitle under it is fitted to the same width with an ellipsis —
@@ -58,6 +60,54 @@ collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
 for a bar drawn over its list rather than above it, and
 `collapseProgress(scrolled, distance)` from any two numbers.
 
+### `HeroTopBar`: a large bar over a picture
+
+<!--sample:HeroTopBarCollapsing-->
+```kotlin
+val collapse = rememberTopBarCollapseState()
+
+Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+    // The picture runs under the status bar; the title stands on the
+    // bar's colour, faded in under it, and collapses as a Large bar does.
+    HeroTopBar(
+        image = { StopPhoto(Modifier.fillMaxSize()) },
+        onBack = { back() },
+        collapseState = collapse,
+    ) {
+        +"Kings Park"
+        supporting { +"Fraser Avenue" }
+    }
+    LazyColumn {
+        stopRows()
+    }
+}
+```
+
+A `Large` bar with a picture behind it, for the page of a place, a person or an
+album. The picture runs to the window's top, under the status bar, and is
+`expandedHeight` tall, 280dp by default, or taller if the title needs it. The
+controls stay below the status bar, and the title rests at the foot, as a
+`Large` bar's does.
+
+**Only the part under the title fades.** The bar's colour comes in over the
+picture from a little above the title to the bar's foot, eased so there is no
+line where it starts, and nearly whole by the title's top, so the title reads
+on whatever the picture is. The rest of the picture is left alone. The title
+keeps the bar's `contentColour`, as on any bar.
+
+**The controls carry their own ground.** Over the picture, the back button and
+each action sit on a disc of the bar's colour, so a dark glyph is not lost on a
+dark photograph. The discs go as the bar collapses.
+
+**It collapses as `Large` does**, with the same `collapseState` or
+`collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
+travels into the first line, the picture rises behind the bar at half the
+speed and fades out over the second half of the way.
+
+It is a component of its own rather than a fourth `TopBarStyle`, because the
+picture is required, it runs under the status bar where no other bar draws, and
+the title stands on a ground the picture is part of.
+
 ### The back button
 
 `onBack = null` draws no back button. In a page that a navigation host shows,
@@ -91,6 +141,13 @@ At high contrast the bar takes the enhanced scheme's colours and adds no edge of
 its own — it is the page's ground by default — and the rule `showDivider` draws
 under it thickens with the tier. The back button is a ghost
 [`IconButton`](icon-button.md), so it gains a ring there.
+
+A `HeroTopBar`'s picture is hidden from screen readers: the title says what
+the page is about, and a picture behind a bar is decoration. Put a description
+of it in the page if it says something the title does not. At high contrast
+the fade under the title is solid ground, with nothing of the picture behind
+the words, and the discs behind the controls take an edge. Under reduced motion
+the picture does not rise as the bar collapses; it fades where it is.
 
 Reduced motion leaves the large title's collapse as it is: it is driven by the
 scroll position rather than by a clock, so the title moves only as the content
