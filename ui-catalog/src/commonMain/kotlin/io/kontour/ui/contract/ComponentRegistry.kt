@@ -117,6 +117,7 @@ import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ExpandingListItem
@@ -1970,6 +1971,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
             ),
         ) { modifier, _, _ ->
             StepProgress(current = 2, total = 5, modifier = modifier.fillMaxWidth())
+        }
+    )
+
+    add(
+        ComponentSpec(
+            "CircularStepProgress",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // The same working step as `StepProgress`'s, a still stub in the
+                // screenshot theme, and the ring with no gaps, which is one
+                // ring filled to the end of its step.
+                RenderState("working") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, working = true, modifier = modifier)
+                },
+                RenderState("gapless") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, gap = 0.dp, modifier = modifier)
+                },
+            ),
+        ) { modifier, _, _ ->
+            CircularStepProgress(current = 2, total = 5, modifier = modifier)
         }
     )
 

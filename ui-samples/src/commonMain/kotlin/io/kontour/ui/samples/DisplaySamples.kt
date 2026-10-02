@@ -61,6 +61,7 @@ import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StatTrend
+import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.ConnectorStyle
@@ -449,6 +450,12 @@ fun ProgressBasics() {
 
     // For a wizard, where the count is the story.
     StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+
+    // The same steps round a ring, for a space too small for a row.
+    CircularStepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+
+    // No gap: one continuous bar, filled to the end of the step.
+    StepProgress(current = 2, total = 4, gap = 0.dp, contentDescription = "Step 2 of 4")
 }
 
 @Composable

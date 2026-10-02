@@ -967,6 +967,7 @@ public final class io/kontour/ui/components/display/ProgressDefaults {
 
 public final class io/kontour/ui/components/display/ProgressKt {
 	public static final fun CircularProgress-kPsmdy8 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;FJJFLandroidx/compose/runtime/Composer;II)V
+	public static final fun CircularStepProgress-vJFcvow (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZJJFFFLandroidx/compose/runtime/Composer;II)V
 	public static final fun LinearProgress-2poqoh4 (Ljava/lang/Float;Landroidx/compose/ui/Modifier;Ljava/lang/String;JJFLandroidx/compose/runtime/Composer;II)V
 	public static final fun StepProgress-HtrY1DU (Ljava/lang/Integer;ILandroidx/compose/ui/Modifier;Ljava/lang/String;ZJJFFLandroidx/compose/runtime/Composer;II)V
 }

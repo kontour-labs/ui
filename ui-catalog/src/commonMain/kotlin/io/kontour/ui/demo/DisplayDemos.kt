@@ -39,6 +39,7 @@ import io.kontour.ui.components.display.AvatarCorner
 import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.ProgressDefaults
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
@@ -263,6 +264,13 @@ internal val ProgressDemo = ComponentDemo(
             // the knob reaches all three, and the third of them is a different
             // component drawn in the ring's place.
             CircularProgress(progress = if (indeterminate) null else 0.35f)
+            // The same steps as the row beside it, round a ring.
+            CircularStepProgress(
+                current = if (indeterminate) null else step,
+                total = 4,
+                working = working,
+                gap = gap,
+            )
             // Two unknowns, and the knobs show they are different. No current
             // step walks one lit segment along the row — "somewhere in this
             // sequence, not yet known". `working` keeps the step and animates

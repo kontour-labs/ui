@@ -37,6 +37,12 @@ On `main`, and in the next release.
   that stops round at the end of its step. Before, its segments met at their
   round ends and the bar pinched at every step.
 
+### Added
+
+- [`CircularStepProgress`](components/progress.md): `StepProgress` round a
+  ring, one arc a step from twelve o'clock, through the same animation.
+  `gap = 0.dp` makes it one continuous ring.
+
 ---
 
 ## 0.3.0 — 30 September 2026

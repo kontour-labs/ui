@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.StepProgress
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -88,6 +89,17 @@ class IdleAnimationTest {
     fun aSettledStepRowIsNotAnAnimation() = assertSettles("StepProgress at rest") {
         StepProgress(current = 2, total = 4, working = false, modifier = Modifier.width(200.dp))
     }
+
+    @Test
+    fun aSettledStepRingIsNotAnAnimation() = assertSettles("CircularStepProgress at rest") {
+        CircularStepProgress(current = 2, total = 4, working = false)
+    }
+
+    @Test
+    fun reducedMotionStopsTheStepRingsChase() =
+        assertSettles("CircularStepProgress(current = null) under reduced motion", reduceMotion = true) {
+            CircularStepProgress(current = null, total = 4)
+        }
 
     @Test
     fun reducedMotionStopsTheIndeterminateSweep() =
