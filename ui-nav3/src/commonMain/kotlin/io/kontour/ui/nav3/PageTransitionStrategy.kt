@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.takeOrElse
@@ -17,9 +18,11 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.motion.LocalBackStyle
+import io.kontour.ui.motion.LocalPageBack
 import io.kontour.ui.motion.PageMotion
 import io.kontour.ui.motion.contentSwipeBack
 import io.kontour.ui.motion.pageEffects
+import io.kontour.ui.motion.rememberPageBack
 import io.kontour.ui.motion.rememberPageMotion
 import io.kontour.ui.theme.Theme
 
@@ -80,7 +83,7 @@ internal class PageTransitionStrategy<T : Any>(
     private val gesture = GestureEdge()
 
     override fun SceneDecoratorStrategyScope<T>.decorateScene(scene: Scene<T>): Scene<T> =
-        if (scene is OverlayScene<T> || scene is PageScene<T>) scene else PageScene(scene, motion, contentSwipe, gesture)
+        if (scene is OverlayScene<T> || scene is PageScene<T>) scene else PageScene(scene, motion, contentSwipe, gesture, onBack)
 }
 
 /**
@@ -99,6 +102,8 @@ internal class PageScene<T : Any>(
     private val motion: PageMotion,
     private val contentSwipe: Boolean,
     private val gesture: GestureEdge = GestureEdge(),
+    /** Back with no dispatcher to go through, for [LocalPageBack]. Not in [equals]: a fresh lambda each time. */
+    private val onBack: () -> Unit = {},
 ) : Scene<T> {
 
     /**
@@ -130,6 +135,12 @@ internal class PageScene<T : Any>(
 
     override val content: @Composable () -> Unit = {
         val scope = LocalNavAnimatedContentScope.current
+        // `pageBack()` for everything in the page: there is somewhere to go
+        // back to exactly when this scene has pages behind it. A page under a
+        // back gesture is built from the entries *behind* the one leaving, so
+        // the root page shows no back button while the page over it is dragged
+        // away — where `backStack.size > 1` still counted the page leaving.
+        val back = rememberPageBack(enabled = inner.previousEntries.isNotEmpty(), fallback = onBack)
         Box(
             Modifier
                 .fillMaxSize()
@@ -142,7 +153,7 @@ internal class PageScene<T : Any>(
                 // claimed for a back the sheet does not take.
                 .contentSwipeBack(enabled = contentSwipe && inner.previousEntries.isNotEmpty())
         ) {
-            inner.content()
+            CompositionLocalProvider(LocalPageBack provides back) { inner.content() }
         }
     }
 

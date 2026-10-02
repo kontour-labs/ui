@@ -2618,6 +2618,12 @@ public final class io/kontour/ui/motion/MotionAxis : java/lang/Enum {
 	public static fun values ()[Lio/kontour/ui/motion/MotionAxis;
 }
 
+public final class io/kontour/ui/motion/PageBackKt {
+	public static final fun getLocalPageBack ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun pageBack (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function0;
+	public static final fun rememberPageBack (ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function0;
+}
+
 public final class io/kontour/ui/motion/PageMotion {
 	public static final field $stable I
 	public final fun getStyle ()Lio/kontour/ui/motion/BackStyle;

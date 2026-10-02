@@ -223,6 +223,35 @@ desktop and the web:
 4. `NavDisplay`, which pops the page;
 5. the platform.
 
+### A back button from the page
+
+```kotlin
+entry<StopDetail>(metadata = detailPane()) { stop ->
+    Column {
+        TopBar(onBack = pageBack()) { +stop.name }
+        Departures(stop)
+    }
+}
+```
+
+`pageBack()` is going back from the page it is read in, or null when back would
+not leave it: null at the root of the stack, and null in a list beside its open
+detail, where back takes the detail. The page under a back gesture is built from
+the entries behind the one leaving, so it reads null for the whole gesture.
+
+**Not the back stack's size.** `NavDisplay` pops only once a gesture has
+finished, so for the whole of it the stack still holds the page being swiped
+away, while the page beneath is already on screen. A back button shown while
+`backStack.size > 1` therefore appears on the root page as the page over it is
+dragged off.
+
+Pressed, it goes back the way the system's back does, through the same
+handlers: a page that asks before it discards changes is asked, a detail beside
+its list leaves its pane, and a page leaves with its pop animation. A page still
+on screen as it leaves does nothing when pressed. The pages, the detail and the
+supporting pane all provide it, a sheet's supporting pane included; a host of
+your own provides it with `LocalPageBack provides rememberPageBack(canGoBack, onBack)`.
+
 **Without Navigation 3.** The same motion is there for an app that runs its own
 `AnimatedContent` between pages. `rememberPageMotion()` gives a `PageMotion` for
 the platform's back style, whose `push()`, `pop()` and `predictivePop(edge)` are

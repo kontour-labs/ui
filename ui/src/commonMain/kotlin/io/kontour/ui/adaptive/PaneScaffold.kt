@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -54,8 +55,10 @@ import io.kontour.ui.foundation.VerticalDivider
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberEndStopLatch
+import io.kontour.ui.motion.LocalPageBack
 import io.kontour.ui.motion.contentSwipeBack
 import io.kontour.ui.motion.pageEffects
+import io.kontour.ui.motion.rememberPageBack
 import io.kontour.ui.motion.rememberPageMotion
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
@@ -357,6 +360,13 @@ private fun SinglePane(
 ) {
     val motion = rememberPageMotion()
     val back = rememberPaneBack(enabled = focus == PaneFocus.Detail, onBack = onBack)
+    // The detail's `pageBack()`: back to the list, through the handler above.
+    // The list keeps whatever the page round the scaffold says. Only while the
+    // detail is the focus: one sliding away is still composed, and a tap on its
+    // back button then would reach the page beneath instead.
+    val detailFocused by rememberUpdatedState(focus == PaneFocus.Detail)
+    val toList = rememberPageBack(enabled = true, fallback = onBack)
+    val detailBack: () -> Unit = remember(toList) { { if (detailFocused) toList?.invoke() } }
     val state = remember { SeekableTransitionState(focus) }
     if (back.inProgress && focus == PaneFocus.Detail) {
         // The hand has the list partly uncovered: seek towards it.
@@ -408,7 +418,7 @@ private fun SinglePane(
         ) {
             when (current) {
                 PaneFocus.List -> list()
-                PaneFocus.Detail -> detail()
+                PaneFocus.Detail -> CompositionLocalProvider(LocalPageBack provides detailBack) { detail() }
             }
         }
     }

@@ -58,6 +58,20 @@ collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
 for a bar drawn over its list rather than above it, and
 `collapseProgress(scrolled, distance)` from any two numbers.
 
+### The back button
+
+`onBack = null` draws no back button. In a page that a navigation host shows,
+pass `pageBack()`, which is null exactly when back would not leave the page:
+
+```kotlin
+TopBar(onBack = pageBack()) { +"Perth Busport" }
+```
+
+Not `backStack.size > 1`. During a back gesture the back stack still holds the
+page being swiped away, and the page under it is already on screen, so a button
+shown by the stack's size appears on the root page while the gesture runs. See
+[Navigation 3](../navigation3.md#a-back-button-from-the-page).
+
 ---
 
 ## Accessibility

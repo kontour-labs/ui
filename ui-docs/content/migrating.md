@@ -76,6 +76,12 @@ window, reaches the top of the window and draws under the status bar; its handle
 and header stay below the bar. It used to stop 12dp short. A screenshot test of
 a full sheet changes by that strip.
 
+### Check: a back button shown by the back stack's size
+
+A `TopBar(onBack = if (backStack.size > 1) … else null)` shows its button on the
+root page while the page over it is swiped away: the stack holds both until the
+gesture ends. Pass `onBack = pageBack()` instead.
+
 ### Check: overlays in a container short of the window
 
 A sheet, a side sheet, a dialog and a toast count only the part of each inset

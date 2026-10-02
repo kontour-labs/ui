@@ -3,6 +3,7 @@ package io.kontour.ui.nav3
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
@@ -13,6 +14,8 @@ import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.PaneFocus
 import io.kontour.ui.adaptive.PaneScaffoldDefaults
+import io.kontour.ui.motion.LocalPageBack
+import io.kontour.ui.motion.rememberPageBack
 
 /**
  * A list beside its detail when the window has room, and Navigation 3's own
@@ -168,15 +171,24 @@ internal class ListDetailScene<T : Any>(
         // move, and the key of this scene does not change, so `NavDisplay`
         // would not animate it. The scene answers first while it has a detail.
         val back = rememberSceneBack(enabled = detail != null, onBack = onBack)
+        // `pageBack()`: back from the detail pops it, through the handler above.
+        // The list has nowhere to go while a detail is beside it — back takes
+        // the detail — and the page's own back otherwise.
+        val page = LocalPageBack.current
+        val toList = rememberPageBack(enabled = detail != null, fallback = onBack)
         ListDetailPaneScaffold(
             // Irrelevant on two panes, which is the only way this scene exists;
             // stated so the reader does not have to know that.
             focus = if (detail == null) PaneFocus.List else PaneFocus.Detail,
             onBack = onBack,
-            list = { list.Content() },
+            list = {
+                CompositionLocalProvider(LocalPageBack provides if (detail != null) null else page) { list.Content() }
+            },
             detail = {
                 Box(Modifier.fillMaxSize().paneBackMotion(back)) {
-                    detail?.Content() ?: placeholder?.invoke()
+                    CompositionLocalProvider(LocalPageBack provides toList) {
+                        detail?.Content() ?: placeholder?.invoke()
+                    }
                 }
             },
             twoPane = true,

@@ -3,6 +3,7 @@ package io.kontour.ui.nav3
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,6 +17,8 @@ import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
+import io.kontour.ui.motion.LocalPageBack
+import io.kontour.ui.motion.rememberPageBack
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.PaneScaffoldDefaults
 import io.kontour.ui.adaptive.SupportingPaneScaffold
@@ -176,12 +179,22 @@ internal class SupportingPaneScene<T : Any>(
         // starts from rest.
         val back = rememberSceneBack(enabled = supporting != null, runOut = false, onBack = onBack)
         LaunchedEffect(supporting != null) { if (supporting != null) back.reset() }
+        // `pageBack()`: back from the supporting pane closes it, through the
+        // handler above. The main content has nowhere to go while the pane is
+        // open beside it — back closes the pane — and the page's own back
+        // otherwise.
+        val page = LocalPageBack.current
+        val closePane = rememberPageBack(enabled = supporting != null, fallback = onBack)
         val pane: @Composable () -> Unit = {
-            Box(Modifier.fillMaxSize().paneBackMotion(back)) { leaving.value?.Content() }
+            Box(Modifier.fillMaxSize().paneBackMotion(back)) {
+                CompositionLocalProvider(LocalPageBack provides closePane) { leaving.value?.Content() }
+            }
         }
 
         SupportingPaneScaffold(
-            main = { main.Content() },
+            main = {
+                CompositionLocalProvider(LocalPageBack provides if (supporting != null) null else page) { main.Content() }
+            },
             supporting = pane,
             supportingVisible = supporting != null,
             onDismissSupporting = onBack,
@@ -258,7 +271,10 @@ internal class SupportingSheetScene<T : Any>(
             onDismissRequest = onBack,
             state = state,
         ) {
-            supporting.Content()
+            // `pageBack()` closes the sheet, through the sheet's own back.
+            CompositionLocalProvider(LocalPageBack provides rememberPageBack(enabled = true, fallback = onBack)) {
+                supporting.Content()
+            }
         }
         // Word that the sheet is off the screen, for [onRemove] to wait on. Only
         // once it has been let go of: a sheet that has not arrived yet is also

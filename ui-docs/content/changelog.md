@@ -88,6 +88,14 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   ring, one arc a step from twelve o'clock, through the same animation.
   `gap = 0.dp` makes it one continuous ring.
 
+- **`pageBack()`**, for a back button: going back from the page it is read in,
+  or null when back would not leave it. `TopBar(onBack = pageBack())`. A button
+  shown while `backStack.size > 1` appeared on the root page during a back
+  gesture, because the stack holds the page leaving until the gesture ends. Set
+  by `:ui-nav3`'s pages and panes and a one-pane `ListDetailPaneScaffold`'s
+  detail; `LocalPageBack` and `rememberPageBack` for a host of your own. See
+  [Navigation 3](navigation3.md#a-back-button-from-the-page).
+
 ### Fixed
 
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom
