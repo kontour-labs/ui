@@ -599,6 +599,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("checked") { modifier ->
                     Switch(checked = true, onCheckedChange = {}, modifier = modifier)
                 },
+                // On, disabled: the thumb is the page's colour in the grey
+                // track. It was near-black on the light grey and white on the
+                // dark — the strongest thing on a control that could not be used.
+                RenderState("disabled") { modifier ->
+                    Switch(checked = true, onCheckedChange = {}, modifier = modifier, enabled = false)
+                },
             ),
         ) { modifier, enabled, onClick ->
             Switch(
@@ -747,6 +753,20 @@ val componentRegistry: List<ComponentSpec> = buildList {
             "Knob",
             role = null,
             activatedByClick = false,
+            states = listOf(
+                // In the disabled grey, its face the page's colour. It used to be
+                // the enabled knob at 38%, which keeps a coloured scale coloured.
+                RenderState("disabled") { modifier ->
+                    Knob(
+                        value = 0.4f,
+                        onValueChange = {},
+                        modifier = modifier,
+                        enabled = false,
+                        steps = 9,
+                        contentDescription = "Volume",
+                    )
+                },
+            ),
         ) { modifier, enabled, _ ->
             Knob(
                 value = 0.4f,
@@ -781,6 +801,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         minorTicks = 1,
                         modifier = modifier,
                     )
+                },
+                // A thumb the page's colour inside a ring of the disabled grey.
+                RenderState("disabled") { modifier ->
+                    Slider(value = 0.5f, onValueChange = {}, modifier = modifier, enabled = false)
                 },
             ),
         ) { modifier, enabled, _ ->

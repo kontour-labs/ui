@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.drawCheckMark
@@ -107,8 +108,10 @@ fun TriStateCheckbox(
     val shape = CheckboxShape
 
     val selected = state != ToggleableState.Off
+    // Drawn disabled when its row is, too. See `LocalRowEnabled`.
+    val shown = enabled && LocalRowEnabled.current
 
-    val stroke = selectionStroke(enabled)
+    val stroke = selectionStroke(shown)
 
     /**
      * How ticked the box is, counting the part the press is only predicting.
@@ -143,13 +146,13 @@ fun TriStateCheckbox(
     // disabled; how much of it there is comes from `filled`, so the box fills
     // and empties with the mark rather than a frame behind it.
     val containerBase = animateColorAsState(
-        targetValue = if (enabled) colours.primary else colours.contentDisabled,
+        targetValue = if (shown) colours.primary else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "checkboxContainer",
     )
     val border = animateColorAsState(
         targetValue = when {
-            !enabled -> colours.contentDisabled
+            !shown -> colours.contentDisabled
             selected -> colours.primary
             else -> colours.outlineStrong
         },
@@ -232,7 +235,7 @@ fun TriStateCheckbox(
                 drawCheckMark(
                     flatness = flatness.value,
                     progress = markProgress,
-                    colour = if (enabled) colours.onPrimary else colours.surface,
+                    colour = if (shown) colours.onPrimary else colours.surface,
                     strokeWidth = strokeWidth,
                 )
             }

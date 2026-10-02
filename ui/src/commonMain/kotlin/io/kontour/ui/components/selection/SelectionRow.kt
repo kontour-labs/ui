@@ -39,6 +39,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.rememberToggleFeedback
 import io.kontour.ui.interaction.rememberTapFeedback
+import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.interaction.kontourIndication
@@ -266,7 +267,7 @@ private fun SelectionRowFrame(
 ) {
     val colours = Theme.colours
     if (position != null) {
-        CompositionLocalProvider(LocalRowToggle provides rowToggle) {
+        CompositionLocalProvider(LocalRowToggle provides rowToggle, LocalRowEnabled provides enabled) {
             DisableSelection {
                 ListItemImpl(
                     modifier = modifier,
@@ -290,6 +291,7 @@ private fun SelectionRowFrame(
     CompositionLocalProvider(
         LocalRowInteractionSource provides interactions,
         LocalRowToggle provides rowToggle,
+        LocalRowEnabled provides enabled,
     ) {
         DisableSelection {
             Row(

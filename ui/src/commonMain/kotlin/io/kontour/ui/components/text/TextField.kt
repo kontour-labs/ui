@@ -269,7 +269,10 @@ fun TextField(
                 Text(
                     text = placeholder,
                     style = Theme.typography.bodyMedium,
-                    colour = colours.placeholder,
+                    // The disabled grey when disabled, as the text it stands in
+                    // for is. It kept its own colour, darker than that grey, so
+                    // an empty disabled field said more than a filled one.
+                    colour = if (enabled) colours.placeholder else colours.contentDisabled,
                     maxLines = 1,
                 )
             }

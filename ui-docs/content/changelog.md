@@ -36,6 +36,18 @@ On `main`, and in the next release.
 - **`StepProgress(gap = 0.dp)` is one continuous bar**, with no seams and a fill
   that stops round at the end of its step. Before, its segments met at their
   round ends and the bar pinched at every step.
+- **A disabled control is quieter than an enabled one, everywhere on it.** A
+  switch's thumb, a slider's and a range slider's thumbs and a knob's face are
+  the page's colour, where the switch's was near-black in light and white in
+  dark. A slider's thumb is ringed in the disabled grey. A disabled knob is
+  drawn in that grey rather than faded to 38%, which kept a coloured scale
+  coloured. A disabled rating's empty marks are fainter than its filled ones. A
+  stepper's value, and a field's placeholder, are in the disabled grey. See
+  [Accessibility](accessibility.md#disabled-is-quieter-everywhere-on-the-control).
+  `SliderDefaults.colours(thumbDisabled)` now defaults to `surface`.
+- **A checkbox, radio button or switch in a disabled `SelectionRow` or
+  `ListItem` draws itself disabled.** Before, it looked as if it could still be
+  changed unless it was given `enabled = false` as well.
 
 ### Added
 

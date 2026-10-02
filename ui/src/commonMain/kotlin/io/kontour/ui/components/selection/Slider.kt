@@ -733,7 +733,7 @@ fun Slider(
                             squashPx = band.offset * sense,
                             // A ring of the page colour keeps the thumb legible
                             // where it overlaps the filled track.
-                            ringColour = colours.thumbRing,
+                            ringColour = colours.thumbRing(enabled),
                             fillColour = thumbColour,
                             ringPx = thumbRingLine.toPx(),
                             capsule = pill,
@@ -787,6 +787,15 @@ data class SliderColours(
     internal fun indicator(enabled: Boolean): Color = if (enabled) indicator else indicatorDisabled
     internal fun track(enabled: Boolean): Color = if (enabled) track else trackDisabled
     internal fun thumb(enabled: Boolean): Color = if (enabled) thumb else thumbDisabled
+
+    /**
+     * The ring round the thumb: the page's colour, to part it from the fill it
+     * rides on, or, disabled, the disabled fill's grey, which is then what draws
+     * the thumb at all. A disabled thumb is the page's colour inside it — an
+     * outline of a handle, quieter than the grey disc it was and nothing like
+     * the solid one an enabled slider has.
+     */
+    internal fun thumbRing(enabled: Boolean): Color = if (enabled) thumbRing else indicatorDisabled
 }
 
 /** What [Slider] and [RangeSlider] take by default. */
@@ -807,7 +816,9 @@ object SliderDefaults {
         tickOnIndicator: Color = Theme.colours.onPrimary,
         indicatorDisabled: Color = Theme.colours.contentDisabled,
         trackDisabled: Color = Theme.colours.surfaceSunken,
-        thumbDisabled: Color = indicatorDisabled,
+        // The page's colour, inside a ring of the disabled grey: see
+        // `SliderColours.thumbRing`.
+        thumbDisabled: Color = Theme.colours.surface,
         valueLabel: Color = Theme.colours.surfaceInverse,
         valueLabelContent: Color = Theme.colours.onSurfaceInverse,
     ): SliderColours = SliderColours(

@@ -43,3 +43,16 @@ val LocalRowInteractionSource = staticCompositionLocalOf<InteractionSource?> { n
  * and there is nothing for a drag to express.
  */
 val LocalRowToggle = staticCompositionLocalOf<((Boolean) -> Unit)?> { null }
+
+/**
+ * Whether the row a control is sitting in is enabled.
+ *
+ * The other half of the same arrangement. A disabled `SelectionRow` greyed its
+ * label and left the checkbox in its trailing slot drawn as if it could be
+ * ticked, because the checkbox — `enabled` by default, and told nothing — had no
+ * way to know. Found by `DisabledQuietnessTest`: the box's edge was the one
+ * thing on a disabled row louder than the disabled grey. A selection control
+ * draws itself disabled when either it or its row is, so the caller says it
+ * once, on the row.
+ */
+internal val LocalRowEnabled = staticCompositionLocalOf { true }

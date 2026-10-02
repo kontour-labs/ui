@@ -35,9 +35,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.interaction.rememberToggleFeedback
-import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -145,6 +145,8 @@ fun Switch(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
+    // Drawn disabled when its row is, too. See `LocalRowEnabled`.
+    val shown = enabled && LocalRowEnabled.current
     // At the enhanced tier the thumb carries its state as a mark as well as a
     // position: a check when on, a dash when off. Position alone is a
     // difference of colour and place, and a reader who asked for more contrast
@@ -203,20 +205,26 @@ fun Switch(
     val trackOff by animateColorAsState(
         // `inactive`, which is `outlineStrong` at the standard tier and 3:1 from
         // `primary` at the enhanced one, where `outlineStrong` was 1.85.
-        targetValue = if (enabled) colours.inactive else colours.contentDisabled,
+        targetValue = if (shown) colours.inactive else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "switchTrackOff",
     )
     val trackOn by animateColorAsState(
-        targetValue = if (enabled) colours.primary else colours.contentDisabled,
+        targetValue = if (shown) colours.primary else colours.contentDisabled,
         animationSpec = motion.tweenFast(),
         label = "switchTrackOn",
     )
     // The thumb does not change colour, in either direction. A switch has one
     // moving part and one thing that changes behind it; recolouring the thumb as
     // well makes the flip read as two events.
+    //
+    // **Disabled, it is the ground's colour**, a hole in the grey track rather
+    // than a mark on it. It was the content colour for the disabled grey, which
+    // is near-black on the light grey and white on the dark one: a disabled
+    // switch had the strongest head on the page — "a very strong colour", as
+    // reported. A disabled control is never stronger than an enabled one.
     val thumbColour by animateColorAsState(
-        targetValue = if (enabled) colours.onPrimary else contentColourFor(colours.contentDisabled),
+        targetValue = if (shown) colours.onPrimary else colours.surface,
         animationSpec = motion.tweenFast(),
         label = "switchThumb",
     )

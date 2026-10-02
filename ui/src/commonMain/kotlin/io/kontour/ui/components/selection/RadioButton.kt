@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.rememberTapFeedback
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
@@ -57,12 +58,14 @@ fun RadioButton(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val colours = Theme.colours
     val motion = Theme.motion
+    // Drawn disabled when its row is, too. See `LocalRowEnabled`.
+    val shown = enabled && LocalRowEnabled.current
 
-    val stroke = selectionStroke(enabled)
+    val stroke = selectionStroke(shown)
 
     val ring by animateColorAsState(
         targetValue = when {
-            !enabled -> colours.contentDisabled
+            !shown -> colours.contentDisabled
             selected -> colours.primary
             else -> colours.outlineStrong
         },
@@ -155,7 +158,7 @@ fun RadioButton(
 
         if (dotScale > 0f) {
             drawCircle(
-                color = if (enabled) colours.primary else colours.contentDisabled,
+                color = if (shown) colours.primary else colours.contentDisabled,
                 radius = radius * 0.55f * dotScale,
             )
         }

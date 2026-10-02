@@ -472,7 +472,10 @@ object RatingDefaults {
         filled: Color = Theme.colours.warning.solid,
         empty: Color = Theme.colours.outlineStrong,
         filledDisabled: Color = Theme.colours.contentDisabled,
-        emptyDisabled: Color = Theme.colours.contentDisabled,
+        // Fainter than the filled marks, so a disabled rating still says what
+        // it is. Both were the disabled grey, and three stars of five read as
+        // five grey stars.
+        emptyDisabled: Color = Theme.colours.outline,
     ): RatingColours = RatingColours(filled, empty, filledDisabled, emptyDisabled)
 
     /**

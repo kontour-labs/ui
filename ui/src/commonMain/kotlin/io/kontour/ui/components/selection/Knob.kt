@@ -40,7 +40,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -71,6 +70,7 @@ import io.kontour.ui.components.display.dialArcs
 import io.kontour.ui.components.display.dialFill
 import io.kontour.ui.components.display.dialTicks
 import io.kontour.ui.components.display.readoutSlots
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -214,6 +214,10 @@ fun Knob(
     val sweep = sweepAngle.coerceIn(MinSweep, FullTurn)
     // A band's gaps, and an unbanded scale, are the dial's own colour.
     val scaleDefault = Theme.colours.primary
+    // Disabled, in the disabled grey rather than faded. It was drawn at 38% —
+    // and a faded scale is still its colours, so a knob with a green-to-red
+    // scale stayed green-to-red, and stronger than the grey switch beside it.
+    val dial = if (enabled) colours else disabledDial(colours)
     val span = valueRange.endInclusive - valueRange.start
 
     fun fractionOf(v: Float): Float = if (span <= 0f) 0f else ((v - valueRange.start) / span).coerceIn(0f, 1f)
@@ -366,7 +370,6 @@ fun Knob(
                 .minimumTouchTarget()
                 .focusRing(interactions, Theme.shapes.pill)
                 .size(side)
-                .alpha(if (enabled) 1f else DisabledAlpha)
                 .pointerCursor(Cursor.Grab, enabled = enabled)
                 .freeDragOwning(
                     enabled = enabled,
@@ -446,23 +449,23 @@ fun Knob(
                     val tickWidth = tickLine.toPx()
                     val tickLength = KnobTick.toPx()
                     val tickEdge = radius + thicknessPx / 2f + KnobTickGap.toPx()
-                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, colours.indicator.stops(valueRange, scaleDefault))
+                    val fill = dialFill(geometry, thicknessPx, StrokeCap.Round, dial.indicator.stops(valueRange, scaleDefault))
                     onDrawBehind {
                         // Coerced: `springSnappy` overshoots, and a notch past the end
                         // of its own scale reads as a fault rather than a bounce.
                         val at = if (detented) detentDrawn.value.coerceIn(0f, 1f) else fractionOf(drawnValue.value)
-                        dialArcs(geometry, thicknessPx, StrokeCap.Round, colours.track, fill, 0f, at)
+                        dialArcs(geometry, thicknessPx, StrokeCap.Round, dial.track, fill, 0f, at)
                         if (steps > 0) {
                             dialTicks(
                                 geometry, majors = steps + 2, minorsBetween = 0, edge = tickEdge,
                                 majorLength = tickLength, minorLength = tickLength, width = tickWidth,
-                                colour = colours.tick, inward = false,
+                                colour = dial.tick, inward = false,
                             )
                         }
-                        drawCircle(colours.thumbRing, radius = face, center = centre)
-                        drawCircle(colours.thumb, radius = face - ring, center = centre)
+                        drawCircle(dial.thumbRing, radius = face, center = centre)
+                        drawCircle(dial.thumb, radius = face - ring, center = centre)
                         drawLine(
-                            color = colours.needle,
+                            color = dial.needle,
                             start = geometry.pointAt(at, face * NotchFrom),
                             end = geometry.pointAt(at, face * NotchTo),
                             strokeWidth = notchWidth,
@@ -483,7 +486,13 @@ fun Knob(
                     },
                 )
             } else if (!readout.isEmpty) {
-                DialReadout(readout, Theme.typography.titleMedium)
+                if (enabled) {
+                    DialReadout(readout, Theme.typography.titleMedium)
+                } else {
+                    ProvideContentColour(Theme.colours.contentDisabled) {
+                        DialReadout(readout, Theme.typography.titleMedium)
+                    }
+                }
             }
         }
     }
@@ -636,9 +645,28 @@ private const val KeyStep: Float = 0.01f
 /** Page Up and Down: a tenth of the range, or a step if that is more. */
 private const val PageStep: Float = 0.1f
 
+/**
+ * A knob's colours with nothing in them but the disabled grey: the scale and the
+ * needle in it, the face the page's colour, the edges as they were, and the
+ * track the sunken ground at every tier — at the enhanced one the track is
+ * `inactive`, darker than the grey filling it, and a disabled scale then read
+ * as a gap in a dark ring. What a disabled [Switch] and [Slider] do with theirs.
+ */
+@Composable
+@ReadOnlyComposable
+private fun disabledDial(colours: DialColours): DialColours {
+    val scheme = Theme.colours
+    return colours.copy(
+        indicator = ScaleColours.solid(scheme.contentDisabled),
+        track = scheme.surfaceSunken,
+        tickLabel = scheme.contentDisabled,
+        needle = scheme.contentDisabled,
+        thumb = scheme.surface,
+    )
+}
+
 private const val NotchFrom: Float = 0.45f
 private const val NotchTo: Float = 0.85f
-private const val DisabledAlpha: Float = 0.38f
 
 /** The field's width, as a share of the dial's radius: most of the face across. */
 private const val EditorWidth: Float = 1.3f

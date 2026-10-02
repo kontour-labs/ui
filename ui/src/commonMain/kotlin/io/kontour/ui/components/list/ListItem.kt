@@ -47,6 +47,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
@@ -273,7 +274,7 @@ internal fun ListItemImpl(
     // Published so a control in a slot can show the row's press — a `Switch` in
     // a trailing slot has no callback of its own and would otherwise never see
     // the tap that the row just handled.
-    CompositionLocalProvider(LocalRowInteractionSource provides interactions) {
+    CompositionLocalProvider(LocalRowInteractionSource provides interactions, LocalRowEnabled provides enabled) {
         // A row with an `onClick` is a control, and its text is chrome; one
         // without is content — a stop's address, a fare — and stays selectable
         // inside a `SelectableText`.

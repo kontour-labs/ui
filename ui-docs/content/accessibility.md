@@ -45,6 +45,33 @@ picks whichever of two candidates reads better:
 val labelColour = contentColourFor(routeColour)
 ```
 
+### Disabled is quieter, everywhere on the control
+
+A disabled control is exempt from contrast, and it is also never *louder* than
+the same control enabled. The rule, and what every control in the library does:
+
+- **Its handle is the page's colour.** A switch's thumb, a slider's or a range
+  slider's thumbs and a knob's face are `surface`, a hole in the grey rather
+  than a mark on it. A slider's thumb overhangs its track onto the page, so it is
+  ringed in the grey, which is what draws it at all.
+- **Its fills and tracks are `contentDisabled`**, and its quieter parts — a
+  rating's empty marks, a knob's track — are fainter still.
+- **Nothing on it stands out from the page more than `contentDisabled` does**,
+  or, at the high tier, than `outline`, which draws the edges that tier keeps.
+- **Nothing on it is coloured.** Disabled is the grey, not the control's own
+  colours faded: a knob with a green-to-red scale is grey. A colour picker keeps
+  its swatches, because the colours are what it shows.
+- **A control in a disabled row is disabled too.** A `Checkbox`, `RadioButton`
+  or `Switch` in a disabled `SelectionRow` or `ListItem` draws itself disabled,
+  so `enabled = false` is said once, on the row.
+
+Asked for of the switch, whose disabled thumb was near-black in light and white
+in dark: *"the head of the switch when it's disabled is a very strong colour.
+this might apply to other components too"*. It did, to a slider's thumb, a
+knob, a stepper's value, a field's placeholder and a checkbox in a disabled row,
+and every control in the library is checked against the rule on every build, in
+all four schemes.
+
 ---
 
 ## Contrast tiers
