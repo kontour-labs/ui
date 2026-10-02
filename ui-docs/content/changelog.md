@@ -49,6 +49,13 @@ On `main`, and in the next release.
   `ListItem` draws itself disabled.** Before, it looked as if it could still be
   changed unless it was given `enabled = false` as well.
 
+- **A `NavBar` with labels is the height of one without.** A labelled
+  destination's icon is 20dp, two points above its label, and the two are
+  centred in the touch target: a floating bar is 64dp with labels or without,
+  where it was 82 with them. Its label and badge stay inside the marker round
+  the current destination. A label is ellipsised where the marker's rounded
+  bottom runs out, and a badge is moved in off the marker's edge. A bar with
+  `NavBarDefaults.glyphMarker()` keeps its 40dp circle and the label under it.
 - **A modal opening takes the focus off whatever had it, in another overlay
   too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
   opens over the sheet. Before, only the page lost its focus. A menu or a

@@ -181,3 +181,49 @@ class CollapseProgressTest {
         assertEquals(0f, collapseProgress(100f, 0f))
     }
 }
+
+/**
+ * Where a labelled destination's badge goes: on its icon's corner, and inside
+ * the marker round the destination. See `badgeCentreInside`.
+ */
+class BadgeInsideMarkerTest {
+
+    private val marker = androidx.compose.ui.geometry.Rect(0f, 0f, 68f, 48f)
+    private val badge = androidx.compose.ui.geometry.Size(22f, 16f)
+
+    @Test
+    fun aBadgeWithRoomStaysOnItsAnchor() {
+        val anchor = androidx.compose.ui.geometry.Offset(40f, 24f)
+        assertEquals(anchor, badgeCentreInside(anchor, badge, marker, radius = 24f, margin = 2f))
+    }
+
+    @Test
+    fun aBadgeAboveTheTopIsBroughtDownInside() {
+        val placed = badgeCentreInside(
+            androidx.compose.ui.geometry.Offset(34f, 6f), badge, marker, radius = 0f, margin = 2f,
+        )
+        assertEquals(10f, placed.y, "half a badge and the margin below the marker's top")
+    }
+
+    /** The case reported: on the icon's corner, near the capsule's rounded end. */
+    @Test
+    fun aBadgeInACornerIsMovedOutOfTheCurve() {
+        val placed = badgeCentreInside(
+            androidx.compose.ui.geometry.Offset(46f, 6f), badge, marker, radius = 24f, margin = 2f,
+        )
+        // Every corner of the badge within the arc of the marker's corner, less the margin.
+        val r = 22f
+        val arc = androidx.compose.ui.geometry.Offset(68f - 2f - r, 2f + r)
+        val corner = androidx.compose.ui.geometry.Offset(placed.x + badge.width / 2f, placed.y - badge.height / 2f)
+        val distance = (corner - arc).getDistance()
+        assertTrue(distance <= r + 0.01f, "the badge's top-trailing corner is ${distance - r} past the marker's arc")
+        assertTrue(placed.y >= 10f, "and below the marker's top")
+    }
+
+    @Test
+    fun aCornerInsetIsNoneOncePastTheCorner() {
+        assertEquals(0f, cornerInset(radius = 24f, fromEdge = 24f))
+        assertEquals(24f, cornerInset(radius = 24f, fromEdge = 0f))
+        assertTrue(cornerInset(radius = 24f, fromEdge = 6f) in 8f..8.2f)
+    }
+}

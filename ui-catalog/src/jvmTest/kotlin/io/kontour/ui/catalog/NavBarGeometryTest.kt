@@ -61,6 +61,9 @@ class NavBarGeometryTest {
     /** `platformMinTouchTarget` on Android, which the JVM reports as 24dp. */
     private val AndroidTouchTarget = 48.dp
 
+    /** How much taller labels may make the bar: "or maybe just a little bit taller". */
+    private val LabelAllowance = 4f
+
     private class Measured {
         var bar: Rect = Rect.Zero
         /** The union of the destinations — what the bar has to centre and fit. */
@@ -231,6 +234,29 @@ class NavBarGeometryTest {
     // `theBackdropDoesNotChangeTheBarsSize` is gone with its premise: the fade
     // behind the bar was `NavBarStyle.Free`'s, and neither Free nor the backdrop
     // exists any more.
+
+    /**
+     * Labels barely change the bar's height.
+     *
+     * Reported: *"in the navbar, there's too much space between the icon and the
+     * text, and it's making the navbar huge. please make it so it's the same
+     * height as when there is no text ... or maybe just a little bit taller"*. A
+     * label hung under a 40dp glyph box, 4dp below it, with 8dp more under the
+     * label to match: 82dp of floating bar against 64 without. The icon is
+     * smaller and sits two points over its label now, the pair centred in the
+     * touch target, and the bar is within a few points of its unlabelled self.
+     */
+    @Test
+    fun labelsBarelyChangeTheBarsHeight() {
+        val labelled = measure(showLabels = true, touchTarget = AndroidTouchTarget)
+        val bare = measure(showLabels = false, touchTarget = AndroidTouchTarget)
+        val grown = (labelled.bar.height - bare.bar.height) / pixelsPerDp
+        assertTrue(
+            grown <= LabelAllowance,
+            "with labels the bar is ${labelled.bar.height / pixelsPerDp}dp, ${grown}dp taller than " +
+                "the ${bare.bar.height / pixelsPerDp}dp it is without them",
+        )
+    }
 
     @Test
     fun theBarCentresItsContentsVertically() {

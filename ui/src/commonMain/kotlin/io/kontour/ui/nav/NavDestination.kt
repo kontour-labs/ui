@@ -130,11 +130,21 @@ internal fun NavDestination(
      * the press wash does too, in [markerShape]. Stacked destinations only.
      */
     markerCoversItem: Boolean = false,
+    /** How far in from the destination's edges the bar's marker stops. */
+    markerInset: Dp = 0.dp,
 ) {
     val motion = Theme.motion
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = markerShape ?: navItemShape(indicatorSize)
     val washesItem = markerCoversItem && layout == NavLayout.Stacked
+    // **A labelled destination inside its marker**: the icon smaller, the gap to
+    // its label two points, and the two centred in the touch target rather than
+    // stacked under a 40dp glyph box. The bar was 82dp tall with labels against
+    // 64 without, reported as "too much space between the icon and the text,
+    // and it's making the navbar huge" — and its marker, round the whole
+    // destination, had the label in its rounded bottom and a badge poking out of
+    // its top. A circle behind the glyph keeps its label under it, as before.
+    val compact = washesItem && showLabel
     val grouped = LocalSelectionIndicator.current != null
 
     val emphasis by animateFloatAsState(
@@ -295,7 +305,7 @@ internal fun NavDestination(
                     colour = content,
                     maxLines = 1,
                     softWrap = !inline,
-                    overflow = if (inline) TextOverflow.Ellipsis else TextOverflow.Clip,
+                    overflow = if (inline || compact) TextOverflow.Ellipsis else TextOverflow.Clip,
                     modifier = Modifier
                         .graphicsLayer { alpha = labelFade() }
                         // Not yet the name: the destination announces it.
@@ -316,16 +326,57 @@ internal fun NavDestination(
                     style = labelStyle,
                     colour = content,
                     maxLines = 1,
-                    softWrap = !inline,
-                    overflow = if (inline) TextOverflow.Ellipsis else TextOverflow.Clip,
+                    // One line inside the marker, ending in an ellipsis where
+                    // the marker's rounded bottom runs out of room for it.
+                    softWrap = !inline && !compact,
+                    overflow = if (inline || compact) TextOverflow.Ellipsis else TextOverflow.Clip,
                 )
             }
         }
     }
 
     DisableSelection {
-        when (layout) {
-            NavLayout.Stacked -> Column(
+        when {
+            compact -> CompactDestination(
+                modifier = interaction.indication(interactions, kontourIndication(shape, pressScale = 1f)),
+                markerShape = shape,
+                markerInset = markerInset,
+                labelHeight = labelStyle.lineHeight,
+                icon = {
+                    val selectedScale = NavDestinationDefaults.SelectedIconScale
+                    Box(
+                        modifier = Modifier.graphicsLayer {
+                            val scale = 1f + (selectedScale - 1f) * emphasis
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val glyphIcon = if (selected) selectedIcon ?: icon else icon
+                        if (glyphIcon != null) {
+                            Icon(
+                                imageVector = glyphIcon,
+                                contentDescription = null,
+                                size = Theme.sizing.iconMedium,
+                                tint = content,
+                            )
+                        } else {
+                            Text(
+                                text = Theme.formats.let { it.uppercase(it.firstGrapheme(label.trim())) },
+                                style = Theme.typography.titleSmall,
+                                colour = content,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                modifier = Modifier.clearAndSetSemantics {},
+                            )
+                        }
+                    }
+                },
+                label = labelText,
+                badge = { badge?.invoke() },
+            )
+
+            layout == NavLayout.Stacked -> Column(
                 // Air under the label and none above the glyph, so the marker sized
                 // to the glyph lands on it.
                 modifier = interaction
@@ -353,7 +404,7 @@ internal fun NavDestination(
                 labelText()
             }
 
-            NavLayout.Inline -> Row(
+            else -> Row(
                 // Two paddings, split so this node is the marker's rect in between:
                 // the pill is inset `xxs` from the row and exactly as tall, and the
                 // press wash has to be that box.
@@ -472,3 +523,162 @@ private fun Float.clampWithin(extent: Int, badge: Int): Float {
     val middle = extent / 2f
     return coerceIn(min(half, middle), max(extent - half, middle))
 }
+
+/**
+ * A labelled destination laid out inside the marker that covers it: [icon] over
+ * [label], [CompactLabelGap] apart and centred together in the destination, with
+ * at least [CompactPadding] above and below. The destination is the touch
+ * target's height, or what its content needs at large type, whichever is more:
+ * at the default type a labelled bar is the height of an unlabelled one.
+ *
+ * **The label is no wider than the marker is where the label sits.** The
+ * marker's corners are round — a capsule's are its whole height — so its
+ * bottom is narrower than its middle, and a label sized to the cell ran out of
+ * the marker at both ends of its baseline. Measured to the marker's chord at
+ * the label's bottom, it ends in an ellipsis where the shape does.
+ *
+ * **The badge is inside the marker.** Its centre sits on the icon's
+ * top-trailing corner, as a glyph's does, and is then moved in as far as it
+ * takes to keep the whole badge [BadgeMargin] inside the marker's rounded rect
+ * — see [badgeCentreInside]. With the icon a few points from the marker's top,
+ * an anchored badge poked out over the bar.
+ */
+@Composable
+private fun CompactDestination(
+    modifier: Modifier,
+    markerShape: Shape,
+    markerInset: Dp,
+    labelHeight: androidx.compose.ui.unit.TextUnit,
+    icon: @Composable () -> Unit,
+    label: @Composable () -> Unit,
+    badge: @Composable () -> Unit,
+) {
+    Layout(
+        modifier = modifier,
+        content = {
+            icon()
+            Box { label() }
+            Box { badge() }
+        },
+    ) { measurables, constraints ->
+        val pad = CompactPadding.roundToPx()
+        val gap = CompactLabelGap.roundToPx()
+        val inset = markerInset.toPx()
+        val margin = BadgeMargin.toPx()
+        val glyph = measurables[0].measure(Constraints())
+        val lineHeight = labelHeight.toPx().roundToInt()
+        val content = glyph.height + gap + lineHeight
+
+        val natural = max(glyph.width, measurables[1].maxIntrinsicWidth(lineHeight)) + 2 * pad
+        val width = if (constraints.hasBoundedWidth && constraints.minWidth == constraints.maxWidth) {
+            constraints.maxWidth
+        } else {
+            natural.coerceIn(constraints.minWidth, constraints.maxWidth)
+        }
+        val height = (content + 2 * pad).coerceIn(constraints.minHeight, constraints.maxHeight)
+        val top = (height - content) / 2
+
+        // The marker's own rect, and the corner it rounds with: read from its
+        // shape at this size, so a capsule's is half its height and a docked
+        // bar's medium corner is its own.
+        val marker = androidx.compose.ui.geometry.Rect(inset, inset, width - inset, height - inset)
+        val corner = markerCorner(markerShape, marker.size, this)
+        val labelBottom = (top + content).toFloat()
+        val chord = marker.width - 2f * cornerInset(corner, marker.bottom - labelBottom) - 2f * margin
+        val text = measurables[1].measure(Constraints(maxWidth = chord.roundToInt().coerceIn(0, width)))
+        val mark = measurables[2].measure(Constraints())
+
+        layout(width, height) {
+            glyph.placeRelative((width - glyph.width) / 2, top)
+            text.placeRelative((width - text.width) / 2, top + glyph.height + gap)
+            if (mark.width > 0 && mark.height > 0) {
+                val anchor = androidx.compose.ui.geometry.Offset(
+                    x = (width + glyph.width) / 2f,
+                    y = top.toFloat(),
+                )
+                val centre = badgeCentreInside(
+                    anchor = anchor,
+                    badge = androidx.compose.ui.geometry.Size(mark.width.toFloat(), mark.height.toFloat()),
+                    container = marker,
+                    radius = corner,
+                    margin = margin,
+                )
+                mark.placeRelative((centre.x - mark.width / 2f).roundToInt(), (centre.y - mark.height / 2f).roundToInt())
+            }
+        }
+    }
+}
+
+/** The larger of [shape]'s top and bottom corners at [size], or none for a shape with no corners to read. */
+private fun markerCorner(shape: Shape, size: androidx.compose.ui.geometry.Size, density: androidx.compose.ui.unit.Density): Float {
+    val corners = shape as? CornerBasedShape ?: return 0f
+    val radius = maxOf(
+        corners.topStart.toPx(size, density),
+        corners.topEnd.toPx(size, density),
+        corners.bottomEnd.toPx(size, density),
+        corners.bottomStart.toPx(size, density),
+    )
+    return radius.coerceAtMost(min(size.width, size.height) / 2f)
+}
+
+/**
+ * How far in from its side a rounded corner of [radius] is, [fromEdge] in from
+ * the edge it rounds: none once past the corner, the whole radius at the edge.
+ */
+internal fun cornerInset(radius: Float, fromEdge: Float): Float {
+    if (radius <= 0f || fromEdge >= radius) return 0f
+    val d = radius - fromEdge.coerceAtLeast(0f)
+    return radius - kotlin.math.sqrt((radius * radius - d * d).coerceAtLeast(0f))
+}
+
+/**
+ * Where a badge of [badge] size goes, wanting its centre at [anchor] and kept
+ * [margin] inside [container], a rect with corners of [radius].
+ *
+ * First inside the straight edges, then out of the corners: a badge whose
+ * outer corner still lies past the arc of the container's corner is moved
+ * along the diagonal toward that arc's centre until it does not. Pure, so it is
+ * tested by numbers; the badge's own corners are taken as square, which is the
+ * stricter case of a round one.
+ */
+internal fun badgeCentreInside(
+    anchor: androidx.compose.ui.geometry.Offset,
+    badge: androidx.compose.ui.geometry.Size,
+    container: androidx.compose.ui.geometry.Rect,
+    radius: Float,
+    margin: Float,
+): androidx.compose.ui.geometry.Offset {
+    val inner = container.deflate(margin)
+    val halfW = badge.width / 2f
+    val halfH = badge.height / 2f
+    var x = anchor.x.coerceIn(inner.left + halfW, max(inner.left + halfW, inner.right - halfW))
+    var y = anchor.y.coerceIn(inner.top + halfH, max(inner.top + halfH, inner.bottom - halfH))
+    val r = (radius - margin).coerceIn(0f, min(inner.width, inner.height) / 2f)
+    if (r <= 0f) return androidx.compose.ui.geometry.Offset(x, y)
+    // Each corner of the container, as its arc's centre and the signs that
+    // point outward from it.
+    for ((sx, sy) in listOf(1f to -1f, -1f to -1f, 1f to 1f, -1f to 1f)) {
+        val arcX = if (sx > 0f) inner.right - r else inner.left + r
+        val arcY = if (sy > 0f) inner.bottom - r else inner.top + r
+        val cornerX = x + sx * halfW
+        val cornerY = y + sy * halfH
+        val dx = cornerX - arcX
+        val dy = cornerY - arcY
+        if (dx * sx <= 0f || dy * sy <= 0f) continue
+        val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+        if (distance <= r) continue
+        val over = distance - r
+        x -= dx / distance * over
+        y -= dy / distance * over
+    }
+    return androidx.compose.ui.geometry.Offset(x, y)
+}
+
+/** Above and below a labelled destination's icon and label, at the least. */
+private val CompactPadding = 6.dp
+
+/** Between a labelled destination's icon and its label. */
+private val CompactLabelGap = 2.dp
+
+/** How far inside the marker a badge and a label's ends are kept. */
+private val BadgeMargin = 2.dp

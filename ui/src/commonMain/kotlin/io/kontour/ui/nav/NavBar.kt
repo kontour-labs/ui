@@ -372,6 +372,7 @@ internal fun NavBarLayout(
         }
     }
     val coversItem = marker is NavBarMarker.Destination
+    val markerInset = (marker as? NavBarMarker.Destination)?.inset ?: 0.dp
     val equal = itemWidth == NavBarItemWidth.Equal
     val labelGap = Theme.spacing.xxs
 
@@ -408,8 +409,8 @@ internal fun NavBarLayout(
     // composed from inside it, and a scope that changed in place would leave
     // them skipped with the old values.
     val dragging = if (markerDraggable) DragWiring(drag, ticker, dragScope) else null
-    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, dragging) {
-        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, drag, dragging)
+    val scope = remember(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, markerInset, dragging) {
+        BarScope(keys, showLabels, colours, circle, labelGap, markerShape, coversItem, markerInset, drag, dragging)
     }
 
     @Composable
@@ -754,6 +755,7 @@ private class BarScope(
     private val labelGap: Dp,
     private val markerShape: Shape,
     private val coversItem: Boolean,
+    private val markerInset: Dp,
     private val drag: MarkerDrag,
     /** Null when the marker cannot be dragged. */
     private val dragging: DragWiring?,
@@ -810,6 +812,7 @@ private class BarScope(
             labelGap = labelGap,
             markerShape = markerShape,
             markerCoversItem = coversItem,
+            markerInset = markerInset,
         )
     }
 
@@ -858,6 +861,7 @@ private class BarScope(
             labelGap = labelGap,
             markerShape = markerShape,
             markerCoversItem = coversItem,
+            markerInset = markerInset,
         )
         // Above the bar, the only side with room.
         AnchoredDropdownMenu(

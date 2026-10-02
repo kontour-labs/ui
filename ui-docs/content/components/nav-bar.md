@@ -43,6 +43,20 @@ navigation, and every other surface in the library has a ground.
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.
 
+**Labels barely change the bar's height.** With them on, each destination's icon
+is 20dp rather than 24, two points above its label, and the pair is centred in
+the touch target, so a labelled bar is the height of an unlabelled one at the
+default type and grows only as the type does. It used to hang its label under a
+40dp glyph box: 82dp of floating bar against 64, reported as *"too much space
+between the icon and the text, and it's making the navbar huge"*.
+
+**The label and the badge fit inside the marker.** The marker round the current
+destination has rounded ends, so it is narrower at the bottom, where the label
+sits, than across its middle. A label is measured to that narrower width and
+ends in an ellipsis where the marker's shape does. A badge sits on its icon's
+top-trailing corner and moves inward as far as it has to so that it stays inside the
+marker. It used to poke out over the bar.
+
 With circles rather than cells (see below), `NavBarDefaults.arrangementFor(spans)`
 spreads them across a phone's width and gathers them in the middle of anything
 wider.
@@ -108,8 +122,8 @@ A `Docked` bar has no beside: it puts the action inside, after everything else.
 By default the bar is a tab bar: **cells that share it**, and **a marker round the
 whole of the current destination**, glyph and label. The marker's shape follows
 the bar's. In a floating bar it is a capsule inside the capsule, as far from the
-bar's ends as from its top and bottom, so with labels, which make the bar tall and
-its ends round, it is still the bar's shape a size smaller. It used to be the
+bar's ends as from its top and bottom, so it is the bar's shape a size smaller,
+with labels or without. It used to be the
 theme's medium corner whatever the bar, a box inside a pill: *"our new defaults
 look really terrible with labels enabled"*. A docked bar has no corners to follow,
 and has the medium corner.

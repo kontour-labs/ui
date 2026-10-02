@@ -55,6 +55,7 @@ class NavBarShapeTest {
         itemWidth: NavBarItemWidth = NavBarItemWidth.Natural,
         marker: @Composable () -> NavBarMarker = { NavBarDefaults.glyphMarker() },
         showLabels: Boolean = true,
+        typeScale: Float = 1f,
     ): BufferedImage = Scene(width = 800, height = 300, density = Density, reduceMotion = true) {
         Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
             NavBar(
@@ -75,7 +76,10 @@ class NavBarShapeTest {
                 item(false, {}, key = "you", icon = Tabler.Outline.User, modifier = Modifier.reportBounds { cells[2] = it }) { +"You" }
             }
         }
-    }.use { it.frames(10) }
+    }.use {
+        it.typeScale(typeScale)
+        it.frames(10)
+    }
 
     private fun isMarker(argb: Int): Boolean {
         val r = (argb shr 16) and 0xFF
@@ -153,10 +157,19 @@ class NavBarShapeTest {
      */
     @Test
     fun byDefaultTheMarkerIsACapsuleConcentricWithAFloatingBar() {
-        val image = render(itemWidth = NavBarItemWidth.Equal, marker = { NavBarDefaults.destinationMarker() })
+        // At twice the type, where the bar is tall enough for the two corners
+        // to differ. A labelled destination is the touch target's height at the
+        // default type now, 48dp, and at that height a capsule's corner and the
+        // medium one are 24dp and 22: the same shape to within a pixel, and no
+        // reading here could tell them apart.
+        val image = render(
+            itemWidth = NavBarItemWidth.Equal,
+            marker = { NavBarDefaults.destinationMarker() },
+            typeScale = 2f,
+        )
         val box = markerBox(image)
-        // Four dp in from its top a capsule this tall is 30dp narrower than its
-        // middle; the medium corner, about 12.
+        // Four dp in from its top a capsule this tall is about 30dp narrower
+        // than its middle; the medium corner, under 20.
         val across = inkAcross(image, box.top + 4f * Density)
         assertTrue(
             across < box.width - 24f * Density,
