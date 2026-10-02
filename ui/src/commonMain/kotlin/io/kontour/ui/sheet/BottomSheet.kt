@@ -91,7 +91,10 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.ContainerGaps
+import io.kontour.ui.adaptive.OverlapInsets
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.adaptive.measuresGaps
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -571,6 +574,15 @@ fun BottomSheet(
     // able to arrive before the composition it belongs to has finished.
     SideEffect { state.userDismissible = dismissible }
 
+    // **The part of each inset that reaches the sheet's container**, and nothing
+    // of what lies outside it. An app whose root already made room for the
+    // keyboard ends the container where the keyboard begins, and the whole of
+    // the keyboard's inset on top of that lifted the sheet twice as far as it
+    // needed to go. Everything below reads this one value — the chrome, the
+    // float, the content's padding — so they cannot disagree. See `ContainerGaps`.
+    val gaps = remember { ContainerGaps() }
+    val insets = remember(windowInsets, gaps) { OverlapInsets(windowInsets, gaps) }
+
     // The margin a floating sheet keeps, on each of the four sides.
     //
     // `union` and not a sum, because the margin is a *minimum* clearance rather
@@ -586,12 +598,12 @@ fun BottomSheet(
     // corners up there, and they belong below the bar rather than under it.
     val floatInsets = if (floating) {
         val inset = Theme.componentDefaults.sheetFloatingInset
-        remember(windowInsets, inset) {
+        remember(insets, inset) {
             WindowInsets(left = inset, top = inset, right = inset, bottom = inset)
-                .union(windowInsets)
+                .union(insets)
         }
     } else {
-        windowInsets
+        insets
     }
 
     // Critically damped. A sheet that bounces on arrival looks unweighted, and
@@ -718,6 +730,8 @@ fun BottomSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Where the container sits in the window, for `insets`.
+            .measuresGaps(gaps)
             // The container's height, read in the **measure** phase.
             //
             // `onSizeChanged` fires after layout, so for the whole of the first
@@ -825,7 +839,7 @@ fun BottomSheet(
                 // Unless it can morph: then the content is handed the real
                 // insets, less whatever the margin is still clearing of them,
                 // which is all of them until the morph starts.
-                windowInsets = if (floating && morph == null) NoInsets else windowInsets,
+                windowInsets = if (floating && morph == null) NoInsets else insets,
                 containerColour = containerColour,
                 contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.

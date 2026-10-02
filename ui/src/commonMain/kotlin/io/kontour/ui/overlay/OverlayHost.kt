@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import io.kontour.ui.platform.WarnIfWindowPansForKeyboard
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
@@ -817,6 +818,10 @@ fun OverlayHost(
         opened.top = top
         opened.dimmed = state.visible.filter { it.scrim == ScrimStyle.Dimmed }.mapTo(HashSet()) { it.key }
     }
+
+    // A window that pans for the keyboard lifts a sheet twice, and only the app
+    // can change that. Said once, in a debuggable Android app.
+    WarnIfWindowPansForKeyboard()
 
     // Back goes to the page only while no overlay takes it. The page's
     // dispatcher is disabled rather than its handlers outranked, so it does not

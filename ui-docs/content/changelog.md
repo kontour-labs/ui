@@ -83,6 +83,16 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   ring, one arc a step from twelve o'clock, through the same animation.
   `gap = 0.dp` makes it one continuous ring.
 
+### Fixed
+
+- **A sheet over a text field is lifted clear of the keyboard once.** A bottom
+  sheet, a side sheet, a dialog and a toast count only the part of each inset
+  that reaches their container. In an app whose root had already made room for
+  the keyboard, with `imePadding()` or a padded scaffold, a sheet was lifted by
+  the whole keyboard again and stood a keyboard's height above it. On Android, a
+  debuggable app whose window pans for the keyboard, which lifts a sheet twice in
+  a way the library cannot see, now gets one line in its log saying so.
+
 ---
 
 ## 0.3.0 — 30 September 2026

@@ -248,6 +248,21 @@ rather than added to them — it is a *minimum* clearance, so on a phone with a
 a floating search field above the keyboard, since the sheet's insets carry the
 IME.
 
+**Only the part of an inset that reaches the sheet's container counts**, the rule
+an [anchored overlay](../overlays.md) already keeps. An app whose root has made room
+for the keyboard — `imePadding()`, a scaffold padded by `safeDrawing`, a window
+that resized — ends the container where the keyboard begins, and the sheet lifts
+no further. It used to lift by the whole keyboard again, and stood a keyboard's
+height above it. The same goes for every edge: a container below the status bar
+gives the sheet's chrome nothing to clear at the top. A dialog, a side sheet and a
+toast keep the same rule.
+
+One double lift is out of the library's sight: an Android window that *pans* for
+the keyboard moves everything up, sheet included, and reports the keyboard as
+well. Set `android:windowSoftInputMode="adjustResize"` on the activity, as
+[`TextField`](text-field.md) asks; a debuggable app whose window pans, or has not
+said, gets one line in its log saying so.
+
 One cost, and it is structural. An edge sheet's surface is as tall as its
 container at every detent and merely translated, so its size never changes and
 its shadow is rasterised once; the surplus hangs off the bottom of the screen

@@ -37,7 +37,10 @@ import androidx.compose.ui.semantics.dialog
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.ContainerGaps
+import io.kontour.ui.adaptive.OverlapInsets
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.adaptive.measuresGaps
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.display.StateScope
@@ -130,9 +133,15 @@ fun Dialog(
                     dismissLabel = dismissLabel,
                     onDismiss = onDismissRequest,
                     content = {
+                        // Only the part of an inset over the overlay's own
+                        // container: see `ContainerGaps`. Measured outside the
+                        // appearance's scale, which would move it.
+                        val gaps = remember { ContainerGaps() }
+                        val insets = remember(latestInsets, gaps) { OverlapInsets(latestInsets, gaps) }
                         Box(
                             Modifier
                                 .fillMaxSize()
+                                .measuresGaps(gaps)
                                 // On the full-size box rather than on the dialog
                                 // itself: the fade needs a compositing buffer
                                 // wide enough to hold the dialog's shadow, which
@@ -147,7 +156,7 @@ fun Dialog(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.06f,
                                 )
-                                .windowInsetsPadding(latestInsets),
+                                .windowInsetsPadding(insets),
                             contentAlignment = Alignment.Center,
                         ) {
                             // `AnimatedVisibility(visible = true, exit = …)` used

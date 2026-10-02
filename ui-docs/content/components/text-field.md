@@ -55,7 +55,8 @@ keyboard's height of blank space between the keyboard and the field:
   keyboard.
 - **Android:** `android:windowSoftInputMode="adjustResize"` on the activity, and
   `enableEdgeToEdge()`, so the window reports the keyboard as an inset instead of
-  panning the window under it.
+  panning the window under it. A debuggable app whose window pans, or has not
+  said, gets one line in its log saying so.
 
 The catalog's hosts do both.
 

@@ -69,6 +69,15 @@ as the row. Pass `maxActionHeight = Dp.Infinity` to keep the old look.
 `StepProgress(gap = 0.dp)` draws one continuous bar now. It used to draw the
 segments end to end, pinched at each join.
 
+### Check: overlays in a container short of the window
+
+A sheet, a side sheet, a dialog and a toast count only the part of each inset
+that reaches their container, measured from the window's edge. One in a
+container that already ends at the keyboard, or starts below the status bar, is
+no longer padded by them again. A `windowInsets` of your own is read the same
+way: `WindowInsets(bottom = 80.dp)` is 80dp from the window's bottom edge, and
+counts for nothing in a container that ends 80dp above it.
+
 ---
 
 ## 0.2 to 0.3

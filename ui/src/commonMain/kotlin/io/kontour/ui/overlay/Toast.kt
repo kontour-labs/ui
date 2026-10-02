@@ -35,7 +35,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +71,7 @@ import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.ButtonDefaults
 import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.adaptive.overlappingInsetsPadding
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.components.action.Button
@@ -1031,7 +1031,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     }
 
     Box(
-        Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
+        Modifier.fillMaxSize().overlappingInsetsPadding(config.windowInsets),
         contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
