@@ -217,6 +217,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Fixed
 
+- **A card carried by `sharedBounds` keeps its shadow while it travels.** Its
+  contents cross-faded in a layer as big as the card, and a layer at part
+  opacity is drawn offscreen at its own size, so the shadow outside the card was
+  cut off for the whole of a `PageTransition` and came back the frame it ended.
+  The cross-fade now fades each thing as it is drawn, with no layer to be cut
+  by.
 - **A sheet over a text field is lifted clear of the keyboard once.** A bottom
   sheet, a side sheet, a dialog and a toast count only the part of each inset
   that reaches their container. In an app whose root had already made room for

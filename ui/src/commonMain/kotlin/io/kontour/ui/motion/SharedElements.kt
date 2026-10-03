@@ -6,11 +6,13 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +22,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import io.kontour.ui.theme.Motion
 import androidx.compose.ui.geometry.Offset
@@ -27,6 +30,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -155,6 +159,23 @@ fun Modifier.sharedElement(key: Any): Modifier {
 fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
     val page = LocalPageTransition.current ?: return this
     if (!page.morphs) return this
+    // The contents' cross-fade, done here rather than by `sharedBounds`' own
+    // `fadeIn`/`fadeOut`. Those fade in a layer, and a layer at part opacity
+    // is drawn offscreen at its own size — the element's — so the shadow it
+    // casts outside itself was cut off for the whole transition and came back
+    // the frame it landed: *"in page transition, the shadow gets cut off a bit
+    // during the transition"*. `ModulateAlpha` fades each thing as it is drawn
+    // instead, with no buffer to be cut by. Timed as the bounds are, so the
+    // contents have changed over by the time the container stops moving.
+    val motion = Theme.motion
+    val shown = page.visibility.transition.animateFloat(
+        transitionSpec = { motion.springOrTween(motion.springDefault) },
+        label = "shared bounds",
+    ) { state -> if (state == EnterExitState.Visible) 1f else 0f }
+    val fade = Modifier.graphicsLayer {
+        alpha = shown.value
+        compositingStrategy = CompositingStrategy.ModulateAlpha
+    }
     with(page.shared) {
         val state = rememberSharedContentState(key)
         // Two calls rather than a nullable argument: the parameter has no null
@@ -164,12 +185,16 @@ fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
             this@sharedBounds.sharedBounds(
                 sharedContentState = state,
                 animatedVisibilityScope = page.visibility,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
                 boundsTransform = page.bounds,
-            )
+            ).then(fade)
         } else {
             this@sharedBounds.sharedBounds(
                 sharedContentState = state,
                 animatedVisibilityScope = page.visibility,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
                 boundsTransform = page.bounds,
                 // Outset, or the clip eats the element's shadow.
                 //
@@ -190,7 +215,7 @@ fun Modifier.sharedBounds(key: Any, clip: Shape? = null): Modifier {
                 clipInOverlayDuringTransition = OverlayClip(
                     OutsetShape(clip, ShadowSlack)
                 ),
-            )
+            ).then(fade)
         }
     }
 }

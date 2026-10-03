@@ -125,7 +125,9 @@ internal val PageTransitionDemo = ComponentDemo(slug = "page-transition") {
     ) {
         PageTransition(target = open, modifier = Modifier.fillMaxSize()) { detail ->
             if (detail) {
-                Column(Modifier.fillMaxSize()) {
+                // Inset as the list is, so the header's shadow is inside the
+                // demo's rounded clip rather than cut off at its edges.
+                Column(Modifier.fillMaxSize().padding(Theme.spacing.md)) {
                     Card(
                         modifier = Modifier
                             .sharedBounds(HeroKey, clip = Theme.shapes.large)
