@@ -1,10 +1,9 @@
 # `DateTimePicker`
 
-**A [`DatePicker`](date-picker.md) with a [`TimePicker`](time-picker.md) under
-it, as one value.** The month grid with its header, paging, chooser and marks,
-and under it the hour and minute wheels on the reader's own clock — each exactly
-as it is on its own. A day tapped keeps the time, and a wheel turned keeps the
-day.
+**A [`DatePicker`](date-picker.md) and a [`TimePicker`](time-picker.md), as one
+value.** The month grid with its header, paging, chooser and marks, and the hour
+and minute wheels on the reader's own clock — each exactly as it is on its own.
+A day tapped keeps the time, and a wheel turned keeps the day.
 
 <!--sample:DateTimePickerBasics-->
 ```kotlin
@@ -31,10 +30,13 @@ a day tapped, and each row a wheel turns past. `onValueChangeFinished` hears a
 change once it has settled — a day as soon as it is tapped, a wheel once it
 comes to rest — and is where a save or a request belongs.
 
-**It is as tall as both**, about 560dp at the default type size, so put it
-somewhere that scrolls: a sheet, a dialog, or a page. The two are stacked and
-centred, the calendar no wider than a phone's; side by side they would suit a
-wide window and not fit a phone at all.
+**Side by side, or one at a time.** Given 560dp or more, the calendar and the
+wheels sit next to each other. Narrower — a phone — a segmented control above
+them says the chosen date and the chosen time, and shows the calendar or the
+wheels as one or the other is picked. One at a time, the space is the
+calendar's whichever is showing, so swapping moves nothing below it. It still
+needs its whole month, so put it somewhere that scrolls, as a date picker
+does.
 
 `isDateSelectable` turns days away, not times. A time earlier today than now is
 the caller's to refuse, since only the caller knows whether now is the floor.
@@ -43,7 +45,9 @@ the caller's to refuse, since only the caller knows whether now is the floor.
 
 ## Accessibility
 
-It is the two pickers, and reads as them: the month header is a live region
+It is the two pickers, and reads as them. On a phone the segmented control is
+read first, saying the chosen date and time, and the half not showing says
+nothing until it is chosen. The month header is a live region
 that announces each month paged to, each day says its full date when pressed and
 whether it can be chosen, and the wheels are named "Hour", "Minute" and, on a
 12-hour clock, "AM or PM", each reporting its centred value as its state.

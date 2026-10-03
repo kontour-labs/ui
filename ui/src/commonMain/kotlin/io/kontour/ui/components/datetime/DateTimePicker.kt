@@ -1,14 +1,29 @@
 package io.kontour.ui.components.datetime
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
@@ -16,7 +31,8 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 
 /**
- * Picks a date and a time of day: a [DatePicker] with a [TimePicker] under it.
+ * Picks a date and a time of day: a [DatePicker] and a [TimePicker], side by
+ * side where there is room for both and one at a time where there is not.
  *
  * ```
  * DateTimePicker(
@@ -33,15 +49,18 @@ import kotlinx.datetime.LocalDateTime
  * Asked for as *"a component for a date and time picker? it should basically
  * just be the two individual components we currently have for that, combined"*,
  * and that is what it is: the month grid with its header, paging, chooser and
- * marks, and under it the hour and minute wheels on the reader's own clock,
- * each exactly as it is on its own. A day chosen keeps the time, and a wheel
- * turned keeps the day.
+ * marks, and the hour and minute wheels on the reader's own clock, each exactly
+ * as it is on its own. A day chosen keeps the time, and a wheel turned keeps
+ * the day.
  *
- * **It is as tall as both**, about 560dp at the default type size, so it needs
- * somewhere that scrolls even more than a date picker does: a sheet, a dialog,
- * or a page. Laid side by side the two would fit a wide window better and a
- * phone not at all, so they are stacked, centred, the calendar no wider than
- * a phone's.
+ * **Side by side, or one at a time.** Given 560dp or more, the
+ * calendar and the wheels sit next to each other. Narrower — a phone — a
+ * segmented control above them says the chosen date and the chosen time, and
+ * shows the calendar or the wheels as one or the other is picked. They were
+ * stacked at first, about 560dp tall, which a phone could not show whole —
+ * *"the two things need to be either side-by-side, or have a segmented control
+ * that allows the user to swap between them"*. One at a time, the space is the
+ * calendar's, whichever is showing, so swapping does not move what is below.
  *
  * `isDateSelectable` turns days away and not times: a time earlier today than
  * now is the caller's to refuse, since only the caller knows whether "now" is
@@ -87,11 +106,7 @@ fun DateTimePicker(
     val latest by rememberUpdatedState(value)
     val change by rememberUpdatedState(onValueChange)
     val finished by rememberUpdatedState(onValueChangeFinished)
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    val date = @Composable { dateModifier: Modifier ->
         DatePicker(
             value = value.date,
             onValueChange = { date ->
@@ -110,7 +125,10 @@ fun DateTimePicker(
             navigation = navigation,
             formats = formats,
             firstDayOfWeek = firstDayOfWeek,
+            modifier = dateModifier,
         )
+    }
+    val time = @Composable { timeModifier: Modifier ->
         TimePicker(
             value = value.time,
             onValueChange = { time -> change(LocalDateTime(latest.date, time)) },
@@ -118,6 +136,70 @@ fun DateTimePicker(
             minuteStep = minuteStep,
             formats = formats,
             onValueChangeFinished = onValueChangeFinished,
+            modifier = timeModifier,
         )
+    }
+
+    BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
+        if (maxWidth >= SideBySideWidth) {
+            Row(
+                modifier = Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth * 2 + Theme.spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                date(Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth))
+                time(Modifier.weight(1f))
+            }
+        } else {
+            var showing by rememberSaveable { mutableIntStateOf(0) }
+            Column(
+                modifier = Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // What is chosen, in the words the pickers below choose it
+                // in: the segment is also the summary of its half.
+                SegmentedControl(
+                    options = listOf(formats.date(value.date, DateStyle.Medium), formats.time(value.time)),
+                    selectedIndex = showing,
+                    onSelectedIndexChange = { showing = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = enabled,
+                )
+                // The half not showing is measured for its height and kept
+                // composed, its month and its wheels as they were, but it is
+                // not placed and says nothing to a screen reader.
+                OneOf(showing) {
+                    date(if (showing == 0) Modifier else Modifier.clearAndSetSemantics {})
+                    time(if (showing == 1) Modifier else Modifier.clearAndSetSemantics {})
+                }
+            }
+        }
+    }
+}
+
+/**
+ * How wide a [DateTimePicker] has to be to put its calendar and its wheels side
+ * by side: the calendar's widest, a gap, and room for the wheels of a 12-hour
+ * clock.
+ */
+private val SideBySideWidth: Dp = 560.dp
+
+/**
+ * One of [content]'s children, [index], placed; every one of them measured, and
+ * the space the tallest of them, so changing which one shows moves nothing
+ * below. The others are composed and kept, but not placed, so they are neither
+ * drawn nor touched; the caller clears what they would say.
+ */
+@Composable
+private fun OneOf(index: Int, content: @Composable () -> Unit) {
+    Layout(content) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(loose) }
+        val width = constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0)
+        val height = constraints.constrainHeight(placeables.maxOfOrNull { it.height } ?: 0)
+        layout(width, height) {
+            placeables.getOrNull(index)?.let { it.placeRelative((width - it.width) / 2, (height - it.height) / 2) }
+        }
     }
 }
