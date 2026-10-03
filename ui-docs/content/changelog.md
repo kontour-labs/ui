@@ -174,6 +174,11 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **A rating's stars sit together on a touch screen.** Each 24dp star reserved
+  a 48dp target of its own, so on a phone there was 28dp between one star and
+  the next, more gap than star. The row takes every press itself, so it is the
+  target now: at least a target tall, with the stars `RatingDefaults.Gap` apart,
+  as a read-only rating's always were.
 - **The month-change arrow in a range drag is easier to catch.** Dragging a
   range's end past the month's first or last day starts the month turning only
   once the finger has passed the little arrow there, and that meant the arrow's

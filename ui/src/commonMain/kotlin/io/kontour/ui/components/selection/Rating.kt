@@ -1,5 +1,8 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.runtime.CompositionLocalProvider
 import io.kontour.ui.locale.LocaleFormats
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -174,10 +177,10 @@ fun Rating(
     /**
      * Where each mark actually is, relative to the row.
      *
-     * Measured rather than divided, because the marks are not evenly pitched:
-     * `minimumTouchTarget` grows each one to 48dp and the gap between them is
-     * 4dp, so `width / count` drifts by a third of a mark by the right-hand end
-     * and a drag over the fifth star would set the fourth. Five callbacks is
+     * Measured rather than divided, because the marks need not be evenly
+     * pitched against the row: a row wider than its marks, or a mark grown to a
+     * target, and `width / count` drifts by the right-hand end until a drag over
+     * the fifth star sets the fourth. Five callbacks is
      * cheap; `CalendarMonth` chose arithmetic over forty-two, and this is not
      * that.
      */
@@ -231,135 +234,146 @@ fun Rating(
         currentChange(next)
     }
 
-    Row(
-        modifier = modifier
-            .selectableGroup()
-            .semantics {
-                this.contentDescription = contentDescription
-                this.stateDescription = spoken
-                if (!enabled) disabled()
-            }
-            .then(
-                if (enabled) {
-                    Modifier.pointerInput(count, allowHalf, allowZero, isRtl) {
-                        awaitEachGesture {
-                            // Claimed on the down, on the initial pass, which
-                            // travels parent to child — so the marks' own
-                            // `selectable` never starts a click and the score
-                            // comes from *where* the press landed rather than
-                            // from which mark it landed on. That is the whole
-                            // of the half-mark problem: a tap on the left of a
-                            // star could only ever mean the star.
-                            //
-                            // It was a `detectHorizontalDragGestures`, which
-                            // waits for touch slop. Giving a half meant pressing,
-                            // travelling 16dp, and coming back to the right side
-                            // of the star's midpoint — while a plain tap went to
-                            // the mark underneath and could only be whole.
-                            val down = awaitFirstDown(
-                                requireUnconsumed = false,
-                                pass = PointerEventPass.Initial,
-                            )
-                            down.consume()
-                            setFromX(down.position.x, press = true)
-                            var travel = Offset.Zero
-                            var lifted = false
-
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                // Before the consume, always: `positionChange`
-                                // reports zero for a change that has already
-                                // been consumed, so reading it afterwards is a
-                                // gesture that can never see any movement.
-                                val moved = change.positionChange()
-                                change.consume()
-                                if (!change.pressed) {
-                                    lifted = true
-                                    break
-                                }
-                                travel += moved
-                                if (moved != Offset.Zero) setFromX(change.position.x, press = false)
-                            }
-                            // A tap on the score already given, lifted where it
-                            // landed: take it back. Not decided on the press, so
-                            // a drag from the current score is a drag.
-                            if (allowZero && lifted && pressedOnScore && travel.getDistance() < viewConfiguration.touchSlop) {
-                                tap()
-                                currentChange(0f)
-                            }
-                            pressedOnScore = false
-                            ticker.reset()
-                            currentFinished?.invoke()
-                        }
-                    }
-                } else {
-                    Modifier
+    // **The row is the target, not each star.** It takes every press itself
+    // and turns it into the nearest mark, so a star's own target only ever
+    // served the keyboard and assistive tech — and reserving it spread the
+    // marks: on a phone each 24dp star sat in 48dp, 28dp of air between one
+    // and the next, more gap than star. *"it's always bugged me how much gap
+    // there is between the stars by default"*. The row is at least a target
+    // tall instead and the stars are [RatingDefaults.Gap] apart, as a
+    // read-only rating's always were. See [LocalTouchTargetOwnedByParent].
+    CompositionLocalProvider(LocalTouchTargetOwnedByParent provides true) {
+        Row(
+            modifier = modifier
+                .defaultMinSize(minHeight = Theme.sizing.minTouchTarget)
+                .selectableGroup()
+                .semantics {
+                    this.contentDescription = contentDescription
+                    this.stateDescription = spoken
+                    if (!enabled) disabled()
                 }
-            ),
-        horizontalArrangement = Arrangement.spacedBy(RatingDefaults.Gap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(count) { index ->
-            // The mark's *value* is its index plus one. Tapping the third star
-            // means three, not two, and off-by-one here is a rating that can
-            // never be five and can always be zero.
-            val markValue = index + 1
-            val interactions = interactionSource ?: remember { MutableInteractionSource() }
+                .then(
+                    if (enabled) {
+                        Modifier.pointerInput(count, allowHalf, allowZero, isRtl) {
+                            awaitEachGesture {
+                                // Claimed on the down, on the initial pass, which
+                                // travels parent to child — so the marks' own
+                                // `selectable` never starts a click and the score
+                                // comes from *where* the press landed rather than
+                                // from which mark it landed on. That is the whole
+                                // of the half-mark problem: a tap on the left of a
+                                // star could only ever mean the star.
+                                //
+                                // It was a `detectHorizontalDragGestures`, which
+                                // waits for touch slop. Giving a half meant pressing,
+                                // travelling 16dp, and coming back to the right side
+                                // of the star's midpoint — while a plain tap went to
+                                // the mark underneath and could only be whole.
+                                val down = awaitFirstDown(
+                                    requireUnconsumed = false,
+                                    pass = PointerEventPass.Initial,
+                                )
+                                down.consume()
+                                setFromX(down.position.x, press = true)
+                                var travel = Offset.Zero
+                                var lifted = false
 
-            Box(
-                modifier = Modifier
-                    .onGloballyPositioned {
-                        markLeft[index] = it.positionInParent().x
-                        markWidth[index] = it.size.width.toFloat()
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    // Before the consume, always: `positionChange`
+                                    // reports zero for a change that has already
+                                    // been consumed, so reading it afterwards is a
+                                    // gesture that can never see any movement.
+                                    val moved = change.positionChange()
+                                    change.consume()
+                                    if (!change.pressed) {
+                                        lifted = true
+                                        break
+                                    }
+                                    travel += moved
+                                    if (moved != Offset.Zero) setFromX(change.position.x, press = false)
+                                }
+                                // A tap on the score already given, lifted where it
+                                // landed: take it back. Not decided on the press, so
+                                // a drag from the current score is a drag.
+                                if (allowZero && lifted && pressedOnScore && travel.getDistance() < viewConfiguration.touchSlop) {
+                                    tap()
+                                    currentChange(0f)
+                                }
+                                pressedOnScore = false
+                                ticker.reset()
+                                currentFinished?.invoke()
+                            }
+                        }
+                    } else {
+                        Modifier
                     }
-                    .minimumTouchTarget()
-                    .focusRing(interactions, Theme.shapes.small)
-                    // Whole marks, always: this is what the keyboard and
-                    // assistive tech activate, and neither of them has a
-                    // position within the mark to mean a half by. The pointer
-                    // never reaches here — the row consumed it — so there is no
-                    // second answer to the same tap.
-                    .pointerCursor(enabled = enabled)
-                    .selectable(
-                        selected = markValue <= selected,
-                        // The keyboard and assistive-tech path, and the only one
-                        // that reaches here — the row consumes the pointer on the
-                        // initial pass, so this and `setFromX` never both answer
-                        // the same input. Both acknowledge a change, because a
-                        // checkbox activated from the keyboard does — and neither
-                        // answers the score it already has, as a radio does not.
-                        onClick = {
-                            // The selected mark again takes the score back, where
-                            // that is allowed — the keyboard's way to zero.
-                            val next = if (allowZero && markValue.toFloat() == currentValue) 0f else markValue.toFloat()
-                            if (next != currentValue) tap()
-                            onValueChange(next)
-                            currentFinished?.invoke()
+                ),
+            horizontalArrangement = Arrangement.spacedBy(RatingDefaults.Gap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            repeat(count) { index ->
+                // The mark's *value* is its index plus one. Tapping the third star
+                // means three, not two, and off-by-one here is a rating that can
+                // never be five and can always be zero.
+                val markValue = index + 1
+                val interactions = interactionSource ?: remember { MutableInteractionSource() }
+
+                Box(
+                    modifier = Modifier
+                        .onGloballyPositioned {
+                            markLeft[index] = it.positionInParent().x
+                            markWidth[index] = it.size.width.toFloat()
+                        }
+                        .minimumTouchTarget()
+                        .focusRing(interactions, Theme.shapes.small)
+                        // Whole marks, always: this is what the keyboard and
+                        // assistive tech activate, and neither of them has a
+                        // position within the mark to mean a half by. The pointer
+                        // never reaches here — the row consumed it — so there is no
+                        // second answer to the same tap.
+                        .pointerCursor(enabled = enabled)
+                        .selectable(
+                            selected = markValue <= selected,
+                            // The keyboard and assistive-tech path, and the only one
+                            // that reaches here — the row consumes the pointer on the
+                            // initial pass, so this and `setFromX` never both answer
+                            // the same input. Both acknowledge a change, because a
+                            // checkbox activated from the keyboard does — and neither
+                            // answers the score it already has, as a radio does not.
+                            onClick = {
+                                // The selected mark again takes the score back, where
+                                // that is allowed — the keyboard's way to zero.
+                                val next = if (allowZero && markValue.toFloat() == currentValue) 0f else markValue.toFloat()
+                                if (next != currentValue) tap()
+                                onValueChange(next)
+                                currentFinished?.invoke()
+                            },
+                            enabled = enabled,
+                            role = androidx.compose.ui.semantics.Role.RadioButton,
+                            interactionSource = interactions,
+                            indication = null,
+                        )
+                        .semantics {
+                            this.contentDescription = outOf(formats.integer(markValue), count)
                         },
-                        enabled = enabled,
-                        role = androidx.compose.ui.semantics.Role.RadioButton,
-                        interactionSource = interactions,
-                        indication = null,
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Mark(
+                        // The same expression the read-only row uses. With whole
+                        // values it is identical to the old `if (markValue <=
+                        // selected) 1f else 0f`; with `allowHalf` it is what draws
+                        // the half.
+                        fill = (clamped - index).coerceIn(0f, 1f),
+                        empty = empty,
+                        full = full,
+                        size = markSize,
+                        filledColour = if (enabled) colours.filled else colours.filledDisabled,
+                        emptyColour = if (enabled) colours.empty else colours.emptyDisabled,
+                        springOnFill = true,
                     )
-                    .semantics {
-                        this.contentDescription = outOf(formats.integer(markValue), count)
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Mark(
-                    // The same expression the read-only row uses. With whole
-                    // values it is identical to the old `if (markValue <=
-                    // selected) 1f else 0f`; with `allowHalf` it is what draws
-                    // the half.
-                    fill = (clamped - index).coerceIn(0f, 1f),
-                    empty = empty,
-                    full = full,
-                    size = markSize,
-                    filledColour = if (enabled) colours.filled else colours.filledDisabled,
-                    emptyColour = if (enabled) colours.empty else colours.emptyDisabled,
-                    springOnFill = true,
-                )
+                }
             }
         }
     }
