@@ -68,6 +68,8 @@ data class Strings(
     val confirm: String = "Confirm",
     /** Acknowledges a coach mark. Deliberately warmer than "Dismiss". */
     val gotIt: String = "Got it",
+    /** Ends a tour of coach marks, on its last step: the way out after "Next". */
+    val done: String = "Done",
     val expandSheet: String = "Expand sheet",
     val collapseSheet: String = "Collapse sheet",
     /** A menu's dismiss affordance, for assistive technology. */
@@ -309,6 +311,7 @@ data class Strings(
         cancel = lookup.text("cancel") ?: fallback.cancel,
         confirm = lookup.text("confirm") ?: fallback.confirm,
         gotIt = lookup.text("gotIt") ?: fallback.gotIt,
+        done = lookup.text("done") ?: fallback.done,
         expandSheet = lookup.text("expandSheet") ?: fallback.expandSheet,
         collapseSheet = lookup.text("collapseSheet") ?: fallback.collapseSheet,
         closeMenu = lookup.text("closeMenu") ?: fallback.closeMenu,
@@ -485,6 +488,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     cancel = transform(cancel),
     confirm = transform(confirm),
     gotIt = transform(gotIt),
+    done = transform(done),
     expandSheet = transform(expandSheet),
     collapseSheet = transform(collapseSheet),
     closeMenu = transform(closeMenu),

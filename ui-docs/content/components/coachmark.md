@@ -86,9 +86,12 @@ holds only the **order**; each step's words live at the control they describe, i
 can be kept honest when that control changes. A step whose control is not on
 screen shows nothing.
 
-`tour.start()` begins it, and each bubble carries its position — "2 of 3" — with
-Back and Next, and "Got it" on the last. `tour.index`, `isRunning` and
-`isFinished` say where it is; `finish()` ends it early.
+`tour.start()` begins it, and each bubble carries its position — "2 / 3" — with
+Back and Next, and Back and Done on the last. The way on, Next or Done, is
+filled in the bubble's ink so it reads as a button beside Back. A tour of one
+step has only "Got it", since there is nothing to go back to or to be done
+with. `tour.index`, `isRunning` and `isFinished` say where it is; `finish()`
+ends it early.
 
 While a step shows, everything but the control is dimmed, and a hole is cut
 around the control, `CoachmarkDefaults.SpotlightPadding` past its edge with the
@@ -105,11 +108,11 @@ A coach mark is **not** a control's accessible name. The control keeps its own
 
 The bubble's title and text are one node, read as one sentence rather than as two
 unrelated ones, and its buttons carry real labels — "Got it", and in a tour
-"Back" and "Next". A tour's position is read as words, from the theme's strings,
+"Back", "Next" and "Done". A tour's position is read as words, from the theme's strings,
 so it follows the reader's language and plural rules.
 
 A tour's dim blocks every tap outside the bubble, so its own buttons are the only
-way on — Next, Back, or "Got it" to finish.
+way on — Next, Back, or Done to finish.
 
 At high contrast a single tip is the enhanced scheme's inverse surface and ink,
 which already stand apart from the page, and its "Got it" is a ghost button that

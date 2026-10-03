@@ -48,6 +48,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Changed
 
+- **A coach-mark tour's last step says Done**, beside Back, and the way on is
+  filled in the bubble's ink so it reads as a button. It said "Got it", and
+  next to Back as two ghost buttons on the accent the pair read as words. A
+  tour of one step still says "Got it". `Strings.done` is new.
 - **A swipe row's actions are at most 64dp tall**, a two-line row's height,
   however tall the row. On a taller row they sit centred, and a full swipe's
   takeover grows across the strip and not down it. Before, they were as tall
