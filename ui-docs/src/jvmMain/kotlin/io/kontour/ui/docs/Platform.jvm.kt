@@ -42,3 +42,8 @@ actual fun copyText(text: String) {
             .setContents(java.awt.datatransfer.StringSelection(text), null)
     }
 }
+
+actual suspend fun fetchText(path: String): String? {
+    val root = System.getProperty("kontour.docs.files") ?: return null
+    return java.io.File(root, path).takeIf { it.isFile }?.readText()
+}

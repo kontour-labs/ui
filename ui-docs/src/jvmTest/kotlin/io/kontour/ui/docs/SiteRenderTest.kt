@@ -149,7 +149,7 @@ abstract class SiteRenderTest(private val widthName: String, private val width: 
         // pages called `overlays` — the guide to the mechanism and the family
         // index — and one file per shot cannot hold both.
         val routes: List<Pair<String, Route>> =
-            listOf("home" to Route.Home) +
+            listOf("home" to Route.Home, "icons" to Route.Icons) +
                 docPages.map { it.path.replace('/', '-') to Route.Doc(it.path) }
 
         val dir = File(root, widthName).takeIf { writing }?.apply { mkdirs() }

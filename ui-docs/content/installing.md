@@ -136,7 +136,9 @@ set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
 `Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
 few system icons from it, so it comes with the library, from the repository
 below: GitHub Packages serves everything Kontour Labs publishes from the one
-URL. Any `ImageVector` works.
+URL. Any `ImageVector` works. The site's Icons page, in its top bar, searches
+every one of them — by name, by what Tabler tags it with, and by the everyday
+word for it — and copies the property and its import.
 
 **Fonts are included.** The default type is Outfit, with JetBrains Mono for code
 and figures, both bundled; there is nothing to add unless you reskin, which

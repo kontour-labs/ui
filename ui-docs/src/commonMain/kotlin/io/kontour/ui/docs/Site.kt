@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -34,6 +35,7 @@ import io.kontour.icons.tabler.outline.Api
 import io.kontour.icons.tabler.outline.FileOff
 import io.kontour.icons.tabler.outline.FileText
 import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Icons
 import io.kontour.icons.tabler.outline.LayoutGrid
 import io.kontour.icons.tabler.outline.Menu2
 import io.kontour.ui.adaptive.Scaffold
@@ -43,6 +45,7 @@ import io.kontour.ui.catalog.Catalog
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.catalog.hostDensity
 import io.kontour.ui.catalog.rememberCatalogSettings
+import io.kontour.ui.docs.icons.IconsPage
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -200,6 +203,16 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
                             ButtonVariant.Ghost
                         },
                     )
+                    IconButton(
+                        icon = Tabler.Outline.Icons,
+                        contentDescription = "Icons",
+                        onClick = { navigate(Route.Icons) },
+                        variant = if (route == Route.Icons) {
+                            ButtonVariant.Tertiary
+                        } else {
+                            ButtonVariant.Ghost
+                        },
+                    )
                     // The generated reference, which is Dokka's HTML mounted at
                     // `api/` beside the app rather than a route inside it — so a
                     // new tab, as the per-entry "reference" links open, and never
@@ -280,6 +293,7 @@ private fun Content(route: Route, settings: CatalogSettings) {
         // same [CatalogSettings], so they agree by construction rather than by
         // anybody keeping two argument lists in step.
         Route.Gallery -> Catalog(settings)
+        Route.Icons -> IconsPage()
         is Route.Doc -> DocPageView(route.path)
     }
 }
@@ -434,12 +448,20 @@ private fun Home() {
             colour = Theme.colours.contentMuted,
             modifier = Modifier.widthIn(max = ProseWidth),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        // Wrapping, so the three fit a phone as two rows rather than running off it.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        ) {
             Button(onClick = { navigate(Route.Doc("components")) }) { +"All components" }
             Button(
                 onClick = { navigate(Route.Gallery) },
                 variant = ButtonVariant.Secondary,
             ) { +"Open the gallery" }
+            Button(
+                onClick = { navigate(Route.Icons) },
+                variant = ButtonVariant.Secondary,
+            ) { +"Browse the icons" }
         }
 
         Text(
