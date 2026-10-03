@@ -3,6 +3,7 @@ package io.kontour.ui.nav
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.TextFieldState
@@ -28,6 +29,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.text.FieldParts
 import io.kontour.ui.components.text.LocalFieldParts
 import io.kontour.ui.components.text.SearchField
@@ -111,6 +113,7 @@ fun rememberNavSearchState(): NavSearchState {
  *   one. Follows the surrounding surface's width by default.
  * @param placement Where the panel goes when there is not room to edit in place.
  * @param interactionSource Hoisted, to observe the pill's press and hover.
+ * @param windowInsets What the open panel keeps clear of; see [NavExpandingSlot].
  * @param results Shown with the field: above it over a keyboard, below it at the
  *   top of the screen, and under an in-place field. Given a `ColumnScope`, so a
  *   caller can weight a list to fill what is left.
@@ -134,6 +137,7 @@ fun NavSearch(
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     results: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     if (editInPlace) {
@@ -172,6 +176,7 @@ fun NavSearch(
         containerColour = containerColour,
         contentColour = contentColour,
         interactionSource = interactionSource,
+        windowInsets = windowInsets,
         expandedContent = {
             // The pill becomes the field: the capsule it leaves as ends where the
             // field is, in the field's colour, and the results come after.

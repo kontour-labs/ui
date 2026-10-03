@@ -221,6 +221,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   single-line field the caret of an empty field sat a pixel below the
   placeholder and jumped up a pixel at the first character; it now starts on
   the placeholder's line.
+- **An open search keeps clear of every edge.** `NavSearch` and
+  `NavExpandingSlot` stood their panel on the keyboard and cleared only the
+  bottom and the sides, so results tall enough to reach the top of the window
+  ran under the status bar; hung from the top, long results ran under the
+  keyboard. The panel now clears the window's insets and the keyboard on every
+  side, wherever it stands, and both take a `windowInsets` for a caller that
+  clears an edge itself.
 
 ---
 
