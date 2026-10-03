@@ -48,6 +48,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Changed
 
+- **A [`WheelSelect`](components/wheel-select.md#when-to-use-it) keeps its value
+  on the field near the top or foot of the window.** It opens about the field
+  where there is room above and below, as before. Where there is not, it opens
+  away from the edge: the rest of the wheel runs to the side with room, as a
+  `Select`'s menu picks its side, and half of the next row fades out on the
+  other. Before, it was pushed along to fit, and its value was no longer on the
+  field.
 - **`Modifier.parallax` is subtler, and stops when the page does.** A spring
   chased its offset and was started over on almost every frame of a scroll, so
   the content moved rigidly with the page and then glided on by itself for half
@@ -193,12 +200,6 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   select takes it, `Select`, `MultiSelect`, `Combobox` and `WheelSelect`, and
   stays outlined by default. Focus brings back the tint and the accent edge, an
   error its edge, and at high contrast the edge stays.
-
-- [`WheelSelect(placement = WheelSelectPlacement.BelowOrAbove)`](components/wheel-select.md#when-to-use-it):
-  the chosen row stays on the field and the rest of the wheel opens to one
-  side, as a `Select`'s menu picks its side — below where it fits, above where
-  it fits there instead — with half of the next row fading out on the other.
-  Opening about the field is still the default.
 
 - **Wheels say when they have stopped.** `WheelPicker(onSelectedIndexChangeFinished)`,
   `WheelSelect(onValueChangeFinished)` and `TimePicker(onValueChangeFinished)`

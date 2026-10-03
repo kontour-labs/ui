@@ -32,7 +32,6 @@ import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
-import io.kontour.ui.components.text.WheelSelectPlacement
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.TextFieldVariant
@@ -210,13 +209,9 @@ private val wheelInfinite = Knob.Flag("Wraps round")
 /** Whether a drag on the closed field turns the wheel, or only a tap opens it. */
 private val wheelDrag = Knob.Flag("Drag to pick", initial = true)
 
-/** Over the field, or beside it as a menu opens. */
-private val wheelPlacement =
-    Knob.Choice("Opens", WheelSelectPlacement.entries.toList(), WheelSelectPlacement.OverField)
-
 internal val WheelSelectDemo = ComponentDemo(
     slug = "wheel-select",
-    knobs = listOf(wheelDrag, wheelInfinite, wheelPlacement, fieldVariant),
+    knobs = listOf(wheelDrag, wheelInfinite, fieldVariant),
 ) {
     var minutes by remember { mutableStateOf(15) }
     // Centred, so the wheel has room to open either side of the field; see
@@ -230,7 +225,6 @@ internal val WheelSelectDemo = ComponentDemo(
             optionLabel = { "$it min" },
             dragToPick = this@ComponentDemo[wheelDrag],
             infinite = this@ComponentDemo[wheelInfinite],
-            placement = this@ComponentDemo[wheelPlacement],
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
         )

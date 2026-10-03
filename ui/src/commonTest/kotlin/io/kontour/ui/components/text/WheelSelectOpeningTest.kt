@@ -25,33 +25,29 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * A wheel select asked to open [WheelSelectPlacement.BelowOrAbove] keeps its
- * chosen row on the field and runs its other rows below it where there is room,
- * and above it near the window's foot, with half a row on the other side; left
- * to its default it opens about the field, as it always has.
+ * A wheel select opens with its chosen row on the field wherever the field is:
+ * about it where there is room above and below, and to the side with room near
+ * the window's top or foot, with half a row on the other side.
  *
- * Asked for as *"can we make the wheel select able to "anchor" the wheel to the
- * top or the bottom of the box that opens? similar to how other select
- * components pick which side they show up based on how close the box is to the
- * edge of the screen"*, and then, of a first version that opened as a menu
- * beside the field, *"can you make it so the wheel picker is still centred on
- * the actual field, but it just shows more elements above/below (depending on
- * the side) and also has some sort of indication that there are more elements
- * on the other side?"*
+ * Asked for as *"with the wheel select, rather than swapping between
+ * beloworabove and overfield, can we make it just intelligently select based on
+ * how much room is around it?"*. Opened about the field near the top of the
+ * window, the wheel used to be pushed down to fit, and its chosen row was no
+ * longer on the field.
  *
- * At a density of 1 a row is 40px.
+ * At a density of 1 a row is 40px, and the wheel shows 5.
  */
 @OptIn(ExperimentalTestApi::class)
-class WheelSelectPlacementTest {
+class WheelSelectOpeningTest {
 
     private class Opened(val field: Rect, val wheel: Rect, val chosen: Rect, val before: Rect, val after: Rect)
 
     /**
      * The field, the open wheel's visible part, and the rows on it — the
      * chosen one, 4, and the ones either side of it — with the field [at] the
-     * top or the foot of a phone-sized window.
+     * top, the middle or the foot of a phone-sized window.
      */
-    private fun ComposeUiTest.open(placement: WheelSelectPlacement, at: Alignment): Opened {
+    private fun ComposeUiTest.open(at: Alignment): Opened {
         setContent {
             KontourTheme(darkTheme = false, reduceMotion = true) {
                 Box(Modifier.requiredSize(360.dp, 640.dp)) {
@@ -61,7 +57,6 @@ class WheelSelectPlacementTest {
                                 value = 4,
                                 options = (1..9).toList(),
                                 onValueChange = {},
-                                placement = placement,
                                 modifier = Modifier.width(240.dp).testTag("field"),
                             )
                         }
@@ -79,10 +74,15 @@ class WheelSelectPlacementTest {
         return Opened(field, wheel, row("4"), row("3"), row("5"))
     }
 
+    private fun Opened.assertOnTheField() = assertTrue(
+        abs(chosen.center.y - field.center.y) <= 2f,
+        "the chosen row at ${chosen.center.y} is not on the field at ${field.center.y}",
+    )
+
     @Test
-    fun nearTheTopItOpensBelowAboutTheValue() = runComposeUiTest {
-        val o = open(WheelSelectPlacement.BelowOrAbove, Alignment.TopCenter)
-        assertTrue(abs(o.chosen.center.y - o.field.center.y) <= 2f, "the chosen row at ${o.chosen.center.y} is not on the field at ${o.field.center.y}")
+    fun nearTheTopItOpensBelow() = runComposeUiTest {
+        val o = open(Alignment.TopCenter)
+        o.assertOnTheField()
         assertTrue(o.wheel.bottom - o.chosen.bottom >= 3.5f * Row, "below the chosen row the wheel shows ${o.wheel.bottom - o.chosen.bottom}px, not its rows")
         val sliver = o.before.height
         assertTrue(sliver > 0f && sliver <= 0.6f * Row, "above the chosen row the wheel shows ${sliver}px of the next, not a sliver of it")
@@ -90,21 +90,23 @@ class WheelSelectPlacementTest {
     }
 
     @Test
-    fun nearTheFootItOpensAboveAboutTheValue() = runComposeUiTest {
-        val o = open(WheelSelectPlacement.BelowOrAbove, Alignment.BottomCenter)
-        assertTrue(abs(o.chosen.center.y - o.field.center.y) <= 2f, "the chosen row at ${o.chosen.center.y} is not on the field at ${o.field.center.y}")
+    fun nearTheFootItOpensAbove() = runComposeUiTest {
+        val o = open(Alignment.BottomCenter)
+        o.assertOnTheField()
         assertTrue(o.chosen.top - o.wheel.top >= 3.5f * Row, "above the chosen row the wheel shows ${o.chosen.top - o.wheel.top}px, not its rows")
         val sliver = o.after.height
         assertTrue(sliver > 0f && sliver <= 0.6f * Row, "below the chosen row the wheel shows ${sliver}px of the next, not a sliver of it")
     }
 
     @Test
-    fun byDefaultItOpensOverTheField() = runComposeUiTest {
-        val o = open(WheelSelectPlacement.OverField, Alignment.Center)
-        assertTrue(
-            o.wheel.top < o.field.top && o.wheel.bottom > o.field.bottom,
-            "the default wheel ${o.wheel} does not open about the field ${o.field}",
-        )
+    fun withRoomEitherSideItOpensAboutTheField() = runComposeUiTest {
+        val o = open(Alignment.Center)
+        o.assertOnTheField()
+        val above = o.chosen.top - o.wheel.top
+        val below = o.wheel.bottom - o.chosen.bottom
+        assertTrue(abs(above - below) <= 1f, "the wheel opens $above px above and $below px below, not evenly about the field")
+        assertTrue(above in 2f * Row..2.5f * Row, "the wheel shows ${above}px either side, not its two rows")
+        assertTrue(o.before.top > o.wheel.top && o.after.bottom < o.wheel.bottom, "a row either side is cut: ${o.before} ${o.after} in ${o.wheel}")
     }
 
     private companion object {
