@@ -1,7 +1,5 @@
 package io.kontour.ui.catalog.apps.messages
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -16,7 +14,6 @@ import androidx.navigation3.ui.NavDisplay
 import com.composables.icons.tabler.Tabler
 import com.composables.icons.tabler.outline.Messages
 import com.composables.icons.tabler.outline.Notes
-import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.apps.LeaveAppButton
 import io.kontour.ui.catalog.apps.LocalLeaveApp
@@ -143,15 +140,10 @@ internal fun MessagesApp() {
             // In the bar on a phone; a rail's search is its header's to hold.
             search = { MessagesSearch(state, search, openChat, openNote) },
             header = { MessagesSearch(state, search, openChat, openNote) },
-        ) { padding ->
+        ) { _ ->
             pages()
-            // Above the bar on a phone, not under it: a toast's insets know
-            // the gesture bar and the keyboard, and the navigation bar is a
-            // component, so it is added here.
-            ToastHost(
-                toasts,
-                windowInsets = WindowInsets.sheetEdges.union(WindowInsets(bottom = padding.calculateBottomPadding())),
-            )
+            // Above the bar on a phone, which the bar tells the host itself.
+            ToastHost(toasts)
         }
     }
 

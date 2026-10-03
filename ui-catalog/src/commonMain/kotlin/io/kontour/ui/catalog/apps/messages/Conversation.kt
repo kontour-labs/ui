@@ -38,6 +38,7 @@ import com.composables.icons.tabler.outline.Paperclip
 import com.composables.icons.tabler.outline.Phone
 import com.composables.icons.tabler.outline.Send
 import com.composables.icons.tabler.outline.Train
+import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.BubbleSide
@@ -77,6 +78,7 @@ internal fun ConversationPage(
     onCall: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    foot: WindowInsets = WindowInsets.sheetEdges,
 ) {
     val chat = state.chat(chatId) ?: return
     val thread = state.thread(chatId)
@@ -112,10 +114,17 @@ internal fun ConversationPage(
             chatId = chatId,
             onSend = { state.send(chatId, it) },
             modifier = Modifier
-                // The bar's height or the keyboard's, whichever is taller —
-                // not both: the keyboard comes up over the bar.
+                // Clear of whatever is under the foot of the page, whichever
+                // is tallest and never two of them added: the gesture bar
+                // when nothing else is there, the keyboard when it is up —
+                // which comes up over the gesture bar, so the bar's height on
+                // top of it was a strip of nothing over the keys — or the
+                // navigation bar where the page sits inside one. It had only
+                // the last two, and a phone's conversation covers its
+                // navigation, so with the keyboard down the composer sat on
+                // the gesture bar.
                 .windowInsetsPadding(
-                    WindowInsets.ime.union(WindowInsets(bottom = contentPadding.calculateBottomPadding())),
+                    foot.union(WindowInsets(bottom = contentPadding.calculateBottomPadding())),
                 ),
         )
     }

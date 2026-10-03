@@ -1,5 +1,8 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
+import io.kontour.ui.adaptive.bottomEdges
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -27,11 +30,14 @@ import kotlin.math.roundToInt
 internal fun transitPagePadding(around: Dp = Theme.spacing.md): PaddingValues {
     val suite = navigationSuitePadding()
     val direction = LocalLayoutDirection.current
+    // The navigation bar where the page sits in one, and the gesture bar where
+    // it covers it — a stop, a line, a trip on a phone — whichever is taller.
+    val foot = with(LocalDensity.current) { WindowInsets.bottomEdges.getBottom(this).toDp() }
     return PaddingValues(
         start = suite.calculateStartPadding(direction) + around,
         top = suite.calculateTopPadding() + around,
         end = suite.calculateEndPadding(direction) + around,
-        bottom = suite.calculateBottomPadding() + around + FabRoom,
+        bottom = maxOf(suite.calculateBottomPadding(), foot) + around + FabRoom,
     )
 }
 

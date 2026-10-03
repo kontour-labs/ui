@@ -1,5 +1,12 @@
 package io.kontour.ui.catalog.apps.messages
 
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import io.kontour.ui.adaptive.sheetEdges
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -279,11 +286,24 @@ internal fun NoteDetailPage(
             +note.title
             supporting { +"Edited ${note.edited.replaceFirstChar { it.lowercase() }}" }
         }
+        val direction = LocalLayoutDirection.current
         Column(
             Modifier
                 .fillMaxSize()
+                // The foot as the conversation's composer has it: the gesture
+                // bar, the keyboard while the note is being written, or the
+                // navigation bar the page sits in — the tallest, never added.
+                // On a phone the page covers the navigation, so it had only
+                // a fixed margin, and nothing at all for the keyboard.
+                .windowInsetsPadding(WindowInsets.sheetEdges.union(WindowInsets(bottom = contentPadding.calculateBottomPadding())))
                 .verticalScroll(rememberScrollState())
-                .padding(contentPadding.plusPage(top = Theme.spacing.sm)),
+                .padding(
+                    PaddingValues(
+                        start = contentPadding.calculateStartPadding(direction),
+                        top = contentPadding.calculateTopPadding(),
+                        end = contentPadding.calculateEndPadding(direction),
+                    ).plusPage(top = Theme.spacing.sm, bottom = Theme.spacing.md),
+                ),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             if (editing) {
