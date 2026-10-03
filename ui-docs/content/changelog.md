@@ -174,6 +174,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **The month-change arrow in a range drag is easier to catch.** Dragging a
+  range's end past the month's first or last day starts the month turning only
+  once the finger has passed the little arrow there, and that meant the arrow's
+  own row: a finger a little below the last week, or coming at it from just
+  above, went past without starting it. It now catches half a row outside the
+  grid and a third of a row toward the next week in. The blank beside the day,
+  where a finger arriving from the week above lands, still does not.
 - **A sheet dragged to the top by its content climbs with the finger.** Pulled
   up from a lower detent by a scroll in its content, under a status bar, a sheet
   that reaches the top leapt the last status bar's height in one frame. Its

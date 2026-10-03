@@ -153,18 +153,31 @@ internal class GridGeometry(
     /**
      * Whether a finger moving from [from] to [to] went over [edge]'s arrow: the
      * half of the edge day's cell on the other month's side, where the arrow is
-     * drawn. Sampled along the move, so a quick one that jumps across the arrow
-     * between two pointer events still counts.
+     * drawn, and a little above and below it. Sampled along the move, so a quick
+     * one that jumps across the arrow between two pointer events still counts.
+     *
+     * **Taller than the day.** It was the day's own row and no more, so a finger
+     * that passed the arrow a little low — under the last week, where a thumb
+     * covering the arrow tends to be — or came at it from just above never
+     * started the dwell, and had to go back and pass it again: *"you have to
+     * drag basically directly through the left/right of the little arrow"*.
+     * Now [ArrowReachOut] of a row on the side away from the grid, which is
+     * past the edge already, and [ArrowReachIn] on the side of the neighbouring
+     * week. **Not wider**: the blank beside the edge day is what a finger
+     * arriving from the week above or below lands on, and that was asked not to
+     * page.
      */
     fun crossesArrow(from: Offset, to: Offset, edge: DwellEdge): Boolean {
         val index = indexOf(edge)
         val row = (index / Columns).toFloat()
         val left = if (edge == DwellEdge.Previous) (index % Columns).toFloat() else index % Columns + 1f - ArrowShare
+        val top = row - if (edge == DwellEdge.Previous) ArrowReachOut else ArrowReachIn
+        val bottom = row + 1f + if (edge == DwellEdge.Previous) ArrowReachIn else ArrowReachOut
         for (step in 0..ArrowSamples) {
             val t = step / ArrowSamples.toFloat()
             val x = from.x + (to.x - from.x) * t
             val y = from.y + (to.y - from.y) * t
-            if (x >= left && x <= left + ArrowShare && y >= row && y <= row + 1f) return true
+            if (x >= left && x <= left + ArrowShare && y >= top && y <= bottom) return true
         }
         return false
     }
@@ -764,6 +777,15 @@ private const val MaxLean: Float = 0.5f
 
 /** The share of the edge day's cell, on the other month's side, that is its arrow. */
 private const val ArrowShare: Float = 0.5f
+
+/**
+ * How far past its day's row, in rows, an arrow still catches a finger: half a
+ * row on the side away from the grid — over the weekday initials, or under the
+ * last week, already past the edge — and less on the side of the next week in,
+ * which is days a drag is still choosing between. See `crossesArrow`.
+ */
+private const val ArrowReachOut: Float = 0.5f
+private const val ArrowReachIn: Float = 0.3f
 
 /** Points along a move tested against an arrow. */
 private const val ArrowSamples: Int = 12
