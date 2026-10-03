@@ -94,46 +94,56 @@ internal fun DeparturesPage(
     val visible = shown.filter { it.mode in showing }
 
     Box(Modifier.fillMaxSize()) {
-        PullToRefresh(refreshing = refreshing, onRefresh = { refreshing = true }) {
-            Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
-                TopBar(
-                    style = TopBarStyle.Hero,
-                    image = { SkylineArt(Modifier.fillMaxSize()) },
-                    navigation = rootNavigation(),
-                    actions = {
-                        IconButton(
-                            icon = Tabler.Outline.Ticket,
-                            contentDescription = "My ticket",
-                            onClick = onTicket,
-                            modifier = Modifier.coachmarkStep(
-                                tour,
-                                id = "ticket",
-                                title = "Your ticket",
-                                message = "Your balance, and how close today is to the fare cap.",
-                            ),
-                        )
-                        Box {
-                            IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { menu = true })
-                            DropdownMenu(visible = menu, onDismissRequest = { menu = false }) {
-                                item("Refresh", leadingIcon = Tabler.Outline.Refresh, onClick = {
-                                    menu = false
-                                    refreshing = true
-                                })
-                                item("Show me around", leadingIcon = Tabler.Outline.Sparkles, onClick = {
-                                    menu = false
-                                    tour.start()
-                                })
-                            }
+        Column(Modifier.fillMaxSize()) {
+            TopBar(
+                style = TopBarStyle.Hero,
+                image = { SkylineArt(Modifier.fillMaxSize()) },
+                navigation = rootNavigation(),
+                actions = {
+                    IconButton(
+                        icon = Tabler.Outline.Ticket,
+                        contentDescription = "My ticket",
+                        onClick = onTicket,
+                        modifier = Modifier.coachmarkStep(
+                            tour,
+                            id = "ticket",
+                            title = "Your ticket",
+                            message = "Your balance, and how close today is to the fare cap.",
+                        ),
+                    )
+                    Box {
+                        IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { menu = true })
+                        DropdownMenu(visible = menu, onDismissRequest = { menu = false }) {
+                            item("Refresh", leadingIcon = Tabler.Outline.Refresh, onClick = {
+                                menu = false
+                                refreshing = true
+                            })
+                            item("Show me around", leadingIcon = Tabler.Outline.Sparkles, onClick = {
+                                menu = false
+                                tour.start()
+                            })
                         }
-                    },
-                    collapseState = collapse,
-                ) {
-                    +"Perth Underground"
-                    supporting { +"Next departures" }
-                }
+                    }
+                },
+                collapseState = collapse,
+            ) {
+                +"Perth Underground"
+                supporting { +"Next departures" }
+            }
+            // The refresh under the bar, round the list alone: it is the
+            // list a pull brings down, with the spinner in the gap it
+            // leaves below the bar. The bar's collapse goes on the list,
+            // inside the refresh, so a pull down opens the bar before it
+            // starts a refresh, and pushing the spinner away comes before
+            // folding the bar.
+            PullToRefresh(
+                refreshing = refreshing,
+                onRefresh = { refreshing = true },
+                modifier = Modifier.weight(1f),
+            ) {
                 LazyColumn(
                     state = list,
-                    modifier = Modifier.fillMaxSize().testTag("departures"),
+                    modifier = Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection).testTag("departures"),
                     contentPadding = transitPagePadding(),
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                 ) {

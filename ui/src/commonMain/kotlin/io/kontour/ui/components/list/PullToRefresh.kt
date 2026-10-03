@@ -180,6 +180,24 @@ fun rememberPullToRefreshState(
  * }
  * ```
  *
+ * **Round the list, under the bar.** What it holds is what a pull brings down,
+ * and the indicator comes in at its top edge, in the gap that opens. Put it
+ * round the scrolling content alone, below any [io.kontour.ui.nav.TopBar]: put
+ * round a page with its bar, the bar came down with the pull and the indicator
+ * appeared above it. With a collapsing bar, give the list the bar's
+ * `collapseState.nestedScrollConnection`, inside the refresh, so a pull at the
+ * top opens the bar before it starts a refresh, and pushing the indicator away
+ * comes before folding the bar:
+ *
+ * ```kotlin
+ * Column {
+ *     TopBar(style = TopBarStyle.Large, collapseState = collapse) { +"Departures" }
+ *     PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
+ *         LazyColumn(Modifier.nestedScroll(collapse.nestedScrollConnection)) { … }
+ *     }
+ * }
+ * ```
+ *
  * **Not a substitute for a visible refresh control.** It is invisible, has no
  * keyboard or pointer equivalent, and is unreachable for anyone who cannot make
  * a sustained drag. On a screen where reloading matters, put a refresh action in

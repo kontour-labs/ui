@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcher
@@ -118,6 +120,40 @@ class AppsTest {
         assertFalse(left, "back from a stop left the app instead of going to the stops")
         back(phone)
         assertTrue(left, "back at the app's root did not leave it")
+    }
+
+    /**
+     * A pull at the top of the departures brings the list down under the bar,
+     * and the bar stays where it is.
+     *
+     * Reported as *"you've put the pull-to-refresh in a weird spot. it sort of
+     * drags the whole page down, instead of the content beneath the top bar"*:
+     * the refresh was round the page, its hero bar and all.
+     */
+    @Test
+    fun aPullBringsTheListDownAndLeavesTheBar() = runDesktopComposeUiTest(width = 400, height = 860) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        fun top(text: String) = onAllNodesWithText(text).fetchSemanticsNodes().first().boundsInRoot.top
+        val title = top("Perth Underground")
+        val list = onNodeWithTag("departures").fetchSemanticsNode().boundsInRoot
+        val firstRow = top("Trains")
+
+        mainClock.autoAdvance = false
+        onNodeWithTag("departures").performTouchInput {
+            down(Offset(centerX, list.height * 0.3f))
+            repeat(12) { moveBy(Offset(0f, 20f)); }
+        }
+        mainClock.advanceTimeBy(100)
+        val pulledTitle = top("Perth Underground")
+        val pulledRow = top("Trains")
+        onNodeWithTag("departures").performTouchInput { up() }
+        mainClock.autoAdvance = true
+
+        assertEquals(title, pulledTitle, 0.5f, "the bar came down with the pull")
+        assertTrue(pulledRow > firstRow + 20f, "the list did not come down: ${pulledRow - firstRow}px")
     }
 
     @Test

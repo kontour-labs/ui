@@ -60,6 +60,24 @@ resists, so the indicator moves less than the finger does; the way back closes a
 full rate and consumes all of it, and the list underneath stays where it is until
 the indicator is fully in.
 
+## Under a top bar
+
+What it holds is what a pull brings down, and the indicator comes in at its top
+edge. So put it round the list alone, below the page's `TopBar`, not round the
+page: round the page, the bar comes down with the pull and the indicator appears
+above it. With a collapsing bar, give the list the bar's
+`collapseState.nestedScrollConnection`, inside the refresh, so a pull at the top
+opens the bar before it starts a refresh:
+
+```kotlin
+Column {
+    TopBar(style = TopBarStyle.Large, collapseState = collapse) { +"Departures" }
+    PullToRefresh(refreshing, onRefresh, Modifier.weight(1f)) {
+        LazyColumn(Modifier.nestedScroll(collapse.nestedScrollConnection)) { … }
+    }
+}
+```
+
 ---
 
 ## Accessibility
