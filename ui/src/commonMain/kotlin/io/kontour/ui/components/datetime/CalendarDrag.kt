@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.interaction.DetentTicker
@@ -728,9 +729,9 @@ internal fun DrawScope.drawEdgeArrow(
     stroke: Float,
 ) {
     if (alpha <= 0f) return
-    val radius = ArrowRingRadius.toPx()
+    val (out, radius) = arrowRing(halfCell)
     val side = if (pointsLeft) -1f else 1f
-    val centre = Offset(day.x + side * (halfCell - radius - ArrowRingInset.toPx()), day.y)
+    val centre = Offset(day.x + side * out, day.y)
     drawCircle(ring, radius = radius, center = centre, alpha = alpha, style = Stroke(stroke))
     if (progress > 0f) {
         drawArc(
@@ -753,6 +754,22 @@ internal fun DrawScope.drawEdgeArrow(
         lineTo(tip - side * arm / 2f, centre.y + arm)
     }
     drawPath(path, chevron, alpha = alpha, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
+/**
+ * Where an edge day's arrow ring sits and how big it is, for a day [halfCell]
+ * pixels from its middle to its nearest edge: the ring's centre, that far out
+ * from the day's middle toward the other month, and its radius.
+ *
+ * In proportion to the day. It was a fixed 6.5dp, sized when a day was a 48dp
+ * pill; once a dragged day became a circle as tall as its 40dp week the same
+ * ring sat inside it against the number — *"in the range picker, the little
+ * "next/previous month arrow" is now too big"*. A fifth of the half-day
+ * leaves a two-digit number its own room in a day of any size.
+ */
+internal fun Density.arrowRing(halfCell: Float): Pair<Float, Float> {
+    val radius = halfCell * ArrowRingShare
+    return (halfCell - radius - ArrowRingInset.toPx()) to radius
 }
 
 /**
@@ -796,9 +813,9 @@ private const val EdgeReach: Float = 1.5f
 private const val RingFadeFrom: Float = 2.5f
 private const val RingFadeFull: Float = 0.75f
 
-/** The ring round the arrow, and how far it sits in from the day's box. */
-internal val ArrowRingRadius = 6.5.dp
-private val ArrowRingInset = 1.5.dp
+/** The ring round the arrow against half its day, and how far it sits in from the day's edge. */
+private const val ArrowRingShare: Float = 0.2f
+internal val ArrowRingInset = 1.dp
 
 /** The progress arc, a little bolder than the ring it fills. */
 private const val ProgressStrokeShare: Float = 1.4f

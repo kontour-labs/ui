@@ -96,7 +96,9 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   half as large again); a week is at most 40dp tall where it was as tall as a
   day is wide; and the header and the weekday initials sit closer. At a
   phone's width a `DatePicker` is 307dp tall rather than 379dp. A chosen
-  day is a circle as tall as its week.
+  day is a circle as tall as its week, and the arrow a range's dragged end
+  shows on a month's first or last day is sized to the day, beside its number
+  rather than against it.
 - **A command palette puts the closest commands first.** With something typed,
   the label that is the query comes first, then one that starts with it, then a
   word in a label, then a keyword, then the query inside a word; within each,
