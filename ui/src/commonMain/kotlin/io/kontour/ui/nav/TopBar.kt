@@ -376,10 +376,17 @@ private fun HeroBar(
                             val titleTop = inset + geometry.textTopOpen +
                                 (geometry.textTopCollapsed - geometry.textTopOpen) * p
                             val foot = size.height - geometry.shrink * p
+                            // Every rect below runs on to the bottom of this
+                            // box, under the bar's foot whichever way it was
+                            // rounded. They stopped at the foot unrounded, which
+                            // left up to half the bar's last line of pixels
+                            // over the picture, every other few pixels of
+                            // scroll — reported as a line that flashes as you
+                            // scroll.
                             if (solid) {
                                 // Nothing of the picture behind the words.
                                 if (foot > titleTop) {
-                                    drawRect(containerColour, topLeft = Offset(0f, titleTop), size = Size(size.width, foot - titleTop))
+                                    drawRect(containerColour, topLeft = Offset(0f, titleTop), size = Size(size.width, size.height - titleTop))
                                 }
                                 return@drawBehind
                             }
@@ -404,7 +411,7 @@ private fun HeroBar(
                                     endY = foot,
                                 ),
                                 topLeft = Offset(0f, from),
-                                size = Size(size.width, span),
+                                size = Size(size.width, size.height - from),
                             )
                         },
                     )
