@@ -2130,9 +2130,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 isSelected = { it == SpecimenDate },
                 onSelectedChange = {},
                 today = SpecimenToday,
-                // A phone's worth of width. Unbounded, a calendar takes
-                // `CalendarMonthDefaults.MaxWidth` — 511dp, which is correct and
-                // does not fit a specimen card. `widthIn` rather than `width`,
+                // A narrow phone's worth of width. Unbounded, a calendar takes
+                // `CalendarMonthDefaults.MaxWidth` — 308dp, which is correct and
+                // wider than a specimen card. `widthIn` rather than `width`,
                 // so the width sweep can still squeeze it.
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
@@ -2145,10 +2145,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             underContract = false,
             renderHeight = 380,
-            // Seven columns of day numbers that only ever grow — `grownFor`
-            // scales a cell's digit up and never down — so below about this the
-            // grid is wider than its box by construction. A fact about the
-            // component, declared beside it.
+            // Seven columns of day numbers on the type scale, which do not
+            // shrink with their cells, so below about this the grid is wider
+            // than its box by construction. A fact about the component,
+            // declared beside it.
             minWidth = 200,
         ) { modifier, _, _ ->
             DatePicker(
@@ -2168,10 +2168,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             underContract = false,
             renderHeight = 380,
-            // Seven columns of day numbers that only ever grow — `grownFor`
-            // scales a cell's digit up and never down — so below about this the
-            // grid is wider than its box by construction. A fact about the
-            // component, declared beside it.
+            // Seven columns of day numbers on the type scale, which do not
+            // shrink with their cells, so below about this the grid is wider
+            // than its box by construction. A fact about the component,
+            // declared beside it.
             minWidth = 200,
         ) { modifier, _, _ ->
             // A range that spans a week boundary, so the picture shows both the
@@ -2765,7 +2765,7 @@ private val SpecimenMonth = LocalDate(2026, 6, 1)
 private val SpecimenDate = LocalDate(2026, 6, 18)
 private val SpecimenTime = LocalTime(8, 31)
 
-/** A phone's worth of width, for the specimens that would otherwise take 511dp. */
+/** A narrow phone's worth of width, for the specimens that would otherwise take 308dp. */
 private val SpecimenGridWidth = 256.dp
 
 /**

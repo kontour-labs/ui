@@ -1532,12 +1532,15 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = bounds.width / 7f
-            val gridTop = bounds.bottom - 6 * size
+            // A week is a day's width tall, up to the calendar's 40dp week
+            // at the scene's density of 2.
+            val row = minOf(size, 80f)
+            val gridTop = bounds.bottom - 6 * row
             fun cell(day: Int): Offset {
                 val index = day - 1 + 5
                 return Offset(
                     bounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             }
             scene.drag(from = cell(28), to = cell(31), steps = 12, release = false, paceMillis = 12)
@@ -1585,12 +1588,15 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = bounds.width / 7f
-            val gridTop = bounds.bottom - 6 * size
+            // A week is a day's width tall, up to the calendar's 40dp week
+            // at the scene's density of 2.
+            val row = minOf(size, 80f)
+            val gridTop = bounds.bottom - 6 * row
             fun cell(day: Int): Offset {
                 val index = day - 1 + 5
                 return Offset(
                     bounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             }
             scene.drag(from = cell(10), to = cell(15), steps = 24, paceMillis = 12)
@@ -1620,12 +1626,13 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = tapBounds.width / 7f
-            val gridTop = tapBounds.bottom - 6 * size
+            val row = minOf(size, 80f)
+            val gridTop = tapBounds.bottom - 6 * row
             val index = 12 - 1 + 5
             scene.tap(
                 Offset(
                     tapBounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             )
             scene.frames(10)

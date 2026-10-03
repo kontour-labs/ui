@@ -88,7 +88,7 @@ class CalendarDetentTest {
             val held = scene.frames(24)
             scene.release(to)
 
-            val line = (to.y + cellSize(bounds) / 3f).toInt()
+            val line = (to.y + rowHeight(bounds) / 3f).toInt()
             edge = held.rightmostInk(line, bounds)
         }
         return edge
@@ -108,14 +108,18 @@ class CalendarDetentTest {
 
     private fun cellSize(bounds: Rect): Float = bounds.width / 7f
 
+    /** A week's height: a day's width, up to the calendar's 40dp week at the scene's density of 2. */
+    private fun rowHeight(bounds: Rect): Float = minOf(cellSize(bounds), 80f)
+
     /** The centre of a day of August 2026, as `DateRangeStripTest` computes it. */
     private fun cell(bounds: Rect, day: Int): Offset {
         val size = cellSize(bounds)
-        val gridTop = bounds.bottom - Rows * size
+        val row = rowHeight(bounds)
+        val gridTop = bounds.bottom - Rows * row
         val index = day - 1 + LeadingBlanks
         return Offset(
             bounds.left + (index % 7 + 0.5f) * size,
-            gridTop + (index / 7 + 0.5f) * size,
+            gridTop + (index / 7 + 0.5f) * row,
         )
     }
 

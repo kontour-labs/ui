@@ -9,38 +9,33 @@ import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.datetime.CalendarMonth
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
+import kotlin.math.abs
 import kotlin.test.assertTrue
 
 /**
- * The heading grows with what it heads.
+ * The heading stays with what it heads: on the type scale, at any width.
  *
- * A day cell is a seventh of the grid, and a calendar given more width grows its
- * digits in proportion so a wide picker is not small numbers adrift in large
- * circles. The row of weekday initials above them was left on the type scale, so
- * every width past a phone's drew large numbers under letters that had stopped
- * looking like a heading for them — reported as "weekday indicators do not scale
- * with text size in any date component".
+ * The day numbers used to grow with their cells on a wide calendar, and the
+ * weekday initials with them, after *"weekday indicators do not scale with text
+ * size in any date component"*. The cells now stop at a phone's size — *"i've
+ * always found the date picker to be really big and spaced out"* — so neither
+ * grows, and the initials must not be left growing on their own over digits
+ * that do not.
  *
- * Both are now the same growth from the same cell size, which is why this
- * measures the initials at two widths rather than against a number: the claim is
- * that the header answers the grid, and nothing about the value it lands on.
+ * Measured at two widths rather than against a number: the claim is that the
+ * width makes no difference.
  */
 class CalendarWeekdayScaleTest {
 
     @Test
-    fun theWeekdayInitialsGrowWithTheCells() {
-        // A cell below `ReferenceCell` (44dp), so nothing grows.
-        val narrow = weekdayInk(sceneWidth = 500)
-        // Wide enough for the growth to reach its cap.
+    fun theWeekdayInitialsAreTheSameAtAnyWidth() {
+        val narrow = weekdayInk(sceneWidth = 320)
         val wide = weekdayInk(sceneWidth = 1200)
 
         assertTrue(narrow > 0 && wide > 0, "no weekday initials were drawn to measure")
         assertTrue(
-            wide > narrow * 13 / 10,
-            "the weekday initials are ${narrow}px tall in a narrow calendar and " +
-                "${wide}px in one wide enough for the day numbers to reach their " +
-                "largest — a header that stays put while what it heads grows stops " +
-                "reading as one",
+            abs(wide - narrow) <= 1,
+            "the weekday initials are ${narrow}px tall in a narrow calendar and ${wide}px in a wide one",
         )
     }
 

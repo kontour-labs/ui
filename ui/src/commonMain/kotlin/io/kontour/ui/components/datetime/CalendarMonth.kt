@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -54,11 +56,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.insetFocusRing
@@ -84,29 +84,25 @@ object CalendarMonthDefaults {
     val CellInset: Dp = 1.dp
 
     /**
-     * The cell size the type scale is already right for.
+     * The widest a day cell gets: the size the type scale is right for.
      *
      * A month grid at a phone's width puts a cell at about this, which is where
-     * `bodyMedium` was chosen. Cells larger than this grow their digit in
-     * proportion; smaller ones leave it alone. See `DayCell`.
+     * `bodyMedium` was chosen, and it is where the grid stops. Cells used to go
+     * on growing with the width, the digits with them to two thirds again, so a
+     * picker on a desktop was half a window of large numbers in larger circles:
+     * *"i've always found the date picker to be really big and spaced out,
+     * compared to a lot of our other components"*.
      */
     val ReferenceCell: Dp = 44.dp
 
     /**
-     * How wide a month grid is worth making.
-     *
-     * Derived, not chosen — which is why it is spelled as its derivation. A day
-     * cell grows its digit in proportion to the cell and stops at
-     * `MaxDayGrowth`, so seven cells at that limit is the width past which the
-     * numbers are already as large as they will ever get and every further pixel
-     * buys a bigger empty circle around the same digit. That is the point where
-     * a calendar stops becoming more legible and starts only becoming larger.
+     * How wide a month grid gets: seven cells at [ReferenceCell].
      *
      * It needs saying because uncapped, `fillMaxWidth` means "as wide as the
      * container", and a desktop window is a container. A calendar is not a thing
      * that wants a whole window, and a picker handed one filled it.
      */
-    val MaxWidth: Dp = ReferenceCell * 7 * MaxDayGrowth
+    val MaxWidth: Dp = ReferenceCell * 7
 }
 
 /**
@@ -265,9 +261,9 @@ fun CalendarMonth(
     // the cap, written the other way round, the cap is silently discarded.
     BoxWithConstraints(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
         val cellSize = maxWidth / 7
-        // The same growth the day numbers get, from the same cell size. A
-        // heading that stays put while what it heads grows stops reading as one.
-        //
+        // A week no taller than a cell is wide, and no taller than
+        // `MaxRowHeight` however wide it is.
+        val rowHeight = minOf(cellSize, MaxRowHeight)
         // Normal weight, which `labelSmall` is not. It was reported that the
         // initials need to be smaller than the dates, and by *size* they already
         // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
@@ -279,8 +275,7 @@ fun CalendarMonth(
         // Overridden here rather than in the scale, because `labelSmall` is
         // shared and its weight is right everywhere it is a *label*. This is a
         // column heading.
-        val weekdayBase = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
-        val weekdayStyle = remember(weekdayBase, cellSize) { weekdayBase.grownFor(cellSize) }
+        val weekdayStyle = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
         val colours = Theme.colours
         // The dwell arrow's ring: a line and a half, thickening with the tier.
         val arrowStroke = Theme.sizing.lines(1.5f)
@@ -303,7 +298,7 @@ fun CalendarMonth(
                         text = initial,
                         style = weekdayStyle,
                         colour = Theme.colours.contentMuted,
-                        modifier = Modifier.padding(vertical = Theme.spacing.xs),
+                        modifier = Modifier.padding(vertical = Theme.spacing.xxs),
                     )
                 }
             }
@@ -395,13 +390,13 @@ fun CalendarMonth(
                 },
         ) {
         for (row in 0 until rows) {
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().height(rowHeight)) {
                 for (column in 0 until 7) {
                     val cellIndex = row * 7 + column
                     val dayOfMonth = cellIndex - leadingBlanks + 1
 
                     if (dayOfMonth < 1 || dayOfMonth > daysInMonth) {
-                        Box(Modifier.weight(1f).aspectRatio(1f))
+                        Box(Modifier.weight(1f))
                     } else {
                         val date = LocalDate(month.year, month.month, dayOfMonth)
                         DayCell(
@@ -414,6 +409,7 @@ fun CalendarMonth(
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
                             formats = formats,
                             cellSize = cellSize,
+                            rowHeight = rowHeight,
                             dragging = live,
                             travelling = live && drag.leaning == date,
                             flash = if (date == today) todayFlash else null,
@@ -492,6 +488,7 @@ private fun DayCell(
     rangePosition: RangePosition,
     formats: LocaleFormats,
     cellSize: Dp,
+    rowHeight: Dp,
     /** A drag is live in this month: the band is the grid's, not the days'. */
     dragging: Boolean,
     /** This day is the moving end of that drag. */
@@ -674,26 +671,20 @@ private fun DayCell(
         label = "dayFill",
     )
 
-    /**
-     * The day number, sized to the cell it is in.
-     *
-     * A calendar given a lot of width grows its cells with it — they are square
-     * and a seventh of the grid — while the digit inside stayed at whatever the
-     * type scale said, so a wide picker was small numbers adrift in large
-     * circles.
-     *
-     * Scaled against the *style*, not computed in dp: the base size is in `sp`
-     * and multiplying it keeps the user's own text size in the answer, where
-     * deriving a dp from the cell and converting back would quietly throw it
-     * away. And it only grows — a cramped calendar has other problems, and
-     * shrinking the digit below the type scale is not the fix for any of them.
-     */
-    val baseStyle = if (isToday) Theme.typography.labelMedium else Theme.typography.bodyMedium
-    val dayStyle = remember(baseStyle, cellSize) { baseStyle.grownFor(cellSize) }
+    // On the type scale. The cells stop at the size it was chosen for, so the
+    // digit no longer grows with them.
+    val dayStyle = if (isToday) Theme.typography.labelMedium else Theme.typography.bodyMedium
+
+    // A whole pill is a circle, as tall as the week: a lone day, today's ring, and
+    // the end being dragged. The cell is a little wider than its week is tall, and
+    // a pill as wide as the cell was a lozenge. A range's caps and middle fill the
+    // cell's width still, since the band is joined across it.
+    val round = travelling || rangePosition == RangePosition.None || rangePosition == RangePosition.StartAndEnd
+    val fillSize = if (round) Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier.matchCellSize()
 
     Box(
         modifier = modifier
-            .aspectRatio(1f)
+            .fillMaxHeight()
             // Inset on the outside of the range only.
             //
             // A flat 1dp all round put 2dp of gap between every pair of
@@ -711,7 +702,7 @@ private fun DayCell(
     ) {
         Box(
             Modifier
-                .matchCellSize()
+                .then(fillSize)
                 .graphicsLayer {
                     if (sliding) {
                         // **The cap is where the grid says it is.**
@@ -720,14 +711,13 @@ private fun DayCell(
                         // cell, in cells, on both axes, with the pull toward the
                         // finger already in it — so a crossing within a week is a
                         // slide along the row and one into the next week is a move
-                        // up and across to the day the range came from. The pitch is
-                        // the cell's own dp rather than `size`, which is inset on the
-                        // outside of the range and would leave the cap a pixel or two
-                        // short of each day it passed.
-                        val pitch = cellSize.toPx()
+                        // up and across to the day the range came from. The pitches
+                        // are the cell's own width and its week's height rather than
+                        // `size`, which is inset on the outside of the range and would
+                        // leave the cap a pixel or two short of each day it passed.
                         val travel = capTravel()
-                        translationX = travel.x * pitch
-                        translationY = travel.y * pitch
+                        translationX = travel.x * cellSize.toPx()
+                        translationY = travel.y * rowHeight.toPx()
                     } else if (filled) {
                         scaleX = fillScale
                         scaleY = fillScale
@@ -758,7 +748,7 @@ private fun DayCell(
             val flashColour = colours.accent.solid
             Box(
                 Modifier
-                    .matchCellSize()
+                    .then(fillSize)
                     .drawBehind {
                         val amount = flash()
                         if (amount > 0f) {
@@ -851,36 +841,13 @@ private fun Modifier.matchCellSize(): Modifier = fillMaxSize()
 private fun Modifier.markerSize(): Modifier = size(4.dp)
 
 /**
- * The most the day number grows over its base size in a wide calendar.
+ * The tallest a week gets, a little under a cell's widest.
  *
- * Two thirds again. Past that the digit starts to fill the cap it sits in and a
- * selected day reads as a number with a ring drawn tight around it rather than
- * as a marked date.
+ * Square cells stacked six weeks deep made a calendar taller than anything near
+ * it on a page for the sake of a row of single digits. A selected day is still a
+ * circle, as tall as its week.
  */
-private const val MaxDayGrowth = 1.66f
-
-/**
- * This style, grown in proportion to a calendar cell wider than the reference.
- *
- * Scaled against the *style*, not computed in dp: the base size is in `sp` and
- * multiplying it keeps the user's own text size in the answer, where deriving a
- * dp from the cell and converting back would quietly throw it away. And it only
- * grows — a cramped calendar has other problems, and shrinking the text below
- * the type scale is not the fix for any of them.
- *
- * Shared by the day numbers and the weekday initials above them, which is the
- * whole reason it is a function. The numbers grew with their cells and the
- * initials did not, so a calendar at any width past a phone's was large digits
- * under a row of small letters that no longer looked like a heading for them.
- */
-internal fun TextStyle.grownFor(cellSize: Dp): TextStyle {
-    val growth = (cellSize / CalendarMonthDefaults.ReferenceCell).coerceIn(1f, MaxDayGrowth)
-    if (growth <= 1f) return this
-    return copy(
-        fontSize = fontSize * growth,
-        lineHeight = if (lineHeight.isSpecified) lineHeight * growth else lineHeight,
-    )
-}
+private val MaxRowHeight = 40.dp
 
 /** What a disabled month asks of each day. One instance, so it compares equal. */
 private val NoDateSelectable: (LocalDate) -> Boolean = { false }

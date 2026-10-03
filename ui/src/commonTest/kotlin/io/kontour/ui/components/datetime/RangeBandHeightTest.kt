@@ -89,8 +89,8 @@ class RangeBandHeightTest {
             // Which columns are band is decided against the tallest run in the
             // image rather than against a fixed number of pixels. It was a
             // constant, and the constant was chosen when a day number was
-            // whatever the type scale said — the digits size with their cells
-            // now, and the first calendar wide enough to grow them past 24px
+            // whatever the type scale said — the digits sized with their cells
+            // for a while, and the first calendar wide enough to grow them past 24px
             // put glyph columns into `band`, which moved its ends, which made
             // `cell` wrong, which walked the six samples off the cell centres
             // and had them measuring digits. The band is a whole cell tall and
@@ -101,7 +101,12 @@ class RangeBandHeightTest {
             if (band.isNotEmpty()) {
                 val cell = (band.last() - band.first() + 1) / Days.toFloat()
                 repeat(Days) { i ->
-                    runs += runAt((band.first() + cell * (i + 0.5f)).toInt())
+                    // Off the middle toward the band's inside: clear of the
+                    // digit, which on a cap is drawn in the page's own white and
+                    // splits the run in two wherever a stroke crosses the
+                    // sample, and clear of the cap's rounded outer end.
+                    val inward = if (i == Days - 1) -Inward else Inward
+                    runs += runAt((band.first() + cell * (i + 0.5f + inward)).toInt())
                 }
             }
         }
@@ -134,5 +139,8 @@ class RangeBandHeightTest {
 
         /** 9th to 14th inclusive. */
         const val Days = 6
+
+        /** How far off a cell's middle it is sampled, in cells: past a two-digit number's half-width. */
+        const val Inward = 0.3f
     }
 }

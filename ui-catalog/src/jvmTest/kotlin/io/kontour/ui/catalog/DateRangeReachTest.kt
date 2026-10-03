@@ -43,7 +43,7 @@ class DateRangeReachTest {
     @Test
     fun leaningAcrossFillsTheDayBeingLeft() {
         held(anchor = 10, head = 12, lean = Offset(0.45f, 0f)) { image, grid ->
-            val left = grid.cell(12) - Offset(Cell * 0.45f, 0f)
+            val left = grid.cell(12) - Offset(grid.columnWidth * 0.45f, 0f)
             assertTrue(image.isRangeTint(left), "the start of the 12th, behind the leaning cap, was not band")
         }
     }
@@ -106,9 +106,9 @@ class DateRangeReachTest {
         for (dx in leans) for (dy in leans) {
             held(anchor = 3, head = 12, lean = Offset(dx, dy)) { image, grid ->
                 // Settled, the cap is the pull's share of the lean from its own cell.
-                val centre = grid.cell(12) + Offset(dx, dy) * (Cell * Pull)
-                val left = centre.x - Cell / 2f
-                val top = centre.y - Cell / 2f + InsetPx
+                val centre = grid.cell(12) + Offset(dx * grid.columnWidth, dy * grid.rowHeight) * Pull
+                val left = centre.x - grid.columnWidth / 2f
+                val top = centre.y - grid.rowHeight / 2f + InsetPx
                 val start = image.isRangeTint(Offset(left - 4f, centre.y))
                 val above = image.isRangeTint(Offset(centre.x, top - 4f))
                 if (!start && !above) misses += "($dx, $dy)"
@@ -153,7 +153,7 @@ class DateRangeReachTest {
             grid = g
             scene.drag(from = g.cell(3), to = g.cell(19), steps = 24, release = false)
             scene.frames(20)
-            val between = g.cell(19) - Offset(0f, Cell * 0.45f)
+            val between = g.cell(19) - Offset(0f, g.rowHeight * 0.45f)
             scene.move(between)
             scene.frames(12)
             scene.release(between)
@@ -189,7 +189,7 @@ class DateRangeReachTest {
         picker(onRange = { s, e -> start = s; end = e }, start = { start }, end = { end }) { scene, grid ->
             scene.drag(from = grid.cell(anchor), to = grid.cell(head), steps = 24, release = false)
             scene.frames(20)
-            val at = grid.cell(head) + lean * Cell
+            val at = grid.cell(head) + Offset(lean.x * grid.columnWidth, lean.y * grid.rowHeight)
             scene.move(at)
             val image = scene.frames(24)
             scene.release(at)
@@ -226,16 +226,21 @@ class DateRangeReachTest {
 
     /** August 2026's grid in a picker at [bounds]: seven columns, six rows, five blanks. */
     private class Grid(val bounds: Rect, val rtl: Boolean) {
+        val columnWidth = bounds.width / 7f
+
+        /** A week's height: a day's width, up to the calendar's 40dp week. */
+        val rowHeight = minOf(columnWidth, MaxRow)
+
         fun cell(day: Int): Offset {
-            val top = bounds.bottom - Rows * Cell
+            val top = bounds.bottom - Rows * rowHeight
             val index = day - 1 + LeadingBlanks
             val column = index % 7 + 0.5f
-            val x = if (rtl) bounds.right - column * Cell else bounds.left + column * Cell
-            return Offset(x, top + (index / 7 + 0.5f) * Cell)
+            val x = if (rtl) bounds.right - column * columnWidth else bounds.left + column * columnWidth
+            return Offset(x, top + (index / 7 + 0.5f) * rowHeight)
         }
 
         /** Inside the band's height and below the day's digit. */
-        fun below(day: Int): Offset = cell(day) + Offset(0f, Cell * 0.35f)
+        fun below(day: Int): Offset = cell(day) + Offset(0f, rowHeight * 0.35f)
     }
 
     /** Bluer than it is red: the range tint, and nothing else this picker draws. */
@@ -248,8 +253,8 @@ class DateRangeReachTest {
         const val LeadingBlanks = 5
         const val Rows = 6
 
-        /** A cell at this scene's width: 700px over seven columns. */
-        const val Cell = 100f
+        /** the calendar's 40dp week at density two. */
+        const val MaxRow = 80f
 
         /** `CalendarMonthDefaults.CellInset` at density two. */
         const val InsetPx = 2f

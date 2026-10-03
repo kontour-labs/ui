@@ -23,12 +23,12 @@ knowing which mode it is in.
 Range endpoints get a rounded cap and the interior stays square, so a run reads
 as continuous rather than as a row of separate pills.
 
-**The grid grows with the room it is given.** A cell is a seventh of the width,
-and past about 44dp the day numbers grow in proportion to it — with the row of
-weekday initials above them growing at the same rate, so the header keeps looking
-like a header for the numbers under it. Both stop at the same point, which is
-also where the grid stops widening: past it the digits are as large as they will
-get and more width only buys a larger empty circle around the same number.
+**A phone's calendar wherever it is.** A cell is a seventh of the width up to
+44dp (`CalendarMonthDefaults.ReferenceCell`), the size the type scale is right
+for, and the grid stops widening there, at 308dp: given a desktop window it is
+the size it is on a phone, and its digits and weekday initials stay on the type
+scale. A week is as tall as a day is wide, up to 40dp, so six of them stack no taller
+than they need to; a chosen day is a circle as tall as its week.
 
 **Dragging a range extends one band.** Only the end the finger is moving
 travels, leaning toward the finger between days; everything behind it is drawn.

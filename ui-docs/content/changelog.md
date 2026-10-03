@@ -91,6 +91,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
   opens over the sheet. Before, only the page lost its focus. A menu or a
   combobox's list leaves the field it opened from focused, as before.
+- **Date pickers are a phone's size wherever they are, and shorter.** A day
+  cell stops at 44dp, so a calendar stops at 308dp (it was 511dp, with digits
+  half as large again); a week is at most 40dp tall where it was as tall as a
+  day is wide; and the header and the weekday initials sit closer. At a
+  phone's width a `DatePicker` is 307dp tall rather than 379dp. A chosen
+  day is a circle as tall as its week.
 - **A command palette puts the closest commands first.** With something typed,
   the label that is the query comes first, then one that starts with it, then a
   word in a label, then a keyword, then the query inside a word; within each,

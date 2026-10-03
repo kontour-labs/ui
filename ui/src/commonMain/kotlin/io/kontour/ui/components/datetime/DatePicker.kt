@@ -1020,7 +1020,7 @@ private fun CalendarFrame(
             // the next month's. Reported as wanting the title centred at the top
             // of every calendar.
             CentredBetween(
-                modifier = Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xs),
+                modifier = Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xxs),
                 start = {
                     if (previousIcon != null) {
                         IconButton(
