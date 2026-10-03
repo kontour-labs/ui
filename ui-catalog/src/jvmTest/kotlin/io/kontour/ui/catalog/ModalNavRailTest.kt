@@ -21,10 +21,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Home
-import com.composables.icons.tabler.outline.Route
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Route
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.sheet.SheetSide

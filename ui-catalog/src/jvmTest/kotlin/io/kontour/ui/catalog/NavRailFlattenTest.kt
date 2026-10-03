@@ -17,11 +17,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.Home
-import com.composables.icons.tabler.outline.Route
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Route
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavDefaults
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.overlay.OverlayHost

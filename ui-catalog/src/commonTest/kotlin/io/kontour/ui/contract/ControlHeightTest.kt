@@ -8,8 +8,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plus
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton

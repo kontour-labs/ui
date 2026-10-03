@@ -18,11 +18,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.MapPin
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavDefaults

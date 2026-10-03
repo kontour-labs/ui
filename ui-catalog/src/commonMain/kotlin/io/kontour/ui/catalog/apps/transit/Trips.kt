@@ -21,10 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ChevronRight
-import com.composables.icons.tabler.outline.InfoCircle
-import com.composables.icons.tabler.outline.Route
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.outline.InfoCircle
+import io.kontour.icons.tabler.outline.Route
 import io.kontour.ui.catalog.apps.rememberAppToast
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant

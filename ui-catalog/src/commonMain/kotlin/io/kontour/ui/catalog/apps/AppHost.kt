@@ -21,8 +21,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.catalog.CatalogSettings
 import io.kontour.ui.catalog.apps.messages.MessagesApp

@@ -130,9 +130,13 @@ Both **throw** rather than fall back when they are missing — "No KontourTheme
 found" and "No OverlayHost found" — because a component in the wrong palette, or
 a dialog drawing nowhere, is a bug that looks like a missing feature.
 
-**Icons are yours.** Components take an `ImageVector` and the library ships no
-glyph set, so the app chooses one. The documentation and the gallery use Tabler
-(`com.composables:icons-tabler-outline-cmp`); any `ImageVector` works.
+**Icons are yours.** Components take an `ImageVector`, so the app chooses its
+set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
+`io.kontour:tabler-icons-outline` and `-filled`, every icon of the release, with
+`Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
+few system icons from it, so it comes with the library, from the repository
+below: GitHub Packages serves everything Kontour Labs publishes from the one
+URL. Any `ImageVector` works.
 
 **Fonts are included.** The default type is Outfit, with JetBrains Mono for code
 and figures, both bundled; there is nothing to add unless you reskin, which

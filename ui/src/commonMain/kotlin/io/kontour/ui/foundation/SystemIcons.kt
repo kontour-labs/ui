@@ -5,25 +5,25 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Dots
-import com.composables.icons.tabler.outline.Selector
-import com.composables.icons.tabler.outline.AlertCircle
-import com.composables.icons.tabler.outline.AlertTriangle
-import com.composables.icons.tabler.outline.ArrowDown
-import com.composables.icons.tabler.outline.ArrowUp
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.CircleCheck
-import com.composables.icons.tabler.outline.InfoCircle
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronLeft
-import com.composables.icons.tabler.outline.ChevronRight
-import com.composables.icons.tabler.outline.ChevronUp
-import com.composables.icons.tabler.outline.Minus
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.X
-import com.composables.icons.tabler.filled.Star as FilledStar
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Dots
+import io.kontour.icons.tabler.outline.Selector
+import io.kontour.icons.tabler.outline.AlertCircle
+import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.ArrowDown
+import io.kontour.icons.tabler.outline.ArrowUp
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.CircleCheck
+import io.kontour.icons.tabler.outline.InfoCircle
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronLeft
+import io.kontour.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.outline.ChevronUp
+import io.kontour.icons.tabler.outline.Minus
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.X
+import io.kontour.icons.tabler.filled.Star as FilledStar
 import io.kontour.ui.theme.Tone
 
 /**

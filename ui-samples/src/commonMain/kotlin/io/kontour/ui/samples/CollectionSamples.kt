@@ -1,6 +1,6 @@
 package io.kontour.ui.samples
 
-import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
@@ -13,11 +13,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronRight
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem

@@ -3,8 +3,8 @@ package io.kontour.ui.samples
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plane
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue

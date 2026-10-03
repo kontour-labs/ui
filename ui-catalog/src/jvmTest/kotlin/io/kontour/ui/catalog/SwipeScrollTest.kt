@@ -11,9 +11,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Archive
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Archive
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.list.SwipeActionsState

@@ -1,7 +1,7 @@
 package io.kontour.ui.demo
 
-import com.composables.icons.tabler.outline.Bike
-import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.icons.tabler.outline.Bike
+import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -23,16 +23,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Archive
-import com.composables.icons.tabler.outline.Bell
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.GripVertical
-import com.composables.icons.tabler.outline.Moon
-import com.composables.icons.tabler.outline.Pin
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Archive
+import io.kontour.icons.tabler.outline.Bell
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.GripVertical
+import io.kontour.icons.tabler.outline.Moon
+import io.kontour.icons.tabler.outline.Pin
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone

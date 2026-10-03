@@ -9,9 +9,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.components.action.FabMenu
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent

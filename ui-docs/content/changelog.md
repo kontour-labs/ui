@@ -48,6 +48,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Changed
 
+- **Icons come from Kontour Labs' own build of Tabler**,
+  `io.kontour:tabler-icons-outline` and `-filled`, in place of composables'
+  `icons-tabler-*-cmp`: every icon of Tabler 3.48.0, where composables' stopped
+  at an older release. The library's few system icons are drawn from it, so it
+  comes with the library, from the same GitHub Packages repository. The API is
+  the same under `io.kontour.icons.tabler`; a few glyphs Tabler has redrawn
+  since, the star among them, are a pixel or two different.
 - **A coach-mark tour's last step says Done**, beside Back, and the way on is
   filled in the bubble's ink so it reads as a button. It said "Got it", and
   next to Back as two ghost buttons on the accent the pair read as words. A

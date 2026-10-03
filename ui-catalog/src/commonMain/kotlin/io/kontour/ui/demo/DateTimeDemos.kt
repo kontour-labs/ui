@@ -19,11 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plane
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronLeft
-import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronLeft
+import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityLegend
 import io.kontour.ui.components.datetime.ActivityMark

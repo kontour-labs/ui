@@ -27,10 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.AlertTriangle
-import com.composables.icons.tabler.outline.Clock
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Clock
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus

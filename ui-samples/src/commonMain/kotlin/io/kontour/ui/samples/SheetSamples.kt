@@ -18,10 +18,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.CurrentLocation
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.CurrentLocation
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton

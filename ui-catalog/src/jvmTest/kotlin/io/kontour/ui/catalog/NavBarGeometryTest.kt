@@ -21,8 +21,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Search
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Search
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.nav.NavBar

@@ -11,8 +11,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.DotsVertical
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.DotsVertical
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle

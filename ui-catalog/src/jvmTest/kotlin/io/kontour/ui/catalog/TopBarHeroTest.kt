@@ -18,8 +18,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Share
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Share
 import io.kontour.ui.a11y.contrastRatio
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.nav.TopBar

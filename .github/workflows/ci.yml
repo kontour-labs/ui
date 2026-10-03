@@ -84,6 +84,17 @@ on:
 # here.
 permissions:
   contents: read
+  # The icons, `io.kontour:tabler-icons-*`, are on GitHub Packages, which wants
+  # credentials even to read. See `env` below.
+  packages: read
+
+# What `settings.gradle.kts` reads the icons with. A `KONTOUR_PACKAGES_*` pair
+# from the repository's secrets where it has one; otherwise this run's own
+# token, which reads the package where the package grants this repository
+# Actions access (the package's settings, under "Manage Actions access").
+env:
+  KONTOUR_PACKAGES_ACTOR: ${{ secrets.KONTOUR_PACKAGES_ACTOR || github.actor }}
+  KONTOUR_PACKAGES_TOKEN: ${{ secrets.KONTOUR_PACKAGES_TOKEN || github.token }}
 
 # `main` and tags are never cancelled. The last push to land should be the one
 # that ends up published, and cancelling a deploy in flight can leave a newer

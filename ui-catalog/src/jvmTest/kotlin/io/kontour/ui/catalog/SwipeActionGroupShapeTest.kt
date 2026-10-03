@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.list.SwipeAction

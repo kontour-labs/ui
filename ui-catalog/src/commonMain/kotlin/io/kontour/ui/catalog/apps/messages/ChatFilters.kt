@@ -12,11 +12,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronLeft
-import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronLeft
+import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.TextButton

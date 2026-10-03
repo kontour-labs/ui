@@ -1,21 +1,21 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.Calendar
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.ChevronRight
-import com.composables.icons.tabler.outline.Clock
-import com.composables.icons.tabler.outline.Eye
-import com.composables.icons.tabler.outline.MapPin
-import com.composables.icons.tabler.outline.Menu2
-import com.composables.icons.tabler.outline.Navigation
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Search
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Trash
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.outline.Clock
+import io.kontour.icons.tabler.outline.Eye
+import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Menu2
+import io.kontour.icons.tabler.outline.Navigation
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Search
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.outline.X
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

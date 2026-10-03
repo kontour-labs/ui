@@ -11,9 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Messages
-import com.composables.icons.tabler.outline.Notes
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Messages
+import io.kontour.icons.tabler.outline.Notes
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.catalog.apps.LeaveAppButton
 import io.kontour.ui.catalog.apps.LocalLeaveApp

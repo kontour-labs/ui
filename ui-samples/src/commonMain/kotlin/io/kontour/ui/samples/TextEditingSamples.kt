@@ -11,8 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.EmailField
 import io.kontour.ui.components.text.MultiSelect

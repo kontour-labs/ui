@@ -49,8 +49,9 @@ travelling with the artifact.
 
 ### Why Tabler
 
-The app and catalog use **Tabler** (`icons-tabler-outline-cmp`,
-`icons-tabler-filled-cmp`). Tabler draws every glyph on a uniform 24×24 grid,
+The app and catalog use **Tabler**, as Kontour Labs builds it
+(`io.kontour:tabler-icons-outline` and `-filled`: every icon of the release,
+generated from Tabler's own). Tabler draws every glyph on a uniform 24×24 grid,
 which matters more than it sounds: FontAwesome uses a 512-tall grid of varying
 width while declaring every glyph as square, so its icons both distort and
 occupy visibly different widths within the same slot.

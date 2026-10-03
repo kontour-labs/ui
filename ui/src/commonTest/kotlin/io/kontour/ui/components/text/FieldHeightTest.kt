@@ -12,11 +12,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Eye
-import com.composables.icons.tabler.outline.EyeOff
-import com.composables.icons.tabler.outline.Search
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Eye
+import io.kontour.icons.tabler.outline.EyeOff
+import io.kontour.icons.tabler.outline.Search
+import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.LocalSizing

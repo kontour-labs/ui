@@ -12,10 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Basket
-import com.composables.icons.tabler.outline.Car
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Basket
+import io.kontour.icons.tabler.outline.Car
+import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarItemWidth

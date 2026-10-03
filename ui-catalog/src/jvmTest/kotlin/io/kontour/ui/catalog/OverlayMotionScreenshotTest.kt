@@ -18,8 +18,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bookmark
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text

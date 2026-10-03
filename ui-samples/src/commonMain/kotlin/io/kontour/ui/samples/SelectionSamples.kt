@@ -1,6 +1,6 @@
 package io.kontour.ui.samples
 
-import com.composables.icons.tabler.outline.Moon
+import io.kontour.icons.tabler.outline.Moon
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.selection.Knob
 import androidx.compose.runtime.Composable
@@ -12,11 +12,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ArrowsRightLeft
-import com.composables.icons.tabler.outline.Bolt
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.Walk
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.ArrowsRightLeft
+import io.kontour.icons.tabler.outline.Bolt
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.Walk
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.selection.ColourPicker

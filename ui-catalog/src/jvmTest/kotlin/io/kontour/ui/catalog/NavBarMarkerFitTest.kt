@@ -18,8 +18,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Search
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Search
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavDefaults

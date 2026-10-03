@@ -36,9 +36,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.Copy
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.Copy
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Callout

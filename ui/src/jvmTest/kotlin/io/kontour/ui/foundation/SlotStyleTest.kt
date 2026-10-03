@@ -1,8 +1,8 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.foundation.layout.Column
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Share
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Share
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

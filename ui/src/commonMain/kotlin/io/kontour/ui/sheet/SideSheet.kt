@@ -37,9 +37,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ArrowLeft
-import com.composables.icons.tabler.outline.ArrowRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.ArrowLeft
+import io.kontour.icons.tabler.outline.ArrowRight
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.ContainerGaps
 import io.kontour.ui.adaptive.OverlapInsets

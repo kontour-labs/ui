@@ -19,11 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Microphone
-import com.composables.icons.tabler.outline.PhoneEnd
-import com.composables.icons.tabler.outline.Video
-import com.composables.icons.tabler.outline.Volume
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Microphone
+import io.kontour.icons.tabler.outline.PhoneEnd
+import io.kontour.icons.tabler.outline.Video
+import io.kontour.icons.tabler.outline.Volume
 import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize

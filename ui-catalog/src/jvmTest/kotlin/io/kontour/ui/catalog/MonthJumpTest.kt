@@ -8,10 +8,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronLeft
-import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronLeft
+import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.CalendarNavigationState
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.rememberCalendarNavigationState

@@ -18,8 +18,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bike
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bike
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs

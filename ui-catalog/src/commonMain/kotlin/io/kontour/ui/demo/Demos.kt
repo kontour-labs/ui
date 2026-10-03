@@ -2,18 +2,18 @@ package io.kontour.ui.demo
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Calendar
-import com.composables.icons.tabler.outline.Click
-import com.composables.icons.tabler.outline.Components
-import com.composables.icons.tabler.outline.Forms
-import com.composables.icons.tabler.outline.LayoutBottombar
-import com.composables.icons.tabler.outline.LayoutGrid
-import com.composables.icons.tabler.outline.LayoutList
-import com.composables.icons.tabler.outline.LayoutSidebar
-import com.composables.icons.tabler.outline.SquareRoundedLetterT
-import com.composables.icons.tabler.outline.Stack2
-import com.composables.icons.tabler.outline.Windmill
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.Click
+import io.kontour.icons.tabler.outline.Components
+import io.kontour.icons.tabler.outline.Forms
+import io.kontour.icons.tabler.outline.LayoutBottombar
+import io.kontour.icons.tabler.outline.LayoutGrid
+import io.kontour.icons.tabler.outline.LayoutList
+import io.kontour.icons.tabler.outline.LayoutSidebar
+import io.kontour.icons.tabler.outline.SquareRoundedLetterT
+import io.kontour.icons.tabler.outline.Stack2
+import io.kontour.icons.tabler.outline.Windmill
 
 /**
  * A family of demos, and the icon the gallery gives it.
