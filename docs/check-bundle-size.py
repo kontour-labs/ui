@@ -104,13 +104,43 @@ import sys
 #                    backdrop drawn from every open overlay
 #   the site  +1,070 lines of pages, compiled into the binary: the changelog,
 #                    the migrating guide, and the new components' pages
+# Raised 2026-10-03 for 0.4.0, from a measurement here rather than CI's: no CI
+# run had built the site since 0.3.0. The site still cannot be *bundled* here —
+# webpack's tooling fetches from codeload.github.com, which this environment's
+# network refuses — but the binary this counts as `app` is the compiler's, and
+# `:ui-docs:compileProductionExecutableKotlinWasmJsOptimize` builds it without
+# webpack. Checked against CI first: v0.3.0 built that way measures 2,928,794,
+# and CI measured 2,928,692 (9b78bf3), 102 bytes apart.
+#
+# `app` is 3,184,951: +256,259 gzip on 0.3.0, +8.7%. No dependency or toolchain
+# moved — Kotlin, Compose and Skia are 0.3.0's — so `skiko`, `fonts` and `other`
+# are what they were, and `js`, the loader's glue, has its old headroom. Read by
+# source, net lines since v0.3.0:
+#
+#   the gallery  +4,736  the Apps page: Transit and Messages, two small apps
+#                        built from the library, compiled into the site
+#   components   +1,999  IndexScroller and its alphabets, DateTimePicker, the
+#                        circular step progress, chips as tags, and WheelSelect
+#                        opening to the side with room
+#   nav, sheet,
+#   overlay,
+#   motion       +1,265  HeroTopBar and the bars' fade under, pageBack, and the
+#                        navigation suite's scene strategy
+#   the site     +947    of which the icon browser is 34,009 gzip bytes of the
+#                        total: its page, its search and the path parser that
+#                        draws icons from data rather than from six thousand
+#                        compiled properties
+#
+# `app` through `--update`'s rule by hand, and `total`, which is not one of its
+# groups, by the same rule over 0.3.0's total (6,710,138) plus `app`'s growth.
+
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_020_000,
+    "app": 3_290_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 6_810_000,
+    "total": 7_180_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
