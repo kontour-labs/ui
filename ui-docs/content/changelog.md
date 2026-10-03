@@ -185,9 +185,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   error its edge, and at high contrast the edge stays.
 
 - [`WheelSelect(placement = WheelSelectPlacement.BelowOrAbove)`](components/wheel-select.md#when-to-use-it):
-  the wheel opens beside the field as a `Select`'s menu does — below where it
-  fits, above where it fits there instead — rather than over it. Over the field
-  is still the default.
+  the chosen row stays on the field and the rest of the wheel opens to one
+  side, as a `Select`'s menu picks its side — below where it fits, above where
+  it fits there instead — with half of the next row fading out on the other.
+  Opening about the field is still the default.
 
 - **Wheels say when they have stopped.** `WheelPicker(onSelectedIndexChangeFinished)`,
   `WheelSelect(onValueChangeFinished)` and `TimePicker(onValueChangeFinished)`

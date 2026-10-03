@@ -57,13 +57,14 @@ The open wheel is as wide as the field and moves only as far as it must to stay
 on screen, so near the top or bottom of the window its middle row no longer
 lines up with the field.
 
-**Or beside the field.** `placement = WheelSelectPlacement.BelowOrAbove` opens
-the wheel as a [`Select`](select.md)'s menu opens: below the field where the
-whole wheel fits, above it where it fits there instead, and otherwise on
-whichever side has more room. The field stays in view and the wheel opens away
-from the window's edge rather than up against it. A drag on the field turns it
-the same way; the value it turns to is in the wheel's middle, not under the
-finger.
+**Or to one side.** `placement = WheelSelectPlacement.BelowOrAbove` keeps the
+chosen row where the field's value was, and opens the rest of the wheel to one
+side of it: below where its rows fit there, above where they fit there instead,
+and otherwise on whichever side has more room, as a [`Select`](select.md)'s
+menu picks its side. Half of the next row shows on the other side, fading out,
+to say the wheel goes on that way too. Near the top or the foot of the window
+the wheel opens away from that edge, rather than being pushed off the field to
+fit. A drag on the field turns it the same either way.
 
 Like every select it is outlined by default, and `variant =
 TextFieldVariant.Plain` takes the box away — see [`Select`](select.md).

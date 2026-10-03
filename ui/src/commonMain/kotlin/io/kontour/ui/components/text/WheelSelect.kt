@@ -4,9 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -42,6 +46,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.lerp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.datetime.WheelDrive
 import io.kontour.ui.components.datetime.WheelDrum
 import io.kontour.ui.components.datetime.WheelPickerDefaults
@@ -52,14 +58,12 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.verticalDragOwning
-import io.kontour.ui.overlay.AnchoredOverlayLayout
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
+import io.kontour.ui.overlay.LocalOverlaySafeArea
 import io.kontour.ui.overlay.MenuDefaults
-import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
-import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.OverlaySurface
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.anchorBounds
@@ -86,12 +90,13 @@ enum class WheelSelectPlacement {
     OverField,
 
     /**
-     * Beside the field, below it or above it, as a [Select]'s menu opens: below
-     * where the whole wheel fits there, above where it fits there instead, and
-     * otherwise whichever side has more room. The field stays in view, so the
-     * wheel is plainly the field's, and an anchor near the top or the foot of
-     * the window has the wheel open away from that edge rather than pushed up
-     * against it.
+     * Still about the field's value, but open to one side of it: the row in
+     * the middle stays where the field's value was, the wheel's other rows run
+     * below it — or above it, where there is room there instead, as a
+     * [Select]'s menu picks its side — and half of the next row shows on the
+     * other side, fading out, to say the wheel goes on that way too. Near the
+     * top or the foot of the window it opens away from that edge, rather than
+     * being pushed off the field to fit.
      */
     BelowOrAbove,
 }
@@ -140,13 +145,15 @@ enum class WheelSelectPlacement {
  *   [io.kontour.ui.components.datetime.WheelPicker]'s `infinite`.
  * @param dragToPick Whether a vertical drag on the closed field turns the wheel
  *   straight away. Off, only a tap opens it.
- * @param placement Where the wheel opens: over the field, by default, or below
- *   or above it as a menu does. Asked for as *"can we make the wheel select able
- *   to "anchor" the wheel to the top or the bottom of the box that opens?
- *   similar to how other select components pick which side they show up based
- *   on how close the box is to the edge of the screen"*. A drag on the field
- *   turns it the same either way; beside the field, the value it turns to is
- *   in the wheel's middle rather than under the finger.
+ * @param placement Where the wheel opens: about the field, by default, or
+ *   about the field's value but open to one side, as a menu picks its side.
+ *   Asked for as *"can we make the wheel select able to "anchor" the wheel to
+ *   the top or the bottom of the box that opens? similar to how other select
+ *   components pick which side they show up based on how close the box is to
+ *   the edge of the screen"*, and then as *"still centred on the actual field,
+ *   but it just shows more elements above/below (depending on the side) and
+ *   also has some sort of indication that there are more elements on the other
+ *   side"*. A drag on the field turns it the same either way.
  * @param state Whether the wheel is open, hoisted — shared with [Select].
  * @param onValueChangeFinished Called when the wheel comes to rest after the
  *   reader turned it, on the row it stopped on. [onValueChange] follows every
@@ -310,6 +317,9 @@ fun <T> WheelSelect(
     val latestAnchor by rememberUpdatedState(anchor)
     val panel by rememberUpdatedState<@Composable () -> Unit> {
         val fullHeight = WheelPickerDefaults.ItemHeight * visibleItems + Theme.spacing.xxs * 2
+        // To one side, the drum has as many rows each side of its middle as
+        // the open side shows, and the panel shows only that side of it.
+        val drumRows = if (placement == WheelSelectPlacement.BelowOrAbove) visibleItems * 2 - 1 else visibleItems
         val drum: @Composable () -> Unit = {
             WheelDrum(
                 items = options,
@@ -335,7 +345,7 @@ fun <T> WheelSelect(
                     .padding(Theme.spacing.xxs),
                 enabled = enabled,
                 contentDescription = label,
-                visibleItems = visibleItems,
+                visibleItems = drumRows,
                 infinite = infinite,
                 onSettled = onValueChangeFinished,
                 drive = drive,
@@ -349,9 +359,9 @@ fun <T> WheelSelect(
                 fullHeight = fullHeight,
                 content = drum,
             )
-            WheelSelectPlacement.BelowOrAbove -> WheelBesidePanel(
+            WheelSelectPlacement.BelowOrAbove -> WheelSidePanel(
                 anchor = { latestAnchor },
-                fullHeight = fullHeight,
+                open = visibleItems - 1,
                 content = drum,
             )
         }
@@ -462,39 +472,143 @@ private fun WheelPanel(
 }
 
 /**
- * The open wheel beside the field, as [WheelSelectPlacement.BelowOrAbove] asks:
- * a dropdown menu's own layout, so it takes the side a [Select]'s menu would —
- * below if the whole wheel fits there, above if it fits there instead — and
- * keeps clear of the window's insets, appears out of the field and leaves from
- * the side it was on, as a menu does.
+ * The open wheel to one side of the field, as [WheelSelectPlacement.BelowOrAbove]
+ * asks: its middle row where the field's value is, [open] rows on the side with
+ * room, and half a row on the other, fading out.
  *
- * The whole wheel or nothing: the side it opens on has to hold every row, and
- * its height is required rather than offered, so a short window moves the wheel
- * over the field instead of squeezing the drum.
+ * **The drum is centred on the field, and the panel is not.** The drum has
+ * [open] rows each side of its middle, and the panel is a window onto one side
+ * of it and a sliver of the other, so the value stays where the field showed
+ * it and the wheel turns about it as it does over the field.
+ *
+ * **The side** is a menu's: below where the open rows fit there, above where
+ * they fit there instead, and otherwise whichever has more room — inside the
+ * host, less its margin and whatever of the window's insets reach into it.
+ * Chosen when the wheel opens and kept until it closes. Where neither side has
+ * room the panel moves to fit, and the drum with it.
+ *
+ * **It grows out of the field**, from the field's own height to the panel's,
+ * on the host's progress, so it shuts back into the field the same way; under
+ * reduced motion it is whole from the first frame and only fades.
  */
 @Composable
-private fun WheelBesidePanel(
+private fun WheelSidePanel(
     anchor: () -> Rect?,
-    fullHeight: Dp,
+    open: Int,
     content: @Composable () -> Unit,
 ) {
-    val width = anchor()?.width?.let { with(LocalDensity.current) { it.toDp() } }
-    AnchoredOverlayLayout(
-        anchorInRoot = anchor,
-        side = OverlaySide.Bottom,
-        alignment = OverlayAlignment.Start,
-        gap = MenuDefaults.Gap,
-        margin = MenuDefaults.ScreenMargin,
-        minWidth = width ?: Dp.Unspecified,
-        minimumPanel = fullHeight,
-    ) {
-        OverlaySurface(
-            // Its height is the intrinsic the layout asks for, too: the drum
-            // is a lazy list, which cannot be asked.
-            modifier = (if (width != null) Modifier.width(width) else Modifier).requiredHeight(fullHeight),
-        ) { content() }
+    val host = LocalOverlayHost.current
+    val progress = LocalOverlayProgress.current
+    val reduced = Theme.motion.reduceMotion
+    val density = LocalDensity.current
+    val rowPx = with(density) { WheelPickerDefaults.ItemHeight.toPx() }
+    val padPx = with(density) { Theme.spacing.xxs.toPx() }
+    val marginPx = with(density) { MenuDefaults.ScreenMargin.roundToPx() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val solid = highContrast()
+    val safeArea = LocalOverlaySafeArea.current ?: WindowInsets.allEdges
+    val geometry = remember { SidePanelGeometry() }
+
+    Layout(
+        content = {
+            OverlaySurface(
+                modifier = Modifier.graphicsLayer {
+                    val p = progress()
+                    alpha = if (reduced) p else (p / RevealFade).coerceIn(0f, 1f)
+                },
+            ) {
+                Box(
+                    Modifier
+                        .clipToBounds()
+                        // The sliver of the far side fades out, so the row cut
+                        // there reads as more of the wheel rather than as a row
+                        // cut off. Not at high contrast, where nothing fades.
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            if (solid) return@drawWithContent
+                            val fade = rowPx * PeekShare
+                            val below = geometry.below
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to Color.Black,
+                                    1f to Color.Transparent,
+                                    startY = if (below) 0f else size.height,
+                                    endY = if (below) fade else size.height - fade,
+                                ),
+                                blendMode = BlendMode.DstOut,
+                            )
+                        }
+                        .layout { measurable, constraints ->
+                            val drum = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                drum.placeRelative(0, geometry.drumTop)
+                            }
+                        },
+                ) { content() }
+            }
+        },
+    ) { measurables, constraints ->
+        val rect = anchor()
+        if (rect == null || measurables.isEmpty()) return@Layout layout(0, 0) {}
+        val at = rect.translate(-host.originInRoot)
+        val room = constraints.maxHeight
+        val fromRoot = host.edgesFromRoot
+        val top = marginPx + (safeArea.getTop(this) - fromRoot.top).coerceAtLeast(0)
+        val bottom = room - marginPx - (safeArea.getBottom(this) - fromRoot.bottom).coerceAtLeast(0)
+
+        val centre = at.center.y
+        val half = rowPx / 2f
+        val far = open * rowPx + padPx
+        val near = rowPx * PeekShare
+        val roomBelow = bottom - (centre + half)
+        val roomAbove = (centre - half) - top
+        val below = geometry.side ?: when {
+            roomBelow >= far -> true
+            roomAbove >= far -> false
+            else -> roomBelow >= roomAbove
+        }.also { geometry.side = it }
+        geometry.below = below
+
+        // Where the panel stands open, and how far it has to move to be inside
+        // the room; the drum moves with it, so its middle row stays its own.
+        var openTop = centre - half - if (below) near else far
+        var openBottom = centre + half + if (below) far else near
+        val shift = when {
+            openTop < top -> top - openTop
+            openBottom > bottom -> (bottom - openBottom).coerceAtLeast(top - openTop)
+            else -> 0f
+        }
+        openTop += shift
+        openBottom += shift
+
+        val p = if (reduced) 1f else progress().coerceIn(0f, 1f)
+        val panelTop = lerp(at.top, openTop, p)
+        val panelBottom = lerp(at.bottom, openBottom, p)
+        val height = (panelBottom - panelTop).roundToInt().coerceAtLeast(0)
+        val width = at.width.roundToInt().coerceAtLeast(0)
+        val drumHeight = rowPx * (open * 2 + 1) + padPx * 2
+        geometry.drumTop = (centre + shift - drumHeight / 2f - panelTop).roundToInt()
+
+        val panel = measurables.first().measure(Constraints.fixed(width, height))
+        // The anchor is in the root's coordinates, which do not mirror: its
+        // left, counted from the start, is from the right in RTL.
+        val start = if (rtl) constraints.maxWidth - at.right else at.left
+        layout(constraints.maxWidth, room) {
+            panel.placeRelative(start.roundToInt(), panelTop.roundToInt())
+        }
     }
 }
+
+/** Where a [WheelSidePanel] put its drum, and which side it opened on, from its measure to its drawing. */
+private class SidePanelGeometry {
+    var side: Boolean? = null
+    var below: Boolean = true
+    var drumTop: Int = 0
+}
+
+/** How much of the next row a [WheelSidePanel] shows on its far side. */
+private const val PeekShare = 0.5f
 
 /** How much of the growth the panel takes to become opaque. */
 private const val RevealFade = 0.35f
