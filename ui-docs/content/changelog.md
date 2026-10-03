@@ -174,6 +174,14 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **A sheet dragged to the top by its content climbs with the finger.** Pulled
+  up from a lower detent by a scroll in its content, under a status bar, a sheet
+  that reaches the top leapt the last status bar's height in one frame. Its
+  content waits below the bar while its edge goes on to the top, and the peek
+  detent, measured against the edge, changed with every pixel of that climb;
+  each change rebuilt the anchors, and with nothing holding the drag a rebuild
+  snaps to the nearest one. The peek is now measured in the content's own
+  frame.
 - **A bottom toast stands above the navigation bar.** A toast raised on a page
   with a `NavBar` came up over the bar, on top of the destinations. The bar now
   tells the overlay host where it is, and a bottom `ToastHost` stands a little

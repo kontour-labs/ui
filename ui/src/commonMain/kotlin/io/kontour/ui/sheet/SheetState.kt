@@ -661,8 +661,29 @@ class SheetState internal constructor(
         val anchor = peekAnchorCoordinates ?: return
         if (!sheet.isAttached || !anchor.isAttached) return
         peekContentHeight =
-            sheet.localPositionOf(anchor, Offset(0f, anchor.size.height.toFloat())).y
+            sheet.localPositionOf(anchor, Offset(0f, anchor.size.height.toFloat())).y - contentShift
     }
+
+    /**
+     * How far `sheetTopInset` has the content pushed down inside the surface
+     * this frame: the part of the status bar the sheet's top is under, `0`
+     * below it. Written by that layout as it places the content.
+     *
+     * Taken off the peek, which is a fact about the content and has to stay one.
+     * Measured against the surface with the shift in it, the peek grew a pixel
+     * for every pixel the sheet climbed into the status bar — the content held
+     * below the bar while the sheet's edge went on — and a changed peek is
+     * changed anchors, rebuilt every frame of that climb. A rebuild with nothing
+     * holding the drag, which is every drag a scroll in the content hands on,
+     * snaps the sheet to the nearest anchor: the top, a status bar ahead of the
+     * finger. *"it sorta jumps around a bit as you expand it to the top,
+     * especially if it has scrolling content"*.
+     *
+     * Not snapshot state: it is read in the same frame it is written, by
+     * [measurePeek] from a placement callback, and a write here must not ask
+     * for another layout.
+     */
+    internal var contentShift: Int = 0
 
     /** Where the sheet has settled. Equals [targetDetent] once it stops moving. */
     val currentDetent: SheetDetent get() = anchoredState.settledValue

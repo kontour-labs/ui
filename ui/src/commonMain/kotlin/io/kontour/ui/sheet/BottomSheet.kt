@@ -2315,7 +2315,10 @@ private fun Modifier.sheetTopInset(
     val top = (inset - sheetTop(state, floating, floatInsets, this, morph)).coerceIn(0, inset)
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
-    layout(placeable.width, height) { placeable.place(0, top) }
+    layout(placeable.width, height) {
+        state.contentShift = top
+        placeable.place(0, top)
+    }
 }
 
 /**
