@@ -50,6 +50,7 @@ import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.Text
 import kotlin.math.roundToInt
 import io.kontour.ui.components.display.DialColours
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.selection.Knob as KnobControl
 import io.kontour.ui.theme.Theme
 
@@ -176,7 +177,11 @@ internal val SelectionRowDemo = ComponentDemo(slug = "selection-row", knobs = li
     val unitNames = listOf("Kilometres", "Miles")
     val grouped = this[selectionRowGrouped]
     fun at(index: Int) = if (grouped) GroupPosition.of(index, 3) else null
-    Column(Modifier.fillMaxWidth()) {
+    // A group's rows a list item's gap apart; bare rows have no ground to part.
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(if (grouped) ListItemDefaults.Spacing else 0.dp),
+    ) {
         SelectionRow(
             selected = delays,
             onSelectedChange = { delays = it },

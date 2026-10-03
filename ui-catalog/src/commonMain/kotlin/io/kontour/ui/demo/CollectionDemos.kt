@@ -3,6 +3,7 @@ package io.kontour.ui.demo
 import com.composables.icons.tabler.outline.Bike
 import com.composables.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +39,7 @@ import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import androidx.compose.foundation.layout.fillMaxSize
 import io.kontour.ui.components.list.indexedBy
 import io.kontour.ui.components.list.listSection
@@ -66,6 +69,7 @@ import io.kontour.ui.components.table.TableLines
 import io.kontour.ui.components.table.TableSelection
 import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -91,7 +95,7 @@ internal val ListItemDemo = ComponentDemo(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
-        ListGroup(spacing = 2.dp, modifier = Modifier.fillMaxWidth()) {
+        ListGroup(modifier = Modifier.fillMaxWidth()) {
             stops.forEachIndexed { index, (name, detail) ->
                 item(
                     label = name,
@@ -114,7 +118,6 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
     ExpandingListItem(
         expanded = open,
         onExpandedChange = { open = it },
-        spacing = 2.dp,
         chevron = Tabler.Outline.ChevronDown,
         modifier = Modifier.fillMaxWidth(),
         header = {
@@ -136,7 +139,7 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
     var first by remember { mutableStateOf(true) }
     var second by remember { mutableStateOf(false) }
     val icon = this[disclosureIcon]
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
         DisclosureListItem(
             expanded = first,
             onExpandedChange = { first = it },
@@ -279,63 +282,74 @@ internal val SwipeActionsDemo = ComponentDemo(
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
-        SwipeActions(
-            end = trailing.take(this@ComponentDemo[swipeActionCount]),
-            fullSwipeConfirmation = confirmation,
-            tapConfirmation = tapConfirmation,
-            start = listOf(
-                SwipeAction(
-                    label = "Favourite",
-                    icon = Tabler.Outline.Star,
-                    onAction = { echo("Favourited") },
-                    background = Theme.colours.success.solid,
+        // One group, a list item's gap between its rows; each swipe container
+        // takes its row's shape, so a middle row slides square-cornered.
+        @Composable
+        fun shapeOf(position: GroupPosition) =
+            position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            SwipeActions(
+                end = trailing.take(this@ComponentDemo[swipeActionCount]),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.First),
+                start = listOf(
+                    SwipeAction(
+                        label = "Favourite",
+                        icon = Tabler.Outline.Star,
+                        onAction = { echo("Favourited") },
+                        background = Theme.colours.success.solid,
+                    ),
                 ),
-            ),
-        ) {
-            ListItem(onClick = { echo("Perth Busport") }) {
-                +"Perth Busport"
-                supporting { +"Swipe either way" }
-            }
-        }
-        // Actions on one side only: the other way the row gives under the finger
-        // and comes back, rather than doing nothing until it is let go.
-        SwipeActions(
-            end = trailing.take(1),
-            fullSwipeConfirmation = confirmation,
-            tapConfirmation = tapConfirmation,
-        ) {
-            ListItem(onClick = { echo("Elizabeth Quay") }) {
-                +"Elizabeth Quay"
-                supporting { +"Actions on one side" }
-            }
-        }
-        // A tall row: its actions stop at an ordinary row's height and sit
-        // centred on it, rather than growing into slabs as tall as the row.
-        SwipeActions(
-            end = trailing.take(this@ComponentDemo[swipeActionCount]),
-            fullSwipeConfirmation = confirmation,
-            tapConfirmation = tapConfirmation,
-        ) {
-            ListItem(onClick = { echo("Fremantle") }) {
-                overline { +"Fremantle line · Terminus" }
-                +"Fremantle"
-                supporting {
-                    +(
-                        "A tall row. Heritage-listed, opened in 1907, at the end of the " +
-                            "Fremantle line and a short walk from the ferry to Rottnest Island."
-                        )
+            ) {
+                ListItem(onClick = { echo("Perth Busport") }, position = GroupPosition.First) {
+                    +"Perth Busport"
+                    supporting { +"Swipe either way" }
                 }
             }
-        }
-        SwipeToDismiss(
-            onDismissRequest = { echo("Dismissed") },
-            label = "Remove",
-            icon = Tabler.Outline.Trash,
-            fullSwipeConfirmation = confirmation,
-        ) {
-            ListItem {
-                +"Elizabeth Quay Station"
-                supporting { +"Fremantle line · Platform 2" }
+            // Actions on one side only: the other way the row gives under the finger
+            // and comes back, rather than doing nothing until it is let go.
+            SwipeActions(
+                end = trailing.take(1),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.Middle),
+            ) {
+                ListItem(onClick = { echo("Elizabeth Quay") }, position = GroupPosition.Middle) {
+                    +"Elizabeth Quay"
+                    supporting { +"Actions on one side" }
+                }
+            }
+            // A tall row: its actions stop at an ordinary row's height and sit
+            // centred on it, rather than growing into slabs as tall as the row.
+            SwipeActions(
+                end = trailing.take(this@ComponentDemo[swipeActionCount]),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.Middle),
+            ) {
+                ListItem(onClick = { echo("Fremantle") }, position = GroupPosition.Middle) {
+                    overline { +"Fremantle line · Terminus" }
+                    +"Fremantle"
+                    supporting {
+                        +(
+                            "A tall row. Heritage-listed, opened in 1907, at the end of the " +
+                                "Fremantle line and a short walk from the ferry to Rottnest Island."
+                            )
+                    }
+                }
+            }
+            SwipeToDismiss(
+                onDismissRequest = { echo("Dismissed") },
+                label = "Remove",
+                icon = Tabler.Outline.Trash,
+                fullSwipeConfirmation = confirmation,
+                shape = shapeOf(GroupPosition.Last),
+            ) {
+                ListItem(position = GroupPosition.Last) {
+                    +"Elizabeth Quay Station"
+                    supporting { +"Fremantle line · Platform 2" }
+                }
             }
         }
     }
@@ -386,7 +400,7 @@ internal val ReorderableItemDemo = ComponentDemo(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
             flingBehavior = ScrollDefaults.flingBehavior(),
         ) {
             itemsIndexed(order, key = { _, name -> name }) { index, name ->
@@ -420,7 +434,10 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
         onRefresh = { refreshing = true },
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
+        ) {
             stops.forEachIndexed { index, (name, detail) ->
                 ListItem(position = GroupPosition.of(index, stops.size)) {
                     +name
@@ -575,7 +592,7 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
                 .fillMaxWidth()
                 .fadingEdges(scroll)
                 .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
         ) {
             repeat(10) { index ->
                 ListItem(position = GroupPosition.of(index, 10)) {

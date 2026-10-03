@@ -425,7 +425,7 @@ internal val PaneScaffoldDemo = ComponentDemo(
             onBack = { focus = PaneFocus.List },
             resizable = this@ComponentDemo[paneResizable],
             list = {
-                ListGroup(spacing = 2.dp) {
+                ListGroup {
                     stops.forEachIndexed { index, name ->
                         item(
                             label = name,
@@ -468,7 +468,7 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold", knobs = listOf(scaf
             // The padding is handed over rather than applied, so content can
             // scroll under the bar instead of starting below it.
             Column(Modifier.fillMaxSize().padding(padding)) {
-                ListGroup(spacing = 2.dp) {
+                ListGroup {
                     item(label = "Perth Underground", supporting = "Platform 2")
                     item(label = "Elizabeth Quay", supporting = "Platform 1")
                     item(label = "Perth Busport", supporting = "Stand 24")

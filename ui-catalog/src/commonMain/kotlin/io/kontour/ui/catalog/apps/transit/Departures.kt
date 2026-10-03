@@ -1,13 +1,12 @@
 package io.kontour.ui.catalog.apps.transit
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,12 +34,15 @@ import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.selection.FilterChip
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.TopBarStyle
@@ -145,12 +147,13 @@ internal fun DeparturesPage(
                     state = list,
                     modifier = Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection).testTag("departures"),
                     contentPadding = transitPagePadding(),
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                    // No arrangement: the departures are a `listSection`,
+                    // which puts a list item's gap between its rows and its own
+                    // space above them, and an arrangement would add to both.
                 ) {
                     item(key = "filters") {
                         ChipGroup(
                             Modifier
-                                .padding(bottom = Theme.spacing.sm)
                                 .coachmarkStep(
                                     tour,
                                     id = "filters",
@@ -176,13 +179,14 @@ internal fun DeparturesPage(
                                 "Nothing is leaving. Choose trains or buses above.",
                                 style = Theme.typography.bodyMedium,
                                 colour = Theme.colours.contentMuted,
+                                modifier = Modifier.padding(top = Theme.spacing.md),
                             )
                         }
                     }
-                    itemsIndexed(visible, key = { _, it -> it.id }) { index, departure ->
+                    listSection(visible, key = { it.id }) { departure, position ->
                         DepartureRow(
                             departure = departure,
-                            position = GroupPosition.of(index, visible.size),
+                            position = position,
                             favourite = departure.route in favourites,
                             onClick = { onStop(stopFor(departure)) },
                             onFavourite = {
@@ -240,6 +244,9 @@ private fun DepartureRow(
                 background = Theme.colours.accent.solid,
             ),
         ),
+        // The row's own shape, so a middle row slides square-cornered like
+        // the row it is rather than as a rounded card.
+        shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
     ) {
         ListItem(onClick = onClick, position = position, modifier = Modifier.fillMaxWidth()) {
             leading { +iconFor(departure.mode) }

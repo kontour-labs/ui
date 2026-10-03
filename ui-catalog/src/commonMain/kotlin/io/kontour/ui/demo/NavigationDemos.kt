@@ -79,10 +79,10 @@ import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.listSection
 
 /**
  * A bordered box a navigation surface can fill.
@@ -479,8 +479,9 @@ internal val TopBarDemo = ComponentDemo(
                 supporting { +"Platform 2 · Joondalup line" }
             }
             LazyColumn(Modifier.fillMaxSize()) {
-                items(12) { index ->
-                    ListItem {
+                // One group, a list item's gap between its rows.
+                listSection(List(12) { it }) { index, position ->
+                    ListItem(position = position) {
                         +"Departure ${index + 1}"
                         supporting { +"${4 + index * 6} min · Joondalup" }
                     }

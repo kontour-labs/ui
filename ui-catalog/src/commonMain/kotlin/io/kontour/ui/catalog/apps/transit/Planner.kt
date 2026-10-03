@@ -29,6 +29,7 @@ import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.GroupPosition
@@ -166,17 +167,21 @@ private fun Routes(towards: String) {
     )
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
         Text("To $towards", style = Theme.typography.titleSmall)
-        options.forEachIndexed { index, (title, detail, legs) ->
-            ListItem(position = GroupPosition.of(index, options.size)) {
-                +title
-                supporting { +detail }
-                trailing {
-                    StepProgress(
-                        current = legs,
-                        total = legs,
-                        modifier = Modifier.padding(start = Theme.spacing.sm).width(LegsWidth),
-                        contentDescription = if (legs == 1) "One leg" else "$legs legs",
-                    )
+        // The rows a list item's gap apart, as a group's are; the title keeps
+        // its own space above them.
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            options.forEachIndexed { index, (title, detail, legs) ->
+                ListItem(position = GroupPosition.of(index, options.size)) {
+                    +title
+                    supporting { +detail }
+                    trailing {
+                        StepProgress(
+                            current = legs,
+                            total = legs,
+                            modifier = Modifier.padding(start = Theme.spacing.sm).width(LegsWidth),
+                            contentDescription = if (legs == 1) "One leg" else "$legs legs",
+                        )
+                    }
                 }
             }
         }

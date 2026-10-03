@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.listSection
 
 /**
  * Stand-ins for the caller's own code.
@@ -59,8 +60,8 @@ internal fun pin(name: String) = Unit
 
 /** Rows, where a sample needs a list to be about something other than the list. */
 internal fun LazyListScope.stopRows() {
-    items(3) { index ->
-        ListItem { +"Stop ${index + 1}" }
+    listSection(List(3) { it }) { index, position ->
+        ListItem(position = position) { +"Stop ${index + 1}" }
     }
 }
 

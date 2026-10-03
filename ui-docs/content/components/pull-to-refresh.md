@@ -7,8 +7,8 @@ a list that is merely over-scrolled does not fire a request.
 ```kotlin
 PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
     LazyColumn {
-        items(stops) { stop ->
-            ListItem { +stop.name }
+        listSection(stops) { stop, position ->
+            ListItem(position = position) { +stop.name }
         }
     }
 }

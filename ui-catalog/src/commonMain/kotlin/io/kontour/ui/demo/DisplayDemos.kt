@@ -84,6 +84,7 @@ import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
@@ -554,13 +555,13 @@ internal val RedactionDemo = ComponentDemo(
     // is a second, placeholder-shaped copy of the layout — flip the knob and the
     // ink comes back.
     Redacted(this[redactionOn]) {
-        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-            ListItem {
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            ListItem(position = GroupPosition.First) {
                 +"Perth Underground"
                 supporting { +"08:14 · Platform 2 · on time" }
                 leading { +Tabler.Outline.Train }
             }
-            ListItem {
+            ListItem(position = GroupPosition.Last) {
                 +"Elizabeth Quay"
                 supporting { +"A longer line, so the bar under it wraps and the second one comes out short" }
                 leading { +Tabler.Outline.Bus }

@@ -4,21 +4,25 @@
 ```kotlin
 var open by remember { mutableStateOf(false) }
 
+// One group: the expanding row takes its place in it like any other.
 ListGroup {
     item(label = "Elizabeth Quay", supporting = "3 routes")
-}
-ExpandingListItem(
-    expanded = open,
-    onExpandedChange = { open = it },
-    chevron = Tabler.Outline.ChevronDown,
-    header = {
-        leading { +Tabler.Outline.Bus }
-        +"Perth Underground"
-        supporting { +"4 platforms" }
-    },
-) {
-    item(label = "Platform 1", supporting = "Mandurah line")
-    item(label = "Platform 2", supporting = "Joondalup line")
+    item { position ->
+        ExpandingListItem(
+            expanded = open,
+            onExpandedChange = { open = it },
+            position = position,
+            chevron = Tabler.Outline.ChevronDown,
+            header = {
+                leading { +Tabler.Outline.Bus }
+                +"Perth Underground"
+                supporting { +"4 platforms" }
+            },
+        ) {
+            item(label = "Platform 1", supporting = "Mandurah line")
+            item(label = "Platform 2", supporting = "Joondalup line")
+        }
+    }
 }
 ```
 

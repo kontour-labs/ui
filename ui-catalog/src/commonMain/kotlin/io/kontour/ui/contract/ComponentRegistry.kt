@@ -129,6 +129,7 @@ import io.kontour.ui.components.list.IndexScroller
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.components.list.IndexScrollerDefaults
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.list.indexedBy
 import io.kontour.ui.components.list.listSection
 import io.kontour.ui.foundation.GroupPosition
@@ -1231,14 +1232,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
             Redacted {
                 Column(
                     modifier = modifier.width(SpecimenProseWidth),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    ListItem {
+                    ListItem(position = GroupPosition.First) {
                         +"Perth Underground"
                         supporting { +"08:14 · Platform 2" }
                         leading { +Tabler.Outline.Train }
                     }
-                    ListItem {
+                    ListItem(position = GroupPosition.Last) {
                         +"Elizabeth Quay"
                         supporting { +"A longer supporting line, so that it wraps" }
                         leading { +Tabler.Outline.Bus }
@@ -2399,7 +2400,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what
                 // it does in the full-height scrollable it is actually for.
-                Column(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
                     ListItem(position = GroupPosition.First) { +"Perth Underground" }
                     ListItem(position = GroupPosition.Middle) { +"Elizabeth Quay" }
                     ListItem(position = GroupPosition.Last) { +"McIver" }

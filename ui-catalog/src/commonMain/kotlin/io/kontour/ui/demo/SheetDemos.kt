@@ -1,10 +1,11 @@
 package io.kontour.ui.demo
 
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.text.SearchField
 import androidx.compose.runtime.key
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +35,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayAlignment
@@ -219,9 +221,10 @@ internal val BottomSheetDemo = ComponentDemo(
                 LazyColumn(
                     modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
                     contentPadding = padding,
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    items(PinnedStops) { stop ->
-                        ListItem(onClick = { echo(stop) }) { +stop }
+                    itemsIndexed(PinnedStops) { index, stop ->
+                        ListItem(onClick = { echo(stop) }, position = GroupPosition.of(index, PinnedStops.size)) { +stop }
                     }
                 }
                 return@BottomSheet

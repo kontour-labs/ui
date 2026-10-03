@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +32,15 @@ import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.components.selection.Slider
+import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.TopBar
@@ -248,21 +252,26 @@ private fun SidewaysControls() {
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
-        SwipeActions(
-            start = listOf(SwipeAction("Pin", SystemIcons.Check, onAction = {}, background = Theme.colours.success.solid)),
-            end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
-        ) {
-            ListItem {
-                +"Next departure"
-                supporting { +"Actions on both sides" }
+        // One group: a list item's gap apart, each swipe in its row's shape.
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            SwipeActions(
+                start = listOf(SwipeAction("Pin", SystemIcons.Check, onAction = {}, background = Theme.colours.success.solid)),
+                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+                shape = GroupPosition.First.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
+            ) {
+                ListItem(position = GroupPosition.First) {
+                    +"Next departure"
+                    supporting { +"Actions on both sides" }
+                }
             }
-        }
-        SwipeActions(
-            end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
-        ) {
-            ListItem {
-                +"Saved stop"
-                supporting { +"Actions on one side" }
+            SwipeActions(
+                end = listOf(SwipeAction("Remove", SystemIcons.Close, onAction = {}, background = Theme.colours.danger.solid)),
+                shape = GroupPosition.Last.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
+            ) {
+                ListItem(position = GroupPosition.Last) {
+                    +"Saved stop"
+                    supporting { +"Actions on one side" }
+                }
             }
         }
         Slider(value = level, onValueChange = { level = it }, modifier = Modifier.fillMaxWidth())

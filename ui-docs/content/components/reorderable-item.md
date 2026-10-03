@@ -30,10 +30,11 @@ val reorder = rememberReorderableState(listState) { from, to ->
     stops = stops.toMutableList().apply { add(to, removeAt(from)) }
 }
 
-LazyColumn(state = listState) {
+// One group: a list item's gap between the rows, each in its place.
+LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
     itemsIndexed(stops, key = { _, stop -> stop.name }) { index, stop ->
         ReorderableItem(state = reorder, index = index, itemCount = stops.size) {
-            ListItem { +stop.name }
+            ListItem(position = GroupPosition.of(index, stops.size)) { +stop.name }
         }
     }
 }

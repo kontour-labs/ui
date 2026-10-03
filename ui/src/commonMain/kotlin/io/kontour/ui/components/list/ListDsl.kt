@@ -201,7 +201,7 @@ fun ListGroup(
  * The same group, inside a `LazyColumn`.
  *
  * ```kotlin
- * LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+ * LazyColumn(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
  *     item { SectionHeader { +"Saved places" } }
  *     listGroup(savedPlaces, key = { it.id }) { place ->
  *         item(place.name, supporting = place.detail) { open(place) }

@@ -39,6 +39,7 @@ import io.kontour.ui.components.display.Meter
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.selection.RadioGroup
 import io.kontour.ui.components.selection.Rating
 import io.kontour.ui.components.text.TextArea
@@ -127,7 +128,7 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
                 label("of the $${WeeklyCap.roundToInt()} weekly cap")
             }
             TransitHeading("Recent")
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
                 trips.forEachIndexed { index, trip ->
                     ListItem(
                         onClick = { onTrip(trip.id) },
