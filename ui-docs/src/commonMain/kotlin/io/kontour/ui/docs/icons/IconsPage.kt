@@ -127,7 +127,11 @@ internal fun IconsPage(source: IconSource = SiteIconSource) {
                         SearchField(
                             state = search,
                             modifier = modifier,
-                            placeholder = index?.let { "Search ${formats.integer(it.entries.size)} icons" } ?: "Search the icons",
+                            // What the list under it holds, which the styles
+                            // change: filled is searched on its own.
+                            placeholder = index?.let {
+                                "Search ${formats.integer(it.count(style))} ${style.objectName.lowercase()} icons"
+                            } ?: "Search the icons",
                             onQuery = { query = it },
                         )
                     },

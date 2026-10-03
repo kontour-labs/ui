@@ -165,6 +165,25 @@ class IconBrowserTest {
         assertEquals(setOf("data/filled/000.txt"), fake.chunks("filled"))
     }
 
+    /**
+     * The search's placeholder counts what it searches, which the styles change.
+     *
+     * Asked for as *"can we make the "Search XXX icons" placeholder change based
+     * on what tab (outline/filled) you have selected"*: it said 1,001 under
+     * Filled, where 101 are listed. A thousand glyphs and `home` in outline; a
+     * tenth of the glyphs and `home` filled.
+     */
+    @Test
+    fun theSearchSaysHowManyOfTheStyleItSearches() = runComposeUiTest {
+        browser()
+        fun placeholder(text: String) = onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        assertTrue(placeholder("Search 1,001 outline icons"), "the placeholder does not count the outline icons")
+        onNodeWithText("Filled").performClick()
+        waitForIdle()
+        assertTrue(placeholder("Search 101 filled icons"), "the placeholder does not count the filled icons")
+        assertTrue(!placeholder("Search 1,001 outline icons"))
+    }
+
     @Test
     fun onAPhoneAPressedIconOpensInASheet() = runComposeUiTest {
         browser(width = 390)

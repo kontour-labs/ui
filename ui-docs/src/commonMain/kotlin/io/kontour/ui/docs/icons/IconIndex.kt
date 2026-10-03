@@ -72,6 +72,9 @@ internal class IconIndex(
 ) {
     val filledCount: Int = entries.count { it.hasFilled }
 
+    /** How many icons there are in [style]: every one in outline, and those with a filled form. */
+    fun count(style: IconStyle): Int = if (style == IconStyle.Filled) filledCount else entries.size
+
     companion object {
         /**
          * Reads an index, or null for one that is not an index — a host's 404
