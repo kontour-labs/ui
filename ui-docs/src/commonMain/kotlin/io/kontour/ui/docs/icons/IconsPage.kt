@@ -204,16 +204,6 @@ private fun Header(
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {
         Text("Icons", style = Theme.typography.headlineSmall)
-        Text(
-            text = index?.let {
-                "Tabler ${it.version}, as Kontour Labs builds it: ${formats.integer(it.entries.size)} outline icons and " +
-                    "${formats.integer(it.filledCount)} filled. Each is a property — Tabler.Outline.Home — " +
-                    "with an import of its own. Press one for both."
-            } ?: "Every Tabler icon the library has, with the property and the import that use it.",
-            style = Theme.typography.bodyMedium,
-            colour = Theme.colours.contentMuted,
-            modifier = Modifier.widthIn(max = 760.dp),
-        )
         val styles = @Composable { modifier: Modifier ->
             SegmentedControl(
                 options = IconStyle.entries.map { it.objectName },
