@@ -2,9 +2,11 @@ package io.kontour.ui.components.datetime
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,7 +56,8 @@ import kotlinx.datetime.LocalDateTime
  * the day.
  *
  * **Side by side, or one at a time.** Given 560dp or more, the
- * calendar and the wheels sit next to each other. Narrower — a phone — a
+ * calendar and the wheels sit next to each other, a gap apart and centred
+ * together in whatever width is left over. Narrower — a phone — a
  * segmented control above them says the chosen date and the chosen time, and
  * shows the calendar or the wheels as one or the other is picked. They were
  * stacked at first, about 560dp tall, which a phone could not show whole —
@@ -142,13 +145,18 @@ fun DateTimePicker(
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         if (maxWidth >= SideBySideWidth) {
+            // The two together, a gap apart and centred as one. The wheels
+            // are as wide as they are, and the calendar takes what is left up
+            // to its widest: given the rest of the row, the wheels sat in the
+            // middle of it, some 70dp off the calendar on a wide window —
+            // *"there's too much room between the date picker and time
+            // picker"*.
             Row(
-                modifier = Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth * 2 + Theme.spacing.lg),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                date(Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth))
-                time(Modifier.weight(1f))
+                date(Modifier.weight(1f, fill = false).widthIn(max = CalendarMonthDefaults.MaxWidth))
+                time(Modifier.width(IntrinsicSize.Max))
             }
         } else {
             var showing by rememberSaveable { mutableIntStateOf(0) }

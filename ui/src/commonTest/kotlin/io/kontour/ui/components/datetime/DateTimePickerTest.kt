@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -21,6 +22,7 @@ import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -36,7 +38,10 @@ import kotlin.test.assertTrue
  * basically just be the two individual components we currently have for that,
  * combined"*, and then *"the two things need to be either side-by-side, or have
  * a segmented control that allows the user to swap between them"*: stacked,
- * the two were taller than a phone.
+ * the two were taller than a phone. Side by side they sit together, a gap
+ * apart: *"on wide screens, there's too much room between the date picker and
+ * time picker"*, where the wheels had been centred in whatever width the
+ * calendar left.
  */
 @OptIn(ExperimentalTestApi::class)
 class DateTimePickerTest {
@@ -112,5 +117,23 @@ class DateTimePickerTest {
         assertTrue(minute.left > day.right, "the wheels at ${minute.left} are not beside the calendar, whose 24th ends at ${day.right}")
         assertTrue(minute.top < calendar.bottom, "the wheels at ${minute.top} are under the calendar, whose last week ends at ${calendar.bottom}")
         assertEquals(0, onAllNodesWithText(":15", substring = true).fetchSemanticsNodes().size, "side by side there is still a segmented control")
+    }
+
+    @Test
+    fun sideBySideTheTwoSitTogether() = runComposeUiTest {
+        picker(width = 900)
+        // June 2026 starts on a Monday, so the 1st is in the calendar's first
+        // column and the 28th in its last. A day's number is centred in a cell
+        // 44dp wide, so the calendar's edge is up to 18dp past it.
+        val first = onAllNodesWithText("1").onFirst().fetchSemanticsNode().boundsInRoot
+        val sunday = onAllNodesWithText("28").onFirst().fetchSemanticsNode().boundsInRoot
+        val hour = onNodeWithContentDescription("Hour").fetchSemanticsNode().boundsInRoot
+        // The last wheel is the minutes', or the morning and afternoon's on a
+        // 12-hour clock.
+        val wheels = onAllNodes(hasScrollAction()).fetchSemanticsNodes().maxOf { it.boundsInRoot.right }
+        val gap = hour.left - sunday.right
+        assertTrue(gap in 0f..56f, "the wheels start ${gap}dp past the calendar's last column, not a gap away")
+        val middle = (first.left + wheels) / 2f
+        assertTrue(abs(middle - 450f) <= 16f, "the pair is centred at $middle in a picker 900dp wide")
     }
 }
