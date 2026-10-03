@@ -181,7 +181,15 @@ fun CommandPalette(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.03f,
                                 )
-                                .windowInsetsPadding(WindowInsets.allEdges),
+                                .windowInsetsPadding(WindowInsets.allEdges)
+                                // Clear of the window's sides as well as its
+                                // insets, as a dialog and a bar's expanding
+                                // panel are. It filled a phone's width edge to
+                                // edge, its corners clipped by the glass: *"give
+                                // it some minimum side padding (that goes for all
+                                // "dialog"-type components if it doesn't exist
+                                // already)"*. The width cap still holds wider up.
+                                .padding(horizontal = Theme.spacing.md),
                             // Near the top rather than centred: the list grows
                             // downward as the user types, and a centred palette
                             // jumps up the screen on every keystroke.

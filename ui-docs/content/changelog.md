@@ -228,6 +228,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   keyboard. The panel now clears the window's insets and the keyboard on every
   side, wherever it stands, and both take a `windowInsets` for a caller that
   clears an edge itself.
+- **A command palette keeps clear of the window's sides.** It took its width
+  cap and nothing else, so on a phone it ran from one edge of the glass to the
+  other. It now keeps `Theme.spacing.md` from either side, as a `Dialog` and a
+  bar's expanding panel already kept a margin of their own.
 
 ---
 
