@@ -139,6 +139,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   from `ComponentDefaults.topBarHeroHeight`, unless you say. On `Large` it is
   the least the bar opens to.
 
+- **Wheels say when they have stopped.** `WheelPicker(onSelectedIndexChangeFinished)`,
+  `WheelSelect(onValueChangeFinished)` and `TimePicker(onValueChangeFinished)`
+  are called once a wheel comes to rest after the reader turned it, as a slider's
+  and a rating's already were once the finger lifted. `onValueChange` still
+  follows every row passed; a save, a request or a toast belongs in the new one.
+  Not called when the caller sets the value.
+
 - [`listSection`](components/list-section.md#in-a-lazy-list-listsection): a
   titled group of rows inside a `LazyColumn`, as `ListSection` is outside one.
   It draws the heading, each row's `position`, the hairline between rows, the

@@ -45,10 +45,19 @@ class WheelSelectTest {
 
     private var field = Rect.Zero
 
-    private class Rig(val scene: Scene, val value: () -> Int, val state: () -> SelectState, val felt: List<FeedbackIntent>)
+    private class Rig(
+        val scene: Scene,
+        val value: () -> Int,
+        val state: () -> SelectState,
+        val felt: List<FeedbackIntent>,
+        val changes: () -> Int,
+        val finished: () -> Int,
+    )
 
     private fun rig(dragToPick: Boolean = true, start: Int = 5): Rig {
         var value by mutableStateOf(start)
+        var changes = 0
+        var finished = 0
         var held: SelectState? = null
         val felt = mutableListOf<FeedbackIntent>()
         val scene = Scene(width = 800, height = 1000, density = Density, reduceMotion = true) {
@@ -60,7 +69,11 @@ class WheelSelectTest {
                             WheelSelect(
                                 value = value,
                                 options = (0..20).toList(),
-                                onValueChange = { value = it },
+                                onValueChange = {
+                                    value = it
+                                    changes++
+                                },
+                                onValueChangeFinished = { finished++ },
                                 dragToPick = dragToPick,
                                 state = state,
                                 modifier = Modifier.width(240.dp).reportBounds { field = it },
@@ -71,7 +84,7 @@ class WheelSelectTest {
             }
         }
         scene.frames(6)
-        return Rig(scene, { value }, { held!! }, felt)
+        return Rig(scene, { value }, { held!! }, felt, { changes }, { finished })
     }
 
     private fun Scene.settle(frames: Int = 60) = frames(frames)
@@ -123,6 +136,28 @@ class WheelSelectTest {
             scene.settle(60)
             assertFalse(rig.state().expanded, "a wheel opened by a drag stayed open after it came to rest")
             assertEquals(7, rig.value())
+        }
+    }
+
+    /**
+     * The rows a drag turns past are each a change, and its coming to rest is
+     * one finish: *"you've got it toasting every time the "home stop" changes,
+     * which becomes annoying if i scroll through them fast. can we make it only
+     * update when the picker comes to rest?"*
+     */
+    @Test
+    fun aDragTurnsPastRowsAndFinishesOnce() {
+        val rig = rig()
+        rig.scene.use { scene ->
+            val from = field.center
+            val to = Offset(from.x, from.y - Row * 2.2f)
+            scene.drag(from = from, to = to, steps = 24, release = false)
+            scene.release(to)
+            scene.settle(80)
+            assertEquals(7, rig.value())
+            // The drum reports the row it opens on as well, so at least the two.
+            assertTrue(rig.changes() >= 2, "two rows from 5 to 7, ${rig.changes()} changes")
+            assertEquals(1, rig.finished(), "one drag and a rest finished ${rig.finished()} times")
         }
     }
 

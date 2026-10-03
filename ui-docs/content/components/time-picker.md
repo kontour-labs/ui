@@ -17,6 +17,9 @@ where the locale writes it there, as Korean and Japanese do — which is a
 [`LocaleFormats`](locale-formats.md) decision rather than a parameter. So is
 what sits between the hour and the minute (`.` in Finnish), and the digits.
 
+`onValueChange` follows every row a wheel passes; `onValueChangeFinished` comes
+once a wheel has come to rest, which is where a save or a request belongs.
+
 ---
 
 ## Accessibility

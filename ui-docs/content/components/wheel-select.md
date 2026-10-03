@@ -60,6 +60,12 @@ lines up with the field.
 It shares `SelectState` with `Select`, so an app can open or close it from
 elsewhere.
 
+**Each row, and then the rest.** `onValueChange` follows every row the wheel
+turns past, which is what the field shows. A save, a request or a toast belongs
+in `onValueChangeFinished`, which comes once the wheel has stopped — a flick
+through twenty stops is one call, not twenty. A value set by the caller is not
+one.
+
 ---
 
 ## Accessibility

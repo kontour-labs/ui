@@ -504,7 +504,7 @@ public final class io/kontour/ui/components/datetime/RelativeTimeTextKt {
 
 public final class io/kontour/ui/components/datetime/TimePickerKt {
 	public static final fun TimeField (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TimePicker (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZILio/kontour/ui/locale/LocaleFormats;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TimePicker (Lkotlinx/datetime/LocalTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZILio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/datetime/WheelPickerDefaults {
@@ -515,7 +515,7 @@ public final class io/kontour/ui/components/datetime/WheelPickerDefaults {
 }
 
 public final class io/kontour/ui/components/datetime/WheelPickerKt {
-	public static final fun WheelPicker-tJlDC5Y (Ljava/util/List;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;IFZLandroidx/compose/runtime/Composer;II)V
+	public static final fun WheelPicker-Wu8B24Y (Ljava/util/List;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;IFZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/AccordionKt {
@@ -1886,7 +1886,7 @@ public final class io/kontour/ui/components/text/TransformationsKt {
 }
 
 public final class io/kontour/ui/components/text/WheelSelectKt {
-	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/foundation/ColourSpacesKt {

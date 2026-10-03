@@ -134,10 +134,10 @@ internal fun TransitSettingsPage() {
                 WheelSelect(
                     value = home,
                     options = stops.map { it.name },
-                    onValueChange = {
-                        home = it
-                        toast("Home is $it")
-                    },
+                    onValueChange = { home = it },
+                    // Once the wheel has stopped, not for every stop it turned
+                    // past on the way.
+                    onValueChangeFinished = { toast("Home is $home") },
                     label = "Home stop",
                     modifier = Modifier.fillMaxWidth(),
                 )

@@ -115,6 +115,13 @@ private const val FoldAfterRestMillis = 350L
  * @param dragToPick Whether a vertical drag on the closed field turns the wheel
  *   straight away. Off, only a tap opens it.
  * @param state Whether the wheel is open, hoisted — shared with [Select].
+ * @param onValueChangeFinished Called when the wheel comes to rest after the
+ *   reader turned it, on the row it stopped on. [onValueChange] follows every
+ *   row the wheel passes — the field shows each — so a save, a request or a
+ *   toast belongs here instead, once a flick has settled rather than once a
+ *   row: *"it's toasting every time the "home stop" changes, which becomes
+ *   annoying if i scroll through them fast"*. Not called when [value] is set
+ *   by the caller.
  */
 @Composable
 fun <T> WheelSelect(
@@ -136,6 +143,7 @@ fun <T> WheelSelect(
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
     interactionSource: MutableInteractionSource? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelSelect's visibleItems must be odd so a row can sit where the field was, not $visibleItems"
@@ -298,6 +306,7 @@ fun <T> WheelSelect(
                 contentDescription = label,
                 visibleItems = visibleItems,
                 infinite = infinite,
+                onSettled = onValueChangeFinished,
                 drive = drive,
                 onCentreTap = { close() },
             )

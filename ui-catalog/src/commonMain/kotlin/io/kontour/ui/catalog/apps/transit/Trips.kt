@@ -198,10 +198,9 @@ internal fun TripPage(trip: Trip) {
             TransitHeading("How was it?")
             Rating(
                 value = stars,
-                onValueChange = {
-                    stars = it
-                    toast("Thanks — that helps us plan the timetable")
-                },
+                onValueChange = { stars = it },
+                // Once the finger lifts, not for every star a drag crossed.
+                onValueChangeFinished = { toast("Thanks — that helps us plan the timetable") },
                 contentDescription = "Rate this trip",
             )
             Button(onClick = { reporting = true }, variant = ButtonVariant.Secondary, modifier = Modifier.fillMaxWidth()) {
