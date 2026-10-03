@@ -35,6 +35,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -236,6 +238,14 @@ class OverlayHostState {
      * `AnchoredOverlayLayout`.
      */
     internal var edgesFromRoot: AnchorInsets by mutableStateOf(AnchorInsets.None)
+
+    /**
+     * The bars along the foot of the window, by whoever reported them, as their
+     * top and bottom edges in root pixels: what a bottom [ToastHost] keeps
+     * clear of. A [io.kontour.ui.nav.NavBar] reports its own while it is on
+     * screen, and takes it back when it goes. See [clearedByToasts].
+     */
+    internal val bottomBars = mutableStateMapOf<Any, BarEdges>()
 
     /**
      * How far in each entry is, by key: what the scrims and the backdrop are
@@ -715,6 +725,41 @@ internal fun scrimShare(fractions: List<Float>, alpha: Float, index: Int): Float
     return 0f
 }
 
+/**
+ * The host, for something that only *helps* one if it is there — a bar telling
+ * toasts where it is — and works the same without. [LocalOverlayHost] fails
+ * loudly instead, which is right for anything that renders into it.
+ */
+internal val LocalOverlayHostOrNull = staticCompositionLocalOf<OverlayHostState?> { null }
+
+/** A bar's top and bottom edges, in root pixels. */
+@Immutable
+internal data class BarEdges(val top: Float, val bottom: Float)
+
+/**
+ * Tells the [OverlayHost] this is a bar along the foot of the window, which a
+ * bottom toast stack stands clear of: *"can we make it so toasts clear the
+ * navbar (if applicable)?"* A navigation bar is a component, not an inset, so
+ * nothing in the window's insets says where it is; the bar does, every time
+ * it is placed, and takes it back when it leaves.
+ *
+ * Its own place in the window, measured, rather than its height: a floating
+ * bar stands above the gesture bar, a docked one runs under it, and a bar
+ * sliding away with its page moves with every frame. Only a bar near the foot
+ * counts — see [ToastHost] — so one drawn mid-page, in a showcase, does not
+ * lift the toasts.
+ */
+@Composable
+internal fun Modifier.clearedByToasts(): Modifier {
+    val host = LocalOverlayHostOrNull.current ?: return this
+    val key = remember { Any() }
+    DisposableEffect(host, key) { onDispose { host.bottomBars.remove(key) } }
+    return onGloballyPositioned { placed ->
+        val top = placed.positionInRoot().y
+        host.bottomBars[key] = BarEdges(top, top + placed.size.height)
+    }
+}
+
 /** Remembers an [OverlayHostState], the stack an [OverlayHost] draws. */
 @Composable
 fun rememberOverlayHostState(): OverlayHostState = remember { OverlayHostState() }
@@ -847,6 +892,7 @@ fun OverlayHost(
 
     CompositionLocalProvider(
         LocalOverlayHost provides state,
+        LocalOverlayHostOrNull provides state,
         LocalTakesBackSwipe provides false,
         LocalRelaysSystemBack provides false,
         *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),

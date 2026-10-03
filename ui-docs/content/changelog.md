@@ -174,6 +174,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **A bottom toast stands above the navigation bar.** A toast raised on a page
+  with a `NavBar` came up over the bar, on top of the destinations. The bar now
+  tells the overlay host where it is, and a bottom `ToastHost` stands a little
+  above it, or above the window's insets, whichever is higher. A page that covers
+  the bar brings the toasts back down with it; a bar partway down a page is left
+  alone.
 - **A list comes to rest once after a back gesture.** Back from a page over a
   `listPane()` entry, carried all the way by the gesture as a swipe's release
   does, finished, then the list jumped back three quarters of the way and came

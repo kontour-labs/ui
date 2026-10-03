@@ -62,6 +62,7 @@ import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.horizontalDragOwning
 import io.kontour.ui.interaction.rememberDetentTicker
 import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.overlay.clearedByToasts
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.anchorBounds
@@ -585,7 +586,8 @@ private fun BarGround(
     // navigation. A bar surface keeps what lands on it, inside the capsule's
     // shape: just off the rounded ends is still the page. See [BarSurface].
     BarSurface(
-        modifier = modifier,
+        // Where it is, for a bottom toast stack to stand above it.
+        modifier = modifier.clearedByToasts(),
         shape = shape,
         containerColour = colours.container,
         contentColour = SurfaceDefaults.contentColour(colours.container),
