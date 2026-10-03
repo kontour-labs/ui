@@ -65,6 +65,11 @@ internal class SystemBackRelay(
     private var frameTimes = false
     private var progress = 0f
 
+    /** When the gesture began, and from where, and when its last event came: for its speed overall. */
+    private var startedAt = 0L
+    private var startedFrom = 0f
+    private var lastAt = 0L
+
     /** Backs completed while a release was carrying on, to go when it has. */
     private var waiting = 0
 
@@ -76,6 +81,8 @@ internal class SystemBackRelay(
         speed.resetTracking()
         frameTimes = event.frameTimeMillis > 0L
         track(event)
+        startedAt = lastAt
+        startedFrom = event.progress
         input.start(event.swipeEdge, Offset(event.touchX, event.touchY))
         if (event.progress > 0f) input.move(event.progress, Offset(event.touchX, event.touchY))
     }
@@ -90,7 +97,7 @@ internal class SystemBackRelay(
         when {
             following -> {
                 following = false
-                carry(commit = true, velocity = maxOf(speed.calculateVelocity(), 0f))
+                carry(commit = true, velocity = maxOf(speed.calculateVelocity(), overall(), 0f))
             }
             input.releasing -> waiting++
             else -> input.complete()
@@ -106,7 +113,27 @@ internal class SystemBackRelay(
     private fun track(event: NavigationEvent) {
         progress = event.progress
         val at = if (frameTimes) event.frameTimeMillis else clock.elapsedNow().inWholeMilliseconds
+        lastAt = at
         speed.addDataPoint(at, progress)
+    }
+
+    /**
+     * The gesture's speed over its whole length, for when the last moment's
+     * cannot be read.
+     *
+     * The tracker reads the last 40ms of events, and a quick swipe can leave
+     * fewer than two in it: a handful of events in all, or a slow frame as the
+     * page behind is first drawn holding them up — and on a phone that stamps
+     * them on arrival, arriving together. It measured nothing, and the release
+     * left from a standstill: *"if i swipe back quickly using the side-gesture
+     * back button (and let go quickly), then sometimes it can feel really
+     * sluggish"*. A gesture shorter than two frames is too short to time this
+     * way either, and counts as nothing.
+     */
+    private fun overall(): Float {
+        val elapsed = lastAt - startedAt
+        if (elapsed < TimedAtLeastMillis) return 0f
+        return (progress - startedFrom) * 1_000f / elapsed
     }
 
     private fun carry(commit: Boolean, velocity: Float) {
@@ -148,3 +175,6 @@ internal fun RelaySystemBack(platform: NavigationEventDispatcher, into: Navigati
  * it replaces.
  */
 private const val RelayPace = 3.5f
+
+/** The shortest gesture whose speed overall is worth reading: two frames. */
+private const val TimedAtLeastMillis = 32L

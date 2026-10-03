@@ -222,6 +222,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   above it, or above the window's insets, whichever is higher. A page that covers
   the bar brings the toasts back down with it; a bar partway down a page is left
   alone.
+- **A quick back swipe on Android no longer stalls as it is let go.** The
+  release read the finger's speed from the last 40ms of the platform's events,
+  and a quick swipe can leave fewer than two there: measured as nothing, the
+  page stopped on the lift and then picked up. It now takes the swipe's speed
+  over its whole length where that is quicker, and never leaves slower than
+  half its pace. A two-pane detail let go at the end, as the relay hands it
+  over, pops at once rather than waiting out a fixed 200ms.
 - **A toast has an edge over anything of its own colour.** The toast in front
   takes the rim the ones waiting behind it already had, a hairline of its own
   content colour: over a FAB, near-black on near-black, the two used to run

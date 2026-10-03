@@ -227,13 +227,18 @@ internal class SwipeBackInput(
         // and easing a little into the end. A cubic from where it is to where
         // it is going, its first slope the finger's and its last half the
         // pace's — which keeps it moving forwards throughout.
+        //
+        // **Never from a standstill.** Leaving at least half the pace: a finger
+        // whose speed could not be read is not a finger that stopped, and a
+        // release that left at nothing paused on the lift and then picked up,
+        // which on a quick swipe read as the page dragging its feet.
         val distance = target - from
         val remaining = abs(distance)
         if (remaining < 1e-4f) return { target to true }
         val along = if (distance > 0f) velocity else -velocity
         val pace = maxOf(along, least)
         val seconds = (remaining / pace).coerceIn(MinReleaseSeconds, MaxReleaseSeconds)
-        val leaving = (along.coerceAtLeast(0f) * seconds / remaining).coerceAtMost(2f)
+        val leaving = (along.coerceAtLeast(0f) * seconds / remaining).coerceIn(LeastLeaving, 2f)
         val arriving = 0.5f
         return { played ->
             val u = (played / 1e9f / seconds).coerceIn(0f, 1f)
@@ -456,6 +461,9 @@ private const val ReleaseStiffness = Spring.StiffnessLow
 
 /** The longest and shortest a paced release takes, in seconds. */
 private const val MinReleaseSeconds = 0.016f
+
+/** The least a paced release leaves at, against its pace: half, so it never sets off from rest. */
+private const val LeastLeaving = 0.5f
 private const val MaxReleaseSeconds = 0.3f
 
 /** How far past the end the release aims, as a fraction of the travel. */
