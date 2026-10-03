@@ -84,15 +84,24 @@ class NavigationSuiteSceneTest {
     }
 
     private val counters = mutableMapOf<String, () -> Unit>()
+    private var depth = 0
 
     @Composable
-    private fun Display(back: Back, backStack: SnapshotStateList<Any>, twoPane: Boolean = false) {
+    private fun Display(back: Back, backStack: SnapshotStateList<Any>, twoPane: Boolean = false, readsStack: Boolean = false) {
         CompositionLocalProvider(
             LocalNavigationEventDispatcherOwner provides back.owner,
             LocalBackStyle provides BackStyle.Predictive,
         ) {
             KontourTheme(darkTheme = false) {
                 OverlayHost {
+                    // A host that reads its own stack — for a title, or which
+                    // chat is open, as the gallery's Messages does — recomposes
+                    // on every push and pop, and builds its entries' metadata
+                    // afresh each time.
+                    if (readsStack) {
+                        val size = backStack.size
+                        SideEffect { depth = size }
+                    }
                     val suite = rememberNavigationSuiteSceneStrategy<Any>(
                         sceneStrategies = listOf(ListDetailSceneStrategy(twoPane, 0.4f, resizable = false, showDivider = true)),
                     ) { pages ->
@@ -190,6 +199,56 @@ class NavigationSuiteSceneTest {
         waitForIdle()
         assertEquals(listOf<Any>(Home, Stop), backStack.toList())
         assertEquals(rest, bar())
+    }
+
+    /**
+     * Back from a covering page to a list, finished by the gesture: the list
+     * comes to rest once, from where the gesture left it.
+     *
+     * Reported from the gallery's Messages as *"when i try to go back and it
+     * does the back animation, when the animation completes, it sort of
+     * 'snaps' back to being like 75% complete and then does the end of the
+     * animation again"*. Its host reads the stack, so the pop rebuilt the
+     * list's `listPane()` metadata, and a role that was only equal to itself
+     * made the scene the pop settled on unequal to the one the gesture had
+     * been carrying in — the same key, so the same slot, told it was not the
+     * target, went back toward where it enters from and came in again.
+     */
+    @Test
+    fun aListComesToRestOnceAfterAFinishedBackGesture() = runDesktopComposeUiTest(width = 400, height = 800) {
+        val back = Back()
+        val backStack = mutableStateListOf<Any>(Home, Player)
+        setContent { Display(back, backStack, readsStack = true) }
+        waitForIdle()
+
+        mainClock.autoAdvance = false
+        runOnUiThread { back.input.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f)) }
+        mainClock.advanceTimeByFrame()
+        // All the way, as a swipe's release carries it before the pop.
+        for (step in 1..10) {
+            runOnUiThread { back.input.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, step / 10f, 0f, 0f)) }
+            mainClock.advanceTimeByFrame()
+        }
+        runOnUiThread { back.input.backCompleted() }
+
+        // Frame by frame from the release: the list's distance from rest only
+        // ever shrinks.
+        var last = Float.MAX_VALUE
+        repeat(90) { frame ->
+            mainClock.advanceTimeByFrame()
+            val left = onAllNodesWithTag("home", useUnmergedTree = true).fetchSemanticsNodes().firstOrNull()?.boundsInRoot?.left
+            if (left != null) {
+                val away = abs(left)
+                assertTrue(
+                    away <= last + 0.5f,
+                    "frame $frame after the release: the list moved back away from rest, ${last}px to ${away}px",
+                )
+                last = away
+            }
+        }
+        assertEquals(listOf<Any>(Home), backStack.toList())
+        assertEquals(1, depth)
+        assertTrue(last < 0.5f, "the list did not come to rest: ${last}px off")
     }
 
     /** What a page saved survives a page inside the navigation, and one over it. */

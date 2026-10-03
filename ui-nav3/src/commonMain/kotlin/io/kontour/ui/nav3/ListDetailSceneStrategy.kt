@@ -89,8 +89,22 @@ internal const val DetailPaneKey = "io.kontour.ui.nav3.detailPane"
  *
  * A class rather than the lambda itself, because a metadata map cannot hold a
  * null and "no placeholder" still has to say "this is a list".
+ *
+ * **Equal to every other list role**, placeholder or not, as
+ * [ListDetailScene] already is. `NavDisplay` compares entries, and so scenes,
+ * by their metadata, and an app that reads its own back stack builds its
+ * entries again on every push and pop, with a new role each time. Equal only
+ * to itself, the role made the scene a pop settled on unequal to the one a
+ * back gesture had carried all the way in: the same key, so the same slot, now
+ * told it was not the target — and the page under the gesture went back
+ * toward where it enters from and came in again, *"snaps back to being like
+ * 75% complete and then does the end of the animation again"*.
  */
-internal class ListPaneRole(val placeholder: (@Composable () -> Unit)?)
+internal class ListPaneRole(val placeholder: (@Composable () -> Unit)?) {
+    override fun equals(other: Any?): Boolean = other is ListPaneRole
+
+    override fun hashCode(): Int = ListPaneRole::class.hashCode()
+}
 
 internal object DetailPaneRole
 

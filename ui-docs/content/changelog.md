@@ -174,6 +174,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **A list comes to rest once after a back gesture.** Back from a page over a
+  `listPane()` entry, carried all the way by the gesture as a swipe's release
+  does, finished, then the list jumped back three quarters of the way and came
+  in again. An app that reads its own back stack builds its entries afresh on
+  every pop, and the list's role was equal only to itself, so the scene the pop
+  settled on was not the one the gesture had brought in. Every `listPane()` is
+  now equal to every other.
 - **A text area's placeholder starts at the top, where its text does.** It was
   centred in the area, a line or more below where the first character goes, and
   cut to one line however long it was. It now sits at the top start (the top
