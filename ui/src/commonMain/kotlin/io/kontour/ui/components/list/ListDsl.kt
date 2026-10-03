@@ -291,10 +291,12 @@ fun <T> LazyListScope.listGroup(
  * [indexedBy] counts for an [IndexScroller] — a header and then the rows — so a
  * section per group, without a footer, is where the rail's letters land.
  *
- * @param key A stable key for each row, as `LazyColumn`'s `items` takes.
+ * @param key A stable key for each row, as `LazyColumn`'s `items` takes, and of
+ *   a type it takes: on Android, one a `Bundle` can hold.
  * @param sectionKey A key for the section's header and footer, for a section
  *   that comes and goes — a "Pinned" that empties — to animate as one. Any value
- *   unique to the section; it is wrapped, so it cannot collide with a row's.
+ *   whose `toString()` is unique to the section: the header's and footer's keys
+ *   are strings made from it, which cannot collide with a row's.
  * @param spacing The gap between the rows, and under the header. Defaults to
  *   `ListItemDefaults.Spacing`, the hairline [ListGroup] uses.
  * @param content One row: the item, and where it sits in the group.
@@ -314,7 +316,7 @@ fun <T> LazyListScope.listSection(
     val header = title != null || action != null
 
     if (header) {
-        item(key = sectionKey?.let { SectionPart(it, SectionPart.Header) }, contentType = "listSectionHeader") {
+        item(key = sectionKey?.let { sectionPartKey(it, "header") }, contentType = "listSectionHeader") {
             SectionHeader(
                 modifier = sectionItem(),
                 supporting = supporting,
@@ -336,19 +338,22 @@ fun <T> LazyListScope.listSection(
         }
     }
     if (footer != null) {
-        item(key = sectionKey?.let { SectionPart(it, SectionPart.Footer) }, contentType = "listSectionFooter") {
+        item(key = sectionKey?.let { sectionPartKey(it, "footer") }, contentType = "listSectionFooter") {
             SectionFooter(sectionItem().padding(top = spacing.orListSpacing()), content = footer)
         }
     }
 }
 
-/** A section's header or footer key, kept apart from any row's. */
-private data class SectionPart(val section: Any, val part: Int) {
-    companion object {
-        const val Header = 0
-        const val Footer = 1
-    }
-}
+/**
+ * A section's header or footer key, kept apart from any row's.
+ *
+ * A string, because a lazy item's key is saved with the list's state and
+ * Android saves only what a `Bundle` holds. It was a data class pairing the
+ * section with its part, which every desktop run accepted and the first
+ * `listSection` with a `sectionKey` on a phone threw on: *"Type of the key
+ * SectionPart(section=Pinned, part=0) is not supported."*
+ */
+private fun sectionPartKey(section: Any, part: String): String = "kontour.listSection[$section].$part"
 
 @Composable
 private fun Dp.orListSpacing(): Dp = if (isSpecified) this else ListItemDefaults.Spacing

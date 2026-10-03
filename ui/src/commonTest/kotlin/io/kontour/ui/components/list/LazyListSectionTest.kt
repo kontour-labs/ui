@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.compose.runtime.saveable.SaveableStateRegistry
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -24,11 +28,11 @@ import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.locale.localeFormatsFor
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
-import kotlinx.coroutines.runBlocking
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 
 /**
  * `listSection`: a grouped list's sections inside a `LazyColumn`, with the
@@ -164,6 +168,51 @@ class LazyListSectionTest {
         onNodeWithText("Nothing").assertDoesNotExist()
         onNodeWithText("Nothing here").assertDoesNotExist()
         onNodeWithTag("a1").assertExists()
+    }
+
+    /**
+     * The keys the section adds for its header and footer are ones Android can
+     * save.
+     *
+     * A lazy item's key goes into the list's saved state, and on Android that
+     * is a `Bundle`: a key it cannot hold throws as the item is composed. The
+     * header's was a data class, and the first section with a `sectionKey` on a
+     * phone threw *"Type of the key SectionPart(section=Pinned, part=0) is not
+     * supported"*. A desktop run saves anything, so the check is Android's,
+     * applied here by a registry that accepts what a `Bundle` would.
+     */
+    @Test
+    fun theKeysItAddsAreOnesAndroidCanSave() = runComposeUiTest {
+        setContent {
+            KontourTheme {
+                val bundle = remember { SaveableStateRegistry(restoredValues = null, canBeSaved = ::bundleable) }
+                CompositionLocalProvider(LocalSaveableStateRegistry provides bundle) {
+                    LazyColumn(Modifier.size(320.dp, 2000.dp)) {
+                        listSection(
+                            listOf("p1", "p2"),
+                            key = { it },
+                            sectionKey = "Pinned",
+                            title = { +"Pinned" },
+                            footer = { +"Two pinned" },
+                        ) { row, position -> Row(row, position) }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText("Pinned").assertExists()
+        onNodeWithText("Two pinned").assertExists()
+    }
+
+    /**
+     * The plain values a `Bundle` holds, and lists of them, which is how the
+     * list saves its own scroll position. Android also takes `Parcelable`s and
+     * `Serializable`s.
+     */
+    private fun bundleable(value: Any): Boolean = when (value) {
+        is String, is Number, is Boolean, is Char -> true
+        is List<*> -> value.all { it == null || bundleable(it) }
+        else -> false
     }
 
     private companion object {

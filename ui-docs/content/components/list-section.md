@@ -61,7 +61,11 @@ footer, which is what [`indexedBy`](index-scroller.md) counts for an
 `IndexScroller`: a section per letter, without a footer, is where the rail's
 letters land. An empty section draws nothing. Its rows move rather than jump when
 a filter adds or takes some away; give `key` so the moves follow each row, and
-`sectionKey` for a section that comes and goes as a whole.
+`sectionKey` for a section that comes and goes as a whole. A `key` is saved with
+the list, as any lazy item's is, so on Android it has to be something a `Bundle`
+holds — a string or a number is right. A `sectionKey` can be anything whose
+`toString()` tells the sections apart: the section makes its own string keys from
+it.
 
 ---
 
