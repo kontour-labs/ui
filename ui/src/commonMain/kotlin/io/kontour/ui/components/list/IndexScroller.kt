@@ -10,7 +10,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -212,9 +211,23 @@ fun IndexScroller(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
     val ticker = rememberDetentTicker()
-    var touched by remember { mutableIntStateOf(-1) }
+    // The label under the finger, by what it says rather than where it is in
+    // the alphabet: an alphabet changed under the finger keeps its letters, not
+    // its positions, so an index carried across would say another letter.
+    var touched by remember { mutableStateOf<String?>(null) }
+    // Where the finger is in the root, not on the rail: a rail that moves
+    // under a finger that has not — re-centred when its alphabet grew — would
+    // otherwise go on reading the letter that used to be there.
     var fingerY by remember { mutableFloatStateOf(0f) }
+    // The labels the ticker's positions were counted in. Another alphabet's
+    // positions are not the same letters, so it starts counting again.
+    val tickedIn = remember { TickedIn() }
+    // One bubble for the rail, not one per drag: a press while the last one is
+    // still on its way out turns that one around, rather than drawing a second
+    // beside the letter the finger has left.
+    val bubble = remember { Any() }
 
+    val latestLabels by rememberUpdatedState(labels)
     val latestLanding by rememberUpdatedState(landing)
     val latestSections by rememberUpdatedState(sections)
     fun jumpToSection(index: Int) {
@@ -223,12 +236,21 @@ fun IndexScroller(
         state.requestScrollToItem(all[index.coerceIn(all.indices)].itemIndex)
     }
     fun pick(y: Float) {
-        val label = labelAt(y, geometry.slots, geometry.top, geometry.slotPx)
-        if (label < 0) return
-        ticker.at(label)
+        // One measure's slots, read together with the labels they were laid
+        // out for, so a pick between an alphabet changing and the rail being
+        // measured again cannot pair one alphabet's place with another's letter.
+        val rail = geometry.layout
+        val index = labelAt(y, rail.slots, rail.top, rail.slotPx)
+        if (index < 0) return
+        if (tickedIn.labels !== rail.labels) {
+            tickedIn.labels = rail.labels
+            ticker.reset()
+        }
+        ticker.at(index)
+        val label = rail.labels[index]
         if (label != touched) {
             touched = label
-            val target = latestLanding.getOrElse(label) { -1 }
+            val target = latestLanding.getOrElse(latestLabels.indexOf(label)) { -1 }
             if (target >= 0) jumpToSection(target)
         }
     }
@@ -288,26 +310,28 @@ fun IndexScroller(
                 scope = scope,
                 claimsOn = DragClaim.Press,
                 onStart = { offset ->
-                    fingerY = offset.y
-                    ticker.reset()
-                    pick(fingerY)
+                    fingerY = geometry.topInRoot() + offset.y
+                    tickedIn.labels = null
+                    pick(fingerY - geometry.topInRoot())
                 },
                 onDelta = { delta ->
                     fingerY += delta
-                    pick(fingerY)
+                    pick(fingerY - geometry.topInRoot())
                 },
                 onEnd = {
-                    touched = -1
-                    ticker.reset()
+                    touched = null
+                    tickedIn.labels = null
                 },
             )
             .onGloballyPositioned { geometry.coordinates = it }
             .drawBehind {
-                val slots = geometry.slots
-                val strip = geometry.stripWidth
+                val rail = geometry.layout
+                // Measured for other labels: this frame's measure is still to come.
+                if (rail.labels !== labels) return@drawBehind
+                val strip = rail.stripWidth
                 val centreX = if (rtl) strip / 2f else size.width - strip / 2f
-                slots.forEachIndexed { i, slot ->
-                    val centreY = geometry.top + geometry.slotPx * (i + 0.5f)
+                rail.slots.forEachIndexed { i, slot ->
+                    val centreY = rail.top + rail.slotPx * (i + 0.5f)
                     when (slot) {
                         is IndexSlot.Label -> {
                             val index = slot.index
@@ -342,20 +366,24 @@ fun IndexScroller(
         val width = max(strip, touch.toPx()).roundToInt().coerceIn(constraints.minWidth, constraints.maxWidth)
         val fits = if (slotPx <= 0f) labels.size else ((height - padPx * 2) / slotPx).toInt()
         val slots = indexSlots(labels.size, fits)
-        geometry.slotPx = slotPx
-        geometry.stripWidth = strip
-        geometry.top = (height - slots.size * slotPx) / 2f
-        geometry.slots = slots
+        geometry.layout = RailLayout(
+            labels = labels,
+            slots = slots,
+            top = (height - slots.size * slotPx) / 2f,
+            slotPx = slotPx,
+            stripWidth = strip,
+        )
         layout(width, height) {}
     }
 
     // Beside the finger, the letter it is over, large. Composed only while a
     // finger is on the rail, so a rail nobody is touching needs no host.
     val shown = touched
-    if (enabled && shown >= 0) TooltipOverlay(
+    if (enabled && shown != null) TooltipOverlay(
         visible = true,
         anchor = { geometry.slotRect(shown, rtl) },
-        content = { Text(labels.getOrElse(shown) { "" }, style = Theme.typography.headlineMedium) },
+        content = { Text(shown, style = Theme.typography.headlineMedium) },
+        key = bubble,
         modifier = Modifier,
         side = OverlaySide.Start,
         alignment = OverlayAlignment.Centre,
@@ -372,32 +400,59 @@ private val IndexRailWidth: Dp = 20.dp
 private val IndexDotSize: Dp = 4.dp
 
 /**
- * Where the rail put its slots at its last measure, for the drag and the
- * bubble to find them. Written by the measure and read by the draw, so the
- * slots are state; the rest change only with them.
+ * Where the rail put its slots at one measure, and the labels they are for.
+ *
+ * One value rather than a field for each, written once per measure: the drag
+ * and the bubble read it between measures, and a read that took the slots from
+ * one alphabet and the labels from another said a letter the finger was not on.
+ */
+@Immutable
+private class RailLayout(
+    val labels: List<String>,
+    val slots: List<IndexSlot>,
+    val top: Float,
+    val slotPx: Float,
+    val stripWidth: Float,
+) {
+    companion object {
+        val Empty = RailLayout(emptyList(), emptyList(), 0f, 0f, 0f)
+    }
+}
+
+/**
+ * The rail's last [RailLayout], for the drag and the bubble to find its slots.
+ * Written by the measure and read by the draw, so it is state.
  */
 @Stable
 private class RailGeometry {
-    var slots: List<IndexSlot> by mutableStateOf(emptyList())
-    var top = 0f
-    var slotPx = 0f
-    var stripWidth = 0f
+    var layout: RailLayout by mutableStateOf(RailLayout.Empty)
     var coordinates: LayoutCoordinates? = null
 
+    /** Where the rail's top is in the root; 0 before it has been placed. */
+    fun topInRoot(): Float = coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y ?: 0f
+
     /** The slot showing [label], or the dot standing for it, in the root's coordinates. */
-    fun slotRect(label: Int, rtl: Boolean): Rect? {
+    fun slotRect(label: String, rtl: Boolean): Rect? {
         val coords = coordinates?.takeIf { it.isAttached } ?: return null
-        val slot = slots.indexOfFirst {
+        val rail = layout
+        val index = rail.labels.indexOf(label)
+        if (index < 0) return null
+        val slot = rail.slots.indexOfFirst {
             when (it) {
-                is IndexSlot.Label -> it.index == label
-                is IndexSlot.Dot -> label in it.first..it.last
+                is IndexSlot.Label -> it.index == index
+                is IndexSlot.Dot -> index in it.first..it.last
             }
         }
         if (slot < 0) return null
-        val left = if (rtl) 0f else coords.size.width - stripWidth
-        val origin = coords.localToRoot(Offset(left, top + slotPx * slot))
-        return Rect(origin, Size(stripWidth, slotPx))
+        val left = if (rtl) 0f else coords.size.width - rail.stripWidth
+        val origin = coords.localToRoot(Offset(left, rail.top + rail.slotPx * slot))
+        return Rect(origin, Size(rail.stripWidth, rail.slotPx))
     }
+}
+
+/** The labels a drag's ticks are being counted in; see `IndexScroller`'s `pick`. */
+private class TickedIn {
+    var labels: List<String>? = null
 }
 
 /**
