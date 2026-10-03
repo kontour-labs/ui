@@ -160,6 +160,17 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   by default, and none at high contrast. The bar has to be over the content, as
   a `Scaffold` puts it.
 
+- [`TextFieldVariant.Plain`](components/select.md): a field with no ground and
+  no edge at rest, for a select at the end of a row or in a sentence — every
+  select takes it, `Select`, `MultiSelect`, `Combobox` and `WheelSelect`, and
+  stays outlined by default. Focus brings back the tint and the accent edge, an
+  error its edge, and at high contrast the edge stays.
+
+- [`WheelSelect(placement = WheelSelectPlacement.BelowOrAbove)`](components/wheel-select.md#when-to-use-it):
+  the wheel opens beside the field as a `Select`'s menu does — below where it
+  fits, above where it fits there instead — rather than over it. Over the field
+  is still the default.
+
 - **Wheels say when they have stopped.** `WheelPicker(onSelectedIndexChangeFinished)`,
   `WheelSelect(onValueChangeFinished)` and `TimePicker(onValueChangeFinished)`
   are called once a wheel comes to rest after the reader turned it, as a slider's

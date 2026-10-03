@@ -5,6 +5,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,10 +52,14 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.DragClaim
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.verticalDragOwning
+import io.kontour.ui.overlay.AnchoredOverlayLayout
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
+import io.kontour.ui.overlay.MenuDefaults
+import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
+import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.OverlaySurface
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.anchorBounds
@@ -69,6 +75,26 @@ import kotlin.math.roundToInt
  * next thing is reached for.
  */
 private const val FoldAfterRestMillis = 350L
+
+/** Where a [WheelSelect]'s wheel opens. */
+enum class WheelSelectPlacement {
+    /**
+     * Over the field, about its value: the drum grows out of the field above
+     * and below, with the row in the middle where the field's value was. The
+     * default.
+     */
+    OverField,
+
+    /**
+     * Beside the field, below it or above it, as a [Select]'s menu opens: below
+     * where the whole wheel fits there, above where it fits there instead, and
+     * otherwise whichever side has more room. The field stays in view, so the
+     * wheel is plainly the field's, and an anchor near the top or the foot of
+     * the window has the wheel open away from that edge rather than pushed up
+     * against it.
+     */
+    BelowOrAbove,
+}
 
 /**
  * Picks one of a list, on a wheel that opens out of the field.
@@ -114,6 +140,13 @@ private const val FoldAfterRestMillis = 350L
  *   [io.kontour.ui.components.datetime.WheelPicker]'s `infinite`.
  * @param dragToPick Whether a vertical drag on the closed field turns the wheel
  *   straight away. Off, only a tap opens it.
+ * @param placement Where the wheel opens: over the field, by default, or below
+ *   or above it as a menu does. Asked for as *"can we make the wheel select able
+ *   to "anchor" the wheel to the top or the bottom of the box that opens?
+ *   similar to how other select components pick which side they show up based
+ *   on how close the box is to the edge of the screen"*. A drag on the field
+ *   turns it the same either way; beside the field, the value it turns to is
+ *   in the wheel's middle rather than under the finger.
  * @param state Whether the wheel is open, hoisted — shared with [Select].
  * @param onValueChangeFinished Called when the wheel comes to rest after the
  *   reader turned it, on the row it stopped on. [onValueChange] follows every
@@ -138,6 +171,7 @@ fun <T> WheelSelect(
     visibleItems: Int = WheelPickerDefaults.VisibleItems,
     infinite: Boolean = false,
     dragToPick: Boolean = true,
+    placement: WheelSelectPlacement = WheelSelectPlacement.OverField,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
@@ -275,11 +309,8 @@ fun <T> WheelSelect(
 
     val latestAnchor by rememberUpdatedState(anchor)
     val panel by rememberUpdatedState<@Composable () -> Unit> {
-        WheelPanel(
-            anchor = { latestAnchor },
-            fieldHeight = latestAnchor?.height ?: 0f,
-            fullHeight = WheelPickerDefaults.ItemHeight * visibleItems + Theme.spacing.xxs * 2,
-        ) {
+        val fullHeight = WheelPickerDefaults.ItemHeight * visibleItems + Theme.spacing.xxs * 2
+        val drum: @Composable () -> Unit = {
             WheelDrum(
                 items = options,
                 selectedIndex = index,
@@ -309,6 +340,19 @@ fun <T> WheelSelect(
                 onSettled = onValueChangeFinished,
                 drive = drive,
                 onCentreTap = { close() },
+            )
+        }
+        when (placement) {
+            WheelSelectPlacement.OverField -> WheelPanel(
+                anchor = { latestAnchor },
+                fieldHeight = latestAnchor?.height ?: 0f,
+                fullHeight = fullHeight,
+                content = drum,
+            )
+            WheelSelectPlacement.BelowOrAbove -> WheelBesidePanel(
+                anchor = { latestAnchor },
+                fullHeight = fullHeight,
+                content = drum,
             )
         }
     }
@@ -414,6 +458,41 @@ private fun WheelPanel(
         layout(constraints.maxWidth, room) {
             panel.placeRelative(start.roundToInt(), (centre - panel.height / 2f).roundToInt())
         }
+    }
+}
+
+/**
+ * The open wheel beside the field, as [WheelSelectPlacement.BelowOrAbove] asks:
+ * a dropdown menu's own layout, so it takes the side a [Select]'s menu would —
+ * below if the whole wheel fits there, above if it fits there instead — and
+ * keeps clear of the window's insets, appears out of the field and leaves from
+ * the side it was on, as a menu does.
+ *
+ * The whole wheel or nothing: the side it opens on has to hold every row, and
+ * its height is required rather than offered, so a short window moves the wheel
+ * over the field instead of squeezing the drum.
+ */
+@Composable
+private fun WheelBesidePanel(
+    anchor: () -> Rect?,
+    fullHeight: Dp,
+    content: @Composable () -> Unit,
+) {
+    val width = anchor()?.width?.let { with(LocalDensity.current) { it.toDp() } }
+    AnchoredOverlayLayout(
+        anchorInRoot = anchor,
+        side = OverlaySide.Bottom,
+        alignment = OverlayAlignment.Start,
+        gap = MenuDefaults.Gap,
+        margin = MenuDefaults.ScreenMargin,
+        minWidth = width ?: Dp.Unspecified,
+        minimumPanel = fullHeight,
+    ) {
+        OverlaySurface(
+            // Its height is the intrinsic the layout asks for, too: the drum
+            // is a lazy list, which cannot be asked.
+            modifier = (if (width != null) Modifier.width(width) else Modifier).requiredHeight(fullHeight),
+        ) { content() }
     }
 }
 

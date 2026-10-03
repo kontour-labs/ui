@@ -57,6 +57,17 @@ The open wheel is as wide as the field and moves only as far as it must to stay
 on screen, so near the top or bottom of the window its middle row no longer
 lines up with the field.
 
+**Or beside the field.** `placement = WheelSelectPlacement.BelowOrAbove` opens
+the wheel as a [`Select`](select.md)'s menu opens: below the field where the
+whole wheel fits, above it where it fits there instead, and otherwise on
+whichever side has more room. The field stays in view and the wheel opens away
+from the window's edge rather than up against it. A drag on the field turns it
+the same way; the value it turns to is in the wheel's middle, not under the
+finger.
+
+Like every select it is outlined by default, and `variant =
+TextFieldVariant.Plain` takes the box away — see [`Select`](select.md).
+
 It shares `SelectState` with `Select`, so an app can open or close it from
 elsewhere.
 
