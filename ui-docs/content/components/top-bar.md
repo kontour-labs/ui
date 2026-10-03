@@ -111,6 +111,29 @@ page whose picture is sometimes missing keeps its shape. `expandedHeight` works
 on `Large` too, as the least it opens to, with the title resting at the foot of
 the extra; `Small` and `Centred` ignore it, and only `Hero` draws an `image`.
 
+### Content fading under the bar
+
+`fadeUnder = true` lets content pass *under* the bar fading out, rather than
+stopping square at its foot: the bar's colour runs on past the foot and thins to
+nothing 24dp below. Any style; a collapsing bar's fade follows its foot. Off by
+default.
+
+The content has to be under the bar for it to fade there, so put the bar over
+it rather than above it in a `Column`. A [`Scaffold`](scaffold.md) does, and
+hands the content the bar's height to pad by:
+
+```kotlin
+Scaffold(
+    topBar = { TopBar(fadeUnder = true) { +"Departures" } },
+) { padding ->
+    LazyColumn(contentPadding = padding) { … }
+}
+```
+
+The fade is only drawn: a tap on a row under it reaches the row. A
+`showDivider` line at the foot is where the fade starts, so the two rarely want
+to be together.
+
 ### The back button
 
 `onBack = null` draws no back button. In a page that a navigation host shows,
@@ -142,7 +165,9 @@ bar has collapsed.
 
 At high contrast the bar takes the enhanced scheme's colours and adds no edge of
 its own — it is the page's ground by default — and the rule `showDivider` draws
-under it thickens with the tier. The back button is a ghost
+under it thickens with the tier. `fadeUnder` draws no fade there: content stops
+square at the bar's foot, rather than passing under text through a wash of the
+bar's colour. The back button is a ghost
 [`IconButton`](icon-button.md), so it gains a ring there.
 
 A `Hero` bar's picture is hidden from screen readers: the title says what the

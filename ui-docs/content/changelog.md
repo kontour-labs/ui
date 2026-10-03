@@ -154,6 +154,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   from `ComponentDefaults.topBarHeroHeight`, unless you say. On `Large` it is
   the least the bar opens to.
 
+- [`TopBar(fadeUnder)`](components/top-bar.md#content-fading-under-the-bar):
+  content passing under a bar fades out beneath it rather than stopping square
+  at its foot, the bar's colour thinning to nothing 24dp below. Any style, off
+  by default, and none at high contrast. The bar has to be over the content, as
+  a `Scaffold` puts it.
+
 - **Wheels say when they have stopped.** `WheelPicker(onSelectedIndexChangeFinished)`,
   `WheelSelect(onValueChangeFinished)` and `TimePicker(onValueChangeFinished)`
   are called once a wheel comes to rest after the reader turned it, as a slider's

@@ -34,6 +34,7 @@ import com.composables.icons.tabler.outline.Star
 import com.composables.icons.tabler.outline.Ticket
 import com.composables.icons.tabler.outline.Trash
 import com.composables.icons.tabler.outline.User
+import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -433,6 +434,7 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(
 
 private val topBarStyle = Knob.Choice("Style", TopBarStyle.entries.toList(), TopBarStyle.Small)
 private val topBarBack = Knob.Flag("Back", initial = true)
+private val topBarFade = Knob.Flag("Fade under", initial = false)
 
 /** How far a Large or Hero bar opens: the style's own, or a height asked for. */
 private val topBarOpen = Knob.Choice(
@@ -444,41 +446,45 @@ private val topBarOpen = Knob.Choice(
 
 internal val TopBarDemo = ComponentDemo(
     slug = "top-bar",
-    knobs = listOf(topBarStyle, topBarBack, topBarOpen),
+    knobs = listOf(topBarStyle, topBarBack, topBarOpen, topBarFade),
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
     val open = this[topBarOpen]
+    val fade = this[topBarFade]
     val tall = style == TopBarStyle.Hero || (style == TopBarStyle.Large && open != null)
     // Over a list that scrolls, which is the only way to see a Large bar
     // collapse: the bar takes the scroll until its title has gone up into
-    // the first line, then the rows move.
+    // the first line, then the rows move. And the list under the bar, padded
+    // by its height, so there is something to fade under it.
     val collapse = rememberTopBarCollapseState()
     Frame(height = if (tall) 560.dp else 320.dp) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(Theme.colours.background)
-                .nestedScroll(collapse.nestedScrollConnection),
-        ) {
-            TopBar(
-                style = style,
-                onBack = if (back) ({ echo("Back") }) else null,
-                showDivider = style != TopBarStyle.Hero,
-                actions = { OverflowMenu(::echo) },
-                image = { DuskOverTheRiver() },
-                expandedHeight = open ?: Dp.Unspecified,
-                collapseState = collapse,
-                // Not at the top of the window: a card on a page. Left to the
-                // default, the bar padded itself by the status bar's height in
-                // the middle of the page, which over a picture put its buttons
-                // well down it.
-                windowInsets = WindowInsets(0),
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
-            }
-            LazyColumn(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(collapse.nestedScrollConnection),
+            topBar = {
+                TopBar(
+                    style = style,
+                    onBack = if (back) ({ echo("Back") }) else null,
+                    // A line where the fade starts would undo it.
+                    showDivider = style != TopBarStyle.Hero && !fade,
+                    fadeUnder = fade,
+                    actions = { OverflowMenu(::echo) },
+                    image = { DuskOverTheRiver() },
+                    expandedHeight = open ?: Dp.Unspecified,
+                    collapseState = collapse,
+                    // Not at the top of the window: a card on a page. Left to the
+                    // default, the bar padded itself by the status bar's height in
+                    // the middle of the page, which over a picture put its buttons
+                    // well down it.
+                    windowInsets = WindowInsets(0),
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
+            },
+            windowInsets = WindowInsets(0),
+        ) { padding ->
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
                 // One group, a list item's gap between its rows.
                 listSection(List(12) { it }) { index, position ->
                     ListItem(position = position) {
