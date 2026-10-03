@@ -23,7 +23,7 @@ import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.components.list.indexedBy
-import io.kontour.ui.components.list.SectionHeader
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.components.list.IndexScroller
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.components.list.IndexScrollerDefaults
@@ -180,6 +180,30 @@ fun ListSectionBasics() {
 }
 
 @Composable
+fun ListSectionLazy(favourites: List<Stop>, nearby: List<Stop>) {
+    // Sections in a lazy list. Each draws its heading, its rows a hairline
+    // apart with their corners worked out, and the space before the next —
+    // so the `LazyColumn` sets no `verticalArrangement` of its own.
+    LazyColumn {
+        listSection(favourites, key = { it.name }, sectionKey = "favourites", title = { +"Favourites" }) { stop, position ->
+            ListItem(onClick = { save() }, position = position) { +stop.name }
+        }
+        listSection(
+            nearby,
+            key = { it.name },
+            sectionKey = "nearby",
+            title = { +"Nearby" },
+            footer = { +"Within a ten-minute walk." },
+        ) { stop, position ->
+            ListItem(onClick = { save() }, position = position) {
+                +stop.name
+                supporting { +"${stop.routes} routes" }
+            }
+        }
+    }
+}
+
+@Composable
 fun LoadMoreBasics() {
     var status by remember { mutableStateOf(LoadMoreStatus.Idle) }
 
@@ -218,9 +242,12 @@ fun IndexScrollerBasics(stops: List<Stop>) {
     Box {
         // Room at the end for the letters, so no row runs under them.
         LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
+            // A section a letter: a header item and its rows, grouped, which
+            // is what `indexedBy` counted.
             indexed.groups.forEach { group ->
-                item { SectionHeader { +group.label } }
-                items(group.items) { stop -> ListItem { +stop.name } }
+                listSection(group.items, key = { it.name }, title = { +group.label }) { stop, position ->
+                    ListItem(position = position) { +stop.name }
+                }
             }
         }
         IndexScroller(list, indexed.sections, Modifier.align(Alignment.CenterEnd), alphabet = alphabet)

@@ -17,9 +17,12 @@ val list = rememberLazyListState()
 Box {
     // Room at the end for the letters, so no row runs under them.
     LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
+        // A section a letter: a header item and its rows, grouped, which
+        // is what `indexedBy` counted.
         indexed.groups.forEach { group ->
-            item { SectionHeader { +group.label } }
-            items(group.items) { stop -> ListItem { +stop.name } }
+            listSection(group.items, key = { it.name }, title = { +group.label }) { stop, position ->
+                ListItem(position = position) { +stop.name }
+            }
         }
     }
     IndexScroller(list, indexed.sections, Modifier.align(Alignment.CenterEnd), alphabet = alphabet)

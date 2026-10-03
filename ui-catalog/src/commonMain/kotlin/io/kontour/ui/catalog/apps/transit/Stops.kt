@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -44,8 +43,8 @@ import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.components.list.IndexScroller
 import io.kontour.ui.components.list.IndexScrollerDefaults
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.SectionHeader
 import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.components.selection.Chip
 import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.table.Table
@@ -121,12 +120,14 @@ internal fun StopsPage(onStop: (String) -> Unit) {
                         )
                     }
                 }
+                // A section a letter: its heading, its rows a hairline apart
+                // with their corners worked out, and where the rail's letter
+                // lands, all from the section.
                 indexed.groups.forEach { group ->
-                    item(key = "header-${group.label}") { SectionHeader { +group.label } }
-                    itemsIndexed(group.items, key = { _, it -> it.name }) { index, stop ->
+                    listSection(group.items, key = { it.name }, sectionKey = group.label, title = { +group.label }) { stop, position ->
                         ListItem(
                             onClick = { onStop(stop.name) },
-                            position = GroupPosition.of(index, group.items.size),
+                            position = position,
                             modifier = Modifier.testTag("stop-${stop.name}"),
                         ) {
                             leading { +Tabler.Outline.MapPin }

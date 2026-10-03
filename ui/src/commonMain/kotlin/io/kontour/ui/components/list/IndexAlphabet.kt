@@ -212,8 +212,7 @@ class IndexedItems<T>(val groups: List<IndexedGroup<T>>, val sections: List<Inde
  * val indexed = remember(stops, formats) { stops.indexedBy(alphabet, formats) { it.name } }
  * LazyColumn(state = list) {
  *     indexed.groups.forEach { group ->
- *         item { SectionHeader { +group.label } }
- *         items(group.items) { StopRow(it) }
+ *         listSection(group.items, title = { +group.label }) { stop, position -> StopRow(stop, position) }
  *     }
  * }
  * ```

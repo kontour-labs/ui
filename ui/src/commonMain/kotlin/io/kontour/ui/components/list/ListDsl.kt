@@ -1,19 +1,26 @@
 package io.kontour.ui.components.list
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.isSpecified
 import io.kontour.ui.components.selection.SelectionRow
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.GroupPosition
+import io.kontour.ui.theme.Theme
 
 /**
  * The shorthand for a group of rows.
@@ -241,3 +248,112 @@ fun <T> LazyListScope.listGroup(
         }
     }
 }
+
+/**
+ * A titled group of rows inside a `LazyColumn`: [ListSection], lazily.
+ *
+ * ```kotlin
+ * LazyColumn(state = list) {
+ *     indexed.groups.forEach { group ->
+ *         listSection(group.items, key = { it.id }, title = { +group.label }) { stop, position ->
+ *             ListItem(onClick = { open(stop) }, position = position) { +stop.name }
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * The section draws everything a grouped list needs between its rows, so the
+ * call site has none of it to get wrong:
+ *
+ * - **Each row's [GroupPosition]**, handed to [content] with the item, so the
+ *   group's outer corners round and the seams between its rows stay square.
+ * - **The hairline between rows**, [spacing], the section's own. A lazy list
+ *   arranges every item one way, and a sectioned list needs two gaps — the
+ *   hairline inside a group and the space before the next header — so leave
+ *   the `LazyColumn`'s `verticalArrangement` alone; it would be added to both.
+ * - **The space before the section.** A [title] is a [SectionHeader], whose own
+ *   top padding is the gap after the section above. A section without one
+ *   starts the same distance below it, so two groups never run together and
+ *   read as one with the wrong corners.
+ * - **A [footer]** under the rows, as [ListSection] draws it.
+ * - **Rows that move rather than jump** when a filter adds or takes some away:
+ *   each item is placed with `animateItem`, which wants the item's root, and
+ *   the section wraps every row in a box of its own to space it, so only the
+ *   section can put it there. Placement does not move under reduced motion; the
+ *   fades stay. Give [key] for the moves to follow each row.
+ *
+ * An empty section draws nothing, its header and footer included.
+ *
+ * ### The items it adds
+ *
+ * One for the header, when there is a [title] or an [action]; one for each of
+ * [items]; one for the [footer], when there is one. That is what
+ * [indexedBy] counts for an [IndexScroller] — a header and then the rows — so a
+ * section per group, without a footer, is where the rail's letters land.
+ *
+ * @param key A stable key for each row, as `LazyColumn`'s `items` takes.
+ * @param sectionKey A key for the section's header and footer, for a section
+ *   that comes and goes — a "Pinned" that empties — to animate as one. Any value
+ *   unique to the section; it is wrapped, so it cannot collide with a row's.
+ * @param spacing The gap between the rows, and under the header. Defaults to
+ *   `ListItemDefaults.Spacing`, the hairline [ListGroup] uses.
+ * @param content One row: the item, and where it sits in the group.
+ */
+fun <T> LazyListScope.listSection(
+    items: List<T>,
+    key: ((item: T) -> Any)? = null,
+    sectionKey: Any? = null,
+    title: (@Composable ContentScope.() -> Unit)? = null,
+    supporting: (@Composable ContentScope.() -> Unit)? = null,
+    footer: (@Composable ContentScope.() -> Unit)? = null,
+    action: (@Composable RowScope.() -> Unit)? = null,
+    spacing: Dp = Dp.Unspecified,
+    content: @Composable (item: T, position: GroupPosition) -> Unit,
+) {
+    if (items.isEmpty()) return
+    val header = title != null || action != null
+
+    if (header) {
+        item(key = sectionKey?.let { SectionPart(it, SectionPart.Header) }, contentType = "listSectionHeader") {
+            SectionHeader(
+                modifier = sectionItem(),
+                supporting = supporting,
+                action = action,
+                title = title ?: {},
+            )
+        }
+    }
+    val rowKey = key?.let { k -> { index: Int -> k(items[index]) } }
+    items(items.size, key = rowKey, contentType = { "listSectionRow" }) { index ->
+        // Under the header, or after the row above, the hairline; first in a
+        // section with no header, the space a header would have given it.
+        val above = when {
+            index > 0 || header -> spacing.orListSpacing()
+            else -> Theme.spacing.md
+        }
+        Box(sectionItem().fillMaxWidth().padding(top = above)) {
+            content(items[index], GroupPosition.of(index, items.size))
+        }
+    }
+    if (footer != null) {
+        item(key = sectionKey?.let { SectionPart(it, SectionPart.Footer) }, contentType = "listSectionFooter") {
+            SectionFooter(sectionItem().padding(top = spacing.orListSpacing()), content = footer)
+        }
+    }
+}
+
+/** A section's header or footer key, kept apart from any row's. */
+private data class SectionPart(val section: Any, val part: Int) {
+    companion object {
+        const val Header = 0
+        const val Footer = 1
+    }
+}
+
+@Composable
+private fun Dp.orListSpacing(): Dp = if (isSpecified) this else ListItemDefaults.Spacing
+
+/** Placed with `animateItem`, without the slide under reduced motion. */
+@Composable
+private fun LazyItemScope.sectionItem(): Modifier =
+    if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem()

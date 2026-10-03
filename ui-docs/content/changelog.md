@@ -139,6 +139,14 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   from `ComponentDefaults.topBarHeroHeight`, unless you say. On `Large` it is
   the least the bar opens to.
 
+- [`listSection`](components/list-section.md#in-a-lazy-list-listsection): a
+  titled group of rows inside a `LazyColumn`, as `ListSection` is outside one.
+  It draws the heading, each row's `position`, the hairline between rows, the
+  footer and the space before the next section, which a lazy list's single
+  `verticalArrangement` could not, and its rows slide when the list changes
+  (fading in place under reduced motion). A section per `indexedBy` group is
+  where an `IndexScroller`'s letters land.
+
 - [`IndexScroller`](components/index-scroller.md): an A–Z rail beside a long
   list. Press a letter or run a finger down them and the list jumps to its
   section, with a tick a letter and the letter shown large beside the finger.

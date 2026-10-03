@@ -419,19 +419,26 @@ fun ListSection(
             )
         }
         content()
-        if (footer != null) {
-            Box(
-                Modifier.padding(
-                    start = Theme.spacing.md,
-                    end = Theme.spacing.md,
-                    top = Theme.spacing.xxs,
-                )
-            ) {
-                ProvideTextStyle(Theme.typography.bodySmall) {
-                    ProvideContentColour(Theme.colours.contentMuted) {
-                        ContentSlot(content = footer)
-                    }
-                }
+        if (footer != null) SectionFooter(content = footer)
+    }
+}
+
+/**
+ * The sentence under a section's rows: [ListSection]'s `footer`, and
+ * `listSection`'s in a lazy list, drawn one way for both.
+ */
+@Composable
+internal fun SectionFooter(modifier: Modifier = Modifier, content: @Composable ContentScope.() -> Unit) {
+    Box(
+        modifier.padding(
+            start = Theme.spacing.md,
+            end = Theme.spacing.md,
+            top = Theme.spacing.xxs,
+        )
+    ) {
+        ProvideTextStyle(Theme.typography.bodySmall) {
+            ProvideContentColour(Theme.colours.contentMuted) {
+                ContentSlot(content = content)
             }
         }
     }

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,7 +48,7 @@ import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
-import io.kontour.ui.components.list.SectionHeader
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.foundation.GroupPosition
@@ -128,7 +127,6 @@ internal fun ChatsPage(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding.plusPage(),
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
         ) {
             when {
                 shown.isEmpty() -> item(key = "empty") {
@@ -164,14 +162,21 @@ private fun LazyListScope.chatSection(
     selectedChatId: String?,
     onOpenChat: (String) -> Unit,
 ) {
-    if (chats.isEmpty()) return
-    if (title != null) item(key = "header-$title") { SectionHeader(Modifier.animateItem()) { +title } }
-    itemsIndexed(chats, key = { _, chat -> chat.id }) { index, chat ->
+    listSection(
+        chats,
+        key = { it.id },
+        sectionKey = title ?: "chats",
+        title = if (title != null) {
+            { +title }
+        } else {
+            null
+        },
+    ) { chat, position ->
         ChatRow(
             chat = chat,
             last = state.last(chat.id),
             selected = chat.id == selectedChatId,
-            position = GroupPosition.of(index, chats.size),
+            position = position,
             onOpen = { onOpenChat(chat.id) },
             onPin = { state.togglePin(chat.id) },
             onArchive = {
@@ -182,7 +187,6 @@ private fun LazyListScope.chatSection(
                     onAction = { state.unarchive(chat.id) },
                 )
             },
-            modifier = Modifier.animateItem(),
         )
     }
 }

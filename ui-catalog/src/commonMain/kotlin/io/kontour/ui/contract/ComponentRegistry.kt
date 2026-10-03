@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -130,8 +129,8 @@ import io.kontour.ui.components.list.IndexScroller
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.components.list.IndexScrollerDefaults
 import io.kontour.ui.components.list.ListItem
-import io.kontour.ui.components.list.SectionHeader
 import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
@@ -2251,8 +2250,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 val list = rememberLazyListState()
                 LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
                     indexed.groups.forEach { group ->
-                        item { SectionHeader { +group.label } }
-                        items(group.items) { ListItem { +it } }
+                        listSection(group.items, title = { +group.label }) { name, position -> ListItem(position = position) { +name } }
                     }
                 }
                 IndexScroller(

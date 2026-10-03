@@ -38,9 +38,8 @@ import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.items
 import io.kontour.ui.components.list.indexedBy
-import io.kontour.ui.components.list.SectionHeader
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.components.list.IndexScroller
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.components.list.IndexScrollerDefaults
@@ -553,8 +552,9 @@ internal val IndexScrollerDemo = ComponentDemo(
             contentPadding = PaddingValues(end = IndexScrollerDefaults.Width),
         ) {
             indexed.groups.forEach { group ->
-                item(key = "header-${group.label}") { SectionHeader { +group.label } }
-                items(group.items, key = { it }) { name -> ListItem { +name } }
+                listSection(group.items, key = { it }, sectionKey = group.label, title = { +group.label }) { name, position ->
+                    ListItem(position = position) { +name }
+                }
             }
         }
         IndexScroller(
