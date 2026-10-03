@@ -87,6 +87,11 @@ March often do — and then the day is in the same place in both. Having paged, 
 arrow is spent until the handle leaves it: move off and back again to page again.
 Let go of it before the ring fills and nothing happens.
 
+**Over days it may not have, the range stops at the last it may.** A finger on a
+day `isDateSelectable` turns down takes the range as far toward it as it can go,
+and the band paints nothing past that — in a filter that stops at today, paging
+into this month from the last selects up to today, however far on the finger is.
+
 The arrow is for a finger already busy. It is not a button, carries no semantics
 and cannot be focused; the header's arrows are the way to page for everything
 else.

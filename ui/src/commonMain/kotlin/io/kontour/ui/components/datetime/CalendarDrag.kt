@@ -418,24 +418,33 @@ internal class CalendarDragState internal constructor(
         val index = grid.nearestIndex(cells)
         val under = grid.dateAt(index) ?: return
         val selectable = isSelectable(under)
+        // Over a day it may not have, the range goes as far toward the finger as
+        // it can: to the last day it may have on the way from the anchor.
+        //
+        // It stayed where it was instead, which in a month paged into was the
+        // last one's last day — reported as *"if i move across from last month
+        // … then it has the whole next month selected, and it only deselects if
+        // i move to a date that is selectable"*, in a filter that stops at today.
+        val reach = if (selectable) under else reachToward(under, from)
         var crossing: Offset? = null
-        if (selectable && (under != head || paged)) {
+        if (reach != head || paged) {
             val previous = headCell
+            val reachIndex = grid.indexOf(reach)
             // A unit vector from the new cell to the old one, in cells, physical:
             // the cap enters from beside itself rather than flying across the
             // month when the range wraps to another week. See `cap`.
-            crossing = if (paged || previous == null) {
+            crossing = if (paged || previous == null || reachIndex == null) {
                 Offset.Zero
             } else {
-                val across = (previous % Columns - index % Columns).toFloat() * (if (grid.rtl) -1f else 1f)
-                val rowsUp = (previous / Columns - index / Columns).toFloat()
+                val across = (previous % Columns - reachIndex % Columns).toFloat() * (if (grid.rtl) -1f else 1f)
+                val rowsUp = (previous / Columns - reachIndex / Columns).toFloat()
                 val length = hypot(across, rowsUp)
                 if (length <= 0f) Offset.Zero else Offset(across / length, rowsUp / length)
             }
-            head = under
-            headCell = index
-            dayTicker.at(under.toEpochDays().toInt())
-            onSelect?.invoke(from, under)
+            head = reach
+            headCell = reachIndex
+            dayTicker.at(reach.toEpochDays().toInt())
+            onSelect?.invoke(from, reach)
         }
 
         finger = cells
@@ -447,17 +456,25 @@ internal class CalendarDragState internal constructor(
         } else {
             headIndex % Columns + 0.5f
         }
-        if (headIndex != null && paged) {
+        // An end in another month is a row before this one's first, or after its
+        // last: the band covers none of this month. It was left at the row it
+        // had in the last month, which painted this one down to there.
+        val headRow = when {
+            headIndex != null -> headIndex / Columns
+            reach < grid.month -> -1
+            else -> grid.rows
+        }
+        if (paged) {
             flowing?.cancel()
             flowFrom = null
             flow = 1f
-            bandRow = headIndex / Columns
-        } else if (headIndex != null && headIndex / Columns != bandRow) {
+            bandRow = headRow
+        } else if (headRow != bandRow) {
             // From wherever each row's band is now — mid-flow, if it was — so a
             // snap during a snap carries on rather than starting over.
             flowFrom = FloatArray(grid.rows) { boundary(it) }
             flow = 0f
-            bandRow = headIndex / Columns
+            bandRow = headRow
             flowing?.cancel()
             flowing = scope.launch {
                 animate(0f, 1f, animationSpec = motion.springOrTween(motion.springSnappy)) { value, _ -> flow = value }
@@ -476,6 +493,17 @@ internal class CalendarDragState internal constructor(
             val crossed = DwellEdge.entries.firstOrNull { grid.crossesArrow(previous, cells, it) }
             dwellOn(grid.edgeAt(cells), crossed)
         }
+    }
+
+    /**
+     * The nearest day to [date] a range may end on, walking back toward [anchor],
+     * which it may: the anchor itself if there is none between.
+     */
+    private fun reachToward(date: LocalDate, anchor: LocalDate): LocalDate {
+        val step = if (date > anchor) -1 else 1
+        var day = date
+        while (day != anchor && !isSelectable(day)) day = day.plus(step, DateTimeUnit.DAY)
+        return day
     }
 
     fun end() {

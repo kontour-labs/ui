@@ -208,6 +208,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   above, went past without starting it. It now catches half a row outside the
   grid and a third of a row toward the next week in. The blank beside the day,
   where a finger arriving from the week above lands, still does not.
+- **A range dragged over days it may not have stops at the last it may.**
+  Paged into a month that `isDateSelectable` closes part of, a range kept the
+  last month's end and the whole new month was painted as in it, until the
+  finger found a day it could have. Over a day it may not have, a dragged range
+  now reaches as far toward the finger as it can, in any month, and paints
+  nothing past that.
 - **A sheet dragged to the top by its content climbs with the finger.** Pulled
   up from a lower detent by a scroll in its content, under a status bar, a sheet
   that reaches the top leapt the last status bar's height in one frame. Its
