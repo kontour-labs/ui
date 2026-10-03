@@ -30,6 +30,7 @@ import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalDate
+import androidx.compose.ui.Alignment
 
 /**
  * What the chat list is narrowed to.
@@ -146,6 +147,8 @@ private fun ColumnScope.FiltersContent(state: MessagesState, onDone: () -> Unit,
             end = filter.to,
             onRangeChange = { from, to -> state.chatFilter = filter.copy(from = from, to = to) },
             today = Today,
+            // In the middle of a sheet wider than the picker.
+            modifier = Modifier.align(Alignment.CenterHorizontally),
             // Nobody has written tomorrow's messages yet.
             isDateSelectable = { it <= Today },
             // A dot under each day somebody said something, so the range is

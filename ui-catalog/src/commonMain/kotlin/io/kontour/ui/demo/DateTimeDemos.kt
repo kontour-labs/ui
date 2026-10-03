@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
+import androidx.compose.ui.Alignment
 
 /**
  * A fixed "today", not the real one.
@@ -54,7 +56,13 @@ private val Today = LocalDate(2026, 6, 12)
 
 internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        // The picker stops at a phone's width; wider, it sits in the middle of
+        // the card rather than against its start, and its caption under it.
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         DatePicker(
             value = depart,
             onValueChange = { depart = it },
@@ -84,6 +92,8 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
         end = range.second,
         onRangeChange = { start, end -> range = start to end },
         today = Today,
+        // In the middle of a card wider than the picker's 308dp.
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         previousIcon = Tabler.Outline.ChevronLeft,
         nextIcon = Tabler.Outline.ChevronRight,
         chooserIcon = Tabler.Outline.ChevronDown,
@@ -98,6 +108,7 @@ internal val CalendarMonthDemo = ComponentDemo(slug = "calendar-month") {
         // single date and a range and only the caller knows which.
         isSelected = { it == picked },
         onSelectedChange = { picked = it },
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
     )
 }
 

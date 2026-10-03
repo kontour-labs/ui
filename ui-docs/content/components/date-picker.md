@@ -20,7 +20,9 @@ and a desktop window is a container — so a picker given one used to fill it, a
 which point it is not more legible, only larger. It caps itself at
 `CalendarMonthDefaults.MaxWidth`, a phone's 308dp, with weeks a little shorter
 than its days are wide, and centres nothing: put it where you want it, and give
-it less width if you want it narrower.
+it less width if you want it narrower. In a `Column`,
+`Modifier.align(Alignment.CenterHorizontally)` puts it in the middle; anywhere
+else, `Modifier.fillMaxWidth().wrapContentWidth()` does.
 
 ### The header is the way out of paging
 

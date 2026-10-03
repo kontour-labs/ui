@@ -144,6 +144,8 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
                         value = date,
                         onValueChange = { date = it },
                         today = TransitToday,
+                        // In the middle of a sheet wider than the picker.
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
                         // The timetable does not go back, so neither does the planner.
                         isDateSelectable = { it >= TransitToday },
                     )
