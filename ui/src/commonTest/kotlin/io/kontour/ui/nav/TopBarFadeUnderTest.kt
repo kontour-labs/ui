@@ -28,16 +28,18 @@ import kotlin.test.assertTrue
  *
  * Asked for as *"with all top bar components, can we have an option to allow
  * content to fade underneath the bar? again, shouldn't be the default, but it
- * should be there for all styles"*.
+ * should be there for all styles"*, and then *"the fade under the top bar
+ * looks a bit "fat". it needs to basically end where the line would normally
+ * be (or maybe a tiny bit further down)"*: it thinned out over 24dp below the
+ * foot, and now over the bar's last 12dp and 4dp past it.
  *
- * The bar is white over black content, at a density of 1, so the 24dp fade is
- * 24px: nearly white just under the foot, half way half way down, and black
- * past its end.
+ * The bar is white over black content at a density of 1: white above the fade,
+ * between inside it, and black a few pixels past the foot.
  */
 @OptIn(ExperimentalTestApi::class)
 class TopBarFadeUnderTest {
 
-    /** The red channel of the line [below] pixels under the bar's foot, in the middle. */
+    /** The red channel of the lines [below] pixels under the bar's foot — above it, when negative — in the middle. */
     private fun ComposeUiTest.under(
         style: TopBarStyle,
         fadeUnder: Boolean,
@@ -67,34 +69,40 @@ class TopBarFadeUnderTest {
         return below.map { image[180, foot + it].red }
     }
 
+    /**
+     * Collapsed, as a bar is once content is under it: a hero's picture has
+     * gone by then, and its foot is the fade's like any other bar's.
+     */
     @Test
-    fun everyStyleFadesOutBelowItsFoot() {
+    fun everyStyleFadesOutAtItsFoot() {
         for (style in TopBarStyle.entries) runComposeUiTest {
-            val (justUnder, halfway, past) = under(style, fadeUnder = true, below = listOf(1, 12, 26))
-            assertTrue(justUnder > 0.9f, "$style: just under its foot the bar's colour is ${justUnder}, not the bar's")
-            assertTrue(halfway in 0.3f..0.7f, "$style: half way down the fade is $halfway, not half the bar's colour")
-            assertTrue(past < 0.02f, "$style: past the fade's end the content is $past, not itself")
+            val (above, inside, past) = under(style, fadeUnder = true, below = listOf(-16, -6, 6), progress = 1f)
+            assertTrue(above > 0.95f, "$style: above the fade the bar is $above, not its own colour")
+            assertTrue(inside in 0.3f..0.95f, "$style: inside the fade the bar is $inside, not part way to the content")
+            assertTrue(past < 0.02f, "$style: 6px past the foot the content is $past, not itself — the fade runs on too far")
         }
     }
 
     @Test
-    fun aCollapsedBarsFadeFollowsItsFoot() = runComposeUiTest {
-        val (justUnder, past) = under(TopBarStyle.Large, fadeUnder = true, below = listOf(1, 26), progress = 1f)
-        assertTrue(justUnder > 0.9f, "under a collapsed bar's foot, $justUnder")
-        assertTrue(past < 0.02f, "past a collapsed bar's fade, $past")
+    fun anOpenBarsFadeIsAtItsFootToo() = runComposeUiTest {
+        val (above, past) = under(TopBarStyle.Large, fadeUnder = true, below = listOf(-16, 6))
+        assertTrue(above > 0.95f, "above an open bar's fade, $above")
+        assertTrue(past < 0.02f, "past an open bar's fade, $past")
     }
 
     @Test
     fun notAskedForTheContentStopsSquare() {
         for (style in TopBarStyle.entries) runComposeUiTest {
-            val (justUnder) = under(style, fadeUnder = false, below = listOf(1))
-            assertTrue(justUnder < 0.02f, "$style: the bar faded over the content without being asked to")
+            val (inside, past) = under(style, fadeUnder = false, below = listOf(-2, 1))
+            assertTrue(inside > 0.95f, "$style: the bar's own foot is $inside, not its colour")
+            assertTrue(past < 0.02f, "$style: the bar faded over the content without being asked to")
         }
     }
 
     @Test
     fun atHighContrastTheContentStopsSquare() = runComposeUiTest {
-        val (justUnder) = under(TopBarStyle.Small, fadeUnder = true, below = listOf(1), contrast = ContrastLevel.High)
-        assertTrue(justUnder < 0.02f, "at high contrast the bar faded over the content, $justUnder")
+        val (inside, past) = under(TopBarStyle.Small, fadeUnder = true, below = listOf(-2, 1), contrast = ContrastLevel.High)
+        assertTrue(inside > 0.95f, "at high contrast the bar's foot faded, $inside")
+        assertTrue(past < 0.02f, "at high contrast the bar faded over the content, $past")
     }
 }

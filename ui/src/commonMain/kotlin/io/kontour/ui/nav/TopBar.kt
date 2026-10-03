@@ -195,9 +195,10 @@ fun TopBar(
     showDivider: Boolean = false,
     /**
      * Whether content passing under the bar fades out beneath it, rather than
-     * stopping square at its foot: the bar's colour runs on past the foot and
-     * thins to nothing 24dp below, over whatever is there. Any style, and a
-     * collapsing bar's fade follows its foot.
+     * stopping square at its foot: the bar's ground thins out over its last
+     * 12dp, so content shows faintly through there, and is gone 4dp past the
+     * foot — about where a divider would be. Any style, and a collapsing bar's
+     * fade follows its foot.
      *
      * Only content *under* the bar shows it, so put the bar over the content —
      * a [io.kontour.ui.adaptive.Scaffold] does, handing the content the bar's
@@ -246,7 +247,11 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
-    val outer = if (fadeUnder && !highContrast()) modifier.fadeBelow(containerColour) else modifier
+    val fades = fadeUnder && !highContrast()
+    val outer = if (fades) modifier.fadedGround(containerColour) else modifier
+    // Fading, the bar's ground is the fade's own, drawn behind the surface;
+    // a solid one would hide the fade inside the bar.
+    val ground = if (fades) Color.Transparent else containerColour
     if (style == TopBarStyle.Hero && image != null) {
         HeroBar(
             image = image,
@@ -257,6 +262,7 @@ fun TopBar(
             navigation = navigation,
             actions = actions,
             containerColour = containerColour,
+            ground = ground,
             contentColour = contentColour,
             showDivider = showDivider,
             open = expandedHeight.takeOrElse { TopBarDefaults.HeroHeight },
@@ -283,7 +289,7 @@ fun TopBar(
     // A bar surface: a tap on the bar between its title and its actions is a
     // tap on nothing, and goes no further — not to a list scrolled under the
     // bar, and not to a clickable container round it. See [BarSurface].
-    BarSurface(modifier = outer.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
+    BarSurface(modifier = outer.fillMaxWidth(), containerColour = ground, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
@@ -341,31 +347,41 @@ fun TopBar(
 }
 
 /**
- * A bar's [colour] run on past its foot and thinned to nothing over
- * [FadeUnderLength], over whatever is under it there. See `TopBar`'s `fadeUnder`.
+ * A bar's ground in [colour], solid down to [FadeUnderInside] above its foot
+ * and thinning from there to nothing [FadeUnderOutside] past it, over whatever
+ * is under it. See `TopBar`'s `fadeUnder`.
  *
- * Eased out rather than straight, as a hero's fade is, so there is no line
- * where it ends: most of the colour for the first quarter, none by the last.
+ * Mostly inside the bar. It ran 24dp on past the foot at first, and over the
+ * page that read as a wash rather than an edge — *"the fade under the top bar
+ * looks a bit "fat". it needs to basically end where the line would normally
+ * be (or maybe a tiny bit further down)"*. Eased rather than straight, as a
+ * hero's fade is, so there is no line where it starts or ends.
  */
-private fun Modifier.fadeBelow(colour: Color): Modifier = drawWithCache {
-    val length = FadeUnderLength.toPx()
+private fun Modifier.fadedGround(colour: Color): Modifier = drawWithCache {
+    val inside = FadeUnderInside.toPx().coerceAtMost(size.height)
+    val outside = FadeUnderOutside.toPx()
+    val from = size.height - inside
     val brush = Brush.verticalGradient(
         0f to colour,
         0.25f to colour.copy(alpha = colour.alpha * 0.84f),
         0.5f to colour.copy(alpha = colour.alpha * 0.5f),
         0.75f to colour.copy(alpha = colour.alpha * 0.16f),
         1f to colour.copy(alpha = 0f),
-        startY = size.height,
-        endY = size.height + length,
+        startY = from,
+        endY = size.height + outside,
     )
-    onDrawWithContent {
-        drawContent()
-        drawRect(brush, topLeft = Offset(0f, size.height), size = Size(size.width, length))
+    onDrawBehind {
+        // One rect for the solid part and one for the fade, meeting on a whole
+        // pixel so their edges do not leave a seam between them.
+        val seam = from.toInt().toFloat()
+        drawRect(colour, size = Size(size.width, seam))
+        drawRect(brush, topLeft = Offset(0f, seam), size = Size(size.width, size.height + outside - seam))
     }
 }
 
-/** How far below a bar's foot `fadeUnder` reaches. */
-private val FadeUnderLength = 24.dp
+/** How much of a bar's own height `fadeUnder` thins out over, and how far past its foot. */
+private val FadeUnderInside = 12.dp
+private val FadeUnderOutside = 4.dp
 
 /**
  * A [TopBarStyle.Hero] bar: [LargeBar] over [image], the picture fading into
@@ -386,6 +402,8 @@ private fun HeroBar(
     navigation: (@Composable () -> Unit)?,
     actions: (@Composable RowScope.() -> Unit)?,
     containerColour: Color,
+    /** What the surface itself paints: [containerColour], or nothing when a fade paints it instead. */
+    ground: Color,
     contentColour: Color,
     showDivider: Boolean,
     open: Dp,
@@ -403,7 +421,7 @@ private fun HeroBar(
     // How much of the picture there is, from 1 open to 0 collapsed.
     val shown = { 1f - smoothstep(HeroFadeFrom, HeroFadeTo, progress().coerceIn(0f, 1f)) }
 
-    BarSurface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
+    BarSurface(modifier = modifier.fillMaxWidth(), containerColour = ground, contentColour = contentColour) {
         Layout(
             contents = listOf(
                 { Box(Modifier.clearAndSetSemantics {}) { image() } },

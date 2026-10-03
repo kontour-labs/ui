@@ -114,9 +114,10 @@ the extra; `Small` and `Centred` ignore it, and only `Hero` draws an `image`.
 ### Content fading under the bar
 
 `fadeUnder = true` lets content pass *under* the bar fading out, rather than
-stopping square at its foot: the bar's colour runs on past the foot and thins to
-nothing 24dp below. Any style; a collapsing bar's fade follows its foot. Off by
-default.
+stopping square at its foot: the bar's ground thins out over its last 12dp, so
+content shows faintly through there, and is gone 4dp past the foot — about
+where a divider would be. Any style; a collapsing bar's fade follows its foot.
+Off by default.
 
 The content has to be under the bar for it to fade there, so put the bar over
 it rather than above it in a `Column`. A [`Scaffold`](scaffold.md) does, and
