@@ -131,9 +131,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 - [`TopBarStyle.Hero`](components/top-bar.md#hero-a-large-bar-over-a-picture):
   `TopBar(style = TopBarStyle.Hero, image = { … })` is a `Large` bar over a
   picture that runs under the status bar, collapsing into a `Small` bar as
-  `Large` does. The title is light over a scrim that darkens the picture under
-  it, solid at high contrast, and takes the bar's own colours as it collapses;
-  the back button and actions sit on discs of the bar's colour until then.
+  `Large` does. The picture runs under the title and fades into the bar's
+  colour there, the title standing over the fade in the bar's ink, with a solid
+  band at high contrast; the back button and actions sit on discs of the bar's
+  colour until the picture has gone.
   `expandedHeight` sets how tall it opens: `TopBarDefaults.HeroHeight`, 360dp,
   from `ComponentDefaults.topBarHeroHeight`, unless you say. On `Large` it is
   the least the bar opens to.

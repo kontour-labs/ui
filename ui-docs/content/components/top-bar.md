@@ -65,8 +65,8 @@ for a bar drawn over its list rather than above it, and
 val collapse = rememberTopBarCollapseState()
 
 Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
-    // The picture runs under the status bar; the title is light over a
-    // scrim at its foot, and the bar collapses as a Large one does.
+    // The picture runs under the status bar and fades into the bar's colour
+    // under the title, and the bar collapses as a Large one does.
     TopBar(
         style = TopBarStyle.Hero,
         onBack = { back() },
@@ -89,13 +89,13 @@ the window's top, under the status bar, and is `expandedHeight` tall —
 taller if the title needs it. The controls stay below the status bar, and the
 title rests at the foot, as a `Large` bar's does.
 
-**The title is light, over a scrim that darkens the picture under it.** It
-comes in from a little above the title and is darkest at the bar's foot, where
-the subtitle is, eased so there is no line where it starts; the rest of the
-picture is left alone. The scrim is the theme's dimming colour made opaque, and
-the title takes whichever of the theme's inks reads on it — white, in the house
-themes. It was a fade into the bar's own colour, which put a band of the page's
-ground across the bottom of every picture.
+**The picture runs under the title and fades into the bar's colour.** It is
+left alone down to a little above the title, then eases into the bar's
+background — most of the way by the title's top, and the bar's colour alone by
+the subtitle — so the title and subtitle stand over the fade in the bar's own
+ink, and the page below starts where the picture ends with no line between
+them. A scrim that darkened the picture under the title was tried first, and
+read as a dark band that the picture stopped short of.
 
 **The controls carry their own ground.** Over the picture, the back button and
 each action sit on a disc of the bar's colour, so a dark glyph is not lost on a
@@ -104,8 +104,7 @@ dark photograph. The discs go as the bar collapses.
 **It collapses as `Large` does**, with the same `collapseState` or
 `collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
 travels into the first line, the picture rises behind the bar at half the speed
-and fades out over the second half of the way, and the scrim and the title's
-light ink go with it, so the title lands in the bar's own colour.
+and fades out over the second half of the way.
 
 **Without an `image`** it is a `Large` bar that opens to the hero's height, so a
 page whose picture is sometimes missing keeps its shape. `expandedHeight` works
@@ -148,11 +147,12 @@ under it thickens with the tier. The back button is a ghost
 
 A `Hero` bar's picture is hidden from screen readers: the title says what the
 page is about, and a picture behind a bar is decoration. Put a description of it
-in the page if it says something the title does not. The title's light ink has
-3:1 on the scrim at the title's top over a white picture, which large type
-needs, and the subtitle has 4.5:1 where it sits nearer the foot. At high
-contrast the scrim is solid under the words, with nothing of the picture behind
-them, and the discs behind the controls take an edge. Under reduced motion the
+in the page if it says something the title does not. At the title's top the
+fade leaves 40% of the picture, which gives the title's ink about 5:1 over the
+worst of pictures — large type needs 3:1 — and the subtitle is on the bar's
+colour alone. At high contrast the fade is a solid band of the bar's colour
+under the words, with nothing of the picture behind them, and the discs behind
+the controls take an edge. Under reduced motion the
 picture does not rise as the bar collapses; it fades where it is.
 
 `windowInsets` is for a bar at the top of the window. **A bar anywhere else — in

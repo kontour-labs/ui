@@ -492,8 +492,8 @@ internal val TopBarDemo = ComponentDemo(
 
 /**
  * A dusk over the river, drawn: a sky pale at the top and deep at the foot, a
- * low sun, and a city's edge along the bottom — so the scrim under a hero's
- * title has something busy to darken, the way a photograph would.
+ * low sun, and a city's edge along the bottom — so the fade under a hero's
+ * title has something busy to soften, the way a photograph would.
  */
 @Composable
 private fun DuskOverTheRiver() {

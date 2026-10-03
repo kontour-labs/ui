@@ -77,8 +77,8 @@ fun TopBarHeroCollapsing() {
     val collapse = rememberTopBarCollapseState()
 
     Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
-        // The picture runs under the status bar; the title is light over a
-        // scrim at its foot, and the bar collapses as a Large one does.
+        // The picture runs under the status bar and fades into the bar's colour
+        // under the title, and the bar collapses as a Large one does.
         TopBar(
             style = TopBarStyle.Hero,
             onBack = { back() },
