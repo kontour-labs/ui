@@ -268,6 +268,7 @@ fun SegmentedControl(
      */
     var fingerAt by remember { mutableFloatStateOf(Float.NaN) }
     var dragging by remember { mutableStateOf(false) }
+    val start = remember { DragStart() }
 
     /**
      * How much of the lean toward the finger is applied — 1 while dragging, 0 at
@@ -609,7 +610,18 @@ fun SegmentedControl(
         fun beginAt(along: Float) {
             fingerAt = along.coerceIn(0f, trackLength.coerceAtLeast(0f))
             dragging = true
+            // **Armed where the thumb is, not where the finger landed.** A drag
+            // that starts on another segment has already crossed to it, and that
+            // jump is the first detent. Armed under the finger, the ticker's
+            // first call only armed, so pressing the third segment and dragging
+            // on moved the thumb there in silence — and the drag had taken the
+            // press from the segment, so its tap was not felt either.
+            ticker.reset()
+            ticker.at(currentSelected)
             selectAt(fingerAt)
+            // Both tracks claim on the first move, and that move is in `along`
+            // already: `advance` is about to be handed it again.
+            start.counted = true
         }
 
         /**
@@ -619,6 +631,13 @@ fun SegmentedControl(
          * pointer's whole path sum to its path.
          */
         fun advance(delta: Float) {
+            // The claiming move, which `beginAt` placed the finger after. Added
+            // again, the finger ran one move ahead of itself for the whole drag,
+            // and a first move that ended just short of a boundary crossed it.
+            if (start.counted) {
+                start.counted = false
+                return
+            }
             // A finger coming back closes the stretch it opened before the thumb
             // moves again, or one gesture reads as two motions.
             val offered = delta - band.payBack(delta)
@@ -676,6 +695,7 @@ fun SegmentedControl(
         /** And lifted. The spring `engaged` already runs on. */
         fun finish() {
             dragging = false
+            start.counted = false
             ticker.reset()
             // The lean's collapse and the squash's recovery are one motion.
             scope.launch { band.release(motion.springOrTween(motion.springSnappy)) }
@@ -860,4 +880,12 @@ private fun SegmentedOption(
             }
         }
     }
+}
+
+/**
+ * Whether the drag's claiming move has been counted yet. A holder rather than a
+ * local, because the drag's callbacks outlive the composition they were made in.
+ */
+private class DragStart {
+    var counted = false
 }

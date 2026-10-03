@@ -144,6 +144,24 @@ class NavBarMarkerDragTest {
         }
     }
 
+    /**
+     * Asked for as: press the third destination while the first is chosen,
+     * drag on to the fourth, and feel the marker go to the third as well as
+     * the fourth. The ticker used to arm on the destination under the finger,
+     * so the first of those jumps was silent.
+     */
+    @Test
+    fun aDragFromAnotherDestinationSnapsAsTheMarkerJumpsToIt() {
+        val bar = bar()
+        bar.scene.use { scene ->
+            scene.drag(from = centre(2), to = centre(3), steps = 16, paceMillis = 30)
+            scene.frames(4)
+            val snaps = bar.felt.count { it == FeedbackIntent.Snap }
+            assertEquals(2, snaps, "a to c, then c to d: ${bar.felt} felt")
+            assertEquals(listOf("d"), bar.clicks)
+        }
+    }
+
     @Test
     fun aDragBackToWhereItStartedChoosesNothing() {
         val bar = bar()

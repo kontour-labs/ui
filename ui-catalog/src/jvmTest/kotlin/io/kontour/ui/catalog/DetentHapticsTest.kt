@@ -997,6 +997,44 @@ class DetentHapticsTest {
         )
     }
 
+    /**
+     * Asked for as: with the first segment chosen, press the third and drag on
+     * to the fourth, and feel the thumb go to the third as well. The ticker was
+     * armed on the segment under the finger, so that jump was silent — and the
+     * drag took the press from the segment, so its tap was not felt either.
+     */
+    @Test
+    fun aSegmentedDragFromAnotherSegmentSnapsAsTheThumbJumps() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var selected by mutableStateOf(0)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    SegmentedControl(
+                        options = listOf("Depart", "Arrive", "Both", "Neither"),
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.625f), bounds.alongX(0.875f), steps = 20, paceMillis = 30)
+            scene.frames(4)
+        }
+
+        assertEquals(3, selected, "the drag ended on the fourth segment")
+        assertEquals(
+            2,
+            felt.count { it == FeedbackIntent.Snap },
+            "first to third, then third to fourth: ${felt.summary()}",
+        )
+        assertTrue(felt.none { it != FeedbackIntent.Snap }, "the drag fired something besides its detents: ${felt.summary()}")
+    }
+
     @Test
     fun tabsTickPerStepAndNothingElse() {
         val felt = mutableListOf<FeedbackIntent>()

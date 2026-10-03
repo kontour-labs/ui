@@ -1039,8 +1039,7 @@ private class MarkerDrag {
         return row.localPositionOf(own, at).x
     }
 
-    private fun pick(ticker: DetentTicker) {
-        val all = ordered()
+    private fun pick(ticker: DetentTicker, all: List<Pair<Any, Rect>> = ordered()) {
         if (all.isEmpty()) return
         val index = all.indices.minBy { kotlin.math.abs(all[it].second.center.x - fingerAt) }
         ticker.at(index)
@@ -1067,7 +1066,17 @@ private class MarkerDrag {
         fingerAt = x.coerceIn(0f, (row?.size?.width ?: 0).toFloat())
         dragging = true
         reachFinger()
-        pick(ticker)
+        val all = ordered()
+        // **Armed on the marker's destination, not the one under the finger.** A
+        // drag that starts on another destination has already crossed to it, and
+        // that jump is the first detent. Armed under the finger, the first pick
+        // only armed, so pressing the third destination and dragging on moved
+        // the marker there in silence. With nothing selected in the bar — the
+        // current page is in a group, say — it arms where the finger is, as
+        // before.
+        ticker.reset()
+        all.indexOfFirst { it.first == chosen }.takeIf { it >= 0 }?.let(ticker::at)
+        pick(ticker, all)
     }
 
     fun move(dx: Float, ticker: DetentTicker) {

@@ -179,7 +179,8 @@ a tab bar's and a segmented control's markers do the same.
 The marker can be dragged, as a segmented control's thumb can. Put a finger on
 a destination and slide it sideways: the marker comes with the finger, leaning
 and stretching toward it, and snaps from destination to destination with a tick at each, the
-colours following. Let go on one and it is chosen — its `onClick` runs then,
+colours following. A drag that starts on another destination than the chosen one
+ticks as the marker jumps to it, too. Let go on one and it is chosen — its `onClick` runs then,
 once.
 
 **By default the choice waits for the finger to lift.** A segmented control

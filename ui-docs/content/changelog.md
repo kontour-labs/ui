@@ -147,6 +147,14 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the whole keyboard again and stood a keyboard's height above it. On Android, a
   debuggable app whose window pans for the keyboard, which lifts a sheet twice in
   a way the library cannot see, now gets one line in its log saying so.
+- **A drag that starts on another segment or destination ticks as the marker
+  jumps to it.** Press a segmented control's third segment, or a nav bar's
+  third destination, while the first is chosen, and drag on: the thumb or
+  marker goes to the third with a tick, then on. That first jump was silent,
+  because the detent was armed on the item under the finger rather than the one
+  the marker was on. A segmented control's thumb also ran one pointer move ahead
+  of the finger for the whole of a drag, so a first move that stopped just short
+  of a boundary crossed it.
 
 ---
 

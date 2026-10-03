@@ -80,7 +80,8 @@ tabs switch which *view* of one screen you are looking at. Announced
 ---
 
 **Drag across the segments** and the thumb comes with you, ticking at each
-boundary. It is *carried*, not chasing: between boundaries the thumb leans out of
+boundary — and once as it jumps to the segment a drag started on, when that was
+not the chosen one. It is *carried*, not chasing: between boundaries the thumb leans out of
 its segment toward where your finger is and stretches as it leans, on the same
 `SliderDefaults.DetentPull` the sliders use. It used to spring from one segment
 to the next once the value had already changed, which meant the only part of the
