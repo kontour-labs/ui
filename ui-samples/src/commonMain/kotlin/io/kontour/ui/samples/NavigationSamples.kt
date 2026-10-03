@@ -31,7 +31,6 @@ import io.kontour.ui.components.display.Badge
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
-import io.kontour.ui.nav.HeroTopBar
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
@@ -74,15 +73,16 @@ fun TopBarCollapsing() {
 }
 
 @Composable
-fun HeroTopBarCollapsing() {
+fun TopBarHeroCollapsing() {
     val collapse = rememberTopBarCollapseState()
 
     Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
-        // The picture runs under the status bar; the title stands on the
-        // bar's colour, faded in under it, and collapses as a Large bar does.
-        HeroTopBar(
-            image = { StopPhoto(Modifier.fillMaxSize()) },
+        // The picture runs under the status bar; the title is light over a
+        // scrim at its foot, and the bar collapses as a Large one does.
+        TopBar(
+            style = TopBarStyle.Hero,
             onBack = { back() },
+            image = { StopPhoto(Modifier.fillMaxSize()) },
             collapseState = collapse,
         ) {
             +"Kings Park"

@@ -193,8 +193,12 @@ data class ComponentDefaults(
     val navNestIndent: Dp = 24.dp,
     val topBarHeight: Dp = 56.dp,
     val topBarLargeHeight: Dp = 112.dp,
-    /** A [io.kontour.ui.nav.HeroTopBar] open: its picture's height, the status bar included. */
-    val topBarHeroHeight: Dp = 280.dp,
+    /**
+     * A [io.kontour.ui.nav.TopBarStyle.Hero] bar open: its picture's height, the
+     * status bar included. About half a phone's height, which leaves 300dp of
+     * picture under an iPhone's status bar.
+     */
+    val topBarHeroHeight: Dp = 360.dp,
     val tabBarHeight: Dp = 48.dp,
 
     // --- Overlays and surfaces ---

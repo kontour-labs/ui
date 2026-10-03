@@ -17,7 +17,7 @@ from the version the app is on.
 
 ## 0.3 to 0.4
 
-From 0.3.0 to 0.4.0, released on 2 October 2026. One parameter is replaced,
+From 0.3.0 to 0.4.0, released on 3 October 2026. One parameter is replaced,
 and a few things look or behave differently enough to check.
 
 ### Before you start
@@ -26,8 +26,9 @@ and a few things look or behave differently enough to check.
   version: in a version catalog, `kontour = "0.4.0"`. See
   [Installing](installing.md).
 - **Rebuild anything compiled against 0.3.** Functions that took a new parameter
-  changed their signature — a chip's content is a `ChipScope` now, and
-  `Strings` has four more words — and a library of your own built against 0.3
+  changed their signature — a chip's content is a `ChipScope` now, `TopBar`
+  takes an `image` and an `expandedHeight` for its `Hero` style, and `Strings`
+  has four more words — and a library of your own built against 0.3
   fails when it calls one, until it is rebuilt. Source that calls them compiles
   as it was.
 

@@ -336,7 +336,7 @@ class ComponentRenderTest {
             "DateRangePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "IndexScroller" to "a rail of letters beside a list, no container; its labels are held to text contrast",
             "Carousel" to "its pages are the caller's pictures; the carousel draws no ground of its own",
-            "HeroTopBar" to "its top is the caller's picture, run to the window's edges; its controls carry their own rings",
+            "TopBar (Hero)" to "its top is the caller's picture, run to the window's edges; its controls carry their own rings",
             "PullToRefresh" to "its list runs off the foot of the card; the disc and each row carry their own edges",
         )
 

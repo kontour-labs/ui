@@ -1,9 +1,7 @@
 # `TopBar`
 
-*Also on this page: `HeroTopBar`.*
-
-Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
-`Large`. `Centred` centres the title on the bar where it fits — the title alone
+Title and actions. Four styles from `TopBarStyle`: `Small`, `Centred`, `Large`
+and `Hero`. `Centred` centres the title on the bar where it fits — the title alone
 decides, and a subtitle under it is fitted to the same width with an ellipsis —
 and where the controls leave it too little room it is laid out exactly as
 `Small`, against the leading controls — never centred in what was left over.
@@ -60,18 +58,19 @@ collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
 for a bar drawn over its list rather than above it, and
 `collapseProgress(scrolled, distance)` from any two numbers.
 
-### `HeroTopBar`: a large bar over a picture
+### `Hero`: a large bar over a picture
 
-<!--sample:HeroTopBarCollapsing-->
+<!--sample:TopBarHeroCollapsing-->
 ```kotlin
 val collapse = rememberTopBarCollapseState()
 
 Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
-    // The picture runs under the status bar; the title stands on the
-    // bar's colour, faded in under it, and collapses as a Large bar does.
-    HeroTopBar(
-        image = { StopPhoto(Modifier.fillMaxSize()) },
+    // The picture runs under the status bar; the title is light over a
+    // scrim at its foot, and the bar collapses as a Large one does.
+    TopBar(
+        style = TopBarStyle.Hero,
         onBack = { back() },
+        image = { StopPhoto(Modifier.fillMaxSize()) },
         collapseState = collapse,
     ) {
         +"Kings Park"
@@ -84,16 +83,19 @@ Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
 ```
 
 A `Large` bar with a picture behind it, for the page of a place, a person or an
-album. The picture runs to the window's top, under the status bar, and is
-`expandedHeight` tall, 280dp by default, or taller if the title needs it. The
-controls stay below the status bar, and the title rests at the foot, as a
-`Large` bar's does.
+album: `style = TopBarStyle.Hero` and the picture as `image`. The picture runs to
+the window's top, under the status bar, and is `expandedHeight` tall —
+`TopBarDefaults.HeroHeight`, 360dp, about half a phone, unless you say — or
+taller if the title needs it. The controls stay below the status bar, and the
+title rests at the foot, as a `Large` bar's does.
 
-**Only the part under the title fades.** The bar's colour comes in over the
-picture from a little above the title to the bar's foot, eased so there is no
-line where it starts, and nearly whole by the title's top, so the title reads
-on whatever the picture is. The rest of the picture is left alone. The title
-keeps the bar's `contentColour`, as on any bar.
+**The title is light, over a scrim that darkens the picture under it.** It
+comes in from a little above the title and is darkest at the bar's foot, where
+the subtitle is, eased so there is no line where it starts; the rest of the
+picture is left alone. The scrim is the theme's dimming colour made opaque, and
+the title takes whichever of the theme's inks reads on it — white, in the house
+themes. It was a fade into the bar's own colour, which put a band of the page's
+ground across the bottom of every picture.
 
 **The controls carry their own ground.** Over the picture, the back button and
 each action sit on a disc of the bar's colour, so a dark glyph is not lost on a
@@ -101,12 +103,14 @@ dark photograph. The discs go as the bar collapses.
 
 **It collapses as `Large` does**, with the same `collapseState` or
 `collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
-travels into the first line, the picture rises behind the bar at half the
-speed and fades out over the second half of the way.
+travels into the first line, the picture rises behind the bar at half the speed
+and fades out over the second half of the way, and the scrim and the title's
+light ink go with it, so the title lands in the bar's own colour.
 
-It is a component of its own rather than a fourth `TopBarStyle`, because the
-picture is required, it runs under the status bar where no other bar draws, and
-the title stands on a ground the picture is part of.
+**Without an `image`** it is a `Large` bar that opens to the hero's height, so a
+page whose picture is sometimes missing keeps its shape. `expandedHeight` works
+on `Large` too, as the least it opens to, with the title resting at the foot of
+the extra; `Small` and `Centred` ignore it, and only `Hero` draws an `image`.
 
 ### The back button
 
@@ -142,12 +146,19 @@ its own — it is the page's ground by default — and the rule `showDivider` dr
 under it thickens with the tier. The back button is a ghost
 [`IconButton`](icon-button.md), so it gains a ring there.
 
-A `HeroTopBar`'s picture is hidden from screen readers: the title says what
-the page is about, and a picture behind a bar is decoration. Put a description
-of it in the page if it says something the title does not. At high contrast
-the fade under the title is solid ground, with nothing of the picture behind
-the words, and the discs behind the controls take an edge. Under reduced motion
-the picture does not rise as the bar collapses; it fades where it is.
+A `Hero` bar's picture is hidden from screen readers: the title says what the
+page is about, and a picture behind a bar is decoration. Put a description of it
+in the page if it says something the title does not. The title's light ink has
+3:1 on the scrim at the title's top over a white picture, which large type
+needs, and the subtitle has 4.5:1 where it sits nearer the foot. At high
+contrast the scrim is solid under the words, with nothing of the picture behind
+them, and the discs behind the controls take an edge. Under reduced motion the
+picture does not rise as the bar collapses; it fades where it is.
+
+`windowInsets` is for a bar at the top of the window. **A bar anywhere else — in
+a card, a sheet, a demo on a page — passes `WindowInsets(0)`**, or it pads itself
+by the status bar's height wherever it is; over a `Hero` picture that put the
+buttons well down it.
 
 Reduced motion leaves the large title's collapse as it is: it is driven by the
 scroll position rather than by a clock, so the title moves only as the content

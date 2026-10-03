@@ -219,9 +219,11 @@ fun closeEnclosingSheet(): (() -> Unit)? {
 /**
  * How much room a [SheetHeader] takes, and where its title sits.
  *
- * The same three a [io.kontour.ui.nav.TopBarStyle] offers, and deliberately the
- * same names: a sheet that is a screen wants the same vocabulary as the screen
- * it replaced, and a caller who has met one should not have to learn the other.
+ * Three of the four a [io.kontour.ui.nav.TopBarStyle] offers, and deliberately
+ * the same names: a sheet that is a screen wants the same vocabulary as the
+ * screen it replaced, and a caller who has met one should not have to learn the
+ * other. There is no `Hero`: a picture under the status bar is the top of a page,
+ * and the top of a sheet is its handle.
  *
  * There is no collapse-on-scroll here, which is the one thing [Large] does at
  * the top of a page and cannot do on a sheet: a sheet already answers the same

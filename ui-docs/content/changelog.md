@@ -28,10 +28,11 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
-## 0.4.0 — 2 October 2026
+## 0.4.0 — 3 October 2026
 
 Pages that cover the nav bar on one back stack, a back button that knows its
-page, three new components and a tag inside a chip, a sheet that reaches the top
+page, two new components, a top bar over a picture and a tag inside a chip, a
+sheet that reaches the top
 of the window and clears the keyboard once, and one break: `markerDraggable`.
 [Migrating](migrating.md#03-to-04) has everything an upgrade from 0.3 has to
 change, as code.
@@ -127,12 +128,15 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   `RowContentScope` with `tag` added, so every existing chip compiles as it
   was. See [`Chip`](components/chip.md#a-count-at-the-end).
 
-- [`HeroTopBar`](components/top-bar.md#herotopbar-a-large-bar-over-a-picture):
-  a `Large` bar over a picture that runs under the status bar, collapsing into
-  a `Small` bar as `Large` does. The bar's colour fades in under the title
-  only, so the title reads on any picture and the rest is left alone; the
-  back button and actions sit on discs of the bar's colour until it collapses.
-  `TopBarDefaults.HeroHeight`, 280dp, from `ComponentDefaults.topBarHeroHeight`.
+- [`TopBarStyle.Hero`](components/top-bar.md#hero-a-large-bar-over-a-picture):
+  `TopBar(style = TopBarStyle.Hero, image = { … })` is a `Large` bar over a
+  picture that runs under the status bar, collapsing into a `Small` bar as
+  `Large` does. The title is light over a scrim that darkens the picture under
+  it, solid at high contrast, and takes the bar's own colours as it collapses;
+  the back button and actions sit on discs of the bar's colour until then.
+  `expandedHeight` sets how tall it opens: `TopBarDefaults.HeroHeight`, 360dp,
+  from `ComponentDefaults.topBarHeroHeight`, unless you say. On `Large` it is
+  the least the bar opens to.
 
 - [`IndexScroller`](components/index-scroller.md): an A–Z rail beside a long
   list. Press a letter or run a finger down them and the list jumps to its
