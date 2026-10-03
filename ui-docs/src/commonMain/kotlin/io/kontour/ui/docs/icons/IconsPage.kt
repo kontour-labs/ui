@@ -1,5 +1,7 @@
 package io.kontour.ui.docs.icons
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -13,9 +15,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -33,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
@@ -114,6 +120,7 @@ internal fun IconsPage(source: IconSource = SiteIconSource) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val beside = maxWidth >= DetailBesideWidth
         val stacked = maxWidth < StackedBelowWidth
+        val pageWidth = maxWidth
         Row(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Header(
@@ -160,18 +167,16 @@ internal fun IconsPage(source: IconSource = SiteIconSource) {
                         store = store,
                         selected = selected,
                         onSelect = { selected = if (selected == it) null else it },
+                        restingWidth = if (beside && selected != null) {
+                            pageWidth - DetailWidth - Theme.sizing.dividerThickness
+                        } else {
+                            pageWidth
+                        },
                     )
                 }
             }
-            val shown = selected
-            if (beside && shown != null) {
-                VerticalDivider(Modifier.fillMaxHeight())
-                IconDetail(
-                    entry = shown,
-                    store = store,
-                    onClose = { selected = null },
-                    modifier = Modifier.width(DetailWidth).fillMaxHeight(),
-                )
+            if (beside) {
+                DetailBeside(selected = selected, store = store, onClose = { selected = null })
             }
         }
         if (!beside) {
@@ -243,6 +248,12 @@ private fun Header(
  *
  * A `LazyColumn` of rows rather than a lazy grid: nothing else on the site uses
  * a lazy grid, and the binary is measured against a ceiling.
+ *
+ * @param restingWidth The width the list will have once the detail panel beside
+ *   it has finished sliding, which is what the columns are counted for. Counted
+ *   for the width it had on the way, the grid reflowed at every column the
+ *   panel's edge passed; counted for this, it reflows once, as the icon is
+ *   pressed, and the cells narrow with the panel's slide.
  */
 @Composable
 private fun IconGrid(
@@ -251,6 +262,7 @@ private fun IconGrid(
     store: IconStore,
     selected: IconEntry?,
     onSelect: (IconEntry) -> Unit,
+    restingWidth: Dp,
 ) {
     val scope = rememberCoroutineScope()
     val list = rememberLazyListState()
@@ -259,9 +271,9 @@ private fun IconGrid(
     // A new search starts at its top.
     LaunchedEffect(results) { list.scrollToItem(0) }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
         val gutter = Theme.spacing.lg - CellInset
-        val columns = ((maxWidth - gutter * 2) / CellWidth).toInt().coerceAtLeast(1)
+        val columns = ((restingWidth - gutter * 2) / CellWidth).toInt().coerceAtLeast(1)
         val rows = remember(results, shown, columns) { results.take(shown).chunked(columns) }
         LazyColumn(
             state = list,
@@ -269,7 +281,9 @@ private fun IconGrid(
             contentPadding = PaddingValues(start = gutter, end = gutter, bottom = Theme.spacing.lg),
             flingBehavior = ScrollDefaults.flingBehavior(),
         ) {
-            items(rows.size, key = { rows[it].first().name }) { row ->
+            // Keyed by the columns too: a row that kept its first icon through a
+            // reflow kept its key, and was drawn with its old icons for a frame.
+            items(rows.size, key = { "$columns ${rows[it].first().name}" }) { row ->
                 Row(Modifier.fillMaxWidth()) {
                     for (entry in rows[row]) {
                         IconCell(
@@ -347,6 +361,53 @@ private fun IconCell(
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * The pressed icon beside the list, sliding in from the end and back out.
+ *
+ * Asked for as *"on desktop, can we make the list/detail side animate in, rather
+ * than just appearing"*. The same motion as the library's
+ * `SupportingPaneScaffold`: the panel's width goes from nothing to
+ * [DetailWidth] while its content is laid out at the full width and clipped, so
+ * it slides in rather than being squeezed narrower on every frame, and the list
+ * gives up the room as it comes. Under reduced motion it takes its width at once
+ * and fades in where it will rest.
+ *
+ * The icon is kept while the panel goes, so it does not empty as it slides out.
+ */
+@Composable
+private fun DetailBeside(selected: IconEntry?, store: IconStore, onClose: () -> Unit) {
+    val motion = Theme.motion
+    var kept by remember { mutableStateOf(selected) }
+    if (selected != null) kept = selected
+    val open = selected != null
+    val share by animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springGentle),
+        label = "iconDetail",
+    )
+    val appear by animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = motion.tweenFast(),
+        label = "iconDetailFade",
+    )
+    val fraction = share.coerceIn(0f, 1f)
+    val entry = kept
+    if (fraction <= 0f || entry == null) return
+    VerticalDivider(Modifier.fillMaxHeight().alpha(fraction))
+    Box(Modifier.width(DetailWidth * fraction).fillMaxHeight().clipToBounds()) {
+        IconDetail(
+            entry = entry,
+            store = store,
+            onClose = onClose,
+            modifier = Modifier
+                .then(if (motion.reduceMotion) Modifier.alpha(appear) else Modifier)
+                .wrapContentWidth(Alignment.Start, unbounded = true)
+                .requiredWidth(DetailWidth)
+                .fillMaxHeight(),
         )
     }
 }
