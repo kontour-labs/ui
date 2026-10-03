@@ -164,8 +164,8 @@ fun <T> WheelSelect(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
-    interactionSource: MutableInteractionSource? = null,
     onValueChangeFinished: (() -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelSelect's visibleItems must be odd so a row can sit where the field was, not $visibleItems"

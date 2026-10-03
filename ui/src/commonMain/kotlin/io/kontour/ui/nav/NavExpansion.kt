@@ -279,11 +279,11 @@ object NavExpandingSlotDefaults {
  *   [LocalNavExpansion] by default: a recessed `surfaceSunken` on a navigation
  *   surface, where a raised pill would be the surface's own colour, and a raised
  *   `surface` anywhere else.
- * @param interactionSource Hoisted, to observe the control's press and hover.
  * @param windowInsets What the open panel keeps clear of: every edge of the
  *   window and the keyboard, whichever end [placement] stands it on, because it
  *   grows across the rest. Pass less where something round the slot already
  *   clears an edge.
+ * @param interactionSource Hoisted, to observe the control's press and hover.
  * @param expandedContent The panel. Given a `ColumnScope` so it can weight a
  *   list to fill what is left.
  * @param content The collapsed control's contents, in a row: `+icon` and
@@ -300,8 +300,8 @@ fun NavExpandingSlot(
     contentColour: Color = Theme.colours.content,
     shadow: Shadow = NavExpandingSlotDefaults.shadow(),
     dismissLabel: String = Theme.strings.close,
-    interactionSource: MutableInteractionSource? = null,
     windowInsets: WindowInsets = WindowInsets.allEdges,
+    interactionSource: MutableInteractionSource? = null,
     expandedContent: @Composable ColumnScope.() -> Unit,
     content: @Composable RowContentScope.() -> Unit,
 ) {

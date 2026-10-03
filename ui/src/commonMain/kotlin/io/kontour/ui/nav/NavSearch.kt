@@ -112,8 +112,8 @@ fun rememberNavSearchState(): NavSearchState {
  * @param editInPlace Whether this is a live field rather than a pill that opens
  *   one. Follows the surrounding surface's width by default.
  * @param placement Where the panel goes when there is not room to edit in place.
- * @param interactionSource Hoisted, to observe the pill's press and hover.
  * @param windowInsets What the open panel keeps clear of; see [NavExpandingSlot].
+ * @param interactionSource Hoisted, to observe the pill's press and hover.
  * @param results Shown with the field: above it over a keyboard, below it at the
  *   top of the screen, and under an in-place field. Given a `ColumnScope`, so a
  *   caller can weight a list to fill what is left.
@@ -136,8 +136,8 @@ fun NavSearch(
     contentColour: Color = Theme.colours.content,
     onQuery: ((String) -> Unit)? = null,
     onSearch: ((String) -> Unit)? = null,
-    interactionSource: MutableInteractionSource? = null,
     windowInsets: WindowInsets = WindowInsets.allEdges,
+    interactionSource: MutableInteractionSource? = null,
     results: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     if (editInPlace) {

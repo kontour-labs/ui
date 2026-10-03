@@ -1891,7 +1891,7 @@ public final class io/kontour/ui/components/text/TransformationsKt {
 }
 
 public final class io/kontour/ui/components/text/WheelSelectKt {
-	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
+	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/foundation/ColourSpacesKt {
@@ -2979,7 +2979,7 @@ public final class io/kontour/ui/nav/NavExpansion {
 }
 
 public final class io/kontour/ui/nav/NavExpansionKt {
-	public static final fun NavExpandingSlot-uhEuKqE (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/nav/NavExpandPlacement;JJLio/kontour/ui/theme/Shadow;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavExpandingSlot-uhEuKqE (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/nav/NavExpandPlacement;JJLio/kontour/ui/theme/Shadow;Ljava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun getLocalNavExpansion ()Landroidx/compose/runtime/ProvidableCompositionLocal;
 }
 
@@ -3023,7 +3023,7 @@ public final class io/kontour/ui/nav/NavSearchDefaults {
 }
 
 public final class io/kontour/ui/nav/NavSearchKt {
-	public static final fun NavSearch-Fo4Odys (Lio/kontour/ui/nav/NavSearchState;Landroidx/compose/ui/Modifier;ZZLio/kontour/ui/nav/NavExpandPlacement;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;JJLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavSearch-Fo4Odys (Lio/kontour/ui/nav/NavSearchState;Landroidx/compose/ui/Modifier;ZZLio/kontour/ui/nav/NavExpandPlacement;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;JJLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/foundation/layout/WindowInsets;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberNavSearchState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/nav/NavSearchState;
 }
 
