@@ -18,8 +18,9 @@ the site is built from:
 | `/ui/api/` | The Dokka reference |
 | `/ui/md/<path>.md` | Every page as the Markdown it was built from, for agents and for find-in-page |
 | `/ui/llms.txt`, `/ui/llms-full.txt` | The index of those, one line a page; and all of them in one file |
+| `/ui/icons/manifest.txt`, `/ui/icons/<hash>/` | The Icons page's data: every Tabler icon's name, category and tags, and their paths in chunks of 128, fetched as rows scroll into view. Laid out by `docs/icondata.py` from the `@tabler/icons` release the library is built from, the directory named for its content |
 | `/llms.txt` | The root index, pointing at each library's own |
-| `/_headers` | `noindex` everywhere; a year's cache for the two content-hashed `.wasm` files and no other; plain text for the mirror |
+| `/_headers` | `noindex` everywhere; a year's cache for the two content-hashed `.wasm` files and the content-named icon data, and no other; plain text for the mirror |
 | `/_redirects` | `/` goes to `/ui/`, with a 302 so no browser remembers it after the root gains a second library |
 
 The `deploy` job uploads it with `wrangler pages deploy`. **A Direct Upload
