@@ -232,6 +232,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   cap and nothing else, so on a phone it ran from one edge of the glass to the
   other. It now keeps `Theme.spacing.md` from either side, as a `Dialog` and a
   bar's expanding panel already kept a margin of their own.
+- **A command palette's results fade at an end there are more of them.** They
+  were cut off square at the panel's foot, and a row cut off at the edge reads
+  as the last one. They now take `fadingEdges`, which stands down at high
+  contrast as it does everywhere.
 
 ---
 

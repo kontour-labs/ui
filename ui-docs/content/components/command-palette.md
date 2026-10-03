@@ -24,6 +24,9 @@ It hangs near the top of the window rather than in the middle, so the list grows
 down as it filters instead of the panel jumping up, and keeps clear of the
 window's insets and, by `Theme.spacing.md`, its sides: on a phone it is the
 width of the screen less a margin, and wider up it stops at `width`.
+Past `maxHeight` the results scroll, and fade out at whichever end there are
+more of them ([`fadingEdges`](modifier-fading-edges.md)), so a row cut off at the panel's
+foot does not read as the last.
 
 **The keyboard is the point.** It opens on a chord, filters as you type, moves
 with the arrow keys and runs on Enter, without the pointer being touched — see

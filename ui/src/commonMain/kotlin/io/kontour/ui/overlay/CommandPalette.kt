@@ -45,6 +45,7 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
@@ -377,7 +378,11 @@ private fun PaletteBody(
                 LazyColumn(
                     state = listState,
                     flingBehavior = ScrollDefaults.flingBehavior(),
-                    modifier = Modifier.heightIn(max = maxHeight),
+                    // Faded at whichever end there is more, as the library's
+                    // other scrolling lists can be: *"use fading edges
+                    // modifier"*. A row cut off square at the panel's foot
+                    // read as the last one.
+                    modifier = Modifier.heightIn(max = maxHeight).fadingEdges(listState),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
                     itemsIndexed(found, key = { _, command -> command.id }) { index, command ->
