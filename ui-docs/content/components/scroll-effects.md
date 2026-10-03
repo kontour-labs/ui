@@ -61,13 +61,15 @@ scrolled out of the box but still within the window counts as shown.
 ## `Modifier.parallax`
 
 ```
-Hero(Modifier.parallax(strength = 0.08f))
+Hero(Modifier.parallax())
 ```
 
 Moves the content by a share of its distance from the middle of the window, so
-it drifts both ways around the midpoint rather than only one way, and eases
-after the scroll rather than tracking it exactly, which is what makes it read as
-depth rather than as a second scroll speed. `0.08` is about as much as is
+it drifts both ways around the midpoint rather than only one way, easing off
+towards 16dp near the window's edges rather than growing with the window. It
+moves with the page and stops with it: no spring chases the scroll, so there is
+nothing left to glide on once the page is still, and a scroll redraws the layer
+without recomposing anything. The default `0.05` is about as much as is
 pleasant; past `0.2` the layer visibly comes loose from the page.
 
 It moves the drawing, not the layout, so put it on a layer inside a clipped

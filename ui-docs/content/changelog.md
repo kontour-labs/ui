@@ -48,6 +48,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
 
 ### Changed
 
+- **`Modifier.parallax` is subtler, and stops when the page does.** A spring
+  chased its offset and was started over on almost every frame of a scroll, so
+  the content moved rigidly with the page and then glided on by itself for half
+  a second after it stopped, by up to 30dp near the window's edges. The offset
+  now follows the page directly, eases off towards 16dp, and the default
+  `ScrollEffectDefaults.ParallaxStrength` is `0.05`, down from `0.08`.
 - **Icons come from Kontour Labs' own build of Tabler**,
   `io.kontour:tabler-icons-outline` and `-filled`, in place of composables'
   `icons-tabler-*-cmp`: every icon of Tabler 3.48.0, where composables' stopped
