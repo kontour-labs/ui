@@ -353,7 +353,10 @@ fun <T> LazyListScope.listSection(
  * `listSection` with a `sectionKey` on a phone threw on: *"Type of the key
  * SectionPart(section=Pinned, part=0) is not supported."*
  */
-private fun sectionPartKey(section: Any, part: String): String = "kontour.listSection[$section].$part"
+private fun sectionPartKey(section: Any, part: String): String = "$SectionKeyPrefix[$section].$part"
+
+/** Where a section's own keys start, apart from anything a caller would key a row by. */
+private const val SectionKeyPrefix = "kontour.listSection"
 
 @Composable
 private fun Dp.orListSpacing(): Dp = if (isSpecified) this else ListItemDefaults.Spacing
