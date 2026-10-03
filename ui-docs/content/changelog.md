@@ -166,6 +166,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   the marker was on. A segmented control's thumb also ran one pointer move ahead
   of the finger for the whole of a drag, so a first move that stopped just short
   of a boundary crossed it.
+- **A text area's placeholder starts at the top, where its text does.** It was
+  centred in the area, a line or more below where the first character goes, and
+  cut to one line however long it was. It now sits at the top start (the top
+  right, right to left) and wraps over the lines the empty area has. In a
+  single-line field the caret of an empty field sat a pixel below the
+  placeholder and jumped up a pixel at the first character; it now starts on
+  the placeholder's line.
 
 ---
 

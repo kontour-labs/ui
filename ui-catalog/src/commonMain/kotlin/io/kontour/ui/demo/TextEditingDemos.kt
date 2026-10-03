@@ -94,6 +94,8 @@ internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
     TextArea(
         state = state,
         label = "What went wrong?",
+        // Clear the text to see it: at the top, where the first line goes.
+        placeholder = "Which service, where, and when",
         lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 6),
         modifier = Modifier.fillMaxWidth(),
     )
