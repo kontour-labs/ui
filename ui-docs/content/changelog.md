@@ -91,6 +91,13 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
   opens over the sheet. Before, only the page lost its focus. A menu or a
   combobox's list leaves the field it opened from focused, as before.
+- **A command palette puts the closest commands first.** With something typed,
+  the label that is the query comes first, then one that starts with it, then a
+  word in a label, then a keyword, then the query inside a word; within each,
+  the one it covers more of. It kept the caller's order, so the highlight, and
+  Enter, could sit on a command that only had the query in the middle of a word.
+  With nothing typed the order is the caller's, as before. The ranking is
+  `commandSimilarity`; a `similarity` parameter beside `matches` takes another.
 
 ### Added
 

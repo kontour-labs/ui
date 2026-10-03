@@ -3218,12 +3218,15 @@ public final class io/kontour/ui/overlay/CommandPaletteDefaults {
 	public final fun getTopInset (Landroidx/compose/runtime/Composer;I)F
 	public final fun getWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun matches (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
+	public final fun similarity (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function2;
 }
 
 public final class io/kontour/ui/overlay/CommandPaletteKt {
-	public static final fun CommandPalette-F1UTTn8 (ZLkotlin/jvm/functions/Function0;Ljava/util/List;Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/foundation/text/input/TextFieldState;Ljava/lang/String;Ljava/lang/String;FFFZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
+	public static final fun CommandPalette-x4UjrtE (ZLkotlin/jvm/functions/Function0;Ljava/util/List;Landroidx/compose/ui/Modifier;Ljava/lang/Object;Landroidx/compose/foundation/text/input/TextFieldState;Ljava/lang/String;Ljava/lang/String;FFFZLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;III)V
 	public static final fun commandMatches (Lio/kontour/ui/overlay/Command;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;)Z
 	public static synthetic fun commandMatches$default (Lio/kontour/ui/overlay/Command;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;ILjava/lang/Object;)Z
+	public static final fun commandSimilarity (Lio/kontour/ui/overlay/Command;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;)F
+	public static synthetic fun commandSimilarity$default (Lio/kontour/ui/overlay/Command;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;ILjava/lang/Object;)F
 }
 
 public final class io/kontour/ui/overlay/ConfirmHostState {
