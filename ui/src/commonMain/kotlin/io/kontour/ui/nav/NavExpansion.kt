@@ -63,8 +63,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
-import io.kontour.ui.adaptive.sheetEdges
-import io.kontour.ui.adaptive.topEdges
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Surface
@@ -268,9 +267,10 @@ object NavExpandingSlotDefaults {
  * while the user types."* A bar that rose with the keyboard would contradict the
  * inset it asks for. So the control stays where it is and the panel goes into
  * the [io.kontour.ui.overlay.OverlayHost], the same way
- * [io.kontour.ui.overlay.CommandPalette] does, where it is free to take the
- * keyboard inset ([NavExpandPlacement.AboveKeyboard]) or the status bar's
- * ([NavExpandPlacement.Top]) without the bar knowing anything about it.
+ * [io.kontour.ui.overlay.CommandPalette] does, where it is free to clear the
+ * keyboard and the status bar — standing on the one
+ * ([NavExpandPlacement.AboveKeyboard]) or hung from the other
+ * ([NavExpandPlacement.Top]) — without the bar knowing anything about it.
  *
  * The host brings the rest for nothing: a scrim over the content, back and
  * escape closing it, focus trapped inside it, and its own entrance.
@@ -279,6 +279,10 @@ object NavExpandingSlotDefaults {
  *   [LocalNavExpansion] by default: a recessed `surfaceSunken` on a navigation
  *   surface, where a raised pill would be the surface's own colour, and a raised
  *   `surface` anywhere else.
+ * @param windowInsets What the open panel keeps clear of: every edge of the
+ *   window and the keyboard, whichever end [placement] stands it on, because it
+ *   grows across the rest. Pass less where something round the slot already
+ *   clears an edge.
  * @param interactionSource Hoisted, to observe the control's press and hover.
  * @param expandedContent The panel. Given a `ColumnScope` so it can weight a
  *   list to fill what is left.
@@ -296,6 +300,7 @@ fun NavExpandingSlot(
     contentColour: Color = Theme.colours.content,
     shadow: Shadow = NavExpandingSlotDefaults.shadow(),
     dismissLabel: String = Theme.strings.close,
+    windowInsets: WindowInsets = WindowInsets.allEdges,
     interactionSource: MutableInteractionSource? = null,
     expandedContent: @Composable ColumnScope.() -> Unit,
     content: @Composable RowContentScope.() -> Unit,
@@ -367,6 +372,7 @@ fun NavExpandingSlot(
             dismissLabel = dismissLabel,
             morph = morph,
             controlColour = containerColour,
+            windowInsets = windowInsets,
             content = expandedContent,
         )
     }
@@ -666,6 +672,7 @@ private fun ExpandedPanel(
     dismissLabel: String,
     morph: NavMorph,
     controlColour: Color,
+    windowInsets: WindowInsets,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -674,6 +681,7 @@ private fun ExpandedPanel(
     // each time instead of replacing the one already there.
     val key = remember { Any() }
     val latestPlacement by rememberUpdatedState(placement)
+    val latestInsets by rememberUpdatedState(windowInsets)
     val latestCollapse by rememberUpdatedState(onCollapse)
     val latestContent by rememberUpdatedState(content)
     val latestControlColour by rememberUpdatedState(controlColour)
@@ -698,18 +706,17 @@ private fun ExpandedPanel(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            // The whole point of the two placements. A panel over
-                            // the keyboard has to clear the keyboard, which is
-                            // `sheetEdges`; one at the top has to clear the status
-                            // bar and the cutout, which is `topEdges`. Both tokens
-                            // already existed and already meant this.
-                            .windowInsetsPadding(
-                                when (latestPlacement) {
-                                    NavExpandPlacement.AboveKeyboard ->
-                                        WindowInsets.sheetEdges
-                                    NavExpandPlacement.Top -> WindowInsets.topEdges
-                                }
-                            )
+                            // Every edge, keyboard included, whichever end the
+                            // panel stands on. The placement chooses where it
+                            // stands; what it grows into is the rest of the
+                            // window, and that has edges too. Standing on the
+                            // keyboard it cleared only the bottom and sides, so
+                            // results tall enough to reach the top ran under the
+                            // status bar: *"in the chat search, the results
+                            // popup doesn't respect the device's top safe
+                            // area"*. Hung from the top it cleared only the top,
+                            // so long results ran under the keyboard.
+                            .windowInsetsPadding(latestInsets)
                             .padding(NavExpandingSlotDefaults.Margin),
                         contentAlignment = when (latestPlacement) {
                             NavExpandPlacement.AboveKeyboard -> Alignment.BottomCenter

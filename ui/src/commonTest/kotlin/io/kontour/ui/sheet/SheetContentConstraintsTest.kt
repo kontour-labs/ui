@@ -10,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Constraints
@@ -133,23 +132,21 @@ class SheetContentConstraintsTest {
     }
 
     /**
-     * And the room it actually has is the window less the gap above it.
+     * And the room it actually has is the window less the top inset.
      *
      * The reported defect, and the reason this is a second test rather than a
-     * tighter assertion on the one above: `offered in 1..window` was satisfied at
-     * the very top of its range, by `offered == window`, which is exactly the
-     * number that is wrong.
-     *
-     * No detent puts a sheet's top edge above `SheetTopGap`, and `sheetTopInset`
-     * shifts the content column down by at least that much — so a column measured
-     * against the whole window has its bottom edge that far *below* the window's.
-     * A `verticalScroll` inside sizes its viewport to the measurement, so its last
+     * tighter assertion on the one above: a column measured against more room
+     * than it is placed in has its bottom edge below the window's. A
+     * `verticalScroll` inside sizes its viewport to the measurement, so its last
      * rows sit off-screen at the end of the scroll range and cannot be reached.
      * Reported from a phone on the catalog's Display settings panel.
      *
-     * There is no status bar in a test host, so the gap is the whole of the
-     * reservation here. The inset half of the same arithmetic is measured in
-     * `SheetSafeAreaTest`, which can pass one in by hand.
+     * A sheet reaches the very top of its container, and `sheetTopInset` shifts
+     * the content column down by the top inset, so that inset is all the column
+     * is short of the window. There is no status bar in a test host, so here the
+     * column is offered the whole window, as tall as the sheet then is. The inset
+     * half of the same arithmetic is measured in `SheetSafeAreaTest`, which can
+     * pass one in by hand. It used to stop a further 12dp short, with the sheet.
      *
      * `dragHandle = null`, because the content sits in a `Column` and a `Column`
      * hands each child what is left after the ones before it — so with a handle
@@ -157,15 +154,13 @@ class SheetContentConstraintsTest {
      * the handle's height, which is the trap the test below this one records.
      */
     @Test
-    fun theContentIsOfferedTheWindowLessTheGapAboveTheSheet() {
+    fun theContentIsOfferedTheWindowLessTheTopInset() {
         runComposeUiTest {
             var window = -1
             var offered = -1
-            var gap = -1
 
             setContent {
                 KontourTheme(reduceMotion = true) {
-                    gap = with(LocalDensity.current) { SheetTopGap.roundToPx() }
                     Box(
                         Modifier
                             .requiredSize(360.dp, 500.dp)
@@ -200,11 +195,10 @@ class SheetContentConstraintsTest {
             waitForIdle()
 
             assertEquals(
-                window - gap, offered,
+                window, offered,
                 "the sheet offered its content $offered px in a $window px window " +
-                    "with a ${gap}px gap above it. Measured against the whole window, " +
-                    "the column's bottom edge lands ${gap}px below the window's and " +
-                    "the end of a scroller inside it cannot be reached.",
+                    "with no inset above it. A sheet reaches the top, so the content " +
+                    "has the whole of it to use.",
             )
         }
     }

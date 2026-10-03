@@ -235,11 +235,18 @@ internal fun TooltipOverlay(
     side: OverlaySide,
     alignment: OverlayAlignment,
     onDismissRequest: () -> Unit,
+    /**
+     * The bubble's identity in the host. One per call by default. A caller
+     * that composes a fresh one for each gesture passes its own, kept across
+     * them, so a bubble shown again while the last is leaving turns that one
+     * around rather than appearing beside it — an index scroller's, pressed
+     * again before the last letter has faded.
+     */
+    key: Any = remember { Any() },
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
     val modality = LocalInputModality.current
-    val key = remember { Any() }
     val dismiss by rememberUpdatedState(onDismissRequest)
     // Read here rather than by the caller. The bounds change on every frame the
     // trigger scrolls, and read by the caller — `Modifier.tooltip` is part of

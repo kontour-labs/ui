@@ -18,7 +18,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
 import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.components.selection.SegmentedControlDefaults
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -61,6 +64,44 @@ class SegmentedControlDragTest {
             "dragging from the first segment to the last left the selection at " +
                 "$selected",
         )
+    }
+
+    /**
+     * The move that starts the drag is where the drag starts from, and is not
+     * also the drag's first step. It was both — the claim placed the finger
+     * after the move and the move was then added again — so the finger ran a
+     * move ahead of itself the whole way, and a first move ending just short of
+     * a boundary crossed it.
+     */
+    @Test
+    fun theClaimingMoveIsCountedOnce() {
+        var selected by mutableIntStateOf(0)
+        var bounds = Rect.Zero
+        var pad = 0f
+
+        Scene(width = 800, height = 200) {
+            pad = SegmentedControlDefaults.TrackPadding.value * LocalDensity.current.density
+            Box(Modifier.fillMaxSize()) {
+                SegmentedControl(
+                    options = listOf("Day", "Week", "Month"),
+                    selectedIndex = selected,
+                    onSelectedIndexChange = { selected = it },
+                    modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            // Between the first segment and the second, inside the track's padding.
+            val boundary = bounds.left + pad + (bounds.width - 2 * pad) / 3
+            val y = bounds.center.y
+            scene.press(Offset(boundary - 6f, y))
+            scene.frames(1)
+            scene.move(Offset(boundary - 2f, y))
+            scene.frames(3)
+            assertEquals(0, selected, "a finger 2px short of the boundary chose the next segment")
+            scene.release(Offset(boundary - 2f, y))
+            scene.frames(3)
+        }
     }
 
     @Test

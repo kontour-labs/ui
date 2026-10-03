@@ -19,8 +19,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.InfoCircle
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.InfoCircle
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme

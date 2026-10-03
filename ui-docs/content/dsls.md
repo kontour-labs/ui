@@ -296,6 +296,10 @@ LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
 }
 ```
 
+For a group under a heading — a settings section, a letter of an A–Z — use
+[`listSection`](components/list-section.md#in-a-lazy-list-listsection), which
+draws the heading and the gaps as well, and hands each row its position.
+
 The row *content* stays lazy — a row scrolled off screen is not composed — but
 the builder runs for every element up front, because the first row cannot know it
 is first until something has counted the rest. That is the right trade for the

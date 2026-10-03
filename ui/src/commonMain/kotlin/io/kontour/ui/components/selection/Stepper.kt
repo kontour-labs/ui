@@ -25,6 +25,8 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.foundation.LocalContentColour
+import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.display.AnimatedCounter
 import io.kontour.ui.theme.Theme
@@ -180,7 +182,11 @@ fun Stepper(
             .widthIn(min = maxOf(valueWidth, widestValue))
             .clearAndSetSemantics {}
 
+        // The value in the disabled grey when the stepper is disabled, as its
+        // two buttons are: it stayed in full ink between two grey buttons, the
+        // loudest thing on a control that could not be used.
         DisableSelection {
+            ProvideContentColour(if (enabled) LocalContentColour.current else Theme.colours.contentDisabled) {
             if (animateValue) {
                 AnimatedCounter(
                     value = shown,
@@ -199,6 +205,7 @@ fun Stepper(
                     textAlign = TextAlign.Center,
                     modifier = valueModifier,
                 )
+            }
             }
         }
 

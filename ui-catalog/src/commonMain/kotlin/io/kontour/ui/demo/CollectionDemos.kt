@@ -1,8 +1,9 @@
 package io.kontour.ui.demo
 
-import com.composables.icons.tabler.outline.Bike
-import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.icons.tabler.outline.Bike
+import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,22 +23,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Archive
-import com.composables.icons.tabler.outline.Bell
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.GripVertical
-import com.composables.icons.tabler.outline.Moon
-import com.composables.icons.tabler.outline.Pin
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Archive
+import io.kontour.icons.tabler.outline.Bell
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.GripVertical
+import io.kontour.icons.tabler.outline.Moon
+import io.kontour.icons.tabler.outline.Pin
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
+import androidx.compose.foundation.layout.fillMaxSize
+import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.listSection
+import io.kontour.ui.components.list.IndexScroller
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.components.list.IndexScrollerDefaults
+import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.LoadMore
@@ -59,6 +69,7 @@ import io.kontour.ui.components.table.TableLines
 import io.kontour.ui.components.table.TableSelection
 import io.kontour.ui.components.table.TableSort
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.foundation.shape
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 
@@ -84,7 +95,7 @@ internal val ListItemDemo = ComponentDemo(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
-        ListGroup(spacing = 2.dp, modifier = Modifier.fillMaxWidth()) {
+        ListGroup(modifier = Modifier.fillMaxWidth()) {
             stops.forEachIndexed { index, (name, detail) ->
                 item(
                     label = name,
@@ -107,7 +118,6 @@ internal val ExpandingListItemDemo = ComponentDemo(slug = "expanding-list-item")
     ExpandingListItem(
         expanded = open,
         onExpandedChange = { open = it },
-        spacing = 2.dp,
         chevron = Tabler.Outline.ChevronDown,
         modifier = Modifier.fillMaxWidth(),
         header = {
@@ -129,7 +139,7 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
     var first by remember { mutableStateOf(true) }
     var second by remember { mutableStateOf(false) }
     val icon = this[disclosureIcon]
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
         DisclosureListItem(
             expanded = first,
             onExpandedChange = { first = it },
@@ -272,45 +282,74 @@ internal val SwipeActionsDemo = ComponentDemo(
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
-        SwipeActions(
-            end = trailing.take(this@ComponentDemo[swipeActionCount]),
-            fullSwipeConfirmation = confirmation,
-            tapConfirmation = tapConfirmation,
-            start = listOf(
-                SwipeAction(
-                    label = "Favourite",
-                    icon = Tabler.Outline.Star,
-                    onAction = { echo("Favourited") },
-                    background = Theme.colours.success.solid,
+        // One group, a list item's gap between its rows; each swipe container
+        // takes its row's shape, so a middle row slides square-cornered.
+        @Composable
+        fun shapeOf(position: GroupPosition) =
+            position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            SwipeActions(
+                end = trailing.take(this@ComponentDemo[swipeActionCount]),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.First),
+                start = listOf(
+                    SwipeAction(
+                        label = "Favourite",
+                        icon = Tabler.Outline.Star,
+                        onAction = { echo("Favourited") },
+                        background = Theme.colours.success.solid,
+                    ),
                 ),
-            ),
-        ) {
-            ListItem(onClick = { echo("Perth Busport") }) {
-                +"Perth Busport"
-                supporting { +"Swipe either way" }
+            ) {
+                ListItem(onClick = { echo("Perth Busport") }, position = GroupPosition.First) {
+                    +"Perth Busport"
+                    supporting { +"Swipe either way" }
+                }
             }
-        }
-        // Actions on one side only: the other way the row gives under the finger
-        // and comes back, rather than doing nothing until it is let go.
-        SwipeActions(
-            end = trailing.take(1),
-            fullSwipeConfirmation = confirmation,
-            tapConfirmation = tapConfirmation,
-        ) {
-            ListItem(onClick = { echo("Elizabeth Quay") }) {
-                +"Elizabeth Quay"
-                supporting { +"Actions on one side" }
+            // Actions on one side only: the other way the row gives under the finger
+            // and comes back, rather than doing nothing until it is let go.
+            SwipeActions(
+                end = trailing.take(1),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.Middle),
+            ) {
+                ListItem(onClick = { echo("Elizabeth Quay") }, position = GroupPosition.Middle) {
+                    +"Elizabeth Quay"
+                    supporting { +"Actions on one side" }
+                }
             }
-        }
-        SwipeToDismiss(
-            onDismissRequest = { echo("Dismissed") },
-            label = "Remove",
-            icon = Tabler.Outline.Trash,
-            fullSwipeConfirmation = confirmation,
-        ) {
-            ListItem {
-                +"Elizabeth Quay Station"
-                supporting { +"Fremantle line · Platform 2" }
+            // A tall row: its actions stop at an ordinary row's height and sit
+            // centred on it, rather than growing into slabs as tall as the row.
+            SwipeActions(
+                end = trailing.take(this@ComponentDemo[swipeActionCount]),
+                fullSwipeConfirmation = confirmation,
+                tapConfirmation = tapConfirmation,
+                shape = shapeOf(GroupPosition.Middle),
+            ) {
+                ListItem(onClick = { echo("Fremantle") }, position = GroupPosition.Middle) {
+                    overline { +"Fremantle line · Terminus" }
+                    +"Fremantle"
+                    supporting {
+                        +(
+                            "A tall row. Heritage-listed, opened in 1907, at the end of the " +
+                                "Fremantle line and a short walk from the ferry to Rottnest Island."
+                            )
+                    }
+                }
+            }
+            SwipeToDismiss(
+                onDismissRequest = { echo("Dismissed") },
+                label = "Remove",
+                icon = Tabler.Outline.Trash,
+                fullSwipeConfirmation = confirmation,
+                shape = shapeOf(GroupPosition.Last),
+            ) {
+                ListItem(position = GroupPosition.Last) {
+                    +"Elizabeth Quay Station"
+                    supporting { +"Fremantle line · Platform 2" }
+                }
             }
         }
     }
@@ -361,7 +400,7 @@ internal val ReorderableItemDemo = ComponentDemo(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
             flingBehavior = ScrollDefaults.flingBehavior(),
         ) {
             itemsIndexed(order, key = { _, name -> name }) { index, name ->
@@ -395,7 +434,10 @@ internal val PullToRefreshDemo = ComponentDemo(slug = "pull-to-refresh") {
         onRefresh = { refreshing = true },
         modifier = Modifier.fillMaxWidth().height(200.dp),
     ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
+        ) {
             stops.forEachIndexed { index, (name, detail) ->
                 ListItem(position = GroupPosition.of(index, stops.size)) {
                     +name
@@ -449,6 +491,99 @@ internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar") {
     }
 }
 
+/**
+ * Names in each script the rail knows, so the alphabet knob shows each one
+ * filing its own words: kana by row, Hangul by first consonant.
+ */
+private val indexNames: Map<String, List<String>> = mapOf(
+    "Latin" to listOf(
+        "Armadale", "Ashfield", "Bassendean", "Bayswater", "Claremont", "Cottesloe", "Elizabeth Quay",
+        "Esplanade", "Fremantle", "Glendalough", "Joondalup", "Kelmscott", "Leederville", "Maddington",
+        "Mandurah", "Midland", "Mosman Park", "North Fremantle", "Perth", "Perth Underground", "Queens Park",
+        "Rockingham", "Showgrounds", "Subiaco", "Thornlie", "Victoria Park", "Warwick", "Whitfords",
+        "Yanchep", "1 Stop Shop",
+    ),
+    "Cyrillic" to listOf(
+        "Арбатская", "Бауманская", "Волжская", "Выхино", "Динамо", "Ёлки", "Жулебино", "Измайловская",
+        "Кропоткинская", "Лубянка", "Маяковская", "Новокузнецкая", "Охотный Ряд", "Парк культуры",
+        "Римская", "Сокольники", "Таганская", "Улица 1905 года", "Фили", "Цветной бульвар", "Чеховская",
+        "Шаболовская", "Электрозаводская", "Юго-Западная", "Ясенево", "Moscow City",
+    ),
+    "Greek" to listOf(
+        "Αθήνα", "Βόλος", "Γλυφάδα", "Δάφνη", "Ελληνικό", "Ζωγράφου", "Ηράκλειο", "Θεσσαλονίκη", "Ιωάννινα",
+        "Καλαμάτα", "Λάρισα", "Μαρούσι", "Νίκαια", "Ομόνοια", "Πειραιάς", "Ρόδος", "Σύνταγμα", "Τρίπολη",
+        "Φάληρο", "Χανιά", "Ωρωπός",
+    ),
+    "Hebrew" to listOf(
+        "אשדוד", "באר שבע", "גבעתיים", "דימונה", "הרצליה", "זכרון יעקב", "חיפה", "טבריה", "ירושלים", "כרמיאל",
+        "לוד", "מודיעין", "נתניה", "עכו", "פתח תקווה", "צפת", "קריית גת", "רחובות", "שדרות", "תל אביב",
+    ),
+    "Arabic" to listOf(
+        "أبوظبي", "إربد", "بيروت", "تونس", "جدة", "حلب", "دبي", "الرباط", "صنعاء", "طرابلس", "عمّان",
+        "غزة", "القاهرة", "مسقط", "نواكشوط", "وهران",
+    ),
+    "Kana" to listOf(
+        "あきはばら", "いけぶくろ", "うえの", "おおさか", "かんだ", "ぎんざ", "しぶや", "しながわ", "ちば",
+        "とうきょう", "なごや", "にっぽり", "はかた", "ひろしま", "ふくおか", "まいはま", "めぐろ", "よこはま",
+        "りょうごく", "わこう", "パリ", "ロンドン", "東京駅",
+    ),
+    "Hangul" to listOf(
+        "강남", "광주", "대구", "대전", "목포", "부산", "서울", "속초", "인천", "울산", "전주", "제주", "춘천",
+        "청주", "포항", "평택", "한강", "Seoul Station",
+    ),
+)
+
+private val indexAlphabets: Map<String, IndexAlphabet> = mapOf(
+    "Latin" to IndexAlphabet.Latin,
+    "Cyrillic" to IndexAlphabet.Cyrillic + IndexAlphabet.Latin,
+    "Greek" to IndexAlphabet.Greek + IndexAlphabet.Latin,
+    "Hebrew" to IndexAlphabet.Hebrew + IndexAlphabet.Latin,
+    "Arabic" to IndexAlphabet.Arabic + IndexAlphabet.Latin,
+    "Kana" to IndexAlphabet.Kana + IndexAlphabet.Latin,
+    "Hangul" to IndexAlphabet.Hangul + IndexAlphabet.Latin,
+)
+
+/** Which script's names, filed under that script's alphabet then Latin's. */
+private val indexScript = Knob.Choice("Alphabet", indexAlphabets.keys.toList(), "Latin", name = { it })
+
+private val indexEnabled = Knob.Flag("Enabled", initial = true)
+
+/** Every other name dropped, so more of the rail's letters have nothing under them. */
+private val indexSparse = Knob.Flag("Sparse")
+
+internal val IndexScrollerDemo = ComponentDemo(
+    slug = "index-scroller",
+    knobs = listOf(indexScript, indexEnabled, indexSparse),
+) {
+    val script = this[indexScript]
+    val alphabet = indexAlphabets.getValue(script)
+    val all = indexNames.getValue(script)
+    val names = if (this[indexSparse]) all.filterIndexed { i, _ -> i % 2 == 0 } else all
+    val formats = Theme.formats
+    val indexed = remember(names, alphabet, formats) { names.indexedBy(alphabet, formats) { it } }
+    val list = rememberLazyListState()
+    Box(Modifier.fillMaxWidth().height(360.dp)) {
+        LazyColumn(
+            state = list,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(end = IndexScrollerDefaults.Width),
+        ) {
+            indexed.groups.forEach { group ->
+                listSection(group.items, key = { it }, sectionKey = group.label, title = { +group.label }) { name, position ->
+                    ListItem(position = position) { +name }
+                }
+            }
+        }
+        IndexScroller(
+            state = list,
+            sections = indexed.sections,
+            modifier = Modifier.align(Alignment.CenterEnd),
+            enabled = this@ComponentDemo[indexEnabled],
+            alphabet = alphabet,
+        )
+    }
+}
+
 internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxWidth().height(200.dp)) {
@@ -457,7 +592,7 @@ internal val FadingEdgesDemo = ComponentDemo(slug = "modifier-fading-edges") {
                 .fillMaxWidth()
                 .fadingEdges(scroll)
                 .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
         ) {
             repeat(10) { index ->
                 ListItem(position = GroupPosition.of(index, 10)) {
@@ -565,6 +700,7 @@ internal val collectionDemos = listOf(
     PullToRefreshDemo,
     LoadMoreDemo,
     ScrollbarDemo,
+    IndexScrollerDemo,
     FadingEdgesDemo,
     TableDemo,
 )

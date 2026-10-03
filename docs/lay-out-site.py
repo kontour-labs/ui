@@ -48,6 +48,15 @@ Links that stay among the pages are left relative, and resolve in the mirror as
 they do on GitHub. A link that leaves `ui-docs/content` — to `docs/building/`,
 to a source file — becomes a link to that file in the repository.
 
+### The icon browser's data
+
+The site's Icons page draws Tabler's icons from data rather than from the
+library's Kotlin properties, which would put every icon in the binary. In full
+mode this lays it out under `icons/` with `icondata.py`, from the `@tabler/icons`
+release the library is built from: fetched from npm and checked against a
+pinned hash, or `--icons-tarball` for a copy already on disk. Its directory is
+named for its content, so `_headers` caches it for good.
+
 ### Where it is served
 
 `docs.kontour.io` is Kontour's documentation, and this library's is one part of
@@ -69,6 +78,7 @@ import sys
 from urllib.parse import urlparse
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
+import icondata  # noqa: E402
 from doctree import (  # noqa: E402
     CONTENT, FAMILY, GUIDES, INDEXES, content_pages, family_of, page_path,
 )
@@ -399,6 +409,11 @@ def headers_file(site: pathlib.Path, prefix: str) -> str:
             lines += [f"/{prefix}/{wasm.name}", "  Cache-Control: private, max-age=31536000, immutable"]
         else:
             print(f"  {wasm.name} carries no content hash, so it is not cached long")
+    # The icon data's directory is named for what is in it, as the binaries
+    # are; `manifest.txt` beside it, which names it, is not cached long.
+    manifest = site / "icons/manifest.txt"
+    if manifest.is_file():
+        lines += [f"/{prefix}/icons/{manifest.read_text().strip()}/*", "  Cache-Control: private, max-age=31536000, immutable"]
     # Plain text, not `text/markdown`: a browser shows the one and offers to
     # download the other, and "Open as text" is for reading and find-in-page.
     for text in ("md/*", "llms.txt", "llms-full.txt"):
@@ -480,6 +495,7 @@ def main() -> int:
     parser.add_argument("--base-url", default=SITE_URL, help="where the site is read; its path is the prefix")
     parser.add_argument("--text-only", action="store_true", help="write and check the text mirror alone")
     parser.add_argument("--check", action="store_true", help="check what is already laid out; write nothing")
+    parser.add_argument("--icons-tarball", default=None, help="the @tabler/icons release, rather than fetching it")
     options = parser.parse_args()
 
     base_url = options.base_url.rstrip("/") + "/"
@@ -494,6 +510,7 @@ def main() -> int:
                 check(site)
             except SystemExit:
                 problems.append("the preloads above do not check out")
+            problems += icondata.check(site / "icons")
         if deploy:
             problems += check_deploy(deploy, prefix, base_url)
         report(problems)
@@ -547,6 +564,8 @@ def main() -> int:
     count = write_mirror(site, base_url)
     report(check_mirror(site, base_url))
 
+    icons = icondata.write(site / "icons", pathlib.Path(options.icons_tarball) if options.icons_tarball else None)
+
     if deploy:
         write_deploy(site, deploy, prefix, base_url)
         report(check_deploy(deploy, prefix, base_url))
@@ -556,6 +575,7 @@ def main() -> int:
         print(f"  {path.stat().st_size:10,}  {path.name}")
     print(f"\n  {len(tags)} preloads, all as=\"fetch\", all naming files that exist")
     print(f"  {count} pages mirrored as Markdown under md/, indexed in llms.txt")
+    print(f"  the icon browser's data under icons/{icons}/, {len(list((site / 'icons' / icons).rglob('*.txt')))} files")
     if deploy:
         print(f"  the upload is {deploy}, the site at {deploy}/{prefix}/ for {base_url}")
     return 0

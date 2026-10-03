@@ -45,7 +45,10 @@ window because a bar there eats the dimension there is least of. A
 [`TopBar`](top-bar.md) is a title and its actions, never a place for destinations.
 
 **The bar overlays the content** rather than sitting below it; the scaffold hands
-your content the padding to inset by. A rail sits beside the content and hands it
+your content the padding to inset by — and to anything inside it, a page a
+navigation host shows, through `navigationSuitePadding()`. With Navigation 3,
+[`rememberNavigationSuiteSceneStrategy`](../navigation3.md#pages-inside-the-nav-bar-and-pages-over-it)
+puts the scaffold round one back stack, with pages over it as well. A rail sits beside the content and hands it
 none.
 
 ### The modal rail

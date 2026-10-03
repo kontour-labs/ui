@@ -4,6 +4,10 @@ Grows between the bounds in its `lineLimits`, three lines to eight by default,
 then scrolls internally. Growing rather than scrolling from the first line is
 what lets a two-line note stay visible while a long one stays contained.
 
+An empty area shows its `placeholder` where the text will start: at the top, at
+the start edge (the right, right to left), wrapped over the lines the area
+starts with.
+
 <!--sample:TextAreaBasics-->
 ```kotlin
 val note = rememberTextFieldState()

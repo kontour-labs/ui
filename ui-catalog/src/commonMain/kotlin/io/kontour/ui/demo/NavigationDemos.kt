@@ -21,19 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bell
-import com.composables.icons.tabler.outline.Calendar
-import com.composables.icons.tabler.outline.DotsVertical
-import com.composables.icons.tabler.outline.Home
-import com.composables.icons.tabler.outline.Map
-import com.composables.icons.tabler.outline.Pin
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Search
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Ticket
-import com.composables.icons.tabler.outline.Trash
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bell
+import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.DotsVertical
+import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Map
+import io.kontour.icons.tabler.outline.Pin
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Search
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Ticket
+import io.kontour.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.outline.User
+import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -46,6 +47,7 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarMarkerDrag
 import io.kontour.ui.nav.NavBarDefaults
 import io.kontour.ui.nav.NavBarItemWidth
 import io.kontour.ui.nav.NavBarStyle
@@ -59,22 +61,29 @@ import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.Tab
 import io.kontour.ui.nav.TabBar
 import io.kontour.ui.nav.TopBar
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.WindowInsets
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.sheet.SheetSide
 import io.kontour.ui.components.display.Badge
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.composables.icons.tabler.outline.Route
+import io.kontour.icons.tabler.outline.Route
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.listSection
 
 /**
  * A bordered box a navigation surface can fill.
@@ -205,8 +214,17 @@ private val barMarker = Knob.Choice("Marker", listOf(true, false), name = { if (
 /** The capsule, or a rounded rectangle. */
 private val barRounded = Knob.Choice("Shape", listOf(false, true), name = { if (it) "Rounded" else "Default" })
 
-/** Drag the marker along the bar, and let go on a destination to go there. */
-private val barDrag = Knob.Flag("Drag the marker", initial = true)
+/**
+ * Drag the marker along the bar: off, choosing the destination it is let go
+ * on, or choosing each one as it gets there.
+ */
+private val barDrag = Knob.Choice("Drag the marker", NavBarMarkerDrag.entries.toList(), NavBarMarkerDrag.SelectOnRelease, name = ::markerDragName)
+
+private fun markerDragName(drag: NavBarMarkerDrag): String = when (drag) {
+    NavBarMarkerDrag.Off -> "Off"
+    NavBarMarkerDrag.SelectOnRelease -> "Choose on lift"
+    NavBarMarkerDrag.SelectWhileDragging -> "Choose while dragging"
+}
 
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
@@ -229,7 +247,7 @@ internal val NavBarDemo = ComponentDemo(
                 } else {
                     NavBarDefaults.glyphMarker()
                 },
-                markerDraggable = this@ComponentDemo[barDrag],
+                markerDrag = this@ComponentDemo[barDrag],
                 action = if (this@ComponentDemo[barAction]) {
                     {
                         FloatingActionButton(
@@ -416,42 +434,92 @@ internal val NavigationSuiteScaffoldDemo = ComponentDemo(
 
 private val topBarStyle = Knob.Choice("Style", TopBarStyle.entries.toList(), TopBarStyle.Small)
 private val topBarBack = Knob.Flag("Back", initial = true)
+private val topBarFade = Knob.Flag("Fade under", initial = false)
+
+/** How far a Large or Hero bar opens: the style's own, or a height asked for. */
+private val topBarOpen = Knob.Choice(
+    "Open height",
+    listOf<Dp?>(null, 280.dp, 440.dp),
+    null,
+    name = { it?.let { height -> "${height.value.roundToInt()}dp" } ?: "Default" },
+)
 
 internal val TopBarDemo = ComponentDemo(
     slug = "top-bar",
-    knobs = listOf(topBarStyle, topBarBack),
+    knobs = listOf(topBarStyle, topBarBack, topBarOpen, topBarFade),
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
+    val open = this[topBarOpen]
+    val fade = this[topBarFade]
+    val tall = style == TopBarStyle.Hero || (style == TopBarStyle.Large && open != null)
     // Over a list that scrolls, which is the only way to see a Large bar
     // collapse: the bar takes the scroll until its title has gone up into
-    // the first line, then the rows move.
+    // the first line, then the rows move. And the list under the bar, padded
+    // by its height, so there is something to fade under it.
     val collapse = rememberTopBarCollapseState()
-    Frame(height = 320.dp) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(Theme.colours.background)
-                .nestedScroll(collapse.nestedScrollConnection),
-        ) {
-            TopBar(
-                style = style,
-                onBack = if (back) ({ echo("Back") }) else null,
-                showDivider = true,
-                actions = { OverflowMenu(::echo) },
-                collapseState = collapse,
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
-            }
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(12) { index ->
-                    ListItem {
+    Frame(height = if (tall) 560.dp else 320.dp) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(collapse.nestedScrollConnection),
+            topBar = {
+                TopBar(
+                    style = style,
+                    onBack = if (back) ({ echo("Back") }) else null,
+                    // A line where the fade starts would undo it.
+                    showDivider = style != TopBarStyle.Hero && !fade,
+                    fadeUnder = fade,
+                    actions = { OverflowMenu(::echo) },
+                    image = { DuskOverTheRiver() },
+                    expandedHeight = open ?: Dp.Unspecified,
+                    collapseState = collapse,
+                    // Not at the top of the window: a card on a page. Left to the
+                    // default, the bar padded itself by the status bar's height in
+                    // the middle of the page, which over a picture put its buttons
+                    // well down it.
+                    windowInsets = WindowInsets(0),
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Platform 2 · Joondalup line" }
+                }
+            },
+            windowInsets = WindowInsets(0),
+        ) { padding ->
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+                // One group, a list item's gap between its rows.
+                listSection(List(12) { it }) { index, position ->
+                    ListItem(position = position) {
                         +"Departure ${index + 1}"
                         supporting { +"${4 + index * 6} min · Joondalup" }
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * A dusk over the river, drawn: a sky pale at the top and deep at the foot, a
+ * low sun, and a city's edge along the bottom — so the fade under a hero's
+ * title has something busy to soften, the way a photograph would.
+ */
+@Composable
+private fun DuskOverTheRiver() {
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(Brush.verticalGradient(listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF6B3F69), Color(0xFF2B1F4A))))
+        drawCircle(Color(0xFFFFF1C1), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.72f, size.height * 0.58f))
+        // Towers of different heights and widths, bright windows on some.
+        val ground = size.height
+        var x = 0f
+        var i = 0
+        while (x < size.width) {
+            val w = size.width * (0.05f + 0.04f * ((i * 7) % 5) / 4f)
+            val h = size.height * (0.12f + 0.22f * ((i * 3) % 7) / 6f)
+            drawRect(Color(0xFF1B1430), topLeft = Offset(x, ground - h), size = Size(w, h))
+            if (i % 2 == 0) {
+                drawRect(Color(0xFFFFD27A), topLeft = Offset(x + w * 0.3f, ground - h * 0.8f), size = Size(w * 0.18f, h * 0.08f))
+            }
+            x += w + size.width * 0.008f
+            i++
         }
     }
 }

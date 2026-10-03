@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.error as semanticsError
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
@@ -207,9 +208,19 @@ fun TextField(
         val contentColour = if (enabled) colours.content else colours.contentDisabled
         val parts = LocalFieldParts.current
 
+        // The input and its placeholder at the top start of the box they
+        // share — the top left, or the top right right to left — which is
+        // where the text starts. Centred, a text area's hint floated a line or
+        // more below where the first character goes: *"in large text fields,
+        // the placeholder text is centred. it should be top-left aligned …
+        // like the text itself."* A single-line field's box is one line tall
+        // either way, but an empty input measures a pixel shorter than one
+        // with a character in it, which the hint does not: centred, the empty
+        // input and its caret sat a pixel below the hint, and jumped up a
+        // pixel at the first character.
         Box(
             Modifier.weight(1f).then(if (parts != null) Modifier.onPlaced(parts.text) else Modifier),
-            contentAlignment = Alignment.CenterStart,
+            contentAlignment = Alignment.TopStart,
         ) {
             CompositionLocalProvider(
                 LocalTextSelectionColors provides selectionColours,
@@ -269,8 +280,16 @@ fun TextField(
                 Text(
                     text = placeholder,
                     style = Theme.typography.bodyMedium,
-                    colour = colours.placeholder,
-                    maxLines = 1,
+                    // The disabled grey when disabled, as the text it stands in
+                    // for is. It kept its own colour, darker than that grey, so
+                    // an empty disabled field said more than a filled one.
+                    colour = if (enabled) colours.placeholder else colours.contentDisabled,
+                    // Over the lines an empty area already has, and no more: a
+                    // hint taller than that would grow the empty field, which
+                    // would then shrink a line at the first keystroke. One line
+                    // in a single-line field, as before.
+                    maxLines = (lineLimits as? TextFieldLineLimits.MultiLine)?.minHeightInLines ?: 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

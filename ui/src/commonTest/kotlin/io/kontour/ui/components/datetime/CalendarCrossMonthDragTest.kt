@@ -11,10 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -218,13 +220,61 @@ class CalendarCrossMonthDragTest {
         assertEquals(LocalDate(2026, 1, 1), navigation.visibleMonth, "off the arrow and back on, it did not page")
     }
 
+    /**
+     * Paged into a month whose days stop on the 2nd, the range reaches the 2nd
+     * and no further, and none of the days past it are painted.
+     *
+     * Reported from the gallery's chat filter, which stops at today: *"if today
+     * is early in the month and i move across from last month with the little
+     * "arrow" drag thing, then it has the whole next month selected, and it only
+     * deselects if i move to a date that is selectable"*. The range stayed at
+     * August's 31st, and the band at the row the 31st had in August, which
+     * painted September down to there.
+     */
+    @Test
+    fun pagedIntoDaysItMayNotHaveTheRangeStopsAtTheLastItMay() = runComposeUiTest {
+        val picked = Picked()
+        val lastSelectable = LocalDate(2026, 9, 2)
+        val navigation = picker(LocalDate(2026, 8, 1), picked, isDateSelectable = { it <= lastSelectable })
+        val from = centreOf(20)
+        val last = centreOf(31)
+        val arrow = last + Offset(cellWidth(), 0f)
+        onRoot().performTouchInput {
+            down(0, from)
+            steps(from, last) { moveTo(0, it) }
+            moveTo(0, arrow)
+        }
+        mainClock.advanceTimeBy(DwellMillis + 300L)
+        assertEquals(LocalDate(2026, 9, 1), navigation.visibleMonth, "dwelling on the arrow did not page")
+        assertEquals(LocalDate(2026, 8, 20) to lastSelectable, picked.range, "paged in over days it may not have")
+
+        // Over the 24th, which it may not have either, and between the 15th and
+        // 16th, which are in no range: nothing there while the finger is down
+        // that is not there once it is up.
+        val past = centreOf(24)
+        onRoot().performTouchInput { moveTo(0, past) }
+        mainClock.advanceTimeBy(300L)
+        assertEquals(LocalDate(2026, 8, 20) to lastSelectable, picked.range, "over a day further on it may not have")
+        val between = (centreOf(15) + centreOf(16)) / 2f
+        val held = onRoot().captureToImage().toPixelMap()[between.x.toInt(), between.y.toInt()]
+        onRoot().performTouchInput { up(0) }
+        mainClock.advanceTimeBy(600L)
+        val after = onRoot().captureToImage().toPixelMap()[between.x.toInt(), between.y.toInt()]
+        assertEquals(after, held, "the band is painted over the 15th and 16th, which the range does not reach")
+        assertEquals(LocalDate(2026, 8, 20) to lastSelectable, picked.range)
+    }
+
     private class Picked {
         var start: LocalDate? = null
         var end: LocalDate? = null
         val range get() = start to end
     }
 
-    private fun ComposeUiTest.picker(month: LocalDate, picked: Picked): CalendarNavigationState {
+    private fun ComposeUiTest.picker(
+        month: LocalDate,
+        picked: Picked,
+        isDateSelectable: (LocalDate) -> Boolean = { true },
+    ): CalendarNavigationState {
         lateinit var navigation: CalendarNavigationState
         setContent {
             KontourTheme {
@@ -245,6 +295,7 @@ class CalendarCrossMonthDragTest {
                         nextIcon = Arrow,
                         navigation = navigation,
                         firstDayOfWeek = DayOfWeek.MONDAY,
+                        isDateSelectable = isDateSelectable,
                     )
                 }
             }

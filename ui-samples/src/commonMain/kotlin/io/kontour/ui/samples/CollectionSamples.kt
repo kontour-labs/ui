@@ -1,10 +1,10 @@
 package io.kontour.ui.samples
 
-import com.composables.icons.tabler.outline.HelpCircle
+import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -13,14 +13,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronRight
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.theme.Theme
+import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.listSection
+import io.kontour.ui.components.list.IndexScroller
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.components.list.IndexScrollerDefaults
+import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
@@ -49,12 +57,13 @@ import io.kontour.ui.components.table.SortDirection
 @Composable
 fun ListItemBasics(stops: List<Stop>) {
     LazyColumn {
-        itemsIndexed(stops) { index, stop ->
+        // A section puts a list item's gap between the rows and hands each its
+        // position, which rounds the outside corners of the group and leaves
+        // the seams square, so a run of rows reads as one block.
+        listSection(stops, key = { it.name }) { stop, position ->
             ListItem(
                 onClick = { openStop(stop.name) },
-                // Rounds the outside corners of the group and leaves the seams
-                // square, so a run of rows reads as one block.
-                position = GroupPosition.of(index, stops.size),
+                position = position,
             ) {
                 leading { +Tabler.Outline.Bus }
                 +stop.name
@@ -87,10 +96,11 @@ fun ReorderableList(initial: List<Stop>) {
         stops = stops.toMutableList().apply { add(to, removeAt(from)) }
     }
 
-    LazyColumn(state = listState) {
+    // One group: a list item's gap between the rows, each in its place.
+    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
         itemsIndexed(stops, key = { _, stop -> stop.name }) { index, stop ->
             ReorderableItem(state = reorder, index = index, itemCount = stops.size) {
-                ListItem { +stop.name }
+                ListItem(position = GroupPosition.of(index, stops.size)) { +stop.name }
             }
         }
     }
@@ -100,8 +110,8 @@ fun ReorderableList(initial: List<Stop>) {
 fun PullToRefreshBasics(refreshing: Boolean, stops: List<Stop>) {
     PullToRefresh(refreshing = refreshing, onRefresh = { refresh() }) {
         LazyColumn {
-            items(stops) { stop ->
-                ListItem { +stop.name }
+            listSection(stops) { stop, position ->
+                ListItem(position = position) { +stop.name }
             }
         }
     }
@@ -114,21 +124,25 @@ data class Stop(val name: String, val routes: Int)
 fun ExpandingListItemBasics() {
     var open by remember { mutableStateOf(false) }
 
+    // One group: the expanding row takes its place in it like any other.
     ListGroup {
         item(label = "Elizabeth Quay", supporting = "3 routes")
-    }
-    ExpandingListItem(
-        expanded = open,
-        onExpandedChange = { open = it },
-        chevron = Tabler.Outline.ChevronDown,
-        header = {
-            leading { +Tabler.Outline.Bus }
-            +"Perth Underground"
-            supporting { +"4 platforms" }
-        },
-    ) {
-        item(label = "Platform 1", supporting = "Mandurah line")
-        item(label = "Platform 2", supporting = "Joondalup line")
+        item { position ->
+            ExpandingListItem(
+                expanded = open,
+                onExpandedChange = { open = it },
+                position = position,
+                chevron = Tabler.Outline.ChevronDown,
+                header = {
+                    leading { +Tabler.Outline.Bus }
+                    +"Perth Underground"
+                    supporting { +"4 platforms" }
+                },
+            ) {
+                item(label = "Platform 1", supporting = "Mandurah line")
+                item(label = "Platform 2", supporting = "Joondalup line")
+            }
+        }
     }
 }
 
@@ -173,6 +187,30 @@ fun ListSectionBasics() {
 }
 
 @Composable
+fun ListSectionLazy(favourites: List<Stop>, nearby: List<Stop>) {
+    // Sections in a lazy list. Each draws its heading, its rows a hairline
+    // apart with their corners worked out, and the space before the next —
+    // so the `LazyColumn` sets no `verticalArrangement` of its own.
+    LazyColumn {
+        listSection(favourites, key = { it.name }, sectionKey = "favourites", title = { +"Favourites" }) { stop, position ->
+            ListItem(onClick = { save() }, position = position) { +stop.name }
+        }
+        listSection(
+            nearby,
+            key = { it.name },
+            sectionKey = "nearby",
+            title = { +"Nearby" },
+            footer = { +"Within a ten-minute walk." },
+        ) { stop, position ->
+            ListItem(onClick = { save() }, position = position) {
+                +stop.name
+                supporting { +"${stop.routes} routes" }
+            }
+        }
+    }
+}
+
+@Composable
 fun LoadMoreBasics() {
     var status by remember { mutableStateOf(LoadMoreStatus.Idle) }
 
@@ -196,6 +234,30 @@ fun ScrollbarBasics() {
         // It hides itself unless the pointer can hover, so it costs a touch user
         // nothing. `alwaysVisible` is for a pane where the scroll is the point.
         Scrollbar(state = scroll, modifier = Modifier.align(Alignment.CenterEnd))
+    }
+}
+
+@Composable
+fun IndexScrollerBasics(stops: List<Stop>) {
+    val formats = Theme.formats
+    val alphabet = IndexAlphabet.forLocale(Theme.locale)
+    // Grouped under the reader's alphabet, with where each group starts in
+    // the list: one header item and its rows.
+    val indexed = remember(stops, alphabet, formats) { stops.indexedBy(alphabet, formats) { it.name } }
+    val list = rememberLazyListState()
+
+    Box {
+        // Room at the end for the letters, so no row runs under them.
+        LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
+            // A section a letter: a header item and its rows, grouped, which
+            // is what `indexedBy` counted.
+            indexed.groups.forEach { group ->
+                listSection(group.items, key = { it.name }, title = { +group.label }) { stop, position ->
+                    ListItem(position = position) { +stop.name }
+                }
+            }
+        }
+        IndexScroller(list, indexed.sections, Modifier.align(Alignment.CenterEnd), alphabet = alphabet)
     }
 }
 

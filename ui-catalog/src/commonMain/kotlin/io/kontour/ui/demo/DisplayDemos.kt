@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,15 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.AlertTriangle
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.Check
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Train
-import com.composables.icons.tabler.outline.User
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Train
+import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
@@ -39,6 +40,8 @@ import io.kontour.ui.components.display.AvatarCorner
 import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.CircularStepProgress
+import io.kontour.ui.components.display.ProgressDefaults
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
@@ -82,6 +85,7 @@ import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Text
@@ -200,9 +204,13 @@ private val avatarDecorations = Knob.Choice(
     name = { it },
 )
 
-internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize, avatarDecorations)) {
+/** A ring round each avatar, in the accent. */
+private val avatarBorder = Knob.Flag("Border")
+
+internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize, avatarDecorations, avatarBorder)) {
     val size = this[avatarSize]
     val decorated = this[avatarDecorations]
+    val border = if (this[avatarBorder]) BorderStroke(Theme.sizing.borderWidthStrong, Theme.colours.accent.solid) else null
     val online = Theme.colours.success.solid
     val decorations: (AvatarDecorationScope.() -> Unit)? = if (decorated == "None") {
         null
@@ -223,9 +231,9 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(name = "Aaron", size = size, decorations = decorations)
-        Avatar(name = "Jamie Lee", size = size, decorations = decorations)
-        Avatar(fallbackIcon = Tabler.Outline.User, size = size, decorations = decorations)
+        Avatar(name = "Aaron", size = size, border = border, decorations = decorations)
+        Avatar(name = "Jamie Lee", size = size, border = border, decorations = decorations)
+        Avatar(fallbackIcon = Tabler.Outline.User, size = size, border = border, decorations = decorations)
         AvatarGroup(names = listOf("Aaron", "Sunny", "Jamie", "Kit", "Robin", "Sam"), size = size)
     }
 }
@@ -233,12 +241,16 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
 private val progressIndeterminate = Knob.Flag("Indeterminate")
 private val progressWorking = Knob.Flag("Step working")
 
+/** `gap = 0.dp`: the steps as one continuous bar, with no seams between them. */
+private val progressGapless = Knob.Flag("No gap")
+
 internal val ProgressDemo = ComponentDemo(
     slug = "progress",
-    knobs = listOf(progressIndeterminate, progressWorking),
+    knobs = listOf(progressIndeterminate, progressWorking, progressGapless),
 ) {
     val indeterminate = this[progressIndeterminate]
     val working = this[progressWorking]
+    val gap = if (this[progressGapless]) 0.dp else ProgressDefaults.StepGap
     var step by remember { mutableStateOf(2) }
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -258,6 +270,13 @@ internal val ProgressDemo = ComponentDemo(
             // the knob reaches all three, and the third of them is a different
             // component drawn in the ring's place.
             CircularProgress(progress = if (indeterminate) null else 0.35f)
+            // The same steps as the row beside it, round a ring.
+            CircularStepProgress(
+                current = if (indeterminate) null else step,
+                total = 4,
+                working = working,
+                gap = gap,
+            )
             // Two unknowns, and the knobs show they are different. No current
             // step walks one lit segment along the row — "somewhere in this
             // sequence, not yet known". `working` keeps the step and animates
@@ -268,6 +287,7 @@ internal val ProgressDemo = ComponentDemo(
                 current = if (indeterminate) null else step,
                 total = 4,
                 working = working,
+                gap = gap,
                 modifier = Modifier.weight(1f),
             )
             Button(
@@ -540,13 +560,13 @@ internal val RedactionDemo = ComponentDemo(
     // is a second, placeholder-shaped copy of the layout — flip the knob and the
     // ink comes back.
     Redacted(this[redactionOn]) {
-        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
-            ListItem {
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+            ListItem(position = GroupPosition.First) {
                 +"Perth Underground"
                 supporting { +"08:14 · Platform 2 · on time" }
                 leading { +Tabler.Outline.Train }
             }
-            ListItem {
+            ListItem(position = GroupPosition.Last) {
                 +"Elizabeth Quay"
                 supporting { +"A longer line, so the bar under it wraps and the second one comes out short" }
                 leading { +Tabler.Outline.Bus }

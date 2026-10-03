@@ -1,7 +1,7 @@
 # `TopBar`
 
-Title and actions. Three styles from `TopBarStyle`: `Small`, `Centred` and
-`Large`. `Centred` centres the title on the bar where it fits — the title alone
+Title and actions. Four styles from `TopBarStyle`: `Small`, `Centred`, `Large`
+and `Hero`. `Centred` centres the title on the bar where it fits — the title alone
 decides, and a subtitle under it is fitted to the same width with an ellipsis —
 and where the controls leave it too little room it is laid out exactly as
 `Small`, against the leading controls — never centred in what was left over.
@@ -58,6 +58,97 @@ collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
 for a bar drawn over its list rather than above it, and
 `collapseProgress(scrolled, distance)` from any two numbers.
 
+### `Hero`: a large bar over a picture
+
+<!--sample:TopBarHeroCollapsing-->
+```kotlin
+val collapse = rememberTopBarCollapseState()
+
+Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+    // The picture runs under the status bar and fades into the bar's colour
+    // under the title, and the bar collapses as a Large one does.
+    TopBar(
+        style = TopBarStyle.Hero,
+        onBack = { back() },
+        image = { StopPhoto(Modifier.fillMaxSize()) },
+        collapseState = collapse,
+    ) {
+        +"Kings Park"
+        supporting { +"Fraser Avenue" }
+    }
+    LazyColumn {
+        stopRows()
+    }
+}
+```
+
+A `Large` bar with a picture behind it, for the page of a place, a person or an
+album: `style = TopBarStyle.Hero` and the picture as `image`. The picture runs to
+the window's top, under the status bar, and is `expandedHeight` tall —
+`TopBarDefaults.HeroHeight`, 360dp, about half a phone, unless you say — or
+taller if the title needs it. The controls stay below the status bar, and the
+title rests at the foot, as a `Large` bar's does.
+
+**The picture runs under the title and fades into the bar's colour.** It is
+left alone down to a little above the title, then eases into the bar's
+background — most of the way by the title's top, and the bar's colour alone by
+the subtitle — so the title and subtitle stand over the fade in the bar's own
+ink, and the page below starts where the picture ends with no line between
+them. A scrim that darkened the picture under the title was tried first, and
+read as a dark band that the picture stopped short of.
+
+**The controls carry their own ground.** Over the picture, the back button and
+each action sit on a disc of the bar's colour, so a dark glyph is not lost on a
+dark photograph. The discs go as the bar collapses.
+
+**It collapses as `Large` does**, with the same `collapseState` or
+`collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
+travels into the first line, the picture rises behind the bar at half the speed
+and fades out over the second half of the way.
+
+**Without an `image`** it is a `Large` bar that opens to the hero's height, so a
+page whose picture is sometimes missing keeps its shape. `expandedHeight` works
+on `Large` too, as the least it opens to, with the title resting at the foot of
+the extra; `Small` and `Centred` ignore it, and only `Hero` draws an `image`.
+
+### Content fading under the bar
+
+`fadeUnder = true` lets content pass *under* the bar fading out, rather than
+stopping square at its foot: the bar's ground thins out over its last 12dp, so
+content shows faintly through there, and is gone 4dp past the foot — about
+where a divider would be. Any style; a collapsing bar's fade follows its foot.
+Off by default.
+
+The content has to be under the bar for it to fade there, so put the bar over
+it rather than above it in a `Column`. A [`Scaffold`](scaffold.md) does, and
+hands the content the bar's height to pad by:
+
+```kotlin
+Scaffold(
+    topBar = { TopBar(fadeUnder = true) { +"Departures" } },
+) { padding ->
+    LazyColumn(contentPadding = padding) { … }
+}
+```
+
+The fade is only drawn: a tap on a row under it reaches the row. A
+`showDivider` line at the foot is where the fade starts, so the two rarely want
+to be together.
+
+### The back button
+
+`onBack = null` draws no back button. In a page that a navigation host shows,
+pass `pageBack()`, which is null exactly when back would not leave the page:
+
+```kotlin
+TopBar(onBack = pageBack()) { +"Perth Busport" }
+```
+
+Not `backStack.size > 1`. During a back gesture the back stack still holds the
+page being swiped away, and the page under it is already on screen, so a button
+shown by the stack's size appears on the root page while the gesture runs. See
+[Navigation 3](../navigation3.md#a-back-button-from-the-page).
+
 ---
 
 ## Accessibility
@@ -75,8 +166,25 @@ bar has collapsed.
 
 At high contrast the bar takes the enhanced scheme's colours and adds no edge of
 its own — it is the page's ground by default — and the rule `showDivider` draws
-under it thickens with the tier. The back button is a ghost
+under it thickens with the tier. `fadeUnder` draws no fade there: content stops
+square at the bar's foot, rather than passing under text through a wash of the
+bar's colour. The back button is a ghost
 [`IconButton`](icon-button.md), so it gains a ring there.
+
+A `Hero` bar's picture is hidden from screen readers: the title says what the
+page is about, and a picture behind a bar is decoration. Put a description of it
+in the page if it says something the title does not. At the title's top the
+fade leaves 40% of the picture, which gives the title's ink about 5:1 over the
+worst of pictures — large type needs 3:1 — and the subtitle is on the bar's
+colour alone. At high contrast the fade is a solid band of the bar's colour
+under the words, with nothing of the picture behind them, and the discs behind
+the controls take an edge. Under reduced motion the
+picture does not rise as the bar collapses; it fades where it is.
+
+`windowInsets` is for a bar at the top of the window. **A bar anywhere else — in
+a card, a sheet, a demo on a page — passes `WindowInsets(0)`**, or it pads itself
+by the status bar's height wherever it is; over a `Hero` picture that put the
+buttons well down it.
 
 Reduced motion leaves the large title's collapse as it is: it is driven by the
 scroll position rather than by a clock, so the title moves only as the content

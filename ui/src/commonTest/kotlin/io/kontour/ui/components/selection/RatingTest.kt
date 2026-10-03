@@ -1,5 +1,14 @@
 package io.kontour.ui.components.selection
 
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.theme.ContrastLevel
+import io.kontour.ui.theme.kontourSizing
+import kotlin.test.assertTrue
+import io.kontour.ui.theme.Theme
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.InputModality
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -209,5 +218,44 @@ class RatingTest {
         }
 
         onAllNodes(hasClickAction()).assertCountEquals(5)
+    }
+
+    /**
+     * On a touch screen the stars sit [RatingDefaults.Gap] apart, and the row
+     * is still a whole target tall.
+     *
+     * *"it's always bugged me how much gap there is between the stars by
+     * default"*: each 24dp star reserved a 48dp target of its own, so on a
+     * phone there was 28dp of air between one and the next. The row takes every
+     * press itself, so it owns the target now and the stars sit together.
+     */
+    @Test
+    fun onATouchScreenTheStarsSitAGapApart() = runComposeUiTest {
+        var star = 0f
+        var gap = 0f
+        var target = 0f
+        setContent {
+            // A phone's target: the JVM's own is 24dp, which a 24dp star clears.
+            KontourTheme(sizing = kontourSizing(ContrastLevel.Standard).copy(minTouchTarget = 48.dp)) {
+                CompositionLocalProvider(LocalInputModality provides InputModality.Touch) {
+                    with(LocalDensity.current) {
+                        star = Theme.sizing.iconLarge.toPx()
+                        gap = RatingDefaults.Gap.toPx()
+                        target = Theme.sizing.minTouchTarget.toPx()
+                    }
+                    Rating(
+                        value = 2f,
+                        contentDescription = "Your rating",
+                        onValueChange = {},
+                        modifier = Modifier.testTag("rating"),
+                    )
+                }
+            }
+        }
+        val marks = onAllNodes(hasClickAction()).fetchSemanticsNodes().map { it.boundsInRoot }.sortedBy { it.left }
+        val pitch = marks[1].center.x - marks[0].center.x
+        assertTrue(pitch <= star + gap + 1f, "the stars are ${pitch - star}px apart, against a ${gap}px gap")
+        val row = onNodeWithTag("rating").fetchSemanticsNode().boundsInRoot
+        assertTrue(row.height >= target - 0.5f, "the row is ${row.height}px tall, less than a ${target}px target")
     }
 }

@@ -68,6 +68,8 @@ data class Strings(
     val confirm: String = "Confirm",
     /** Acknowledges a coach mark. Deliberately warmer than "Dismiss". */
     val gotIt: String = "Got it",
+    /** Ends a tour of coach marks, on its last step: the way out after "Next". */
+    val done: String = "Done",
     val expandSheet: String = "Expand sheet",
     val collapseSheet: String = "Collapse sheet",
     /** A menu's dismiss affordance, for assistive technology. */
@@ -267,6 +269,16 @@ data class Strings(
     },
     /** A week of an activity calendar, named by the day it starts. */
     val weekOf: (date: String) -> String = { date -> "Week of $date" },
+
+    // Index scroller
+    /** The rail of letters beside a long list, as a screen reader names it. */
+    val sectionIndex: String = "Section index",
+    /** The rail's last label — `#` — said aloud: whatever no letter took. */
+    val otherSection: String = "Other",
+    /** Moving the rail on by one section. */
+    val nextSection: String = "Next section",
+    /** And back. */
+    val previousSection: String = "Previous section",
 ) {
     companion object {
         /**
@@ -299,6 +311,7 @@ data class Strings(
         cancel = lookup.text("cancel") ?: fallback.cancel,
         confirm = lookup.text("confirm") ?: fallback.confirm,
         gotIt = lookup.text("gotIt") ?: fallback.gotIt,
+        done = lookup.text("done") ?: fallback.done,
         expandSheet = lookup.text("expandSheet") ?: fallback.expandSheet,
         collapseSheet = lookup.text("collapseSheet") ?: fallback.collapseSheet,
         closeMenu = lookup.text("closeMenu") ?: fallback.closeMenu,
@@ -389,6 +402,10 @@ data class Strings(
                 ?: fallback.activityOnDay(count, date)
         },
         weekOf = { date -> lookup.phrase("weekOf", null, date) ?: fallback.weekOf(date) },
+        sectionIndex = lookup.text("sectionIndex") ?: fallback.sectionIndex,
+        otherSection = lookup.text("otherSection") ?: fallback.otherSection,
+        nextSection = lookup.text("nextSection") ?: fallback.nextSection,
+        previousSection = lookup.text("previousSection") ?: fallback.previousSection,
         )
     }
 }
@@ -471,6 +488,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     cancel = transform(cancel),
     confirm = transform(confirm),
     gotIt = transform(gotIt),
+    done = transform(done),
     expandSheet = transform(expandSheet),
     collapseSheet = transform(collapseSheet),
     closeMenu = transform(closeMenu),
@@ -554,4 +572,8 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     activityMore = transform(activityMore),
     activityOnDay = { a0, a1 -> transform(activityOnDay(a0, a1)) },
     weekOf = { a0 -> transform(weekOf(a0)) },
+    sectionIndex = transform(sectionIndex),
+    otherSection = transform(otherSection),
+    nextSection = transform(nextSection),
+    previousSection = transform(previousSection),
 )

@@ -42,6 +42,11 @@ is where it goes. It used to appear over the page with nothing joining it to
 what was tapped. `NavExpandingSlot` does the same with a panel that has no
 field, growing into the panel itself.
 
+Either way the panel keeps clear of the status bar, the gesture bar and the
+keyboard, all of them, since whichever end it stands on, its results grow
+towards the other. `windowInsets` narrows that where something round the bar
+already clears an edge.
+
 The pill is a recess in the surface it sits on — `surfaceSunken` in a bar and a
 rail alike, since both have a ground now — and raised `surface` outside one.
 

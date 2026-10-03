@@ -33,9 +33,14 @@ focus and error, is read by `FieldScaffold` to set the control's accessible name
 and has nowhere to put a composable. That is the exception the [`+` vocabulary](../dsls.md) does not
 cover, and it is deliberate.
 
-Two variants from `TextFieldVariant`: `Outlined` and `Filled`. `Filled` gains an
-`outline` border at the high-contrast tier, since a filled field on a filled
-surface is otherwise two tones with no boundary.
+Three variants from `TextFieldVariant`: `Outlined`, `Filled` and `Plain`.
+`Filled` gains an `outline` border at the high-contrast tier, since a filled
+field on a filled surface is otherwise two tones with no boundary. `Plain` has
+no ground and no edge at rest — the value and its icons alone — and is for a
+select whose place already says what it is, at the end of a row or in a
+sentence; focus brings back the tint and the accent edge, an error its edge,
+and high contrast keeps the edge. A text field with nothing round it is hard to
+find on a page, so think twice before using it on one.
 
 ### The keyboard
 
@@ -55,7 +60,8 @@ keyboard's height of blank space between the keyboard and the field:
   keyboard.
 - **Android:** `android:windowSoftInputMode="adjustResize"` on the activity, and
   `enableEdgeToEdge()`, so the window reports the keyboard as an inset instead of
-  panning the window under it.
+  panning the window under it. A debuggable app whose window pans, or has not
+  said, gets one line in its log saying so.
 
 The catalog's hosts do both.
 
@@ -85,7 +91,8 @@ line height every time validation flips.
 
 At high contrast the border is drawn thicker — 2dp at rest and 3dp focused or in
 error, against 1 and 2 — in the enhanced scheme's colours, and a `Filled` field
-gains an edge round its sunken fill that it has at no other tier.
+gains an edge round its sunken fill that it has at no other tier. A `Plain`
+field gains one too, round nothing.
 
 Under reduced motion the helper or error line takes its room at once and fades
 in, rather than growing open; the border, ground and label change colour over a

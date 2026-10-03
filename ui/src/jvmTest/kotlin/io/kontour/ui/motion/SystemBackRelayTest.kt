@@ -158,6 +158,65 @@ class SystemBackRelayTest {
         assertTrue(flick < 12, "a flick released at 0.3 took $flick frames to finish")
     }
 
+    /**
+     * A quick swipe let go early leaves at speed, even when the platform's
+     * events were too few or too far apart for the last moment's speed to be
+     * measured.
+     *
+     * Reported from a phone: *"if i swipe back quickly using the side-gesture
+     * back button (and let go quickly), then sometimes it can feel really
+     * sluggish"*. The speed is read from the last 40ms of events, and a quick
+     * swipe on Android can leave fewer than two in it — one slow frame as the
+     * page behind is first drawn is enough. Measured as nothing, the release
+     * left from a standstill and eased in: under a hundredth of the way on its
+     * first frame, the page stopping on the finger's lift.
+     *
+     * Here the swipe reaches 0.12 in 60ms, as two events: too far apart for the
+     * last moment's speed, plain as a quick swipe over its whole length.
+     */
+    @Test
+    fun aQuickSwipeLetGoEarlyLeavesAtSpeed() = runComposeUiTest {
+        val rig = rig()
+        rig.platform.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f, 1_000L))
+        rig.platform.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, 0.12f, 0f, 0f, 1_060L))
+        rig.recorder.progress.clear()
+        rig.platform.backCompleted()
+        mainClock.advanceTimeByFrame()
+        val first = rig.recorder.progress.firstOrNull()
+        assertTrue(first != null, "nothing moved on the first frame after the finger lifted")
+        // Half of what the relay's least pace covers in a frame.
+        assertTrue(
+            first - 0.12f >= LeastFirstFrame,
+            "the first frame after letting go at 0.12 moved the page to $first, ${first - 0.12f} of the way: it stopped on the lift",
+        )
+        framesUntil { rig.recorder.completed > 0 }
+        assertEquals(1, rig.recorder.completed)
+    }
+
+    /**
+     * And when the platform's events cannot be timed at all — delivered
+     * together, as a slow frame does on a phone that stamps them on arrival —
+     * the release still does not start from a standstill.
+     */
+    @Test
+    fun aSwipeWhoseEventsCameTogetherStillLeavesMoving() = runComposeUiTest {
+        val rig = rig()
+        // No frame times: stamped on arrival, and they all arrive at once.
+        rig.platform.backStarted(NavigationEvent(NavigationEvent.EDGE_LEFT, 0f, 0f, 0f, 0L))
+        for (step in 1..4) rig.platform.backProgressed(NavigationEvent(NavigationEvent.EDGE_LEFT, 0.03f * step, 0f, 0f, 0L))
+        rig.recorder.progress.clear()
+        rig.platform.backCompleted()
+        mainClock.advanceTimeByFrame()
+        val first = rig.recorder.progress.firstOrNull()
+        assertTrue(first != null, "nothing moved on the first frame after the finger lifted")
+        assertTrue(
+            first - 0.12f >= LeastFirstFrame,
+            "the first frame after letting go at 0.12 moved the page to $first, ${first - 0.12f} of the way: it stopped on the lift",
+        )
+        framesUntil { rig.recorder.completed > 0 }
+        assertEquals(1, rig.recorder.completed)
+    }
+
     @Test
     fun letGoTheProgressKeepsRisingToTheEndBeforeItCompletes() = runComposeUiTest {
         val rig = rig()
@@ -241,5 +300,10 @@ class SystemBackRelayTest {
         framesUntil { rig.recorder.completed >= 2 }
         assertEquals(2, rig.recorder.completed, "two backs in quick succession went back ${rig.recorder.completed} times")
         assertEquals(1, rig.recorder.started, "the second gesture was relayed into the first")
+    }
+
+    private companion object {
+        /** Half a frame at the relay's least pace, 3.5 of the way a second. */
+        const val LeastFirstFrame = 0.028f
     }
 }

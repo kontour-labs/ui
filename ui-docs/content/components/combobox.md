@@ -41,7 +41,7 @@ each character arrives is very hard to follow without sight.
 it say what to do next rather than "No matches".
 
 At high contrast the field's border is drawn thicker in the enhanced scheme's
-colours, and a `Filled` field gains one it has at no other tier. The menu's
+colours, and a `Filled` or `Plain` field gains one it has at no other tier. The menu's
 border becomes the near-ink `outline`, and both it and the tick beside the
 chosen option are drawn thicker.
 

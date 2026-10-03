@@ -66,6 +66,12 @@ per row would be four for a gesture in which nothing was felt.
 is right when the value is one of a long ordered run and the user is adjusting
 it; a select is right when they are choosing from a list.
 
+**When it stops.** `onSelectedIndexChange` follows every row the drum passes;
+`onSelectedIndexChangeFinished` comes once it has come to rest after the reader
+turned it — a flick and its settle, a tapped row turning in. That is where
+anything that should happen once belongs. Setting `selectedIndex` from code is
+not the reader finishing.
+
 ---
 
 ## What it refuses

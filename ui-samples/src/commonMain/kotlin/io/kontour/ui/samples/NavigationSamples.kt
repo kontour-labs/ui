@@ -2,6 +2,7 @@ package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -11,19 +12,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Basket
-import com.composables.icons.tabler.outline.Bell
-import com.composables.icons.tabler.outline.Calendar
-import com.composables.icons.tabler.outline.Car
-import com.composables.icons.tabler.outline.Filter
-import com.composables.icons.tabler.outline.Home
-import com.composables.icons.tabler.outline.Map
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Route
-import com.composables.icons.tabler.outline.Search
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Basket
+import io.kontour.icons.tabler.outline.Bell
+import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.Car
+import io.kontour.icons.tabler.outline.Filter
+import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Map
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Route
+import io.kontour.icons.tabler.outline.Search
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Badge
@@ -64,6 +65,28 @@ fun TopBarCollapsing() {
         ) {
             +"Perth Underground"
             supporting { +"Platform 2" }
+        }
+        LazyColumn {
+            stopRows()
+        }
+    }
+}
+
+@Composable
+fun TopBarHeroCollapsing() {
+    val collapse = rememberTopBarCollapseState()
+
+    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+        // The picture runs under the status bar and fades into the bar's colour
+        // under the title, and the bar collapses as a Large one does.
+        TopBar(
+            style = TopBarStyle.Hero,
+            onBack = { back() },
+            image = { StopPhoto(Modifier.fillMaxSize()) },
+            collapseState = collapse,
+        ) {
+            +"Kings Park"
+            supporting { +"Fraser Avenue" }
         }
         LazyColumn {
             stopRows()

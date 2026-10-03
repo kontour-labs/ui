@@ -8,8 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.theme.ContrastLevel

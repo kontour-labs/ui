@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
+import io.kontour.ui.a11y.highContrast
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -18,9 +24,12 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.takeOrElse
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyListState
 import io.kontour.ui.components.action.IconButton
@@ -50,6 +59,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -95,6 +105,36 @@ enum class TopBarStyle {
      * the thing the user came for, like a route or a stop.
      */
     Large,
+
+    /**
+     * [Large] over a picture: a place, a route, a photo, passed as `TopBar`'s
+     * `image`, with the title at the foot of it.
+     *
+     * **The picture runs under the status bar**, to the top of the window, and
+     * the controls and the title keep clear of the bar as any `TopBar`'s do.
+     * Open, the bar is `expandedHeight` tall with the status bar —
+     * [TopBarDefaults.HeroHeight] unless you say — or taller if its title needs
+     * it, and the title rests at the bottom, over the picture.
+     *
+     * **The picture runs under the title and fades into the bar's colour** at
+     * its foot: untouched down to a little above the title, then eased into the
+     * bar's background, so the title and its subtitle stand over the fade in the
+     * bar's own ink and read on any picture — and the page below starts where
+     * the picture ends, with no line between them. At high contrast the fade is a
+     * solid band of the bar's colour under the words. The back button and the
+     * actions each sit on a disc of the bar's colour while the picture is behind
+     * them.
+     *
+     * **Collapsing**, it is [Large]'s collapse: the title travels into the first
+     * line, and the picture rises at half the pace of the bar's foot and fades
+     * over the second half of the way. Collapsed, it is a [Small] bar to the
+     * pixel. Under reduced motion the picture does not rise; it fades where it
+     * is.
+     *
+     * Without an `image` it is a [Large] bar that opens to the same height, so a
+     * screen whose picture is sometimes missing does not jump.
+     */
+    Hero,
 }
 
 /** What a [TopBar] takes by default. */
@@ -103,6 +143,10 @@ object TopBarDefaults {
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeight
     val LargeHeight: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarLargeHeight
+
+    /** A [TopBarStyle.Hero] bar open: its picture's height, the status bar included. */
+    val HeroHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeroHeight
 }
 
 /**
@@ -139,17 +183,46 @@ fun TopBar(
     backLabel: String = Theme.strings.back,
     navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
+    /**
+     * The picture behind a [TopBarStyle.Hero] bar, filling it from edge to edge
+     * and under the status bar: crop it rather than fit it. Decorative, and
+     * hidden from screen readers: say what matters in the title. Only `Hero`
+     * draws it.
+     */
+    image: (@Composable () -> Unit)? = null,
     containerColour: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
     contentColour: Color = Theme.colours.content,
     showDivider: Boolean = false,
     /**
+     * Whether content passing under the bar fades out beneath it, rather than
+     * stopping square at its foot: the bar's ground thins out over its last
+     * 12dp, so content shows faintly through there, and is gone 4dp past the
+     * foot — about where a divider would be. Any style, and a collapsing bar's
+     * fade follows its foot.
+     *
+     * Only content *under* the bar shows it, so put the bar over the content —
+     * a [io.kontour.ui.adaptive.Scaffold] does, handing the content the bar's
+     * height to pad by — rather than above it in a `Column`. The fade is drawn,
+     * not touched: a tap there reaches the content. Not at high contrast, where
+     * content stops square at the bar's foot.
+     */
+    fadeUnder: Boolean = false,
+    /**
+     * How tall a [TopBarStyle.Hero] or [TopBarStyle.Large] bar is open, the
+     * status bar included. Unspecified is the style's own:
+     * [TopBarDefaults.HeroHeight] for `Hero`, and what its lines need for
+     * `Large`. A floor, not a size: a title that needs more room gets it, and
+     * rests at the foot of the extra. Ignored by `Small` and `Centred`.
+     */
+    expandedHeight: Dp = Dp.Unspecified,
+    /**
      * 0 when the content is at the top, 1 when it has scrolled far enough to
-     * collapse a [TopBarStyle.Large] bar. Ignored by the other styles, and
-     * by this one when [collapseState] is given.
+     * collapse a [TopBarStyle.Large] or [TopBarStyle.Hero] bar. Ignored by the
+     * other styles, and by these when [collapseState] is given.
      */
     collapseProgress: Float = 0f,
     /**
-     * A [TopBarStyle.Large] bar's collapse, driven by the content's scroll
+     * A [TopBarStyle.Large] or [TopBarStyle.Hero] bar's collapse, driven by the content's scroll
      * through its [TopBarCollapseState.nestedScrollConnection]. The usual way
      * to collapse one: the bar takes the scroll until it has collapsed, so the
      * content moves with the finger while the bar shrinks above it.
@@ -174,10 +247,49 @@ fun TopBar(
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
+    val fades = fadeUnder && !highContrast()
+    val outer = if (fades) modifier.fadedGround(containerColour) else modifier
+    // Fading, the bar's ground is the fade's own, drawn behind the surface;
+    // a solid one would hide the fade inside the bar.
+    val ground = if (fades) Color.Transparent else containerColour
+    if (style == TopBarStyle.Hero && image != null) {
+        HeroBar(
+            image = image,
+            slots = slots,
+            modifier = outer,
+            onBack = onBack,
+            backLabel = backLabel,
+            navigation = navigation,
+            actions = actions,
+            containerColour = containerColour,
+            ground = ground,
+            contentColour = contentColour,
+            showDivider = showDivider,
+            open = expandedHeight.takeOrElse { TopBarDefaults.HeroHeight },
+            collapseProgress = collapseProgress,
+            collapseState = collapseState,
+            windowInsets = windowInsets,
+        )
+        return
+    }
+    // How far a Large bar, or a Hero one without its picture, opens at least:
+    // the height asked for, less the inset above, which the bar is also that
+    // much taller by. Read only when there is one, so an ordinary Large bar does
+    // not take on a read of the insets.
+    val open = when {
+        style == TopBarStyle.Hero -> expandedHeight.takeOrElse { TopBarDefaults.HeroHeight }
+        style == TopBarStyle.Large && expandedHeight.isSpecified -> expandedHeight
+        else -> Dp.Unspecified
+    }
+    val floor = if (open.isSpecified) {
+        (open - with(LocalDensity.current) { windowInsets.getTop(this).toDp() }).coerceAtLeast(0.dp)
+    } else {
+        0.dp
+    }
     // A bar surface: a tap on the bar between its title and its actions is a
     // tap on nothing, and goes no further — not to a list scrolled under the
     // bar, and not to a clickable container round it. See [BarSurface].
-    BarSurface(modifier = modifier.fillMaxWidth(), containerColour = containerColour, contentColour = contentColour) {
+    BarSurface(modifier = outer.fillMaxWidth(), containerColour = ground, contentColour = contentColour) {
         // Inside the surface, so the container colour still reaches the top of the
         // window and the status bar sits on the bar rather than on a strip of
         // whatever is behind it.
@@ -214,7 +326,7 @@ fun TopBar(
                     },
                 )
 
-                TopBarStyle.Large -> LargeBar(
+                TopBarStyle.Large, TopBarStyle.Hero -> LargeBar(
                     progress = { collapseState?.progress ?: collapseProgress },
                     onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
                     // The first line is left out when it would be empty, so the
@@ -225,12 +337,226 @@ fun TopBar(
                     leading = { Leading(onBack, backLabel, navigation) },
                     actions = actions,
                     slots = slots,
+                    minExpanded = floor,
                 )
             }
 
             if (showDivider) HorizontalDivider()
         }
     }
+}
+
+/**
+ * A bar's ground in [colour], solid down to [FadeUnderInside] above its foot
+ * and thinning from there to nothing [FadeUnderOutside] past it, over whatever
+ * is under it. See `TopBar`'s `fadeUnder`.
+ *
+ * Mostly inside the bar. It ran 24dp on past the foot at first, and over the
+ * page that read as a wash rather than an edge — *"the fade under the top bar
+ * looks a bit "fat". it needs to basically end where the line would normally
+ * be (or maybe a tiny bit further down)"*. Eased rather than straight, as a
+ * hero's fade is, so there is no line where it starts or ends.
+ */
+private fun Modifier.fadedGround(colour: Color): Modifier = drawWithCache {
+    val inside = FadeUnderInside.toPx().coerceAtMost(size.height)
+    val outside = FadeUnderOutside.toPx()
+    val from = size.height - inside
+    val brush = Brush.verticalGradient(
+        0f to colour,
+        0.25f to colour.copy(alpha = colour.alpha * 0.84f),
+        0.5f to colour.copy(alpha = colour.alpha * 0.5f),
+        0.75f to colour.copy(alpha = colour.alpha * 0.16f),
+        1f to colour.copy(alpha = 0f),
+        startY = from,
+        endY = size.height + outside,
+    )
+    onDrawBehind {
+        // One rect for the solid part and one for the fade, meeting on a whole
+        // pixel so their edges do not leave a seam between them.
+        val seam = from.toInt().toFloat()
+        drawRect(colour, size = Size(size.width, seam))
+        drawRect(brush, topLeft = Offset(0f, seam), size = Size(size.width, size.height + outside - seam))
+    }
+}
+
+/** How much of a bar's own height `fadeUnder` thins out over, and how far past its foot. */
+private val FadeUnderInside = 12.dp
+private val FadeUnderOutside = 4.dp
+
+/**
+ * A [TopBarStyle.Hero] bar: [LargeBar] over [image], the picture fading into
+ * the bar's colour under the title. See the style for what it does; this is how.
+ *
+ * Three layers, laid out as one: the picture, the height of the open bar
+ * whatever the bar is now, so a scroll moves it and never lays it out again; the
+ * fade, drawn from where the title is; and the bar itself, which is a
+ * [TopBarStyle.Large] bar told how far to open and where its title went.
+ */
+@Composable
+private fun HeroBar(
+    image: @Composable () -> Unit,
+    slots: ListItemScope,
+    modifier: Modifier,
+    onBack: (() -> Unit)?,
+    backLabel: String,
+    navigation: (@Composable () -> Unit)?,
+    actions: (@Composable RowScope.() -> Unit)?,
+    containerColour: Color,
+    /** What the surface itself paints: [containerColour], or nothing when a fade paints it instead. */
+    ground: Color,
+    contentColour: Color,
+    showDivider: Boolean,
+    open: Dp,
+    collapseProgress: Float,
+    collapseState: TopBarCollapseState?,
+    windowInsets: WindowInsets,
+) {
+    val progress = { collapseState?.progress ?: collapseProgress }
+    val geometry = remember { HeroGeometry() }
+    val insetTop = with(LocalDensity.current) { windowInsets.getTop(this).toDp() }
+    val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - progress() } }
+    val solid = highContrast()
+    val reduce = Theme.motion.reduceMotion
+    val rise = HeroFadeRise
+    // How much of the picture there is, from 1 open to 0 collapsed.
+    val shown = { 1f - smoothstep(HeroFadeFrom, HeroFadeTo, progress().coerceIn(0f, 1f)) }
+
+    BarSurface(modifier = modifier.fillMaxWidth(), containerColour = ground, contentColour = contentColour) {
+        Layout(
+            contents = listOf(
+                { Box(Modifier.clearAndSetSemantics {}) { image() } },
+                // Under the title: from a little above it to the bar's foot, the
+                // picture fading into the bar's own colour.
+                {
+                    Box(
+                        Modifier.drawBehind {
+                            if (shown() <= 0f) return@drawBehind
+                            val p = progress().coerceIn(0f, 1f)
+                            val inset = windowInsets.getTop(this)
+                            val titleTop = inset + geometry.textTopOpen +
+                                (geometry.textTopCollapsed - geometry.textTopOpen) * p
+                            val foot = size.height - geometry.shrink * p
+                            // Every rect below runs on to the bottom of this
+                            // box, under the bar's foot whichever way it was
+                            // rounded. They stopped at the foot unrounded, which
+                            // left up to half the bar's last line of pixels
+                            // over the picture, every other few pixels of
+                            // scroll — reported as a line that flashes as you
+                            // scroll.
+                            if (solid) {
+                                // Nothing of the picture behind the words.
+                                if (foot > titleTop) {
+                                    drawRect(containerColour, topLeft = Offset(0f, titleTop), size = Size(size.width, size.height - titleTop))
+                                }
+                                return@drawBehind
+                            }
+                            val from = (titleTop - rise.toPx()).coerceAtLeast(0f)
+                            if (foot <= from) return@drawBehind
+                            // Eased in, so the fade has no line where it starts:
+                            // barely begun halfway down to the title, most of the
+                            // way by the title's top, and the bar's colour alone
+                            // from partway between the title's top and the foot —
+                            // where the subtitle is, and where the page begins.
+                            val span = foot - from
+                            val atTitle = ((titleTop - from) / span).coerceIn(0.05f, 1f)
+                            val whole = atTitle + (1f - atTitle) * HeroFadeWholeAt
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to containerColour.copy(alpha = 0f),
+                                    atTitle * 0.5f to containerColour.copy(alpha = HeroFadeHalfway),
+                                    atTitle to containerColour.copy(alpha = HeroFadeAtTitle),
+                                    whole to containerColour,
+                                    1f to containerColour,
+                                    startY = from,
+                                    endY = foot,
+                                ),
+                                topLeft = Offset(0f, from),
+                                size = Size(size.width, size.height - from),
+                            )
+                        },
+                    )
+                },
+                {
+                    Column(Modifier.windowInsetsPadding(windowInsets)) {
+                        CompositionLocalProvider(LocalHeroBacking provides backing) {
+                            LargeBar(
+                                progress = progress,
+                                onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
+                                hasControls = onBack != null || navigation != null || actions != null,
+                                leading = { Leading(onBack, backLabel, navigation) },
+                                actions = actions,
+                                slots = slots,
+                                minExpanded = (open - insetTop).coerceAtLeast(0.dp),
+                                hero = geometry,
+                            )
+                        }
+                        if (showDivider) HorizontalDivider()
+                    }
+                },
+            ),
+            modifier = Modifier.fillMaxWidth().clipToBounds(),
+        ) { (picturePart, fadePart, barPart), constraints ->
+            val bar = barPart.first().measure(constraints)
+            val p = progress().coerceIn(0f, 1f)
+            val height = (bar.height + geometry.shrink * p).roundToInt().coerceAtLeast(bar.height)
+            val picture = picturePart.first().measure(Constraints.fixed(bar.width, height))
+            val fade = fadePart.first().measure(Constraints.fixed(bar.width, height))
+            layout(bar.width, bar.height) {
+                picture.placeWithLayer(0, 0) {
+                    val now = progress().coerceIn(0f, 1f)
+                    // Rises at half the pace of the bar's foot, which reads as
+                    // depth; under reduced motion it stays and only fades.
+                    translationY = if (reduce) 0f else -geometry.shrink * now * HeroParallax
+                    alpha = 1f - smoothstep(HeroFadeFrom, HeroFadeTo, now)
+                }
+                fade.place(0, 0)
+                bar.place(0, 0)
+            }
+        }
+    }
+}
+
+/** Where a hero's title block sits in its bar, open and collapsed, and how far the bar shrinks. */
+internal class HeroGeometry {
+    var textTopOpen: Float = 0f
+    var textTopCollapsed: Float = 0f
+    var shrink: Float = 0f
+}
+
+/**
+ * A disc of [colour] behind an icon button, at [alpha] — a [TopBarStyle.Hero]
+ * bar's controls over its picture. Read by the icon button itself.
+ */
+internal class HeroBacking(val colour: Color, val alpha: () -> Float)
+
+/** Set by a [TopBarStyle.Hero] bar round its controls. */
+internal val LocalHeroBacking = staticCompositionLocalOf<HeroBacking?> { null }
+
+/** How fast a hero's picture rises against its bar's foot. */
+private const val HeroParallax = 0.5f
+
+/** How far above a hero's title its picture starts fading into the bar. */
+private val HeroFadeRise = 96.dp
+
+/**
+ * How far a hero's picture has faded into the bar: halfway down to the title,
+ * at the title's top, and where it is the bar's colour alone — a share of the
+ * way from the title's top to the foot. The title is large type in the bar's
+ * own ink and needs 3:1: at its top 40% of the picture is left, which gives
+ * about 5:1 over the worst of pictures in either scheme, and below that it only
+ * gets better. The subtitle, small type, is on the bar's colour alone.
+ */
+private const val HeroFadeHalfway = 0.15f
+private const val HeroFadeAtTitle = 0.6f
+private const val HeroFadeWholeAt = 0.5f
+
+/** Over which part of the collapse a hero's picture fades out. */
+private const val HeroFadeFrom = 0.5f
+private const val HeroFadeTo = 0.9f
+
+private fun smoothstep(from: Float, to: Float, x: Float): Float {
+    val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
 }
 
 /**
@@ -288,6 +614,14 @@ private fun LargeBar(
     leading: @Composable () -> Unit,
     actions: (@Composable RowScope.() -> Unit)?,
     slots: ListItemScope,
+    /**
+     * The least the bar is open: a [TopBarStyle.Hero] bar's picture's height, or
+     * the height asked of a [TopBarStyle.Large] one, less the inset above. The
+     * title then rests at the bottom of it.
+     */
+    minExpanded: Dp = 0.dp,
+    /** Where the title block sits, open and collapsed, for a hero's fade. */
+    hero: HeroGeometry? = null,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val large = Theme.typography.displaySmall
@@ -406,9 +740,18 @@ private fun LargeBar(
         val stack = (tiny?.height ?: 0) + (subSmall?.height ?: 0)
         val collapsed = maxOf(row, stack)
         val top = if (hasControls) row else 0
-        val expanded = maxOf(top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx(), collapsed)
+        val needed = top + (big?.height ?: 0) + (sub?.height ?: 0) + below.roundToPx()
+        val expanded = maxOf(needed, collapsed, minExpanded.roundToPx())
+        // A hero's room above the title: the title rests at the bottom of the
+        // picture, over the part of it that fades into the bar.
+        val textTop = top + (expanded - maxOf(needed, collapsed)).coerceAtLeast(0)
         val shrink = (expanded - collapsed).toFloat()
         onMeasured(shrink, maxOf(shrink, leastTravel.toPx()))
+        if (hero != null) {
+            hero.textTopOpen = textTop.toFloat()
+            hero.textTopCollapsed = Alignment.CenterVertically.align(stack, collapsed).toFloat()
+            hero.shrink = shrink
+        }
         val p = progress().coerceIn(0f, 1f)
         val height = (expanded + (collapsed - expanded) * p).roundToInt()
 
@@ -435,7 +778,7 @@ private fun LargeBar(
             } else {
                 0f
             }
-            val fromBaseline = top + bigBaseline
+            val fromBaseline = textTop + bigBaseline
             // Rounded as `CentredBar` rounds it, so it lands on the Small bar's pixel.
             val stackTop = Alignment.CenterVertically.align(stack, collapsed)
             val toBaseline = stackTop + tinyBaseline
@@ -476,8 +819,9 @@ private fun LargeBar(
             val subTop = if (big != null) {
                 underTitle + (landing - underTitleCollapsed) * p
             } else {
-                top + (landing - top) * p
+                textTop + (landing - textTop) * p
             }
+
             // One of the two is drawn throughout when the line fits both
             // widths: two copies of a line half-faded over each other read
             // lighter than either. They hand over only where the narrower one

@@ -14,8 +14,11 @@ android-minSdk = "29"
 android-targetSdk = "37"
 androidx-activity = "1.13.0"
 
-# Icons — used by the catalog and the tests, never by the library itself
-composables-icons = "2.2.1"
+# Icons — Kontour Labs' build of Tabler, every icon of the release named,
+# outline and filled. On GitHub Packages, so reading it needs credentials: see
+# `settings.gradle.kts`. The version is Tabler's own. The library draws its
+# system icons from it; the catalog, the samples and the docs use the rest.
+tabler-icons = "3.48.0"
 
 # Navigation 3 — `:ui-nav3` only. The scene API is JetBrains' multiplatform
 # build of it; `NavEntry` and the rest of the runtime come from Google's.
@@ -48,8 +51,8 @@ compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.re
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 compose-uiTest = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
 
-composables-tabler-outline = { module = "com.composables:icons-tabler-outline-cmp", version.ref = "composables-icons" }
-composables-tabler-filled = { module = "com.composables:icons-tabler-filled-cmp", version.ref = "composables-icons" }
+tabler-icons-outline = { module = "io.kontour:tabler-icons-outline", version.ref = "tabler-icons" }
+tabler-icons-filled = { module = "io.kontour:tabler-icons-filled", version.ref = "tabler-icons" }
 
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 
@@ -59,8 +62,8 @@ navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:nav
 
 [bundles]
 icons = [
-    "composables-tabler-outline",
-    "composables-tabler-filled",
+    "tabler-icons-outline",
+    "tabler-icons-filled",
 ]
 
 [plugins]

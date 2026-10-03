@@ -23,8 +23,8 @@ import io.kontour.ui.components.list.SwipeActions
 import io.kontour.ui.theme.ComponentDefaults
 import io.kontour.ui.components.list.SwipeValue
 import io.kontour.ui.components.list.rememberSwipeActionsState
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Spacing
 import kotlin.test.Test

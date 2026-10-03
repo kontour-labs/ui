@@ -25,6 +25,7 @@ import io.kontour.ui.sheet.SheetDetent
 import io.kontour.ui.sheet.SheetPresentation
 import io.kontour.ui.sheet.rememberSheetState
 import io.kontour.ui.theme.KontourTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -104,11 +105,11 @@ class SheetSafeAreaTest {
                 OverlayHost(Modifier.fillMaxSize()) {
                     Box(Modifier.fillMaxSize()) {
                         val sheet = rememberSheetState(
-                            detents = listOf(
-                                SheetDetent.Hidden,
-                                SheetDetent.Half,
-                                SheetDetent.Full,
-                            ),
+                            detents = if (openAt == SheetDetent.Expanded) {
+                                listOf(SheetDetent.Hidden, SheetDetent.Expanded)
+                            } else {
+                                listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Full)
+                            },
                             initialDetent = SheetDetent.Hidden,
                         )
                         LaunchedEffect(Unit) { sheet.animateTo(openAt) }
@@ -150,28 +151,45 @@ class SheetSafeAreaTest {
      * At full height the chrome starts where the inset ends, not where the sheet
      * does.
      *
-     * The sheet's own top edge is `SheetTopGap` below the window's — 12dp, 24px
-     * here — which is a long way above a status bar, so the chrome owes the
-     * difference and the content lands exactly at the bottom of the inset band.
-     * Not at 24 (no inset at all, the reported defect) and not at 104 (the full
-     * inset added to a sheet already 24px down, which is what
-     * `windowInsetsPadding` does on its own).
+     * The sheet's own top edge is the window's, under the status bar — asked for
+     * as *"when a sheet expands to the top of the screen, can we make the top of
+     * it go all the way to the top of the screen"* — so the chrome owes the whole
+     * inset and the content lands exactly at the bottom of the inset band. Not at
+     * 0 (no inset at all, the defect first reported) and not below it.
      */
     @Test
     fun aFullHeightSheetStartsItsChromeBelowTheInset() {
         val sheet = measure(SheetDetent.Full)
 
         assertEquals(
-            24f, sheet.sheetTop,
-            "the surface should still reach to within `SheetTopGap` of the top " +
-                "of the window — the ask was that the sheet go to just about " +
-                "full height and only its chrome stop at the safe zone",
+            0f, sheet.sheetTop,
+            "the surface should reach the top of the window, and only its chrome " +
+                "stop at the safe zone",
         )
         assertEquals(
             insetPx, sheet.contentTop,
             "the chrome landed at ${sheet.contentTop} rather than at the bottom " +
                 "of the inset band. Below it is under the status bar, which is " +
                 "what was reported; above it is a gap of bare sheet.",
+        )
+    }
+
+    /**
+     * And a sheet as tall as its content, when the content is taller than the
+     * window: the same. Its content is measured a status bar short of the
+     * window, so its chrome can sit below the bar, and resolved at that height
+     * `Expanded` stopped a status bar short of the top with the page showing
+     * through above it.
+     */
+    @Test
+    fun anExpandedSheetOfTallContentReachesTheTopToo() {
+        val sheet = measure(SheetDetent.Expanded)
+
+        assertEquals(0f, sheet.sheetTop, "a sheet of content taller than the window stopped short of its top")
+        assertEquals(insetPx, sheet.contentTop, "its chrome is not at the bottom of the inset band")
+        assertTrue(
+            abs(sheet.contentBottom - canvasHeight) <= 1f,
+            "its content column ends at ${sheet.contentBottom}, not at the window's bottom edge, $canvasHeight",
         )
     }
 

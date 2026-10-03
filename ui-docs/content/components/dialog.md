@@ -37,6 +37,8 @@ cells, "23" over "30", the rest cut through the middle of the digits.
 
 `windowInsets` defaults to every edge including the keyboard, because a dialog is
 centred rather than pinned and a confirmation with a text field in it is common.
+Only the part of an inset over the overlay's container counts, so a dialog in an
+app that has already made room for the keyboard is not pushed up by it again.
 
 See [the overlay guide](../overlays.md#the-stack) for how it stacks with menus
 and sheets, and what back does.

@@ -19,7 +19,7 @@ import org.gradle.kotlin.dsl.withType
  *
  *  1. `-Pkontour.version=…`, for a deliberate publish that is not a tag.
  *  2. The tag being built — and **only** a tag.
- *  3. `0.4.0-SNAPSHOT`, for everything else: the release after the last tag.
+ *  3. `0.5.0-SNAPSHOT`, for everything else: the release after the last tag.
  *
  * Rule 2 used to read `GITHUB_REF_NAME` without asking what kind of ref it was,
  * which meant a branch build took the *branch name* as its version. This would
@@ -62,7 +62,7 @@ fun Project.kontourPublishing(
                 }
                 .filter { it.isNotEmpty() }
         )
-        .orElse("0.4.0-SNAPSHOT")
+        .orElse("0.5.0-SNAPSHOT")
         .map { candidate ->
             require(Regex("""^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$""").matches(candidate)) {
                 "`$candidate` is not a publishable version. A release tag is `v1.2.3`, " +

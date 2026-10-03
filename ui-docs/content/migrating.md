@@ -15,6 +15,96 @@ from the version the app is on.
 
 ---
 
+## 0.3 to 0.4
+
+From 0.3.0 to 0.4.0, released on 3 October 2026. One parameter is replaced,
+and a few things look or behave differently enough to check.
+
+### Before you start
+
+- **Move all three modules at once.** `ui`, `ui-nav3` and `haptics` are one
+  version: in a version catalog, `kontour = "0.4.0"`. See
+  [Installing](installing.md).
+- **Rebuild anything compiled against 0.3.** Functions that took a new parameter
+  changed their signature — a chip's content is a `ChipScope` now, `TopBar`
+  takes an `image` and an `expandedHeight` for its `Hero` style, and `Strings`
+  has four more words — and a library of your own built against 0.3
+  fails when it calls one, until it is rebuilt. Source that calls them compiles
+  as it was.
+
+### `markerDraggable` is now `markerDrag`
+
+`NavBar(markerDraggable: Boolean)` is replaced by
+`markerDrag: NavBarMarkerDrag`, which also says when a drag chooses a
+destination. On `NavigationSuiteScaffold` it is `barMarkerDrag`.
+
+```diff
+- NavBar(markerDraggable = false) { … }
++ NavBar(markerDrag = NavBarMarkerDrag.Off) { … }
+
+- NavigationSuiteScaffold(…, barMarkerDraggable = false) { … }
++ NavigationSuiteScaffold(…, barMarkerDrag = NavBarMarkerDrag.Off) { … }
+```
+
+`markerDraggable = true`, the default, is `NavBarMarkerDrag.SelectOnRelease`,
+and still the default. `NavBarMarkerDrag.SelectWhileDragging` is new: each
+destination is chosen as the marker reaches it.
+
+### Check: the nav bar with labels
+
+A bar with `showLabels = true` is about 18dp shorter: a floating one is 64dp with
+labels as without. The icon is 20dp, not 24. A screen that reserved room for the
+bar by a fixed number has more than it needs.
+
+### Check: disabled controls
+
+A disabled switch's, slider's and range slider's thumbs, and a knob's face, are
+the page's colour now, and a disabled knob is grey rather than its own colours
+faded. A `Checkbox`, `RadioButton` or `Switch` in a disabled `SelectionRow` or
+`ListItem` draws itself disabled without being told.
+
+### Check: tall swipe rows
+
+A swipe action on a row taller than 64dp is 64dp tall and centred, not as tall
+as the row. Pass `maxActionHeight = Dp.Infinity` to keep the old look.
+
+### Check: a gapless `StepProgress`
+
+`StepProgress(gap = 0.dp)` draws one continuous bar now. It used to draw the
+segments end to end, pinched at each join.
+
+### Check: a sheet at full height
+
+A sheet at `SheetDetent.Full`, or at `Expanded` with content taller than the
+window, reaches the top of the window and draws under the status bar; its handle
+and header stay below the bar. It used to stop 12dp short. A screenshot test of
+a full sheet changes by that strip.
+
+### Check: a back button shown by the back stack's size
+
+A `TopBar(onBack = if (backStack.size > 1) … else null)` shows its button on the
+root page while the page over it is swiped away: the stack holds both until the
+gesture ends. Pass `onBack = pageBack()` instead.
+
+### Check: a field with focus when a modal opens
+
+A dialog or a modal sheet opening takes the focus off a text field on the page,
+or in an overlay under it, and on a phone its keyboard goes. A screen that
+opened a dialog to ask about what was being typed, and expected the field to
+keep the focus, has to give it back when the dialog closes. A menu or a
+combobox's list leaves the field it opened from focused, as before.
+
+### Check: overlays in a container short of the window
+
+A sheet, a side sheet, a dialog and a toast count only the part of each inset
+that reaches their container, measured from the window's edge. One in a
+container that already ends at the keyboard, or starts below the status bar, is
+no longer padded by them again. A `windowInsets` of your own is read the same
+way: `WindowInsets(bottom = 80.dp)` is 80dp from the window's bottom edge, and
+counts for nothing in a container that ends 80dp above it.
+
+---
+
 ## 0.2 to 0.3
 
 From 0.2.2 to 0.3.0, released on 30 September 2026. One component is removed,

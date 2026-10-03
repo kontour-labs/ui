@@ -20,9 +20,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.platform.testTag
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Eye
-import com.composables.icons.tabler.outline.EyeOff
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Eye
+import io.kontour.icons.tabler.outline.EyeOff
 import androidx.compose.runtime.CompositionLocalProvider
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent

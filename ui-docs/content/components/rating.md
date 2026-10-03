@@ -58,6 +58,10 @@ Read-only, it is one node with a `stateDescription`: "4.3 out of 5". A read-only
 rating rendered as five separate stars would be five nodes announcing nothing
 each.
 
+The row is the touch target, not each mark: it is at least a target tall, takes
+every press itself and turns it into the nearest mark, so the marks sit
+`RatingDefaults.Gap` apart rather than each in a 48dp box of its own.
+
 `contentDescription` names the control and it matters here more than usual —
 "Your rating" and "Average rating" are the same five stars and completely
 different facts.

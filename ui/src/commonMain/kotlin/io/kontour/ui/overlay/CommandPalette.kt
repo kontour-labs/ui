@@ -45,6 +45,7 @@ import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.shape
 import io.kontour.ui.components.text.SearchField
@@ -108,9 +109,19 @@ data class Command(
  * keystroke the user is looking at the top of the results, not at wherever they
  * had arrowed to before the list changed under them.
  *
+ * ### The closest first
+ *
+ * With something typed, the results come closest first: "set" puts *Set theme*
+ * ahead of *Sync settings*, and both ahead of *Reset zoom*, whatever order
+ * [commands] gave them in. The top is where the highlight is, so Enter runs the
+ * closest. Commands that answer as closely as each other keep [commands]'
+ * order, and with nothing typed that order is the whole list's.
+ *
  * @param matches Decides whether a command answers a query, in `Combobox`'s
  *   order: the command, then the query. The default, [commandMatches], is
  *   case-insensitive over the label and [Command.keywords].
+ * @param similarity How closely a command answers a query, higher first, for
+ *   ordering what [matches] lets through. The default is [commandSimilarity].
  */
 @Composable
 fun CommandPalette(
@@ -150,11 +161,13 @@ fun CommandPalette(
      */
     dismissible: Boolean = true,
     matches: (Command, String) -> Boolean = CommandPaletteDefaults.matches(),
+    similarity: (Command, String) -> Float = CommandPaletteDefaults.similarity(),
 ) {
     val host = LocalOverlayHost.current
     val latestModifier by rememberUpdatedState(modifier)
     val latestCommands by rememberUpdatedState(commands)
     val latestMatches by rememberUpdatedState(matches)
+    val latestSimilarity by rememberUpdatedState(similarity)
     val latestDismiss by rememberUpdatedState(onDismissRequest)
     val latestTopInset by rememberUpdatedState(topInset)
     val latestDismissible by rememberUpdatedState(dismissible)
@@ -181,7 +194,15 @@ fun CommandPalette(
                                     LocalOverlayProgress.current,
                                     fromScale = 1.03f,
                                 )
-                                .windowInsetsPadding(WindowInsets.allEdges),
+                                .windowInsetsPadding(WindowInsets.allEdges)
+                                // Clear of the window's sides as well as its
+                                // insets, as a dialog and a bar's expanding
+                                // panel are. It filled a phone's width edge to
+                                // edge, its corners clipped by the glass: *"give
+                                // it some minimum side padding (that goes for all
+                                // "dialog"-type components if it doesn't exist
+                                // already)"*. The width cap still holds wider up.
+                                .padding(horizontal = Theme.spacing.md),
                             // Near the top rather than centred: the list grows
                             // downward as the user types, and a centred palette
                             // jumps up the screen on every keystroke.
@@ -192,6 +213,7 @@ fun CommandPalette(
                                 query = query,
                                 commands = latestCommands,
                                 matches = latestMatches,
+                                similarity = latestSimilarity,
                                 placeholder = placeholder,
                                 emptyLabel = emptyLabel,
                                 width = width,
@@ -215,6 +237,7 @@ private fun PaletteBody(
     query: TextFieldState,
     commands: List<Command>,
     matches: (Command, String) -> Boolean,
+    similarity: (Command, String) -> Float,
     placeholder: String,
     emptyLabel: String,
     width: Dp,
@@ -223,8 +246,16 @@ private fun PaletteBody(
     dismissible: Boolean,
 ) {
     val text = query.text.toString()
-    val found = remember(text, commands) {
-        if (text.isBlank()) commands else commands.filter { matches(it, text) }
+    // Closest first once something is typed: *"order results by similarity to
+    // the prompt, not just by their default order (obviously if there is no
+    // prompt, go back to the default)"*. A stable sort, so commands that answer
+    // as closely as each other keep the caller's order.
+    val found = remember(text, commands, matches, similarity) {
+        if (text.isBlank()) {
+            commands
+        } else {
+            commands.filter { matches(it, text) }.sortedByDescending { similarity(it, text) }
+        }
     }
 
     var highlighted by remember { mutableIntStateOf(0) }
@@ -369,7 +400,11 @@ private fun PaletteBody(
                 LazyColumn(
                     state = listState,
                     flingBehavior = ScrollDefaults.flingBehavior(),
-                    modifier = Modifier.heightIn(max = maxHeight),
+                    // Faded at whichever end there is more, as the library's
+                    // other scrolling lists can be: *"use fading edges
+                    // modifier"*. A row cut off square at the panel's foot
+                    // read as the last one.
+                    modifier = Modifier.heightIn(max = maxHeight).fadingEdges(listState),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
                     itemsIndexed(found, key = { _, command -> command.id }) { index, command ->
@@ -407,6 +442,49 @@ fun commandMatches(command: Command, query: String, formats: LocaleFormats = Loc
     return command.keywords.any { formats.foldForSearch(it).contains(needle) }
 }
 
+/**
+ * How closely [command] answers [query], for putting the closest first: higher
+ * is closer, and `0` is not at all.
+ *
+ * In tiers, closest first: the label is the query; the label starts with it; a
+ * word in the label starts with it; a keyword is the query; a keyword, or a word
+ * in one, starts with it; the label has it inside a word; a keyword has it
+ * inside a word. Within a tier, the more of the text the query covers, the
+ * closer, so "sav" puts *Save* before *Save as…*. Folded as [commandMatches]
+ * folds, so the two agree on what answers at all.
+ */
+fun commandSimilarity(command: Command, query: String, formats: LocaleFormats = LocaleFormats.english()): Float {
+    val needle = formats.foldForSearch(query.trim())
+    if (needle.isEmpty()) return 0f
+    var closest = closeness(formats.foldForSearch(command.label), needle, keyword = false)
+    for (keyword in command.keywords) {
+        closest = maxOf(closest, closeness(formats.foldForSearch(keyword), needle, keyword = true))
+    }
+    return closest
+}
+
+/** One text's tier for [needle], with how much of it the needle covers added under the next. */
+private fun closeness(text: String, needle: String, keyword: Boolean): Float {
+    val tier = when {
+        text == needle -> if (keyword) 4 else 7
+        text.startsWith(needle) -> if (keyword) 3 else 6
+        startsAWord(text, needle) -> if (keyword) 3 else 5
+        text.contains(needle) -> if (keyword) 1 else 2
+        else -> return 0f
+    }
+    // Under 1, so no amount of coverage lifts a command into the tier above.
+    return tier + 0.9f * needle.length / text.length
+}
+
+private fun startsAWord(text: String, needle: String): Boolean {
+    var at = text.indexOf(needle, startIndex = 1)
+    while (at > 0) {
+        if (!text[at - 1].isLetterOrDigit()) return true
+        at = text.indexOf(needle, startIndex = at + 1)
+    }
+    return false
+}
+
 /** What a [CommandPalette] takes by default. */
 object CommandPaletteDefaults {
     /** [commandMatches] in this reader's language, remembered while the formats hold. */
@@ -414,6 +492,13 @@ object CommandPaletteDefaults {
     fun matches(): (Command, String) -> Boolean {
         val formats = Theme.formats
         return remember(formats) { { command, query -> commandMatches(command, query, formats) } }
+    }
+
+    /** [commandSimilarity] in this reader's language, remembered while the formats hold. */
+    @Composable
+    fun similarity(): (Command, String) -> Float {
+        val formats = Theme.formats
+        return remember(formats) { { command, query -> commandSimilarity(command, query, formats) } }
     }
 
     /** Wide enough for a command and its shortcut, narrow enough to read. */

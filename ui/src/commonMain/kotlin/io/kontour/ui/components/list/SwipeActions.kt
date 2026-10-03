@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.foundation.Icon
@@ -249,6 +250,19 @@ object SwipeActionsDefaults {
             return { distance -> distance * fraction }
         }
 
+    /**
+     * The tallest an action grows: the height of a two-line list row, 64dp.
+     *
+     * A button is never taller than it is wide, so on an ordinary row it is the
+     * row's height and this never comes into it. On a tall one — a row with a
+     * picture, a paragraph, three lines of metadata — it used to be: a 160dp row
+     * revealed a 160dp stripe, "ridiculously tall" for something that holds an
+     * icon and a word. Past this the button stays this tall, centred on the row,
+     * and a full swipe's takeover grows across the strip and not down it.
+     */
+    val MaxActionHeight: Dp
+        @Composable @ReadOnlyComposable get() = Theme.componentDefaults.listItemTwoLineMinHeight
+
     /** Between two revealed actions, and between them and the row. */
     val Gap: Dp
         @Composable @ReadOnlyComposable get() = Theme.spacing.xs
@@ -371,6 +385,10 @@ object SwipeActionsDefaults {
  *   row closes. On by default, as asked for from a phone — a tapped action used
  *   to run and fold away in the same instant, with nothing to say it had. Off
  *   runs it at once.
+ * @param maxActionHeight The tallest an action grows on a row taller than it,
+ *   where it sits centred on the row. Never less than its icon and label need,
+ *   so it cannot be what drops a label at large type. `Dp.Infinity` lets the
+ *   actions take a tall row's whole height, as they did before 0.4.
  */
 @Composable
 fun SwipeActions(
@@ -384,6 +402,7 @@ fun SwipeActions(
     actionWidth: Dp = SwipeActionsDefaults.ActionWidth,
     fullSwipeConfirmation: Boolean = true,
     tapConfirmation: Boolean = true,
+    maxActionHeight: Dp = SwipeActionsDefaults.MaxActionHeight,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -416,6 +435,11 @@ fun SwipeActions(
     val commitMarginPx = with(density) { SwipeCommitMargin.toPx() }
     val commitInsetPx = with(density) { SwipeCommitInset.toPx() }
     val hysteresisPx = with(density) { SwipeCommitHysteresis.toPx() }
+    // What the icon and label take with the button's padding round them, the
+    // same sum `SwipeActionButton` asks of a button before it shows the label.
+    val labelled = Theme.sizing.iconLarge + Theme.spacing.xxs * 3 +
+        with(density) { Theme.typography.labelSmall.lineHeight.toDp() }
+    val maxActionHeightPx = with(density) { maxActionHeight.coerceAtLeast(labelled).toPx() }
 
     // **The offset is a *logical* one: positive is toward the trailing edge, in
     // both layout directions.** The drag below turns the finger's physical delta
@@ -898,6 +922,7 @@ fun SwipeActions(
                 fromLeadingEdge = side > 0,
                 shape = actionShape,
                 gap = gapPx,
+                maxHeight = maxActionHeightPx,
                 reveal = { if (side > 0) startTravel else -endTravel },
                 offset = { state.anchoredState.offset + band.offset },
                 takeover = { takeover.value },
@@ -1052,7 +1077,8 @@ internal fun swipeTarget(
  * first; the next starts beside it once it has its full width, and so on toward the
  * row — so a swipe reads as the actions being dealt out rather than all swelling at
  * once. Each is no taller than it is wide, so each begins as a small circle and
- * lengthens into a full-height button. Past the reveal they share the extra width
+ * lengthens into a full-height button — full height up to [maxHeight], past
+ * which it stays centred on a tall row. Past the reveal they share the extra width
  * evenly, and [takeover] then widens the outermost over the whole strip and folds
  * the others away.
  */
@@ -1063,6 +1089,7 @@ private fun SwipeActionButtons(
     fromLeadingEdge: Boolean,
     shape: Shape,
     gap: Float,
+    maxHeight: Float,
     reveal: () -> Float,
     offset: () -> Float,
     takeover: () -> Float,
@@ -1114,7 +1141,7 @@ private fun SwipeActionButtons(
         }
         val placeables = measurables.mapIndexed { i, measurable ->
             val w = widths[i].roundToInt().coerceAtLeast(0)
-            val h = minOf(rowHeight.toFloat(), widths[i]).roundToInt().coerceAtLeast(0)
+            val h = minOf(rowHeight.toFloat(), widths[i], maxHeight).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(w, h))
         }
         layout(boxWidth, rowHeight) {

@@ -16,8 +16,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.GripVertical
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.GripVertical
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.rememberReorderableState

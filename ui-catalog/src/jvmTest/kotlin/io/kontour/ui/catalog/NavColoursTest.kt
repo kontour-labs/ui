@@ -9,10 +9,10 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.MapPin
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavColours
 import io.kontour.ui.nav.NavDefaults

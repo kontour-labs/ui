@@ -37,8 +37,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
@@ -997,6 +997,44 @@ class DetentHapticsTest {
         )
     }
 
+    /**
+     * Asked for as: with the first segment chosen, press the third and drag on
+     * to the fourth, and feel the thumb go to the third as well. The ticker was
+     * armed on the segment under the finger, so that jump was silent — and the
+     * drag took the press from the segment, so its tap was not felt either.
+     */
+    @Test
+    fun aSegmentedDragFromAnotherSegmentSnapsAsTheThumbJumps() {
+        val felt = mutableListOf<FeedbackIntent>()
+        var selected by mutableStateOf(0)
+        var bounds = Rect.Zero
+
+        Scene(width = 700, height = 200) {
+            Recording(felt) {
+                Box(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+                    SegmentedControl(
+                        options = listOf("Depart", "Arrive", "Both", "Neither"),
+                        selectedIndex = selected,
+                        onSelectedIndexChange = { selected = it },
+                        modifier = Modifier.fillMaxWidth().reportBounds { bounds = it },
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            scene.drag(bounds.alongX(0.625f), bounds.alongX(0.875f), steps = 20, paceMillis = 30)
+            scene.frames(4)
+        }
+
+        assertEquals(3, selected, "the drag ended on the fourth segment")
+        assertEquals(
+            2,
+            felt.count { it == FeedbackIntent.Snap },
+            "first to third, then third to fourth: ${felt.summary()}",
+        )
+        assertTrue(felt.none { it != FeedbackIntent.Snap }, "the drag fired something besides its detents: ${felt.summary()}")
+    }
+
     @Test
     fun tabsTickPerStepAndNothingElse() {
         val felt = mutableListOf<FeedbackIntent>()
@@ -1494,12 +1532,15 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = bounds.width / 7f
-            val gridTop = bounds.bottom - 6 * size
+            // A week is a day's width tall, up to the calendar's 40dp week
+            // at the scene's density of 2.
+            val row = minOf(size, 80f)
+            val gridTop = bounds.bottom - 6 * row
             fun cell(day: Int): Offset {
                 val index = day - 1 + 5
                 return Offset(
                     bounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             }
             scene.drag(from = cell(28), to = cell(31), steps = 12, release = false, paceMillis = 12)
@@ -1547,12 +1588,15 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = bounds.width / 7f
-            val gridTop = bounds.bottom - 6 * size
+            // A week is a day's width tall, up to the calendar's 40dp week
+            // at the scene's density of 2.
+            val row = minOf(size, 80f)
+            val gridTop = bounds.bottom - 6 * row
             fun cell(day: Int): Offset {
                 val index = day - 1 + 5
                 return Offset(
                     bounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             }
             scene.drag(from = cell(10), to = cell(15), steps = 24, paceMillis = 12)
@@ -1582,12 +1626,13 @@ class DetentHapticsTest {
         }.use { scene ->
             scene.frames(6)
             val size = tapBounds.width / 7f
-            val gridTop = tapBounds.bottom - 6 * size
+            val row = minOf(size, 80f)
+            val gridTop = tapBounds.bottom - 6 * row
             val index = 12 - 1 + 5
             scene.tap(
                 Offset(
                     tapBounds.left + (index % 7 + 0.5f) * size,
-                    gridTop + (index / 7 + 0.5f) * size,
+                    gridTop + (index / 7 + 0.5f) * row,
                 )
             )
             scene.frames(10)

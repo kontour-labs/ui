@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -23,7 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -37,9 +43,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.lerp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.adaptive.allEdges
 import io.kontour.ui.components.datetime.WheelDrive
 import io.kontour.ui.components.datetime.WheelDrum
 import io.kontour.ui.components.datetime.WheelPickerDefaults
@@ -52,6 +59,8 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.interaction.verticalDragOwning
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayProgress
+import io.kontour.ui.overlay.LocalOverlaySafeArea
+import io.kontour.ui.overlay.MenuDefaults
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.OverlaySurface
@@ -84,8 +93,21 @@ private const val FoldAfterRestMillis = 350L
  *
  * Closed it is a field like [Select]'s, in the same frame and with the same
  * label, helper and error. Opened, the field turns into a [io.kontour.ui.components.datetime.WheelPicker]:
- * the drum grows out of it above and below, with the value where the field's
- * value was, and turning it changes the value as each row comes to the middle.
+ * the drum grows out of it, with the value where the field's value was, and
+ * turning it changes the value as each row comes to the middle.
+ *
+ * **Where it opens.** About the field, its rows above and below, where there is
+ * room for them. Near the top or the foot of the window there is not, and it
+ * opens away from that edge instead: the value stays on the field, the rest of
+ * the wheel's rows run to the side with room — below, or above where there is
+ * room there instead, as a [Select]'s menu picks its side — and half of the next
+ * row shows on the other side, fading out, to say the wheel goes on that way
+ * too. Asked for as *"can you make it so the wheel picker is still centred on
+ * the actual field, but it just shows more elements above/below (depending on
+ * the side)"*, and then *"rather than swapping between beloworabove and
+ * overfield, can we make it just intelligently select based on how much room is
+ * around it?"*: the wheel used to be pushed along to fit, and near either edge
+ * its value was no longer on the field.
  *
  * **Two ways in.** A tap opens the wheel and it stays open: turn it, tap the
  * value in the middle, tap anywhere else, or go back, and it closes. A drag up
@@ -115,6 +137,13 @@ private const val FoldAfterRestMillis = 350L
  * @param dragToPick Whether a vertical drag on the closed field turns the wheel
  *   straight away. Off, only a tap opens it.
  * @param state Whether the wheel is open, hoisted — shared with [Select].
+ * @param onValueChangeFinished Called when the wheel comes to rest after the
+ *   reader turned it, on the row it stopped on. [onValueChange] follows every
+ *   row the wheel passes — the field shows each — so a save, a request or a
+ *   toast belongs here instead, once a flick has settled rather than once a
+ *   row: *"it's toasting every time the "home stop" changes, which becomes
+ *   annoying if i scroll through them fast"*. Not called when [value] is set
+ *   by the caller.
  */
 @Composable
 fun <T> WheelSelect(
@@ -135,6 +164,7 @@ fun <T> WheelSelect(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
+    onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     require(visibleItems % 2 == 1) {
@@ -267,11 +297,12 @@ fun <T> WheelSelect(
 
     val latestAnchor by rememberUpdatedState(anchor)
     val panel by rememberUpdatedState<@Composable () -> Unit> {
-        WheelPanel(
-            anchor = { latestAnchor },
-            fieldHeight = latestAnchor?.height ?: 0f,
-            fullHeight = WheelPickerDefaults.ItemHeight * visibleItems + Theme.spacing.xxs * 2,
-        ) {
+        // The drum has as many rows each side of its middle as the wheel shows
+        // in all but one, so it can open to either side; the panel shows the
+        // part of it that fits. Rows further than two from the middle are drawn
+        // alike, so about the field it looks as a drum of `visibleItems` would.
+        val drumRows = visibleItems * 2 - 1
+        val drum: @Composable () -> Unit = {
             WheelDrum(
                 items = options,
                 selectedIndex = index,
@@ -296,12 +327,18 @@ fun <T> WheelSelect(
                     .padding(Theme.spacing.xxs),
                 enabled = enabled,
                 contentDescription = label,
-                visibleItems = visibleItems,
+                visibleItems = drumRows,
                 infinite = infinite,
+                onSettled = onValueChangeFinished,
                 drive = drive,
                 onCentreTap = { close() },
             )
         }
+        WheelPanel(
+            anchor = { latestAnchor },
+            reach = visibleItems / 2,
+            content = drum,
+        )
     }
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
@@ -328,30 +365,44 @@ fun <T> WheelSelect(
 }
 
 /**
- * The open wheel, over the field it came out of: its middle row where the
- * field's value is, as wide as the field, and moved only as far as it has to be
- * to stay on screen.
+ * The open wheel, out of the field it came from: its middle row where the
+ * field's value is, as wide as the field, and as many of its rows either side as
+ * there is room for.
  *
- * **It grows out of the field.** The panel starts the field's height and opens
- * to the drum's, about the middle row, on the host's own progress — so it shuts
- * the same way, back into the field, when the host lets it go. The drum inside
- * is laid out whole and uncovered as the panel grows, rather than squeezed.
- * Under reduced motion it is the drum's full height from the first frame and
- * only fades.
+ * **The drum is centred on the field, and the panel need not be.** The drum has
+ * rows enough to open to either side, and the panel is a window onto it: [reach]
+ * rows above and below the middle where there is room for both, which is how it
+ * opens over most of a page. Near the top or the foot of the window it opens to
+ * the side with room instead, as a menu picks its side — twice [reach] rows
+ * there, and half a row on the other, fading out — so the value stays where the
+ * field showed it and the wheel turns about it either way. Where neither side
+ * has room for that the panel moves to fit, and the drum with it.
+ *
+ * The room is the host's, less its margin and whatever of the window's insets
+ * reach into it. The side is chosen when the wheel opens and kept until it
+ * closes.
+ *
+ * **It grows out of the field**, from the field's own height to the panel's, on
+ * the host's progress, so it shuts back into the field the same way; under
+ * reduced motion it is whole from the first frame and only fades.
  */
 @Composable
 private fun WheelPanel(
     anchor: () -> Rect?,
-    fieldHeight: Float,
-    /** The panel open: what it is clamped by, whatever it is this frame. */
-    fullHeight: Dp,
+    reach: Int,
     content: @Composable () -> Unit,
 ) {
+    val host = LocalOverlayHost.current
     val progress = LocalOverlayProgress.current
     val reduced = Theme.motion.reduceMotion
-    val marginPx = with(LocalDensity.current) { Theme.spacing.sm.roundToPx() }
-    val fullPx = with(LocalDensity.current) { fullHeight.roundToPx() }
+    val density = LocalDensity.current
+    val rowPx = with(density) { WheelPickerDefaults.ItemHeight.toPx() }
+    val padPx = with(density) { Theme.spacing.xxs.toPx() }
+    val marginPx = with(density) { MenuDefaults.ScreenMargin.roundToPx() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val solid = highContrast()
+    val safeArea = LocalOverlaySafeArea.current ?: WindowInsets.allEdges
+    val geometry = remember { PanelGeometry() }
 
     Layout(
         content = {
@@ -366,47 +417,115 @@ private fun WheelPanel(
                 Box(
                     Modifier
                         .clipToBounds()
+                        // Opened to one side, the sliver of the other fades out,
+                        // so the row cut there reads as more of the wheel rather
+                        // than as a row cut off. Not at high contrast, where
+                        // nothing fades.
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            val opening = geometry.opening
+                            if (solid || opening == null || opening == Opening.About) return@drawWithContent
+                            val fade = rowPx * PeekShare
+                            val below = opening == Opening.Below
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to Color.Black,
+                                    1f to Color.Transparent,
+                                    startY = if (below) 0f else size.height,
+                                    endY = if (below) fade else size.height - fade,
+                                ),
+                                blendMode = BlendMode.DstOut,
+                            )
+                        }
                         .layout { measurable, constraints ->
-                            val drum = measurable.measure(constraints)
-                            val full = drum.height
-                            val height = if (reduced) {
-                                full
-                            } else {
-                                lerp(fieldHeight.coerceAtMost(full.toFloat()), full.toFloat(), progress())
-                                    .roundToInt()
-                            }
-                            layout(drum.width, height) {
-                                // About the middle: the row over the field stays
-                                // put while the rows either side are uncovered.
-                                drum.placeRelative(0, (height - full) / 2)
+                            val drum = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                drum.placeRelative(0, geometry.drumTop)
                             }
                         },
                 ) { content() }
             }
         },
     ) { measurables, constraints ->
-        val at = anchor()
-        if (at == null || measurables.isEmpty()) return@Layout layout(0, 0) {}
-        val width = at.width.roundToInt().coerceAtLeast(0)
-        val panel = measurables.first().measure(
-            Constraints(minWidth = width, maxWidth = width, maxHeight = constraints.maxHeight),
-        )
-        // Where the panel will stand open, clamped once against its full
-        // height, so the growing panel stays centred on one line rather than
-        // chasing its own clamp as it grows.
+        val rect = anchor()
+        if (rect == null || measurables.isEmpty()) return@Layout layout(0, 0) {}
+        val at = rect.translate(-host.originInRoot)
         val room = constraints.maxHeight
-        val half = fullPx / 2f
-        val lowest = marginPx + half
-        val highest = (room - marginPx - half).coerceAtLeast(lowest)
-        val centre = at.center.y.coerceIn(lowest, highest)
-        // The anchor is measured in the root's coordinates, which do not
-        // mirror: its left, counted from the start, is from the right in RTL.
+        val fromRoot = host.edgesFromRoot
+        val top = marginPx + (safeArea.getTop(this) - fromRoot.top).coerceAtLeast(0)
+        val bottom = room - marginPx - (safeArea.getBottom(this) - fromRoot.bottom).coerceAtLeast(0)
+
+        val centre = at.center.y
+        val half = rowPx / 2f
+        val about = reach * rowPx + padPx
+        val far = reach * 2 * rowPx + padPx
+        val near = rowPx * PeekShare
+        val roomBelow = bottom - (centre + half)
+        val roomAbove = (centre - half) - top
+        val opening = geometry.opening ?: when {
+            roomAbove >= about && roomBelow >= about -> Opening.About
+            roomBelow >= far -> Opening.Below
+            roomAbove >= far -> Opening.Above
+            roomBelow >= roomAbove -> Opening.Below
+            else -> Opening.Above
+        }.also { geometry.opening = it }
+
+        // Where the panel stands open, and how far it has to move to be inside
+        // the room; the drum moves with it, so its middle row stays its own.
+        val (above, below) = when (opening) {
+            Opening.About -> about to about
+            Opening.Below -> near to far
+            Opening.Above -> far to near
+        }
+        var openTop = centre - half - above
+        var openBottom = centre + half + below
+        val shift = when {
+            openTop < top -> top - openTop
+            openBottom > bottom -> (bottom - openBottom).coerceAtLeast(top - openTop)
+            else -> 0f
+        }
+        openTop += shift
+        openBottom += shift
+
+        val p = if (reduced) 1f else progress().coerceIn(0f, 1f)
+        val panelTop = lerp(at.top, openTop, p)
+        val panelBottom = lerp(at.bottom, openBottom, p)
+        val height = (panelBottom - panelTop).roundToInt().coerceAtLeast(0)
+        val width = at.width.roundToInt().coerceAtLeast(0)
+        val drumHeight = rowPx * (reach * 4 + 1) + padPx * 2
+        geometry.drumTop = (centre + shift - drumHeight / 2f - panelTop).roundToInt()
+
+        val panel = measurables.first().measure(Constraints.fixed(width, height))
+        // The anchor is in the root's coordinates, which do not mirror: its
+        // left, counted from the start, is from the right in RTL.
         val start = if (rtl) constraints.maxWidth - at.right else at.left
         layout(constraints.maxWidth, room) {
-            panel.placeRelative(start.roundToInt(), (centre - panel.height / 2f).roundToInt())
+            panel.placeRelative(start.roundToInt(), panelTop.roundToInt())
         }
     }
 }
+
+/** Which way a [WheelPanel] opened from its field. */
+private enum class Opening {
+    /** Its rows above and below the field's value. */
+    About,
+
+    /** Its rows below the value, and a sliver above. */
+    Below,
+
+    /** Its rows above the value, and a sliver below. */
+    Above,
+}
+
+/** Which way a [WheelPanel] opened, and where it put its drum, from its measure to its drawing. */
+private class PanelGeometry {
+    var opening: Opening? = null
+    var drumTop: Int = 0
+}
+
+/** How much of the next row a [WheelPanel] opened to one side shows on the other. */
+private const val PeekShare = 0.5f
 
 /** How much of the growth the panel takes to become opaque. */
 private const val RevealFade = 0.35f

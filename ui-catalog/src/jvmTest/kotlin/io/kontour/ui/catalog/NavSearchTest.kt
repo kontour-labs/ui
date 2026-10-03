@@ -17,9 +17,9 @@ import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toArgb
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.nav.NavDefaults

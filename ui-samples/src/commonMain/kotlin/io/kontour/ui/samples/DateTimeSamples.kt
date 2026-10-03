@@ -3,8 +3,8 @@ package io.kontour.ui.samples
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plane
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -16,6 +16,7 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -23,6 +24,7 @@ import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlin.time.Duration.Companion.minutes
 
@@ -51,6 +53,21 @@ fun DateRangePickerBasics() {
         end = end,
         onRangeChange = { from, to -> start = from; end = to },
         today = LocalDate(2026, 6, 12),
+    )
+}
+
+@Composable
+fun DateTimePickerBasics() {
+    var leaveAt by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 6, 12), LocalTime(8, 15))) }
+
+    // One value, a day and a time: a day tapped keeps the time, and a wheel
+    // turned keeps the day.
+    DateTimePicker(
+        value = leaveAt,
+        onValueChange = { leaveAt = it },
+        today = LocalDate(2026, 6, 12),
+        isDateSelectable = { it >= LocalDate(2026, 6, 12) },
+        minuteStep = 5,
     )
 }
 

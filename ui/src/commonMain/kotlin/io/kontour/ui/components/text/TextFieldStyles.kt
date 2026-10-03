@@ -17,8 +17,17 @@ import io.kontour.ui.theme.invisible
  * [Outlined] is the default: a hairline box that thickens and takes the accent
  * when focused. [Filled] sits in a sunken well with no border — right for dense
  * forms and for fields inside a card, where a grid of boxes gets noisy.
+ *
+ * [Plain] has neither, at rest: the value and its icons alone, for a field
+ * whose place already says what it is — a [Select] or a [WheelSelect] at the
+ * end of a row, or in a sentence, where its chevron is the affordance. Asked
+ * for as *"the wheel select component (and really any other select component)
+ * doesn't have to be in a full-on outlined box"*. Focus brings the tint and
+ * the accent edge back, an error its edge, and at high contrast the edge stays.
+ * A text field with nothing round it is hard to find on a page, so it is the
+ * selects' more than the text fields'.
  */
-enum class TextFieldVariant { Outlined, Filled }
+enum class TextFieldVariant { Outlined, Filled, Plain }
 
 /** Resolved colours for a text field across its states. */
 @Immutable
@@ -163,7 +172,10 @@ object TextFieldDefaults {
                 // changing.
                 c.accent.container.copy(alpha = 0.5f)
             },
-            containerDisabled = c.surfaceSunken,
+            // Plain draws nothing round a disabled field either: its muted
+            // content says it is disabled, and a well appearing would say
+            // there had been a box all along.
+            containerDisabled = if (variant == TextFieldVariant.Plain) c.surfaceSunken.invisible() else c.surfaceSunken,
             content = c.content,
             contentDisabled = c.contentDisabled,
             placeholder = c.contentSubtle,
@@ -174,16 +186,16 @@ object TextFieldDefaults {
             // outright. A filled field is `surfaceSunken` on `background`, so
             // with no border there is nothing on screen saying where the input
             // starts.
-            border = if (variant == TextFieldVariant.Filled) {
+            border = if (variant == TextFieldVariant.Outlined) {
+                c.outlineStrong
+            } else {
                 // Invisible rather than transparent for the same reason as
                 // `container` above: this animates to `borderFocused`.
                 if (highContrast()) c.outline else c.outline.invisible()
-            } else {
-                c.outlineStrong
             },
             borderFocused = c.accent.solid,
             borderError = c.danger.solid,
-            borderDisabled = c.outline,
+            borderDisabled = if (variant == TextFieldVariant.Plain && !highContrast()) c.outline.invisible() else c.outline,
             supporting = c.contentMuted,
             error = c.danger.onContainer,
             cursor = c.accent.solid,

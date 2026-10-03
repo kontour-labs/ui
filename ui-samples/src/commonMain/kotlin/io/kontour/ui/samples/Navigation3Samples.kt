@@ -1,5 +1,14 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import io.kontour.ui.motion.pageBack
+import io.kontour.ui.nav.NavigationSuiteScaffold
+import io.kontour.ui.nav.TopBar
+import io.kontour.ui.nav.navigationSuitePadding
+import io.kontour.ui.nav3.coversNavigation
+import io.kontour.ui.nav3.rememberNavigationSuiteSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -20,6 +29,9 @@ internal object StopList
 internal data class StopDetail(val name: String)
 internal object RunSummary
 internal object Conditions
+internal object Departures
+internal object Saved
+internal object Ticket
 
 @Composable
 fun ListDetailSceneStrategyBasics() {
@@ -84,6 +96,50 @@ fun PageTransitionStrategyBasics() {
                 }
             }
             entry<StopDetail>(metadata = detailPane()) { stop -> Text(stop.name) }
+        },
+    )
+}
+
+@Composable
+fun NavigationSuiteSceneStrategyBasics() {
+    val backStack = remember { mutableStateListOf<Any>(Departures) }
+    val here = backStack.firstOrNull()
+    // The navigation around the pages inside it. Its own back stack is this
+    // one: going to a tab here replaces the stack's root.
+    val suite = rememberNavigationSuiteSceneStrategy<Any> { pages ->
+        NavigationSuiteScaffold(
+            destinations = {
+                item(here == Departures, { backStack.clear(); backStack += Departures }, key = Departures, icon = null) { +"Departures" }
+                item(here == Saved, { backStack.clear(); backStack += Saved }, key = Saved, icon = null) { +"Saved" }
+            },
+        ) { pages() }
+    }
+
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        sceneStrategies = listOf(suite),
+        sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
+        entryProvider = entryProvider {
+            entry<Departures> {
+                // Pages inside the navigation keep clear of the bar themselves.
+                ListGroup(Modifier.padding(navigationSuitePadding())) {
+                    item(label = "Perth Underground", onClick = { backStack += StopDetail("Perth Underground") })
+                    item(label = "Show my ticket", onClick = { backStack += Ticket })
+                }
+            }
+            entry<Saved> { Text("Saved stops") }
+            entry<StopDetail> { stop ->
+                Column {
+                    TopBar(onBack = pageBack()) { +stop.name }
+                }
+            }
+            // Over the bar: it slides in over everything, and back uncovers it.
+            entry<Ticket>(metadata = coversNavigation()) {
+                Column {
+                    TopBar(onBack = pageBack()) { +"Ticket" }
+                }
+            }
         },
     )
 }

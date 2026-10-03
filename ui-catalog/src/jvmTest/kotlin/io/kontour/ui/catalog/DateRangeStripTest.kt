@@ -72,7 +72,7 @@ class DateRangeStripTest {
             scene.release(cell(bounds, 15))
 
             for (day in 11..14) {
-                val at = cell(bounds, day) + Offset(0f, cellSize(bounds) / 3f)
+                val at = cell(bounds, day) + Offset(0f, rowHeight(bounds) / 3f)
                 if (!held.isRangeTint(at)) blank += day
             }
         }
@@ -276,10 +276,10 @@ class DateRangeStripTest {
 
     /** The rightmost column holding [colour] in the lower half of [week]'s row. */
     private fun java.awt.image.BufferedImage.rightmostIn(bounds: Rect, week: Int, colour: Int): Int {
-        val size = cellSize(bounds)
-        val gridTop = bounds.bottom - Rows * size
-        val top = (gridTop + (week + 0.7f) * size).toInt()
-        val bottom = (gridTop + (week + 0.95f) * size).toInt()
+        val row = rowHeight(bounds)
+        val gridTop = bounds.bottom - Rows * row
+        val top = (gridTop + (week + 0.7f) * row).toInt()
+        val bottom = (gridTop + (week + 0.95f) * row).toInt()
         var rightmost = 0
         for (y in top until bottom) {
             for (x in bounds.left.toInt() until bounds.right.toInt()) {
@@ -333,9 +333,10 @@ class DateRangeStripTest {
     /** How much of [cap]'s colour is in the lower part of [day]'s cell, below its digit. */
     private fun java.awt.image.BufferedImage.capIn(bounds: Rect, day: Int, cap: Int): Int {
         val size = cellSize(bounds)
+        val row = rowHeight(bounds)
         val centre = cell(bounds, day)
         var found = 0
-        for (y in (centre.y + size * 0.2f).toInt() until (centre.y + size / 2f).toInt() - 2) {
+        for (y in (centre.y + row * 0.2f).toInt() until (centre.y + row / 2f).toInt() - 2) {
             for (x in (centre.x - size / 2f).toInt() + 2 until (centre.x + size / 2f).toInt() - 2) {
                 if (getRGB(x, y) == cap) found++
             }
@@ -345,7 +346,7 @@ class DateRangeStripTest {
 
     /** Inside a cap and clear of the digit, which is dark on it. */
     private fun capSample(bounds: Rect, day: Int): Offset =
-        cell(bounds, day) + Offset(0f, cellSize(bounds) / 3f)
+        cell(bounds, day) + Offset(0f, rowHeight(bounds) / 3f)
 
     /**
      * How much of the cap's own colour is in the third week, outside the range.
@@ -357,10 +358,11 @@ class DateRangeStripTest {
      */
     private fun java.awt.image.BufferedImage.capBelowTheThirdWeek(bounds: Rect, cap: Int): Int {
         val size = cellSize(bounds)
-        val gridTop = bounds.bottom - Rows * size
-        val top = (gridTop + 2 * size).toInt() + 2
+        val row = rowHeight(bounds)
+        val gridTop = bounds.bottom - Rows * row
+        val top = (gridTop + 2 * row).toInt() + 2
         var found = 0
-        for (y in top until (top + (size * 0.4f).toInt())) {
+        for (y in top until (top + (row * 0.4f).toInt())) {
             for (x in (bounds.left + size).toInt() until (bounds.left + 7 * size).toInt() - 1) {
                 if (getRGB(x, y) == cap) found++
             }
@@ -376,24 +378,31 @@ class DateRangeStripTest {
 
     private fun cellSize(bounds: Rect): Float = bounds.width / 7f
 
+    /** A week's height: a day's width, up to the calendar's 40dp week. */
+    private fun rowHeight(bounds: Rect): Float = minOf(cellSize(bounds), MaxRow)
+
     /**
      * The centre of a day of August 2026, the way `CalendarMonth` lays it out:
-     * seven equal columns, every row one cell tall and square, five leading
-     * blanks before the 1st and six rows in all.
+     * seven equal columns, every row a week tall, five leading blanks before the
+     * 1st and six rows in all.
      */
     private fun cell(bounds: Rect, day: Int): Offset {
         val size = cellSize(bounds)
-        val gridTop = bounds.bottom - Rows * size
+        val row = rowHeight(bounds)
+        val gridTop = bounds.bottom - Rows * row
         val index = day - 1 + LeadingBlanks
         return Offset(
             bounds.left + (index % 7 + 0.5f) * size,
-            gridTop + (index / 7 + 0.5f) * size,
+            gridTop + (index / 7 + 0.5f) * row,
         )
     }
 
     private companion object {
         const val LeadingBlanks = 5
         const val Rows = 6
+
+        /** the calendar's 40dp week at the scene's density of 2. */
+        const val MaxRow = 80f
 
         /** Long enough for a snappy spring to be somewhere other than home. */
         const val TravelFrames = 8

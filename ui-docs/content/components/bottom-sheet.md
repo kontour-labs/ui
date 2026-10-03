@@ -170,7 +170,8 @@ starts.
 it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
 drag handle's 24dp band above is the space over it. A sheet collapsed to its
 search field shows the field with the handle in the middle of the band above it
-and 16dp beside and below it.
+and 16dp beside and below it. A top part moves in from a display's rounder
+corners as the header does; see [`SheetHeader`](sheet-header.md#the-space-round-it).
 
 **On the sheet's own colour by default**, so whatever scrolls behind it is hidden
 rather than showing through. Once a bottom part has risen off the band, it has the
@@ -248,6 +249,21 @@ rather than added to them — it is a *minimum* clearance, so on a phone with a
 a floating search field above the keyboard, since the sheet's insets carry the
 IME.
 
+**Only the part of an inset that reaches the sheet's container counts**, the rule
+an [anchored overlay](../overlays.md) already keeps. An app whose root has made room
+for the keyboard — `imePadding()`, a scaffold padded by `safeDrawing`, a window
+that resized — ends the container where the keyboard begins, and the sheet lifts
+no further. It used to lift by the whole keyboard again, and stood a keyboard's
+height above it. The same goes for every edge: a container below the status bar
+gives the sheet's chrome nothing to clear at the top. A dialog, a side sheet and a
+toast keep the same rule.
+
+One double lift is out of the library's sight: an Android window that *pans* for
+the keyboard moves everything up, sheet included, and reports the keyboard as
+well. Set `android:windowSoftInputMode="adjustResize"` on the activity, as
+[`TextField`](text-field.md) asks; a debuggable app whose window pans, or has not
+said, gets one line in its log saying so.
+
 One cost, and it is structural. An edge sheet's surface is as tall as its
 container at every detent and merely translated, so its size never changes and
 its shadow is rasterised once; the surplus hangs off the bottom of the screen
@@ -308,7 +324,7 @@ and the squircle's curve interpolate when both are corner-based shapes.
 on its default `[Hidden, Expanded]` — has no step to morph across, so **where it
 rests decides**: content tall enough to reach the top is an edge sheet from the
 first frame of opening to the last of closing, and short content floats the whole
-way. The top is where a full-height sheet actually stops, below the status bar.
+way. The top is where a full-height sheet actually stops: the top of the window.
 Content that rests within `nearTop` (64dp) of it is partly morphed, which is the
 edge of the rule and why the distance is short; say `from` to morph over a step
 of your own. It used to follow the live position over that last 64dp, and a tall

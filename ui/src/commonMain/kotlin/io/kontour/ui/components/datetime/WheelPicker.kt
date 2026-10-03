@@ -1,5 +1,6 @@
 package io.kontour.ui.components.datetime
 
+import kotlinx.coroutines.flow.collectLatest
 import io.kontour.ui.motion.scrollToItem
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationConstants
@@ -119,6 +120,12 @@ import kotlinx.coroutines.channels.Channel
  *   Only worth it for a value that is genuinely cyclic — hours, minutes, months,
  *   compass points. A list of countries that wraps around is a list you can
  *   never tell you have read all of.
+ * @param onSelectedIndexChangeFinished Called when the drum comes to rest after
+ *   the reader turned it — the finger let go and the fling settled on a row, a
+ *   tapped row turned into the middle, a key stepped it. [onSelectedIndexChange]
+ *   follows every row the drum passes, which is right for what is shown and
+ *   wrong for anything that should happen once: a save, a request, a toast. Not
+ *   called when the caller sets [selectedIndex].
  */
 @Composable
 fun <T> WheelPicker(
@@ -141,6 +148,7 @@ fun <T> WheelPicker(
     visibleItems: Int = WheelPickerDefaults.VisibleItems,
     itemHeight: Dp = WheelPickerDefaults.ItemHeight,
     infinite: Boolean = false,
+    onSelectedIndexChangeFinished: (() -> Unit)? = null,
 ) = WheelDrum(
     items = items,
     selectedIndex = selectedIndex,
@@ -152,7 +160,50 @@ fun <T> WheelPicker(
     visibleItems = visibleItems,
     itemHeight = itemHeight,
     infinite = infinite,
+    onSettled = onSelectedIndexChangeFinished,
 )
+
+/**
+ * Calls [onSettled] each time a drum comes to rest after the reader moved it.
+ *
+ * *"i noticed that you've got it toasting every time the "home stop" changes,
+ * which becomes annoying if i scroll through them fast. can we make it only
+ * update when the picker comes to rest?"* A drum reports every row it passes,
+ * which is what it should show and not what should *happen*: a save, a
+ * request or a toast wants the row it stopped on, once.
+ *
+ * A rest is the end of a movement: [moving] going from true to false, whatever
+ * moved it — a finger and the fling it threw, a tapped row turning into the
+ * middle, the drag a field played into it. Not the caller setting the value,
+ * which [callerTurning] covers for as long as that move takes; a jump that
+ * never shows as moving at all needs no covering.
+ */
+@Composable
+internal fun ReportsSettling(moving: () -> Boolean, callerTurning: () -> Boolean, onSettled: (() -> Unit)?) {
+    if (onSettled == null) return
+    val settled by rememberUpdatedState(onSettled)
+    LaunchedEffect(Unit) {
+        var was = false
+        var byCaller = false
+        snapshotFlow { moving() }.collectLatest { now ->
+            if (now) {
+                was = true
+                if (callerTurning()) byCaller = true
+                return@collectLatest
+            }
+            if (!was) return@collectLatest
+            // Still for two frames before it counts. A fling's end and the turn
+            // onto the nearest row are two movements back to back, with a frame
+            // between them where neither is running; a rest reported there came
+            // a row early, and again at the real one. Moving again cancels this.
+            withFrameNanos { }
+            withFrameNanos { }
+            if (!byCaller) settled()
+            was = false
+            byCaller = false
+        }
+    }
+}
 
 /**
  * A drag begun somewhere other than on the drum, played into it as though it
@@ -251,6 +302,7 @@ internal fun <T> WheelDrum(
     infinite: Boolean = false,
     drive: WheelDrive? = null,
     onCentreTap: (() -> Unit)? = null,
+    onSettled: (() -> Unit)? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
@@ -280,6 +332,7 @@ internal fun <T> WheelDrum(
             itemHeight = itemHeight,
             drive = drive,
             onCentreTap = onCentreTap,
+            onSettled = onSettled,
         )
         return
     }
@@ -538,6 +591,7 @@ internal fun <T> WheelDrum(
         }
     }
 
+    val callerTurning = remember { mutableStateOf(false) }
     LaunchedEffect(selectedIndex) {
         if (selectedIndex != centredIndex && !listState.isScrollInProgress) {
             // Re-armed rather than left ticking: the drum is being turned by the
@@ -545,9 +599,15 @@ internal fun <T> WheelDrum(
             // `scrollToItem` jumps, so exactly one emission follows and the
             // re-arm swallows exactly it.
             ticker.reset()
-            listState.scrollToItem(selectedIndex)
+            callerTurning.value = true
+            try {
+                listState.scrollToItem(selectedIndex)
+            } finally {
+                callerTurning.value = false
+            }
         }
     }
+    ReportsSettling(moving = { listState.isScrollInProgress }, callerTurning = { callerTurning.value }, onSettled = onSettled)
 
     /**
      * A drum you can grab with a mouse.
@@ -931,6 +991,7 @@ private fun <T> InfiniteWheel(
     itemHeight: Dp,
     drive: WheelDrive? = null,
     onCentreTap: (() -> Unit)? = null,
+    onSettled: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
@@ -957,13 +1018,19 @@ private fun <T> InfiniteWheel(
     // on a wheel that wraps is a thing that has to be chosen rather than
     // falling out of the arithmetic: 23:00 to 00:00 is one row forward, not
     // twenty-three back.
+    val callerTurning = remember { mutableStateOf(false) }
     LaunchedEffect(selected) {
         if (selected != centredIndex && !offset.isRunning) {
             val turns = shortestTurn(centredIndex, selected, items.size)
-            offset.animateTo(
-                targetValue = offset.value + turns * itemPx,
-                animationSpec = motion.springOrTween(motion.springSnappy),
-            )
+            callerTurning.value = true
+            try {
+                offset.animateTo(
+                    targetValue = offset.value + turns * itemPx,
+                    animationSpec = motion.springOrTween(motion.springSnappy),
+                )
+            } finally {
+                callerTurning.value = false
+            }
         }
     }
 
@@ -1053,6 +1120,12 @@ private fun <T> InfiniteWheel(
             }
         }
     }
+
+    ReportsSettling(
+        moving = { scrollState.isScrollInProgress || offset.isRunning },
+        callerTurning = { callerTurning.value },
+        onSettled = onSettled,
+    )
 
     // A drag from elsewhere, played through the same scrollable state: the
     // ticks follow `isScrollInProgress`, and the settle above follows its end.

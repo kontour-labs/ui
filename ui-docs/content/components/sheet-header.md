@@ -55,6 +55,19 @@ of the band.
 
 Outside a sheet with a handle it has the inset above as well as below.
 
+**On a display whose corners are rounder than the sheet's, it moves in along
+the corner.** An edge sheet's top corners are the display's own, about 55pt on
+an iPhone and 51dp on a newer Pixel, against the sheet's 34dp, and at 16dp in
+the title's corner was 5dp from the curve. So the header, the handle's band
+above it and a part pinned to the top move in by what the rounder corner cuts
+into its diagonal, 1 − 1/√2 of the difference: 5dp at 51, 6dp at 55, nothing at
+the sheet's own 34 or the floating sheet's 28. Each side follows its own corner,
+and the band grows by the deeper of the two. It is worked out once for a sheet
+rather than on every frame, from the roundest corners it will have, so a floating
+sheet that becomes an edge sheet as it rises keeps the same room all the way
+instead of moving its detents under the finger. Your own content below the header
+keeps `ContentPadding`.
+
 ## Three sizes
 
 `style` takes the same three a [`TopBar`](top-bar.md) does, and deliberately the

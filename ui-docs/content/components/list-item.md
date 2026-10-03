@@ -5,12 +5,13 @@
 <!--sample:ListItemBasics-->
 ```kotlin
 LazyColumn {
-    itemsIndexed(stops) { index, stop ->
+    // A section puts a list item's gap between the rows and hands each its
+    // position, which rounds the outside corners of the group and leaves
+    // the seams square, so a run of rows reads as one block.
+    listSection(stops, key = { it.name }) { stop, position ->
         ListItem(
             onClick = { openStop(stop.name) },
-            // Rounds the outside corners of the group and leaves the seams
-            // square, so a run of rows reads as one block.
-            position = GroupPosition.of(index, stops.size),
+            position = position,
         ) {
             leading { +Tabler.Outline.Bus }
             +stop.name

@@ -2,6 +2,7 @@ package io.kontour.ui.components.display
 
 import io.kontour.ui.locale.mirrorInRtl
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.IntState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +40,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.trackAtTier
 import io.kontour.ui.theme.Theme
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlinx.coroutines.flow.first
 
 /**
@@ -243,6 +249,9 @@ fun CircularProgress(
  *   from a phone: "the current step fills up before the indeterminate animation
  *   moves to the next step". Ignored when [current] is `null`, which is already
  *   animating.
+ * @param gap The space between segments. `0.dp` draws one continuous bar with
+ *   round ends and no seams, filled to a step's end — a stepped bar that does
+ *   not show its steps, for where the count is said elsewhere.
  */
 @Composable
 fun StepProgress(
@@ -257,9 +266,428 @@ fun StepProgress(
     gap: Dp = ProgressDefaults.StepGap,
 ) {
     if (total <= 0) return
-    val motion = Theme.motion
     val strings = Theme.strings
     val formats = Theme.formats
+    val indeterminate = current == null
+    val steps = rememberStepMotion(current, total, working)
+
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(height)
+            .mirrorInRtl()
+            .semantics {
+                this.contentDescription = contentDescription ?: when {
+                    indeterminate -> strings.inProgress
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
+                }
+                // `Indeterminate` rather than a made-up position: a screen reader
+                // saying "step 0 of 4" would be stating something the caller
+                // explicitly said it does not know.
+                progressBarRangeInfo = if (indeterminate) {
+                    ProgressBarRangeInfo.Indeterminate
+                } else {
+                    // The step it is on, as `LinearProgress` reports its value —
+                    // not the fill on its way there, which re-ran these semantics
+                    // on every frame of the spring for a number between steps.
+                    ProgressBarRangeInfo(
+                        current = current.coerceIn(0, total).toFloat(),
+                        range = 0f..total.toFloat(),
+                        steps = total - 1,
+                    )
+                }
+            }
+    ) {
+        // The gap closes as the row melts, so the segments arrive touching.
+        val melt = steps.melt
+        val gapPx = gap.toPx() * (1f - melt)
+        val segmentWidth = (size.width - gapPx * (total - 1)) / total
+        val radius = CornerRadius(size.height / 2f)
+        // How far the seams are hidden: as far as the row has melted, or all the
+        // way for a row asked for with no gap. Segments that merely touch meet
+        // at two round caps and pinch there, so a gapless row came out as a bar
+        // with a notch at every step.
+        val seam = if (gap <= 0.dp) 1f else melt
+
+        /**
+         * How far a segment reaches into its neighbour, to hide the seam.
+         *
+         * Closing the gaps is not enough on its own: two capsules that merely
+         * touch still meet at two semicircular caps, and the join pinches. Push
+         * each one a full radius into the segment beside it and the overlap is
+         * painted at full height all the way across, so the union is a
+         * continuous bar with round ends and nothing in between — no per-corner
+         * path, and no allocation in a draw loop.
+         *
+         * Zero at either end of the row, which is where the bar's own round ends
+         * belong.
+         */
+        fun reach(index: Int): Pair<Float, Float> = Pair(
+            if (index == 0) 0f else radius.x * seam,
+            if (index == total - 1) 0f else radius.x * seam,
+        )
+
+        // Read here rather than in composition: the value changes every frame,
+        // and reading it above would recompose the whole row on each one instead
+        // of redrawing it.
+        val phase = steps.phase
+        val chasePhase = steps.chasePhase
+        val animated = steps.filled
+
+        // Every track before any fill. A segment reaching into its neighbour
+        // reaches under that neighbour's track too, and drawn in turn, the next
+        // track covered the end of a fill that had reached into it.
+        for (index in 0 until total) {
+            val left = index * (segmentWidth + gapPx)
+            val (reachStart, reachEnd) = reach(index)
+            drawRoundRect(
+                color = trackColour,
+                topLeft = Offset(left - reachStart, 0f),
+                size = Size(segmentWidth + reachStart + reachEnd, size.height),
+                cornerRadius = radius,
+            )
+        }
+        for (index in 0 until total) {
+            val left = index * (segmentWidth + gapPx)
+            val (reachStart, reachEnd) = reach(index)
+            val fill = steps.fillOf(index)
+            if (fill > 0f) {
+                // The same reach as the track, so a filled segment merges with
+                // its neighbours exactly as its track does — but only at the
+                // end it actually reaches, and only into a neighbour the fill
+                // goes on into. A part-filled segment's right edge is the value,
+                // and the last full one's is the step it finished: either way
+                // that end stays round where it stops, and does not run on past
+                // it into a step that has not started.
+                val fillEnd = if (fill >= 1f && animated > index + 1) reachEnd else 0f
+                drawRoundRect(
+                    color = colour,
+                    topLeft = Offset(left - reachStart, 0f),
+                    size = Size(segmentWidth * fill + reachStart + fillEnd, size.height),
+                    cornerRadius = radius,
+                )
+            }
+
+            // Same construction as `LinearProgress` — a band 35% as wide as a
+            // segment, entering one end as it leaves the other, and kept inside
+            // this segment so it cannot spill into the gaps.
+            //
+            // It used to be *clipped* to the segment, which is where the square
+            // ends came from: the band is drawn round and `clipRect` then sliced
+            // off whichever cap overhung, leaving a straight vertical edge.
+            // Measured at 42 of 88 frames of a working animation, the end column
+            // carrying the band's full 24 rows of ink instead of a tip's one or
+            // two. `LinearProgress` has always avoided it by shrinking the rect
+            // rather than cutting it, and that is what this does now.
+            if (steps.chasing(index)) {
+                // Across the whole row when it is indeterminate — occluded where
+                // they pass over a gap, and not a chase per segment, which went
+                // dark at every boundary — or inside the one working segment.
+                val spanLeft = if (indeterminate) 0f else left
+                val span = if (indeterminate) size.width else segmentWidth
+                // The segment's own bounds, widened by however far it has
+                // melted into its neighbours: while the row is one bar the bars
+                // have to be able to cross the joins, or they blink at each one.
+                val limitLeft = left - reachStart
+                val limitRight = left + segmentWidth + reachEnd
+                chasingBars(if (indeterminate) phase else chasePhase) { from, to ->
+                    drawCapsule(
+                        colour,
+                        (spanLeft + span * from).coerceAtLeast(limitLeft),
+                        (spanLeft + span * to).coerceAtMost(limitRight),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Progress through a known number of discrete steps, as a ring.
+ *
+ * ```
+ * CircularStepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+ * ```
+ *
+ * [StepProgress] bent round into a [CircularProgress]'s ring: one arc per step,
+ * from twelve o'clock, with a gap between each. Everything [StepProgress] does
+ * it does the same way, through the same animation — a step filling before the
+ * next one starts working, `current = null` melting the arcs into one ring with
+ * the two chasing bars running round it, a still stub under reduced motion — so
+ * the two can sit in one screen and read as one thing. For a space too small
+ * for a row of steps: a card's corner, beside a title, round an avatar.
+ *
+ * @param current Which step is in progress, counting from one, or `null` when
+ *   the step is not known. See [StepProgress].
+ * @param working Whether [current] is itself still going: its arc carries the
+ *   chasing bars instead of a fill. See [StepProgress].
+ * @param gap The space between arcs, along the ring. `0.dp` draws one continuous
+ *   ring, filled to the end of the step it has reached.
+ */
+@Composable
+fun CircularStepProgress(
+    current: Int?,
+    total: Int,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    working: Boolean = false,
+    colour: Color = Theme.colours.primary,
+    trackColour: Color = trackAtTier(Theme.colours.outline),
+    size: Dp = ProgressDefaults.CircularSize,
+    strokeWidth: Dp = ProgressDefaults.CircularStrokeWidth,
+    gap: Dp = ProgressDefaults.StepGap,
+) {
+    if (total <= 0) return
+    val strings = Theme.strings
+    val formats = Theme.formats
+    val indeterminate = current == null
+    val steps = rememberStepMotion(current, total, working)
+
+    Canvas(
+        modifier
+            .size(size)
+            // Counter-clockwise from twelve o'clock in a right-to-left reading,
+            // as a row of steps runs from the right.
+            .mirrorInRtl()
+            .semantics {
+                this.contentDescription = contentDescription ?: when {
+                    indeterminate -> strings.inProgress
+                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
+                }
+                progressBarRangeInfo = if (indeterminate) {
+                    ProgressBarRangeInfo.Indeterminate
+                } else {
+                    ProgressBarRangeInfo(
+                        current = current.coerceIn(0, total).toFloat(),
+                        range = 0f..total.toFloat(),
+                        steps = total - 1,
+                    )
+                }
+            }
+    ) {
+        val ring = StepRing(
+            stroke = strokeWidth.toPx(),
+            diameter = this.size.minDimension,
+            total = total,
+            gap = gap.toPx(),
+            melt = steps.melt,
+            // One step is one ring, with nowhere for a gap to go.
+            seamless = gap <= 0.dp || total == 1,
+        )
+        val animated = steps.filled
+
+        // Every track before any fill, as in [StepProgress].
+        for (index in 0 until total) {
+            drawRingCapsule(trackColour, ring, ring.start(index) - ring.reach, ring.end(index) + ring.reach)
+        }
+        for (index in 0 until total) {
+            val fill = steps.fillOf(index)
+            if (fill > 0f) {
+                // From twelve o'clock exactly, where the first step starts, and
+                // to the end of the last full step; reaching into the next only
+                // when the fill goes on into it. Round where it stops.
+                val from = ring.start(index) - if (index == 0) 0f else ring.reach
+                val to = when {
+                    fill < 1f -> ring.start(index) + (ring.end(index) - ring.start(index)) * fill
+                    // All the way round: past twelve o'clock and over where the
+                    // fill began, so the ring closes without a pinch.
+                    index == total - 1 -> ring.end(index) + ring.reach * 2f
+                    animated > index + 1 -> ring.end(index) + ring.reach
+                    else -> ring.end(index)
+                }
+                drawRingCapsule(colour, ring, from, to)
+            }
+            if (steps.chasing(index)) {
+                // Round the whole ring when it is indeterminate, from twelve
+                // o'clock back to it; inside the working step's arc otherwise.
+                val spanStart = if (indeterminate) ring.top else ring.start(index)
+                val span = if (indeterminate) 360f else ring.end(index) - ring.start(index)
+                val limitStart = ring.start(index) - ring.reach
+                val limitEnd = ring.end(index) + ring.reach
+                chasingBars(if (indeterminate) steps.phase else steps.chasePhase) { from, to ->
+                    drawRingCapsule(
+                        colour,
+                        ring,
+                        (spanStart + span * from).coerceAtLeast(limitStart),
+                        (spanStart + span * to).coerceAtMost(limitEnd),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The arithmetic of a [CircularStepProgress]'s ring, in degrees clockwise from
+ * three o'clock, as `drawArc` takes them.
+ *
+ * Each step is an equal share of the ring, less a [gap] that closes as the
+ * steps [melt] into one. Every arc is described by the stretch of ring its
+ * *ink* covers, round ends included — as a [StepProgress] segment is by its
+ * rect — and [drawRingCapsule] turns that into a round-capped arc. So the gap a
+ * reader sees is [gap], and not [gap] less the two caps that a plain `drawArc`
+ * would draw out into it.
+ */
+internal class StepRing(
+    val stroke: Float,
+    diameter: Float,
+    private val total: Int,
+    gap: Float,
+    melt: Float,
+    seamless: Boolean,
+) {
+    /** The radius of the stroke's centre line. */
+    val radius: Float = ((diameter - stroke) / 2f).coerceAtLeast(0f)
+
+    /** Twelve o'clock. */
+    val top: Float = -90f
+
+    private val share: Float = 360f / total
+
+    /** How far a round cap reaches past the end of its arc, in degrees. */
+    val cap: Float = if (radius > 0f) degrees(stroke / 2f / radius) else 0f
+
+    /**
+     * The gap between steps, in degrees, closing as the ring melts. Never more
+     * than half a step, so a ring of many small steps still draws each of them.
+     */
+    private val gapAngle: Float =
+        if (seamless || radius <= 0f) 0f else (degrees(gap / radius) * (1f - melt)).coerceAtMost(share / 2f)
+
+    /**
+     * How far an arc reaches into its neighbour, to hide the seam: a cap's
+     * length, as far as the ring has melted. Every arc has a neighbour on both
+     * sides — the last step's is the first — so, unlike a row's ends, none of
+     * them is spared it.
+     */
+    val reach: Float = cap * if (seamless) 1f else melt
+
+    /** Where step [index]'s ink starts. */
+    fun start(index: Int): Float = top + index * share + gapAngle / 2f
+
+    /** Where step [index]'s ink ends. */
+    fun end(index: Int): Float = top + (index + 1) * share - gapAngle / 2f
+
+    private fun degrees(radians: Float): Float = radians * 180f / PI.toFloat()
+}
+
+/**
+ * The ring's arc whose ink runs from [from] to [to] degrees, round at both ends
+ * however short it is: a sliver too short for its two caps is a dot that wide,
+ * as [drawCapsule] draws one along a bar, so a chasing bar arrives as a point
+ * and stretches into an arc.
+ */
+internal fun DrawScope.drawRingCapsule(colour: Color, ring: StepRing, from: Float, to: Float) {
+    val sweep = to - from
+    if (sweep <= 0f || ring.radius <= 0f) return
+    if (sweep >= ring.cap * 2f) {
+        // Centred, so a canvas that is not square still draws a round ring.
+        drawArc(
+            color = colour,
+            startAngle = from + ring.cap,
+            sweepAngle = (sweep - ring.cap * 2f).coerceAtMost(360f),
+            useCenter = false,
+            topLeft = Offset(
+                (size.width - ring.radius * 2f) / 2f,
+                (size.height - ring.radius * 2f) / 2f,
+            ),
+            size = Size(ring.radius * 2f, ring.radius * 2f),
+            style = Stroke(width = ring.stroke, cap = StrokeCap.Round),
+        )
+    } else {
+        val mid = (from + to) / 2f * PI.toFloat() / 180f
+        val length = sweep * PI.toFloat() / 180f * ring.radius
+        drawCircle(
+            color = colour,
+            radius = length / 2f,
+            center = Offset(
+                size.width / 2f + ring.radius * cos(mid),
+                size.height / 2f + ring.radius * sin(mid),
+            ),
+        )
+    }
+}
+
+/**
+ * What a stepped progress indicator animates, shared by [StepProgress] and
+ * [CircularStepProgress] so the bar and the ring move the same way: how far the
+ * fill has got, how far the steps have melted into one, and where the two
+ * chases are. Every value is read in draw.
+ */
+internal class StepMotion(
+    val current: Int?,
+    val total: Int,
+    val working: Boolean,
+    /** Whether anything loops: a chase is running, and motion is not reduced. */
+    val animating: Boolean,
+    private val fill: State<Float>,
+    private val meltState: State<Float>,
+    private val sweep: State<Float>?,
+    private val chase: Animatable<Float, AnimationVector1D>,
+    private val chaseStep: IntState,
+) {
+    val indeterminate: Boolean get() = current == null
+
+    /** The steps filled, fractional while the fill springs between them. */
+    val filled: Float get() = fill.value
+
+    /** How far the steps have melted into one continuous run. 1 is fully merged. */
+    val melt: Float get() = meltState.value
+
+    /** The indeterminate chase's phase, or 0 when nothing is animating. */
+    val phase: Float get() = sweep?.value ?: 0f
+
+    /** The working step's chase, or NaN for any step it is not running for. */
+    val chasePhase: Float
+        get() = if (animating && !indeterminate && chaseStep.intValue == current) chase.value else Float.NaN
+
+    /**
+     * Whether step [index], from zero, is the one working.
+     *
+     * A band travels: across the whole row when the row is indeterminate,
+     * inside one segment when a known step is working. A segment that is both
+     * solid and animated says two things at once, so a band replaces the fill
+     * rather than sitting on top of it.
+     */
+    fun busy(index: Int): Boolean = current != null && working && index == current.coerceIn(1, total) - 1
+
+    /**
+     * How full step [index] is drawn, 0 to 1: partly, on the step in progress,
+     * so a step that is halfway does not read as not started.
+     */
+    fun fillOf(index: Int): Float = when {
+        // Nothing, unless there is no band to draw it.
+        //
+        // It used to light one whole segment at a time — `(phase *
+        // total).toInt()`, which takes a continuous phase and throws all of it
+        // away but the integer part. What that draws is a segment snapping on,
+        // holding, and snapping to the next: a stepped animation for a state
+        // whose whole meaning is "this has no steps, it is just going". The
+        // band was already right here for the `working` case below, and had
+        // been since it was written.
+        //
+        // Under reduced motion nothing travels, so the first segment carries a
+        // static stub instead — the same answer `LinearProgress` gives, and for
+        // the same reason: neither filled nor animated is invisible.
+        indeterminate -> if (animating || index != 0) 0f else BandFraction
+        // Static under reduced motion, so a busy step still reads as working
+        // without the travel.
+        busy(index) -> if (animating) 0f else BandFraction
+        else -> (filled - index).coerceIn(0f, 1f)
+    }
+
+    /** Whether a band is running in step [index] now: across all of them when indeterminate. */
+    fun chasing(index: Int): Boolean = when {
+        !animating -> false
+        indeterminate -> true
+        // Waiting for the fill before it: nothing yet.
+        else -> busy(index) && !chasePhase.isNaN()
+    }
+}
+
+@Composable
+internal fun rememberStepMotion(current: Int?, total: Int, working: Boolean): StepMotion {
+    val motion = Theme.motion
     val indeterminate = current == null
 
     // The steps drawn full: those before a working step, or up to and including
@@ -276,7 +704,6 @@ fun StepProgress(
         animationSpec = motion.springOrTween(motion.springDefault),
         label = "stepProgress",
     )
-    val animated by filled
 
     // Two different unknowns, and they animate differently.
     //
@@ -318,7 +745,7 @@ fun StepProgress(
      * steps to the frame clock forever. `IdleAnimationTest` is the assertion
      * that keeps this honest.
      */
-    val melt by animateFloatAsState(
+    val meltState = animateFloatAsState(
         targetValue = if (indeterminate) 1f else 0f,
         animationSpec = motion.tweenDefault(),
         label = "stepMelt",
@@ -370,153 +797,7 @@ fun StepProgress(
         }
     }
 
-    Canvas(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .mirrorInRtl()
-            .semantics {
-                this.contentDescription = contentDescription ?: when {
-                    indeterminate -> strings.inProgress
-                    else -> strings.stepOfCount(formats.quantity(current), formats.quantity(total), working)
-                }
-                // `Indeterminate` rather than a made-up position: a screen reader
-                // saying "step 0 of 4" would be stating something the caller
-                // explicitly said it does not know.
-                progressBarRangeInfo = if (indeterminate) {
-                    ProgressBarRangeInfo.Indeterminate
-                } else {
-                    // The step it is on, as `LinearProgress` reports its value —
-                    // not the fill on its way there, which re-ran these semantics
-                    // on every frame of the spring for a number between steps.
-                    ProgressBarRangeInfo(
-                        current = current.coerceIn(0, total).toFloat(),
-                        range = 0f..total.toFloat(),
-                        steps = total - 1,
-                    )
-                }
-            }
-    ) {
-        // The gap closes as the row melts, so the segments arrive touching.
-        val gapPx = gap.toPx() * (1f - melt)
-        val segmentWidth = (size.width - gapPx * (total - 1)) / total
-        val radius = CornerRadius(size.height / 2f)
-
-        /**
-         * How far a segment reaches into its neighbour, to hide the seam.
-         *
-         * Closing the gaps is not enough on its own: two capsules that merely
-         * touch still meet at two semicircular caps, and the join pinches. Push
-         * each one a full radius into the segment beside it and the overlap is
-         * painted at full height all the way across, so the union is a
-         * continuous bar with round ends and nothing in between — no per-corner
-         * path, and no allocation in a draw loop.
-         *
-         * Zero at either end of the row, which is where the bar's own round ends
-         * belong.
-         */
-        fun reach(index: Int): Pair<Float, Float> = Pair(
-            if (index == 0) 0f else radius.x * melt,
-            if (index == total - 1) 0f else radius.x * melt,
-        )
-
-        // Read here rather than in composition: the value changes every frame,
-        // and reading it above would recompose the whole row on each one instead
-        // of redrawing it. Null when nothing is animating, which is the same
-        // condition as `!animating` — see where it is created.
-        val phase = sweep?.value ?: 0f
-        val chasePhase = if (animating && !indeterminate && chaseStep.intValue == current) chase.value else Float.NaN
-
-        for (index in 0 until total) {
-            val left = index * (segmentWidth + gapPx)
-            val (reachStart, reachEnd) = reach(index)
-            drawRoundRect(
-                color = trackColour,
-                topLeft = Offset(left - reachStart, 0f),
-                size = Size(segmentWidth + reachStart + reachEnd, size.height),
-                cornerRadius = radius,
-            )
-            // A band travels: across the whole row when the row is
-            // indeterminate, inside one segment when a known step is working. A
-            // segment that is both solid and animated says two things at once,
-            // so a band replaces the fill rather than sitting on top of it.
-            val busy = current != null && working && index == current.coerceIn(1, total) - 1
-
-            // Partial fill on the segment currently in progress, so a step that
-            // is halfway does not read as not started.
-            val fill = when {
-                // Nothing, unless there is no band to draw it.
-                //
-                // It used to light one whole segment at a time — `(phase *
-                // total).toInt()`, which takes a continuous phase and throws all
-                // of it away but the integer part. What that draws is a segment
-                // snapping on, holding, and snapping to the next: a stepped
-                // animation for a state whose whole meaning is "this has no
-                // steps, it is just going". The band was already right here for
-                // the `working` case below, and had been since it was written.
-                //
-                // Under reduced motion nothing travels, so the first segment
-                // carries a static stub instead — the same answer
-                // `LinearProgress` gives, and for the same reason: neither
-                // filled nor animated is invisible.
-                indeterminate -> if (animating || index != 0) 0f else BandFraction
-                // Static under reduced motion, so a busy step still reads as
-                // working without the travel.
-                busy -> if (animating) 0f else BandFraction
-                else -> (animated - index).coerceIn(0f, 1f)
-            }
-            if (fill > 0f) {
-                // The same reach as the track, so a filled segment merges with
-                // its neighbours exactly as its track does — but only at the
-                // end it actually reaches. A part-filled segment's right edge is
-                // the value, and that end stays round wherever it stops.
-                val fillEnd = if (fill >= 1f) reachEnd else 0f
-                drawRoundRect(
-                    color = colour,
-                    topLeft = Offset(left - reachStart, 0f),
-                    size = Size(segmentWidth * fill + reachStart + fillEnd, size.height),
-                    cornerRadius = radius,
-                )
-            }
-
-            // Same construction as `LinearProgress` — a band 35% as wide as a
-            // segment, entering one end as it leaves the other, and kept inside
-            // this segment so it cannot spill into the gaps.
-            //
-            // It used to be *clipped* to the segment, which is where the square
-            // ends came from: the band is drawn round and `clipRect` then sliced
-            // off whichever cap overhung, leaving a straight vertical edge.
-            // Measured at 42 of 88 frames of a working animation, the end column
-            // carrying the band's full 24 rows of ink instead of a tip's one or
-            // two. `LinearProgress` has always avoided it by shrinking the rect
-            // rather than cutting it, and that is what this does now.
-            val chasing = when {
-                !animating -> false
-                indeterminate -> true
-                // Waiting for the fill before it: nothing yet.
-                else -> busy && !chasePhase.isNaN()
-            }
-            if (chasing) {
-                // Across the whole row when it is indeterminate — occluded where
-                // they pass over a gap, and not a chase per segment, which went
-                // dark at every boundary — or inside the one working segment.
-                val spanLeft = if (indeterminate) 0f else left
-                val span = if (indeterminate) size.width else segmentWidth
-                // The segment's own bounds, widened by however far it has
-                // melted into its neighbours: while the row is one bar the bars
-                // have to be able to cross the joins, or they blink at each one.
-                val limitLeft = left - reachStart
-                val limitRight = left + segmentWidth + reachEnd
-                chasingBars(if (indeterminate) phase else chasePhase) { from, to ->
-                    drawCapsule(
-                        colour,
-                        (spanLeft + span * from).coerceAtLeast(limitLeft),
-                        (spanLeft + span * to).coerceAtMost(limitRight),
-                    )
-                }
-            }
-        }
-    }
+    return StepMotion(current, total, working, animating, filled, meltState, sweep, chase, chaseStep)
 }
 
 /** No step's chase: before one has started, and between steps. */

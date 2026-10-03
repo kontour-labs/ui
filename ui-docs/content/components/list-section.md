@@ -25,6 +25,48 @@ ListSection(
 }
 ```
 
+## In a lazy list: `listSection`
+
+A `LazyColumn` arranges every item one way, and a sectioned list needs two gaps:
+the hairline between a group's rows and the space before the next heading.
+`listSection` draws both, with the heading, each row's `position` and the footer,
+so leave the column's `verticalArrangement` alone.
+
+<!--sample:ListSectionLazy-->
+```kotlin
+// Sections in a lazy list. Each draws its heading, its rows a hairline
+// apart with their corners worked out, and the space before the next —
+// so the `LazyColumn` sets no `verticalArrangement` of its own.
+LazyColumn {
+    listSection(favourites, key = { it.name }, sectionKey = "favourites", title = { +"Favourites" }) { stop, position ->
+        ListItem(onClick = { save() }, position = position) { +stop.name }
+    }
+    listSection(
+        nearby,
+        key = { it.name },
+        sectionKey = "nearby",
+        title = { +"Nearby" },
+        footer = { +"Within a ten-minute walk." },
+    ) { stop, position ->
+        ListItem(onClick = { save() }, position = position) {
+            +stop.name
+            supporting { +"${stop.routes} routes" }
+        }
+    }
+}
+```
+
+Each section adds one item for its header, one for each row and one for its
+footer, which is what [`indexedBy`](index-scroller.md) counts for an
+`IndexScroller`: a section per letter, without a footer, is where the rail's
+letters land. An empty section draws nothing. Its rows move rather than jump when
+a filter adds or takes some away; give `key` so the moves follow each row, and
+`sectionKey` for a section that comes and goes as a whole. A `key` is saved with
+the list, as any lazy item's is, so on Android it has to be something a `Bundle`
+holds — a string or a number is right. A `sectionKey` can be anything whose
+`toString()` tells the sections apart: the section makes its own string keys from
+it.
+
 ---
 
 ## Accessibility
@@ -44,4 +86,6 @@ At high contrast the title, supporting line and footer take the enhanced
 scheme's muted colours. The section draws no line of its own; each
 [`ListItem`](list-item.md) in it takes the edge a row takes at this tier.
 
-Nothing in a section moves, so reduced motion changes nothing about it.
+Nothing in a `ListSection` moves. A `listSection`'s rows slide to their new
+places when the list changes under them; under reduced motion they appear and go
+in place, with the fade and without the slide.

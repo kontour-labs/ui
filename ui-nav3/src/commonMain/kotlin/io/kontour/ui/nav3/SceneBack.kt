@@ -31,6 +31,8 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.motion.BackStyle
 import io.kontour.ui.motion.LocalBackStyle
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -102,8 +104,19 @@ private class SceneBackHandler(
     private fun settleTo(target: Float, then: () -> Unit) {
         job?.cancel()
         job = scope.launch {
-            animatable.snapTo(state.progress)
-            animatable.animateTo(target, tween(SettleMillis, easing = LinearEasing)) { state.progress = value }
+            // The rest of the way at the settle's pace, all of it in
+            // `SettleMillis`, rather than `SettleMillis` however little is
+            // left. On Android the relay hands a let-go gesture over already at
+            // the end, and the detail sat gone for a fifth of a second before
+            // the pop — *"if i swipe back quickly … then sometimes it can feel
+            // really sluggish"*.
+            val millis = (abs(target - state.progress) * SettleMillis).roundToInt()
+            if (millis > 0) {
+                animatable.snapTo(state.progress)
+                animatable.animateTo(target, tween(millis, easing = LinearEasing)) { state.progress = value }
+            } else {
+                state.progress = target
+            }
             then()
         }
     }

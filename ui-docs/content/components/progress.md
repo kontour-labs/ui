@@ -1,4 +1,4 @@
-# `LinearProgress` / `CircularProgress` / `StepProgress`
+# `LinearProgress` / `CircularProgress` / `StepProgress` / `CircularStepProgress`
 
 <!--sample:ProgressBasics-->
 ```kotlin
@@ -13,12 +13,19 @@ CircularProgress(progress = 0.4f, contentDescription = "Downloading timetables")
 
 // For a wizard, where the count is the story.
 StepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+
+// The same steps round a ring, for a space too small for a row.
+CircularStepProgress(current = 2, total = 4, contentDescription = "Step 2 of 4")
+
+// No gap: one continuous bar, filled to the end of the step.
+StepProgress(current = 2, total = 4, gap = 0.dp, contentDescription = "Step 2 of 4")
 ```
 | | |
 |---|---|
 | `LinearProgress` | A bar. Determinate, or indeterminate at `progress = null` |
 | `CircularProgress` | A ring, in a space too small for a bar. `progress = null` hands off to `Spinner` — a ring has no indeterminate sweep of its own |
 | `StepProgress` | Segmented, for a known number of steps. `current = null` is the sequence with no step reached yet |
+| `CircularStepProgress` | `StepProgress` round a ring, one arc a step from twelve o'clock, for a space too small for a row |
 | [`Spinner`](spinner.md) | Indeterminate activity, and the library's one loader |
 
 Prefer a determinate one wherever the fraction is known. People wait longer when
@@ -28,7 +35,7 @@ they can see the end.
 
 ## Accessibility
 
-All three report `ProgressBarRangeInfo` and take a `contentDescription`, which
+All four report `ProgressBarRangeInfo` and take a `contentDescription`, which
 they need: an indicator with no description announces "progress bar" with no
 subject.
 
@@ -38,7 +45,9 @@ Describe the work, not the widget — "Downloading timetables", not "Loading".
 `CircularProgress`, and honest: a bar that sits at 90% for a minute is worse than
 one that admits it does not know. But it also announces no value, so anything
 long enough to worry about wants a message beside it. The same goes for
-`StepProgress` at `current = null`.
+`StepProgress` and `CircularStepProgress` at `current = null`. Both say the
+step themselves when given no description, "Step 2 of 4", as a screen reader
+would want it.
 
 **Indeterminate is two bars chasing each other**: a long one sweeping out and a
 short one after it, each end speeding up and slowing down on its own curve, so the
@@ -60,14 +69,26 @@ finished fills first, and only once it is full do the bars start in the next
 step, from its start — asked for from a phone, so the step "fills up before the
 indeterminate animation moves to the next step".
 
+**`CircularStepProgress` is the same steps round a ring**, one arc a step,
+clockwise from twelve o'clock and counter-clockwise in a right-to-left
+language. It moves through the same animation as the row, so its fill, its
+melt, its chase and its still stub under reduced motion are the row's, and the
+two read as one thing on one screen. Its gaps are measured along the ring and
+leave room for the round ends, so the gap you see is the `gap` you pass.
+
+**`gap = 0.dp` draws the steps as one bar**, or one ring, with no seams, and
+its fill stops round at the end of the step it has reached. For where the count
+is said elsewhere and the row only has to show how far along it is. Before,
+the segments met at their round ends and the bar pinched at every step.
+
 At [high contrast](../accessibility.md#what-high-actually-changes) the track
-under the fill becomes `inactive` on all three, 3:1 from the default fill and
+under the fill becomes `inactive` on all four, 3:1 from the default fill and
 4.5:1 on the page. The bar and the ring keep their thickness, and nothing else
 changes.
 
 Under reduced motion nothing loops but the spinner. An indeterminate
-`LinearProgress` holds a still stretch of fill at its start, `StepProgress` holds
-a still stub where its bars would run, and `CircularProgress` with
+`LinearProgress` holds a still stretch of fill at its start, `StepProgress` and
+`CircularStepProgress` hold a still stub where their bars would run, and `CircularProgress` with
 `progress = null`, being a [`Spinner`](spinner.md), keeps turning with its
 breathing stilled. A new value still eases to its fill, over 150ms and without
 overshoot.

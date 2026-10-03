@@ -36,7 +36,9 @@ band, reported as *"a fair bit of extra space between the top of the sheet heade
 … and the sheet handle"*. For a while the band was 16dp, the sheet's inset at the
 sides, and the handle then sat on the content: *"the top of it looks a bit cramped
 now"*. So the top has the handle's room, and the sides and the bottom have
-`BottomSheetDefaults.ContentPadding`, 16dp.
+`BottomSheetDefaults.ContentPadding`, 16dp. On a display whose corners are rounder
+than the sheet's, the band is taller by what the corner cuts in, with the handle
+still in its middle: see [the header's](sheet-header.md#the-space-round-it).
 
 `BottomSheet` and `ModalBottomSheet` draw one by default and take a `dragHandle`
 slot to replace or remove it. [Sheets](sheets.md) is where the detents, the

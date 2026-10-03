@@ -20,7 +20,7 @@ version number:
 | `io.kontour:haptics` | [Platform haptics](haptics.md), with no Compose in it | Never beside `:ui`, which brings it. On its own, for code that wants haptics without the design system |
 
 **Keep them on the same version.** They are built together from one commit and
-call each other's internals freely; `ui-nav3:0.2.2` over `ui:0.3.0` can compile
+call each other's internals freely; `ui-nav3:0.3.0` over `ui:0.4.0` can compile
 and then fail at run time with a missing method. A version catalog entry for all
 three, below, is the simplest way to make that impossible.
 
@@ -80,7 +80,7 @@ One version for all three, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.3.0"
+kontour = "0.4.0"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -103,7 +103,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.3.0")`, and so on.
+`implementation("io.kontour:ui:0.4.0")`, and so on.
 
 ---
 
@@ -130,9 +130,15 @@ Both **throw** rather than fall back when they are missing — "No KontourTheme
 found" and "No OverlayHost found" — because a component in the wrong palette, or
 a dialog drawing nowhere, is a bug that looks like a missing feature.
 
-**Icons are yours.** Components take an `ImageVector` and the library ships no
-glyph set, so the app chooses one. The documentation and the gallery use Tabler
-(`com.composables:icons-tabler-outline-cmp`); any `ImageVector` works.
+**Icons are yours.** Components take an `ImageVector`, so the app chooses its
+set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
+`io.kontour:tabler-icons-outline` and `-filled`, every icon of the release, with
+`Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
+few system icons from it, so it comes with the library, from the repository
+below: GitHub Packages serves everything Kontour Labs publishes from the one
+URL. Any `ImageVector` works. The site's Icons page, in its top bar, searches
+every one of them — by name, by what Tabler tags it with, and by the everyday
+word for it — and copies the property and its import.
 
 **Fonts are included.** The default type is Outfit, with JetBrains Mono for code
 and figures, both bundled; there is nothing to add unless you reskin, which

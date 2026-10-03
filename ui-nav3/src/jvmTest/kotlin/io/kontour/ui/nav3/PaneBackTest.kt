@@ -106,6 +106,56 @@ class PaneBackTest {
         return onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
     }
 
+    /**
+     * Let go, the detail goes the rest of the way at its settle's pace and no
+     * slower: a gesture already at the end pops at once.
+     *
+     * The settle took a fixed 200ms from wherever the hand let go — and on
+     * Android the relay that finishes a released gesture at the finger's speed
+     * hands it over already at the end, so the detail sat gone for a fifth of a
+     * second before the pop: part of *"if i swipe back quickly using the
+     * side-gesture back button (and let go quickly), then sometimes it can feel
+     * really sluggish"*.
+     */
+    @Test
+    fun aGestureCarriedToTheEndPopsAtOnce() = runDesktopComposeUiTest(width = 1000, height = 700) {
+        val back = Back()
+        val backStack = mutableStateListOf<Any>(Stops, Stop("Perth"), Stop("McIver"))
+        setContent { Display(back, BackStyle.Swipe, backStack) }
+        waitForIdle()
+        dragTo(back, 1f)
+        mainClock.autoAdvance = false
+        runOnUiThread { back.input.backCompleted() }
+        var frames = 0
+        while (backStack.size == 3 && frames < 30) {
+            mainClock.advanceTimeByFrame()
+            frames++
+        }
+        mainClock.autoAdvance = true
+        assertEquals(2, backStack.size, "a gesture let go at the end never popped")
+        assertTrue(frames <= 2, "a gesture let go at the end popped $frames frames later")
+    }
+
+    @Test
+    fun aGestureLetGoMostOfTheWayPopsSooner() = runDesktopComposeUiTest(width = 1000, height = 700) {
+        val back = Back()
+        val backStack = mutableStateListOf<Any>(Stops, Stop("Perth"), Stop("McIver"))
+        setContent { Display(back, BackStyle.Swipe, backStack) }
+        waitForIdle()
+        dragTo(back, 0.7f)
+        mainClock.autoAdvance = false
+        runOnUiThread { back.input.backCompleted() }
+        var frames = 0
+        while (backStack.size == 3 && frames < 30) {
+            mainClock.advanceTimeByFrame()
+            frames++
+        }
+        mainClock.autoAdvance = true
+        assertEquals(2, backStack.size, "a gesture let go at 0.7 never popped")
+        // The last 0.3 of a 200ms settle, about four frames.
+        assertTrue(frames <= 6, "a gesture let go at 0.7 popped $frames frames later, the whole settle's time")
+    }
+
     @Test
     fun theDetailFollowsTheFingerAndPopsOnce() = runDesktopComposeUiTest(width = 1000, height = 700) {
         val back = Back()

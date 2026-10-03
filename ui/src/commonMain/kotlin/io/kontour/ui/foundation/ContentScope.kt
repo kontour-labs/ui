@@ -146,7 +146,7 @@ internal open class ContentScopeImpl(
         Icon(imageVector = image, contentDescription = contentDescription, size = iconSize)
 }
 
-internal class RowContentScopeImpl(
+internal open class RowContentScopeImpl(
     row: RowScope,
     iconSize: Dp,
     maxLines: Int = Int.MAX_VALUE,

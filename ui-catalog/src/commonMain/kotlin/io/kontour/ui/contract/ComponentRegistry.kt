@@ -3,8 +3,8 @@ package io.kontour.ui.contract
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import com.composables.icons.tabler.outline.Bell
-import com.composables.icons.tabler.outline.Mail
+import io.kontour.icons.tabler.outline.Bell
+import io.kontour.icons.tabler.outline.Mail
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.Badge
@@ -57,22 +57,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.AlertTriangle
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.CurrentLocation
-import com.composables.icons.tabler.outline.GripVertical
-import com.composables.icons.tabler.outline.InfoCircle
-import com.composables.icons.tabler.outline.Minus
-import com.composables.icons.tabler.outline.Plus
-import com.composables.icons.tabler.outline.Stack
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.Route
-import com.composables.icons.tabler.outline.User
-import com.composables.icons.tabler.outline.Map
-import com.composables.icons.tabler.outline.Train
-import com.composables.icons.tabler.outline.X
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.CurrentLocation
+import io.kontour.icons.tabler.outline.GripVertical
+import io.kontour.icons.tabler.outline.InfoCircle
+import io.kontour.icons.tabler.outline.Minus
+import io.kontour.icons.tabler.outline.Plus
+import io.kontour.icons.tabler.outline.Stack
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Route
+import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Map
+import io.kontour.icons.tabler.outline.Train
+import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonGroup
 import io.kontour.ui.components.action.ButtonVariant
@@ -91,6 +91,7 @@ import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -104,6 +105,9 @@ import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.Pagination
 import io.kontour.ui.nav.TopBar
+import io.kontour.ui.nav.TopBarStyle
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.background
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
 import io.kontour.ui.components.display.Carousel
@@ -117,10 +121,18 @@ import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
 import io.kontour.ui.components.display.StepProgress
+import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.DisclosureListItem
 import io.kontour.ui.components.list.ExpandingListItem
+import io.kontour.ui.components.list.IndexAlphabet
+import io.kontour.ui.components.list.IndexScroller
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.components.list.IndexScrollerDefaults
 import io.kontour.ui.components.list.ListItem
+import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.indexedBy
+import io.kontour.ui.components.list.listSection
 import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.ListSection
 import io.kontour.ui.components.list.PullToRefresh
@@ -170,6 +182,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.minus
 import kotlinx.datetime.LocalTime
 import kotlin.time.Duration.Companion.milliseconds
@@ -598,6 +611,12 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 RenderState("checked") { modifier ->
                     Switch(checked = true, onCheckedChange = {}, modifier = modifier)
                 },
+                // On, disabled: the thumb is the page's colour in the grey
+                // track. It was near-black on the light grey and white on the
+                // dark — the strongest thing on a control that could not be used.
+                RenderState("disabled") { modifier ->
+                    Switch(checked = true, onCheckedChange = {}, modifier = modifier, enabled = false)
+                },
             ),
         ) { modifier, enabled, onClick ->
             Switch(
@@ -625,6 +644,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         +"Bus"
                     }
                 },
+                // A count at its end, in a neutral tag a step off the chip's
+                // sunken ground, the chip's end brought in round it.
+                RenderState("tag") { modifier ->
+                    Chip(onClick = {}, modifier = modifier) {
+                        +"Bus"
+                        tag { +"3" }
+                    }
+                },
             ),
         ) { modifier, enabled, onClick ->
             Chip(onClick = onClick, modifier = modifier, enabled = enabled) { +"Bus" }
@@ -644,6 +671,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // `selected` and nothing else.
                 RenderState("selected") { modifier ->
                     FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) { +"Bus" }
+                },
+                // Selected, with an accent count: solid on the accent tint.
+                RenderState("tag") { modifier ->
+                    FilterChip(selected = true, onSelectedChange = {}, modifier = modifier) {
+                        +"Bus"
+                        tag(Tone.Accent) { +"3" }
+                    }
                 },
             ),
         ) { modifier, enabled, onClick ->
@@ -746,6 +780,20 @@ val componentRegistry: List<ComponentSpec> = buildList {
             "Knob",
             role = null,
             activatedByClick = false,
+            states = listOf(
+                // In the disabled grey, its face the page's colour. It used to be
+                // the enabled knob at 38%, which keeps a coloured scale coloured.
+                RenderState("disabled") { modifier ->
+                    Knob(
+                        value = 0.4f,
+                        onValueChange = {},
+                        modifier = modifier,
+                        enabled = false,
+                        steps = 9,
+                        contentDescription = "Volume",
+                    )
+                },
+            ),
         ) { modifier, enabled, _ ->
             Knob(
                 value = 0.4f,
@@ -780,6 +828,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
                         minorTicks = 1,
                         modifier = modifier,
                     )
+                },
+                // A thumb the page's colour inside a ring of the disabled grey.
+                RenderState("disabled") { modifier ->
+                    Slider(value = 0.5f, onValueChange = {}, modifier = modifier, enabled = false)
                 },
             ),
         ) { modifier, enabled, _ ->
@@ -1182,14 +1234,14 @@ val componentRegistry: List<ComponentSpec> = buildList {
             Redacted {
                 Column(
                     modifier = modifier.width(SpecimenProseWidth),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
-                    ListItem {
+                    ListItem(position = GroupPosition.First) {
                         +"Perth Underground"
                         supporting { +"08:14 · Platform 2" }
                         leading { +Tabler.Outline.Train }
                     }
-                    ListItem {
+                    ListItem(position = GroupPosition.Last) {
                         +"Elizabeth Quay"
                         supporting { +"A longer supporting line, so that it wraps" }
                         leading { +Tabler.Outline.Bus }
@@ -1974,6 +2026,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        ComponentSpec(
+            "CircularStepProgress",
+            role = null,
+            underContract = false,
+            states = listOf(
+                // The same working step as `StepProgress`'s, a still stub in the
+                // screenshot theme, and the ring with no gaps, which is one
+                // ring filled to the end of its step.
+                RenderState("working") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, working = true, modifier = modifier)
+                },
+                RenderState("gapless") { modifier ->
+                    CircularStepProgress(current = 2, total = 5, gap = 0.dp, modifier = modifier)
+                },
+            ),
+        ) { modifier, _, _ ->
+            CircularStepProgress(current = 2, total = 5, modifier = modifier)
+        }
+    )
+
+    add(
         ComponentSpec("Spinner", role = null, underContract = false) { modifier, _, _ ->
             // Its arc breathes and turns, so this is one frame of something
             // that never stands still — and the frame the render sweep lands on
@@ -2060,9 +2133,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 isSelected = { it == SpecimenDate },
                 onSelectedChange = {},
                 today = SpecimenToday,
-                // A phone's worth of width. Unbounded, a calendar takes
-                // `CalendarMonthDefaults.MaxWidth` — 511dp, which is correct and
-                // does not fit a specimen card. `widthIn` rather than `width`,
+                // A narrow phone's worth of width. Unbounded, a calendar takes
+                // `CalendarMonthDefaults.MaxWidth` — 308dp, which is correct and
+                // wider than a specimen card. `widthIn` rather than `width`,
                 // so the width sweep can still squeeze it.
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
@@ -2075,10 +2148,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             underContract = false,
             renderHeight = 380,
-            // Seven columns of day numbers that only ever grow — `grownFor`
-            // scales a cell's digit up and never down — so below about this the
-            // grid is wider than its box by construction. A fact about the
-            // component, declared beside it.
+            // Seven columns of day numbers on the type scale, which do not
+            // shrink with their cells, so below about this the grid is wider
+            // than its box by construction. A fact about the component,
+            // declared beside it.
             minWidth = 200,
         ) { modifier, _, _ ->
             DatePicker(
@@ -2098,10 +2171,10 @@ val componentRegistry: List<ComponentSpec> = buildList {
             role = null,
             underContract = false,
             renderHeight = 380,
-            // Seven columns of day numbers that only ever grow — `grownFor`
-            // scales a cell's digit up and never down — so below about this the
-            // grid is wider than its box by construction. A fact about the
-            // component, declared beside it.
+            // Seven columns of day numbers on the type scale, which do not
+            // shrink with their cells, so below about this the grid is wider
+            // than its box by construction. A fact about the component,
+            // declared beside it.
             minWidth = 200,
         ) { modifier, _, _ ->
             // A range that spans a week boundary, so the picture shows both the
@@ -2127,6 +2200,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
             renderHeight = 240,
         ) { modifier, _, _ ->
             TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateTimePicker",
+            role = null,
+            underContract = false,
+            // A date picker's 380 and a time picker's 240, and the gap between.
+            renderHeight = 640,
+            // The date picker's floor: seven columns of day numbers.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            DateTimePicker(
+                value = LocalDateTime(SpecimenDate, SpecimenTime),
+                onValueChange = {},
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                minuteStep = 5,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
         }
     )
 
@@ -2165,6 +2260,32 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
                 label = "Departure",
             )
+        }
+    )
+
+    add(
+        // Folded: a 200dp list cannot fit 27 labels, so the picture is the
+        // rail's short form, a dot for each run it has no room for, with the
+        // current section in the accent.
+        ComponentSpec("IndexScroller", role = null, underContract = false, renderHeight = 220) { modifier, enabled, _ ->
+            val formats = Theme.formats
+            val names = listOf("Armadale", "Bassendean", "Claremont", "Esplanade", "Fremantle", "Midland", "Perth", "Warwick")
+            val indexed = remember(formats) { names.indexedBy(IndexAlphabet.Latin, formats) { it } }
+            Box(modifier.fillMaxWidth().height(200.dp)) {
+                val list = rememberLazyListState()
+                LazyColumn(state = list, contentPadding = PaddingValues(end = IndexScrollerDefaults.Width)) {
+                    indexed.groups.forEach { group ->
+                        listSection(group.items, title = { +group.label }) { name, position -> ListItem(position = position) { +name } }
+                    }
+                }
+                IndexScroller(
+                    state = list,
+                    sections = indexed.sections,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    enabled = enabled,
+                    alphabet = IndexAlphabet.Latin,
+                )
+            }
         }
     )
 
@@ -2303,7 +2424,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 // content the indicator lands *below* the list, which is what it
                 // honestly does when it wraps something short — and is not what
                 // it does in the full-height scrollable it is actually for.
-                Column(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
                     ListItem(position = GroupPosition.First) { +"Perth Underground" }
                     ListItem(position = GroupPosition.Middle) { +"Elizabeth Quay" }
                     ListItem(position = GroupPosition.Last) { +"McIver" }
@@ -2535,6 +2656,30 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
+        // Over a picture made to be hard: a dawn-to-dusk band that runs from pale
+        // to dark across the bar, so the title and the back button each meet
+        // both. Open, the title light on the scrim; the back button on its disc.
+        ComponentSpec("TopBar (Hero)", role = null, underContract = false, renderHeight = 240) { modifier, _, _ ->
+            TopBar(
+                modifier = modifier.width(SpecimenProseWidth),
+                style = TopBarStyle.Hero,
+                onBack = {},
+                image = {
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.linearGradient(listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF2B1F4A))),
+                        ),
+                    )
+                },
+                expandedHeight = 200.dp,
+            ) {
+                +"Kings Park"
+                supporting { +"Fraser Avenue" }
+            }
+        }
+    )
+
+    add(
         ComponentSpec("Skeleton", role = null, underContract = false) { modifier, _, _ ->
             Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Skeleton(Modifier.width(180.dp).height(20.dp))
@@ -2645,7 +2790,7 @@ private val SpecimenMonth = LocalDate(2026, 6, 1)
 private val SpecimenDate = LocalDate(2026, 6, 18)
 private val SpecimenTime = LocalTime(8, 31)
 
-/** A phone's worth of width, for the specimens that would otherwise take 511dp. */
+/** A narrow phone's worth of width, for the specimens that would otherwise take 308dp. */
 private val SpecimenGridWidth = 256.dp
 
 /**

@@ -1209,7 +1209,7 @@ fun RangeSlider(
                                     aspect = drawn.aspect,
                                     reachPx = drawn.reach,
                                     squashPx = drawn.squash,
-                                    ringColour = colours.thumbRing,
+                                    ringColour = colours.thumbRing(enabled),
                                     fillColour = colours.thumb(enabled),
                                     ringPx = thumbRingLine.toPx(),
                                     capsule = pill,

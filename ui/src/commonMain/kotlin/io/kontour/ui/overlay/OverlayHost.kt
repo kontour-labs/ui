@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -33,6 +35,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -43,6 +47,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import io.kontour.ui.platform.WarnIfWindowPansForKeyboard
 import io.kontour.ui.components.text.TextContextMenuHost
 import io.kontour.ui.foundation.ScrimLayer
 import io.kontour.ui.input.clearFocusOnTap
@@ -233,6 +238,14 @@ class OverlayHostState {
      * `AnchoredOverlayLayout`.
      */
     internal var edgesFromRoot: AnchorInsets by mutableStateOf(AnchorInsets.None)
+
+    /**
+     * The bars along the foot of the window, by whoever reported them, as their
+     * top and bottom edges in root pixels: what a bottom [ToastHost] keeps
+     * clear of. A [io.kontour.ui.nav.NavBar] reports its own while it is on
+     * screen, and takes it back when it goes. See [clearedByToasts].
+     */
+    internal val bottomBars = mutableStateMapOf<Any, BarEdges>()
 
     /**
      * How far in each entry is, by key: what the scrims and the backdrop are
@@ -444,6 +457,8 @@ private fun EntryHost(
     /** The keys of the entries above this one that blur what is behind them. */
     blurredBy: List<Any>,
     takesBack: Boolean,
+    /** Told which entry the focus is in, so a modal is not taken out of its own. */
+    opened: OpenedModals,
 ) {
     val motion = Theme.motion
     val leaving = state.isLeaving(entry.key)
@@ -603,6 +618,9 @@ private fun EntryHost(
             // it: a dialog over a sheet blurs the sheet too, not only the strip
             // of page beside it. See [blurredBehind].
             .then(if (blurredBy.isNotEmpty()) Modifier.blurredBehind(state, blurredBy) else Modifier)
+            .onFocusChanged { focus ->
+                if (focus.hasFocus) opened.focusIn = entry.key else if (opened.focusIn == entry.key) opened.focusIn = null
+            }
     ) {
         CompositionLocalProvider(
             LocalOverlayProgress provides reader,
@@ -707,6 +725,41 @@ internal fun scrimShare(fractions: List<Float>, alpha: Float, index: Int): Float
     return 0f
 }
 
+/**
+ * The host, for something that only *helps* one if it is there — a bar telling
+ * toasts where it is — and works the same without. [LocalOverlayHost] fails
+ * loudly instead, which is right for anything that renders into it.
+ */
+internal val LocalOverlayHostOrNull = staticCompositionLocalOf<OverlayHostState?> { null }
+
+/** A bar's top and bottom edges, in root pixels. */
+@Immutable
+internal data class BarEdges(val top: Float, val bottom: Float)
+
+/**
+ * Tells the [OverlayHost] this is a bar along the foot of the window, which a
+ * bottom toast stack stands clear of: *"can we make it so toasts clear the
+ * navbar (if applicable)?"* A navigation bar is a component, not an inset, so
+ * nothing in the window's insets says where it is; the bar does, every time
+ * it is placed, and takes it back when it leaves.
+ *
+ * Its own place in the window, measured, rather than its height: a floating
+ * bar stands above the gesture bar, a docked one runs under it, and a bar
+ * sliding away with its page moves with every frame. Only a bar near the foot
+ * counts — see [ToastHost] — so one drawn mid-page, in a showcase, does not
+ * lift the toasts.
+ */
+@Composable
+internal fun Modifier.clearedByToasts(): Modifier {
+    val host = LocalOverlayHostOrNull.current ?: return this
+    val key = remember { Any() }
+    DisposableEffect(host, key) { onDispose { host.bottomBars.remove(key) } }
+    return onGloballyPositioned { placed ->
+        val top = placed.positionInRoot().y
+        host.bottomBars[key] = BarEdges(top, top + placed.size.height)
+    }
+}
+
 /** Remembers an [OverlayHostState], the stack an [OverlayHost] draws. */
 @Composable
 fun rememberOverlayHostState(): OverlayHostState = remember { OverlayHostState() }
@@ -782,6 +835,39 @@ fun OverlayHost(
     // it gives it back to a finger — see `OverlayHostState.letGo`.
     val shutBy = topDimmedEntry(state.visible)
 
+    // **A modal opening takes the focus off whatever had it**, so a text field
+    // under it lets go, and on a phone its keyboard goes with it. Asked for in
+    // those words: "when a dialog or something pops up, any text fields lose
+    // focus (and therefore, the ime will hide)". The field kept its focus and
+    // its caret behind the dim, and its keyboard stayed up over the dialog.
+    //
+    // Only when a *new* modal comes to the top: one that dims, so a menu or a
+    // combobox's list — opened from a field, which goes on typing — leaves the
+    // focus where it is, and one that was not already open below, so closing
+    // a dialog over a sheet does not take the focus off the sheet again. And
+    // never from inside the modal itself: one that has put the focus in its
+    // own field by the time it counts as on top — an expanded search, which
+    // is only on top once its morph is under way — keeps it.
+    //
+    // A `SideEffect`, which runs as this composition is applied: before any
+    // effect launched by the modal's own content, so a modal that asks for the
+    // focus in itself — a command palette's field — has it given to it after
+    // the page's is taken away, not before.
+    val focusManager = LocalFocusManager.current
+    val opened = remember { OpenedModals() }
+    SideEffect {
+        val top = shutBy?.key
+        if (top != null && top != opened.top && top !in opened.dimmed && opened.focusIn != top) {
+            focusManager.clearFocus(force = true)
+        }
+        opened.top = top
+        opened.dimmed = state.visible.filter { it.scrim == ScrimStyle.Dimmed }.mapTo(HashSet()) { it.key }
+    }
+
+    // A window that pans for the keyboard lifts a sheet twice, and only the app
+    // can change that. Said once, in a debuggable Android app.
+    WarnIfWindowPansForKeyboard()
+
     // Back goes to the page only while no overlay takes it. The page's
     // dispatcher is disabled rather than its handlers outranked, so it does not
     // matter what the page registers or when: a navigation stack composed after
@@ -806,6 +892,7 @@ fun OverlayHost(
 
     CompositionLocalProvider(
         LocalOverlayHost provides state,
+        LocalOverlayHostOrNull provides state,
         LocalTakesBackSwipe provides false,
         LocalRelaysSystemBack provides false,
         *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
@@ -913,11 +1000,22 @@ fun OverlayHost(
                             .filter { it.scrim == ScrimStyle.Dimmed && it.backdrop.blurs }
                             .map { it.key },
                         takesBack = entry === backTarget,
+                        opened = opened,
                     )
                 }
             }
         }
     }
+}
+
+/**
+ * The modals that were open at the last composition — which was on top, and
+ * every one that dims — and the entry the focus is in, if it is in one.
+ */
+private class OpenedModals {
+    var top: Any? = null
+    var dimmed: Set<Any> = emptySet()
+    var focusIn: Any? = null
 }
 
 /**

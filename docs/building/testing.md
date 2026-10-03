@@ -84,13 +84,16 @@ require status checks, or every merge waits for one that never starts.
 
 | Job | Runs on | For |
 |---|---|---|
-| `changes` | every run | Decides what a push to `main` has to run, from the paths it changed |
-| `test` | every run | The Python checks always; the Gradle suites `changes` asks for |
-| `targets` | a change to a library, the catalog or a host | Every target compiled |
+| `changes` | every run | Decides what a push has to run: not a tree that has passed already, and on `main` only what the paths it changed can break |
+| `test` | every run | The Python checks always; the JVM suites `changes` asks for |
+| `targets` | a change to a library, the catalog or a host | Every target compiled, the ABI check, the Android host tests |
 | `site` | a change to anything the site is made from | The Wasm bundle, the API reference and the text mirror — the slowest thing here |
-| `deploy` | `main` only | Cloudflare Pages, `docs.kontour.io/ui` |
+| `deploy` | `main` and `v*` tags | Cloudflare Pages, `docs.kontour.io/ui` |
 | `publish` | a `v*` tag, or a manual version | GitHub Packages |
 | `renders` | a manual run that asks | Contact sheets of every page |
+
+Every job has a `timeout-minutes` of about twice its ordinary length. The
+default is six hours, and a runner that has stopped answering bills all of them.
 
 `deploy` needs only `site`, deliberately: a library regression should not take
 the documentation offline, and a broken page should not block a release.
@@ -102,8 +105,8 @@ sorts the paths:
 
 | Group | Paths | Runs |
 |---|---|---|
-| library | `ui/`, `ui-nav3/`, `haptics/` | Their suites, ABI and convention checks, and the on-screen cursor test |
-| targets | the library's, `ui-catalog/`, `showcase/` | `targets` |
+| library | `ui/`, `ui-nav3/`, `haptics/` | Their suites, convention checks, and the on-screen cursor test |
+| targets | the library's, `ui-catalog/`, `showcase/` | `targets`, with the ABI check and the Android host tests |
 | catalog | the library's, `ui-catalog/` | The screenshot suite |
 | docs | the library's, `ui-catalog/`, `ui-samples/`, `ui-docs/`, `docs/` | `:ui-docs`, the samples, `site` and `deploy` |
 
@@ -122,12 +125,56 @@ skipped test job is the one direction this must never fail in.
 
 It replaced `guard`, which asked whether `main`'s tree was byte-for-byte a pull
 request head that had already passed — a merge queue arrived at from the other
-direction. With no pull request runs there is nothing to have passed.
+direction. With no pull request runs there was nothing to have passed; with
+manual runs of a branch there is again, and the next section is that question
+asked the cheap way.
+
+#### A tree is checked once
+
+A tree is the whole repository at a commit, the workflow included, and two
+commits with the same tree build the same thing. A release used to be one tree
+checked three times from scratch: the manual run on its branch, the push to
+`main` that merged it (the same tree, when the branch was up to date), and the
+tag on that commit. About 150 billed minutes, two thirds of them re-proving what
+had passed.
+
+So `test` and `targets` each leave a marker when they pass in full — a small
+artifact named `tested-<tree>` or `compiled-<tree>`, kept 30 days — and
+`changes` looks them up before a push runs either job. `site` names its upload
+`site-<tree>-<release>`, the release being the version the API reference is
+labelled with (see `.github/docs-release.sh`), because that is the one input to
+the site that is not in the tree. A push to `main` that finds one deploys it
+rather than building it again; uploads are kept two days.
+
+| Event | Skips |
+|---|---|
+| Merging a branch checked by hand, up to date with `main` | `test`, `targets`, and `site` within two days — the run is `changes` and `deploy` |
+| Tagging a commit `main` has checked | `test` and `targets`; `publish` waits on the markers instead |
+| A manual run | Nothing. Asking is the point of it |
+
+`test` leaves its marker only from a run that did everything, so a push that
+tested the documentation alone does not vouch for the libraries. A failed
+lookup finds nothing and runs the job.
+
+#### Memory
+
+A private repository's runner has two cores and 7 GB. `test` compiles, then
+stops the Kotlin daemon, then tests, in two Gradle invocations, because run as
+one the Kotlin daemon (2.8 GB once it has compiled `:ui`), Gradle (2.3 GB with
+Kotlin/Native running inside it, for the ABI check) and the test forks with
+their Skia overlapped: measured on two cores, 6.8 GB at the start of the tests
+and 9.3 GB at the worst moment. The 0.4.0 checks ran for over an hour on that
+before they were cancelled, on a runner too busy swapping to report back — its
+log was never uploaded. The ABI check reads the klib of every target, so it
+moved to `targets`, which compiles them anyway, and `test` is the JVM only.
+Split, the same measurement is 4.5 GB at most while compiling and 5.0 GB while
+testing, and the step takes 16 minutes rather than 21.
 
 #### What is cached
 
 | | Key | Why |
 |---|---|---|
+| The Gradle home, build cache included | the job, by `setup-gradle` | Saved from `main` only, and from `test` only when it ran everything: the action prunes what a run did not use before saving, so a docs-only push used to leave the next full run cold. `publish` reads `targets`' entry, having none of its own |
 | `~/.konan` | the version catalogue | A compiler and a platform klib set per target, hundreds of megabytes, in no Gradle cache |
 | `~/.gradle/{nodejs,yarn,binaryen}` | the version catalogue | Node is 210 MB and binaryen is 322 MB, fetched from outside GitHub; the measured restore rate for a cache entry in this repository is 360 MB/s |
 
@@ -227,7 +274,8 @@ starts from, and no lambda parameter shadowing its function's own.
 
 Compares each library's public API — the JVM class files and the klibs for iOS,
 JS and Wasm — with the dump checked in under the module's `api/` directory, and
-fails on any difference. `updateKotlinAbi` rewrites the dump.
+fails on any difference. `updateKotlinAbi` rewrites the dump. Reading the klibs
+means compiling every target, so CI runs it in `targets`, which does that anyway.
 
 The Kotlin plugin's own validator, with one filter: the Compose compiler's
 `ComposableSingletons` holders are left out, because they are public in the

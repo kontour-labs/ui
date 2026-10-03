@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.Button
+import io.kontour.ui.components.action.ButtonDefaults
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.foundation.Icon
@@ -412,11 +413,30 @@ private fun CoachmarkBubble(
                         size = ButtonSize.Small,
                     ) { +strings.back }
                 }
+                // The way on, filled in the bubble's ink so it reads as the
+                // button it is beside Back: as two ghost buttons on the accent
+                // the pair read as words, and the last step's was asked for
+                // as if it were not there — *"there needs to be a "done" and
+                // "back" button in the final item's coachmark"*. Done on the
+                // last step of a tour, which is what finishing one is; "Got
+                // it" is a lone mark's, acknowledging rather than ending.
                 Button(
                     onClick = tour::next,
-                    variant = ButtonVariant.Ghost,
+                    variant = ButtonVariant.Primary,
                     size = ButtonSize.Small,
-                ) { +(if (tour.hasNext) strings.next else strings.gotIt) }
+                    colours = ButtonDefaults.colours(
+                        ButtonVariant.Primary,
+                        container = colours.accent.onSolid,
+                        content = colours.accent.solid,
+                        border = null,
+                    ),
+                ) {
+                    +when {
+                        tour.hasNext -> strings.next
+                        tour.count > 1 -> strings.done
+                        else -> strings.gotIt
+                    }
+                }
             }
         }
     }

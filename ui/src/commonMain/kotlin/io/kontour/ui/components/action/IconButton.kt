@@ -1,5 +1,10 @@
 package io.kontour.ui.components.action
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.nav.LocalHeroBacking
 import androidx.compose.ui.unit.Dp
 import io.kontour.ui.a11y.selectionEdge
 import androidx.compose.animation.AnimatedContent
@@ -434,6 +439,10 @@ private fun IconButtonSurface(
     // glyph is now whatever is left over, which is the only way the two can
     // agree by construction rather than by being kept in step.
     val boxSize = metrics.height
+    // A disc of the bar's colour behind the button, while a hero's picture is
+    // behind the bar: a glyph meant for the bar's ground, kept on it.
+    val backing = LocalHeroBacking.current
+    val backingEdge = contrastEdge()
 
     Box(
         modifier = modifier
@@ -444,6 +453,21 @@ private fun IconButtonSurface(
             // to it scaled the glyph inside a circle that never moved.
             .indication(interactions, indication)
             .size(boxSize)
+            .then(
+                if (backing != null) {
+                    Modifier.drawBehind {
+                        val alpha = backing.alpha().coerceIn(0f, 1f)
+                        if (alpha <= 0f) return@drawBehind
+                        val outline = shape.createOutline(size, layoutDirection, this)
+                        drawOutline(outline, backing.colour, alpha = alpha)
+                        if (backingEdge != null) {
+                            drawOutline(outline, backingEdge.brush, alpha = alpha, style = Stroke(backingEdge.width.toPx()))
+                        }
+                    }
+                } else {
+                    Modifier
+                }
+            )
             .clip(shape)
             .background(container, shape)
             .then(

@@ -8,6 +8,9 @@ sealed interface Route {
     /** The component gallery, which is `:ui-catalog` rather than a page. */
     data object Gallery : Route
 
+    /** Every icon the library has, to search and copy; drawn from data, not a page. */
+    data object Icons : Route
+
     /**
      * One page of `ui-docs/content/`, by its path without the extension:
      * `components/button`, `tokens`, `components`.
@@ -29,6 +32,7 @@ sealed interface Route {
         get() = when (this) {
             Home -> "#/"
             Gallery -> "#/gallery"
+            Icons -> "#/icons"
             is Doc -> "#/$path"
         }
 }
@@ -51,6 +55,7 @@ fun parseRoute(hash: String): Route {
     return when {
         path.isEmpty() -> Route.Home
         path == "gallery" -> Route.Gallery
+        path == "icons" -> Route.Icons
         path in docPagesByPath -> Route.Doc(path)
         else -> Route.Home
     }

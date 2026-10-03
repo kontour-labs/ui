@@ -12,15 +12,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.MapPin
-import com.composables.icons.tabler.outline.Star
-import com.composables.icons.tabler.outline.User
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.nav.NavBar
+import io.kontour.ui.nav.NavBarMarkerDrag
 import io.kontour.ui.nav.NavDefaults
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -55,7 +56,10 @@ class NavBarMarkerDragTest {
 
     private class Bar(val scene: Scene, val clicks: MutableList<String>, val felt: MutableList<FeedbackIntent>)
 
-    private fun bar(draggable: Boolean = true, reduceMotion: Boolean = true): Bar {
+    private fun bar(
+        drag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+        reduceMotion: Boolean = true,
+    ): Bar {
         val clicks = mutableListOf<String>()
         val felt = mutableListOf<FeedbackIntent>()
         var here by mutableStateOf("a")
@@ -63,7 +67,7 @@ class NavBarMarkerDragTest {
             CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { felt += it }) {
                 Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
                     NavBar(
-                        markerDraggable = draggable,
+                        markerDrag = drag,
                         colours = NavDefaults.colours(
                             container = Color.White,
                             content = Color.Black,
@@ -140,6 +144,24 @@ class NavBarMarkerDragTest {
         }
     }
 
+    /**
+     * Asked for as: press the third destination while the first is chosen,
+     * drag on to the fourth, and feel the marker go to the third as well as
+     * the fourth. The ticker used to arm on the destination under the finger,
+     * so the first of those jumps was silent.
+     */
+    @Test
+    fun aDragFromAnotherDestinationSnapsAsTheMarkerJumpsToIt() {
+        val bar = bar()
+        bar.scene.use { scene ->
+            scene.drag(from = centre(2), to = centre(3), steps = 16, paceMillis = 30)
+            scene.frames(4)
+            val snaps = bar.felt.count { it == FeedbackIntent.Snap }
+            assertEquals(2, snaps, "a to c, then c to d: ${bar.felt} felt")
+            assertEquals(listOf("d"), bar.clicks)
+        }
+    }
+
     @Test
     fun aDragBackToWhereItStartedChoosesNothing() {
         val bar = bar()
@@ -188,10 +210,52 @@ class NavBarMarkerDragTest {
         }
     }
 
+    /**
+     * The option: each destination chosen as the marker reaches it.
+     *
+     * Asked for as *"can we make it an option so when you drag the navbar
+     * selection indicator, it can switch tabs as you're dragging?"*. Dragged from
+     * the first destination to the third and held, the second and the third have
+     * each been chosen once, in order, before the finger lifts — and the lift
+     * chooses nothing more.
+     */
+    @Test
+    fun selectWhileDraggingChoosesEachDestinationAsItIsReached() {
+        val bar = bar(drag = NavBarMarkerDrag.SelectWhileDragging)
+        bar.scene.use { scene ->
+            scene.drag(from = centre(0), to = centre(2), steps = 16, release = false)
+            scene.frames(4)
+            assertEquals(listOf("b", "c"), bar.clicks, "each destination the marker reached, chosen as it got there")
+            scene.release(centre(2))
+            scene.frames(6)
+            assertEquals(listOf("b", "c"), bar.clicks, "the lift chose again what the drag already had")
+        }
+    }
+
+    /** And back where it started, the first destination is chosen again: it was left. */
+    @Test
+    fun selectWhileDraggingChoosesTheFirstAgainWhenTheMarkerComesBack() {
+        val bar = bar(drag = NavBarMarkerDrag.SelectWhileDragging)
+        bar.scene.use { scene ->
+            scene.drag(from = centre(0), to = centre(1), steps = 10, release = false)
+            scene.frames(2)
+            val there = centre(1)
+            val home = centre(0)
+            for (step in 1..10) {
+                val t = step / 10f
+                scene.move(Offset(there.x + (home.x - there.x) * t, home.y))
+                scene.frames(1)
+            }
+            scene.release(home)
+            scene.frames(6)
+            assertEquals(listOf("b", "a"), bar.clicks)
+        }
+    }
+
     /** The control: with the drag turned off, the same gesture moves nothing and chooses nothing. */
     @Test
     fun turnedOffTheSameDragDoesNothing() {
-        val bar = bar(draggable = false)
+        val bar = bar(drag = NavBarMarkerDrag.Off)
         bar.scene.use { scene ->
             scene.drag(from = centre(0), to = centre(2), steps = 16, release = false)
             val held = markerCentre(scene.frames(10))

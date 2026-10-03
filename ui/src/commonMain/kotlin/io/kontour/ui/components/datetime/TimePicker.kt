@@ -56,6 +56,10 @@ import kotlinx.datetime.LocalTime
  *   in the disabled content colour and answers nothing.
  * @param minuteStep Coarsens the minute wheel. A planner rarely wants
  *   minute-level precision, and 5 turns 60 rows into 12.
+ * @param onValueChangeFinished Called when a wheel comes to rest after the
+ *   reader turned it. [onValueChange] follows every row a wheel passes; what
+ *   should happen once — a save, a request — belongs here. Not called when
+ *   [value] is set by the caller.
  */
 @Composable
 fun TimePicker(
@@ -65,6 +69,7 @@ fun TimePicker(
     enabled: Boolean = true,
     minuteStep: Int = 1,
     formats: LocaleFormats = Theme.formats,
+    onValueChangeFinished: (() -> Unit)? = null,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
 
@@ -127,6 +132,7 @@ fun TimePicker(
                     modifier = Modifier.width(72.dp),
                     enabled = enabled,
                     contentDescription = strings.hour,
+                    onSelectedIndexChangeFinished = onValueChangeFinished,
                 )
 
                 Text(layout.separator, style = Theme.typography.headlineSmall, colour = muted)
@@ -139,6 +145,7 @@ fun TimePicker(
                     modifier = Modifier.width(72.dp),
                     enabled = enabled,
                     contentDescription = strings.minute,
+                    onSelectedIndexChangeFinished = onValueChangeFinished,
                 )
             }
         }
@@ -176,6 +183,7 @@ fun TimePicker(
                 .width(periodWidth),
             enabled = enabled,
             contentDescription = strings.dayPeriod,
+            onSelectedIndexChangeFinished = onValueChangeFinished,
             visibleItems = 3,
         )
     }

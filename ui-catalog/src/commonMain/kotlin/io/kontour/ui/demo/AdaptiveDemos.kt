@@ -26,8 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.FabPosition
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
@@ -125,7 +125,9 @@ internal val PageTransitionDemo = ComponentDemo(slug = "page-transition") {
     ) {
         PageTransition(target = open, modifier = Modifier.fillMaxSize()) { detail ->
             if (detail) {
-                Column(Modifier.fillMaxSize()) {
+                // Inset as the list is, so the header's shadow is inside the
+                // demo's rounded clip rather than cut off at its edges.
+                Column(Modifier.fillMaxSize().padding(Theme.spacing.md)) {
                     Card(
                         modifier = Modifier
                             .sharedBounds(HeroKey, clip = Theme.shapes.large)
@@ -425,7 +427,7 @@ internal val PaneScaffoldDemo = ComponentDemo(
             onBack = { focus = PaneFocus.List },
             resizable = this@ComponentDemo[paneResizable],
             list = {
-                ListGroup(spacing = 2.dp) {
+                ListGroup {
                     stops.forEachIndexed { index, name ->
                         item(
                             label = name,
@@ -468,7 +470,7 @@ internal val ScaffoldDemo = ComponentDemo(slug = "scaffold", knobs = listOf(scaf
             // The padding is handed over rather than applied, so content can
             // scroll under the bar instead of starting below it.
             Column(Modifier.fillMaxSize().padding(padding)) {
-                ListGroup(spacing = 2.dp) {
+                ListGroup {
                     item(label = "Perth Underground", supporting = "Platform 2")
                     item(label = "Elizabeth Quay", supporting = "Platform 1")
                     item(label = "Perth Busport", supporting = "Stand 24")

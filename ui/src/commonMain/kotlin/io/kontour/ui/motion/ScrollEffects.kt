@@ -1,8 +1,8 @@
 package io.kontour.ui.motion
 
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlin.math.tanh
 import kotlin.time.Duration
 
 /** How a [revealOnScroll] element arrives. */
@@ -141,52 +142,52 @@ fun Modifier.revealOnScroll(
  * Drifts content vertically as the page scrolls past it.
  *
  * ```kotlin
- * Image(hero, Modifier.parallax(strength = 0.08f))
+ * Image(hero, Modifier.parallax())
  * ```
  *
- * A port of the site's `parallax.svelte.ts`, including its two important
- * details: the offset is derived from how far the element's **centre** is from
- * the viewport's centre — so it drifts both ways around the midpoint rather than
- * only downward — and it is spring-smoothed rather than tracking scroll 1:1,
- * which is what makes it read as drift instead of as a second scroll speed.
+ * The offset is a share of how far the element's **centre** is from the
+ * window's centre, so it drifts both ways around the midpoint rather than only
+ * downward, and it eases off towards [ParallaxReach] rather than growing with
+ * the window: a small difference of speed, which reads as depth.
+ *
+ * **It moves with the page, and stops with it.** It was spring-smoothed, after
+ * the site's `parallax.svelte.ts`, and the spring was started over on nearly
+ * every frame of a scroll: the content moved rigidly with the page while it
+ * scrolled, then glided on by itself for half a second after it stopped, by as
+ * much as 30dp near the window's edges — *"the "drift" scroll effect feels like
+ * it's trying too hard. it needs to be a bit subtler and smoother"*. Now the
+ * offset is where the element is, every frame, and changes only what is drawn.
  *
  * A no-op under reduced motion. Parallax is one of the few effects that reliably
  * makes people motion-sick, so this is not a nicety.
  *
- * @param strength Fraction of the distance from centre. `0.08` is the site's
- *   value and is about as much as is pleasant; past `0.2` the element visibly
- *   detaches from the page.
+ * @param strength Fraction of the distance from centre. `0.05`, the default, is
+ *   about as much as is pleasant; past `0.2` the element visibly detaches.
  */
 @Composable
 fun Modifier.parallax(strength: Float = ScrollEffectDefaults.ParallaxStrength): Modifier {
-    val motion = Theme.motion
-    if (motion.reduceMotion) return this
-
-    val offset = remember { Animatable(0f) }
-    var target by remember { mutableFloatStateOf(0f) }
-
-    LaunchedEffect(target) {
-        offset.animateTo(target, motion.springGentle.spec())
-    }
+    if (Theme.motion.reduceMotion) return this
+    val reach = with(LocalDensity.current) { ParallaxReach.toPx() }
+    val offset = remember { mutableFloatStateOf(0f) }
 
     return this
+        // Before the layer, so the position read is where the element is laid
+        // out, not where it was last drawn: no reading feeds the next.
         .onGloballyPositioned { coordinates ->
             if (!coordinates.isAttached) return@onGloballyPositioned
             val root = coordinates.findRootCoordinates()
             val bounds = coordinates.boundsInRoot()
-            val viewportMid = root.size.height / 2f
-            val nodeMid = bounds.top + bounds.height / 2f
-            val next = (viewportMid - nodeMid) * strength
-
-            // `boundsInRoot` includes the translation this modifier applied, so
-            // each reading feeds the next. It converges — the fixed point is
-            // `d · strength / (1 + strength)`, and the web original settles the
-            // same way — but the last few pixels of that convergence would keep
-            // scheduling layout passes for nothing. Stop once it stops moving.
-            if (kotlin.math.abs(next - target) > 0.5f) target = next
+            val fromMiddle = root.size.height / 2f - (bounds.top + bounds.height / 2f)
+            // Eased off towards the reach rather than cut at it, so an element
+            // nearing the window's edge slows rather than stops.
+            offset.floatValue = reach * tanh(fromMiddle * strength / reach)
         }
-        .graphicsLayer { translationY = offset.value }
+        // Read in the layer, so a scroll redraws it and recomposes nothing.
+        .graphicsLayer { translationY = offset.floatValue }
 }
+
+/** How far at most a [parallax] layer drifts from its place, near the window's edges. */
+private val ParallaxReach = 16.dp
 
 /** What the scroll-driven modifiers take by default. */
 object ScrollEffectDefaults {
@@ -197,5 +198,5 @@ object ScrollEffectDefaults {
     val RevealDistance: Dp = 24.dp
 
     /** How far a [parallax] layer moves, as a fraction of its distance from the centre. */
-    const val ParallaxStrength: Float = 0.08f
+    const val ParallaxStrength: Float = 0.05f
 }

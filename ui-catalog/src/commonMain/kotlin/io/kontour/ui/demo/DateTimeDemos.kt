@@ -12,17 +12,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Plane
-import com.composables.icons.tabler.outline.ChevronDown
-import com.composables.icons.tabler.outline.ChevronLeft
-import com.composables.icons.tabler.outline.ChevronRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.outline.ChevronDown
+import io.kontour.icons.tabler.outline.ChevronLeft
+import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityLegend
 import io.kontour.ui.components.datetime.ActivityMark
@@ -31,6 +32,7 @@ import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -40,9 +42,11 @@ import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
+import androidx.compose.ui.Alignment
 
 /**
  * A fixed "today", not the real one.
@@ -54,7 +58,13 @@ private val Today = LocalDate(2026, 6, 12)
 
 internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        // The picker stops at a phone's width; wider, it sits in the middle of
+        // the card rather than against its start, and its caption under it.
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         DatePicker(
             value = depart,
             onValueChange = { depart = it },
@@ -84,6 +94,8 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
         end = range.second,
         onRangeChange = { start, end -> range = start to end },
         today = Today,
+        // In the middle of a card wider than the picker's 308dp.
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         previousIcon = Tabler.Outline.ChevronLeft,
         nextIcon = Tabler.Outline.ChevronRight,
         chooserIcon = Tabler.Outline.ChevronDown,
@@ -98,6 +110,7 @@ internal val CalendarMonthDemo = ComponentDemo(slug = "calendar-month") {
         // single date and a range and only the caller knows which.
         isSelected = { it == picked },
         onSelectedChange = { picked = it },
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
     )
 }
 
@@ -117,6 +130,35 @@ internal val TimePickerDemo = ComponentDemo(
         ),
     ) {
         TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5)
+    }
+}
+
+internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs = listOf(twelveHour)) {
+    var leave by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 6, 18), LocalTime(8, 15))) }
+    // The clock is a convention, provided as an app would; see the time picker's.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = if (this[twelveHour]) HourCycle.H12 else HourCycle.H23),
+        ),
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            DateTimePicker(
+                value = leave,
+                onValueChange = { leave = it },
+                today = Today,
+                isDateSelectable = { it >= Today },
+                previousIcon = Tabler.Outline.ChevronLeft,
+                nextIcon = Tabler.Outline.ChevronRight,
+                chooserIcon = Tabler.Outline.ChevronDown,
+                minuteStep = 5,
+            )
+            Text("$leave", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+        }
     }
 }
 
@@ -332,6 +374,7 @@ internal val dateTimeDemos = listOf(
     ActivityCalendarDemo,
     DatePickerDemo,
     DateRangePickerDemo,
+    DateTimePickerDemo,
     CalendarMonthDemo,
     TimePickerDemo,
     TimeFieldDemo,

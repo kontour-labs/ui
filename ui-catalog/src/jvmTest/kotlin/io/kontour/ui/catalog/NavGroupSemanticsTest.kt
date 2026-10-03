@@ -18,9 +18,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Home
-import com.composables.icons.tabler.outline.Route
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Home
+import io.kontour.icons.tabler.outline.Route
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavRail
 import io.kontour.ui.nav.NavScope

@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Bus
-import com.composables.icons.tabler.outline.MapPin
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarStyle
 import io.kontour.ui.theme.KontourTheme

@@ -20,8 +20,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Star
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Star
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.TopBar

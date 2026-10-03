@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,9 +24,13 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.pageBack
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * `ListDetailPaneScaffold` on one pane answers back with its `onBack` — which
@@ -49,6 +54,7 @@ class ListDetailBackTest {
         var screenBacks = 0
         var paneBacks = 0
         var twoPane by mutableStateOf(false)
+        val seen = mutableMapOf<String, (() -> Unit)?>()
     }
 
     @Composable
@@ -68,8 +74,16 @@ class ListDetailBackTest {
                             fixture.paneBacks++
                             fixture.selected = null
                         },
-                        list = { Text("Stops", Modifier.fillMaxSize().testTag("list")) },
-                        detail = { Text(fixture.selected ?: "Pick a stop", Modifier.fillMaxSize().testTag("detail")) },
+                        list = {
+                            val back = pageBack()
+                            SideEffect { fixture.seen["list"] = back }
+                            Text("Stops", Modifier.fillMaxSize().testTag("list"))
+                        },
+                        detail = {
+                            val back = pageBack()
+                            SideEffect { fixture.seen["detail"] = back }
+                            Text(fixture.selected ?: "Pick a stop", Modifier.fillMaxSize().testTag("detail"))
+                        },
                         twoPane = fixture.twoPane,
                     )
                 }
@@ -144,5 +158,32 @@ class ListDetailBackTest {
         waitForIdle()
         assertEquals(0, fixture.paneBacks, "two panes took back, with both panes already on screen")
         assertEquals(1, fixture.screenBacks)
+    }
+
+    /**
+     * `pageBack()` on one pane: the detail's goes back to the list, through the
+     * same handler as the system's, and the list keeps the screen's — none here.
+     * On two panes neither goes anywhere within the scaffold.
+     */
+    @Test
+    fun theDetailsPageBackGoesToTheList() = runComposeUiTest {
+        val back = Back()
+        val fixture = Fixture()
+        setContent { Harness(back, fixture) }
+        waitForIdle()
+        assertTrue("list" in fixture.seen, "the list was never composed")
+        assertNull(fixture.seen["list"], "the list offered a back with nothing outside to go back to")
+
+        runOnUiThread { fixture.selected = "Perth Busport" }
+        waitForIdle()
+        val toList = assertNotNull(fixture.seen["detail"], "the detail on one pane had no back")
+        runOnUiThread { toList() }
+        waitForIdle()
+        assertEquals(1, fixture.paneBacks, "the detail's back did not go to the list")
+        assertEquals(0, fixture.screenBacks, "the detail's back went past the list, to the screen")
+
+        runOnUiThread { fixture.twoPane = true; fixture.selected = "Perth Busport" }
+        waitForIdle()
+        assertNull(fixture.seen["detail"], "on two panes the detail offered a back the scaffold does not have")
     }
 }

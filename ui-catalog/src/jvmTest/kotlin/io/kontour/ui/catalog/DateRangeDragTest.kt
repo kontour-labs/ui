@@ -79,15 +79,18 @@ class DateRangeDragTest {
 
     private fun cell(bounds: Rect, day: Int): Offset {
         val cellSize = bounds.width / 7f
+        // A week is a day's width tall, up to the calendar's 40dp week
+        // at the scene's density of 2.
+        val rowHeight = minOf(cellSize, 80f)
         // The month grid is the bottom six rows; everything above it is the
         // picker's own header and the weekday initials.
-        val gridTop = bounds.bottom - Rows * cellSize
+        val gridTop = bounds.bottom - Rows * rowHeight
         val index = day - 1 + LeadingBlanks
         val row = index / 7
         val column = index % 7
         return Offset(
             bounds.left + (column + 0.5f) * cellSize,
-            gridTop + (row + 0.5f) * cellSize,
+            gridTop + (row + 0.5f) * rowHeight,
         )
     }
 

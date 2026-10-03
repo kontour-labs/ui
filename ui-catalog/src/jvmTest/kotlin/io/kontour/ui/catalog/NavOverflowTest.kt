@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Home
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Home
 import io.kontour.ui.nav.NavRail
 import java.awt.image.BufferedImage
 import kotlin.test.Test

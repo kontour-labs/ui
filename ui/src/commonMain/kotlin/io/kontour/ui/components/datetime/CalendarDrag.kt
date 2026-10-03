@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.interaction.DetentTicker
@@ -153,18 +154,31 @@ internal class GridGeometry(
     /**
      * Whether a finger moving from [from] to [to] went over [edge]'s arrow: the
      * half of the edge day's cell on the other month's side, where the arrow is
-     * drawn. Sampled along the move, so a quick one that jumps across the arrow
-     * between two pointer events still counts.
+     * drawn, and a little above and below it. Sampled along the move, so a quick
+     * one that jumps across the arrow between two pointer events still counts.
+     *
+     * **Taller than the day.** It was the day's own row and no more, so a finger
+     * that passed the arrow a little low — under the last week, where a thumb
+     * covering the arrow tends to be — or came at it from just above never
+     * started the dwell, and had to go back and pass it again: *"you have to
+     * drag basically directly through the left/right of the little arrow"*.
+     * Now [ArrowReachOut] of a row on the side away from the grid, which is
+     * past the edge already, and [ArrowReachIn] on the side of the neighbouring
+     * week. **Not wider**: the blank beside the edge day is what a finger
+     * arriving from the week above or below lands on, and that was asked not to
+     * page.
      */
     fun crossesArrow(from: Offset, to: Offset, edge: DwellEdge): Boolean {
         val index = indexOf(edge)
         val row = (index / Columns).toFloat()
         val left = if (edge == DwellEdge.Previous) (index % Columns).toFloat() else index % Columns + 1f - ArrowShare
+        val top = row - if (edge == DwellEdge.Previous) ArrowReachOut else ArrowReachIn
+        val bottom = row + 1f + if (edge == DwellEdge.Previous) ArrowReachIn else ArrowReachOut
         for (step in 0..ArrowSamples) {
             val t = step / ArrowSamples.toFloat()
             val x = from.x + (to.x - from.x) * t
             val y = from.y + (to.y - from.y) * t
-            if (x >= left && x <= left + ArrowShare && y >= row && y <= row + 1f) return true
+            if (x >= left && x <= left + ArrowShare && y >= top && y <= bottom) return true
         }
         return false
     }
@@ -404,24 +418,33 @@ internal class CalendarDragState internal constructor(
         val index = grid.nearestIndex(cells)
         val under = grid.dateAt(index) ?: return
         val selectable = isSelectable(under)
+        // Over a day it may not have, the range goes as far toward the finger as
+        // it can: to the last day it may have on the way from the anchor.
+        //
+        // It stayed where it was instead, which in a month paged into was the
+        // last one's last day — reported as *"if i move across from last month
+        // … then it has the whole next month selected, and it only deselects if
+        // i move to a date that is selectable"*, in a filter that stops at today.
+        val reach = if (selectable) under else reachToward(under, from)
         var crossing: Offset? = null
-        if (selectable && (under != head || paged)) {
+        if (reach != head || paged) {
             val previous = headCell
+            val reachIndex = grid.indexOf(reach)
             // A unit vector from the new cell to the old one, in cells, physical:
             // the cap enters from beside itself rather than flying across the
             // month when the range wraps to another week. See `cap`.
-            crossing = if (paged || previous == null) {
+            crossing = if (paged || previous == null || reachIndex == null) {
                 Offset.Zero
             } else {
-                val across = (previous % Columns - index % Columns).toFloat() * (if (grid.rtl) -1f else 1f)
-                val rowsUp = (previous / Columns - index / Columns).toFloat()
+                val across = (previous % Columns - reachIndex % Columns).toFloat() * (if (grid.rtl) -1f else 1f)
+                val rowsUp = (previous / Columns - reachIndex / Columns).toFloat()
                 val length = hypot(across, rowsUp)
                 if (length <= 0f) Offset.Zero else Offset(across / length, rowsUp / length)
             }
-            head = under
-            headCell = index
-            dayTicker.at(under.toEpochDays().toInt())
-            onSelect?.invoke(from, under)
+            head = reach
+            headCell = reachIndex
+            dayTicker.at(reach.toEpochDays().toInt())
+            onSelect?.invoke(from, reach)
         }
 
         finger = cells
@@ -433,17 +456,25 @@ internal class CalendarDragState internal constructor(
         } else {
             headIndex % Columns + 0.5f
         }
-        if (headIndex != null && paged) {
+        // An end in another month is a row before this one's first, or after its
+        // last: the band covers none of this month. It was left at the row it
+        // had in the last month, which painted this one down to there.
+        val headRow = when {
+            headIndex != null -> headIndex / Columns
+            reach < grid.month -> -1
+            else -> grid.rows
+        }
+        if (paged) {
             flowing?.cancel()
             flowFrom = null
             flow = 1f
-            bandRow = headIndex / Columns
-        } else if (headIndex != null && headIndex / Columns != bandRow) {
+            bandRow = headRow
+        } else if (headRow != bandRow) {
             // From wherever each row's band is now — mid-flow, if it was — so a
             // snap during a snap carries on rather than starting over.
             flowFrom = FloatArray(grid.rows) { boundary(it) }
             flow = 0f
-            bandRow = headIndex / Columns
+            bandRow = headRow
             flowing?.cancel()
             flowing = scope.launch {
                 animate(0f, 1f, animationSpec = motion.springOrTween(motion.springSnappy)) { value, _ -> flow = value }
@@ -462,6 +493,17 @@ internal class CalendarDragState internal constructor(
             val crossed = DwellEdge.entries.firstOrNull { grid.crossesArrow(previous, cells, it) }
             dwellOn(grid.edgeAt(cells), crossed)
         }
+    }
+
+    /**
+     * The nearest day to [date] a range may end on, walking back toward [anchor],
+     * which it may: the anchor itself if there is none between.
+     */
+    private fun reachToward(date: LocalDate, anchor: LocalDate): LocalDate {
+        val step = if (date > anchor) -1 else 1
+        var day = date
+        while (day != anchor && !isSelectable(day)) day = day.plus(step, DateTimeUnit.DAY)
+        return day
     }
 
     fun end() {
@@ -715,9 +757,9 @@ internal fun DrawScope.drawEdgeArrow(
     stroke: Float,
 ) {
     if (alpha <= 0f) return
-    val radius = ArrowRingRadius.toPx()
+    val (out, radius) = arrowRing(halfCell)
     val side = if (pointsLeft) -1f else 1f
-    val centre = Offset(day.x + side * (halfCell - radius - ArrowRingInset.toPx()), day.y)
+    val centre = Offset(day.x + side * out, day.y)
     drawCircle(ring, radius = radius, center = centre, alpha = alpha, style = Stroke(stroke))
     if (progress > 0f) {
         drawArc(
@@ -743,6 +785,22 @@ internal fun DrawScope.drawEdgeArrow(
 }
 
 /**
+ * Where an edge day's arrow ring sits and how big it is, for a day [halfCell]
+ * pixels from its middle to its nearest edge: the ring's centre, that far out
+ * from the day's middle toward the other month, and its radius.
+ *
+ * In proportion to the day. It was a fixed 6.5dp, sized when a day was a 48dp
+ * pill; once a dragged day became a circle as tall as its 40dp week the same
+ * ring sat inside it against the number — *"in the range picker, the little
+ * "next/previous month arrow" is now too big"*. A fifth of the half-day
+ * leaves a two-digit number its own room in a day of any size.
+ */
+internal fun Density.arrowRing(halfCell: Float): Pair<Float, Float> {
+    val radius = halfCell * ArrowRingShare
+    return (halfCell - radius - ArrowRingInset.toPx()) to radius
+}
+
+/**
  * How much of the arrow shows for a finger [distance] cells from its day: none
  * from two and a half cells out, all of it within three quarters of one. The
  * distance is straight-line, so coming at the day from above counts as much as
@@ -765,6 +823,15 @@ private const val MaxLean: Float = 0.5f
 /** The share of the edge day's cell, on the other month's side, that is its arrow. */
 private const val ArrowShare: Float = 0.5f
 
+/**
+ * How far past its day's row, in rows, an arrow still catches a finger: half a
+ * row on the side away from the grid — over the weekday initials, or under the
+ * last week, already past the edge — and less on the side of the next week in,
+ * which is days a drag is still choosing between. See `crossesArrow`.
+ */
+private const val ArrowReachOut: Float = 0.5f
+private const val ArrowReachIn: Float = 0.3f
+
 /** Points along a move tested against an arrow. */
 private const val ArrowSamples: Int = 12
 
@@ -774,9 +841,9 @@ private const val EdgeReach: Float = 1.5f
 private const val RingFadeFrom: Float = 2.5f
 private const val RingFadeFull: Float = 0.75f
 
-/** The ring round the arrow, and how far it sits in from the day's box. */
-internal val ArrowRingRadius = 6.5.dp
-private val ArrowRingInset = 1.5.dp
+/** The ring round the arrow against half its day, and how far it sits in from the day's edge. */
+private const val ArrowRingShare: Float = 0.2f
+internal val ArrowRingInset = 1.dp
 
 /** The progress arc, a little bolder than the ring it fills. */
 private const val ProgressStrokeShare: Float = 1.4f

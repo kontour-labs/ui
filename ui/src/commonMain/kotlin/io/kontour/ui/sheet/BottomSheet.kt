@@ -91,7 +91,10 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.ContainerGaps
+import io.kontour.ui.adaptive.OverlapInsets
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.adaptive.measuresGaps
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.rememberDetentTicker
@@ -237,11 +240,10 @@ object BottomSheetDefaults {
      *
      * ### Concentric with the device
      *
-     * A sheet at full height stops [SheetTopGap] short of the screen, so its top
-     * corners sit just inside the device's — and a corner inside a larger one
-     * looks wrong unless it is *concentric* with it: the same centre, a radius
-     * smaller by the gap between them. A 34dp corner inside a 55dp bezel reads
-     * as two unrelated curves.
+     * A sheet at full height reaches the top of the screen, so its top corners
+     * meet the device's — and a corner against a larger one looks wrong unless it
+     * is *concentric* with it: the same centre and, with no gap between them, the
+     * same radius. A 34dp corner in a 55dp bezel reads as two unrelated curves.
      *
      * `atLeast` is a floor rather than an assignment, so a device with gentler
      * corners than the scale's own leaves the scale alone, and `atLeast(null)`
@@ -264,8 +266,7 @@ object BottomSheetDefaults {
             // what is meant. The bezel's own curve comes with them.
             Theme.shapes.sheet.concentricWith(
                 platformDeviceCorners(),
-                SheetTopGap,
-                LocalLayoutDirection.current,
+                direction = LocalLayoutDirection.current,
             )
         SheetPresentation.Floating -> Theme.shapes.panel
     }
@@ -480,9 +481,8 @@ fun BottomSheet(
      *
      * **[allEdges][io.kontour.ui.adaptive.allEdges] rather than
      * [sheetEdges][io.kontour.ui.adaptive.sheetEdges], which has no top side.**
-     * A sheet at full height stops [SheetTopGap] short of the screen, which is
-     * far above the status bar, so with no top inset its drag handle and its
-     * header drew *under* the status bar and the notch. Reported from a phone,
+     * A sheet at full height reaches the top of the screen, so with no top inset
+     * its drag handle and its header drew *under* the status bar and the notch. Reported from a phone,
      * and the same defect `ToastPosition.Top` had for the same reason.
      *
      * A half-height sheet is unaffected: `windowInsetsPadding` applies only the
@@ -571,6 +571,15 @@ fun BottomSheet(
     // able to arrive before the composition it belongs to has finished.
     SideEffect { state.userDismissible = dismissible }
 
+    // **The part of each inset that reaches the sheet's container**, and nothing
+    // of what lies outside it. An app whose root already made room for the
+    // keyboard ends the container where the keyboard begins, and the whole of
+    // the keyboard's inset on top of that lifted the sheet twice as far as it
+    // needed to go. Everything below reads this one value — the chrome, the
+    // float, the content's padding — so they cannot disagree. See `ContainerGaps`.
+    val gaps = remember { ContainerGaps() }
+    val insets = remember(windowInsets, gaps) { OverlapInsets(windowInsets, gaps) }
+
     // The margin a floating sheet keeps, on each of the four sides.
     //
     // `union` and not a sum, because the margin is a *minimum* clearance rather
@@ -586,12 +595,12 @@ fun BottomSheet(
     // corners up there, and they belong below the bar rather than under it.
     val floatInsets = if (floating) {
         val inset = Theme.componentDefaults.sheetFloatingInset
-        remember(windowInsets, inset) {
+        remember(insets, inset) {
             WindowInsets(left = inset, top = inset, right = inset, bottom = inset)
-                .union(windowInsets)
+                .union(insets)
         }
     } else {
-        windowInsets
+        insets
     }
 
     // Critically damped. A sheet that bounces on arrival looks unweighted, and
@@ -718,6 +727,8 @@ fun BottomSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Where the container sits in the window, for `insets`.
+            .measuresGaps(gaps)
             // The container's height, read in the **measure** phase.
             //
             // `onSizeChanged` fires after layout, so for the whole of the first
@@ -825,7 +836,7 @@ fun BottomSheet(
                 // Unless it can morph: then the content is handed the real
                 // insets, less whatever the margin is still clearing of them,
                 // which is all of them until the morph starts.
-                windowInsets = if (floating && morph == null) NoInsets else windowInsets,
+                windowInsets = if (floating && morph == null) NoInsets else insets,
                 containerColour = containerColour,
                 contentColour = contentColour,
                 // A handle on a sheet that cannot be dragged is a lie.
@@ -1217,6 +1228,9 @@ private fun BoxScope.SheetSurface(
     val drawnShape = remember(shape, expandedShape, edgeness) {
         morphShape(shape, expandedShape, edgeness)
     }
+    // The room the parts near the top corners keep from them, for the roundest
+    // corners this sheet will have: see [SheetCornerRoom].
+    val room = rememberSheetCornerRoom(shape, expandedShape.takeIf { morph != null })
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1347,8 +1361,8 @@ private fun BoxScope.SheetSurface(
                 // blocks after it find the part there in the same pass rather
                 // than a frame later.
                 contents = listOf(
-                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, padding, content) },
-                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins) },
+                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, room, padding, content) },
+                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins, room = room) },
                     { PinnedBlock(pins.bottom, containerColour, sides, safeArea = safeArea, pins = pins) },
                 ),
             ) { (column, top, bottom), constraints ->
@@ -1433,6 +1447,7 @@ private fun SheetColumn(
     density: Density,
     dragHandle: (@Composable () -> Unit)?,
     pins: SheetPins,
+    room: SheetCornerRoom,
     padding: PaddingValues,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
@@ -1538,9 +1553,15 @@ private fun SheetColumn(
                     floating = floating && morph == null,
                     floatInsets = floatInsets,
                 )
-                // Where a sheet this tall rests, for the single-size morph:
-                // below the status bar rather than at the gap.
-                if (container > 0) state.fullHeightTop = (container - window).toFloat()
+                // Where a sheet this tall rests: the container's top, for one
+                // that is or becomes an edge sheet, with its chrome padded below
+                // the status bar; a floating one keeps its margins. And how much
+                // room that is, so a sheet whose content fills it resolves
+                // `Expanded` there rather than a status bar short.
+                if (container > 0) {
+                    state.fullHeightTop = if (floating && morph == null) (container - window).toFloat() else 0f
+                    state.contentCeiling = window.toFloat()
+                }
                 // And no taller than the sheet can ever be seen. A sheet whose
                 // tallest detent is `Half` shows half a window of content at
                 // most; measured at the window, a list in it had rows past
@@ -1607,6 +1628,10 @@ private fun SheetColumn(
             // The band the handle sits in is the content's top padding: the
             // handle's own height, and at least the sheet's inset. Measured, for
             // where the pinned parts sit and how tall [SheetDetent.pinned] is.
+            //
+            // Taller by the corners' room, split above and below the handle so
+            // it stays centred in the band. Inside the measuring `layout`, so the
+            // pinned detent counts it.
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -1615,14 +1640,16 @@ private fun SheetColumn(
                         val placeable = measurable.measure(constraints)
                         pins.handleHeight = placeable.height
                         layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-                    },
+                    }
+                    .padding(vertical = room.top / 2),
                 contentAlignment = Alignment.Center,
             ) { dragHandle() }
         } else {
             pins.handleHeight = 0
         }
-        // A header knows the band above it is its top padding.
-        CompositionLocalProvider(LocalSheetBand provides (dragHandle != null)) {
+        // A header knows the band above it is its top padding, and how much
+        // further in the corners want it.
+        CompositionLocalProvider(LocalSheetBand provides (dragHandle != null), LocalSheetCornerRoom provides room) {
             SheetParts(this, state, pins).content(padding)
         }
     }
@@ -1907,6 +1934,7 @@ private fun PinnedBlock(
     sides: Modifier,
     safeArea: PaddingValues?,
     pins: SheetPins,
+    room: SheetCornerRoom = SheetCornerRoom.None,
 ) {
     if (parts.isEmpty()) return
     val edge = contrastEdge()
@@ -1949,7 +1977,10 @@ private fun PinnedBlock(
                         }
                         .then(if (last && safeArea != null) Modifier.padding(BottomOf(safeArea)) else Modifier)
                         .then(sides)
-                        .padding(start = inset, end = inset, bottom = if (last) inset else 0.dp),
+                        // A top block sits under the corners, and moves in from
+                        // them as the header does; a bottom block's corners are
+                        // square or the floating sheet's own.
+                        .padding(start = inset + room.start, end = inset + room.end, bottom = if (last) inset else 0.dp),
                 ) {
                     val content = part.content
                     content()
@@ -2009,8 +2040,8 @@ private fun sheetTop(
     // sides, not a panel with its head off the top of the screen.
     //
     // The clamp is scaled by the morph as well: an edge sheet's top is its anchor,
-    // which already stops `SheetTopGap` short of the window, and the status bar
-    // under it is `sheetTopInset`'s to pad — so the floating margin up there gives
+    // which may be the window's own top, and the status bar under it is
+    // `sheetTopInset`'s to pad — so the floating margin up there gives
     // way at the same rate as the other three.
     val kept = 1f - edgeness(state, morph)
     return (top - floatingLift(state, floatInsets, density, morph))
@@ -2284,7 +2315,10 @@ private fun Modifier.sheetTopInset(
     val top = (inset - sheetTop(state, floating, floatInsets, this, morph)).coerceIn(0, inset)
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
-    layout(placeable.width, height) { placeable.place(0, top) }
+    layout(placeable.width, height) {
+        state.contentShift = top
+        placeable.place(0, top)
+    }
 }
 
 /**
@@ -2314,8 +2348,8 @@ private fun Modifier.sheetTopInset(
  * The shift [sheetTopInset] applies is a function of the **live** offset, and a
  * content height that moves with the offset is a re-measure of everything in the
  * sheet on every frame of a drag — the cost `SheetFramePressureTest` exists to
- * catch. `SheetTopGap` is the floor under every anchor, so `max(inset, gap)` is
- * the largest the shift can ever be, and it is a constant.
+ * catch. No anchor is above the container's top, so the inset itself is the
+ * largest the shift can ever be, and it is a constant.
  *
  * Deriving it from [SheetState.surfaceHeight] would read better and is a cycle:
  * `surfaceHeight` comes from the lowest anchor, `SheetDetent.Expanded`'s anchor
@@ -2348,7 +2382,7 @@ private fun Density.sheetContentCeiling(
         // because the margin has already taken the window's edges into it.
         floatInsets.getTop(this) + floatInsets.getBottom(this)
     } else {
-        maxOf(insets.getTop(this), SheetTopGap.toPx().roundToInt())
+        insets.getTop(this)
     }
     return (container - reserved).coerceIn(1, container)
 }

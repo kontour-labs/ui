@@ -1,5 +1,10 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.union
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.unit.Density
 import io.kontour.ui.motion.sizeSpec
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -35,7 +40,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +76,7 @@ import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.action.ButtonDefaults
 import io.kontour.ui.interaction.withinOrNull
 import io.kontour.ui.a11y.LocalTouchTargetOwnedByParent
+import io.kontour.ui.adaptive.overlappingInsetsPadding
 import io.kontour.ui.adaptive.sheetEdges
 import io.kontour.ui.adaptive.topEdges
 import io.kontour.ui.components.action.Button
@@ -92,6 +97,7 @@ import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -490,13 +496,12 @@ object ToastDefaults {
     const val PillExitScale: Float = 0.34f
 
     /**
-     * How much of a waiting toast's own content colour outlines it.
+     * How much of a toast's own content colour outlines it.
      *
-     * Enough to see where one pill ends and the next begins, faint enough that
-     * it reads as an edge catching the light rather than as a drawn border —
-     * these are the toasts nobody is being asked to look at. See the note beside
-     * it in `ToastSurface` for why this is a rim and not the shadow the report
-     * asked for.
+     * Enough to see where one pill ends and the next begins, or where the toast
+     * ends over a FAB of its own colour, faint enough that it reads as an edge
+     * catching the light rather than as a drawn border. See the note beside it
+     * in `ToastSurface` for why this is a rim and not a shadow.
      */
     const val PillRim: Float = 0.22f
 
@@ -666,9 +671,11 @@ fun ToastHost(
      * a confirmation of what the user just typed, hidden behind the keyboard they
      * typed it with, is the one place it is guaranteed not to be read.
      *
-     * It does **not** account for a navigation bar: that is a component, not an
-     * inset, and a screen with one should pass a
-     * `WindowInsets(bottom = barHeight)` union of its own.
+     * A [io.kontour.ui.nav.NavBar] along the foot of the window is cleared as
+     * well, though it is a component and not an inset: the bar reports where it
+     * is, and a bottom stack stands a little above it, or above these insets,
+     * whichever is higher. A bar of your own can pass a
+     * `WindowInsets(bottom = barHeight)` union here.
      *
      * Follows [position] by default, which is the whole reason that parameter is
      * an enum: a top-anchored stack needs the status bar and the cutout, and
@@ -718,6 +725,62 @@ fun ToastHost(
         )
     }
 }
+
+/**
+ * How far a bottom stack stands up off the foot of the window to clear a
+ * navigation bar there: *"can we make it so toasts clear the navbar (if
+ * applicable)?"*
+ *
+ * From the bars that report themselves to the host ([clearedByToasts]), and
+ * only those near the foot — within [BarReach] of it, which takes a floating
+ * bar over the gesture bar and leaves out one drawn mid-page. The stack then
+ * stands [ToastDefaults]' own margin's worth above the bar's top: as an inset,
+ * taken with the window's own as the larger of the two, so a keyboard up over
+ * the bar still lifts it further, and the two are never added.
+ *
+ * Moves when a bar comes or goes — a page covering the bar takes it away at
+ * the end of its slide — rather than jumping, and is where it should be from
+ * the first frame a stack is measured, so a new toast does not rise over the
+ * bar to get there.
+ */
+@Stable
+private class BarLift {
+    var rootHeight by mutableFloatStateOf(0f)
+    val animated = Animatable(0f)
+    var measured = false
+    val value: Float get() = animated.value
+}
+
+@Composable
+private fun rememberBarLift(position: ToastPosition, host: OverlayHostState, density: Density): BarLift {
+    val lift = remember { BarLift() }
+    val reach = with(density) { BarReach.toPx() }
+    val margin = with(density) { Theme.spacing.sm.toPx() }
+    val root = lift.rootHeight
+    val target = if (position != ToastPosition.Bottom || root <= 0f) {
+        0f
+    } else {
+        host.bottomBars.values
+            .filter { root - it.bottom <= reach }
+            .maxOfOrNull { root - it.top + margin }
+            ?: 0f
+    }
+    val spec = Theme.motion.springOrTween<Float>()
+    LaunchedEffect(target, root > 0f) {
+        when {
+            root <= 0f -> Unit
+            !lift.measured -> {
+                lift.animated.snapTo(target)
+                lift.measured = true
+            }
+            else -> lift.animated.animateTo(target, spec)
+        }
+    }
+    return lift
+}
+
+/** How near the foot of the window a bar has to end to count as along it. */
+private val BarReach = 96.dp
 
 /**
  * Whether a drag is aimed back into the screen, which is the one that returns.
@@ -809,6 +872,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     val towardEdge = config.position.towardEdge
     val visible = state.toasts.takeLast(config.maxVisible)
     val density = LocalDensity.current
+    val barLift = rememberBarLift(config.position, LocalOverlayHost.current, density)
 
     // No shared size any more, and the ratchet that kept one is gone with it.
     //
@@ -1031,7 +1095,10 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     }
 
     Box(
-        Modifier.fillMaxSize().windowInsetsPadding(config.windowInsets),
+        Modifier
+            .fillMaxSize()
+            .onPlaced { barLift.rootHeight = it.findRootCoordinates().size.height.toFloat() }
+            .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt()))),
         contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
@@ -1528,16 +1595,21 @@ private fun ToastSurface(
         // themes without being told which one it is in: near-white on a dark
         // pill, near-dark on a light one. It is opaque, so nothing shows through
         // the way the old alpha fade did.
-        border = if (depth == 0) {
-            null
-        } else {
-            // Solid at the enhanced tier, where a translucent rim is the part
-            // of the stack a reader who asked for contrast would lose.
-            BorderStroke(
-                Theme.sizing.borderWidth,
-                if (highContrast()) content else content.copy(alpha = ToastDefaults.PillRim),
-            )
-        },
+        //
+        // **The front one too.** It is the same problem in front of anything of
+        // its own colour: over a FAB, which is the near-black `primary` beside
+        // a near-black `surfaceInverse` toast, the two ran together, shadow and
+        // all — *"if a toast appears above a FAB (or any other component of
+        // similar colour, for that matter), then there's not really that much
+        // separation between them"*. Over the page it is a pixel of the toast's
+        // own edge a shade lighter, which nobody sees.
+        //
+        // Solid at the enhanced tier, where a translucent rim is the part a
+        // reader who asked for contrast would lose.
+        border = BorderStroke(
+            Theme.sizing.borderWidth,
+            if (highContrast()) content else content.copy(alpha = ToastDefaults.PillRim),
+        ),
         shadow = Theme.elevation.high,
     ) {
         // A card in front; behind it, a plain capsule of the same colour and

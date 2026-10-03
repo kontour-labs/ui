@@ -9,10 +9,12 @@
 #
 # Jobs, separate because they fail for different reasons and at different speeds:
 #
-#   changes  decides what a push to main has to run, from the files it changed
+#   changes  decides what a push has to run: not a tree that has passed
+#            already, and on main only what the files it changed can break
 #   test     the one that catches a regression; the catalog's slow classes
 #            only on a manual run with **full** ticked
-#   targets  the one that catches a component compiling on the JVM and nowhere else
+#   targets  the one that catches a component compiling on the JVM and nowhere
+#            else, and the public API moving
 #   site     the documentation site and the API reference, and the slowest thing here
 #   deploy   uploads the site to Cloudflare Pages, docs.kontour.io/ui
 #   publish  uploads the library to GitHub Packages, for a release only
@@ -82,13 +84,28 @@ on:
 # here.
 permissions:
   contents: read
+  # The icons, `io.kontour:tabler-icons-*`, are on GitHub Packages, which wants
+  # credentials even to read. See `env` below.
+  packages: read
 
-# Never cancelled. The last push to land should be the one that ends up
-# published, and cancelling a deploy in flight can leave a newer build racing an
-# older one.
+# What `settings.gradle.kts` reads the icons with. A `KONTOUR_PACKAGES_*` pair
+# from the repository's secrets where it has one; otherwise this run's own
+# token, which reads the package where the package grants this repository
+# Actions access (the package's settings, under "Manage Actions access").
+env:
+  KONTOUR_PACKAGES_ACTOR: ${{ secrets.KONTOUR_PACKAGES_ACTOR || github.actor }}
+  KONTOUR_PACKAGES_TOKEN: ${{ secrets.KONTOUR_PACKAGES_TOKEN || github.token }}
+
+# `main` and tags are never cancelled. The last push to land should be the one
+# that ends up published, and cancelling a deploy in flight can leave a newer
+# build racing an older one. A manual run of the checks on a branch is
+# different: asking again means the last answer is no longer wanted, so the
+# new run cancels the old one rather than paying for both. A run that
+# publishes is in a group of its own, so it is never the one cancelled: a
+# package registry has no undo for half an upload.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}${{ inputs.version && '-publish' || '' }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && !inputs.version }}
 
 jobs:
   # What this push has to run, from the files it changed.
@@ -109,15 +126,83 @@ jobs:
   # certain runs everything — a tag, a manual run, a first push, a force-push, a
   # failed API call, a change past what the API lists, and a change to the
   # build or to this file, which change what every job means.
+  #
+  # ### Never the same tree twice
+  #
+  # A tree is the whole of the repository at a commit — this file included —
+  # and two commits with the same tree build the same thing. A branch checked
+  # by hand, merged while it was up to date with `main`, and then tagged is one
+  # tree three times, and each of those runs used to test it from scratch:
+  # about 150 billed minutes for one release, two thirds of it re-proving what
+  # had already passed.
+  #
+  # So each gate leaves a marker when it passes in full — an artifact named
+  # after the tree, `tested-<tree>` from `test` and `compiled-<tree>` from
+  # `targets` — and a push looks for them before it starts. The site is the
+  # same idea with the artifact itself: `site-<tree>-<release>` is what
+  # `deploy` uploads, and the release it is labelled with (`kontourDocsVersion`
+  # in buildSrc) is in its name, because that is the one input to the site
+  # that is not in the tree.
+  #
+  # A manual run never skips anything, because asking is the point of it. A
+  # failed lookup finds nothing and runs the job, which is the direction this
+  # must fail in.
   changes:
     name: Decide what to run
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # To look the markers up.
+      actions: read
     outputs:
       library: ${{ steps.decide.outputs.library }}
       targets: ${{ steps.decide.outputs.targets }}
       catalog: ${{ steps.decide.outputs.catalog }}
       docs: ${{ steps.decide.outputs.docs }}
+      tested: ${{ steps.passed.outputs.tested }}
+      compiled: ${{ steps.passed.outputs.compiled }}
+      site-name: ${{ steps.passed.outputs.site-name }}
+      site-run: ${{ steps.passed.outputs.site-run }}
     steps:
+      - uses: actions/checkout@v4
+
+      # For the release the site would be labelled with: see `site`.
+      - name: Fetch the release tags
+        run: git fetch --no-tags --depth=1 origin '+refs/tags/v*:refs/tags/v*'
+
+      - id: passed
+        name: Look for this tree having passed already
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          tree=$(git rev-parse 'HEAD^{tree}')
+          release=$(.github/docs-release.sh)
+
+          # The run that left the newest live artifact of this name, or nothing.
+          left() {
+            gh api "repos/$REPO/actions/artifacts?name=$1&per_page=5" \
+              --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty' 2>/dev/null
+          }
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if run=$(left "tested-$tree") && [ -n "$run" ]; then
+            echo "tested=true" >> "$GITHUB_OUTPUT"
+            say "Tree ${tree:0:7} passed \`test\` in run $run: not testing it again."
+          fi
+          if run=$(left "compiled-$tree") && [ -n "$run" ]; then
+            echo "compiled=true" >> "$GITHUB_OUTPUT"
+            say "Tree ${tree:0:7} passed \`targets\` in run $run: not compiling it again."
+          fi
+          site="site-$tree-$release"
+          if run=$(left "$site") && [ -n "$run" ]; then
+            { echo "site-name=$site"; echo "site-run=$run"; } >> "$GITHUB_OUTPUT"
+            say "Run $run built the site for tree ${tree:0:7} as $release: deploying that."
+          fi
+
       - id: decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -170,11 +255,18 @@ jobs:
   # when it did not succeed. A failed dependency skips its dependants by
   # default, and a skipped test job is the one direction this must never fail
   # in — so `!cancelled()`, and a `changes` that failed means everything.
+  #
+  # `timeout-minutes` on every job, because the default is six hours and a
+  # runner that has stopped answering bills every one of them: see the note on
+  # memory under `test`'s Gradle step. Each is about twice the job's ordinary
+  # length.
   test:
     name: Test
     needs: changes
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.changes.outputs.tested != 'true' }}
     runs-on: ubuntu-latest
+    # The slow classes are most of an hour on their own.
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.full && 90 || 40 }}
     env:
       LIBRARY: ${{ needs.changes.result != 'success' || needs.changes.outputs.library == 'true' }}
       CATALOG: ${{ needs.changes.result != 'success' || needs.changes.outputs.catalog == 'true' }}
@@ -214,8 +306,15 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Saves the Gradle home only from a run that did everything. The action
+      # prunes what a run did not touch before saving, so a documentation-only
+      # push used to replace this job's cache with one that held the docs'
+      # outputs and nothing else, and the next full run started cold: the
+      # v0.3.0 tag found 9 of its 200 tasks in the cache.
       - uses: gradle/actions/setup-gradle@v4
         if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' || env.LIBRARY != 'true' || env.CATALOG != 'true' || env.DOCS != 'true' }}
 
       # The Android SDK is preinstalled on the runner and Gradle finds it through
       # ANDROID_HOME. `local.properties` is a developer file and is gitignored,
@@ -234,21 +333,28 @@ jobs:
       # work, and explains why. `check` would reach `kotlinNpmInstall` and set up
       # a browser test environment for tests this suite does not run, which is a
       # minute of runner time for nothing. This list is the same work without it.
-      # One invocation, not two. This was split in half, and the second half
-      # spent 27 seconds to do 13 seconds of work: `--no-daemon` forks a fresh
-      # JVM per invocation, and with no configuration cache to restore it
-      # recalculates the task graph from scratch each time.
+      # **The JVM only.** `checkKotlinAbi` and the Android host tests used to be
+      # here too, and the ABI check compiles every target to read its klib:
+      # Kotlin/Native for both iOS targets, inside Gradle's own JVM, then JS and
+      # Wasm — what `targets` compiles anyway, which now runs them.
+      #
+      # **Compile, then test, in two invocations**, for memory. This runner has
+      # 7 GB. Run as one, the build overlapped the Kotlin daemon (2.8 GB once it
+      # had compiled `:ui`), Gradle (2.3 GB with Kotlin/Native in it) and two
+      # test forks with their Skia (1.5 GB), 6.8 GB measured on two cores. A
+      # machine that size swaps, the forks' collectors walk swapped heaps, and
+      # the 0.4.0 checks ran past an hour before they were cancelled, on a runner
+      # too busy to report back: its log was never uploaded. So the compile runs
+      # first, the Kotlin daemon is stopped, and the tests get the memory it
+      # held: 4.5 GB at most compiling and 5.0 GB testing, measured the same
+      # way, and 16 minutes rather than 21. The second invocation costs its
+      # own startup and task graph, about fifteen seconds, which is why this
+      # used to be one.
       #
       # `:ui-samples` answers a different question from the rest — `compileKotlinJvm`
       # asks whether the documentation examples still work against the real API,
       # `checkDocSamples` whether the copy on the page is still the code that was
       # compiled — but nothing about that needs its own process.
-      #
-      # `checkKotlinAbi` holds each library's public API to the dump checked in
-      # under its `api/` directory. A change it catches is either a mistake or a
-      # deliberate break, and a deliberate one is `updateKotlinAbi` in the same
-      # commit, a line under Unreleased in ui-docs/content/changelog.md, and its
-      # step in ui-docs/content/migrating.md.
       #
       # Naming tasks rather than running `check` is why `checkScreenshotAssertions`
       # has to be listed: `:ui-catalog:check` never runs here. Its sibling
@@ -257,19 +363,21 @@ jobs:
       #
       # Assembled from what `changes` found, in three groups: the libraries'
       # own suites, the catalog's screenshots, and what the documentation is
-      # checked by. Still one invocation, for the reason above.
+      # checked by.
       - name: Test
         if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
         run: |
+          compile=()
           tasks=()
           if [ "$LIBRARY" = true ]; then
+            compile+=(:ui:jvmTestClasses :ui-nav3:jvmTestClasses :haptics:jvmTestClasses)
             tasks+=(
-              :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions :ui:checkKotlinAbi
-              :ui-nav3:checkKotlinAbi :haptics:checkKotlinAbi :ui:checkKdocSamples
+              :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions :ui:checkKdocSamples
               :ui-nav3:jvmTest :ui-nav3:checkNoMaterial :haptics:jvmTest :haptics:checkNoCompose
             )
           fi
           if [ "$CATALOG" = true ]; then
+            compile+=(:ui-catalog:jvmTestClasses)
             tasks+=(:ui-catalog:jvmTest :ui-catalog:checkScreenshotAssertions)
             # Without it, the 26 slow classes are left out: see `Slow`.
             if [ "$FULL" = true ]; then
@@ -277,12 +385,12 @@ jobs:
             fi
           fi
           if [ "$DOCS" = true ]; then
-            tasks+=(:ui-docs:jvmTest :ui-samples:compileKotlinJvm :ui-samples:checkDocSamples)
+            compile+=(:ui-docs:jvmTestClasses :ui-samples:compileKotlinJvm)
+            tasks+=(:ui-docs:jvmTest :ui-samples:checkDocSamples)
           fi
-          # Last, because `--tests` filters the task named before it.
-          if [ "$LIBRARY" = true ]; then
-            tasks+=(:ui:testAndroidHostTest --tests "io.kontour.ui.input.*")
-          fi
+          echo "${compile[*]}"
+          ./gradlew --no-daemon "${compile[@]}"
+          pkill -f '[K]otlinCompileDaemon' || true
           echo "${tasks[*]}"
           ./gradlew --no-daemon "${tasks[@]}"
 
@@ -293,6 +401,25 @@ jobs:
       - name: Test the cursors on a real window
         if: env.LIBRARY == 'true'
         run: xvfb-run -a ./gradlew --no-daemon :ui:jvmOnScreenTest
+
+      # The marker `changes` looks for: this tree passed everything this job
+      # does. Only from a run that did all of it, so a push that tested the
+      # docs alone does not vouch for the libraries.
+      - id: tree
+        name: Mark this tree as tested
+        if: env.LIBRARY == 'true' && env.CATALOG == 'true' && env.DOCS == 'true'
+        run: |
+          tree=$(git rev-parse 'HEAD^{tree}')
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > tested.txt
+      - uses: actions/upload-artifact@v4
+        if: steps.tree.outcome == 'success'
+        with:
+          name: tested-${{ steps.tree.outputs.tree }}
+          path: tested.txt
+          retention-days: 30
+          # A re-run of this job writes it again.
+          overwrite: true
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
@@ -319,8 +446,9 @@ jobs:
   targets:
     name: Compile every target
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.targets == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.targets == 'true' && needs.changes.outputs.compiled != 'true')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -362,6 +490,16 @@ jobs:
       # source set could have been broken for months without a red build. It is
       # nearly free: Linux, klib only, and `~/.konan` is already warm from the
       # line above.
+      #
+      # `checkKotlinAbi` holds each library's public API to the dump checked in
+      # under its `api/` directory. A change it catches is either a mistake or a
+      # deliberate break, and a deliberate one is `updateKotlinAbi` in the same
+      # commit, a line under Unreleased in ui-docs/content/changelog.md, and its
+      # step in ui-docs/content/migrating.md. Here rather than in `test`
+      # because it reads the klib of every target, and this is the job that
+      # compiles them. So are the Android host tests, which need the Android
+      # compile `:ui:assemble` already does. They are last, because `--tests`
+      # filters the task named before it.
       - name: Compile
         run: |
           ./gradlew --no-daemon \
@@ -381,7 +519,34 @@ jobs:
             :haptics:compileKotlinIosSimulatorArm64 \
             :haptics:assemble \
             :showcase:android:assembleDebug \
-            :ui:assemble
+            :ui:assemble \
+            :ui:checkKotlinAbi \
+            :ui-nav3:checkKotlinAbi \
+            :haptics:checkKotlinAbi \
+            :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
+
+      # `test`'s marker, for this job: see `changes`.
+      - id: tree
+        name: Mark this tree as compiled
+        run: |
+          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > compiled.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled-${{ steps.tree.outputs.tree }}
+          path: compiled.txt
+          retention-days: 30
+          # A re-run of this job writes it again.
+          overwrite: true
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: ui/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # Contact sheets, when somebody asks for them.
   #
@@ -402,6 +567,7 @@ jobs:
     name: Site contact sheets
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.renders }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -436,8 +602,11 @@ jobs:
   site:
     name: Build the site
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.docs == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.docs == 'true' && needs.changes.outputs.site-run == '')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      name: ${{ steps.name.outputs.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -454,6 +623,12 @@ jobs:
       # tag on its commit, so only a release ever hit it.
       - name: Fetch the release tags
         run: git fetch --no-tags --depth=1 origin '+refs/tags/v*:refs/tags/v*'
+
+      # What this build is, for `deploy` and for a later push of the same tree
+      # to find: see `changes`.
+      - id: name
+        name: Name the upload
+        run: echo "name=site-$(git rev-parse 'HEAD^{tree}')-$(.github/docs-release.sh)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -538,16 +713,20 @@ jobs:
       - name: Lay the site out
         run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --deploy dist
 
-      # A day, because `deploy` reads it minutes later and nothing else does.
-      # Artifact storage is billed on a private repository, and this is about
-      # forty megabytes a push. The reference used to be uploaded again on its
-      # own for 90 days; it is served at `/ui/api/` now.
+      # Two days: `deploy` reads it minutes later, and so does the push to
+      # `main` that merges a branch checked by hand the day before, which
+      # deploys this rather than building it again. Artifact storage is billed
+      # on a private repository, and this is about forty megabytes a run. The
+      # reference used to be uploaded again on its own for 90 days; it is
+      # served at `/ui/api/` now.
       - uses: actions/upload-artifact@v4
         with:
-          name: docs-upload
+          name: ${{ steps.name.outputs.name }}
           path: dist
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 2
+          # A re-run of this job writes it again.
+          overwrite: true
 
   # Cloudflare Pages, Direct Upload, behind Cloudflare Access — see
   # `ui-docs/content/agents.md` for how an agent gets in.
@@ -566,15 +745,29 @@ jobs:
   #
   # The project name is a repository variable, so the host can be moved without
   # a commit; unset, it is `kontour-docs`.
+  #
+  # What it uploads is this run's site, or, when `changes` found this tree's
+  # site already built for the same release, that run's.
   deploy:
     name: Deploy
-    needs: site
-    if: ${{ !cancelled() && needs.site.result == 'success' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+    needs: [changes, site]
+    if: >-
+      ${{ !cancelled()
+        && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        && (needs.site.result == 'success'
+          || (needs.site.result == 'skipped' && needs.changes.outputs.docs == 'true'
+            && needs.changes.outputs.site-run != '')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # To download another run's artifact.
+      actions: read
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: docs-upload
+          name: ${{ needs.site.result == 'success' && needs.site.outputs.name || needs.changes.outputs.site-name }}
+          run-id: ${{ needs.site.result == 'success' && github.run_id || needs.changes.outputs.site-run }}
+          github-token: ${{ github.token }}
           path: dist
 
       - uses: cloudflare/wrangler-action@v3
@@ -589,10 +782,17 @@ jobs:
 
   publish:
     name: Publish
-    # Only a release, and `changes` runs everything for a tag or a manual run,
-    # so `test` and `targets` always run in full first.
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
-    needs: [test, targets]
+    # Only a release, and only once `test` and `targets` have passed this tree
+    # in full: in this run, because `changes` runs everything for a tag or a
+    # manual run, or in an earlier run of the same tree that left their
+    # markers — the push to `main` the tag was put on, or the branch's manual
+    # run before it merged.
+    needs: [changes, test, targets]
+    if: >-
+      ${{ !cancelled()
+        && (startsWith(github.ref, 'refs/tags/v') || inputs.version != '')
+        && (needs.test.result == 'success' || needs.changes.outputs.tested == 'true')
+        && (needs.targets.result == 'success' || needs.changes.outputs.compiled == 'true') }}
     # Ubuntu, not macOS. This job used to run on `macos-14` on the belief that
     # Apple targets cannot be cross-compiled — but Kotlin 2.x cross-compiles
     # Apple *klibs*, which is exactly what a library consumer resolves. Verified
@@ -601,9 +801,19 @@ jobs:
     # so. What still needs Xcode is linking a *framework*, and that happens in
     # the consuming app.
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+    # Starts from `targets`' Gradle cache rather than its own. The action keys
+    # its cache by job and saves only from `main`, where this job never runs,
+    # so it had no cache of its own and compiled every target from nothing:
+    # 16 of its 17 minutes for v0.3.0, in the run where `targets` compiled
+    # the same code in under three, from its cache. This variable is the
+    # action's own, undocumented, way to name the job in the key; if it stops
+    # working this is a cold build again, which is what it always was.
+    env:
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB: targets
     steps:
       - uses: actions/checkout@v4
 

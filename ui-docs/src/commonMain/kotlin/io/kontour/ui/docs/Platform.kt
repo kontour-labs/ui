@@ -13,7 +13,7 @@ import androidx.compose.runtime.MutableState
  * and it shipped with a landing page that threw on any window narrower than
  * 600dp. Nothing looked, because nothing could.
  *
- * The seam is deliberately four functions wide. A larger one would start
+ * The seam is deliberately five functions wide. A larger one would start
  * pulling browser concepts into the shell; a smaller one would mean faking a
  * `Window` on the JVM, which is a mock of the thing under test.
  */
@@ -44,3 +44,14 @@ expect fun navigate(target: Route)
  * asks for.
  */
 expect fun copyText(text: String)
+
+/**
+ * A file beside the site, as text: the icon browser's data, which
+ * `docs/lay-out-site.py` lays out under `icons/`. Null when it cannot be had —
+ * not there, or no network.
+ *
+ * In a browser a `fetch`, relative to the page. On the JVM a file under the
+ * directory the `kontour.docs.files` property names, so a test or a render can
+ * point the site at data `docs/icondata.py` wrote; without one, nothing is there.
+ */
+expect suspend fun fetchText(path: String): String?

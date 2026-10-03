@@ -14,10 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Archive
-import com.composables.icons.tabler.outline.Pin
-import com.composables.icons.tabler.outline.Trash
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Archive
+import io.kontour.icons.tabler.outline.Pin
+import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions

@@ -37,11 +37,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEvent
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.ArrowLeft
-import com.composables.icons.tabler.outline.ArrowRight
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.ArrowLeft
+import io.kontour.icons.tabler.outline.ArrowRight
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.adaptive.ContainerGaps
+import io.kontour.ui.adaptive.OverlapInsets
 import io.kontour.ui.adaptive.allEdges
+import io.kontour.ui.adaptive.measuresGaps
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Surface
@@ -391,7 +394,11 @@ private fun SideSheetPanel(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    // Only the part of an inset over the sheet's container, measured on the
+    // container rather than the panel, which slides: see `ContainerGaps`.
+    val gaps = remember { ContainerGaps() }
+    val insets = remember(windowInsets, gaps) { OverlapInsets(windowInsets, gaps) }
+    Box(Modifier.fillMaxSize().measuresGaps(gaps)) {
         Box(
             modifier = Modifier
                 .align(alignment)
@@ -426,7 +433,7 @@ private fun SideSheetPanel(
                     Column(
                         // Inside the surface, so the sheet's colour still runs
                         // to the edges of the window.
-                        Modifier.fillMaxSize().windowInsetsPadding(windowInsets),
+                        Modifier.fillMaxSize().windowInsetsPadding(insets),
                     ) {
                         if (onBack != null) {
                             IconButton(

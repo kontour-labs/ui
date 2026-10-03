@@ -128,6 +128,12 @@ only the *edge* decides which way the stack recedes, slides in and is swiped awa
 A top-right position would have to answer whether it recedes up or right, and every
 answer to that is arbitrary; the edge and the corner along it are two questions.
 
+**A bottom stack stands above the navigation bar.** A `NavBar` along the foot of
+the window tells the host where it is, and the stack stands a little above its
+top — or above the keyboard and the gesture bar, whichever is higher; the two are
+never added. A page that covers the bar, or a bar that goes, brings the stack back
+down, moving rather than jumping. A bar drawn partway down a page does not count.
+
 ---
 
 ## Accessibility

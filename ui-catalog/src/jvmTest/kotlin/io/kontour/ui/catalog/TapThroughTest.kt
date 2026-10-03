@@ -18,9 +18,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.Pencil
-import com.composables.icons.tabler.outline.Share
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Pencil
+import io.kontour.icons.tabler.outline.Share
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.action.Toolbar
 import io.kontour.ui.components.display.Card

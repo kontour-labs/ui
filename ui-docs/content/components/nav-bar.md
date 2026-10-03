@@ -43,6 +43,20 @@ navigation, and every other surface in the library has a ground.
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.
 
+**Labels barely change the bar's height.** With them on, each destination's icon
+is 20dp rather than 24, two points above its label, and the pair is centred in
+the touch target, so a labelled bar is the height of an unlabelled one at the
+default type and grows only as the type does. It used to hang its label under a
+40dp glyph box: 82dp of floating bar against 64, reported as *"too much space
+between the icon and the text, and it's making the navbar huge"*.
+
+**The label and the badge fit inside the marker.** The marker round the current
+destination has rounded ends, so it is narrower at the bottom, where the label
+sits, than across its middle. A label is measured to that narrower width and
+ends in an ellipsis where the marker's shape does. A badge sits on its icon's
+top-trailing corner and moves inward as far as it has to so that it stays inside the
+marker. It used to poke out over the bar.
+
 With circles rather than cells (see below), `NavBarDefaults.arrangementFor(spans)`
 spreads them across a phone's width and gathers them in the middle of anything
 wider.
@@ -108,8 +122,8 @@ A `Docked` bar has no beside: it puts the action inside, after everything else.
 By default the bar is a tab bar: **cells that share it**, and **a marker round the
 whole of the current destination**, glyph and label. The marker's shape follows
 the bar's. In a floating bar it is a capsule inside the capsule, as far from the
-bar's ends as from its top and bottom, so with labels, which make the bar tall and
-its ends round, it is still the bar's shape a size smaller. It used to be the
+bar's ends as from its top and bottom, so it is the bar's shape a size smaller,
+with labels or without. It used to be the
 theme's medium corner whatever the bar, a box inside a pill: *"our new defaults
 look really terrible with labels enabled"*. A docked bar has no corners to follow,
 and has the medium corner.
@@ -151,22 +165,40 @@ pass the marker's shape too to match it.
 `NavigationSuiteScaffold` passes all three on as `barShape`, `barItemWidth` and
 `barMarker`; a rail's marker stays its own.
 
+### The marker reaches for a press
+
+Press a destination other than the current one and, before the finger lifts, the
+marker leans a little toward it and stretches from the edge it is leaving: a
+promise of where it is going, not the trip. Let go and it goes. Slide off the
+destination instead and the press is cancelled, and the marker settles back.
+However far away the destination is, the lean is the same small nudge. A rail's,
+a tab bar's and a segmented control's markers do the same.
+
 ### Dragging the marker
 
 The marker can be dragged, as a segmented control's thumb can. Put a finger on
 a destination and slide it sideways: the marker comes with the finger, leaning
-toward it, and snaps from destination to destination with a tick at each, the
-colours following. Let go on one and it is chosen — its `onClick` runs then,
+and stretching toward it, and snaps from destination to destination with a tick at each, the
+colours following. A drag that starts on another destination than the chosen one
+ticks as the marker jumps to it, too. Let go on one and it is chosen — its `onClick` runs then,
 once.
 
-**The choice waits for the finger to lift.** A segmented control changes its
-value at every boundary it crosses, because a value is cheap to change back. A
-destination is a page: choosing each one the finger passed over would build and
-throw away every screen on the way. A drag that comes back to where it started,
-or that something else takes away, chooses nothing, and a tap is still a tap.
+**By default the choice waits for the finger to lift.** A segmented control
+changes its value at every boundary it crosses, because a value is cheap to
+change back. A destination is a page: choosing each one the finger passed over
+would build and throw away every screen on the way. A drag that comes back to
+where it started, or that something else takes away, chooses nothing, and a tap
+is still a tap.
+
+**`markerDrag = NavBarMarkerDrag.SelectWhileDragging` chooses each destination
+as the marker reaches it**, once, the way a segmented control does, and the lift
+chooses nothing more. Use it for pages cheap enough to scrub across, where
+seeing each one as the finger passes is the point. Asked for as an option:
+*"when you drag the navbar selection indicator, it can switch tabs as you're
+dragging"*.
 
 Only sideways, and only from a destination: a slot — a search — keeps its own
-gestures. `markerDraggable = false` turns it off. A rail's marker cannot be
+gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
 dragged at all: a rail scrolls, and a drag along it could not be told from a
 scroll.
 
@@ -192,6 +224,7 @@ because a tint alone is too faint at that tier, and the focus ring is drawn
 thicker.
 
 Under reduced motion the marker does not travel: it fades out and fades up on
-the new destination, and a dragged marker does not lean toward the finger. The selected icon's slight growth is a short tween with no
+the new destination, and it does not lean toward a finger dragging it or a
+destination being pressed. The selected icon's slight growth is a short tween with no
 overshoot, a press is a tonal wash at every setting, and a group's menu fades in
 rather than growing out of the bar.

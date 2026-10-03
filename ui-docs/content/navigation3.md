@@ -130,6 +130,78 @@ to the next, and finally to Navigation 3's single pane.
 
 ---
 
+## Pages inside the nav bar, and pages over it
+
+<!--sample:NavigationSuiteSceneStrategyBasics-->
+```kotlin
+val backStack = remember { mutableStateListOf<Any>(Departures) }
+val here = backStack.firstOrNull()
+// The navigation around the pages inside it. Its own back stack is this
+// one: going to a tab here replaces the stack's root.
+val suite = rememberNavigationSuiteSceneStrategy<Any> { pages ->
+    NavigationSuiteScaffold(
+        destinations = {
+            item(here == Departures, { backStack.clear(); backStack += Departures }, key = Departures, icon = null) { +"Departures" }
+            item(here == Saved, { backStack.clear(); backStack += Saved }, key = Saved, icon = null) { +"Saved" }
+        },
+    ) { pages() }
+}
+
+NavDisplay(
+    backStack = backStack,
+    onBack = { backStack.removeLastOrNull() },
+    sceneStrategies = listOf(suite),
+    sceneDecoratorStrategies = listOf(rememberPageTransitionStrategy()),
+    entryProvider = entryProvider {
+        entry<Departures> {
+            // Pages inside the navigation keep clear of the bar themselves.
+            ListGroup(Modifier.padding(navigationSuitePadding())) {
+                item(label = "Perth Underground", onClick = { backStack += StopDetail("Perth Underground") })
+                item(label = "Show my ticket", onClick = { backStack += Ticket })
+            }
+        }
+        entry<Saved> { Text("Saved stops") }
+        entry<StopDetail> { stop ->
+            Column {
+                TopBar(onBack = pageBack()) { +stop.name }
+            }
+        }
+        // Over the bar: it slides in over everything, and back uncovers it.
+        entry<Ticket>(metadata = coversNavigation()) {
+            Column {
+                TopBar(onBack = pageBack()) { +"Ticket" }
+            }
+        }
+    },
+)
+```
+
+One back stack for an app with a nav bar or a rail. Asked for as *"an easy way
+to put screens above nav components"*: most pages belong inside the navigation,
+and a few — a ticket, a player, a photo — cover it.
+
+**Inside the navigation, the bar stays put.** `rememberNavigationSuiteSceneStrategy`
+shows the pages with a `NavDisplay` of its own, inside `frame`, so a push or a
+back moves the page and not the bar. They move as its `sceneDecoratorStrategies`
+say, the platform's push, pop and back gesture by default, and its
+`sceneStrategies` lay them out inside the frame: a list beside its detail, a
+supporting pane.
+
+**An entry marked `coversNavigation()` covers it**, and so does every page pushed
+after it, as on iOS. It is a page of the outer `NavDisplay`: it slides in over the
+bar and the page under it, and a back gesture from it uncovers both, the bar
+coming back with its page. Popping it returns to the navigation as it was left,
+saved state and all.
+
+**The pages are not written inside the scaffold's `content`**, so they read the
+bar's height with `navigationSuitePadding()`, which is what the scaffold hands its
+own `content`. A covering page reads nothing: it is not inside the scaffold. Back
+goes to the pages inside the navigation first; at its root, to the platform.
+`pageBack()` is null at the root, and set on every page after it, covering or
+not.
+
+---
+
 ## Back, and how pages move
 
 <!--sample:PageTransitionStrategyBasics-->
@@ -222,6 +294,35 @@ desktop and the web:
    does not change and `NavDisplay` would not animate it;
 4. `NavDisplay`, which pops the page;
 5. the platform.
+
+### A back button from the page
+
+```kotlin
+entry<StopDetail>(metadata = detailPane()) { stop ->
+    Column {
+        TopBar(onBack = pageBack()) { +stop.name }
+        Departures(stop)
+    }
+}
+```
+
+`pageBack()` is going back from the page it is read in, or null when back would
+not leave it: null at the root of the stack, and null in a list beside its open
+detail, where back takes the detail. The page under a back gesture is built from
+the entries behind the one leaving, so it reads null for the whole gesture.
+
+**Not the back stack's size.** `NavDisplay` pops only once a gesture has
+finished, so for the whole of it the stack still holds the page being swiped
+away, while the page beneath is already on screen. A back button shown while
+`backStack.size > 1` therefore appears on the root page as the page over it is
+dragged off.
+
+Pressed, it goes back the way the system's back does, through the same
+handlers: a page that asks before it discards changes is asked, a detail beside
+its list leaves its pane, and a page leaves with its pop animation. A page still
+on screen as it leaves does nothing when pressed. The pages, the detail and the
+supporting pane all provide it, a sheet's supporting pane included; a host of
+your own provides it with `LocalPageBack provides rememberPageBack(canGoBack, onBack)`.
 
 **Without Navigation 3.** The same motion is there for an app that runs its own
 `AnimatedContent` between pages. `rememberPageMotion()` gives a `PageMotion` for

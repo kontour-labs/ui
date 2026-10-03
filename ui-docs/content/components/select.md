@@ -24,6 +24,12 @@ Its menu anchors to the field frame, using `Modifier.anchorBounds` and
 parent layout" is the wrong node when the menu is declared in one slot of a row
 and has to line up with the whole row. The menu matches the field's width.
 
+**Outlined by default, and it need not be.** `variant = TextFieldVariant.Plain`
+draws the value and its chevron with no box round them — for a select at the end
+of a row, or in a sentence, where the box was more frame than field. Focus and
+an error bring its edge back. The same goes for every select: `MultiSelect`,
+`Combobox` and `WheelSelect` take the same `variant`.
+
 **Reach for a [`RadioGroup`](radio-group.md) above a `Select`** when
 there are three or four options and room to show them. A select hides its
 options behind a tap, a cost worth paying only when showing them would crowd the
@@ -43,8 +49,8 @@ announcing "button" tells a screen reader user nothing about which is in force.
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.
 
-At high contrast the field's frame thickens with the tier, and a `Filled` field
-gains the edge it otherwise lacks. The menu is a
+At high contrast the field's frame thickens with the tier, and a `Filled` or
+`Plain` field gains the edge it otherwise lacks. The menu is a
 [`DropdownMenu`](dropdown-menu.md)'s, so its border goes from the faint
 `outlineSubtle` to the near-ink `outline`.
 

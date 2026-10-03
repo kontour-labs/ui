@@ -20,6 +20,22 @@ Commands carry `keywords` as well as a label, so "prefs" finds Settings, and a
 `shortcut` string that is shown rather than bound — the binding lives with the
 action, and a palette that claimed to own it would be a second source of truth.
 
+It hangs near the top of the window rather than in the middle, so the list grows
+down as it filters instead of the panel jumping up, and keeps clear of the
+window's insets and, by `Theme.spacing.md`, its sides: on a phone it is the
+width of the screen less a margin, and wider up it stops at `width`.
+**The closest first.** Typing filters the commands with `matches` and orders
+what is left by `similarity`, closest first: "set" puts *Set theme* (the label
+starts with it) ahead of *Sync settings* (a word in it does), ahead of
+*Preferences* (its keyword *settings* does), ahead of *Reset zoom* (the query is
+inside a word). The highlight is on the top row, so Enter runs the closest.
+Commands that answer as closely keep their order in `commands`, and with
+nothing typed the list is in that order.
+
+Past `maxHeight` the results scroll, and fade out at whichever end there are
+more of them ([`fadingEdges`](modifier-fading-edges.md)), so a row cut off at the panel's
+foot does not read as the last.
+
 **The keyboard is the point.** It opens on a chord, filters as you type, moves
 with the arrow keys and runs on Enter, without the pointer being touched — see
 [the overlay guide](../overlays.md#the-keyboard-is-the-point).

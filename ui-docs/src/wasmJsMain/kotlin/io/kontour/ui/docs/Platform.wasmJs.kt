@@ -8,7 +8,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.js.Promise
 import kotlinx.browser.window
+import kotlinx.coroutines.await
 import org.w3c.dom.events.Event
 
 actual fun openExternal(url: String) {
@@ -56,3 +58,11 @@ actual fun copyText(text: String) {
 // console for a button that has nothing better to tell them.
 private fun writeClipboardText(text: String): Unit =
     js("{ navigator.clipboard.writeText(text).catch(function () {}); }")
+
+actual suspend fun fetchText(path: String): String? =
+    runCatching { fetchTextPromise(path).await<JsString?>()?.toString() }.getOrNull()
+
+// Null for anything but a 200 and for a failed request alike: the browser has
+// nothing more useful to say to a reader than that the icons are not there.
+private fun fetchTextPromise(path: String): Promise<JsString?> =
+    js("fetch(path).then(function (r) { return r.ok ? r.text() : null; }).catch(function () { return null; })")

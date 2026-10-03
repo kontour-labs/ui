@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,29 +27,35 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import com.composables.icons.tabler.Tabler
-import com.composables.icons.tabler.outline.AdjustmentsHorizontal
-import com.composables.icons.tabler.outline.Calendar
-import com.composables.icons.tabler.outline.DeviceMobileVibration
-import com.composables.icons.tabler.outline.Click
-import com.composables.icons.tabler.outline.Forms
-import com.composables.icons.tabler.outline.Activity
-import com.composables.icons.tabler.outline.InfoCircle
-import com.composables.icons.tabler.outline.LayoutBottombar
-import com.composables.icons.tabler.outline.LayoutGrid
-import com.composables.icons.tabler.outline.LayoutList
-import com.composables.icons.tabler.outline.LayoutSidebar
-import com.composables.icons.tabler.outline.Menu2
-import com.composables.icons.tabler.outline.Palette
-import com.composables.icons.tabler.outline.SquareRoundedLetterT
-import com.composables.icons.tabler.outline.Stack2
-import com.composables.icons.tabler.outline.Swipe
-import com.composables.icons.tabler.outline.Typography
-import com.composables.icons.tabler.outline.Windmill
+import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.AdjustmentsHorizontal
+import io.kontour.icons.tabler.outline.Apps
+import io.kontour.icons.tabler.outline.Calendar
+import io.kontour.icons.tabler.outline.DeviceMobileVibration
+import io.kontour.icons.tabler.outline.Click
+import io.kontour.icons.tabler.outline.Forms
+import io.kontour.icons.tabler.outline.Activity
+import io.kontour.icons.tabler.outline.InfoCircle
+import io.kontour.icons.tabler.outline.LayoutBottombar
+import io.kontour.icons.tabler.outline.LayoutGrid
+import io.kontour.icons.tabler.outline.LayoutList
+import io.kontour.icons.tabler.outline.LayoutSidebar
+import io.kontour.icons.tabler.outline.Menu2
+import io.kontour.icons.tabler.outline.Palette
+import io.kontour.icons.tabler.outline.SquareRoundedLetterT
+import io.kontour.icons.tabler.outline.Stack2
+import io.kontour.icons.tabler.outline.Swipe
+import io.kontour.icons.tabler.outline.Typography
+import io.kontour.icons.tabler.outline.Windmill
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
 import io.kontour.ui.adaptive.WindowWidthClass
+import io.kontour.ui.catalog.apps.AppTakeover
+import io.kontour.ui.catalog.apps.AppsPage
+import io.kontour.ui.catalog.apps.LocalAppSettings
+import io.kontour.ui.catalog.apps.LocalOpenApp
+import io.kontour.ui.catalog.apps.MiniApp
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.demo.DemoCard
 import io.kontour.ui.demo.DemoFamily
@@ -80,7 +87,7 @@ internal class Page(
 )
 
 /**
- * Every page, in order: five written by hand and eleven generated.
+ * Every page, in order: six written by hand and eleven generated.
  *
  * **The generated eleven are the point.** They used to be hand-written too — a
  * fixed list of thirteen, last changed structurally in August, while the library
@@ -92,8 +99,9 @@ internal class Page(
  * The fix is not a check that notices the drift. It is the removal of the second
  * list: a demo can only be added to `demoFamilies`, and these pages are that.
  *
- * Five survive by hand because they are not component demos and never could be:
- * `About` is what the gallery is, `Tokens` is the palette, the type scale and
+ * Six survive by hand because they are not component demos and never could be:
+ * `About` is what the gallery is, `Apps` is the library at work in two small
+ * apps of its own, `Tokens` is the palette, the type scale and
  * the shape ladder — the one page where a *theme* can be judged rather than a
  * component — and `Frames`, `Haptics` and `Back` are instruments. `Frames` has the
  * sharpest reason: a full-screen generic-path clip sat under every sheet
@@ -112,6 +120,9 @@ internal val pages: List<Page> = listOf(
     // whose first page is a colour ramp tells someone who has just been
     // handed the library nothing about what it is or where the writing is.
     Page("About", Tabler.Outline.InfoCircle) { Scrolling(it) { AboutShowcase(Modifier.fillMaxWidth()) } },
+    // Second: after what the gallery is, the library at work — two apps with
+    // their own navigation, run in place of the gallery. See [AppsPage].
+    Page("Apps", Tabler.Outline.Apps) { AppsPage(it) },
     Page("Tokens", Tabler.Outline.Palette) { Scrolling(it) { ThemeShowcase(Modifier.fillMaxWidth()) } },
     // Not `Scrolling`: it scrolls itself, because the workload inside it is a
     // lazy list that has to be flickable on its own.
@@ -186,6 +197,10 @@ private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
 fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
     var selected by remember { mutableIntStateOf(0) }
     var settingsOpen by remember { mutableStateOf(false) }
+    // The app running in place of the gallery, by name so it survives being
+    // saved on every platform. See `AppTakeover`.
+    var runningName by rememberSaveable { mutableStateOf<String?>(null) }
+    val running = runningName?.let { name -> MiniApp.entries.firstOrNull { it.name == name } }
 
     /**
      * What each destination remembers about itself while you are somewhere else.
@@ -271,8 +286,11 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                         CompositionLocalProvider(
                             LocalCatalogEcho provides remember(toasts) {
                                 { what: String -> toasts.show(what) }
-                            }
+                            },
+                            LocalOpenApp provides remember { { app: MiniApp -> runningName = app.name } },
+                            LocalAppSettings provides settings,
                         ) {
+                          AppTakeover(running = running, onLeave = { runningName = null }) {
                             // Twelve destinations is more than a bottom bar can
                             // hold — the labels truncate to three letters each —
                             // so on compact the destinations are a modal rail the
@@ -324,6 +342,7 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                     }
                                 }
                             }
+                          }
 
                             SettingsSheet(
                                 visible = settingsOpen,

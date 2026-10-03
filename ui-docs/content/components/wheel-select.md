@@ -53,12 +53,28 @@ list of unrelated names reads better as a menu, and a long one as a
 `infinite = true` wraps the wheel round, for something cyclic such as minutes or
 months; see the `WheelPicker` page for why a list of names should not.
 
-The open wheel is as wide as the field and moves only as far as it must to stay
-on screen, so near the top or bottom of the window its middle row no longer
-lines up with the field.
+**Where it opens.** The open wheel is as wide as the field, with the chosen row
+where the field's value was, and it picks how to open from the room around it.
+Where there is room above and below, it opens about the field, its rows either
+side. Near the top or the foot of the window there is not, and it opens away
+from that edge instead: below, or above where there is room there instead, as a
+[`Select`](select.md)'s menu picks its side. The value stays on the field, the
+rest of the wheel runs to the side with room, and half of the next row shows on
+the other side, fading out, to say the wheel goes on that way too. Only where
+neither side has room does it move off the field to fit. A drag on the field
+turns it the same however it opened.
+
+Like every select it is outlined by default, and `variant =
+TextFieldVariant.Plain` takes the box away — see [`Select`](select.md).
 
 It shares `SelectState` with `Select`, so an app can open or close it from
 elsewhere.
+
+**Each row, and then the rest.** `onValueChange` follows every row the wheel
+turns past, which is what the field shows. A save, a request or a toast belongs
+in `onValueChangeFinished`, which comes once the wheel has stopped — a flick
+through twenty stops is one call, not twenty. A value set by the caller is not
+one.
 
 ---
 
