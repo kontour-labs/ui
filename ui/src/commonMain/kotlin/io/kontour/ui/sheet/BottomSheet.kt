@@ -1228,6 +1228,9 @@ private fun BoxScope.SheetSurface(
     val drawnShape = remember(shape, expandedShape, edgeness) {
         morphShape(shape, expandedShape, edgeness)
     }
+    // The room the parts near the top corners keep from them, for the roundest
+    // corners this sheet will have: see [SheetCornerRoom].
+    val room = rememberSheetCornerRoom(shape, expandedShape.takeIf { morph != null })
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1358,8 +1361,8 @@ private fun BoxScope.SheetSurface(
                 // blocks after it find the part there in the same pass rather
                 // than a frame later.
                 contents = listOf(
-                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, padding, content) },
-                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins) },
+                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, room, padding, content) },
+                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins, room = room) },
                     { PinnedBlock(pins.bottom, containerColour, sides, safeArea = safeArea, pins = pins) },
                 ),
             ) { (column, top, bottom), constraints ->
@@ -1444,6 +1447,7 @@ private fun SheetColumn(
     density: Density,
     dragHandle: (@Composable () -> Unit)?,
     pins: SheetPins,
+    room: SheetCornerRoom,
     padding: PaddingValues,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
@@ -1624,6 +1628,10 @@ private fun SheetColumn(
             // The band the handle sits in is the content's top padding: the
             // handle's own height, and at least the sheet's inset. Measured, for
             // where the pinned parts sit and how tall [SheetDetent.pinned] is.
+            //
+            // Taller by the corners' room, split above and below the handle so
+            // it stays centred in the band. Inside the measuring `layout`, so the
+            // pinned detent counts it.
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -1632,14 +1640,16 @@ private fun SheetColumn(
                         val placeable = measurable.measure(constraints)
                         pins.handleHeight = placeable.height
                         layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-                    },
+                    }
+                    .padding(vertical = room.top / 2),
                 contentAlignment = Alignment.Center,
             ) { dragHandle() }
         } else {
             pins.handleHeight = 0
         }
-        // A header knows the band above it is its top padding.
-        CompositionLocalProvider(LocalSheetBand provides (dragHandle != null)) {
+        // A header knows the band above it is its top padding, and how much
+        // further in the corners want it.
+        CompositionLocalProvider(LocalSheetBand provides (dragHandle != null), LocalSheetCornerRoom provides room) {
             SheetParts(this, state, pins).content(padding)
         }
     }
@@ -1924,6 +1934,7 @@ private fun PinnedBlock(
     sides: Modifier,
     safeArea: PaddingValues?,
     pins: SheetPins,
+    room: SheetCornerRoom = SheetCornerRoom.None,
 ) {
     if (parts.isEmpty()) return
     val edge = contrastEdge()
@@ -1966,7 +1977,10 @@ private fun PinnedBlock(
                         }
                         .then(if (last && safeArea != null) Modifier.padding(BottomOf(safeArea)) else Modifier)
                         .then(sides)
-                        .padding(start = inset, end = inset, bottom = if (last) inset else 0.dp),
+                        // A top block sits under the corners, and moves in from
+                        // them as the header does; a bottom block's corners are
+                        // square or the floating sheet's own.
+                        .padding(start = inset + room.start, end = inset + room.end, bottom = if (last) inset else 0.dp),
                 ) {
                     val content = part.content
                     content()

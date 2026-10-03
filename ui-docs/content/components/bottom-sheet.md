@@ -170,7 +170,8 @@ starts.
 it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
 drag handle's 24dp band above is the space over it. A sheet collapsed to its
 search field shows the field with the handle in the middle of the band above it
-and 16dp beside and below it.
+and 16dp beside and below it. A top part moves in from a display's rounder
+corners as the header does; see [`SheetHeader`](sheet-header.md#the-space-round-it).
 
 **On the sheet's own colour by default**, so whatever scrolls behind it is hidden
 rather than showing through. Once a bottom part has risen off the band, it has the

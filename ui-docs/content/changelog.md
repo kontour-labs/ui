@@ -80,6 +80,12 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   padded below the bar. So does one at `Expanded` whose content is taller than
   the window. Both used to stop 12dp short, and a tall `Expanded` sheet a status
   bar short. A floating sheet without `edgeMorph` keeps its margin.
+- **A sheet's header keeps clear of a display's rounder corners.** On an iPhone,
+  whose corners are about 55pt, or a newer Pixel's 51dp, against the sheet's
+  34dp, the header, the drag handle's band and a part pinned to the top move in
+  by what the rounder corner cuts into its diagonal: 6dp at 55. The title's
+  corner had come within 5dp of the curve. A sheet with the theme's own corners
+  is unchanged.
 - **A modal opening takes the focus off whatever had it, in another overlay
   too.** A text field in a sheet lets go, and its keyboard goes, when a dialog
   opens over the sheet. Before, only the page lost its focus. A menu or a
