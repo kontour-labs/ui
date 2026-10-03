@@ -58,11 +58,13 @@ private val tabs = listOf(DeparturesRoute, StopsRoute, TripsRoute, SettingsRoute
  * planner in a sheet.
  *
  * **One back stack, the navigation round it.** The tabs are the stack's root:
- * choosing one replaces the stack, and every page goes on top of it — a stop,
- * a line, a trip inside the navigation, so the bar stays under them, and the
- * ticket *over* it (`coversNavigation`), as a card a reader holds up to a
- * reader at the gate. Back goes down the stack, and at the root it leaves the
- * app.
+ * choosing one replaces the stack, and every page goes on top of it. On a
+ * phone a stop, a line, a trip and the ticket cover the navigation
+ * (`coversNavigation`): each is about one thing, and the bar's tabs would be in
+ * its way. Beside a rail or a sidebar they stay inside the navigation, which is
+ * at the side and in nobody's way — except the ticket, which is held up on its
+ * own everywhere, as a card is to a reader at the gate. Back goes down the
+ * stack, and at the root it leaves the app.
  *
  * On a phone the navigation is a floating bar, whose marker can be dragged
  * from tab to tab; above that, a rail or a sidebar, with the planner as its
@@ -119,6 +121,13 @@ internal fun TransitApp() {
         ) { pages() }
     }
 
+    // A stop, a line or a trip is a page of its own on a phone, over the
+    // navigation as well as the page under it: each is about one thing, with
+    // its own back button and things to do at its foot, and the bar's tabs
+    // would only be in their way. Beside a rail or a sidebar the navigation is
+    // at the side, out of the way, and the page stays inside it.
+    val detail: Map<String, Any> = if (compact) coversNavigation() else emptyMap()
+
     CompositionLocalProvider(LocalLeaveInTopBar provides compact) {
         NavDisplay(
             backStack = backStack,
@@ -137,15 +146,15 @@ internal fun TransitApp() {
                 entry<StopsRoute> { StopsPage(onStop = { backStack += StopRoute(it) }) }
                 entry<TripsRoute> { TripsPage(onTrip = { backStack += TripRoute(it) }) }
                 entry<SettingsRoute> { TransitSettingsPage() }
-                entry<StopRoute> { route ->
+                entry<StopRoute>(metadata = detail) { route ->
                     StopPage(
                         stop = stopNamed(route.name),
                         onLine = { backStack += LineRoute(it) },
                         onTicket = { backStack += TicketRoute },
                     )
                 }
-                entry<LineRoute> { route -> LinePage(lineNamed(route.name), onStop = { backStack += StopRoute(it) }) }
-                entry<TripRoute> { route -> TripPage(tripWithId(route.id)) }
+                entry<LineRoute>(metadata = detail) { route -> LinePage(lineNamed(route.name), onStop = { backStack += StopRoute(it) }) }
+                entry<TripRoute>(metadata = detail) { route -> TripPage(tripWithId(route.id)) }
                 // Over the navigation, as a ticket is held up on its own.
                 entry<TicketRoute>(metadata = coversNavigation()) { TicketPage() }
             },

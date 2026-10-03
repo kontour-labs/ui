@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -24,6 +25,7 @@ import io.kontour.ui.catalog.apps.AppHost
 import io.kontour.ui.catalog.apps.MiniApp
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -68,6 +70,9 @@ class MessagesAppTest {
         waitForIdle()
     }
 
+    private fun ComposeUiTest.tabs(): Int =
+        onAllNodesWithTag("tab-chats", useUnmergedTree = true).fetchSemanticsNodes().size
+
     /** The composer's editable node: the tag is on the field's frame, the text on the field inside it. */
     private val composer = hasSetTextAction() and (hasTestTag("composer") or hasAnyAncestor(hasTestTag("composer")))
 
@@ -78,10 +83,13 @@ class MessagesAppTest {
         onNodeWithTag("chat-ari").performClick()
         waitForIdle()
         onNodeWithTag("composer").assertExists()
+        // Over the nav bar as well: the composer has the bottom of the screen.
+        assertEquals(0, tabs(), "on a phone the conversation has the nav bar under its composer")
 
         back(gallery)
         onNodeWithTag("composer").assertDoesNotExist()
         onNodeWithTag("chat-ari").assertExists()
+        assertEquals(1, tabs(), "back at the list, the nav bar did not come back")
         assertFalse(gallery.left, "back from the conversation left the app instead of returning to the list")
 
         back(gallery)
@@ -96,6 +104,8 @@ class MessagesAppTest {
         waitForIdle()
         onNodeWithTag("composer").assertExists()
         onNodeWithTag("chat-ari").assertExists()
+        // Beside the list, with the rail still at the side.
+        assertEquals(1, tabs(), "on a desktop the conversation covered the rail")
         onNodeWithText("Coffee at Edith Cowan after?").assertExists()
     }
 

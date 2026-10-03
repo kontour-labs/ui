@@ -73,6 +73,12 @@ internal fun MessagesApp() {
     var paletteOpen by remember { mutableStateOf(false) }
     val leave = LocalLeaveApp.current?.leave
     val twoPane = windowSizeClass.width.hasRoomBeside
+    // On a phone a chat or a note is a page of its own, over the list, and over
+    // the navigation too: a conversation's composer and a note being written
+    // want the bottom of the screen and the keyboard, not a nav bar between
+    // them. Beside the list on a wider window it is a pane, and the rail at the
+    // side is in nobody's way.
+    val detail = if (twoPane) detailPane() else detailPane() + coversNavigation()
 
     // A tab's root replaces the old one in place, and whatever was above it
     // goes: the stack is never empty, not even for a moment between the two.
@@ -171,7 +177,7 @@ internal fun MessagesApp() {
                         contentPadding = navigationSuitePadding(),
                     )
                 }
-                entry<ConversationRoute>(metadata = detailPane()) { route ->
+                entry<ConversationRoute>(metadata = detail) { route ->
                     ConversationPage(
                         state = state,
                         chatId = route.chatId,
@@ -200,7 +206,7 @@ internal fun MessagesApp() {
                         contentPadding = navigationSuitePadding(),
                     )
                 }
-                entry<NoteRoute>(metadata = detailPane()) { route ->
+                entry<NoteRoute>(metadata = detail) { route ->
                     NoteDetailPage(
                         state = state,
                         noteId = route.noteId,

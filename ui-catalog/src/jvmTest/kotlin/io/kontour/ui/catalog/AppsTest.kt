@@ -34,10 +34,12 @@ import kotlin.test.assertTrue
  *
  * Asked for as *"a 'mini-app' within the app that allows users to navigate
  * between a heap of pages."* What is held here is the navigation, not the
- * pictures: a page inside the navigation keeps the bar under it, the ticket
- * covers it, back goes down the stack one page at a time, and at the root it
- * leaves the app — the one handler the app's host registers before anything
- * inside it, and so the last one back reaches.
+ * pictures: on a phone a detail page covers the bar — *"we probably want to be
+ * careful in the chat 'detail' screen with showing the navigation bar. same
+ * goes in the transit app"* — while on a desktop it stays beside the sidebar;
+ * back goes down the stack one page at a time, and at the root it leaves the
+ * app — the one handler the app's host registers before anything inside it,
+ * and so the last one back reaches.
  */
 @OptIn(ExperimentalTestApi::class)
 class AppsTest {
@@ -88,7 +90,7 @@ class AppsTest {
         onNodeWithTag("departures").assertExists()
         assertEquals(1, tabs(), "no nav bar at the app's root")
 
-        // A tab, then a stop on it: a page inside the navigation, over the bar's page.
+        // A tab, then a stop on it: a detail page, over the bar as well.
         onNodeWithTag("tab-Stops", useUnmergedTree = true).performClick()
         waitForIdle()
         onNodeWithTag("stops").assertExists()
@@ -96,20 +98,23 @@ class AppsTest {
         onNodeWithTag("stop-Leederville").performClick()
         waitForIdle()
         onNodeWithText("At this stop").assertExists()
-        assertEquals(1, tabs(), "a page inside the navigation took the bar away")
+        assertEquals(0, tabs(), "on a phone the stop's page has the nav bar under it")
 
-        // The ticket covers the bar.
+        // The ticket covers it too.
         onNodeWithText("Show my ticket").performScrollTo().performClick()
         waitForIdle()
         onNodeWithTag("ticket").assertExists()
-        assertEquals(0, tabs(), "the bar is still drawn under the ticket, which covers it")
+        assertEquals(0, tabs(), "the bar is drawn under the ticket, which covers it")
 
-        // Back uncovers it, then back to the tab's root, then out.
+        // Back to the stop, still covered; back to the tab's root, which has
+        // the bar again; then out.
         back(phone)
         onNodeWithTag("ticket").assertDoesNotExist()
-        assertEquals(1, tabs(), "back from the ticket did not uncover the bar")
+        onNodeWithText("At this stop").assertExists()
+        assertEquals(0, tabs(), "back from the ticket uncovered the bar under the stop")
         back(phone)
         onNodeWithTag("stops").assertExists()
+        assertEquals(1, tabs(), "back at the stops, the bar did not come back")
         assertFalse(left, "back from a stop left the app instead of going to the stops")
         back(phone)
         assertTrue(left, "back at the app's root did not leave it")
@@ -165,6 +170,14 @@ class AppsTest {
                 onAllNodesWithText("Plan a trip").fetchSemanticsNodes().isNotEmpty(),
                 "the sidebar has no planner action",
             )
+            // A stop stays beside the sidebar: at the side, it is in nothing's way.
+            onNodeWithTag("tab-Stops", useUnmergedTree = true).performClick()
+            waitForIdle()
+            onNodeWithTag("stops").performScrollToNode(hasTestTag("stop-Leederville"))
+            onNodeWithTag("stop-Leederville").performClick()
+            waitForIdle()
+            onNodeWithText("At this stop").assertExists()
+            assertEquals(1, tabs(), "on a desktop the stop's page covered the sidebar")
         }
 
     private companion object {
