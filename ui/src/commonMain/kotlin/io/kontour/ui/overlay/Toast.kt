@@ -496,13 +496,12 @@ object ToastDefaults {
     const val PillExitScale: Float = 0.34f
 
     /**
-     * How much of a waiting toast's own content colour outlines it.
+     * How much of a toast's own content colour outlines it.
      *
-     * Enough to see where one pill ends and the next begins, faint enough that
-     * it reads as an edge catching the light rather than as a drawn border —
-     * these are the toasts nobody is being asked to look at. See the note beside
-     * it in `ToastSurface` for why this is a rim and not the shadow the report
-     * asked for.
+     * Enough to see where one pill ends and the next begins, or where the toast
+     * ends over a FAB of its own colour, faint enough that it reads as an edge
+     * catching the light rather than as a drawn border. See the note beside it
+     * in `ToastSurface` for why this is a rim and not a shadow.
      */
     const val PillRim: Float = 0.22f
 
@@ -1596,16 +1595,21 @@ private fun ToastSurface(
         // themes without being told which one it is in: near-white on a dark
         // pill, near-dark on a light one. It is opaque, so nothing shows through
         // the way the old alpha fade did.
-        border = if (depth == 0) {
-            null
-        } else {
-            // Solid at the enhanced tier, where a translucent rim is the part
-            // of the stack a reader who asked for contrast would lose.
-            BorderStroke(
-                Theme.sizing.borderWidth,
-                if (highContrast()) content else content.copy(alpha = ToastDefaults.PillRim),
-            )
-        },
+        //
+        // **The front one too.** It is the same problem in front of anything of
+        // its own colour: over a FAB, which is the near-black `primary` beside
+        // a near-black `surfaceInverse` toast, the two ran together, shadow and
+        // all — *"if a toast appears above a FAB (or any other component of
+        // similar colour, for that matter), then there's not really that much
+        // separation between them"*. Over the page it is a pixel of the toast's
+        // own edge a shade lighter, which nobody sees.
+        //
+        // Solid at the enhanced tier, where a translucent rim is the part a
+        // reader who asked for contrast would lose.
+        border = BorderStroke(
+            Theme.sizing.borderWidth,
+            if (highContrast()) content else content.copy(alpha = ToastDefaults.PillRim),
+        ),
         shadow = Theme.elevation.high,
     ) {
         // A card in front; behind it, a plain capsule of the same colour and

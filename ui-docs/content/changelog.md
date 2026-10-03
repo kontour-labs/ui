@@ -222,6 +222,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   above it, or above the window's insets, whichever is higher. A page that covers
   the bar brings the toasts back down with it; a bar partway down a page is left
   alone.
+- **A toast has an edge over anything of its own colour.** The toast in front
+  takes the rim the ones waiting behind it already had, a hairline of its own
+  content colour: over a FAB, near-black on near-black, the two used to run
+  together, and a black shadow shows on nothing that dark.
 - **A list comes to rest once after a back gesture.** Back from a page over a
   `listPane()` entry, carried all the way by the gesture as a swipe's release
   does, finished, then the list jumped back three quarters of the way and came
