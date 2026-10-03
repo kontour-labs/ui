@@ -178,6 +178,10 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   by default, and none at high contrast. The bar has to be over the content, as
   a `Scaffold` puts it.
 
+- [`Avatar(border)`](components/avatar.md#a-border): a ring round the avatar,
+  any `BorderStroke` — a colour, the accent, a gradient — over the picture's
+  edge and under its decorations.
+
 - [`DateTimePicker`](components/date-time-picker.md): a `DatePicker` and a
   `TimePicker` as one `LocalDateTime`, side by side from 560dp and one at a
   time under a segmented control narrower. A day tapped keeps the time and a

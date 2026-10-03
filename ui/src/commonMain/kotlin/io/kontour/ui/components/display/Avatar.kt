@@ -2,6 +2,7 @@ package io.kontour.ui.components.display
 
 import io.kontour.ui.locale.bidiIsolated
 import io.kontour.ui.locale.LocaleFormats
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -133,6 +134,12 @@ value class AvatarSize(val diameter: Dp) {
  *
  * @param name Used for the initials and, by default, the announcement. Pass
  *   `null` for a genuinely anonymous avatar.
+ * @param border A ring round the avatar, drawn on its own circle over the
+ *   picture's edge and under its decorations: a colour to set it off from the
+ *   page, an accent for "this one is you", a gradient for a story. None by
+ *   default. Asked for as *"can we add an option for a border around the
+ *   avatar?"*; given, it takes the place of the edge an anonymous avatar has
+ *   at high contrast rather than adding to it.
  * @param decorations Status dots, counts and glyphs on the rim. See
  *   [AvatarDecorationScope].
  */
@@ -144,6 +151,7 @@ fun Avatar(
     fallbackIcon: ImageVector? = null,
     size: AvatarSize = AvatarSize.Medium,
     contentDescription: String? = null,
+    border: BorderStroke? = null,
     decorations: (AvatarDecorationScope.() -> Unit)? = null,
 ) {
     val placed = decorations?.let { AvatarDecorationScope().apply(it).items }.orEmpty()
@@ -162,13 +170,13 @@ fun Avatar(
     }
     val announcement = if (said.isEmpty()) base else strings.sentences(listOfNotNull(base) + said)
     if (placed.isEmpty()) {
-        AvatarBody(modifier.announced(announcement), name, image, fallbackIcon, size)
+        AvatarBody(modifier.announced(announcement), name, image, fallbackIcon, size, border)
         return
     }
     Layout(
         modifier = modifier.announced(announcement),
         content = {
-            AvatarBody(Modifier, name, image, fallbackIcon, size)
+            AvatarBody(Modifier, name, image, fallbackIcon, size, border)
             placed.forEach { decoration -> key(decoration) { Decoration(decoration, size) } }
         },
     ) { measurables, constraints ->
@@ -201,6 +209,7 @@ private fun AvatarBody(
     image: Painter?,
     fallbackIcon: ImageVector?,
     size: AvatarSize,
+    border: BorderStroke?,
 ) {
     val density = LocalDensity.current
     val palette = avatarPalette()
@@ -222,8 +231,9 @@ private fun AvatarBody(
             .clip(circle)
             .background(if (image != null) Theme.colours.surfaceSunken else background)
             // An avatar with no name and no picture is a well on the page —
-            // 1.13:1 at the enhanced tier — so there it takes the tier's edge.
-            .optionalBorder(if (name == null && image == null) contrastEdge() else null, circle),
+            // 1.13:1 at the enhanced tier — so there it takes the tier's edge,
+            // unless it has a border of its own, which is an edge already.
+            .optionalBorder(border ?: if (name == null && image == null) contrastEdge() else null, circle),
         contentAlignment = Alignment.Center,
     ) {
         when {

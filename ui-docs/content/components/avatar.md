@@ -19,6 +19,17 @@ everywhere without anyone storing one. The derivation deliberately avoids
 Kotlin/Native and Kotlin/JS, so the same person could be a different colour on
 iOS than on Android.
 
+## A border
+
+`border` rings the avatar: a colour to set it off from what it is on, the accent
+for "this one is you", or a gradient for a story — anything a `BorderStroke`
+holds. It is drawn on the avatar's own circle, over the picture's edge, and its
+decorations sit over it. None by default.
+
+```kotlin
+Avatar(name = "Ada Lovelace", border = BorderStroke(2.dp, Theme.colours.accent.solid))
+```
+
 ## Decorations
 
 A status, a count or a glyph on the rim — asked for from a phone as "decorator

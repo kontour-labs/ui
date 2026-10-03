@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -203,9 +204,13 @@ private val avatarDecorations = Knob.Choice(
     name = { it },
 )
 
-internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize, avatarDecorations)) {
+/** A ring round each avatar, in the accent. */
+private val avatarBorder = Knob.Flag("Border")
+
+internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSize, avatarDecorations, avatarBorder)) {
     val size = this[avatarSize]
     val decorated = this[avatarDecorations]
+    val border = if (this[avatarBorder]) BorderStroke(Theme.sizing.borderWidthStrong, Theme.colours.accent.solid) else null
     val online = Theme.colours.success.solid
     val decorations: (AvatarDecorationScope.() -> Unit)? = if (decorated == "None") {
         null
@@ -226,9 +231,9 @@ internal val AvatarDemo = ComponentDemo(slug = "avatar", knobs = listOf(avatarSi
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(name = "Aaron", size = size, decorations = decorations)
-        Avatar(name = "Jamie Lee", size = size, decorations = decorations)
-        Avatar(fallbackIcon = Tabler.Outline.User, size = size, decorations = decorations)
+        Avatar(name = "Aaron", size = size, border = border, decorations = decorations)
+        Avatar(name = "Jamie Lee", size = size, border = border, decorations = decorations)
+        Avatar(fallbackIcon = Tabler.Outline.User, size = size, border = border, decorations = decorations)
         AvatarGroup(names = listOf("Aaron", "Sunny", "Jamie", "Kit", "Robin", "Sam"), size = size)
     }
 }
