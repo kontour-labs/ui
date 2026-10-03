@@ -91,6 +91,7 @@ import io.kontour.ui.components.action.VerticalToolbar
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -181,6 +182,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.minus
 import kotlinx.datetime.LocalTime
 import kotlin.time.Duration.Companion.milliseconds
@@ -2198,6 +2200,28 @@ val componentRegistry: List<ComponentSpec> = buildList {
             renderHeight = 240,
         ) { modifier, _, _ ->
             TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateTimePicker",
+            role = null,
+            underContract = false,
+            // A date picker's 380 and a time picker's 240, and the gap between.
+            renderHeight = 640,
+            // The date picker's floor: seven columns of day numbers.
+            minWidth = 200,
+        ) { modifier, _, _ ->
+            DateTimePicker(
+                value = LocalDateTime(SpecimenDate, SpecimenTime),
+                onValueChange = {},
+                today = SpecimenToday,
+                previousIcon = SystemIcons.ChevronLeft,
+                nextIcon = SystemIcons.ChevronRight,
+                minuteStep = 5,
+                modifier = modifier.widthIn(max = SpecimenGridWidth),
+            )
         }
     )
 

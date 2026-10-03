@@ -160,6 +160,11 @@ reaches it. See [Migrating](migrating.md#markerdraggable-is-now-markerdrag).
   by default, and none at high contrast. The bar has to be over the content, as
   a `Scaffold` puts it.
 
+- [`DateTimePicker`](components/date-time-picker.md): a `DatePicker` with a
+  `TimePicker` under it, as one `LocalDateTime`. A day tapped keeps the time and
+  a wheel turned keeps the day; `onValueChangeFinished` comes once a day is
+  tapped or a wheel has come to rest.
+
 - [`TextFieldVariant.Plain`](components/select.md): a field with no ground and
   no edge at rest, for a select at the end of a row or in a sentence — every
   select takes it, `Select`, `MultiSelect`, `Combobox` and `WheelSelect`, and

@@ -7,6 +7,7 @@
 | [`DatePicker`](date-picker.md) | One date | — |
 | [`DateRangePicker`](date-range-picker.md) | A start and an end | Two `DatePicker`s |
 | [`TimePicker`](time-picker.md) | An hour and a minute | — |
+| [`DateTimePicker`](date-time-picker.md) | A day and a time, as one value | A `DatePicker` and a `TimePicker` kept in step by hand |
 | [`TimeField`](time-field.md) | The tappable field that opens one | — |
 | [`WheelPicker`](wheel-picker.md) | Any list of values, as a drum | A `Select`, in a form |
 | [`RelativeTimeText`](relative-time-text.md) | A self-updating "in 4 min" | A formatted timestamp |

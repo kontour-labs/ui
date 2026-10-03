@@ -32,6 +32,7 @@ import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
@@ -41,6 +42,7 @@ import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
@@ -128,6 +130,35 @@ internal val TimePickerDemo = ComponentDemo(
         ),
     ) {
         TimePicker(value = at, onValueChange = { at = it }, minuteStep = 5)
+    }
+}
+
+internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs = listOf(twelveHour)) {
+    var leave by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 6, 18), LocalTime(8, 15))) }
+    // The clock is a convention, provided as an app would; see the time picker's.
+    val formats = Theme.formats
+    ProvideTokens(
+        formats = formats.withConventions(
+            formats.conventions.copy(hourCycle = if (this[twelveHour]) HourCycle.H12 else HourCycle.H23),
+        ),
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            DateTimePicker(
+                value = leave,
+                onValueChange = { leave = it },
+                today = Today,
+                isDateSelectable = { it >= Today },
+                previousIcon = Tabler.Outline.ChevronLeft,
+                nextIcon = Tabler.Outline.ChevronRight,
+                chooserIcon = Tabler.Outline.ChevronDown,
+                minuteStep = 5,
+            )
+            Text("$leave", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
+        }
     }
 }
 
@@ -343,6 +374,7 @@ internal val dateTimeDemos = listOf(
     ActivityCalendarDemo,
     DatePickerDemo,
     DateRangePickerDemo,
+    DateTimePickerDemo,
     CalendarMonthDemo,
     TimePickerDemo,
     TimeFieldDemo,
