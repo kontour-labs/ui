@@ -30,9 +30,10 @@ styles and what separates them are under
 ### Dragged along, page by page
 
 With `onPageClick`, a press that moves along the dots **scrubs**: the page under
-the finger is chosen as it passes, each one once, and a pill comes up round the
+the finger is chosen as it passes, each one once, and a pill grows out of the
 dots for as long as the drag lasts, so the strip shows itself as the thing being
-dragged. Past the last dot is the last page, and before the first,
+dragged. It starts as a line through their centres and swells round them, and
+on release it shrinks back into them. Past the last dot is the last page, and before the first,
 the first. A tap is still a tap on the nearest dot.
 
 Only along the strip. A press that moves across it first is a scroll of whatever
@@ -40,10 +41,12 @@ the dots sit in, and is left for that. Each page passed under the finger is a
 `Snap`, as a segmented control's segments are; the carousel moving because of it
 says nothing, as any page reached in code does.
 
-The pill is `surfaceSunken`, the well a segmented control's track and a filled
-text field are, in the theme's `pill` shape: a squircle, round at its ends round
-the round dots inside them, however a theme caps its capsules. It has an edge at
-high contrast, and under reduced motion it fades in without growing.
+The pill is in the theme's `pill` shape: a squircle, round at its ends round the
+round dots inside them, however a theme caps its capsules. In the light it is
+`surfaceSunken`, the well a segmented control's track and a filled text field
+are. In the dark it is `outline`, the track a slider's thumb runs on: the well
+is too near a dark page to see. At high contrast it is the well with an edge.
+Under reduced motion it fades in at its size rather than growing.
 
 ### Vertical
 

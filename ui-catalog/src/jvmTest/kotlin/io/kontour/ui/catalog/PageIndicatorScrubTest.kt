@@ -9,13 +9,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A page indicator can be dragged along, page by page, and shows a pill round
@@ -26,19 +29,30 @@ import kotlin.test.assertEquals
  * pages. this should work for both horizontal and vertical."* A drag used to
  * be a tap wherever it ended. And then of the pill: *"a standard colour from
  * our theme"* — `surfaceSunken`, the well a segmented control's track is, read
- * here to the exact colour.
+ * here to the exact colour; *"in dark it's a bit invisible"*, so `outline`
+ * there; and *"make the pill expand out of the dots, rather than just
+ * appearing"*.
  */
 class PageIndicatorScrubTest {
 
-    private class Strip(val scene: Scene, val pages: List<Int>, val sunken: Color, val bounds: () -> Rect)
+    private class Strip(
+        val scene: Scene,
+        val pages: List<Int>,
+        /** The page under the strip, and the pill's colour on it. */
+        val page: Color,
+        val pill: Color,
+        val bounds: () -> Rect,
+    )
 
-    private fun strip(orientation: Orientation, test: Strip.() -> Unit) {
+    private fun strip(orientation: Orientation, dark: Boolean = false, test: Strip.() -> Unit) {
         var bounds = Rect.Zero
-        var sunken = Color.Unspecified
+        var page = Color.Unspecified
+        var pill = Color.Unspecified
         val pages = mutableListOf<Int>()
-        Scene(width = 400, height = 400) {
-            sunken = Theme.colours.surfaceSunken
-            Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+        Scene(width = 400, height = 400, darkTheme = dark) {
+            page = Theme.colours.background
+            pill = if (dark) Theme.colours.outline else Theme.colours.surfaceSunken
+            Box(Modifier.fillMaxSize().background(page), contentAlignment = Alignment.Center) {
                 PageIndicator(
                     state = rememberCarouselState { 5 },
                     orientation = orientation,
@@ -48,40 +62,54 @@ class PageIndicatorScrubTest {
             }
         }.use { scene ->
             scene.frames(6)
-            Strip(scene, pages, sunken) { bounds }.test()
+            Strip(scene, pages, page, pill) { bounds }.test()
         }
     }
 
-    /**
-     * How dark the ground is just before the first dot, along the strip's middle:
-     * where the pill is and nothing else. 255 is the white page.
-     */
-    private fun beforeTheDots(image: BufferedImage, bounds: Rect, vertical: Boolean): Int {
-        val first = if (vertical) {
-            (bounds.top.toInt()..bounds.bottom.toInt()).first { (image.getRGB(bounds.center.x.toInt(), it) shr 16 and 0xFF) < 0xE8 }
-        } else {
-            (bounds.left.toInt()..bounds.right.toInt()).first { (image.getRGB(it, bounds.center.y.toInt()) shr 16 and 0xFF) < 0xE8 }
+    private fun red(image: BufferedImage, x: Int, y: Int) = image.getRGB(x, y) shr 16 and 0xFF
+    private fun Color.red255() = (red * 255f).roundToInt()
+
+    /** Where the dots are along the strip's middle, as runs of ink: far from the page's own red. */
+    private fun Strip.dots(image: BufferedImage, vertical: Boolean): List<IntRange> {
+        val b = bounds()
+        val ground = page.red255()
+        val along = if (vertical) b.top.toInt()..b.bottom.toInt() else b.left.toInt()..b.right.toInt()
+        val runs = mutableListOf<IntRange>()
+        var start = -1
+        for (i in along) {
+            val ink = abs(if (vertical) red(image, b.center.x.toInt(), i) - ground else red(image, i, b.center.y.toInt()) - ground) > 0x30
+            if (ink && start < 0) start = i
+            if (!ink && start >= 0) {
+                runs += start until i
+                start = -1
+            }
         }
-        val x = if (vertical) bounds.center.x.toInt() else first - 4
-        val y = if (vertical) first - 4 else bounds.center.y.toInt()
-        return image.getRGB(x, y) shr 16 and 0xFF
+        return runs
+    }
+
+    /** The ground just before the first dot, along the strip's middle: where the pill is and nothing else. */
+    private fun Strip.beforeTheDots(image: BufferedImage, first: Int, vertical: Boolean): Int {
+        val b = bounds()
+        return if (vertical) red(image, b.center.x.toInt(), first - 4) else red(image, first - 4, b.center.y.toInt())
     }
 
     private fun Strip.scrubsAlong(vertical: Boolean) {
         val b = bounds()
         fun at(t: Float) = if (vertical) Offset(b.center.x, b.top + b.height * t) else Offset(b.left + b.width * t, b.center.y)
-        val rest = beforeTheDots(scene.frames(2), b, vertical)
+        val resting = scene.frames(2)
+        val first = dots(resting, vertical).first().first
+        val rest = beforeTheDots(resting, first, vertical)
         scene.drag(at(0.05f), at(0.95f), steps = 40, release = false)
-        val held = beforeTheDots(scene.frames(12), b, vertical)
+        val held = beforeTheDots(scene.frames(12), first, vertical)
         scene.release(at(0.95f))
-        val after = beforeTheDots(scene.frames(30), b, vertical)
+        val after = beforeTheDots(scene.frames(30), first, vertical)
 
         assertEquals(listOf(1, 2, 3, 4), pages, "a drag from the first dot to the last went to $pages")
-        assertEquals(255, rest, "the ground before the dots was not the page's white before the drag")
+        assertEquals(page.red255(), rest, "the ground before the dots was not the page before the drag")
         assertEquals(
-            (sunken.red * 255f).roundToInt(), held,
-            "while dragging, the ground before the dots should be the theme's surfaceSunken — " +
-                "${(sunken.red * 255f).roundToInt()} — and was $held",
+            pill.red255(), held,
+            "while dragging, the ground before the dots should be the pill's colour — " +
+                "${pill.red255()} — and was $held",
         )
         assertEquals(rest, after, "the pill was still there after the drag ended")
     }
@@ -91,6 +119,71 @@ class PageIndicatorScrubTest {
 
     @Test
     fun aDragDownAVerticalStripGoesToEachPageItPasses() = strip(Orientation.Vertical) { scrubsAlong(vertical = true) }
+
+    /**
+     * In the dark the pill is `outline`, which stands off the page: the well it
+     * is in the light was 1.07:1 from a dark page, and reported as invisible.
+     */
+    @Test
+    fun inTheDarkThePillStandsOffThePage() = strip(Orientation.Horizontal, dark = true) {
+        scrubsAlong(vertical = false)
+        val ratio = (maxOf(pill.luminance(), page.luminance()) + 0.05f) / (minOf(pill.luminance(), page.luminance()) + 0.05f)
+        assertTrue(ratio >= 1.5f, "the dark pill is ${"%.2f".format(ratio)}:1 from the page")
+    }
+
+    /**
+     * The pill grows out of the dots and back into them, rather than fading in
+     * and out at its size: measured across the strip through the gap between
+     * the third and fourth dots, frame by frame, as the drag starts and after
+     * it lets go. Whenever it is there it is its own colour, not a fade of it.
+     */
+    @Test
+    fun thePillGrowsOutOfTheDotsAndBackIntoThem() = strip(Orientation.Horizontal) {
+        val b = bounds()
+        val runs = dots(scene.frames(2), vertical = false)
+        val gap = (runs[2].last + runs[3].first) / 2
+        val ground = page.red255()
+        val colour = pill.red255()
+        val middle = b.center.y.toInt()
+        fun across(image: BufferedImage): Pair<Int, Int> {
+            val thick = (b.top.toInt()..b.bottom.toInt()).count { red(image, gap, it) != ground }
+            return thick to red(image, gap, middle)
+        }
+
+        val growing = mutableListOf<Pair<Int, Int>>()
+        fun at(t: Float) = Offset(b.left + b.width * t, b.center.y)
+        scene.drag(at(0.05f), at(0.6f), steps = 30, release = false) { _, image -> growing += across(image) }
+        repeat(20) { growing += across(scene.frame()) }
+        scene.release(at(0.6f))
+        val shrinking = mutableListOf<Pair<Int, Int>>()
+        repeat(30) { shrinking += across(scene.frame()) }
+
+        val full = growing.maxOf { it.first }
+        val seen = growing.dropWhile { it.first == 0 }
+        val opening = seen.takeWhile { it.first < full - 2 }
+        assertTrue(full >= 40, "the pill never reached its size: at most $full px across, in $growing")
+        assertTrue(
+            seen.first().first <= full / 2,
+            "the pill appeared ${seen.first().first} px across against $full at its size: it should grow out of the dots — $growing",
+        )
+        assertTrue(opening.size >= 3, "the pill went from nothing to its size in ${opening.size} frames — $growing")
+        assertTrue(
+            opening.zipWithNext().all { (a, b) -> b.first >= a.first - 1 },
+            "the pill did not grow steadily — $growing",
+        )
+        val closing = shrinking.takeWhile { it.first > 0 }
+        assertTrue(closing.size >= 3, "the pill went in ${closing.size} frames rather than shrinking back — $shrinking")
+        assertTrue(
+            closing.zipWithNext().all { (a, b) -> b.first <= a.first + 1 },
+            "the pill did not shrink steadily — $shrinking",
+        )
+        assertEquals(0, shrinking.last().first, "the pill was still there after the drag ended — $shrinking")
+        for ((thick, centre) in seen + closing) {
+            if (thick >= 8) {
+                assertEquals(colour, centre, "the pill was a fade of its colour rather than it — ${seen + closing}")
+            }
+        }
+    }
 
     /**
      * Across the strip is the page's scroll, not the indicator's, and a tap

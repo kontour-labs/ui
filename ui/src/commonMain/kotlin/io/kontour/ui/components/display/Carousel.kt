@@ -944,14 +944,29 @@ private fun PageDots(
     // and you can drag between pages".
     val motion = Theme.motion
     var scrubbing by remember { mutableStateOf(false) }
+    // How far the pill has grown out of the dots: 0 gone, 1 at its size. It
+    // **grows out of them** — asked for, "rather than just appearing" — from a
+    // line through their centres to the dots' own thickness and a pad round
+    // them, and shrinks back into them on release, on the snappy spring. Under
+    // reduced motion it is at its size from the start and fades instead.
     val platter = remember { Animatable(0f) }
-    LaunchedEffect(scrubbing) {
-        platter.animateTo(if (scrubbing) 1f else 0f, motion.tweenFast())
+    LaunchedEffect(scrubbing, motion.reduceMotion) {
+        platter.animateTo(
+            if (scrubbing) 1f else 0f,
+            if (motion.reduceMotion) motion.tweenFast() else motion.springOrTween(motion.springSnappy),
+        )
     }
     // **The well a segmented control's track is**, and a filled field's: the
     // ground the theme gives a control's parts to sit in, rather than a wash
     // of its own. Asked for as "a standard colour from our theme".
-    val platterColour = Theme.colours.surfaceSunken
+    //
+    // Except in the dark, where the well is 1.07:1 from the page, and the pill
+    // was reported as "a bit invisible". There it is `outline`, the track a
+    // slider's thumb runs on, at 1.60:1, as a skeleton's band takes `outline`
+    // in the dark for the same reason. Not at high contrast, where `outline`
+    // is darker than the dots and would hide them: the well, with its edge.
+    val colours = Theme.colours
+    val platterColour = if (colours.isDark && !highContrast()) colours.outline else colours.surfaceSunken
     // **In the theme's `pill`, uncapped**, as asked: "a squircle (g2
     // continuous, using our pill shape)". On the switch's argument too: the
     // pill's ends are round round the round dots inside them, and a capped
@@ -1106,27 +1121,35 @@ private fun PageDots(
                     // reported their boxes: from a pad before the first to a
                     // pad after the last, and a pad either side of them.
                     Modifier.drawBehind {
-                        val shown = platter.value
-                        if (shown <= 0f) return@drawBehind
-                        val first = dotCentre[0] - dotWidth[0] / 2f
-                        val last = dotCentre[count - 1] + dotWidth[count - 1] / 2f
-                        if (last <= first) return@drawBehind
-                        // Grows out from the dots as it fades in; under reduced
-                        // motion it only fades.
-                        val pad = platterPad * if (motion.reduceMotion) 1f else 0.6f + 0.4f * shown
-                        val thick = dotRadius * 2f + pad * 2f
-                        val length = last - first + pad * 2f
+                        val grown = platter.value
+                        if (grown <= 0f) return@drawBehind
+                        val firstCentre = dotCentre[0]
+                        val lastCentre = dotCentre[count - 1]
+                        if (lastCentre < firstCentre) return@drawBehind
+                        // How far each end reaches past its dot's centre, and how
+                        // thick the pill is, at full size: the dots' own half
+                        // length and thickness and a pad. Grown, from nothing —
+                        // a line through the centres — to that; reduced, at that
+                        // and fading in.
+                        val scale = if (motion.reduceMotion) 1f else grown
+                        val alpha = if (motion.reduceMotion) grown.coerceIn(0f, 1f) else 1f
+                        val before = (dotWidth[0] / 2f + platterPad) * scale
+                        val after = (dotWidth[count - 1] / 2f + platterPad) * scale
+                        val thick = (dotRadius + platterPad) * 2f * scale
+                        if (thick <= 0f) return@drawBehind
+                        val start = firstCentre - before
+                        val length = lastCentre + after - start
                         val topLeft = if (vertical) {
-                            Offset((size.width - thick) / 2f, first - pad)
+                            Offset((size.width - thick) / 2f, start)
                         } else {
-                            Offset(first - pad, (size.height - thick) / 2f)
+                            Offset(start, (size.height - thick) / 2f)
                         }
                         val box = if (vertical) Size(thick, length) else Size(length, thick)
                         val outline = platterShape.createOutline(box, layoutDirection, this)
                         translate(topLeft.x, topLeft.y) {
-                            drawOutline(outline, platterColour, alpha = shown)
+                            drawOutline(outline, platterColour, alpha = alpha)
                             platterEdge?.let {
-                                drawOutline(outline, it.brush, alpha = shown, style = Stroke(it.width.toPx()))
+                                drawOutline(outline, it.brush, alpha = alpha, style = Stroke(it.width.toPx()))
                             }
                         }
                     }
