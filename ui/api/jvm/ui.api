@@ -1539,6 +1539,7 @@ public final class io/kontour/ui/components/selection/SegmentedControlDefaults {
 }
 
 public final class io/kontour/ui/components/selection/SegmentedControlKt {
+	public static final fun SegmentedControl (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SegmentedControl (Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)V
 }
 

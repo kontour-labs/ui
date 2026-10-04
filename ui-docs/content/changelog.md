@@ -44,6 +44,11 @@ On `main`, and in the next release.
   table. It came out as an unnamed control. In a `SelectionRow` the row's label
   is still the name; leave it `null` there.
 
+- **[`SegmentedControl`](components/segmented-control.md) takes values**:
+  `value`, `options`, `onValueChange` and `optionLabel`, as `Select` and
+  `RadioGroup` do, so nothing maps an index back to an option. The overload
+  taking strings and an index stays.
+
 - **[`Modifier.scrollbar(state)`](components/scrollbar.md)** puts a scrollbar
   on the scroller itself — a `Column` before its `verticalScroll`, a
   `LazyColumn`, a grid, a `LazyRow` with `Orientation.Horizontal` — with nothing

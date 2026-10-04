@@ -174,11 +174,15 @@ private const val SegmentSquash = 0.16f
  *
  * ```
  * SegmentedControl(
- *     options = listOf("Depart", "Arrive"),
- *     selectedIndex = mode,
- *     onSelectedIndexChange = viewModel::setMode,
+ *     value = filter,
+ *     options = NewsFilter.entries,
+ *     onValueChange = { filter = it },
+ *     optionLabel = { it.label },
  * )
  * ```
+ *
+ * Takes values rather than positions, as `Select` and `RadioGroup` do. An
+ * overload takes a list of strings and the chosen one's index.
  *
  * Best for two to four short options that the user switches between often — a
  * depart/arrive toggle, a day/week/month range. Beyond four, or with long
@@ -189,6 +193,44 @@ private const val SegmentSquash = 0.16f
  * rather than each segment fading its own background. That is what makes the
  * control read as one physical thing with a moving part, and it is why the
  * indicator is drawn behind the labels rather than per segment.
+ *
+ * @param value The option chosen. One of [options]; a value that is not draws
+ *   no segment as chosen.
+ * @param optionLabel The words on an option's segment.
+ */
+@Composable
+fun <T> SegmentedControl(
+    value: T,
+    options: List<T>,
+    onValueChange: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    optionLabel: (T) -> String = { it.toString() },
+) {
+    val labels = options.map(optionLabel)
+    SegmentedControl(
+        options = labels,
+        selectedIndex = options.indexOf(value),
+        onSelectedIndexChange = { index -> options.getOrNull(index)?.let(onValueChange) },
+        modifier = modifier,
+        enabled = enabled,
+    )
+}
+
+/**
+ * A row of mutually exclusive options, by position: [selectedIndex] in
+ * [options].
+ *
+ * ```
+ * SegmentedControl(
+ *     options = listOf("Depart", "Arrive"),
+ *     selectedIndex = mode,
+ *     onSelectedIndexChange = viewModel::setMode,
+ * )
+ * ```
+ *
+ * The overload taking values is the one to reach for when the options are
+ * values of your own, so that nothing maps an index back to one.
  */
 @Composable
 fun SegmentedControl(

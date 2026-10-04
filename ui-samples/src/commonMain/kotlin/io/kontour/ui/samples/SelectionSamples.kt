@@ -128,14 +128,20 @@ fun FilterChipGroup() {
 
 @Composable
 fun SegmentedControlBasics() {
-    var selected by remember { mutableStateOf(0) }
+    var mode by remember { mutableStateOf(TransitMode.Bus) }
 
+    // Values, as `Select` and `RadioGroup` take; `optionLabel` names each one.
+    // An overload takes a list of strings and the chosen one's index.
     SegmentedControl(
-        options = listOf("Bus", "Train", "Ferry"),
-        selectedIndex = selected,
-        onSelectedIndexChange = { selected = it },
+        value = mode,
+        options = TransitMode.entries,
+        onValueChange = { mode = it },
+        optionLabel = { it.label },
     )
 }
+
+/** The kinds of service a sample switches between. */
+internal enum class TransitMode(val label: String) { Bus("Bus"), Train("Train"), Ferry("Ferry") }
 
 @Composable
 fun ColourSwatchPickerBasics() {

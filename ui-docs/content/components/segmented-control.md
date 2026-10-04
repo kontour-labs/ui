@@ -2,12 +2,15 @@
 
 <!--sample:SegmentedControlBasics-->
 ```kotlin
-var selected by remember { mutableStateOf(0) }
+var mode by remember { mutableStateOf(TransitMode.Bus) }
 
+// Values, as `Select` and `RadioGroup` take; `optionLabel` names each one.
+// An overload takes a list of strings and the chosen one's index.
 SegmentedControl(
-    options = listOf("Bus", "Train", "Ferry"),
-    selectedIndex = selected,
-    onSelectedIndexChange = { selected = it },
+    value = mode,
+    options = TransitMode.entries,
+    onValueChange = { mode = it },
+    optionLabel = { it.label },
 )
 ```
 
@@ -16,10 +19,13 @@ long labels, use a [`RadioGroup`](radio-group.md) or a
 [`Select`](select.md); segments get too narrow to read and too
 narrow to hit.
 
-It takes `List<String>` rather than a slot on purpose — a segment that could
-hold arbitrary content is a segment that can be made too wide to fit beside
-three others, and the cap at four short labels is the component's whole
-premise.
+It takes values and an `optionLabel`, as [`Select`](select.md) and
+[`RadioGroup`](radio-group.md) do, so a filter over an enum hands back the enum
+rather than an index to map. An overload takes `options: List<String>` and
+`selectedIndex`. Either way a segment is words rather than a slot, on purpose —
+a segment that could hold arbitrary content is a segment that can be made too
+wide to fit beside three others, and the cap at four short labels is the
+component's whole premise.
 
 ### When the labels do not fit
 
