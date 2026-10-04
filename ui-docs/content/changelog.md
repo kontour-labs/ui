@@ -34,6 +34,11 @@ On `main`, and in the next release.
   `Modifier.nestedScroll(state.nestedScrollConnection)`, and answers a mouse
   wheel as well, below. The connection is still there for wiring the scroll
   yourself.
+- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)
+  can be dragged along.** With `onPageClick`, a press that moves along the dots
+  goes to each page it passes, with a translucent pill round the dots while it
+  is held and a `Snap` for each page. Across or down, as the strip runs. A drag
+  used to be a tap wherever it ended.
 
 ### Fixed
 

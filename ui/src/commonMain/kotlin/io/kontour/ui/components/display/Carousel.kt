@@ -10,7 +10,6 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
@@ -82,6 +81,16 @@ import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
+import io.kontour.ui.a11y.contrastEdge
+import kotlin.math.abs
 
 /** What a [Carousel] takes by default. */
 object CarouselDefaults {
@@ -758,7 +767,9 @@ private fun Modifier.heroPage(
  * [Carousel]. With it each dot is a `Role.RadioButton` naming the page it goes
  * to, and the whole strip becomes one full-height target that sends a tap to the
  * nearest dot: a pointer route and an assistive-tech route, kept separate so
- * neither has to pay for the other's shape.
+ * neither has to pay for the other's shape. A press that moves along the dots
+ * scrubs them instead: each page the finger passes is chosen as it passes,
+ * with a translucent pill round the dots until it lifts.
  *
  * The current page is drawn **wider** than the rest rather than only tinted.
  * Colour alone fails WCAG 1.4.1, and at this size — a few pixels of tinted
@@ -924,6 +935,26 @@ private fun PageDots(
     // handler has to be read at tap time rather than captured.
     val select = rememberUpdatedState(onPageClick)
 
+    // **Scrubbing**: a press that moves along the strip goes to the page under
+    // it as it passes, and a translucent pill comes up round the dots for as
+    // long as it is held — the strip showing itself as the thing being
+    // dragged. Asked for: "when you tap and drag it, a little translucent pill
+    // shows up around it and you can drag between pages".
+    val motion = Theme.motion
+    var scrubbing by remember { mutableStateOf(false) }
+    val platter = remember { Animatable(0f) }
+    LaunchedEffect(scrubbing) {
+        platter.animateTo(if (scrubbing) 1f else 0f, motion.tweenFast())
+    }
+    val platterColour = Theme.colours.overlayDragged
+    // A wash this faint is a ground the high-contrast tier needs drawing round.
+    val platterEdge = contrastEdge()
+    // How far the pill stands clear of the dots, all round.
+    val platterPad = with(LocalDensity.current) { Theme.spacing.xs.toPx() }
+    // Each page passed under the finger, as a dragged segmented control's
+    // segments are: the carousel moves in code, which it keeps quiet about.
+    val ticker = rememberDetentTicker(FeedbackIntent.Snap)
+
     Line(
         vertical = vertical,
         spacing = PageIndicatorDefaults.Gap,
@@ -963,21 +994,34 @@ private fun PageDots(
                         .pointerCursor(enabled = enabled)
                         .then(
                             if (enabled && count > 0) {
-                                Modifier.pointerInput(count) {
-                                    detectTapGestures { at ->
+                                Modifier.pointerInput(count, vertical) {
+                                    fun nearest(along: Float): Int {
                                         var nearest = 0
                                         var best = Float.MAX_VALUE
-                                        val along = if (vertical) at.y else at.x
                                         for (page in 0 until count) {
-                                            val x = dotCentre[page]
-                                            val away = kotlin.math.abs(x - along)
+                                            val away = kotlin.math.abs(dotCentre[page] - along)
                                             if (away < best) {
                                                 best = away
                                                 nearest = page
                                             }
                                         }
-                                        select.value?.invoke(nearest)
+                                        return nearest
                                     }
+                                    tapOrScrub(
+                                        vertical = vertical,
+                                        nearest = ::nearest,
+                                        current = { state.currentPage },
+                                        onTap = { select.value?.invoke(it) },
+                                        onScrubbing = { now ->
+                                            scrubbing = now
+                                            ticker.reset()
+                                            if (now) ticker.at(state.currentPage)
+                                        },
+                                        onScrubTo = { page ->
+                                            ticker.at(page)
+                                            select.value?.invoke(page)
+                                        },
+                                    )
                                 }
                             } else {
                                 Modifier
@@ -1040,6 +1084,38 @@ private fun PageDots(
                             size = if (vertical) Size(dotRadius * 2f, right - left) else Size(right - left, dotRadius * 2f),
                             cornerRadius = CornerRadius(dotRadius),
                         )
+                    }
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (onPageClick != null && count > 0) {
+                    // Behind the dots, in the row's own space, where the dots
+                    // reported their boxes: from a pad before the first to a
+                    // pad after the last, and a pad either side of them.
+                    Modifier.drawBehind {
+                        val shown = platter.value
+                        if (shown <= 0f) return@drawBehind
+                        val first = dotCentre[0] - dotWidth[0] / 2f
+                        val last = dotCentre[count - 1] + dotWidth[count - 1] / 2f
+                        if (last <= first) return@drawBehind
+                        // Grows out from the dots as it fades in; under reduced
+                        // motion it only fades.
+                        val pad = platterPad * if (motion.reduceMotion) 1f else 0.6f + 0.4f * shown
+                        val thick = dotRadius * 2f + pad * 2f
+                        val length = last - first + pad * 2f
+                        val topLeft = if (vertical) {
+                            Offset((size.width - thick) / 2f, first - pad)
+                        } else {
+                            Offset(first - pad, (size.height - thick) / 2f)
+                        }
+                        val box = if (vertical) Size(thick, length) else Size(length, thick)
+                        val corner = CornerRadius(thick / 2f)
+                        drawRoundRect(platterColour, topLeft, box, corner, alpha = shown)
+                        platterEdge?.let {
+                            drawRoundRect(it.brush, topLeft, box, corner, alpha = shown, style = Stroke(it.width.toPx()))
+                        }
                     }
                 } else {
                     Modifier
@@ -1206,6 +1282,68 @@ object PageIndicatorDefaults {
 
     val Gap: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.pageIndicatorGap
+}
+
+/**
+ * A tap on the strip goes to the dot [nearest] it, as it always has. A press
+ * that moves along the strip **scrubs**: past the touch slop it reports
+ * [onScrubbing], and from then on every page the finger is nearest to, once
+ * each, to [onScrubTo], until it lifts.
+ *
+ * Along the strip only. A press that moves across it first is a scroll of
+ * whatever the strip is in — a page scrolling under a row of dots — and is let
+ * go, unconsumed, for that to have. So is one something nearer the finger has
+ * already taken.
+ */
+private suspend fun PointerInputScope.tapOrScrub(
+    vertical: Boolean,
+    nearest: (along: Float) -> Int,
+    current: () -> Int,
+    onTap: (page: Int) -> Unit,
+    onScrubbing: (Boolean) -> Unit,
+    onScrubTo: (page: Int) -> Unit,
+) = awaitEachGesture {
+    val down = awaitFirstDown()
+    val slop = viewConfiguration.touchSlop
+    var moved = Offset.Zero
+    var scrubbing = false
+    var at = -1
+    try {
+        while (true) {
+            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+            val along = if (vertical) change.position.y else change.position.x
+            if (change.changedToUpIgnoreConsumed()) {
+                if (!scrubbing && !change.isConsumed) {
+                    change.consume()
+                    onTap(nearest(along))
+                }
+                break
+            }
+            if (!scrubbing) {
+                if (change.isConsumed) break
+                moved += change.positionChange()
+                val alongStrip = abs(if (vertical) moved.y else moved.x)
+                val acrossStrip = abs(if (vertical) moved.x else moved.y)
+                if (alongStrip > slop && alongStrip >= acrossStrip) {
+                    scrubbing = true
+                    at = current()
+                    onScrubbing(true)
+                } else if (acrossStrip > slop) {
+                    break
+                } else {
+                    continue
+                }
+            }
+            change.consume()
+            val page = nearest(along)
+            if (page != at) {
+                at = page
+                onScrubTo(page)
+            }
+        }
+    } finally {
+        if (scrubbing) onScrubbing(false)
+    }
 }
 
 

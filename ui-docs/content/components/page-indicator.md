@@ -27,12 +27,28 @@ The default style rests like a widened dot and travels like a worm; the three
 styles and what separates them are under
 [carousel § indicator styles](carousel.md#indicator-styles).
 
+### Dragged along, page by page
+
+With `onPageClick`, a press that moves along the dots **scrubs**: the page under
+the finger is chosen as it passes, each one once, and a translucent pill comes up
+round the dots for as long as the drag lasts, so the strip shows itself as the
+thing being dragged. Past the last dot is the last page, and before the first,
+the first. A tap is still a tap on the nearest dot.
+
+Only along the strip. A press that moves across it first is a scroll of whatever
+the dots sit in, and is left for that. Each page passed under the finger is a
+`Snap`, as a segmented control's segments are; the carousel moving because of it
+says nothing, as any page reached in code does. The pill is the theme's
+`overlayDragged` wash, with an edge at high contrast, and under reduced motion it
+fades in without growing.
+
 ### Vertical
 
 `orientation = Orientation.Vertical` stacks the dots top to bottom, for a pager
 that turns vertically or the edge of a full-screen story. Everything that runs
 along the row runs down the column instead: the current dot grows taller rather
-than wider, the pill travels down, a tap goes to the nearest dot by height, and
+than wider, the pill travels down, a tap goes to the nearest dot by height, a
+drag scrubs up and down, and
 `previousIcon` and `nextIcon` go above and below — pass glyphs that point up and
 down. The first page is at the top in either layout direction.
 
