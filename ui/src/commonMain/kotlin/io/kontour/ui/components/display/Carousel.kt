@@ -3,6 +3,7 @@ package io.kontour.ui.components.display
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.withFrameNanos
 import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.motion.smoothstep
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import androidx.compose.animation.core.animateDpAsState
@@ -947,8 +948,11 @@ private fun PageDots(
     // How far the pill has grown out of the dots: 0 gone, 1 at its size. It
     // **grows out of them** — asked for, "rather than just appearing" — from a
     // line through their centres to the dots' own thickness and a pad round
-    // them, and shrinks back into them on release, on the snappy spring. Under
-    // reduced motion it is at its size from the start and fades instead.
+    // them, and shrinks back into them on release, on the snappy spring. It
+    // **fades through the first half of that**, so the line it starts as is
+    // never drawn at full colour: asked for, "I don't like how you see it turn
+    // into a very thin bar". Under reduced motion it is at its size from the
+    // start and fades instead.
     val platter = remember { Animatable(0f) }
     LaunchedEffect(scrubbing, motion.reduceMotion) {
         platter.animateTo(
@@ -1131,8 +1135,14 @@ private fun PageDots(
                         // length and thickness and a pad. Grown, from nothing —
                         // a line through the centres — to that; reduced, at that
                         // and fading in.
+                        //
+                        // Grown, it fades in on the same figure, eased at both
+                        // ends so the colour arrives with no step of its own:
+                        // one spring drives the size and the colour together,
+                        // and where one is the other is. Past half its size it
+                        // is its colour, overshoot included.
                         val scale = if (motion.reduceMotion) 1f else grown
-                        val alpha = if (motion.reduceMotion) grown.coerceIn(0f, 1f) else 1f
+                        val alpha = if (motion.reduceMotion) grown.coerceIn(0f, 1f) else smoothstep(0f, PlatterFadeSpan, grown)
                         val before = (dotWidth[0] / 2f + platterPad) * scale
                         val after = (dotWidth[count - 1] / 2f + platterPad) * scale
                         val thick = (dotRadius + platterPad) * 2f * scale
@@ -1233,6 +1243,13 @@ private fun PageDots(
         }
     }
 }
+
+/**
+ * Over how much of its growth a page indicator's scrub pill fades in: the first
+ * half, so it is its colour from half its thickness on, and faint while it is a
+ * line through the dots.
+ */
+private const val PlatterFadeSpan = 0.5f
 
 /** How a [PageIndicator] shows which page is current. */
 enum class PageIndicatorStyle {

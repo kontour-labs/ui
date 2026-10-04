@@ -234,6 +234,15 @@ internal fun AnimatedSlot(
 }
 
 /**
+ * 0 up to [from], 1 from [to], and an S-curve between that leaves and arrives
+ * with no speed: a fade driven by some other progress, rather than its own clock.
+ */
+internal fun smoothstep(from: Float, to: Float, x: Float): Float {
+    val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
+}
+
+/**
  * How far an arrow turns to say the thing it points at is open.
  *
  * A half turn, so the chevron ends up pointing back the way it came. Ninety

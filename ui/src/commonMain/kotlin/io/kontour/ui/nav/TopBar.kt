@@ -45,6 +45,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.adaptive.topEdges
+import io.kontour.ui.motion.smoothstep
 import io.kontour.ui.theme.Theme
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animate
@@ -553,11 +554,6 @@ private const val HeroFadeWholeAt = 0.5f
 /** Over which part of the collapse a hero's picture fades out. */
 private const val HeroFadeFrom = 0.5f
 private const val HeroFadeTo = 0.9f
-
-private fun smoothstep(from: Float, to: Float, x: Float): Float {
-    val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
-    return t * t * (3f - 2f * t)
-}
 
 /**
  * A [TopBarStyle.Large] bar, at [progress] of the way to collapsed.

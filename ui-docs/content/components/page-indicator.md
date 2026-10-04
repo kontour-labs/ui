@@ -33,7 +33,9 @@ With `onPageClick`, a press that moves along the dots **scrubs**: the page under
 the finger is chosen as it passes, each one once, and a pill grows out of the
 dots for as long as the drag lasts, so the strip shows itself as the thing being
 dragged. It starts as a line through their centres and swells round them, and
-on release it shrinks back into them. Past the last dot is the last page, and before the first,
+on release it shrinks back into them. It comes up to its colour over the first
+half of that, so the line it starts as is faint rather than a hard thin bar, and
+fades the same way going back. Past the last dot is the last page, and before the first,
 the first. A tap is still a tap on the nearest dot.
 
 Only along the strip. A press that moves across it first is a scroll of whatever

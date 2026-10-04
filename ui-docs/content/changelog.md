@@ -90,6 +90,11 @@ was).
 
 ### Changed
 
+- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)'s
+  scrub pill fades in as it grows** and is its colour from half its thickness
+  on, and fades as it shrinks back. The line through the dots it starts as was
+  drawn at full colour, a hard thin bar for a frame or two. The fade rides the
+  same spring as the size.
 - **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
   moves**, thinner, and fades 600ms after it stops, where it used to draw
   nothing at all. It takes no touches: a finger on the strip at a list's edge

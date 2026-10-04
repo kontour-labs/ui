@@ -131,19 +131,23 @@ class PageIndicatorScrubTest {
         assertTrue(ratio >= 1.5f, "the dark pill is ${"%.2f".format(ratio)}:1 from the page")
     }
 
+    /** The pill as it grows and shrinks: frame by frame, its thickness and its colour at its middle. */
+    private class PillFrames(val growing: List<Pair<Int, Int>>, val shrinking: List<Pair<Int, Int>>) {
+        val full = growing.maxOf { it.first }
+        val seen = growing.dropWhile { it.first == 0 }
+        val opening = seen.takeWhile { it.first < full - 2 }
+        val closing = shrinking.takeWhile { it.first > 0 }
+    }
+
     /**
-     * The pill grows out of the dots and back into them, rather than fading in
-     * and out at its size: measured across the strip through the gap between
-     * the third and fourth dots, frame by frame, as the drag starts and after
-     * it lets go. Whenever it is there it is its own colour, not a fade of it.
+     * Measured across the strip through the gap between the third and fourth
+     * dots, frame by frame, as a drag starts and after it lets go.
      */
-    @Test
-    fun thePillGrowsOutOfTheDotsAndBackIntoThem() = strip(Orientation.Horizontal) {
+    private fun Strip.pillFrames(): PillFrames {
         val b = bounds()
         val runs = dots(scene.frames(2), vertical = false)
         val gap = (runs[2].last + runs[3].first) / 2
         val ground = page.red255()
-        val colour = pill.red255()
         val middle = b.center.y.toInt()
         fun across(image: BufferedImage): Pair<Int, Int> {
             val thick = (b.top.toInt()..b.bottom.toInt()).count { red(image, gap, it) != ground }
@@ -157,31 +161,78 @@ class PageIndicatorScrubTest {
         scene.release(at(0.6f))
         val shrinking = mutableListOf<Pair<Int, Int>>()
         repeat(30) { shrinking += across(scene.frame()) }
+        return PillFrames(growing, shrinking)
+    }
 
-        val full = growing.maxOf { it.first }
-        val seen = growing.dropWhile { it.first == 0 }
-        val opening = seen.takeWhile { it.first < full - 2 }
-        assertTrue(full >= 40, "the pill never reached its size: at most $full px across, in $growing")
-        assertTrue(
-            seen.first().first <= full / 2,
-            "the pill appeared ${seen.first().first} px across against $full at its size: it should grow out of the dots — $growing",
-        )
-        assertTrue(opening.size >= 3, "the pill went from nothing to its size in ${opening.size} frames — $growing")
-        assertTrue(
-            opening.zipWithNext().all { (a, b) -> b.first >= a.first - 1 },
-            "the pill did not grow steadily — $growing",
-        )
-        val closing = shrinking.takeWhile { it.first > 0 }
-        assertTrue(closing.size >= 3, "the pill went in ${closing.size} frames rather than shrinking back — $shrinking")
-        assertTrue(
-            closing.zipWithNext().all { (a, b) -> b.first <= a.first + 1 },
-            "the pill did not shrink steadily — $shrinking",
-        )
-        assertEquals(0, shrinking.last().first, "the pill was still there after the drag ended — $shrinking")
-        for ((thick, centre) in seen + closing) {
-            if (thick >= 8) {
-                assertEquals(colour, centre, "the pill was a fade of its colour rather than it — ${seen + closing}")
+    /**
+     * The pill grows out of the dots and back into them, rather than fading in
+     * and out at its size. Once it is past half its thickness it is its own
+     * colour, not a fade of it.
+     */
+    @Test
+    fun thePillGrowsOutOfTheDotsAndBackIntoThem() = strip(Orientation.Horizontal) {
+        val colour = pill.red255()
+        with(pillFrames()) {
+            assertTrue(full >= 40, "the pill never reached its size: at most $full px across, in $growing")
+            assertTrue(
+                seen.first().first <= full / 2,
+                "the pill appeared ${seen.first().first} px across against $full at its size: it should grow out of the dots — $growing",
+            )
+            assertTrue(opening.size >= 3, "the pill went from nothing to its size in ${opening.size} frames — $growing")
+            assertTrue(
+                opening.zipWithNext().all { (a, b) -> b.first >= a.first - 1 },
+                "the pill did not grow steadily — $growing",
+            )
+            assertTrue(closing.size >= 3, "the pill went in ${closing.size} frames rather than shrinking back — $shrinking")
+            assertTrue(
+                closing.zipWithNext().all { (a, b) -> b.first <= a.first + 1 },
+                "the pill did not shrink steadily — $shrinking",
+            )
+            assertEquals(0, shrinking.last().first, "the pill was still there after the drag ended — $shrinking")
+            for ((thick, centre) in seen + closing) {
+                if (thick >= full * 0.6f) {
+                    assertEquals(colour, centre, "the pill was a fade of its colour rather than it — ${seen + closing}")
+                }
             }
+        }
+    }
+
+    /**
+     * While the pill is thin it is faint, and it comes up to its colour as it
+     * thickens: on the way out of the dots and on the way back into them.
+     *
+     * Asked for: *"can we make it fade in/out during the first part of it?
+     * Because I don't like how you see it turn into a very thin bar. Make sure
+     * it remains fluid."* A hairline at the pill's full colour is that bar. The
+     * fade rides the growth itself, so the pill is never thinner and darker
+     * than a frame before it.
+     */
+    @Test
+    fun aThinPillIsFaint() = strip(Orientation.Horizontal) {
+        val ground = page.red255()
+        val colour = pill.red255()
+        fun strength(centre: Int) = (centre - ground).toFloat() / (colour - ground)
+        with(pillFrames()) {
+            val thin = (seen + closing).filter { (thick, _) -> thick in 1..full / 3 }
+            assertTrue(thin.isNotEmpty(), "no frame caught the pill thin, so this proves nothing — $growing / $shrinking")
+            for ((thick, centre) in thin) {
+                assertTrue(
+                    strength(centre) <= 0.8f,
+                    "at $thick px of $full the pill was ${(strength(centre) * 100).roundToInt()}% of its colour; " +
+                        "a thin pill should be faint — ${seen + closing}",
+                )
+            }
+            // One step of the colour either way: the difference between the
+            // ground and the pill is a handful of levels in the light.
+            val quantum = 1f / abs(colour - ground)
+            assertTrue(
+                opening.zipWithNext().all { (a, b) -> strength(b.second) >= strength(a.second) - quantum },
+                "the pill faded back while it grew — $growing",
+            )
+            assertTrue(
+                closing.zipWithNext().all { (a, b) -> strength(b.second) <= strength(a.second) + quantum },
+                "the pill came back up while it shrank — $shrinking",
+            )
         }
     }
 
