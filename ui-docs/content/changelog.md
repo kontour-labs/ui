@@ -45,6 +45,11 @@ On `main`, and in the next release.
   `topBarCollapse` on the content, a notch the list declines finishes the bar the
   way the wheel turned, open or collapsed. Put it where
   `Modifier.nestedScroll(state.nestedScrollConnection)` was to get this.
+- **A clicked segment's thumb goes straight across.** A press leans the thumb
+  toward the segment, and on release the lean sprang back while the slide began
+  from rest, so the thumb stepped back before it went: a jiggle on every mouse
+  click, and on a held tap. The slide now starts from where the lean left it.
+  The same goes for a `NavBar`, `NavRail` or `TabBar` marker.
 
 ---
 

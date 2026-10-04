@@ -16,6 +16,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.interaction.InteractionSource
@@ -381,6 +382,15 @@ fun SelectionIndicatorBox(
     val reaching by remember(state) { derivedStateOf { state.reach != null } }
     val engaged = remember { Animatable(0f) }
     LaunchedEffect(reaching, motion.reduceMotion) {
+        if (!reaching && engaged.value > 0f && !motion.reduceMotion) {
+            // A press let go of is usually about to select the item it leant
+            // toward, and the travel takes the lean over from where it is
+            // drawn — see the travel below. The selection arrives a few frames
+            // after the release, by way of the caller's state, so the lean
+            // holds for them rather than springing back first and handing the
+            // travel less than it had.
+            repeat(HandoverFrames) { withFrameNanos { } }
+        }
         engaged.animateTo(if (reaching && !motion.reduceMotion) 1f else 0f, motion.springOrTween(motion.springSnappy))
     }
     // The last reach, kept once it is let go so the marker relaxes out of
@@ -455,6 +465,21 @@ fun SelectionIndicatorBox(
             // should not change character that much between the two settings.
             else -> {
                 headingTo = state.targetKey
+                // **From the lean, when it was leaning here.** A press leans the
+                // marker toward an item, and its release selects it. Travelling
+                // from the marker's resting rect while the lean sprang back out
+                // on its own left the marker's leading edge going *back* for the
+                // first frames — the slow start of this spring against the
+                // quick end of that one — and then across: the jiggle reported
+                // on every click of a segmented control. So the travel starts
+                // from the rect the lean draws, stretch and all, and the lean
+                // stops there.
+                val reach = leaning.value
+                if (reach != null && leaning.key == state.targetKey && engaged.value > 0f) {
+                    leanOf(bounds.value, leaning.width, leaning.height, reach, engaged.value)
+                        ?.let { bounds.snapTo(it.applied(bounds.value)) }
+                    engaged.snapTo(0f)
+                }
                 bounds.animateTo(target, motion.springOrTween(motion.springDefault))
             }
         }
@@ -588,6 +613,8 @@ fun SelectionIndicatorBox(
                 indicatorMeasurables.map { it.measure(Constraints.fixed(0, 0)) }
             }
 
+            leaning.width = width.toFloat()
+            leaning.height = height.toFloat()
             layout(width, height) {
                 // `place`, not `placeRelative`. The reported rect is already
                 // physical — the row that laid the items out did whatever
@@ -742,14 +769,43 @@ internal class IndicatorReach(
     val withinSpan: Boolean = false,
 )
 
-/** The last reach, held while the marker relaxes out of it. Not observed. */
+/**
+ * The last reach, held while the marker relaxes out of it, the pressed item it
+ * was for, and the group's size as last laid out, which a lean stays inside.
+ * Not observed.
+ */
 private class LastReach {
     var value: IndicatorReach? = null
+    var key: Any? = null
+    var width: Float = 0f
+    var height: Float = 0f
 }
 
 /**
- * Leans the marker drawn at [live] toward the reach, by [engaged] of it, and
- * stretches it along the same axis.
+ * How long a let-go lean waits for the selection it was reaching for, in
+ * frames, before it relaxes. A click's selection has reached the group and set
+ * the travel going within three frames of the release; one more is the margin.
+ */
+private const val HandoverFrames = 4
+
+/** A lean: [by] pixels along x when [across], else along y, stretched by [stretch] from the edge it leaves. */
+private class Lean(val across: Boolean, val by: Float, val stretch: Float) {
+    /** The edge the stretch is anchored on: the one the marker is leaving. */
+    val pivot: Float get() = if (by >= 0f) 0f else 1f
+
+    /** Where a marker laid out at [rect] is drawn, leaning. */
+    fun applied(rect: Rect): Rect = if (across) {
+        val left = rect.left + by + pivot * rect.width * (1f - stretch)
+        Rect(left, rect.top, left + rect.width * stretch, rect.bottom)
+    } else {
+        val top = rect.top + by + pivot * rect.height * (1f - stretch)
+        Rect(rect.left, top, rect.right, top + rect.height * stretch)
+    }
+}
+
+/**
+ * How the marker at [live] leans toward [reach] by [engaged] of it, in a group
+ * [width] by [height]; null when it does not.
  *
  * **From where the marker is**, not from the item it belongs to: a press lets
  * go into a selection that sends the marker travelling, and measured from the
@@ -763,6 +819,27 @@ private class LastReach {
  * one span of the distance: 12% of its width, and 12% wider, toward an item next
  * to it or at the far end alike.
  */
+private fun leanOf(live: Rect, width: Float, height: Float, reach: IndicatorReach, engaged: Float): Lean? {
+    val centre = live.center
+    val dx = if (reach.at.x.isNaN()) 0f else reach.at.x - centre.x
+    val dy = if (reach.at.y.isNaN()) 0f else reach.at.y - centre.y
+    val across = abs(dx) >= abs(dy)
+    val span = if (across) live.width else live.height
+    if (span <= 0f) return null
+    val distance = if (across) dx else dy
+    val raw = (if (reach.withinSpan) distance.coerceIn(-span, span) else distance) * reach.pull * engaged
+    val by = if (across) {
+        raw.coerceIn(-live.left, (width - live.right).coerceAtLeast(-live.left))
+    } else {
+        raw.coerceIn(-live.top, (height - live.bottom).coerceAtLeast(-live.top))
+    }
+    return Lean(across, by, 1f + (abs(by) / span).coerceAtMost(MaxAnticipationStretch))
+}
+
+/**
+ * Leans the marker drawn at [live] toward the reach, by [engaged] of it, and
+ * stretches it along the same axis: see [leanOf].
+ */
 private fun GraphicsLayerScope.lean(
     live: Rect,
     width: Float,
@@ -773,34 +850,23 @@ private fun GraphicsLayerScope.lean(
     reduceMotion: Boolean,
 ) {
     val now = state.reach
-    if (now != null) last.value = now
+    if (now != null) {
+        last.value = now
+        last.key = state.reachKey
+    }
     val reach = last.value ?: return
     // `engaged` already stays at 0 under reduced motion; said here as well, so
     // a marker that was leaning when the setting changed stops at once.
     if (engaged <= 0f || reduceMotion) return
-    val centre = live.center
-    val dx = if (reach.at.x.isNaN()) 0f else reach.at.x - centre.x
-    val dy = if (reach.at.y.isNaN()) 0f else reach.at.y - centre.y
-    val across = abs(dx) >= abs(dy)
-    val span = if (across) live.width else live.height
-    if (span <= 0f) return
-    val distance = if (across) dx else dy
-    val raw = (if (reach.withinSpan) distance.coerceIn(-span, span) else distance) * reach.pull * engaged
-    val lean = if (across) {
-        raw.coerceIn(-live.left, (width - live.right).coerceAtLeast(-live.left))
+    val lean = leanOf(live, width, height, reach, engaged) ?: return
+    if (lean.across) {
+        translationX = lean.by
+        scaleX = lean.stretch
+        transformOrigin = TransformOrigin(lean.pivot, 0.5f)
     } else {
-        raw.coerceIn(-live.top, (height - live.bottom).coerceAtLeast(-live.top))
-    }
-    val stretch = 1f + (abs(lean) / span).coerceAtMost(MaxAnticipationStretch)
-    val pivot = if (lean >= 0f) 0f else 1f
-    if (across) {
-        translationX = lean
-        scaleX = stretch
-        transformOrigin = TransformOrigin(pivot, 0.5f)
-    } else {
-        translationY = lean
-        scaleY = stretch
-        transformOrigin = TransformOrigin(0.5f, pivot)
+        translationY = lean.by
+        scaleY = lean.stretch
+        transformOrigin = TransformOrigin(0.5f, lean.pivot)
     }
 }
 
