@@ -46,9 +46,9 @@ wheel fix, put `Modifier.topBarCollapse(state)` where
   yourself.
 - **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)
   can be dragged along.** With `onPageClick`, a press that moves along the dots
-  goes to each page it passes, with a translucent pill round the dots while it
-  is held and a `Snap` for each page. Across or down, as the strip runs. A drag
-  used to be a tap wherever it ended.
+  goes to each page it passes, with a `Snap` for each, and a pill round the dots
+  while it is held: `surfaceSunken`, in the theme's `pill` shape. Across or
+  down, as the strip runs. A drag used to be a tap wherever it ended.
 
 ### Fixed
 

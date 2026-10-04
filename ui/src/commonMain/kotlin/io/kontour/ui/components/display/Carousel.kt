@@ -89,6 +89,8 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawOutline
 import io.kontour.ui.a11y.contrastEdge
 import kotlin.math.abs
 
@@ -769,7 +771,7 @@ private fun Modifier.heroPage(
  * nearest dot: a pointer route and an assistive-tech route, kept separate so
  * neither has to pay for the other's shape. A press that moves along the dots
  * scrubs them instead: each page the finger passes is chosen as it passes,
- * with a translucent pill round the dots until it lifts.
+ * with a pill round the dots until it lifts.
  *
  * The current page is drawn **wider** than the rest rather than only tinted.
  * Colour alone fails WCAG 1.4.1, and at this size — a few pixels of tinted
@@ -936,18 +938,27 @@ private fun PageDots(
     val select = rememberUpdatedState(onPageClick)
 
     // **Scrubbing**: a press that moves along the strip goes to the page under
-    // it as it passes, and a translucent pill comes up round the dots for as
-    // long as it is held — the strip showing itself as the thing being
-    // dragged. Asked for: "when you tap and drag it, a little translucent pill
-    // shows up around it and you can drag between pages".
+    // it as it passes, and a pill comes up round the dots for as long as it is
+    // held — the strip showing itself as the thing being dragged. Asked for:
+    // "when you tap and drag it, a little translucent pill shows up around it
+    // and you can drag between pages".
     val motion = Theme.motion
     var scrubbing by remember { mutableStateOf(false) }
     val platter = remember { Animatable(0f) }
     LaunchedEffect(scrubbing) {
         platter.animateTo(if (scrubbing) 1f else 0f, motion.tweenFast())
     }
-    val platterColour = Theme.colours.overlayDragged
-    // A wash this faint is a ground the high-contrast tier needs drawing round.
+    // **The well a segmented control's track is**, and a filled field's: the
+    // ground the theme gives a control's parts to sit in, rather than a wash
+    // of its own. Asked for as "a standard colour from our theme".
+    val platterColour = Theme.colours.surfaceSunken
+    // **In the theme's `pill`, uncapped**, as asked: "a squircle (g2
+    // continuous, using our pill shape)". On the switch's argument too: the
+    // pill's ends are round round the round dots inside them, and a capped
+    // capsule would square them off under a theme that caps its capsules,
+    // leaving a box round two circles.
+    val platterShape = Theme.shapes.pill
+    // A ground this near its page is one the high-contrast tier draws round.
     val platterEdge = contrastEdge()
     // How far the pill stands clear of the dots, all round.
     val platterPad = with(LocalDensity.current) { Theme.spacing.xs.toPx() }
@@ -1111,10 +1122,12 @@ private fun PageDots(
                             Offset(first - pad, (size.height - thick) / 2f)
                         }
                         val box = if (vertical) Size(thick, length) else Size(length, thick)
-                        val corner = CornerRadius(thick / 2f)
-                        drawRoundRect(platterColour, topLeft, box, corner, alpha = shown)
-                        platterEdge?.let {
-                            drawRoundRect(it.brush, topLeft, box, corner, alpha = shown, style = Stroke(it.width.toPx()))
+                        val outline = platterShape.createOutline(box, layoutDirection, this)
+                        translate(topLeft.x, topLeft.y) {
+                            drawOutline(outline, platterColour, alpha = shown)
+                            platterEdge?.let {
+                                drawOutline(outline, it.brush, alpha = shown, style = Stroke(it.width.toPx()))
+                            }
                         }
                     }
                 } else {

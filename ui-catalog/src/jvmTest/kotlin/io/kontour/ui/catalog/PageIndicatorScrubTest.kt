@@ -11,10 +11,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.display.PageIndicator
 import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.theme.Theme
 import java.awt.image.BufferedImage
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * A page indicator can be dragged along, page by page, and shows a pill round
@@ -23,16 +24,20 @@ import kotlin.test.assertTrue
  * Asked for: *"with the paging indicator, i'd like it so when you tap and drag
  * it, a little translucent pill shows up around it and you can drag between
  * pages. this should work for both horizontal and vertical."* A drag used to
- * be a tap wherever it ended.
+ * be a tap wherever it ended. And then of the pill: *"a standard colour from
+ * our theme"* — `surfaceSunken`, the well a segmented control's track is, read
+ * here to the exact colour.
  */
 class PageIndicatorScrubTest {
 
-    private class Strip(val scene: Scene, val pages: List<Int>, val bounds: () -> Rect)
+    private class Strip(val scene: Scene, val pages: List<Int>, val sunken: Color, val bounds: () -> Rect)
 
     private fun strip(orientation: Orientation, test: Strip.() -> Unit) {
         var bounds = Rect.Zero
+        var sunken = Color.Unspecified
         val pages = mutableListOf<Int>()
         Scene(width = 400, height = 400) {
+            sunken = Theme.colours.surfaceSunken
             Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
                 PageIndicator(
                     state = rememberCarouselState { 5 },
@@ -43,7 +48,7 @@ class PageIndicatorScrubTest {
             }
         }.use { scene ->
             scene.frames(6)
-            Strip(scene, pages) { bounds }.test()
+            Strip(scene, pages, sunken) { bounds }.test()
         }
     }
 
@@ -73,7 +78,11 @@ class PageIndicatorScrubTest {
 
         assertEquals(listOf(1, 2, 3, 4), pages, "a drag from the first dot to the last went to $pages")
         assertEquals(255, rest, "the ground before the dots was not the page's white before the drag")
-        assertTrue(held < rest - 8, "no pill round the dots while dragging: the ground before them stayed at $held")
+        assertEquals(
+            (sunken.red * 255f).roundToInt(), held,
+            "while dragging, the ground before the dots should be the theme's surfaceSunken — " +
+                "${(sunken.red * 255f).roundToInt()} — and was $held",
+        )
         assertEquals(rest, after, "the pill was still there after the drag ended")
     }
 
