@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.layout.onVisibilityChanged
 import io.kontour.ui.motion.scrollSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
@@ -60,6 +62,7 @@ import io.kontour.ui.components.display.SpinnerDefaults
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
 
 /** What a [PullToRefresh] takes by default. */
 object PullToRefreshDefaults {
@@ -668,6 +671,18 @@ private fun Modifier.offsetY(y: Density.() -> Float): Modifier =
  * that fails. Automatic loading alone is a trap: when the request errors, an
  * invisible retry means an infinite list that silently stops, and the user has
  * no way to ask again.
+ *
+ * **On screen, not composed.** It asks once any of it is in the window, so it
+ * works at the foot of a plain scrolling `Column` as well as in a lazy list.
+ * It used to ask whenever it was composed and idle, and in a `Column` — which
+ * composes everything at once — it chained through every page to the end
+ * before anyone scrolled. A lazy list's prefetch, which composes the next item
+ * before it arrives, no longer asks early either. A foot still on screen when a
+ * short page has come in asks again, until the window is full.
+ *
+ * It is measured against the window, not the scroller: in a scroller smaller
+ * than the window, a foot scrolled out of the scroller but still inside the
+ * window counts as on screen.
  */
 @Composable
 fun LoadMore(
@@ -687,14 +702,23 @@ fun LoadMore(
     endLabel: String? = null,
 ) {
     val load by rememberUpdatedState(onLoadMore)
+    var visible by remember { mutableStateOf(false) }
 
+    // Waits inside the effect rather than keying on `visible`: a key would be
+    // read as the effect starts, and a page arriving between the foot being
+    // seen and the effect running would have it load from somewhere it no
+    // longer is.
     LaunchedEffect(status, enabled) {
-        if (enabled && status == LoadMoreStatus.Idle) load()
+        if (enabled && status == LoadMoreStatus.Idle) {
+            snapshotFlow { visible }.first { it }
+            load()
+        }
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .onVisibilityChanged(minFractionVisible = 0f) { visible = it }
             // Polite, and for the status changes rather than for the spinner.
             //
             // This is the foot of an infinite list: the user scrolls, something

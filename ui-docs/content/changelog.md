@@ -48,6 +48,11 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **[`LoadMore`](components/load-more.md) asks for the next page when it is on
+  screen, not when it is composed.** At the foot of a plain scrolling `Column`,
+  which composes everything at once, it chained through every page to the end
+  before anyone scrolled. It now waits until some of it is in the window; a
+  lazy list's prefetch no longer asks early either.
 - **A destination written through a helper draws where the helper is called.**
   A helper written in a navigation block — `fun stop(id: String) = item(…)` —
   closes over that block's scope, and called inside a `group { }` it drew as

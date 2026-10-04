@@ -19,6 +19,13 @@ LoadMore(
 )
 ```
 
+**It asks when it is on screen.** Idle, it loads once any of it is in the
+window, so it works at the foot of a plain scrolling `Column` as well as at the
+end of a `LazyColumn`. It used to ask whenever it was composed, and a `Column`
+composes everything at once, so it chained through every page before anyone
+scrolled. A foot still on screen after a short page asks again, until the window
+is full.
+
 ---
 
 ## Accessibility
