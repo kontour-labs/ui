@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -52,7 +55,11 @@ class IconBrowserTest {
         init {
             val names = ((0 until 1000).map { "glyph-" + it.toString().padStart(4, '0') } + "home").sorted()
             fun filled(name: String) = name == "home" || name.removePrefix("glyph-").toIntOrNull()?.rem(10) == 0
+            // Odd glyphs are a bar across the middle and the rest a square,
+            // which has four times the ink: enough to tell two apart by eye.
             val square = "01;;0;M4 4h16v16h-16z"
+            val bar = "01;;0;M4 12h16"
+            fun shape(name: String) = if (name.removePrefix("glyph-").toIntOrNull()?.rem(2) == 1) bar else square
             val filledNames = names.filter(::filled)
             files["manifest.txt"] = "data\n"
             files["data/index.txt"] = (
@@ -65,7 +72,7 @@ class IconBrowserTest {
             for ((style, order) in listOf("outline" to names, "filled" to filledNames)) {
                 order.chunked(128).forEachIndexed { n, chunk ->
                     files["data/$style/${n.toString().padStart(3, '0')}.txt"] =
-                        chunk.joinToString("") { "$it\t$square\n" }
+                        chunk.joinToString("") { "$it\t${shape(it)}\n" }
                 }
             }
         }
@@ -217,6 +224,53 @@ class IconBrowserTest {
         assertTrue(left() > resting, "the panel had not moved four frames after Close")
         mainClock.advanceTimeBy(2_000L)
         assertTrue(!shows(line), "the panel never went")
+    }
+
+    /**
+     * Reported: *"if i have one icon open and i select another, all the text in
+     * the detail pane changes, but the icon doesn't."* The pane's picture was a
+     * `produceState` keyed on the icon, and a `produceState`'s value outlives a
+     * change of key: it held the last icon's vector, and fetched only when it
+     * held none.
+     */
+    @Test
+    fun choosingAnotherIconShowsItsPicture() = runComposeUiTest {
+        browser()
+        onAllNodesWithText("glyph-0003").onFirst().performClick()
+        waitForIdle()
+        val bar = detailInk()
+        onAllNodesWithText("glyph-0004").onFirst().performClick()
+        waitForIdle()
+        onNodeWithText("Tabler.Outline.Glyph0004").assertExists()
+        val square = detailInk()
+        assertTrue(bar > 0, "the pane drew no picture for glyph-0003")
+        assertTrue(
+            square > bar * 2,
+            "glyph-0004's square drew $square dark pixels to glyph-0003's bar's $bar: the pane kept the last picture",
+        )
+    }
+
+    /**
+     * Dark pixels in the detail pane's picture. It sits above its style's
+     * label, which beside the list is the rightmost "Outline" on the page.
+     */
+    private fun ComposeUiTest.detailInk(): Int {
+        val label = onAllNodesWithText("Outline", useUnmergedTree = true).fetchSemanticsNodes()
+            .maxBy { it.positionInRoot.x }
+        val px = density.density
+        val centre = label.positionInRoot.x + label.size.width / 2f
+        // The tile's foot is a spacing above the label, and the glyph is the
+        // middle half of the tile: a 64dp square round it, clear of the label.
+        val top = label.positionInRoot.y - 88f * px
+        val image = onRoot().captureToImage().toPixelMap()
+        var ink = 0
+        for (y in top.toInt() until (top + 64f * px).toInt()) {
+            for (x in (centre - 32f * px).toInt() until (centre + 32f * px).toInt()) {
+                val c = image[x, y]
+                if ((c.red + c.green + c.blue) / 3f < 0.4f) ink++
+            }
+        }
+        return ink
     }
 
     @Test
