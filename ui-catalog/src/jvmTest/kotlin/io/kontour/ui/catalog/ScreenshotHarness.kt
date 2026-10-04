@@ -141,50 +141,55 @@ object Screenshot {
         content: @Composable () -> Unit,
     ): File {
         record(name)
-        ImageComposeScene(
-            width = width,
-            height = height,
-            density = Density(density),
-            content = content,
-        ).use { scene ->
-            var image = scene.render(0L)
-            repeat(frames - 1) { frame ->
-                image = scene.render(FRAME_NANOS * (frame + 1))
-            }
+        // The scene is made, drawn and closed on the AWT event thread, where
+        // Compose posts its own work on it — see `onComposeUiThread`. Only the
+        // picture comes back.
+        val rendered = onComposeUiThread {
+            ImageComposeScene(
+                width = width,
+                height = height,
+                density = Density(density),
+                content = content,
+            ).use { scene ->
+                var image = scene.render(0L)
+                repeat(frames - 1) { frame ->
+                    image = scene.render(FRAME_NANOS * (frame + 1))
+                }
 
-            if (!allowOverflow) {
-                checkFits(name, scene, width, height, ignoreHeight = allowVerticalOverflow)
-            }
+                if (!allowOverflow) {
+                    checkFits(name, scene, width, height, ignoreHeight = allowVerticalOverflow)
+                }
 
-            val rendered = requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
-                "Skia failed to encode $name to PNG"
-            }.bytes
-            val encoded = if (trim == null) rendered else trimToContent(rendered, trim)
-
-            val golden = File(outputDir, "$name.png")
-            // A name can carry a directory — the per-component pass writes
-            // `components/<slug>-light`. Only `outputDir` itself is created
-            // above, so anything nested has to make its own way.
-            golden.parentFile?.mkdirs()
-            if (!golden.exists()) {
-                golden.writeBytes(encoded)
-                return golden
+                requireNotNull(image.encodeToData(EncodedImageFormat.PNG)) {
+                    "Skia failed to encode $name to PNG"
+                }.bytes
             }
-            if (updating) {
-                // Only rewrite what actually moved. The comparison below has a
-                // per-pixel tolerance, so a render that is visually identical
-                // still encodes to different bytes — and rewriting every golden
-                // unconditionally turned "accept this one intended change" into
-                // a 41-file diff nobody can review. That defeats the one step
-                // this whole harness exists to protect: looking at the result
-                // before committing it.
-                if (differs(golden, encoded)) golden.writeBytes(encoded)
-                return golden
-            }
+        }
+        val encoded = if (trim == null) rendered else trimToContent(rendered, trim)
 
-            compare(name, golden, encoded)
+        val golden = File(outputDir, "$name.png")
+        // A name can carry a directory — the per-component pass writes
+        // `components/<slug>-light`. Only `outputDir` itself is created
+        // above, so anything nested has to make its own way.
+        golden.parentFile?.mkdirs()
+        if (!golden.exists()) {
+            golden.writeBytes(encoded)
             return golden
         }
+        if (updating) {
+            // Only rewrite what actually moved. The comparison below has a
+            // per-pixel tolerance, so a render that is visually identical
+            // still encodes to different bytes — and rewriting every golden
+            // unconditionally turned "accept this one intended change" into
+            // a 41-file diff nobody can review. That defeats the one step
+            // this whole harness exists to protect: looking at the result
+            // before committing it.
+            if (differs(golden, encoded)) golden.writeBytes(encoded)
+            return golden
+        }
+
+        compare(name, golden, encoded)
+        return golden
     }
 
     /**
