@@ -393,6 +393,9 @@ internal fun ListItemImpl(
  *   should not read as different mechanisms.
  * @param action Holds *controls* rather than the section's own text, which is
  *   why it is a plain `RowScope` and the three above are content slots.
+ * @param spacing The gap between the children, and under the heading. The
+ *   default is the hairline that makes a group of rows one object. Form fields
+ *   are not rows: give them `Theme.spacing.md`, or they stack edge to edge.
  */
 @Composable
 fun ListSection(

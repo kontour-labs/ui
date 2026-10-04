@@ -97,6 +97,10 @@ On `main`, and in the next release.
   under a long message**, which scrolls, rather than scrolling away below it.
   A dialog's content fades at the edge it scrolls under while there is more
   past it.
+- **[`ListSection`](components/list-section.md) says what its `spacing` is
+  for.** It is the hairline between rows, and form fields put straight in a
+  section stacked edge to edge with it; the page and the parameter now say to
+  give fields `Theme.spacing.md`.
 
 ### Fixed
 
