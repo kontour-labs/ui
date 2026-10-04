@@ -49,6 +49,12 @@ right up until someone opens a menu from inside a sheet.
 
 Within a layer, push order decides — `sortedBy` is stable.
 
+**An overlay lives in the host, and leaves with the composable that showed it.**
+`visible = false` closes one; so does the call leaving composition — a screen
+navigated away from, an `if` round a `Dialog` turning false — which takes it
+down with its usual exit rather than leaving it on screen with nothing to close
+it. A dialog, a command palette and the toast stack did not, until 0.4.2.
+
 ### Why in-composition rather than platform windows
 
 Material renders each dialog into its own platform window. That is fine on

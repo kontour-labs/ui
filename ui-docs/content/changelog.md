@@ -136,6 +136,11 @@ was).
 
 ### Fixed
 
+- **A `Dialog`, `AlertDialog` or `CommandPalette` that leaves composition while
+  it is up goes with it**, as a popover, a menu and a sheet already did. It
+  stayed on screen when its caller went — a screen navigated away from, an `if`
+  round it turning false — with nothing left to close it. A dialog whose `key`
+  changed while it was up was shown twice. The toast stack's host is the same.
 - **A scrollbar on a grid, a staggered grid or a pager is drawn.** It read only
   `ScrollState`s and lazy lists, and drew nothing for anything else; it reads
   the position every scroller in foundation reports now.

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -132,6 +133,13 @@ fun Dialog(
     val latestTitle by rememberUpdatedState(title)
     val latestActions by rememberUpdatedState(actions)
     val latestDismiss = rememberUpdatedState(onDismissRequest)
+
+    // Taken down with the composable that showed it, not only by `visible =
+    // false`: the entry lives in the host, and a screen navigated away from, or
+    // an `if` round this turning false, otherwise left it up with nothing to
+    // close it. Keyed on `key` too, so a key changed while it is up does not
+    // leave the old entry behind. Popovers, menus and sheets do the same.
+    DisposableEffect(key) { onDispose { host.hide(key) } }
 
     LaunchedEffect(visible, key) {
         if (visible) {

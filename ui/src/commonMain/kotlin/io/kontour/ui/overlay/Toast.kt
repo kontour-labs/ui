@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -705,6 +706,11 @@ fun ToastHost(
             windowInsets = windowInsets,
         )
     )
+
+    // Taken down with the host's caller, as every other overlay's entry is: a
+    // toast stack left in the overlay host by a screen that has gone has
+    // nothing to dismiss it.
+    DisposableEffect(key) { onDispose { host.hide(key) } }
 
     LaunchedEffect(occupied) {
         if (!occupied) {
