@@ -66,6 +66,14 @@ one is the control. That is the rule that runs through
 order. `leading` and `trailing` icons take `null` unless they carry meaning the
 text does not.
 
+**A description inside a clickable row can take the row's name.** The row is one
+merged node, and a merged node that holds both a child's `contentDescription`
+and the row's text is named by the description where the platform prefers one —
+in the browser a status row announced its uptime bars, "90 days: 99.35% up",
+instead of its service. So a graphic inside a row carries no description of its
+own; what it says goes into the row's text, `supporting { +"99.35% up over 90
+days" }`, where it is read after the label rather than in place of it.
+
 At high contrast every row takes an edge in the scheme's `outline`, because its
 sunken ground is too close to the page to say where a row ends, and a selected
 row also takes an accent outline round its tint. The focus ring is thicker and a
