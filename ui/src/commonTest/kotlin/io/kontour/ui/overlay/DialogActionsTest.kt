@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +28,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -158,6 +161,52 @@ class DialogActionsTest {
         onNodeWithText("Save").performClick()
         waitForIdle()
         assertEquals(1, saved, "enabled while the dialog is up, it should take the press")
+    }
+
+    /**
+     * The type-to-confirm recipe on the alert dialog's page: a `Dialog` with a
+     * field and a confirm that waits for it.
+     *
+     * Reported from an app: *"`AlertDialog` can't hold any extra input … That
+     * rules out 'type the account's email to delete it' and 'reason for
+     * disabling'."* An alert stays a title, a message and its answers; the
+     * question that needs more is this.
+     */
+    @Test
+    fun aTypeToConfirmWaitsForTheMatch() = runComposeUiTest {
+        var deleted = 0
+        val typed = TextFieldState()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Dialog(
+                        visible = true,
+                        onDismissRequest = {},
+                        title = { +"Delete this account?" },
+                        actions = {
+                            cancel()
+                            confirm("Delete account", destructive = true, enabled = typed.text.trim() == "sam@example.com") {
+                                deleted++
+                            }
+                        },
+                    ) {
+                        TextField(typed, label = "Email")
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        typed.setTextAndPlaceCursorAtEnd("sam@example")
+        waitForIdle()
+        onNodeWithText("Delete account").performClick()
+        waitForIdle()
+        assertEquals(0, deleted, "half an address should not delete anything")
+
+        typed.setTextAndPlaceCursorAtEnd("sam@example.com ")
+        waitForIdle()
+        onNodeWithText("Delete account").performClick()
+        waitForIdle()
+        assertEquals(1, deleted, "the whole address, trimmed, should")
     }
 
     /** Placed by what they are: written confirm first, the cancel is still on the leading side. */

@@ -48,6 +48,10 @@ On `main`, and in the next release.
   The row sits under the content rather than in it, so a form taller than the
   window scrolls and its Save stays on screen. The builder is composable, so a
   label can come from `Theme.strings` or a string resource where it is written.
+  It is also how to ask a question that needs more than an answer — type the
+  account's email to delete it, give a reason — with a field above a confirm
+  that waits for it; [the alert dialog's page](components/alert-dialog.md#a-question-that-needs-more-than-an-answer)
+  has the recipe. An `AlertDialog` keeps its fixed shape.
 
 ### Changed
 

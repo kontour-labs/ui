@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bookmark
 import io.kontour.icons.tabler.outline.Copy
@@ -96,6 +97,33 @@ fun AlertDialogBasics() {
         message {
             +"Perth Underground will be taken off your home screen. You can add it back any time."
         }
+    }
+}
+
+@Composable
+fun TypeToConfirmBasics() {
+    var open by remember { mutableStateOf(false) }
+    val typed = rememberTextFieldState()
+
+    // A question with more than an answer is a `Dialog` with `actions`: the
+    // same row an alert draws, under whatever the question needs.
+    Dialog(
+        visible = open,
+        onDismissRequest = { open = false },
+        title = { +"Delete this account?" },
+        actions = {
+            cancel()
+            confirm("Delete account", destructive = true, enabled = typed.text.trim() == account.email) {
+                deleteAccount()
+                open = false
+            }
+        },
+    ) {
+        Text(
+            "Every journey and favourite goes with it. Type ${account.email} to confirm.",
+            colour = Theme.colours.contentMuted,
+        )
+        TextField(typed, label = "Email", keyboardType = KeyboardType.Email)
     }
 }
 

@@ -57,6 +57,11 @@ internal fun refresh() = Unit
 internal fun openStop(name: String) = Unit
 internal fun remove(name: String) = Unit
 internal fun rename(name: String) = Unit
+
+/** The account a destructive sample is about. */
+internal val account = Account(email = "sam@example.com")
+internal class Account(val email: String)
+internal fun deleteAccount() = Unit
 internal fun pin(name: String) = Unit
 
 /** Rows, where a sample needs a list to be about something other than the list. */
