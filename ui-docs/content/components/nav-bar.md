@@ -39,6 +39,27 @@ A third, free-standing circles with nothing behind them, is gone: a circle
 casting its own shadow over a photograph read as a sticker rather than as
 navigation, and every other surface in the library has a ground.
 
+### Where a floating bar sits, and what is under it
+
+**Just clear of the system's handle.** A floating bar over iOS's home indicator,
+or Android's gesture handle, keeps clear of the handle itself rather than of the
+whole strip the system keeps for it: it sits 8dp above where the handle ends,
+about 22dp up from the window's foot. Padded by the whole strip it stood 42dp up
+on an iPhone, over nothing but the indicator. Android's three buttons take taps,
+and the bar stays clear of all of them, as a docked bar stays clear of all of
+any of them.
+
+**The page fades out under it.** A floating bar is `surface`, and so are the rows
+of a list, so over a list the bar was a shadow apart from what it sat on. With
+`fadeUnder`, on by default, the page's colour runs solid from the bar's middle to
+the window's foot and thins out a little above the capsule, so what scrolls
+under the bar fades away rather than running behind it; and the capsule has a
+rim, a hairline of its own ink. The colour is the one the bar sits on —
+`LocalContainerColour`, which a `Surface` and a `NavigationSuiteScaffold` set —
+so a page painted with `Modifier.background` in anything but `background` should
+say so the same way. `fadeUnder = false` leaves the page as it is. At high
+contrast nothing fades, and the bar has its edge instead.
+
 `showLabels` is off by default. A word under every icon is a row of words, and the
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.

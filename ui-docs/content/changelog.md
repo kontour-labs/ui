@@ -26,6 +26,20 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Changed
+
+- **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
+  sits just clear of iOS's home indicator and Android's gesture handle**, about
+  22dp up from the window's foot, rather than above the whole strip the system
+  keeps for them: 20dp lower on an iPhone, 10dp lower over a gesture handle.
+  Android's three buttons, and a docked bar, keep the whole inset. The
+  scaffold's padding comes down with it.
+- **The page fades out under a floating bar, and its capsule has a rim.** Over
+  the rows of a list, which are `surface` as the bar is, it was a shadow apart
+  from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
+  leaves the page as it is. The fade is the colour the bar sits on,
+  `LocalContainerColour`.
+
 ### Fixed
 
 - **On iOS, swiping back works over a list that is still moving.** A list moving

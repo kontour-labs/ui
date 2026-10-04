@@ -135,6 +135,8 @@ fun rememberNavigationSuiteState(railExpanded: Boolean = false): NavigationSuite
  * @param barMarkerDrag Whether the bar's marker can be dragged between
  *   destinations, and when a drag chooses one; see [NavBarMarkerDrag]. A
  *   rail's cannot be dragged: it scrolls.
+ * @param barFadeUnder Whether the page fades out under a floating bar; see
+ *   [NavBar]'s `fadeUnder`.
  * @param showLabels Whether the bar names its destinations. `null` leaves it to
  *   the bar, which does not; a rail shows labels whenever it is wide enough.
  * @param railExpandable Whether the [NavigationSuiteType.Rail] has a toggle to
@@ -162,6 +164,7 @@ fun NavigationSuiteScaffold(
     barItemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     barMarker: NavBarMarker = NavBarDefaults.destinationMarker(),
     barMarkerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    barFadeUnder: Boolean = true,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
@@ -203,6 +206,7 @@ fun NavigationSuiteScaffold(
                     itemWidth = barItemWidth,
                     marker = barMarker,
                     markerDrag = barMarkerDrag,
+                    fadeUnder = barFadeUnder,
                 ) {
                     destinations()
                 }

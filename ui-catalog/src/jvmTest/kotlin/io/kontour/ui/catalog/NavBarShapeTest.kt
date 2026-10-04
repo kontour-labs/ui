@@ -58,8 +58,10 @@ class NavBarShapeTest {
         typeScale: Float = 1f,
     ): BufferedImage = Scene(width = 800, height = 300, density = Density, reduceMotion = true) {
         Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
+            // No fade: this finds the capsule by the page round it, which the fade would cover.
             NavBar(
                 style = style,
+                fadeUnder = false,
                 shape = shape,
                 showLabels = showLabels,
                 itemWidth = itemWidth,

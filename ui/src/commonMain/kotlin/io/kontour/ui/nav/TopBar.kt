@@ -369,15 +369,7 @@ private fun Modifier.fadedGround(colour: Color): Modifier = drawWithCache {
     val inside = FadeUnderInside.toPx().coerceAtMost(size.height)
     val outside = FadeUnderOutside.toPx()
     val from = size.height - inside
-    val brush = Brush.verticalGradient(
-        0f to colour,
-        0.25f to colour.copy(alpha = colour.alpha * 0.84f),
-        0.5f to colour.copy(alpha = colour.alpha * 0.5f),
-        0.75f to colour.copy(alpha = colour.alpha * 0.16f),
-        1f to colour.copy(alpha = 0f),
-        startY = from,
-        endY = size.height + outside,
-    )
+    val brush = easedFade(colour, solidAt = from, clearAt = size.height + outside)
     onDrawBehind {
         // One rect for the solid part and one for the fade, meeting on a whole
         // pixel so their edges do not leave a seam between them.

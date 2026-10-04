@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,10 +29,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -44,11 +49,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
+import io.kontour.ui.adaptive.rememberHandleClearingInsets
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.SelectionIndicatorState
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.IndicatorReach
@@ -298,6 +306,18 @@ enum class NavBarStyle {
  *   destination is chosen: [NavBarMarkerDrag.SelectOnRelease], the one under the
  *   finger as it lifts, or [NavBarMarkerDrag.SelectWhileDragging], each as the
  *   marker reaches it. A tap is still a tap either way.
+ * @param fadeUnder For a floating bar: the page's colour, solid from the
+ *   bar's middle down to the window's foot and thinning out a little above
+ *   the capsule, so what scrolls under it fades away rather than running
+ *   behind it. On by default: a floating bar is `surface`, and the rows of a
+ *   list under it are too, so without it the bar was only a shadow apart from
+ *   them. Never at high contrast, where nothing that is text fades, and the bar
+ *   has its edge.
+ * @param windowInsets What the bar keeps clear of. A floating bar over a system
+ *   handle — iOS's home indicator, Android's gesture handle — keeps clear of the
+ *   handle itself rather than of the whole strip the system keeps for it, and
+ *   sits just above it. Android's three buttons, and any foot taller than the
+ *   handle, are kept clear of whole.
  * @param action Something the screen does rather than somewhere it goes — a
  *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
  *   bar puts it **beside** the capsule, on the page and centred on the capsule's
@@ -316,6 +336,7 @@ fun NavBar(
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    fadeUnder: Boolean = true,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
@@ -334,6 +355,7 @@ fun NavBar(
         itemWidth = itemWidth,
         marker = marker,
         markerDrag = markerDrag,
+        fadeUnder = fadeUnder,
         content = content,
     )
 }
@@ -360,6 +382,7 @@ internal fun NavBarLayout(
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    fadeUnder: Boolean = true,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -486,6 +509,13 @@ internal fun NavBarLayout(
         }
     }
 
+    // Clear of a system handle rather than of the whole strip kept for it: see
+    // `HandleClearingInsets`. A docked bar's colour runs under the handle and
+    // keeps its destinations above all of it, as iOS's tab bar does.
+    val clear = rememberHandleClearingInsets(windowInsets, HandleReach)
+    val fades = fadeUnder && !highContrast()
+    val fadeColour = LocalContainerColour.current.takeOrElse { Theme.colours.background }
+
     when (style) {
         // The surface reaches the window's edge and the insets are applied
         // inside it, so its colour runs under the gesture bar.
@@ -508,7 +538,8 @@ internal fun NavBarLayout(
         NavBarStyle.Floating -> FloatingBar(
             modifier = modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(windowInsets)
+                .then(if (fades) Modifier.fadeUnderBar(fadeColour, clear) else Modifier)
+                .windowInsetsPadding(clear)
                 .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
             hug = hug,
             gap = NavBarDefaults.ActionGap,
@@ -521,6 +552,7 @@ internal fun NavBarLayout(
                 shape = shape ?: Theme.shapes.pill,
                 colours = colours,
                 shadow = Theme.elevation.high,
+                rim = true,
             ) {
                 Destinations(
                     Modifier.padding(horizontal = floatingEnds, vertical = Theme.spacing.xs),
@@ -578,8 +610,10 @@ private fun BarGround(
     shape: Shape,
     colours: NavColours,
     shadow: Shadow,
+    rim: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val contentColour = SurfaceDefaults.contentColour(colours.container)
     // **A tap on the bar is the bar's.** Between two destinations there is
     // nothing to press, and with nothing there to take it a tap went through to
     // whatever the page had under the bar — a row opened from underneath its
@@ -590,15 +624,56 @@ private fun BarGround(
         modifier = modifier.clearedByToasts(),
         shape = shape,
         containerColour = colours.container,
-        contentColour = SurfaceDefaults.contentColour(colours.container),
+        contentColour = contentColour,
         shadow = shadow,
         // A floating bar is `surface` on `background` with a shadow for an
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
-        border = contrastEdge(),
+        //
+        // And a rim at any tier, as a toast's pill has, for the same reason:
+        // over the rows of a list, which are `surface` too, a shadow alone did
+        // not part the bar from them — *"it blends in a lot with content behind
+        // it, especially when you're scrolling over list items"*. A hairline of
+        // the bar's own ink, faint, reads as the edge catching the light.
+        border = contrastEdge() ?: if (rim) BorderStroke(Theme.sizing.borderWidth, contentColour.copy(alpha = BarRim)) else null,
     ) {
         content()
     }
 }
+
+/**
+ * The page's [colour] under a floating bar, solid from the bar's middle down to
+ * the window's foot, through [insets], and thinning out to nothing [FadeAbove]
+ * above the bar. Drawn behind the bar, over whatever scrolls under it.
+ */
+private fun Modifier.fadeUnderBar(colour: Color, insets: WindowInsets): Modifier = drawWithCache {
+    val foot = insets.getBottom(this).toFloat()
+    // On a whole pixel, so the solid part and the fade meet without a seam.
+    val middle = ((size.height - foot) / 2f).toInt().toFloat()
+    val top = -FadeAbove.toPx()
+    val brush = easedFade(colour, solidAt = middle, clearAt = top)
+    onDrawBehind {
+        drawRect(brush, topLeft = Offset(0f, top), size = Size(size.width, middle - top))
+        drawRect(colour, topLeft = Offset(0f, middle), size = Size(size.width, size.height - middle))
+    }
+}
+
+/**
+ * How far above a floating bar its fade reaches: far enough that the rows
+ * beside its rounded ends are mostly gone, and near enough that the fade is
+ * the bar's and not a wash over the page.
+ */
+private val FadeAbove = 16.dp
+
+/** How strongly a floating bar's rim is drawn: a toast's pill's, for the same reason. */
+private const val BarRim = 0.22f
+
+/**
+ * Where a system handle ends, up from the foot of the window: iOS's home
+ * indicator tops out about 13pt up, and Android's gesture handle, centred in
+ * its strip, a little higher. A floating bar over one keeps clear of this much
+ * of it, and its own `xs` of padding is the gap above the handle.
+ */
+private val HandleReach = 14.dp
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */
 private sealed interface BarChild {

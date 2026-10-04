@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.FabSize
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
@@ -108,7 +110,11 @@ private fun Frame(height: Dp, content: @Composable () -> Unit) {
             .clip(Theme.shapes.medium)
             .background(Theme.colours.surfaceSunken),
     ) {
-        OverlayHost(Modifier.fillMaxSize()) { content() }
+        // The ground a floating bar fades its page into, as a `Surface` would
+        // say: painted rather than a surface, the frame has to say it itself.
+        CompositionLocalProvider(LocalContainerColour provides Theme.colours.surfaceSunken) {
+            OverlayHost(Modifier.fillMaxSize()) { content() }
+        }
     }
 }
 
