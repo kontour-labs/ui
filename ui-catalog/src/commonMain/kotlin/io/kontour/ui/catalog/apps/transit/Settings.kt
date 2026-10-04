@@ -15,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import io.kontour.ui.catalog.apps.LocalAppSettings
@@ -31,6 +30,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
@@ -61,7 +61,7 @@ internal fun TransitSettingsPage() {
     val contrast = settings?.highContrast ?: ownContrast
     val motion = settings?.reduceMotion ?: ownMotion
 
-    Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
         TopBar(style = TopBarStyle.Large, navigation = rootNavigation(), collapseState = collapse) {
             +"Settings"
         }

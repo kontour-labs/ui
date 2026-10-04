@@ -80,8 +80,8 @@ import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.Theme
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.listSection
 
@@ -460,7 +460,7 @@ internal val TopBarDemo = ComponentDemo(
     val collapse = rememberTopBarCollapseState()
     Frame(height = if (tall) 560.dp else 320.dp) {
         Scaffold(
-            modifier = Modifier.nestedScroll(collapse.nestedScrollConnection),
+            modifier = Modifier.topBarCollapse(collapse),
             topBar = {
                 TopBar(
                     style = style,

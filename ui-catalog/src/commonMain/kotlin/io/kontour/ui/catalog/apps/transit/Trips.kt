@@ -19,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.ChevronRight
@@ -49,6 +48,7 @@ import io.kontour.ui.motion.pageBack
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.sheet.ModalBottomSheet
 import io.kontour.ui.sheet.SheetHeader
@@ -71,7 +71,7 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
     var detail by remember { mutableStateOf(false) }
     val collapse = rememberTopBarCollapseState()
 
-    Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
         TopBar(style = TopBarStyle.Large, navigation = rootNavigation(), collapseState = collapse) {
             +"Trips"
             supporting { +"${tripsByDay.values.sum()} in the last year" }

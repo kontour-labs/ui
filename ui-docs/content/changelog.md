@@ -24,7 +24,27 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Added
+
+- **`Modifier.topBarCollapse(state)`** wires a
+  [collapsing top bar](components/top-bar.md#large-and-how-it-collapses) to the
+  content's scroll. It takes the place of
+  `Modifier.nestedScroll(state.nestedScrollConnection)`, and answers a mouse
+  wheel as well, below. The connection is still there for wiring the scroll
+  yourself.
+
+### Fixed
+
+- **A `Hero` bar scrolled away with a mouse wheel opens all the way when it is
+  scrolled back.** It stopped part-way: a list at its top declines a wheel's
+  notch before it becomes a scroll, so the bar opened by what was left of the
+  notch that brought the list home, and no further. A `Large` bar's collapse is
+  short enough for that remainder to cover, and a `Hero` bar's is not. With
+  `topBarCollapse` on the content, a notch the list declines finishes the bar the
+  way the wheel turned, open or collapsed. Put it where
+  `Modifier.nestedScroll(state.nestedScrollConnection)` was to get this.
 
 ---
 

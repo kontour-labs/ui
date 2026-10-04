@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.runComposeUiTest
@@ -28,6 +27,7 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarCollapseState
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.theme.KontourTheme
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -295,7 +295,7 @@ class TopBarCollapseTest {
         Scene(width = Width * 2, height = 1200, density = Density) {
             val collapse = rememberTopBarCollapseState().also { state = it }
             val listState = rememberLazyListState().also { list = it }
-            Column(Modifier.fillMaxSize().background(Color.White).nestedScroll(collapse.nestedScrollConnection)) {
+            Column(Modifier.fillMaxSize().background(Color.White).topBarCollapse(collapse)) {
                 TopBar(
                     modifier = Modifier.reportBounds { bar = it },
                     style = TopBarStyle.Large,
@@ -351,7 +351,7 @@ class TopBarCollapseTest {
             var before = 0f
             Scene(width = Width * 2, height = 1200, density = Density) {
                 val collapse = rememberTopBarCollapseState().also { state = it }
-                Column(Modifier.fillMaxSize().background(Color.White).nestedScroll(collapse.nestedScrollConnection)) {
+                Column(Modifier.fillMaxSize().background(Color.White).topBarCollapse(collapse)) {
                     TopBar(style = TopBarStyle.Large, collapseState = collapse, windowInsets = WindowInsets(0)) { +Title }
                     LazyColumn { items(60) { Text("Row $it", modifier = Modifier.fillMaxWidth().height(48.dp)) } }
                 }

@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +56,7 @@ import io.kontour.ui.foundation.shape
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.OverlayAlignment
@@ -101,7 +101,7 @@ internal fun ChatsPage(
     val shown = chats.filter { filter.matches(it, state.last(it.id)) }
     val unread = state.unreadTotal
 
-    Column(modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+    Column(modifier.fillMaxSize().topBarCollapse(collapse)) {
         TopBar(
             style = TopBarStyle.Large,
             collapseState = collapse,

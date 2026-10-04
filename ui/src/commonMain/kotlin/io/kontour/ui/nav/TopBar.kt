@@ -67,6 +67,13 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
@@ -76,6 +83,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** How much room a [TopBar] takes, and where its title sits. */
@@ -223,7 +231,7 @@ fun TopBar(
     collapseProgress: Float = 0f,
     /**
      * A [TopBarStyle.Large] or [TopBarStyle.Hero] bar's collapse, driven by the content's scroll
-     * through its [TopBarCollapseState.nestedScrollConnection]. The usual way
+     * through [topBarCollapse] on the content. The usual way
      * to collapse one: the bar takes the scroll until it has collapsed, so the
      * content moves with the finger while the bar shrinks above it.
      */
@@ -872,7 +880,7 @@ private class LineCut {
  *
  * ```kotlin
  * val collapse = rememberTopBarCollapseState()
- * Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+ * Column(Modifier.topBarCollapse(collapse)) {
  *     TopBar(style = TopBarStyle.Large, collapseState = collapse) { +stop.name }
  *     LazyColumn { … }
  * }
@@ -887,7 +895,9 @@ private class LineCut {
  * first and the bar opens after, as a large title does on iOS.
  *
  * A collapse left part-way when the finger lifts finishes, to whichever end is
- * nearer — a title stopped between its two places reads as a layout fault.
+ * nearer — a title stopped between its two places reads as a layout fault. A
+ * mouse wheel has no lift, and moves the bar a notch at a time; see
+ * [topBarCollapse].
  */
 @Stable
 class TopBarCollapseState internal constructor(initialProgress: Float) {
@@ -927,7 +937,12 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     /** How a part-way collapse finishes. */
     internal var settle: AnimationSpec<Float> = spring()
 
-    /** Put on the scrolling content's ancestor with `Modifier.nestedScroll`. */
+    /**
+     * The scroll half of [topBarCollapse], for putting on the content with
+     * `Modifier.nestedScroll` yourself. Prefer [topBarCollapse]: on this alone a
+     * mouse wheel at the top of a list cannot open the bar, because the list
+     * declines the notch before it becomes a scroll.
+     */
     val nestedScrollConnection: NestedScrollConnection = object : NestedScrollConnection {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
             // Towards the content's end: the bar collapses before the list moves,
@@ -948,8 +963,34 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         }
     }
 
+    /** A wheel's [finishForWheel], while it runs, and where it is going. */
+    private var wheelSettle: Job? = null
+    private var wheelTarget: Float = 0f
+
+    /**
+     * Finishes the bar towards [target] — 0 open, 1 collapsed — for a wheel's
+     * notch the content declined, in [scope]. Whether that used the notch: not
+     * when the bar is already there, nor when it does not collapse at all.
+     */
+    internal fun finishForWheel(target: Float, scope: CoroutineScope): Boolean {
+        if (travel <= 0f) return false
+        if (wheelSettle?.isActive == true) {
+            if (wheelTarget == target) return true
+            wheelSettle?.cancel()
+        } else if (progress == target) {
+            return false
+        }
+        wheelTarget = target
+        wheelSettle = scope.launch {
+            animate(progress, target, animationSpec = settle) { value, _ -> progress = value }
+        }
+        return true
+    }
+
     /** Moves the collapse along by a scroll of [delta] pixels, and returns how much of it that was. */
     private fun spend(delta: Float): Float {
+        // A scroll is the more recent word than a wheel's settle.
+        wheelSettle?.cancel()
         if (travel <= 0f) return 0f
         val before = progress
         progress = (progress - delta / travel).coerceIn(0f, 1f)
@@ -977,6 +1018,51 @@ fun rememberTopBarCollapseState(): TopBarCollapseState {
     state.settle = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
     return state
 }
+
+/**
+ * Collapses [state]'s bar with the scroll of the content this is on, and opens
+ * it again. How a [TopBarCollapseState] is wired.
+ *
+ * ```kotlin
+ * val collapse = rememberTopBarCollapseState()
+ * Column(Modifier.topBarCollapse(collapse)) {
+ *     TopBar(style = TopBarStyle.Hero, collapseState = collapse, image = { … }) { +stop.name }
+ *     LazyColumn { … }
+ * }
+ * ```
+ *
+ * Put it on something that holds the scrolling content: the column or
+ * [io.kontour.ui.adaptive.Scaffold] the bar and the list share, or the list
+ * itself.
+ *
+ * It is `Modifier.nestedScroll` with the state's
+ * [TopBarCollapseState.nestedScrollConnection], and one thing more, for a mouse
+ * wheel. A list declines a wheel's notch outright when it cannot scroll any
+ * further that way, so the notch never becomes a scroll and no connection hears
+ * of it — and a list at its top is exactly where a bar opens. So a notch the
+ * content declined finishes the bar the way it turned: towards the content's
+ * start, open; towards its end, collapsed. A notch the content scrolled by moves
+ * the bar as any scroll does.
+ */
+fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
+    nestedScroll(state.nestedScrollConnection).pointerInput(state) {
+        coroutineScope {
+            awaitPointerEventScope {
+                while (true) {
+                    // The main pass reaches this after the content's own
+                    // scrollables, so a notch they took is already consumed.
+                    val event = awaitPointerEvent()
+                    if (event.type != PointerEventType.Scroll) continue
+                    val change = event.changes.firstOrNull() ?: continue
+                    if (change.isConsumed) continue
+                    val delta = change.scrollDelta
+                    if (delta.y == 0f || abs(delta.y) < abs(delta.x)) continue
+                    val target = if (delta.y > 0f) 1f else 0f
+                    if (state.finishForWheel(target, this@coroutineScope)) change.consume()
+                }
+            }
+        }
+    }
 
 @Composable
 private fun Leading(

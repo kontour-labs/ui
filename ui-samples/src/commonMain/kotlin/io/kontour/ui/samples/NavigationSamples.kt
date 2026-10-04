@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,15 +48,16 @@ import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
+import io.kontour.ui.nav.topBarCollapse
 
 @Composable
 fun TopBarCollapsing() {
     val collapse = rememberTopBarCollapseState()
 
-    // The bar collapses as the list scrolls: its connection goes on something
+    // The bar collapses as the list scrolls: its collapse goes on something
     // that holds both, so the bar takes the scroll until it has collapsed and
     // the rows move with the finger the whole way.
-    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.topBarCollapse(collapse)) {
         TopBar(
             style = TopBarStyle.Large,
             onBack = { back() },
@@ -76,7 +76,7 @@ fun TopBarCollapsing() {
 fun TopBarHeroCollapsing() {
     val collapse = rememberTopBarCollapseState()
 
-    Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.topBarCollapse(collapse)) {
         // The picture runs under the status bar and fades into the bar's colour
         // under the title, and the bar collapses as a Large one does.
         TopBar(

@@ -10,10 +10,10 @@ and where the controls leave it too little room it is laid out exactly as
 ```kotlin
 val collapse = rememberTopBarCollapseState()
 
-// The bar collapses as the list scrolls: its connection goes on something
+// The bar collapses as the list scrolls: its collapse goes on something
 // that holds both, so the bar takes the scroll until it has collapsed and
 // the rows move with the finger the whole way.
-Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+Column(Modifier.topBarCollapse(collapse)) {
     TopBar(
         style = TopBarStyle.Large,
         onBack = { back() },
@@ -45,13 +45,19 @@ too**, under the title the whole way, and lands under the small title as a
 used to fade out early, and the collapsed bar lost it.
 
 The bar does not own the scroll. `rememberTopBarCollapseState()` is the usual
-way to drive it: put its `nestedScrollConnection` on something that holds both
-the bar and the list, as above, and hand the state to the bar. The bar then
+way to drive it: put `Modifier.topBarCollapse(state)` on something that holds
+both the bar and the list, as above, and hand the state to the bar. The bar then
 takes the scroll until it has collapsed, and the rows move exactly with the
 finger the whole way — a bar that shrank while the list scrolled under it would
 carry the rows twice as far as the finger. Scrolling back, the list returns to
 its top first and the bar opens after it, and a collapse the finger leaves
 part-way finishes to whichever end is nearer.
+
+**A mouse wheel opens it all the way too.** A list at its top declines a wheel's
+notch before it becomes a scroll, so nothing listening to the scroll hears it.
+`topBarCollapse` hears the notches the content declined, and finishes the bar
+the way the wheel turned. The state's `nestedScrollConnection` is still there
+for wiring the scroll yourself with `Modifier.nestedScroll`, without that.
 
 To drive it from anything else, pass `collapseProgress` directly: 0 open, 1
 collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
@@ -64,7 +70,7 @@ for a bar drawn over its list rather than above it, and
 ```kotlin
 val collapse = rememberTopBarCollapseState()
 
-Column(Modifier.nestedScroll(collapse.nestedScrollConnection)) {
+Column(Modifier.topBarCollapse(collapse)) {
     // The picture runs under the status bar and fades into the bar's colour
     // under the title, and the bar collapses as a Large one does.
     TopBar(
