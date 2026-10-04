@@ -171,6 +171,7 @@ class ReducedMotionSweepTest {
          */
         val Exempt = mapOf(
             "Spinner" to "keeps turning under reduced motion, by decision: loading is information",
+            "LoadingState" to "its spinner keeps turning, as a Spinner's does",
             "CircularProgress" to "an indeterminate specimen turns for the same reason",
             "LinearProgress" to "the same",
             "StepProgress" to "a step in flight pulses by design",
