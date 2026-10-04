@@ -24,7 +24,26 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.2 — 4 October 2026
+
+Feedback from building an app on 0.4.1. A loading state and a way to move
+between states, a scrollbar that shows under touch and goes on any scroller, a
+row of buttons for a form dialog, date fields, and fixes for swipe back over a
+moving list, `LoadMore` in a plain column, helpers in a navigation group and a
+POSIX browser locale.
+
+Source-compatible for the calls an app writes, but **recompile** rather than
+swap the jar: `Dialog`, `ListGroup`, `KeyValueList` and the four selection
+controls gained parameters, and `ListGroup` and `KeyValueList` are now
+`inline`. Two things look different without any change: an app with no
+`WindowSizeClassProvider` now gets a rail and two panes on a wide window rather
+than a phone's layout, and a floating `NavBar` sits lower over a home indicator,
+with the page fading out under it (`fadeUnder = false` keeps the page as it
+was).
 
 ### Added
 
