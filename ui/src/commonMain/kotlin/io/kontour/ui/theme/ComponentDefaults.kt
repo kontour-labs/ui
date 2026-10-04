@@ -148,6 +148,8 @@ data class ComponentDefaults(
     val swipePositionalThreshold: Float = 0.35f,
     val scrollbarThickness: Dp = 6.dp,
     val scrollbarHoveredThickness: Dp = 10.dp,
+    /** A scrollbar under touch, where it is an indicator rather than a handle: thinner, as every phone's is. */
+    val scrollbarTouchThickness: Dp = 4.dp,
     val swipeActionWidth: Dp = 88.dp,
 
     // --- Display ---

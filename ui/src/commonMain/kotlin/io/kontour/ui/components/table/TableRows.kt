@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.components.selection.Checkbox
 import io.kontour.ui.components.selection.TriStateCheckbox
 import io.kontour.ui.foundation.ContentSlot
@@ -117,7 +118,7 @@ internal fun <T> TableFrame(env: TableEnv<T>, listState: LazyListState, boundedH
         HeaderRow(env)
         if (boundedHeight) {
             Box(Modifier.weight(1f, fill = false)) {
-                LazyColumn(state = listState, flingBehavior = ScrollDefaults.flingBehavior()) {
+                LazyColumn(Modifier.scrollbar(listState), state = listState, flingBehavior = ScrollDefaults.flingBehavior()) {
                     itemsIndexed(
                         items = env.items,
                         key = env.key?.let { key -> { _: Int, item: T -> key(item) } },
@@ -126,7 +127,6 @@ internal fun <T> TableFrame(env: TableEnv<T>, listState: LazyListState, boundedH
                         BodyRow(env, index, item)
                     }
                 }
-                Scrollbar(listState, Modifier.align(Alignment.CenterEnd))
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)

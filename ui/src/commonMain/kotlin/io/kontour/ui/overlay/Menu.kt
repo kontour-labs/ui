@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Motion
@@ -92,7 +93,6 @@ import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
-import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.AnimatedCheckMark
@@ -478,9 +478,9 @@ private fun MenuSurface(
         // A menu is the archetypal short container holding a list that may not
         // fit — a `Combobox` over forty stops, a context menu on a small window
         // — and until now the only clue that there was more below was that the
-        // last row was cut in half. `Scrollbar` returns nothing on touch and
-        // nothing when the content fits, so this costs an empty composable on a
-        // phone and draws only when it has something to say.
+        // last row was cut in half. The bar draws nothing when the content
+        // fits, and under touch only while the list is moving, so it says
+        // something only when there is something to say.
         //
         // In the panel rather than at each call site, which is the point: every
         // menu in the library goes through here, so `Select`, `MultiSelect`,
@@ -496,24 +496,17 @@ private fun MenuSurface(
         ) {
             Column(
                 modifier = Modifier
+                    // On the scroller, before its scroll: see `Modifier.scrollbar`.
+                    // Start below the panel's own corner. Derived from the shape
+                    // rather than restated as a number, so a consumer who
+                    // overrides `Theme.shapes.container` gets a scrollbar that
+                    // still clears it. A proportional corner answers zero, which
+                    // is the right degenerate: no inset, as if the panel were square.
+                    .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
                     .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
                     .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
                     .fillMaxWidth(),
                 content = content,
-            )
-
-            Scrollbar(
-                state = scroll,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                // Start below the panel's own corner. Derived from the shape
-                // rather than restated as a number, so a consumer who overrides
-                // `Theme.shapes.container` gets a scrollbar that still clears it.
-                //
-                // Resolved against `Size.Zero` because a fixed-`Dp` corner — what
-                // every rounded host here uses — ignores the size it is given.
-                // A proportional corner answers zero instead, which is the right
-                // degenerate: no inset, exactly as if the panel were square.
-                cornerInset = ScrollbarDefaults.cornerInset(shape),
             )
         }
     }

@@ -268,7 +268,7 @@ tracks the last used input instead:
 | Mouse cursor | n/a | shown | n/a | n/a |
 | Focus ring | hidden | hidden | **shown** | hidden |
 | Tooltips | long-press | hover | on focus | long-press |
-| Scrollbars | not drawn | persistent | persistent | not drawn |
+| Scrollbars | while scrolling | persistent | persistent | while scrolling |
 
 Only *traversal* keys (Tab, arrows, Page Up/Down, Home/End) switch the modality
 to `Keyboard`. Typing into a text field does not — the user is already looking

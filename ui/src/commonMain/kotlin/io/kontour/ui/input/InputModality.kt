@@ -32,7 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
  * | Hover states | off | on | off | off |
  * | Focus ring | hidden | hidden | **shown** | hidden |
  * | Tooltips | long-press | hover | on focus | long-press |
- * | Scrollbars | overlay, fading | persistent | persistent | overlay |
+ * | Scrollbars | overlay, fading | persistent | persistent | overlay, fading |
  *
  * The focus-ring row is the important one. Showing a ring on every tap looks
  * broken; never showing one makes the app unusable by keyboard. Tracking

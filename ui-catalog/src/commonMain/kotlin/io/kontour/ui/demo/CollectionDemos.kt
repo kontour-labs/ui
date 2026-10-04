@@ -1,5 +1,10 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import io.kontour.icons.tabler.outline.Bike
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
@@ -34,6 +39,7 @@ import io.kontour.icons.tabler.outline.Pin
 import io.kontour.icons.tabler.outline.Star
 import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.list.ExpandingListItem
@@ -474,20 +480,42 @@ internal val LoadMoreDemo = ComponentDemo(
     )
 }
 
-internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar") {
-    val scroll = rememberScrollState()
-    Box(Modifier.fillMaxWidth().height(160.dp)) {
-        Column(Modifier.fillMaxWidth().verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())) {
-            repeat(14) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
+/** The scroller the bar is on: one of each kind foundation ships, and one that runs across. */
+private val scrollbarOn = Knob.Choice("Scroller", listOf("Column", "Lazy list", "Grid", "Row"))
+
+internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar", knobs = listOf(scrollbarOn)) {
+    // `alwaysVisible`, because under touch the bar is up only while the content
+    // moves — and on a touch device, or in a still render, it would be gone.
+    val box = Modifier.fillMaxWidth().height(160.dp)
+    when (this[scrollbarOn]) {
+        "Lazy list" -> {
+            val list = rememberLazyListState()
+            LazyColumn(box.scrollbar(list, alwaysVisible = true), state = list, flingBehavior = ScrollDefaults.flingBehavior()) {
+                items(40) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
+            }
         }
-        // `alwaysVisible`, because a scrollbar hides itself unless the input can
-        // hover — and on a touch device, or in a still render, it would never
-        // appear at all.
-        Scrollbar(
-            state = scroll,
-            modifier = Modifier.align(Alignment.CenterEnd),
-            alwaysVisible = true,
-        )
+        "Grid" -> {
+            val grid = rememberLazyGridState()
+            LazyVerticalGrid(GridCells.Fixed(3), box.scrollbar(grid, alwaysVisible = true), state = grid) {
+                items(90) { Text("Stop ${it + 1}", style = Theme.typography.bodyMedium) }
+            }
+        }
+        "Row" -> {
+            val row = rememberLazyListState()
+            LazyRow(
+                Modifier.fillMaxWidth().height(64.dp).scrollbar(row, Orientation.Horizontal, alwaysVisible = true),
+                state = row,
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+            ) {
+                items(30) { Text("Route ${it + 1}", style = Theme.typography.bodyMedium) }
+            }
+        }
+        else -> {
+            val scroll = rememberScrollState()
+            Column(box.scrollbar(scroll, alwaysVisible = true).verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())) {
+                repeat(14) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
+            }
+        }
     }
 }
 

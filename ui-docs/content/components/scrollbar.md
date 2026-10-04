@@ -1,37 +1,62 @@
 # `Scrollbar`
 
+*Also on this page: `Modifier.scrollbar`.*
+
 A position indicator you can also drag, and hidden from the accessibility tree
 since it conveys nothing the list does not already.
 
 <!--sample:ScrollbarBasics-->
 ```kotlin
 val scroll = rememberScrollState()
+// On the scroller itself, before its scroll. Under touch it appears while
+// the content moves and fades after; with a mouse or a keyboard it is there
+// all along, and can be dragged.
+Column(Modifier.fillMaxWidth().scrollbar(scroll).verticalScroll(scroll)) { Screen() }
 
-Box {
-    Column(Modifier.fillMaxWidth().verticalScroll(scroll)) { Screen() }
-    // It hides itself unless the pointer can hover, so it costs a touch user
-    // nothing. `alwaysVisible` is for a pane where the scroll is the point.
-    Scrollbar(state = scroll, modifier = Modifier.align(Alignment.CenterEnd))
+// Any scroller foundation ships — a lazy list, a grid, a pager — across or
+// down: a row's runs along its foot.
+val row = rememberLazyListState()
+LazyRow(Modifier.scrollbar(row, Orientation.Horizontal), state = row) {
+    items(stops) { Text(it.name) }
 }
 ```
 
-**Its visibility follows input modality, not platform.** Under an input that can
-hover it is drawn; under touch it is **not drawn at all**, and the component
-returns before laying anything out. A permanent scrollbar on a touchscreen takes
-space from the screens with least of it, and a finger has better ways to scroll.
-On desktop and web the opposite holds: a long list with no scrollbar reads as
-broken. Pass `alwaysVisible = true` to override.
+**Put it on the scroller.** `Modifier.scrollbar(state)` goes on the scrolling
+container itself — a `Column` before its `verticalScroll`, a `LazyColumn`, a
+`LazyVerticalGrid`, a `LazyRow` with `Orientation.Horizontal` — and draws along
+its trailing edge, or its foot, with nothing to wrap it in and nothing to align.
+Before the `verticalScroll` or `horizontalScroll` in the chain, not after, or it
+scrolls away with the content; and before `fadingEdges`, or the fade takes it
+too. `Scrollbar(state)` is the same bar as a component of its own, for a bar that
+is not on the scroller's edge.
+
+It reads any scroller foundation ships — `ScrollState`, lazy lists, grids and
+staggered grids, pagers — from the position they report; a grid's used to draw
+nothing at all.
+
+**How it shows follows the input, not the platform.**
+
+| | Touch, stylus | Mouse, keyboard |
+|---|---|---|
+| At rest | not drawn | drawn, half-faded |
+| While scrolling | drawn, fading out 600ms after it stops | drawn |
+| Dragged | no — the scroller's own | yes |
+
+Under touch it is an indicator, as every phone's is: thinner, up while the
+content moves to say where it is and how much there is, and gone once it has
+settled. It takes no touches, so a strip at the edge of a list is still the
+list's. With a mouse or a keyboard it is the bar every other window on the
+machine has, there all the time: a long list with none reads as broken.
+`alwaysVisible = true` draws it at rest under touch too, for a scroller whose
+length is the point.
 
 Hovering it thickens the thumb and takes it to full opacity, so it is a target
 before you have to aim at it.
 
-**Dragging it scrolls the container**, which it used to refuse on the grounds
-that a 6dp target is not draggable and widening it would make it compete with the
-content. Both halves were about the wrong device: it is only ever drawn where
-there is a pointer, 6dp is what every scrollbar on such a machine measures, and
-the drag is on the whole bar rather than on the thumb, so there is nothing to
-widen. It scrolls raw rather than flinging — a scrollbar is a position control,
-and letting go of one should leave the list where the thumb is.
+**Dragging it scrolls the container**, at the rate the track's length says:
+grab it anywhere and the content follows rather than jumping. It scrolls raw
+rather than flinging — a scrollbar is a position control, and letting go of one
+should leave the content where the thumb is.
 
 The full modality table is in
 [`accessibility.md`](../accessibility.md#input-modality).
@@ -45,7 +70,7 @@ position that the scrolling container already reports, and a second node
 announcing the same thing is noise.
 
 Scrolling itself is reachable through the container. The scrollbar is a pointer
-affordance, and it hides unless the input can hover, which is why it costs a
+affordance: under touch it only indicates, and takes no touches, so it costs a
 touch user nothing.
 
 `alwaysVisible` makes it permanent. That is a visual decision — it does not make
@@ -57,4 +82,5 @@ scrollbar's own and does not change with the tier.
 
 Reduced motion changes nothing here: the thumb follows the scroll or the drag
 the reader is making, which is never touched, and its widening under the pointer
-is the same short tween at every setting.
+and its fading in and out under touch are the same short tweens at every
+setting — a change of opacity, not a movement.

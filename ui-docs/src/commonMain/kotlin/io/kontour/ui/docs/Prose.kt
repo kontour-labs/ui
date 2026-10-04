@@ -42,8 +42,8 @@ import io.kontour.icons.tabler.outline.Copy
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Callout
-import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.HorizontalDivider
 import io.kontour.ui.foundation.Text
@@ -170,7 +170,16 @@ private fun CodeBlock(block: Block.Code) {
             copied = false
         }
     }
-    Box(Modifier.fillMaxWidth().background(Theme.colours.surfaceSunken, shape)) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(Theme.colours.surfaceSunken, shape)
+            // Along the block's foot, under everything in it. It draws nothing
+            // when there is nothing to scroll, and nothing for a finger at rest
+            // — both `Modifier.scrollbar`'s own rules rather than this page's —
+            // so a short block is unchanged and a phone gets the whole width.
+            .scrollbar(scroll, Orientation.Horizontal, cornerInset = ScrollbarDefaults.cornerInset(shape)),
+    ) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -184,16 +193,6 @@ private fun CodeBlock(block: Block.Code) {
                 softWrap = false,
             )
         }
-        // It draws nothing when there is nothing to scroll and nothing at all
-        // for a finger, both of which are `Scrollbar`'s own rules rather than
-        // this page's — a short block is unchanged, and a phone still gets the
-        // whole width for the code.
-        Scrollbar(
-            state = scroll,
-            orientation = Orientation.Horizontal,
-            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(),
-            cornerInset = ScrollbarDefaults.cornerInset(shape),
-        )
         // Over the code's top-right corner rather than beside it: a column of
         // its own would take 40dp from every block for a button most readers
         // never press. A line long enough to run under it scrolls out.

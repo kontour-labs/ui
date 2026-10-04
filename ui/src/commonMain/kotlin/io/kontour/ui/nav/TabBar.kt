@@ -258,8 +258,8 @@ fun TabBar(
 
                 // A row you can tell scrolls.
                 //
-                // `Scrollbar` draws nothing for a finger unless it is asked to —
-                // `LocalInputModality` is `Touch` by default and
+                // `Scrollbar` draws nothing for a finger at rest unless it is
+                // asked to — `LocalInputModality` is `Touch` by default and
                 // `supportsHover` is true only for a mouse — so the default
                 // would put this affordance on every platform except the one it
                 // was reported from. A tab bar's whole problem is that you

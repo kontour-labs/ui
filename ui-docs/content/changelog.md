@@ -37,8 +37,19 @@ On `main`, and in the next release.
   arriving, and the space they take changes size smoothly. Under reduced motion
   it cross-fades and takes the new size at once.
 
+- **[`Modifier.scrollbar(state)`](components/scrollbar.md)** puts a scrollbar
+  on the scroller itself — a `Column` before its `verticalScroll`, a
+  `LazyColumn`, a grid, a `LazyRow` with `Orientation.Horizontal` — with nothing
+  to wrap it in and nothing to align. `Scrollbar` is the same bar as a component
+  of its own.
+
 ### Changed
 
+- **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
+  moves**, thinner, and fades 600ms after it stops, where it used to draw
+  nothing at all. It takes no touches: a finger on the strip at a list's edge
+  is the list's, which it was not under an `alwaysVisible` bar. With a keyboard
+  it is drawn at rest, as with a mouse and as the docs always said.
 - **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
   is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
   that leave the provider out — the root setup has none — now get a rail and two
@@ -59,6 +70,9 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A scrollbar on a grid, a staggered grid or a pager is drawn.** It read only
+  `ScrollState`s and lazy lists, and drew nothing for anything else; it reads
+  the position every scroller in foundation reports now.
 - **A browser reporting a POSIX locale no longer blanks the page.** Headless
   Chromium's `navigator.language` is `en-US@posix`, and Compose's `Locale(tag)`
   on the web is `new Intl.Locale(tag)`, which throws on it, through the first

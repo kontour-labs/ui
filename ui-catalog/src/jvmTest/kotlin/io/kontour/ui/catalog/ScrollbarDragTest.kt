@@ -57,12 +57,12 @@ class ScrollbarDragTest {
                         )
                     }
                 }
-                // `alwaysVisible`, because the scene reports no pointer that can
-                // hover and the bar hides itself without one.
+                // Not `alwaysVisible`: the mouse below moves over the window
+                // first, which makes the scene's input a mouse, and the bar the
+                // draggable one a mouse gets. A finger's drag is the list's.
                 Scrollbar(
                     listState,
                     Modifier.align(Alignment.CenterEnd),
-                    alwaysVisible = true,
                 )
             }
             index = listState.firstVisibleItemIndex
@@ -74,6 +74,10 @@ class ScrollbarDragTest {
             // bar sits at the trailing edge and is `hoveredThickness` wide, so
             // five pixels in from the right is on it wherever the thumb is.
             val x = 400f - 5f
+            // A mouse arrives before it presses, as one does: a hover over the
+            // bar is what tells the scene there is a mouse at all.
+            scene.move(Offset(x, 100f), PointerType.Mouse)
+            scene.frames(4)
             scene.drag(
                 from = Offset(x, 100f),
                 to = Offset(x, 100f + Travelled),
