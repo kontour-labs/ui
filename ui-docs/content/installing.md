@@ -158,7 +158,15 @@ and figures, both bundled; there is nothing to add unless you reskin, which
 - **The web.** Nothing is required. For text in a script the bundled fonts do
   not cover, Compose fetches Noto from Google Fonts on its own, which a strict
   content security policy or an offline app will want to know;
-  [localisation](localisation.md) has the preload helper.
+  [localisation](localisation.md) has the preload helper. Two things in the
+  browser are Compose's rather than the library's. A headless Chromium can log
+  "Failed to execute 'put' on 'Cache'" while the bundled fonts load: that is
+  Compose Resources' own font cache, which the library never touches. And under
+  Compose 1.12 the browser's accessibility tree names every clickable node a
+  `button` and writes no `aria-checked`, so a `SelectionRow` with
+  `Role.Checkbox` is announced as a button there though its role is passed
+  through. The fix is in Compose 1.13, in alpha at the time of writing: the
+  role from 1.13.0-alpha01, the checked state after it.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`
