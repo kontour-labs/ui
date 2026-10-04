@@ -9,13 +9,27 @@ var open by remember { mutableStateOf(false) }
 
 Button(onClick = { open = true }) { +"Rename favourite" }
 
-Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
+val name = rememberTextFieldState("Perth Underground")
+Dialog(
+    visible = open,
+    onDismissRequest = { open = false },
+    title = { +"Rename favourite" },
+    // Under the content, and kept on screen while it scrolls. Placed by role:
+    // the confirm on the trailing edge, the cancel beside it.
+    actions = {
+        cancel()
+        confirm("Save", enabled = name.text.isNotBlank()) {
+            rename(name.text.toString())
+            open = false
+        }
+    },
+) {
     Text(
         "Give it a name you will recognise on the home screen.",
         style = Theme.typography.bodySmall,
         colour = Theme.colours.contentMuted,
     )
-    Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
+    TextField(name, label = "Name")
 }
 ```
 
@@ -28,8 +42,25 @@ shape, [`AlertDialog`](alert-dialog.md) already lays the buttons out.
 in `titleLarge` as an [`AlertDialog`](alert-dialog.md)'s is and announced as a
 heading. The content under it is any column.
 
-**A dialog scrolls its own content.** It is centred in the window with nowhere
-else to go, so content taller than the window has no other way out. Without the
+**`actions` is the row of buttons along the foot**: `cancel()`, `confirm(…)` and,
+rarely, `neutral(…)`, each at most once. It is the row an
+[`AlertDialog`](alert-dialog.md) draws, laid out the same way: the confirm on the
+trailing edge and the cancel beside it as equal halves, or with a third answer,
+the two answers together and the cancel on a line of its own beneath them. The
+row places them by what they are; the order of the calls is the order a screen
+reader and the Tab key take them in. `cancel()` calls `onDismissRequest`, as a tap
+outside or back does. `confirm` takes `enabled` for a form that is not done yet,
+`destructive` for an answer that cannot be undone, and `loading` while the answer
+is being acted on. The builder is composable, so a label can come from
+`Theme.strings` or a string resource where it is written.
+
+The row sits **under** the content, not in it: a form taller than the window
+scrolls, and its Save stays on screen. A button written into the content scrolls
+away with it.
+
+**A dialog scrolls its own content**, and the edge it scrolls under fades while
+there is more past it. It is centred in the window with nowhere else to go, so
+content taller than the window has no other way out. Without the
 scroller it did not merely spill: the content was measured unbounded and placed
 in a box the window had clamped, so it **overlapped itself** — a `DatePicker` in
 a dialog on a landscape phone drew the last two weeks of the month in the same

@@ -3246,10 +3246,17 @@ public final class io/kontour/ui/overlay/ConfirmHostState {
 	public final fun dismiss ()V
 }
 
+public final class io/kontour/ui/overlay/DialogActionsScope {
+	public static final field $stable I
+	public final fun cancel (Ljava/lang/String;ZLandroidx/compose/runtime/Composer;II)V
+	public final fun confirm (Ljava/lang/String;ZZZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public final fun neutral (Ljava/lang/String;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/overlay/DialogKt {
 	public static final fun AlertDialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function0;ZZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun ConfirmHost (Lio/kontour/ui/overlay/ConfirmHostState;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberConfirmHostState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/overlay/ConfirmHostState;
 }
 

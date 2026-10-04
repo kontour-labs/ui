@@ -43,6 +43,12 @@ On `main`, and in the next release.
   to wrap it in and nothing to align. `Scrollbar` is the same bar as a component
   of its own.
 
+- **[`Dialog`](components/dialog.md) takes `actions`**, the row of buttons an
+  `AlertDialog` draws: `actions = { cancel(); confirm("Save", enabled = valid) { … } }`.
+  The row sits under the content rather than in it, so a form taller than the
+  window scrolls and its Save stays on screen. The builder is composable, so a
+  label can come from `Theme.strings` or a string resource where it is written.
+
 ### Changed
 
 - **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
@@ -67,6 +73,10 @@ On `main`, and in the next release.
   from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
   leaves the page as it is. The fade is the colour the bar sits on,
   `LocalContainerColour`.
+- **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
+  under a long message**, which scrolls, rather than scrolling away below it.
+  A dialog's content fades at the edge it scrolls under while there is more
+  past it.
 
 ### Fixed
 

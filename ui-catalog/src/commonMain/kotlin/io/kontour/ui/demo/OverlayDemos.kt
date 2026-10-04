@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -39,6 +40,7 @@ import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
@@ -132,9 +134,17 @@ private fun Stage(height: Dp = 400.dp, content: @Composable BoxScope.() -> Unit)
  */
 private val overlayDismissible = Knob.Flag("Dismissible", initial = true)
 
-internal val DialogDemo = ComponentDemo(slug = "dialog", knobs = listOf(overlayDismissible)) {
+/**
+ * A form longer than the stage, so the content scrolls and the row of actions
+ * under it stays where it is.
+ */
+private val dialogLongForm = Knob.Flag("Long form", initial = false)
+
+internal val DialogDemo = ComponentDemo(slug = "dialog", knobs = listOf(overlayDismissible, dialogLongForm)) {
     var open by remember { mutableStateOf(false) }
     val dismissible = this[overlayDismissible]
+    val longForm = this[dialogLongForm]
+    val name = rememberTextFieldState("Perth Underground")
     Stage {
         Button(
             onClick = { open = true },
@@ -147,13 +157,23 @@ internal val DialogDemo = ComponentDemo(slug = "dialog", knobs = listOf(overlayD
             onDismissRequest = { open = false },
             dismissible = dismissible,
             title = { +"Rename favourite" },
+            actions = {
+                cancel()
+                confirm("Save", enabled = name.text.isNotBlank()) { open = false; echo("Saved") }
+            },
         ) {
             Text(
                 "Give it a name you will recognise on the home screen.",
                 style = Theme.typography.bodySmall,
                 colour = Theme.colours.contentMuted,
             )
-            Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
+            TextField(name, label = "Name")
+            if (longForm) {
+                TextField(rememberTextFieldState(), label = "Note")
+                listOf("Platform", "Line", "Direction", "Zone", "Operator", "Nearest exit").forEach { field ->
+                    TextField(rememberTextFieldState(), label = field)
+                }
+            }
         }
     }
 }

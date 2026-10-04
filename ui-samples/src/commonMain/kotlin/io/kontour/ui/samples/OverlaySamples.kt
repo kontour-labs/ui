@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -23,6 +24,7 @@ import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.IconButton
+import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.LocalOverlayQueue
@@ -55,13 +57,27 @@ fun DialogBasics() {
 
     Button(onClick = { open = true }) { +"Rename favourite" }
 
-    Dialog(visible = open, onDismissRequest = { open = false }, title = { +"Rename favourite" }) {
+    val name = rememberTextFieldState("Perth Underground")
+    Dialog(
+        visible = open,
+        onDismissRequest = { open = false },
+        title = { +"Rename favourite" },
+        // Under the content, and kept on screen while it scrolls. Placed by role:
+        // the confirm on the trailing edge, the cancel beside it.
+        actions = {
+            cancel()
+            confirm("Save", enabled = name.text.isNotBlank()) {
+                rename(name.text.toString())
+                open = false
+            }
+        },
+    ) {
         Text(
             "Give it a name you will recognise on the home screen.",
             style = Theme.typography.bodySmall,
             colour = Theme.colours.contentMuted,
         )
-        Button(onClick = { open = false }, modifier = Modifier.fillMaxWidth()) { +"Save" }
+        TextField(name, label = "Name")
     }
 }
 
