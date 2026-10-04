@@ -49,4 +49,23 @@ class LocaleTagTest {
         assertFalse(LocaleTag.parse("az-Latn").isRightToLeft)
         assertFalse(LocaleTag.parse("en").isRightToLeft)
     }
+
+    /**
+     * What a platform reports, cleaned into a tag `Locale(tag)` can take.
+     *
+     * Headless Chromium's `navigator.language` is `en-US@posix`, and Compose's
+     * web `Locale(tag)` throws on it — reported as a blank page. Checked against
+     * `Intl` in Node: `en-US@posix`, `en_US`, `en-US.UTF-8` and `""` all throw.
+     */
+    @Test
+    fun platformTagsAreCleaned() {
+        assertEquals("en-US", LocaleTag.cleanPlatformTag("en-US@posix"))
+        assertEquals("en-AU", LocaleTag.cleanPlatformTag("en_AU.UTF-8"))
+        assertEquals("sr-Latn-RS", LocaleTag.cleanPlatformTag("sr_Latn_RS@calendar=gregorian"))
+        assertEquals("de", LocaleTag.cleanPlatformTag(" de "))
+        assertNull(LocaleTag.cleanPlatformTag("C"))
+        assertNull(LocaleTag.cleanPlatformTag("POSIX"))
+        assertNull(LocaleTag.cleanPlatformTag("C.UTF-8"))
+        assertNull(LocaleTag.cleanPlatformTag(""))
+    }
 }

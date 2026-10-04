@@ -65,6 +65,24 @@ internal class LocaleTag private constructor(
     companion object {
         fun of(locale: Locale): LocaleTag = parse(locale.toLanguageTag())
 
+        /**
+         * A tag a platform reported, made into one `Locale(tag)` can take, or
+         * null where it names no language at all.
+         *
+         * Platforms report POSIX locales as well as BCP 47 tags. Headless
+         * Chromium's `navigator.language` is `en-US@posix`, and Compose's
+         * `Locale(tag)` on the web is `new Intl.Locale(tag)` with nothing round
+         * it: the RangeError it throws on that took the whole page down —
+         * *"An odd browser locale blanks the whole page"*. `en_US.UTF-8`, `C`
+         * and an empty string throw the same. So the modifier after `@` and
+         * the charset after `.` go, `_` becomes `-`, and the two POSIX names
+         * for no locale at all are none.
+         */
+        fun cleanPlatformTag(raw: String): String? {
+            val tag = raw.trim().substringBefore('@').substringBefore('.').replace('_', '-').trim('-')
+            return tag.takeUnless { it.isEmpty() || it.equals("C", ignoreCase = true) || it.equals("POSIX", ignoreCase = true) }
+        }
+
         fun parse(tag: String): LocaleTag {
             val parts = tag.replace('_', '-').split('-').filter { it.isNotEmpty() }
             val language = parts.firstOrNull()?.lowercase() ?: ""

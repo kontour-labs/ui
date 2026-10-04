@@ -48,6 +48,14 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A browser reporting a POSIX locale no longer blanks the page.** Headless
+  Chromium's `navigator.language` is `en-US@posix`, and Compose's `Locale(tag)`
+  on the web is `new Intl.Locale(tag)`, which throws on it, through the first
+  composition. The browser's languages are cleaned — the `@` modifier and the
+  charset dropped, `_` made `-` — and the first `Intl` accepts is used, with
+  `en-AU`, the library's own default, when none is. Compose's own
+  `Locale.current` reads the same list through the same constructor if anything
+  inside Compose asks for it; that half is Compose's.
 - **[`LoadMore`](components/load-more.md) asks for the next page when it is on
   screen, not when it is composed.** At the foot of a plain scrolling `Column`,
   which composes everything at once, it chained through every page to the end

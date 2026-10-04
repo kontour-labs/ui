@@ -72,7 +72,7 @@ private fun <T> observeLocaleChange(read: () -> T): T {
 }
 
 private fun currentTag(): String =
-    NSLocale.currentLocale.localeIdentifier.substringBefore('@').replace('_', '-')
+    LocaleTag.cleanPlatformTag(NSLocale.currentLocale.localeIdentifier) ?: "en-AU"
 
 @Suppress("CAST_NEVER_SUCCEEDS")
 internal actual fun decomposeCanonical(text: String): String =
