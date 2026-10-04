@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,9 +42,11 @@ import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.CircularStepProgress
+import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.ProgressDefaults
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
+import io.kontour.ui.components.display.StateSwitcher
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.BranchProgress
 import io.kontour.ui.components.display.Callout
@@ -105,6 +108,7 @@ import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.Orientation
 
@@ -587,37 +591,50 @@ internal val SkeletonDemo = ComponentDemo(slug = "skeleton") {
 }
 
 /**
- * The two states share a page and a shape, so they share a demo.
+ * The three states share a page and a shape, so they share a demo — through a
+ * `StateSwitcher`, so changing the knob is the transition the page is about.
  *
  * `ErrorState` is not a variant of `EmptyState` — it owns its retry button
  * rather than taking an action slot, on the argument that an error with no way
  * forward is a dead end. A knob is still the right way to show them: they are
  * the same slot on the same screen, and the difference is what a reader came to
- * see.
+ * see. Retrying goes to loading, and loading comes back empty a moment later,
+ * which is the sequence worth watching.
  */
-private val stateKind = Knob.Choice("State", listOf("Empty", "Error"))
+private val stateKind = Knob.Choice("State", listOf("Empty", "Error", "Loading"))
 
 internal val EmptyStateDemo = ComponentDemo(
     slug = "empty-state",
     knobs = listOf(stateKind),
 ) {
-    if (this@ComponentDemo[stateKind] == "Error") {
-        ErrorState(Modifier.fillMaxWidth(), onRetry = { echo("Retry") }) {
-            +"Couldn't load your favourites"
-            message { +"Check your connection and try again." }
-            leading { +Tabler.Outline.AlertTriangle }
+    val picked = this[stateKind]
+    var shown by remember { mutableStateOf(picked) }
+    LaunchedEffect(picked) { shown = picked }
+    LaunchedEffect(shown) {
+        if (shown == "Loading") {
+            delay(1_200)
+            shown = "Empty"
         }
-        return@ComponentDemo
     }
-    EmptyState(Modifier.fillMaxWidth()) {
-        +"No favourites yet"
-        message { +"Star a stop or route and it will appear here." }
-        leading { +Tabler.Outline.Star }
-        action {
-            Button(
-                onClick = { echo("Browse routes") },
-                variant = ButtonVariant.Secondary,
-            ) { +"Browse routes" }
+    StateSwitcher(shown, Modifier.fillMaxWidth()) { state ->
+        when (state) {
+            "Error" -> ErrorState(Modifier.fillMaxWidth(), onRetry = { shown = "Loading" }) {
+                +"Couldn't load your favourites"
+                message { +"Check your connection and try again." }
+                leading { +Tabler.Outline.AlertTriangle }
+            }
+            "Loading" -> LoadingState(Modifier.fillMaxWidth()) { +"Loading your favourites" }
+            else -> EmptyState(Modifier.fillMaxWidth()) {
+                +"No favourites yet"
+                message { +"Star a stop or route and it will appear here." }
+                leading { +Tabler.Outline.Star }
+                action {
+                    Button(
+                        onClick = { echo("Browse routes") },
+                        variant = ButtonVariant.Secondary,
+                    ) { +"Browse routes" }
+                }
+            }
         }
     }
 }

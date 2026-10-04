@@ -1,5 +1,8 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.components.display.ErrorState
+import io.kontour.ui.components.display.LoadingState
+import io.kontour.ui.components.display.StateSwitcher
 import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
@@ -433,6 +436,28 @@ fun EmptyStateBasics() {
         leading { +Tabler.Outline.Star }
         action {
             Button(onClick = { nearby() }, variant = ButtonVariant.Secondary) { +"Browse routes" }
+        }
+    }
+}
+
+/** Where a list's rows are in their journey from the network, as the sample's view model would hold it. */
+internal enum class Loaded { Loading, Failed, Empty, Ready }
+
+@Composable
+fun StateSwitcherBasics() {
+    var status by remember { mutableStateOf(Loaded.Loading) }
+
+    // One place for all four. The one leaving fades through the one arriving,
+    // and the space between them changes size smoothly rather than in a frame.
+    StateSwitcher(target = status, modifier = Modifier.fillMaxWidth()) { now ->
+        when (now) {
+            Loaded.Loading -> LoadingState { +"Loading your favourites" }
+            Loaded.Failed -> ErrorState(onRetry = { status = Loaded.Loading }) {
+                +"Couldn't load your favourites"
+                message { +"Check your connection and try again." }
+            }
+            Loaded.Empty -> EmptyState { +"No favourites yet" }
+            Loaded.Ready -> Column { stops.forEach { Text(it.name) } }
         }
     }
 }

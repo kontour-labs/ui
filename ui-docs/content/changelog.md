@@ -26,6 +26,17 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Added
+
+- **[`LoadingState`](components/empty-state.md#loading-and-the-move-between-them)**,
+  the third of the states beside `EmptyState` and `ErrorState`, drawn as they
+  are with a spinner where their icon is.
+- **[`StateSwitcher`](components/empty-state.md#loading-and-the-move-between-them)**
+  puts loading, empty, failed and the content in one place and moves between
+  them when its `target` changes: the state leaving fades through the one
+  arriving, and the space they take changes size smoothly. Under reduced motion
+  it cross-fades and takes the new size at once.
+
 ### Changed
 
 - **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)

@@ -11,6 +11,8 @@ import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.ErrorState
+import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.selection.ColourSwatchPicker
@@ -2694,6 +2696,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 +"No favourites yet"
                 message { +"Star a stop and it will appear here." }
             }
+        }
+    )
+
+    add(
+        ComponentSpec("ErrorState", role = null, underContract = false, renderHeight = 230) { modifier, _, _ ->
+            ErrorState(modifier.width(SpecimenProseWidth), onRetry = {}) {
+                +"Couldn't load your favourites"
+                message { +"Check your connection and try again." }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("LoadingState", role = null, underContract = false, renderHeight = 160) { modifier, _, _ ->
+            LoadingState(modifier.width(SpecimenProseWidth)) { +"Loading your favourites" }
         }
     )
 

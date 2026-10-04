@@ -1,5 +1,8 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -21,6 +25,8 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.Transitions
+import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.theme.Theme
 
 /**
@@ -104,6 +110,100 @@ fun ErrorState(
         iconTint = Theme.colours.danger.onContainer,
         assertive = true,
     )
+}
+
+/**
+ * What to show where content will be, while it is on its way.
+ *
+ * ```
+ * LoadingState { +"Loading departures" }
+ * ```
+ *
+ * The third of the states a screen of fetched content passes through, drawn as
+ * the other two are — the same block, the same place, a spinner where their
+ * icon is — so moving from one to another with [StateSwitcher] changes what it
+ * says rather than where it stands.
+ *
+ * A title is optional. Without one the spinner is announced as [loadingLabel];
+ * with one, the title is what is read, and should say what is loading.
+ *
+ * Polite, as an empty state is: something on its way is not something the user
+ * needs to stop for.
+ */
+@Composable
+fun LoadingState(
+    modifier: Modifier = Modifier,
+    loadingLabel: String = Theme.strings.loading,
+    content: StateScope.() -> Unit = {},
+) {
+    val slots = stateSlots {
+        content()
+        // The spinner is the component's, as an error's retry is: a loading
+        // state is the spinner, and a caller's own `leading` replaces it.
+        if (leading == null) {
+            val unnamed = title == null
+            leading {
+                Spinner(size = StateIconSize, contentDescription = if (unnamed) loadingLabel else null)
+            }
+        }
+    }
+    StateBlock(
+        modifier = modifier,
+        slots = slots,
+        iconTint = Theme.colours.contentSubtle,
+        assertive = false,
+    )
+}
+
+/**
+ * One of several states in one place — loading, empty, failed, the content
+ * itself — and a transition between them when [target] changes.
+ *
+ * ```
+ * StateSwitcher(target = status) { status ->
+ *     when (status) {
+ *         Status.Loading -> LoadingState { +"Loading stops" }
+ *         Status.Failed -> ErrorState(onRetry = ::reload) { +"Couldn't load stops" }
+ *         Status.Empty -> EmptyState { +"No stops nearby" }
+ *         Status.Ready -> StopList(stops)
+ *     }
+ * }
+ * ```
+ *
+ * A `when` on its own swaps one for the other in a frame, and a loading state
+ * that a fast network replaces after 80ms flashes. Here the one leaving fades
+ * and the one arriving fades in through it, the way content replaces content
+ * with no relationship between them ([io.kontour.ui.motion.Transitions.fadeThrough]),
+ * and the space they take changes size smoothly rather than in a step. Under
+ * reduced motion it is a cross-fade, and the size is the new one at once.
+ *
+ * The state leaving is cleared from the semantics while it goes, so a screen
+ * reader hears the new one and not both.
+ *
+ * @param target Which state to show. Anything with `equals` — an enum, a sealed
+ *   class; a change of it is a change of state.
+ * @param contentAlignment Where a smaller state sits in the space of a larger
+ *   one while the size changes.
+ */
+@Composable
+fun <T> StateSwitcher(
+    target: T,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopCenter,
+    content: @Composable (T) -> Unit,
+) {
+    val motion = Theme.motion
+    val through = Transitions.fadeThrough()
+    AnimatedContent(
+        targetState = target,
+        modifier = modifier,
+        transitionSpec = { through.using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() }) },
+        contentAlignment = contentAlignment,
+        label = "stateSwitcher",
+    ) { state ->
+        val leaving = transition.targetState == EnterExitState.PostExit
+        Box(if (leaving) Modifier.clearAndSetSemantics {} else Modifier) { content(state) }
+    }
 }
 
 @Composable

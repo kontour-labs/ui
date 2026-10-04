@@ -323,6 +323,7 @@ class ComponentRenderTest {
             "KeyValueList" to "text on the page, no container",
             "RelativeTimeText" to "text on the page, no container",
             "EmptyState" to "text on the page, no container",
+            "LoadingState" to "a spinner and text on the page, no container",
             "RadioGroup" to "rows of text and marks on the page, no container",
             "Timeline" to "marks and text on the page, no container",
             "HorizontalTimeline" to "marks and text on the page, no container",
