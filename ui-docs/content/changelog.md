@@ -24,7 +24,16 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Fixed
+
+- **On iOS, swiping back works over a list that is still moving.** A list moving
+  from a throw takes the press that lands on it, to stop, and the swipe back
+  read that as a control taking the press and left it alone — from the very
+  edge as well, and for seconds after a throw, which keeps moving long after it
+  stops looking like it. A press that catches a list moving up or down no longer
+  counts: a sideways swipe goes back, and one up or down is still the list's.
 
 ---
 
