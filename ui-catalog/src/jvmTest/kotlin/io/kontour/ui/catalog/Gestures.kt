@@ -36,6 +36,11 @@ import javax.imageio.ImageIO
  * Touch rather than mouse throughout. A mouse drag needs the button state
  * threaded through every move event and none of these gestures care which
  * pointer they came from; touch is the one a phone actually sends.
+ *
+ * **The scene lives on the AWT event thread**, made, rendered, sent its input
+ * and closed there, because Compose posts its own work on the scene to that
+ * thread and the scene is not safe to share — see [onComposeUiThread], and
+ * `MonthJumpTest`'s failure on CI for what sharing it cost.
  */
 class Scene(
     val width: Int,
@@ -69,13 +74,15 @@ class Scene(
      */
     private val fontScale = mutableStateOf(1f)
 
-    private val scene = ImageComposeScene(
-        width = width,
-        height = height,
-        density = Density(density),
-    ) {
-        CompositionLocalProvider(LocalDensity provides Density(density, fontScale.value)) {
-            KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+    private val scene = onComposeUiThread {
+        ImageComposeScene(
+            width = width,
+            height = height,
+            density = Density(density),
+        ) {
+            CompositionLocalProvider(LocalDensity provides Density(density, fontScale.value)) {
+                KontourTheme(darkTheme = darkTheme, reduceMotion = reduceMotion) { content() }
+            }
         }
     }
 
@@ -85,7 +92,7 @@ class Scene(
      * Takes effect on the next rendered frame. See [fontScale] for what that
      * costs a gesture that is already running.
      */
-    fun typeScale(scale: Float) {
+    fun typeScale(scale: Float) = onComposeUiThread {
         fontScale.value = scale
     }
 
@@ -94,9 +101,11 @@ class Scene(
     /** Renders the next frame, 16ms on from the last. */
     fun frame(): BufferedImage {
         nanos += frameNanos
-        val png = requireNotNull(scene.render(nanos).encodeToData(EncodedImageFormat.PNG)) {
-            "Skia failed to encode a frame"
-        }.bytes
+        val png = onComposeUiThread {
+            requireNotNull(scene.render(nanos).encodeToData(EncodedImageFormat.PNG)) {
+                "Skia failed to encode a frame"
+            }.bytes
+        }
         return requireNotNull(ImageIO.read(png.inputStream())) { "unreadable frame" }
     }
 
@@ -125,7 +134,7 @@ class Scene(
      */
     fun advance() {
         nanos += frameNanos
-        scene.render(nanos).close()
+        onComposeUiThread { scene.render(nanos).close() }
     }
 
     /** Renders [count] frames, discarding each. */
@@ -146,7 +155,7 @@ class Scene(
      * This can: a settled scene has no invalidations, and a scene with a live
      * transition in it always does.
      */
-    fun stillAnimating(): Boolean = scene.hasInvalidations()
+    fun stillAnimating(): Boolean = onComposeUiThread { scene.hasInvalidations() }
 
     /**
      * Renders until [until] holds, or until [timeoutMillis] of **real** time has
@@ -230,7 +239,7 @@ class Scene(
         send(PointerEventType.Release, at, pointer)
 
     /** A scroll wheel notch at [at]. [delta] is in wheel units, not pixels. */
-    fun scroll(at: Offset, delta: Offset) {
+    fun scroll(at: Offset, delta: Offset) = onComposeUiThread {
         scene.sendPointerEvent(
             eventType = PointerEventType.Scroll,
             position = at,
@@ -272,18 +281,20 @@ class Scene(
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
     fun touch(type: PointerEventType, fingers: List<Touch>) {
         nanos += frameNanos
-        scene.sendPointerEvent(
-            eventType = type,
-            pointers = fingers.map {
-                ComposeScenePointer(
-                    id = PointerId(it.id),
-                    position = it.at,
-                    pressed = it.down,
-                    type = PointerType.Touch,
-                )
-            },
-            timeMillis = nanos / 1_000_000L,
-        )
+        onComposeUiThread {
+            scene.sendPointerEvent(
+                eventType = type,
+                pointers = fingers.map {
+                    ComposeScenePointer(
+                        id = PointerId(it.id),
+                        position = it.at,
+                        pressed = it.down,
+                        type = PointerType.Touch,
+                    )
+                },
+                timeMillis = nanos / 1_000_000L,
+            )
+        }
     }
 
     /**
@@ -296,17 +307,19 @@ class Scene(
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
     fun pan(type: PointerEventType, at: Offset, offset: Offset = Offset.Zero) {
         nanos += frameNanos
-        scene.sendPointerEvent(
-            eventType = type,
-            pointers = listOf(
-                ComposeScenePointer(id = PointerId(0), position = at, pressed = false, type = PointerType.Mouse),
-            ),
-            timeMillis = nanos / 1_000_000L,
-            panGestureOffset = offset,
-        )
+        onComposeUiThread {
+            scene.sendPointerEvent(
+                eventType = type,
+                pointers = listOf(
+                    ComposeScenePointer(id = PointerId(0), position = at, pressed = false, type = PointerType.Mouse),
+                ),
+                timeMillis = nanos / 1_000_000L,
+                panGestureOffset = offset,
+            )
+        }
     }
 
-    private fun send(type: PointerEventType, at: Offset, pointer: PointerType) {
+    private fun send(type: PointerEventType, at: Offset, pointer: PointerType) = onComposeUiThread {
         scene.sendPointerEvent(
             eventType = type,
             position = at,
@@ -315,7 +328,7 @@ class Scene(
         )
     }
 
-    override fun close() = scene.close()
+    override fun close() = onComposeUiThread { scene.close() }
 
 }
 

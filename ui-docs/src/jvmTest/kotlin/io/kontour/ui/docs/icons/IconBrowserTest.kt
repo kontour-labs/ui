@@ -78,10 +78,10 @@ class IconBrowserTest {
         fun chunks(style: String) = asked.filter { it.startsWith("data/$style/") }.toSet()
     }
 
-    private fun ComposeUiTest.browser(width: Int = 1000): Fake {
+    private fun ComposeUiTest.browser(width: Int = 1000, reduceMotion: Boolean = true): Fake {
         val fake = Fake()
         setContent {
-            KontourTheme(darkTheme = false, reduceMotion = true) {
+            KontourTheme(darkTheme = false, reduceMotion = reduceMotion) {
                 Box(Modifier.requiredSize(width.dp, 800.dp)) {
                     OverlayHost(Modifier.fillMaxSize()) {
                         IconsPage(source = fake)
@@ -163,6 +163,60 @@ class IconBrowserTest {
         assertTrue(shows("glyph-0000") && shows("glyph-0010"), "filled icons are missing")
         assertTrue(!shows("glyph-0001"), "an icon with no filled form is listed under Filled")
         assertEquals(setOf("data/filled/000.txt"), fake.chunks("filled"))
+    }
+
+    /**
+     * The search's placeholder counts what it searches, which the styles change.
+     *
+     * Asked for as *"can we make the "Search XXX icons" placeholder change based
+     * on what tab (outline/filled) you have selected"*: it said 1,001 under
+     * Filled, where 101 are listed. A thousand glyphs and `home` in outline; a
+     * tenth of the glyphs and `home` filled.
+     */
+    @Test
+    fun theSearchSaysHowManyOfTheStyleItSearches() = runComposeUiTest {
+        browser()
+        fun placeholder(text: String) = onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        assertTrue(placeholder("Search 1,001 outline icons"), "the placeholder does not count the outline icons")
+        onNodeWithText("Filled").performClick()
+        waitForIdle()
+        assertTrue(placeholder("Search 101 filled icons"), "the placeholder does not count the filled icons")
+        assertTrue(!placeholder("Search 1,001 outline icons"))
+    }
+
+    /**
+     * Beside the list, the pressed icon's panel slides in from the end and back
+     * out, rather than appearing and vanishing.
+     *
+     * Asked for as *"on desktop, can we make the list/detail side animate in,
+     * rather than just appearing"*. Read off where the panel's first line of
+     * code is: the frame it first appears it is still on its way in from the
+     * right, and four frames after Close it is still there, on its way out.
+     */
+    @Test
+    fun besideTheListThePanelSlidesInAndOut() = runComposeUiTest {
+        browser(reduceMotion = false)
+        mainClock.autoAdvance = false
+        val line = "Tabler.Outline.Glyph0003"
+        fun left() = onNodeWithText(line, useUnmergedTree = true).fetchSemanticsNode().positionInRoot.x
+
+        onAllNodesWithText("glyph-0003").onFirst().performClick()
+        repeat(10) { if (!shows(line)) mainClock.advanceTimeByFrame() }
+        assertTrue(shows(line), "the panel did not open")
+        val arriving = left()
+        mainClock.advanceTimeBy(2_000L)
+        val resting = left()
+        assertTrue(
+            arriving > resting + 40f,
+            "the panel was already where it rests (x $resting) the frame it appeared, at x $arriving",
+        )
+
+        onNodeWithContentDescription("Close").performClick()
+        repeat(4) { mainClock.advanceTimeByFrame() }
+        assertTrue(shows(line), "the panel was gone four frames after Close, rather than sliding out")
+        assertTrue(left() > resting, "the panel had not moved four frames after Close")
+        mainClock.advanceTimeBy(2_000L)
+        assertTrue(!shows(line), "the panel never went")
     }
 
     @Test
