@@ -39,7 +39,9 @@ unchecked or — for [`TriStateCheckbox`](tri-state-checkbox.md) — indetermina
 
 A bare checkbox has no name. Put it in a [`SelectionRow`](selection-row.md) with
 `onCheckedChange = null`, so the row carries the click, the role and the label
-and there is one target rather than two.
+and there is one target rather than two. A checkbox that stands alone — over a
+table, in a toolbar — takes `contentDescription`, its name for a screen reader;
+leave it `null` in a row, or the name is read twice.
 
 The touch target is the minimum regardless of the box's drawn size, which is why
 a checkbox in a dense list still meets it.

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
@@ -68,6 +69,10 @@ private val CheckboxShape = SquircleShape(6.dp)
  *
  * @param onCheckedChange Pass `null` to make the checkbox non-interactive while
  *   still showing state — for a row whose click is handled by a parent.
+ * @param contentDescription What the control is, for a screen reader, when nothing
+ *   beside it says so: a lone "everything in this area" box over a list of
+ *   others. Leave it `null` inside a [SelectionRow], which names the control
+ *   by its label; a description here would be read as well.
  */
 @Composable
 fun Checkbox(
@@ -75,6 +80,7 @@ fun Checkbox(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     TriStateCheckbox(
@@ -82,6 +88,7 @@ fun Checkbox(
         onClick = onCheckedChange?.let { { it(!checked) } },
         modifier = modifier,
         enabled = enabled,
+        contentDescription = contentDescription,
         interactionSource = interactionSource,
     )
 }
@@ -93,6 +100,11 @@ fun Checkbox(
  * selected — "select all" over a mixed list. It draws a dash rather than a tick.
  * Clicking an indeterminate checkbox should select everything, not clear it;
  * that is the caller's decision, and the common wrong answer.
+ *
+ * @param contentDescription What the control is, for a screen reader, when nothing
+ *   beside it says so: a lone "everything in this area" box over a list of
+ *   others. Leave it `null` inside a [SelectionRow], which names the control
+ *   by its label; a description here would be read as well.
  */
 @Composable
 fun TriStateCheckbox(
@@ -100,6 +112,7 @@ fun TriStateCheckbox(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -216,6 +229,9 @@ fun TriStateCheckbox(
                     }
                 }
             )
+            // Named when it stands alone. Inside a row the row's label is the
+            // name, and the default `null` adds nothing to it.
+            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
             .size(CheckboxSize)
     ) {
         val markProgress = filled.value

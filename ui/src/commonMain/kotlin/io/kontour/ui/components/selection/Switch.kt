@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
@@ -131,6 +132,10 @@ private const val StretchAtSpeed = 5f
  * `surfaceIndicator` — the fill tuned so a segmented thumb shows without a
  * border — only reaches 1.59, and only in dark. That ramp separates fills from
  * each other; it does not bound controls.
+ *
+ * @param contentDescription What the control is, for a screen reader, when nothing
+ *   beside it says so: a lone "live vehicles" switch in a map's toolbar. Leave it `null` inside a [SelectionRow], which names the control
+ *   by its label; a description here would be read as well.
  */
 @Composable
 fun Switch(
@@ -138,6 +143,7 @@ fun Switch(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val toggled = rememberToggleFeedback()
@@ -378,6 +384,9 @@ fun Switch(
                     }
                 }
             )
+            // Named when it stands alone. Inside a row the row's label is the
+            // name, and the default `null` adds nothing to it.
+            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
             // The drag goes *after* the toggle, so the tap is arbitrated first
             // and only a pointer that travels past the slop becomes a drag. A
             // switch is small enough that a tap and a short drag are the same

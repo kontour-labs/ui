@@ -31,7 +31,8 @@ controls that happen to be near each other.
 Pass `onClick = null` when the row around it carries the click — otherwise there
 are two targets announcing the same thing, and the smaller one is the button.
 [`SelectionRow`](selection-row.md) with `role = Role.RadioButton` is the shape
-that gets this right.
+that gets this right. A button with no label beside it takes
+`contentDescription`, its name; leave it `null` in a row.
 
 Under `Role.RadioButton` selection is one-way: a radio is turned on by pressing
 it and off by pressing another, so pressing the selected one does nothing rather

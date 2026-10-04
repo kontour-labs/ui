@@ -141,7 +141,8 @@ pedantry: a switch takes effect immediately, and a checkbox is a value that is
 submitted later.
 
 Put it in a [`SelectionRow`](selection-row.md) with `onCheckedChange = null` so
-the row is the target — a bare switch has no name.
+the row is the target — a bare switch has no name. One that has to stand alone
+takes `contentDescription`; leave it `null` in a row, which names it already.
 
 The thumb stretches while it moves and does not under reduced motion. Nothing
 about the announcement changes.

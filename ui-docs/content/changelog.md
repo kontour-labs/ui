@@ -37,6 +37,13 @@ On `main`, and in the next release.
   arriving, and the space they take changes size smoothly. Under reduced motion
   it cross-fades and takes the new size at once.
 
+- **`contentDescription` on [`Checkbox`](components/checkbox.md),
+  [`TriStateCheckbox`](components/tri-state-checkbox.md),
+  [`Switch`](components/switch.md) and [`RadioButton`](components/radio-button.md)**,
+  for one that stands alone with no row to name it — a select-all box over a
+  table. It came out as an unnamed control. In a `SelectionRow` the row's label
+  is still the name; leave it `null` there.
+
 - **[`Modifier.scrollbar(state)`](components/scrollbar.md)** puts a scrollbar
   on the scroller itself — a `Column` before its `verticalScroll`, a
   `LazyColumn`, a grid, a `LazyRow` with `Orientation.Horizontal` — with nothing
