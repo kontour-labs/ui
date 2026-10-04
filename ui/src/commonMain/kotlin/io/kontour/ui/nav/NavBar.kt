@@ -492,7 +492,7 @@ internal fun NavBarLayout(
                 // under it. The drag is each destination's; see `BarScope.item`.
                 modifier = Modifier.selectableGroup().onPlaced { drag.row = it },
             ) {
-                scope.content()
+                scope.emit(content)
                 if (search != null) {
                     Box(Modifier.layoutId(BarChild.Search), propagateMinConstraints = true) { BarSlot(search) }
                 }
@@ -858,6 +858,7 @@ private class BarScope(
         badge: (@Composable () -> Unit)?,
         label: NavLabelScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.item(selected, onClick, key, icon, modifier, enabled, selectedIcon, contentDescription, interactionSource, badge, label) }
         val text = navLabel(label)
         ClaimNavKey(keys, key)
         val target = remember(drag) { DragTarget() }
@@ -902,6 +903,7 @@ private class BarScope(
     /** Inline: a bar has no room for a title, and its destinations are few. */
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        emitter().let { if (it !== this) return it.section(title, modifier, content) }
         content()
     }
 
@@ -918,6 +920,7 @@ private class BarScope(
         badge: (@Composable () -> Unit)?,
         content: @Composable NavScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.group(expanded, onExpandedChange, key, icon, header, modifier, enabled, interactionSource, badge, content) }
         val text = navLabel(header)
         ClaimNavKey(keys, key)
         var open by remember { mutableStateOf(false) }
@@ -953,16 +956,19 @@ private class BarScope(
             onDismissRequest = { open = false },
             side = OverlaySide.Top,
         ) {
-            NavMenuScope(this, dismiss = { open = false }).content()
+            NavMenuScope(this, dismiss = { open = false }).emit(content)
         }
     }
 
     /** Left out: a bar's destinations are one run. */
     @Composable
-    override fun divider(modifier: Modifier) = Unit
+    override fun divider(modifier: Modifier) {
+        emitter().let { if (it !== this) return it.divider(modifier) }
+    }
 
     @Composable
     override fun slot(weight: Float, content: @Composable () -> Unit) {
+        emitter().let { if (it !== this) return (it as? NavBarScope)?.slot(weight, content) ?: Unit }
         if (weight > 0f) {
             // `propagateMinConstraints`, so the content is given the width rather
             // than offered it.

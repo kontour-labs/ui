@@ -42,6 +42,14 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A destination written through a helper draws where the helper is called.**
+  A helper written in a navigation block — `fun stop(id: String) = item(…)` —
+  closes over that block's scope, and called inside a `group { }` it drew as
+  the outer scope's: over a shut group in a rail, unindented in an open one,
+  as a circle of its own in a bar, and opening the bar's menu claimed its key
+  twice and threw. Every destination call now draws through the scope composing
+  the place it is called from. `NavScope` already carried a DSL marker; that
+  refuses an implicit outer receiver, but cannot see a captured one.
 - **On iOS, swiping back works over a list that is still moving.** A list moving
   from a throw takes the press that lands on it, to stop, and the swipe back
   read that as a control taking the press and left it alone — from the very

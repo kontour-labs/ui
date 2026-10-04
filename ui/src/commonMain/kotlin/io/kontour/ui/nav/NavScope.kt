@@ -3,10 +3,12 @@ package io.kontour.ui.nav
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -62,6 +64,12 @@ import io.kontour.ui.theme.Theme
  * is what a screen reader announces wherever the surface draws only the icon.
  * It is a `String` rather than content for that reason — see
  * `ui-docs/content/dsls.md`, on announcements.
+ *
+ * **A call draws where it is written, whichever scope it is made on.** A
+ * helper written in the outer block — `fun stop(id: String) = item(…)` — closes
+ * over the outer scope, and called inside a [group] it still draws as one of
+ * the group's. The DSL marker on this scope already refuses an implicit outer
+ * receiver, but cannot see a captured one.
  */
 @Stable
 @LayoutScopeMarker
@@ -167,6 +175,33 @@ sealed interface NavBarScope : NavScope {
     @Composable
     fun slot(weight: Float = 0f, content: @Composable () -> Unit)
 }
+
+/**
+ * The scope composing destinations at this point of the composition: a
+ * surface's own at its root, a group's inside its run or its menu, a probe's
+ * while a group's destinations are hidden.
+ *
+ * Every destination call goes through it ([emitter]), so a call made on a
+ * scope captured from further out — a helper written in the outer block,
+ * called inside a group — draws as what the place it is called from draws.
+ * Reported from an app: *"items I emitted inside `group { … }` through a
+ * helper ended up added to the outer scope, outside their group"*. In a rail
+ * they drew over a shut group, unindented in an open one; in a bar as a
+ * circle of their own, and opening the group's menu claimed their key twice,
+ * which throws.
+ */
+internal val LocalNavEmitter = compositionLocalOf<NavScope?> { null }
+
+/** Runs [content] on this scope, as the one destinations here draw through. */
+@Composable
+internal fun <S : NavScope> S.emit(content: @Composable S.() -> Unit) {
+    CompositionLocalProvider(LocalNavEmitter provides this) { content() }
+}
+
+/** The scope a destination called on this one draws through: see [LocalNavEmitter]. */
+@Composable
+@ReadOnlyComposable
+internal fun NavScope.emitter(): NavScope = LocalNavEmitter.current ?: this
 
 /** Collects a destination's label: `+"Stops"`. */
 @LayoutScopeMarker
