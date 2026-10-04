@@ -53,9 +53,9 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 }
 
 // build.gradle.kts
-implementation("io.kontour:ui:0.4.0")
+implementation("io.kontour:ui:0.4.1")
 // Optional: Navigation 3 scene strategies over the pane scaffolds
-implementation("io.kontour:ui-nav3:0.4.0")
+implementation("io.kontour:ui-nav3:0.4.1")
 ```
 
 `io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can

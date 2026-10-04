@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -331,9 +330,7 @@ private fun IconCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val vector by produceState(store.cached(style, entry), entry, style) {
-        if (value == null) value = store.vector(style, entry)
-    }
+    val vector = rememberVector(store, style, entry)
     val shape = Theme.shapes.medium
     val accent = Theme.colours.accent
     Column(
@@ -412,6 +409,24 @@ private fun DetailBeside(selected: IconEntry?, store: IconStore, onClose: () -> 
     }
 }
 
+/**
+ * [entry] in [style]: at once if [store] has it, and once it has been fetched if
+ * not. Null until then.
+ *
+ * Remembered per icon rather than produced. A `produceState` keyed on the icon
+ * keeps its value across a change of key, so it went on showing the last icon's
+ * picture — the detail pane did, with the new icon's name over it — and fetched
+ * only when it held none.
+ */
+@Composable
+private fun rememberVector(store: IconStore, style: IconStyle, entry: IconEntry): ImageVector? {
+    val vector = remember(store, style, entry) { mutableStateOf(store.cached(style, entry)) }
+    LaunchedEffect(vector) {
+        if (vector.value == null) vector.value = store.vector(style, entry)
+    }
+    return vector.value
+}
+
 /** One icon, large, in each style it has, with the lines that use it. */
 @Composable
 private fun IconDetail(
@@ -431,9 +446,7 @@ private fun IconDetail(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
             for (style in styles) {
-                val vector by produceState(store.cached(style, entry), entry, style) {
-                    if (value == null) value = store.vector(style, entry)
-                }
+                val vector = rememberVector(store, style, entry)
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
                     Box(
                         Modifier.size(LargeTile).background(Theme.colours.surfaceSunken, Theme.shapes.large),

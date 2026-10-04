@@ -873,7 +873,7 @@ def haptics_policy_drift() -> list[str]:
     return problems
 
 
-MAX_CIRCLES = 29
+MAX_CIRCLES = 30
 MAX_ROUNDED_RECT_SHAPES = 0
 
 
@@ -970,6 +970,14 @@ def circles() -> list[str]:
     control and to the morph that leaves it, which draws whatever it is given —
     so the morph stays consistent whichever shape the control has, and the
     choice of pill is the design's, not a constraint of the animation.
+
+    **29 to 30, for the pill a page indicator's scrub brings up**, asked for
+    by name: "the pill that expands as you drag is a squircle (g2 continuous,
+    using our 'pill' shape)". It is a lozenge, and earns the uncapped rule on
+    the switch's argument: its ends sit round the round dots at either end of
+    the row, a pad clear of them, so capped it would square off round two
+    circles the moment a theme lowers `capsuleCap`. One site: `PageDots`
+    draws it.
 
     **28 to 29, for a floating nav bar's destination marker**, on the switch's
     argument. The floating bar is a `pill`, and the marker round a whole

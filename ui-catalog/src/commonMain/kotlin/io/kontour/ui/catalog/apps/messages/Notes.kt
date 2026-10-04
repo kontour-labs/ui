@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -73,6 +72,7 @@ import io.kontour.ui.foundation.markdownText
 import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.sheet.ModalSideSheet
 import io.kontour.ui.sheet.SheetHeader
 import io.kontour.ui.theme.Theme
@@ -110,7 +110,7 @@ internal fun NotesPage(
     val others = state.otherNotes
 
     Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+        Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
             TopBar(
                 style = TopBarStyle.Large,
                 collapseState = collapse,

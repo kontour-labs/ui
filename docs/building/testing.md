@@ -84,10 +84,10 @@ require status checks, or every merge waits for one that never starts.
 
 | Job | Runs on | For |
 |---|---|---|
-| `changes` | every run | Decides what a push has to run: not a tree that has passed already, and on `main` only what the paths it changed can break |
-| `test` | every run | The Python checks always; the JVM suites `changes` asks for |
-| `targets` | a change to a library, the catalog or a host | Every target compiled, the ABI check, the Android host tests |
-| `site` | a change to anything the site is made from | The Wasm bundle, the API reference and the text mirror — the slowest thing here |
+| `changes` | every run | Decides what a push has to run: nothing that has passed already for the same inputs |
+| `test` | a gate of it that has not passed | The Python checks and the JVM suites `changes` asks for |
+| `targets` | inputs that have not compiled | Every target compiled, the ABI check, the Android host tests |
+| `site` | a change to anything the site is made from, and every tag | The Wasm bundle (unless these inputs built one), the API reference and the text mirror — the slowest thing here |
 | `deploy` | `main` and `v*` tags | Cloudflare Pages, `docs.kontour.io/ui` |
 | `publish` | a `v*` tag, or a manual version | GitHub Packages |
 | `renders` | a manual run that asks | Contact sheets of every page |
@@ -98,63 +98,72 @@ default is six hours, and a runner that has stopped answering bills all of them.
 `deploy` needs only `site`, deliberately: a library regression should not take
 the documentation offline, and a broken page should not block a release.
 
-#### What a push runs
+#### What a push runs: nothing that has passed already
 
-`changes` compares the push with the `main` before it, through the API, and
-sorts the paths:
+`changes` gives each gate a **fingerprint**: a hash of the git trees of exactly
+the paths it reads, and of everything at the top of the repository that every
+build reads (`buildSrc/`, `gradle/`, the build scripts, the workflow).
 
-| Group | Paths | Runs |
+| Gate | Paths | Runs |
 |---|---|---|
+| checks | the whole tree | The Python checks, which between them read all of it |
 | library | `ui/`, `ui-nav3/`, `haptics/` | Their suites, convention checks, and the on-screen cursor test |
+| catalog | the library's, `ui-catalog/` | The catalog's suite and its goldens |
+| docs | the library's, `ui-catalog/`, `ui-samples/`, `ui-docs/`, `docs/`, the README | `:ui-docs`, the samples, `checkKdocSamples`, and the site |
 | targets | the library's, `ui-catalog/`, `showcase/` | `targets`, with the ABI check and the Android host tests |
-| catalog | the library's, `ui-catalog/` | The screenshot suite |
-| docs | the library's, `ui-catalog/`, `ui-samples/`, `ui-docs/`, `docs/` | `:ui-docs`, the samples, `site` and `deploy` |
 
-So a page edited in `ui-docs/content` is the Python checks, `:ui-docs:jvmTest`,
-the samples and the site — about twelve minutes — and a change to a component is
-everything. A README-only push is the Python checks, which are what hold the
-README's counts.
-
-Anything it cannot answer for certain runs everything: a tag, a manual run, a
-first push, a force-push, a failed API call, a change longer than the API lists
-(300 paths), and a change to the build (`gradle/`, `buildSrc/`, the root build
-files) or to the workflow itself. So does `changes` failing: the gated jobs read
+A gate that passes leaves a marker, a small artifact named
+`passed-<gate>-<fingerprint>` and kept 90 days, and before anything runs
+`changes` looks each one up. **A gate whose marker is there does not run.** So a
+page edited in `ui-docs/content` runs the checks and the docs, and the library
+and the catalog are not tested again, because nothing they read changed; a change
+to a component runs everything that reads it. Anything else at the top of the
+repository counts for every gate until it is placed, so a new file there is
+never what lets a gate be skipped. A failed lookup finds nothing and runs the
+gate, and a `changes` that fails runs everything: the gated jobs read
 `!cancelled() && (changes did not succeed || it asked)` rather than a bare
 condition, because a failed dependency skips its dependants by default, and a
 skipped test job is the one direction this must never fail in.
 
-It replaced `guard`, which asked whether `main`'s tree was byte-for-byte a pull
-request head that had already passed — a merge queue arrived at from the other
-direction. With no pull request runs there was nothing to have passed; with
-manual runs of a branch there is again, and the next section is that question
-asked the cheap way.
+**A manual run skips nothing**, because asking is the point of it, and its
+markers count for the pushes after it.
 
-#### A tree is checked once
+It used to be one marker for the whole tree, left only by a run that had tested
+everything, while a push to `main` tested only what its files could break. So a
+merge that touched the catalog and the docs tested those, left no marker, and the
+release tag on the same commit tested everything again: 16 minutes on `main` and
+17 more on `v0.4.0`, for one tree.
 
-A tree is the whole repository at a commit, the workflow included, and two
-commits with the same tree build the same thing. A release used to be one tree
-checked three times from scratch: the manual run on its branch, the push to
-`main` that merged it (the same tree, when the branch was up to date), and the
-tag on that commit. About 150 billed minutes, two thirds of them re-proving what
-had passed.
-
-So `test` and `targets` each leave a marker when they pass in full — a small
-artifact named `tested-<tree>` or `compiled-<tree>`, kept 30 days — and
-`changes` looks them up before a push runs either job. `site` names its upload
-`site-<tree>-<release>`, the release being the version the API reference is
-labelled with (see `.github/docs-release.sh`), because that is the one input to
-the site that is not in the tree. A push to `main` that finds one deploys it
-rather than building it again; uploads are kept two days.
-
-| Event | Skips |
+| Event | Runs |
 |---|---|
-| Merging a branch checked by hand, up to date with `main` | `test`, `targets`, and `site` within two days — the run is `changes` and `deploy` |
-| Tagging a commit `main` has checked | `test` and `targets`; `publish` waits on the markers instead |
-| A manual run | Nothing. Asking is the point of it |
+| A push to `main` | The gates whose inputs it changed |
+| Merging a branch checked by hand | The gates whose inputs differ from what the branch passed — usually none |
+| Tagging a commit `main` has checked | No tests and no compile. The site lays out the bundle `main` built round a reference relabelled with the version, and `publish` uploads. A tag pushed while `main`'s run of its commit is still going waits for that run first, rather than testing everything beside it |
+| A manual run | Everything |
 
-`test` leaves its marker only from a run that did everything, so a push that
-tested the documentation alone does not vouch for the libraries. A failed
-lookup finds nothing and runs the job.
+#### The site
+
+The site is the same idea with the build itself. Its bundle is kept for a week as
+`bundle-<docs fingerprint>`, with the API tables it was built with, and what
+`deploy` uploads is `site-<docs fingerprint>-<release>`, the release being the
+version the API reference is labelled with (see `.github/docs-release.sh`). The
+release is the one input to the site that is not in the tree, and it reaches only
+the reference. So a run that finds a bundle for its inputs runs Dokka and lays
+the site out round it, and one that finds the whole site deploys that.
+
+**Whether to deploy** is still asked of the files a push to `main` changed,
+because the site that is live is the last one deployed, which no marker can
+say: a push that changed only `showcase/`, the README or the changelog leaves it
+alone. A tag always deploys, for the version.
+
+#### Publishing compiles nothing
+
+`publish` restores `targets`' Gradle home and every compile in it comes
+`FROM-CACHE`. What took v0.4.0's twelve minutes was the upload: twenty-two
+publications one after another, each almost exactly thirty seconds whatever its
+size. They now go up `--parallel`, three libraries at a time, without the
+SHA-256 and SHA-512 files Gradle adds beside every upload; GitHub Packages serves
+the SHA-1 and MD5 a Maven client checks. Neither change has met a release yet.
 
 #### Memory
 

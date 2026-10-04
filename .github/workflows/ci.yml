@@ -9,8 +9,8 @@
 #
 # Jobs, separate because they fail for different reasons and at different speeds:
 #
-#   changes  decides what a push has to run: not a tree that has passed
-#            already, and on main only what the files it changed can break
+#   changes  decides what a push has to run: nothing a run has already
+#            passed with the same inputs
 #   test     the one that catches a regression; the catalog's slow classes
 #            only on a manual run with **full** ticked
 #   targets  the one that catches a component compiling on the JVM and nowhere
@@ -108,62 +108,76 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && !inputs.version }}
 
 jobs:
-  # What this push has to run, from the files it changed.
+  # What this push has to run.
   #
-  # Replaces `guard`, which asked whether main's tree was byte-for-byte a pull
-  # request head that had already passed. With no pull request runs there is
-  # nothing to have passed, and the question becomes a smaller one: what could
-  # this change have broken?
+  # ### Nothing twice
   #
-  #   library  `ui/`, `ui-nav3/`, `haptics/`: their suites, and every target
-  #   targets  those, `ui-catalog/` and `showcase/`: the compile of every target
-  #   catalog  those that draw it, `ui-catalog/` included: the screenshot suite
-  #   docs     anything the site or its pages are made from: `:ui-docs`, the
-  #            samples, the site and its deploy
+  # Each gate has a **fingerprint**: a hash of the git trees of exactly the
+  # directories it reads, and of everything at the top of the repository that
+  # every build reads — `buildSrc/`, `gradle/`, the build scripts, this file.
   #
-  # The Python checks run on every push whatever this says: they are seconds,
-  # and one of them holds the README's counts. Anything this cannot answer for
-  # certain runs everything — a tag, a manual run, a first push, a force-push, a
-  # failed API call, a change past what the API lists, and a change to the
-  # build or to this file, which change what every job means.
+  #   checks   the Python checks: the whole tree, since between them they read
+  #            all of it
+  #   library  `ui/`, `ui-nav3/`, `haptics/`: their own suites
+  #   catalog  those and `ui-catalog/`: the catalog's suite and its goldens
+  #   docs     those and `ui-samples/`, `ui-docs/`, `docs/`, the README: the
+  #            documentation's tests and the site
+  #   targets  the libraries, `ui-catalog/` and `showcase/`: every target's
+  #            compile and the public API
   #
-  # ### Never the same tree twice
+  # A gate that passes leaves a marker named after its fingerprint,
+  # `passed-<gate>-<fingerprint>`, and a push looks for each before it starts.
+  # One that is there has passed for these very inputs, and is not run again.
   #
-  # A tree is the whole of the repository at a commit — this file included —
-  # and two commits with the same tree build the same thing. A branch checked
-  # by hand, merged while it was up to date with `main`, and then tagged is one
-  # tree three times, and each of those runs used to test it from scratch:
-  # about 150 billed minutes for one release, two thirds of it re-proving what
-  # had already passed.
+  # It used to be one marker for the whole tree, left only by a run that had
+  # done everything, and a push to `main` tested only what its files could
+  # break. So a merge that touched the catalog and the docs tested those, left
+  # no marker — it had not tested the libraries — and the release tag on the
+  # same commit found nothing and tested everything again: 16 minutes on
+  # `main` and 17 more on `v0.4.0`, for one tree. Now the merge leaves markers
+  # for what it tested, the libraries' marker from the push that last changed
+  # them still stands, and the tag finds all of them and tests nothing.
   #
-  # So each gate leaves a marker when it passes in full — an artifact named
-  # after the tree, `tested-<tree>` from `test` and `compiled-<tree>` from
-  # `targets` — and a push looks for them before it starts. The site is the
-  # same idea with the artifact itself: `site-<tree>-<release>` is what
-  # `deploy` uploads, and the release it is labelled with (`kontourDocsVersion`
-  # in buildSrc) is in its name, because that is the one input to the site
-  # that is not in the tree.
+  # The site is the same idea with the build itself: its bundle is uploaded as
+  # `bundle-<docs fingerprint>`, and `site-<docs fingerprint>-<release>` is
+  # what `deploy` uploads. The release (`kontourDocsVersion` in buildSrc) is
+  # the one input to the site that is not in the tree, and it reaches only
+  # the API reference — so a tag rebuilds the reference and lays the site out
+  # again round the bundle `main` built, and compiles none of it.
   #
-  # A manual run never skips anything, because asking is the point of it. A
-  # failed lookup finds nothing and runs the job, which is the direction this
-  # must fail in.
+  # **Whether to deploy** is still asked of the files a push to `main`
+  # changed: the site that is live is the last one deployed, which no marker
+  # can say. A tag deploys, for the version.
+  #
+  # A manual run skips nothing, because asking is the point of it; its
+  # markers still count for the pushes after it. A failed lookup finds
+  # nothing and runs the gate, which is the direction this must fail in.
   changes:
     name: Decide what to run
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Minutes, except on a tag that has to wait for `main`: see below.
+    timeout-minutes: 45
     permissions:
       contents: read
       # To look the markers up.
       actions: read
     outputs:
-      library: ${{ steps.decide.outputs.library }}
-      targets: ${{ steps.decide.outputs.targets }}
-      catalog: ${{ steps.decide.outputs.catalog }}
-      docs: ${{ steps.decide.outputs.docs }}
-      tested: ${{ steps.passed.outputs.tested }}
-      compiled: ${{ steps.passed.outputs.compiled }}
+      checks: ${{ steps.passed.outputs.checks }}
+      library: ${{ steps.passed.outputs.library }}
+      catalog: ${{ steps.passed.outputs.catalog }}
+      docs: ${{ steps.passed.outputs.docs }}
+      targets: ${{ steps.passed.outputs.targets }}
+      test: ${{ steps.passed.outputs.test }}
+      checks-fp: ${{ steps.passed.outputs.checks-fp }}
+      library-fp: ${{ steps.passed.outputs.library-fp }}
+      catalog-fp: ${{ steps.passed.outputs.catalog-fp }}
+      docs-fp: ${{ steps.passed.outputs.docs-fp }}
+      targets-fp: ${{ steps.passed.outputs.targets-fp }}
+      bundle-name: ${{ steps.passed.outputs.bundle-name }}
+      bundle-run: ${{ steps.passed.outputs.bundle-run }}
       site-name: ${{ steps.passed.outputs.site-name }}
       site-run: ${{ steps.passed.outputs.site-run }}
+      deploy: ${{ steps.deploy.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
 
@@ -171,39 +185,99 @@ jobs:
       - name: Fetch the release tags
         run: git fetch --no-tags --depth=1 origin '+refs/tags/v*:refs/tags/v*'
 
-      - id: passed
-        name: Look for this tree having passed already
-        if: github.event_name == 'push'
+      # A tag put on `main`'s commit while `main`'s run of it is still going
+      # would find none of that run's markers yet, and test everything again
+      # beside it. So it waits for that run to finish first: one runner
+      # idling, against every job running twice. Forty minutes at most, and a
+      # lookup that fails stops waiting.
+      - name: Wait for main's run of this commit
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN: ${{ github.run_id }}
         run: |
           set -uo pipefail
-          tree=$(git rev-parse 'HEAD^{tree}')
-          release=$(.github/docs-release.sh)
+          for attempt in $(seq 1 80); do
+            busy=$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&event=push&per_page=20" --jq \
+              "[.workflow_runs[] | select(.id != $RUN and .head_branch == \"main\"
+                and .path == \".github/workflows/ci.yml\" and .status != \"completed\")] | length" 2>/dev/null) || break
+            [ "${busy:-0}" -gt 0 ] || break
+            [ "$attempt" = 1 ] && echo "main's run of ${SHA:0:7} is still going: waiting for its markers."
+            sleep 30
+          done
+
+      - id: passed
+        name: Look for what has passed already
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -uo pipefail
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          out() { echo "$1" >> "$GITHUB_OUTPUT"; }
+
+          # Everything at the top that is not one gate's own: the build, and
+          # anything added there later, which counts for every gate until it
+          # is placed. The README, the changelog and the IDE's run
+          # configurations are read by nothing Gradle runs.
+          own='ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|showcase|docs|README\.md|CHANGELOG\.md|\.run|\.gitignore'
+          shared=$(git ls-tree --name-only HEAD | grep -vxE "$own")
+          fingerprint() {
+            for path in $shared "$@"; do
+              echo "$path $(git rev-parse --verify --quiet "HEAD:$path" || echo absent)"
+            done | sha256sum | cut -c1-20
+          }
+          declare -A fp=(
+            [checks]=$(git rev-parse 'HEAD^{tree}')
+            [library]=$(fingerprint ui ui-nav3 haptics)
+            [catalog]=$(fingerprint ui ui-nav3 haptics ui-catalog)
+            [docs]=$(fingerprint ui ui-nav3 haptics ui-catalog ui-samples ui-docs docs README.md)
+            [targets]=$(fingerprint ui ui-nav3 haptics ui-catalog showcase docs/check-xcode-host.py)
+          )
 
           # The run that left the newest live artifact of this name, or nothing.
           left() {
+            [ "$EVENT" = workflow_dispatch ] && return 0
             gh api "repos/$REPO/actions/artifacts?name=$1&per_page=5" \
               --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty' 2>/dev/null
           }
-          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
 
-          if run=$(left "tested-$tree") && [ -n "$run" ]; then
-            echo "tested=true" >> "$GITHUB_OUTPUT"
-            say "Tree ${tree:0:7} passed \`test\` in run $run: not testing it again."
+          test=false
+          for gate in checks library catalog docs targets; do
+            out "$gate-fp=${fp[$gate]}"
+            if run=$(left "passed-$gate-${fp[$gate]}") && [ -n "$run" ]; then
+              out "$gate=false"
+              say "\`$gate\` passed for these inputs in run $run: not running it again."
+            else
+              out "$gate=true"
+              say "\`$gate\` has not passed for these inputs: running it."
+              [ "$gate" = targets ] || test=true
+            fi
+          done
+          out "test=$test"
+
+          release=$(.github/docs-release.sh)
+          bundle="bundle-${fp[docs]}"
+          out "bundle-name=$bundle"
+          if run=$(left "$bundle") && [ -n "$run" ]; then
+            out "bundle-run=$run"
+            say "Run $run built the site's bundle for these inputs: laying the site out round it."
           fi
-          if run=$(left "compiled-$tree") && [ -n "$run" ]; then
-            echo "compiled=true" >> "$GITHUB_OUTPUT"
-            say "Tree ${tree:0:7} passed \`targets\` in run $run: not compiling it again."
-          fi
-          site="site-$tree-$release"
+          site="site-${fp[docs]}-$release"
           if run=$(left "$site") && [ -n "$run" ]; then
-            { echo "site-name=$site"; echo "site-run=$run"; } >> "$GITHUB_OUTPUT"
-            say "Run $run built the site for tree ${tree:0:7} as $release: deploying that."
+            out "site-name=$site"
+            out "site-run=$run"
+            say "Run $run built the site for these inputs as $release: deploying that."
           fi
 
-      - id: decide
+      # Whether the site that is live is out of date. Only a push to `main`
+      # can answer no, from the files it changed; anything it cannot answer
+      # for certain answers yes.
+      - id: deploy
+        name: Decide whether to deploy
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -213,43 +287,24 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -uo pipefail
-
           say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
-          everything() {
-            for kind in library targets catalog docs; do echo "$kind=true" >> "$GITHUB_OUTPUT"; done
-            say "$1 Running everything."
-            exit 0
-          }
+          yes() { echo "deploy=true" >> "$GITHUB_OUTPUT"; say "$1 The site is deployed if it builds."; exit 0; }
 
-          [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ] || everything "A $EVENT on $REF."
+          [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ] || yes "A $EVENT on $REF."
           [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] ||
-            everything "No previous main to compare with."
-
+            yes "No previous main to compare with."
           compare=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" 2>/dev/null) ||
-            everything "Could not compare ${BEFORE:0:7} with ${SHA:0:7}."
+            yes "Could not compare ${BEFORE:0:7} with ${SHA:0:7}."
           [ "$(jq -r .status <<<"$compare")" = ahead ] ||
-            everything "main did not move forwards from ${BEFORE:0:7}."
+            yes "main did not move forwards from ${BEFORE:0:7}."
           [ "$(jq '.files | length' <<<"$compare")" -lt 300 ] ||
-            everything "More files changed than the API lists."
+            yes "More files changed than the API lists."
 
           # A rename counts at both ends.
           changed=$(jq -r '.files[] | .filename, (.previous_filename // empty)' <<<"$compare")
-
-          grep -qE '^(\.github/|gradle/|buildSrc/|gradlew|[^/]*\.gradle\.kts$|gradle\.properties$)' <<<"$changed" &&
-            everything "The build or this workflow changed."
-
-          touched() { grep -qE "$1" <<<"$changed" && echo true || echo false; }
-          library=$(touched '^(ui|ui-nav3|haptics)/')
-          targets=$(touched '^(ui|ui-nav3|haptics|ui-catalog|showcase)/')
-          catalog=$(touched '^(ui|ui-nav3|haptics|ui-catalog)/')
-          docs=$(touched '^(ui|ui-nav3|haptics|ui-catalog|ui-samples|ui-docs|docs)/')
-          {
-            echo "library=$library"
-            echo "targets=$targets"
-            echo "catalog=$catalog"
-            echo "docs=$docs"
-          } >> "$GITHUB_OUTPUT"
-          say "$(wc -l <<<"$changed") paths since ${BEFORE:0:7}: library $library, targets $targets, catalog $catalog, docs $docs."
+          grep -qvE '^(showcase/|README\.md$|CHANGELOG\.md$|\.run/|\.gitignore$)' <<<"$changed" ||
+            { echo "deploy=false" >> "$GITHUB_OUTPUT"; say "Nothing the site is made from changed since ${BEFORE:0:7}: not deploying."; exit 0; }
+          yes "The site's inputs changed since ${BEFORE:0:7}."
 
   # Every gated job reads `changes` the same way: run when it says so, *or*
   # when it did not succeed. A failed dependency skips its dependants by
@@ -263,11 +318,12 @@ jobs:
   test:
     name: Test
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.tested != 'true' }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.test == 'true') }}
     runs-on: ubuntu-latest
     # The slow classes are most of an hour on their own.
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.full && 90 || 40 }}
     env:
+      CHECKS: ${{ needs.changes.result != 'success' || needs.changes.outputs.checks == 'true' }}
       LIBRARY: ${{ needs.changes.result != 'success' || needs.changes.outputs.library == 'true' }}
       CATALOG: ${{ needs.changes.result != 'success' || needs.changes.outputs.catalog == 'true' }}
       DOCS: ${{ needs.changes.result != 'success' || needs.changes.outputs.docs == 'true' }}
@@ -276,28 +332,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # First, because they are seconds and they run on every push. A
-      # README-only change runs nothing else, and one of these is what holds
-      # the README's counts.
+      # First, because they are seconds. They run for every tree that has not
+      # passed them, and one of them is what holds the README's counts.
       - name: Check the docs' links resolve
+        if: env.CHECKS == 'true'
         run: python3 docs/check-links.py
 
       # Ten rules over the documentation: a page per public component, an index
       # entry, an interactive demo, a compiled example, accessibility notes, and
       # a README whose component count is the tree's.
       - name: Check every component has a page
+        if: env.CHECKS == 'true'
         run: python3 docs/check-components.py
 
       # The source patterns that break high contrast, reduced motion and
       # localisation one call site at a time, each with a named allow-list.
       - name: Check components honour the reader's settings
+        if: env.CHECKS == 'true'
         run: python3 docs/check-settings.py
       - name: Check every string has its English for translators
+        if: env.CHECKS == 'true'
         run: python3 docs/export-strings.py --check
 
       # The Markdown mirror agents read, without building the site: every page
       # mirrored, `llms.txt` listing each exactly once.
       - name: Check the text mirror
+        if: env.CHECKS == 'true'
         run: python3 docs/lay-out-site.py --text-only --out build/text-mirror
 
       - uses: actions/setup-java@v4
@@ -363,7 +423,7 @@ jobs:
       #
       # Assembled from what `changes` found, in three groups: the libraries'
       # own suites, the catalog's screenshots, and what the documentation is
-      # checked by.
+      # checked by. Each runs only when its inputs have not passed already.
       - name: Test
         if: env.LIBRARY == 'true' || env.CATALOG == 'true' || env.DOCS == 'true'
         run: |
@@ -372,7 +432,7 @@ jobs:
           if [ "$LIBRARY" = true ]; then
             compile+=(:ui:jvmTestClasses :ui-nav3:jvmTestClasses :haptics:jvmTestClasses)
             tasks+=(
-              :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions :ui:checkKdocSamples
+              :ui:jvmTest :ui:checkNoMaterial :ui:checkApiConventions
               :ui-nav3:jvmTest :ui-nav3:checkNoMaterial :haptics:jvmTest :haptics:checkNoCompose
             )
           fi
@@ -386,7 +446,9 @@ jobs:
           fi
           if [ "$DOCS" = true ]; then
             compile+=(:ui-docs:jvmTestClasses :ui-samples:compileKotlinJvm)
-            tasks+=(:ui-docs:jvmTest :ui-samples:checkDocSamples)
+            # `checkKdocSamples` holds the KDoc's samples to the pages, so it
+            # is the docs' check: it reads them, and the README.
+            tasks+=(:ui-docs:jvmTest :ui-samples:checkDocSamples :ui:checkKdocSamples)
           fi
           echo "${compile[*]}"
           ./gradlew --no-daemon "${compile[@]}"
@@ -402,23 +464,44 @@ jobs:
         if: env.LIBRARY == 'true'
         run: xvfb-run -a ./gradlew --no-daemon :ui:jvmOnScreenTest
 
-      # The marker `changes` looks for: this tree passed everything this job
-      # does. Only from a run that did all of it, so a push that tested the
-      # docs alone does not vouch for the libraries.
-      - id: tree
-        name: Mark this tree as tested
-        if: env.LIBRARY == 'true' && env.CATALOG == 'true' && env.DOCS == 'true'
-        run: |
-          tree=$(git rev-parse 'HEAD^{tree}')
-          echo "tree=$tree" >> "$GITHUB_OUTPUT"
-          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > tested.txt
+      # The markers `changes` looks for, one for each gate this job ran: these
+      # inputs passed it. Only once everything above has passed, and only
+      # with fingerprints to name them by — a `changes` that failed ran
+      # everything and vouches for nothing. Ninety days, the most a private
+      # repository keeps an artifact: a gate whose inputs stay the same
+      # longer than that is run once more.
+      - id: passed
+        name: Mark what passed
+        if: needs.changes.result == 'success'
+        run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
       - uses: actions/upload-artifact@v4
-        if: steps.tree.outcome == 'success'
+        if: steps.passed.outcome == 'success' && env.CHECKS == 'true'
         with:
-          name: tested-${{ steps.tree.outputs.tree }}
-          path: tested.txt
-          retention-days: 30
+          name: passed-checks-${{ needs.changes.outputs.checks-fp }}
+          path: passed.txt
+          retention-days: 90
           # A re-run of this job writes it again.
+          overwrite: true
+      - uses: actions/upload-artifact@v4
+        if: steps.passed.outcome == 'success' && env.LIBRARY == 'true'
+        with:
+          name: passed-library-${{ needs.changes.outputs.library-fp }}
+          path: passed.txt
+          retention-days: 90
+          overwrite: true
+      - uses: actions/upload-artifact@v4
+        if: steps.passed.outcome == 'success' && env.CATALOG == 'true'
+        with:
+          name: passed-catalog-${{ needs.changes.outputs.catalog-fp }}
+          path: passed.txt
+          retention-days: 90
+          overwrite: true
+      - uses: actions/upload-artifact@v4
+        if: steps.passed.outcome == 'success' && env.DOCS == 'true'
+        with:
+          name: passed-docs-${{ needs.changes.outputs.docs-fp }}
+          path: passed.txt
+          retention-days: 90
           overwrite: true
 
       # Without this a golden failure is a percentage in a log. With it you can
@@ -446,7 +529,7 @@ jobs:
   targets:
     name: Compile every target
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.targets == 'true' && needs.changes.outputs.compiled != 'true')) }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.targets == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -525,17 +608,17 @@ jobs:
             :haptics:checkKotlinAbi \
             :ui:testAndroidHostTest --tests "io.kontour.ui.input.*"
 
-      # `test`'s marker, for this job: see `changes`.
-      - id: tree
-        name: Mark this tree as compiled
-        run: |
-          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
-          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > compiled.txt
+      # `test`'s markers, for this job: see `changes`.
+      - id: passed
+        name: Mark what passed
+        if: needs.changes.result == 'success'
+        run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
       - uses: actions/upload-artifact@v4
+        if: steps.passed.outcome == 'success'
         with:
-          name: compiled-${{ steps.tree.outputs.tree }}
-          path: compiled.txt
-          retention-days: 30
+          name: passed-targets-${{ needs.changes.outputs.targets-fp }}
+          path: passed.txt
+          retention-days: 90
           # A re-run of this job writes it again.
           overwrite: true
 
@@ -602,9 +685,15 @@ jobs:
   site:
     name: Build the site
     needs: changes
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.docs == 'true' && needs.changes.outputs.site-run == '')) }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.deploy == 'true' && needs.changes.outputs.site-run == '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # The icons, as at the top.
+      packages: read
+      # To fetch another run's bundle.
+      actions: read
     outputs:
       name: ${{ steps.name.outputs.name }}
     steps:
@@ -624,11 +713,24 @@ jobs:
       - name: Fetch the release tags
         run: git fetch --no-tags --depth=1 origin '+refs/tags/v*:refs/tags/v*'
 
-      # What this build is, for `deploy` and for a later push of the same tree
-      # to find: see `changes`.
+      # What this build is, for `deploy` and for a later push of the same
+      # inputs to find: see `changes`.
       - id: name
         name: Name the upload
-        run: echo "name=site-$(git rev-parse 'HEAD^{tree}')-$(.github/docs-release.sh)" >> "$GITHUB_OUTPUT"
+        run: echo "name=site-${{ needs.changes.outputs.docs-fp }}-$(.github/docs-release.sh)" >> "$GITHUB_OUTPUT"
+
+      # The bundle an earlier run built from these same inputs, when there is
+      # one: a release tag on `main`'s commit, which wants the reference
+      # relabelled and nothing compiled. With the API tables it was built
+      # with, which the reference's links are checked against below.
+      - name: Fetch the bundle these inputs built
+        if: needs.changes.outputs.bundle-run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.changes.outputs.bundle-name }}
+          run-id: ${{ needs.changes.outputs.bundle-run }}
+          github-token: ${{ github.token }}
+          path: ui-docs/build
 
       - uses: actions/setup-java@v4
         with:
@@ -675,6 +777,7 @@ jobs:
       # `docs/generate-doc-pages.py`, which the Gradle task calls — so a
       # malformed page fails here rather than in a reader's browser.
       - name: Build the site
+        if: needs.changes.outputs.bundle-run == ''
         run: ./gradlew --no-daemon :ui-docs:wasmJsBrowserDistribution
 
       # What a reader downloads, against ceilings that only go down. Cheap — it
@@ -686,7 +789,24 @@ jobs:
       # a browser, and a timing taken on a shared runner would be a number to
       # ignore. This one is bytes, and bytes are the same everywhere.
       - name: Check the bundle size
+        if: needs.changes.outputs.bundle-run == ''
         run: python3 docs/check-bundle-size.py
+
+      # For a later run of the same inputs: see `changes`. A week, which is
+      # longer than a release has ever waited for its tag, and about as much
+      # as the site itself.
+      - name: Keep the bundle
+        if: needs.changes.outputs.bundle-run == '' && needs.changes.outputs.bundle-name != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.changes.outputs.bundle-name }}
+          path: |
+            ui-docs/build/dist/wasmJs/productionExecutable
+            ui-docs/build/generated/apiTables/ApiTables.kt
+          if-no-files-found: error
+          retention-days: 7
+          # A re-run of this job writes it again.
+          overwrite: true
 
       # A gate, not a report: `failOnWarning` is on, so a malformed `@param` or a
       # `[Link]` to a symbol that no longer exists fails the build. That is a
@@ -755,7 +875,7 @@ jobs:
       ${{ !cancelled()
         && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         && (needs.site.result == 'success'
-          || (needs.site.result == 'skipped' && needs.changes.outputs.docs == 'true'
+          || (needs.site.result == 'skipped' && needs.changes.outputs.deploy == 'true'
             && needs.changes.outputs.site-run != '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -782,17 +902,20 @@ jobs:
 
   publish:
     name: Publish
-    # Only a release, and only once `test` and `targets` have passed this tree
-    # in full: in this run, because `changes` runs everything for a tag or a
-    # manual run, or in an earlier run of the same tree that left their
-    # markers — the push to `main` the tag was put on, or the branch's manual
-    # run before it merged.
+    # Only a release, and only once every gate of `test` and `targets` has
+    # passed these inputs: in this run, or in an earlier one that left the
+    # markers `changes` found — the pushes to `main` the tag was put on top
+    # of, or the branch's manual run before it merged. A job `changes` skipped
+    # is one with nothing left to prove; one skipped because `changes` failed
+    # is not, and neither is one that failed.
     needs: [changes, test, targets]
     if: >-
       ${{ !cancelled()
         && (startsWith(github.ref, 'refs/tags/v') || inputs.version != '')
-        && (needs.test.result == 'success' || needs.changes.outputs.tested == 'true')
-        && (needs.targets.result == 'success' || needs.changes.outputs.compiled == 'true') }}
+        && (needs.test.result == 'success'
+          || (needs.changes.result == 'success' && needs.changes.outputs.test == 'false'))
+        && (needs.targets.result == 'success'
+          || (needs.changes.result == 'success' && needs.changes.outputs.targets == 'false')) }}
     # Ubuntu, not macOS. This job used to run on `macos-14` on the belief that
     # Apple targets cannot be cross-compiled — but Kotlin 2.x cross-compiles
     # Apple *klibs*, which is exactly what a library consumer resolves. Verified
@@ -844,11 +967,24 @@ jobs:
       # tag: the build reads `GITHUB_REF_TYPE`/`GITHUB_REF_NAME` itself. A manual
       # run supplies one explicitly, which is the only other way to get a
       # publishable version out of that logic.
+      #
+      # **It compiles nothing.** Every compile in it comes `FROM-CACHE`, from
+      # `targets`' Gradle home. What took v0.4.0's twelve minutes was the
+      # upload: twenty-two publications, one after another, each taking
+      # almost exactly thirty seconds whatever its size — the shape of a
+      # timeout rather than of a transfer. Two changes, neither proven
+      # against a release yet. The three libraries upload side by side,
+      # `--parallel`, so whatever the wait is, three of them overlap. And the
+      # SHA-256 and SHA-512 files Gradle adds beside every upload are left
+      # off: GitHub Packages serves the SHA-1 and MD5 a Maven client checks,
+      # and the extra two, whose failure Gradle tolerates, are the likeliest
+      # thing being waited for.
       - name: Publish to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew --no-daemon \
+          ./gradlew --no-daemon --parallel \
+            -Dorg.gradle.internal.publish.checksums.insecure=true \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
             publishAllPublicationsToGitHubPackagesRepository

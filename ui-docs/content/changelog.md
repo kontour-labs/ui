@@ -28,6 +28,47 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.4.1 — 4 October 2026
+
+A `Hero` bar a mouse wheel could not open again, a segmented control's thumb
+that jiggled on a click, and a page indicator you can drag along. Nothing
+breaks: an app on 0.4.0 moves to 0.4.1 by changing the version. To get the
+wheel fix, put `Modifier.topBarCollapse(state)` where
+`Modifier.nestedScroll(state.nestedScrollConnection)` was.
+
+### Added
+
+- **`Modifier.topBarCollapse(state)`** wires a
+  [collapsing top bar](components/top-bar.md#large-and-how-it-collapses) to the
+  content's scroll. It takes the place of
+  `Modifier.nestedScroll(state.nestedScrollConnection)`, and answers a mouse
+  wheel as well, below. The connection is still there for wiring the scroll
+  yourself.
+- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)
+  can be dragged along.** With `onPageClick`, a press that moves along the dots
+  goes to each page it passes, with a `Snap` for each. A pill in the theme's
+  `pill` shape grows out of the dots while it is held, and back into them on
+  release: `surfaceSunken` in the light, `outline` in the dark. Across or down,
+  as the strip runs. A drag used to be a tap wherever it ended.
+
+### Fixed
+
+- **A `Hero` bar scrolled away with a mouse wheel opens all the way when it is
+  scrolled back.** It stopped part-way: a list at its top declines a wheel's
+  notch before it becomes a scroll, so the bar opened by what was left of the
+  notch that brought the list home, and no further. A `Large` bar's collapse is
+  short enough for that remainder to cover, and a `Hero` bar's is not. With
+  `topBarCollapse` on the content, a notch the list declines finishes the bar the
+  way the wheel turned, open or collapsed. Put it where
+  `Modifier.nestedScroll(state.nestedScrollConnection)` was to get this.
+- **A clicked segment's thumb goes straight across.** A press leans the thumb
+  toward the segment, and on release the lean sprang back while the slide began
+  from rest, so the thumb stepped back before it went: a jiggle on every mouse
+  click, and on a held tap. The slide now starts from where the lean left it.
+  The same goes for a `NavBar`, `NavRail` or `TabBar` marker.
+
+---
+
 ## 0.4.0 — 3 October 2026
 
 Pages that cover the nav bar on one back stack, a back button that knows its

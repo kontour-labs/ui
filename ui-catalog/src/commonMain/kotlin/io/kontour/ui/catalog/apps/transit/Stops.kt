@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import io.kontour.icons.tabler.Tabler
@@ -59,6 +58,7 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.theme.Theme
 import androidx.compose.ui.unit.dp
 
@@ -83,7 +83,7 @@ internal fun StopsPage(onStop: (String) -> Unit) {
     val suite = navigationSuitePadding()
     val direction = LocalLayoutDirection.current
 
-    Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
         TopBar(style = TopBarStyle.Large, navigation = rootNavigation(), collapseState = collapse) {
             +"Stops"
             supporting { +"${stops.size} on five lines" }
@@ -164,7 +164,7 @@ internal fun StopPage(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> 
     val collapse = rememberTopBarCollapseState()
     val seed = remember(stop) { stop.name.sumOf { it.code } }
 
-    Column(Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection)) {
+    Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
         TopBar(
             style = TopBarStyle.Hero,
             onBack = pageBack(),

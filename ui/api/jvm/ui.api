@@ -3128,6 +3128,7 @@ public final class io/kontour/ui/nav/TopBarKt {
 	public static final fun collapseProgress (FF)F
 	public static final fun collapseProgress-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)F
 	public static final fun rememberTopBarCollapseState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/nav/TopBarCollapseState;
+	public static final fun topBarCollapse (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarCollapseState;)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/nav/TopBarStyle : java/lang/Enum {

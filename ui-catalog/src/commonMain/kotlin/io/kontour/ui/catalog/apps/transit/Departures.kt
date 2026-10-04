@@ -16,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bell
@@ -47,6 +46,7 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
@@ -145,7 +145,7 @@ internal fun DeparturesPage(
             ) {
                 LazyColumn(
                     state = list,
-                    modifier = Modifier.fillMaxSize().nestedScroll(collapse.nestedScrollConnection).testTag("departures"),
+                    modifier = Modifier.fillMaxSize().topBarCollapse(collapse).testTag("departures"),
                     contentPadding = transitPagePadding(),
                     // No arrangement: the departures are a `listSection`,
                     // which puts a list item's gap between its rows and its own
