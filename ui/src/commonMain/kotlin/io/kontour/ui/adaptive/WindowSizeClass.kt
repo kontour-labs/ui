@@ -4,10 +4,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 
 /**
  * How much horizontal room there is, in buckets.
@@ -146,12 +152,53 @@ class WindowSizeClass(
 /**
  * The current window size class.
  *
- * Defaults to a compact phone rather than throwing, unlike `LocalOverlayHost`.
- * A component that guesses compact on a desktop looks cramped; one that throws
+ * **Under `KontourTheme` it is the window's** unless something said otherwise:
+ * the theme reads the size of the window the app is in, so a 1440dp desktop
+ * window is [WindowWidthClass.Large] with no [WindowSizeClassProvider] at all.
+ * It used to default to a phone, and the root setup has no provider in it —
+ * *"Leave it out and you get the bottom bar on a 1440px window."*
+ *
+ * A [WindowSizeClassProvider] measures a region instead, and wins inside it: a
+ * pane, a frame, the room a permanent drawer leaves. So does a class provided
+ * outright.
+ *
+ * Outside any theme, or where the platform has not said how big the window is,
+ * it is a compact phone rather than an error, unlike `LocalOverlayHost`. A
+ * component that guesses compact on a desktop looks cramped; one that throws
  * takes the app down. This is a layout hint, not a contract.
  */
-val LocalWindowSizeClass = staticCompositionLocalOf {
-    WindowSizeClass.of(400.dp, 800.dp)
+val LocalWindowSizeClass = staticCompositionLocalOf { PhoneDefault }
+
+/**
+ * The class nothing has said: a 400×800 phone. Told apart by identity, so the
+ * theme knows to put the window's own in its place and a phone provided
+ * outright — the same value, another instance — is left alone.
+ */
+internal val PhoneDefault = WindowSizeClass.of(400.dp, 800.dp)
+
+/**
+ * The window's class, read from the platform: what [LocalWindowSizeClass] is
+ * under a theme where nothing measured a region. Null where the platform has not
+ * said how big the window is.
+ *
+ * Through a derived state, so a window that changes size without changing
+ * class — a phone browser's URL bar sliding away — recomposes nothing; see
+ * [WindowSizeClass] on `equals`.
+ */
+@Composable
+internal fun rememberWindowSizeClassFromWindow(): WindowSizeClass? {
+    val window = LocalWindowInfo.current
+    val measured by remember(window) {
+        derivedStateOf(structuralEqualityPolicy()) {
+            val size = window.containerDpSize
+            if (size.isSpecified && size.width > 0.dp && size.height > 0.dp) {
+                WindowSizeClass.of(size.width, size.height)
+            } else {
+                null
+            }
+        }
+    }
+    return measured
 }
 
 /** The current window size class. Shorthand for [LocalWindowSizeClass]. */
@@ -160,6 +207,11 @@ val windowSizeClass: WindowSizeClass
 
 /**
  * Measures its own bounds and provides them as [LocalWindowSizeClass].
+ *
+ * Not needed for the window: under `KontourTheme` the class is already the
+ * window's. This is for a **region** — the content beside a permanent drawer, a
+ * pane, a frame in a gallery — that should lay out against the room it has
+ * rather than the room the window has.
  *
  * ```kotlin
  * KontourTheme {

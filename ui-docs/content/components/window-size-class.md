@@ -28,6 +28,13 @@ call site works and is what most code does — but `hasRoomBeside` and
 a threshold written as a comparison is a threshold that drifts when somebody
 moves it.
 
+**Under `KontourTheme` it is the window's, with nothing to install.** The theme
+reads the size of the window the app is in wherever nothing has measured a
+region, so a 1440dp desktop window is `Large` from the root setup alone —
+`KontourTheme { OverlayHost { … } }` — and a navigation suite there is a rail,
+not a bottom bar. It used to default to a phone without a provider, which put
+the bottom bar on a desktop. A class provided outright, even a phone's, is kept.
+
 **It is the size of the container, not the device.** `WindowSizeClassProvider`
 measures with `BoxWithConstraints`, so nesting one inside a 360dp box reports
 `Compact` on a desktop — which is how the catalog's adaptive demos sit in a frame

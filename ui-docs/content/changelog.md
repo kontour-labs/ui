@@ -28,6 +28,12 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
+  is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
+  that leave the provider out — the root setup has none — now get a rail and two
+  panes on a tablet or a desktop window rather than the bottom bar. A provider
+  still measures a region, and wins inside it; a class provided outright is
+  kept.
 - **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
   sits just clear of iOS's home indicator and Android's gesture handle**, about
   22dp up from the window's foot, rather than above the whole strip the system
