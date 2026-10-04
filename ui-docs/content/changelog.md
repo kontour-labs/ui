@@ -77,6 +77,15 @@ On `main`, and in the next release.
   from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
   leaves the page as it is. The fade is the colour the bar sits on,
   `LocalContainerColour`.
+- **[`ListGroup`](components/list-item.md) and [`KeyValueList`](components/key-value-list.md)
+  take composable builders**, so `Theme.formats`, `Theme.strings` and a string
+  resource are read where a row is written —
+  `item("Departs", supporting = Theme.formats.time(departure))` — rather than
+  hoisted above it. Both are `inline`, as `Column` is, so the builder runs in
+  the caller's composition and a state it reads recomposes the group. A lambda
+  literal compiles as before; a builder held in a variable of the old,
+  non-composable type no longer does. `listGroup` in a `LazyColumn` is
+  unchanged.
 - **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
   under a long message**, which scrolls, rather than scrolling away below it.
   A dialog's content fades at the edge it scrolls under while there is more

@@ -124,9 +124,17 @@ where, and the component composes the regions in the order the layout wants.
 **twice** — small and fading in, large and sliding out — at two type scales. A
 slot that emitted where it was written could only ever be in one of them.
 
-A collecting builder is not composable, so you cannot call a composable or read
-`Theme` in the builder itself — only inside the slots it hands you. This is the
-same shape as Compose's own `LazyListScope`.
+Most collecting builders are not composable, so you cannot call a composable or
+read `Theme` in the builder itself — only inside the slots it hands you. This is
+the same shape as Compose's own `LazyListScope`.
+
+`ListGroup` and `KeyValueList` are the exceptions, because their rows are
+mostly formatted values: their builders are composable, so
+`item("Updated", Theme.formats.date(updated))` reads the theme where the row is
+written. Both are `inline`, as `Column` is, which is what makes that safe — the
+builder is part of the caller's composition rather than a group of its own, so
+a value it reads never goes stale. `listGroup` in a `LazyColumn` runs where the
+list's builder does, which is not composable.
 
 **A bare `+` fills the component's primary text** — the region a one-line call
 means. A row's label, a banner's message, a state screen's title, a stat's label,

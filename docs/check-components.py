@@ -120,9 +120,12 @@ ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
 # are visibility, receiver and name. Shared by `public_composables` — which is
 # the definition of "a component" — and by `unswept_enums`, so both agree about
 # what counts.
+#
+# `inline` is allowed for, as `Column` is inline: `ListGroup` and `KeyValueList`
+# became so their builders could be composable, and the count read them as gone.
 COMPOSABLE_HEADER = re.compile(
     r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
-    r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
+    r"((?:internal |private |public )?)(?:inline )?fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
 )
 
 # `internal val ToolbarDemo = ComponentDemo(`, and the family list that has to
@@ -379,7 +382,7 @@ KDOC_PARAM = re.compile(r"^\s*\*\s*@(?:param|property)\s+\w+", re.MULTILINE)
 
 # `fun`, `class` or a primary constructor, with its indent and any receiver.
 DOCUMENTED_HEADER = re.compile(
-    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual)\s+)*"
+    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual|inline)\s+)*"
     r"(?:fun|class)\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?([A-Za-z_]\w*)"
 )
 

@@ -32,6 +32,10 @@ carries that, and `of(index, count)` gets the one-item case right — which is t
 case a three-item example in a catalog never exercises and every settings screen
 with a single row hits immediately.
 
+`ListGroup` counts the rows for you, so there is no position to pass. Its
+builder is composable: a row's text can be read from the theme where the row is
+written, `item("Departs", supporting = Theme.formats.time(departure))`.
+
 **Rows default to a *sunken* ground.** In this scheme `surface` and `background`
 are the same white, so a row drawn on `surface` is invisible on a page and a
 group of them reads as loose text.

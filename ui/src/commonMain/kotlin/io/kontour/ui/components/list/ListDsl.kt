@@ -39,44 +39,34 @@ import io.kontour.ui.theme.Theme
  * rendering fault rather than as a mistake. The builder counted the rows, so
  * there is nothing to pass and nothing to get wrong.
  *
- * ### Not composable, on purpose
+ * ### The builder is composable, and inline
  *
  * [item] and [setting] do not draw a row where they are called; they add it to
  * a list that [ListGroup] draws afterwards. They have to, because the position
  * of the first row depends on how many come after it, and nothing can know that
  * until the builder has finished.
  *
- * The builder lambda is plain Kotlin. It still runs inside composition, so
- * `if (signedIn) item(…)` works and reading state in the condition recomposes
- * the group. What you cannot do is read `Theme` or call a composable directly
- * in the builder. Use [item] for that: it takes the whole `@Composable` and
- * hands you the position.
+ * The builder itself is composable, so `Theme.formats`, `Theme.strings` and a
+ * string resource are read where the row is written:
+ * `item("Departs", supporting = Theme.formats.time(departure))`.
  *
- * ### Why it is not `@Composable`, which was tried
+ * That is safe only because [ListGroup] is `inline`, as `Column` is. A
+ * composable lambda passed to an ordinary function is a restartable group of
+ * its own, and a collecting builder in one breaks quietly: a state read in it
+ * restarts the builder alone, which collects into a list nothing is watching,
+ * and the group keeps drawing what it had. The catalog's grouped rows, wired
+ * `onClick = { current.value = index }` with `selected = current.value == index`,
+ * went dead exactly like that when the annotation was tried on a plain function.
+ * Inlined, the builder is part of the caller's own composition: a state read in
+ * it recomposes the caller, which collects afresh and draws what it collected.
  *
- * `MenuScope` and `NavScope` do take `@Composable` builders, and the
- * asymmetry looks like drift. It is not. Those two *emit* — they are
- * `ColumnScope`s, and every item they declare draws where it is declared. A
- * collecting scope cannot follow them.
- *
- * Annotating this lambda `@Composable` makes it its own restartable group, and
- * the collection then happens in a different recompose scope from the
- * consumption. The catalog's grouped rows are wired to
- * `onClick = { current.value = index }` and read `current.value` back for
- * `selected`. With the annotation on: the tap fires, the state changes, the
- * builder's own scope restarts and appends three more rows to a plain
- * `mutableListOf` that nothing observes, and [ListGroup] — which read no
- * changed state itself — never re-runs. The rows keep drawing at their first
- * values. Three specimens went dead and the page still looked right.
- *
- * Making [rows] a snapshot list does not rescue it; it turns a stale group into
- * a group that clears and rebuilds against a lambda Compose is entitled to
- * skip. Emission and collection are the real fork, and collection is what the
- * position arithmetic needs.
+ * In a `LazyColumn`, [listGroup]'s builder runs where the list's is, which is
+ * not composable, and an [ExpandingListItem]'s runs as before; the scope is
+ * the same, and in those a value from the theme is read before the builder.
  */
 @Stable
 @LayoutScopeMarker
-class ListGroupScope internal constructor() {
+class ListGroupScope @PublishedApi internal constructor() {
 
     internal val rows = mutableListOf<@Composable (GroupPosition) -> Unit>()
 
@@ -184,14 +174,21 @@ class ListGroupScope internal constructor() {
  *   and the rows read as separate cards.
  */
 @Composable
-fun ListGroup(
+inline fun ListGroup(
     modifier: Modifier = Modifier,
     spacing: Dp = ListItemDefaults.Spacing,
-    content: ListGroupScope.() -> Unit,
+    content: @Composable ListGroupScope.() -> Unit,
 ) {
-    val scope = ListGroupScope().apply(content)
-    val rows = scope.rows
+    // Inline, so the builder runs in the caller's restart scope rather than one
+    // of its own: see "The builder is composable, and inline" on the scope.
+    ListGroupRows(ListGroupScope().apply { content() }, modifier, spacing)
+}
 
+/** The rows [ListGroup] collected, drawn with their positions. */
+@PublishedApi
+@Composable
+internal fun ListGroupRows(scope: ListGroupScope, modifier: Modifier, spacing: Dp) {
+    val rows = scope.rows
     Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing)) {
         rows.forEachIndexed { index, row -> row(GroupPosition.of(index, rows.size)) }
     }
