@@ -207,7 +207,8 @@ fun TimePicker(
  *
  * The thing you put on a form; tapping it is expected to open a [TimePicker] in
  * a sheet. Kept separate from the picker so the picker never has to know how it
- * is being presented.
+ * is being presented. [DateField] and [DateTimeField] are the same field for a
+ * [DatePicker] and a [DateTimePicker].
  */
 @Composable
 fun TimeField(
@@ -219,8 +220,36 @@ fun TimeField(
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    PickerField(
+        text = formats.time(value),
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        label = label,
+        interactionSource = interactionSource,
+    )
+}
+
+/**
+ * A chosen value shown as a field that opens its picker: [TimeField],
+ * [DateField] and [DateTimeField] are this, with their own words.
+ *
+ * @param text What is chosen, as the field shows it; `null` for nothing yet,
+ *   when [placeholder] is shown instead.
+ */
+@Composable
+internal fun PickerField(
+    text: String?,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    label: String?,
+    interactionSource: MutableInteractionSource?,
+    placeholder: String? = null,
+) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.field
+    val shown = text ?: placeholder.orEmpty()
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
@@ -245,7 +274,7 @@ fun TimeField(
                 .focusRing(interactions, shape, enabled = enabled)
                 .semantics {
                     if (label != null) contentDescription = label
-                    stateDescription = formats.time(value)
+                    stateDescription = shown
                 }
                 .pointerCursor(enabled = enabled)
                 .clickable(
@@ -266,9 +295,15 @@ fun TimeField(
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
-                text = formats.time(value),
+                text = shown,
                 style = Theme.typography.bodyLarge,
-                colour = if (enabled) Theme.colours.content else Theme.colours.contentDisabled,
+                colour = when {
+                    !enabled -> Theme.colours.contentDisabled
+                    // Nothing chosen yet reads as a placeholder does in a text
+                    // field, so an empty date is not mistaken for one.
+                    text == null -> Theme.colours.contentSubtle
+                    else -> Theme.colours.content
+                },
                 modifier = Modifier.padding(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.sm,

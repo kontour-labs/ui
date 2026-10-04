@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -23,6 +24,7 @@ import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
+import io.kontour.ui.overlay.Dialog
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -77,6 +79,25 @@ fun TimePickerBasics() {
 
     // Five-minute steps, because a timetable has no use for 08:17.
     TimePicker(value = departAt, onValueChange = { departAt = it }, minuteStep = 5)
+}
+
+@Composable
+fun DateFieldBasics() {
+    var date by remember { mutableStateOf<LocalDate?>(null) }
+    var picking by remember { mutableStateOf(false) }
+
+    // One tap target that opens the picker, as `TimeField` is for a time —
+    // not a text field with a calendar button beside it.
+    DateField(value = date, onClick = { picking = true }, label = "Post date")
+
+    Dialog(
+        visible = picking,
+        onDismissRequest = { picking = false },
+        title = { +"Post date" },
+        actions = { cancel() },
+    ) {
+        DatePicker(value = date, onValueChange = { date = it; picking = false })
+    }
 }
 
 @Composable

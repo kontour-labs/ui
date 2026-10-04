@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.locale.DateStyle
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
@@ -210,4 +211,31 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
             placeables.getOrNull(index)?.let { it.placeRelative((width - it.width) / 2, (height - it.height) / 2) }
         }
     }
+}
+
+/**
+ * The chosen date and time, shown as a tappable field.
+ *
+ * The thing you put on a form, as [TimeField] and [DateField] are: tapping it is
+ * expected to open a [DateTimePicker] in a dialog or a sheet. Written as the
+ * locale writes a date and a time together.
+ */
+@Composable
+fun DateTimeField(
+    value: LocalDateTime,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: String? = null,
+    formats: LocaleFormats = Theme.formats,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    PickerField(
+        text = formats.dateTime(value.date, value.time),
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        label = label,
+        interactionSource = interactionSource,
+    )
 }

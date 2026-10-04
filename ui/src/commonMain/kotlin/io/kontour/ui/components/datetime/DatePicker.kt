@@ -4,6 +4,7 @@ import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.locale.DateOrder
+import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateTimeConventions
 import androidx.compose.animation.AnimatedContent
@@ -1349,3 +1350,55 @@ private class MonthPager(start: LocalDate) {
 }
 
 private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
+
+/**
+ * The chosen date, shown as a tappable field.
+ *
+ * ```
+ * var date by remember { mutableStateOf<LocalDate?>(null) }
+ * var picking by remember { mutableStateOf(false) }
+ *
+ * DateField(value = date, onClick = { picking = true }, label = "Post date")
+ *
+ * Dialog(
+ *     visible = picking,
+ *     onDismissRequest = { picking = false },
+ *     actions = { cancel() },
+ * ) {
+ *     DatePicker(value = date, onValueChange = { date = it; picking = false })
+ * }
+ * ```
+ *
+ * The thing you put on a form, as [TimeField] is for a time: tapping it is
+ * expected to open a [DatePicker] in a dialog or a sheet. Kept apart from the
+ * picker so the picker never has to know how it is being presented, and so the
+ * form is one tap target rather than a text field with a calendar button beside
+ * it that both open the same thing.
+ *
+ * @param value The date chosen, or `null` for none yet, when [placeholder]
+ *   is shown, as a [DatePicker] takes one.
+ * @param style How the date is written: `DateStyle.Medium`, "14 Mar 2026" in
+ *   English, by default; `Full` adds the weekday.
+ */
+@Composable
+fun DateField(
+    value: LocalDate?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: String? = null,
+    placeholder: String = Theme.strings.select,
+    style: DateStyle = DateStyle.Medium,
+    formats: LocaleFormats = Theme.formats,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    PickerField(
+        text = value?.let { formats.date(it, style) },
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        label = label,
+        interactionSource = interactionSource,
+        placeholder = placeholder,
+    )
+}

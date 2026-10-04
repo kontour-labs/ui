@@ -95,6 +95,8 @@ import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
+import io.kontour.ui.components.datetime.DateField
+import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
@@ -2261,6 +2263,42 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
                 label = "Departure",
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateField",
+            role = Role.Button,
+            // As `TimeField`: the label is a sibling above the tappable surface,
+            // so the role, name and disabled state are found on the surface.
+            control = ControlLocator.Clickable,
+            accessibleName = "Post date",
+        ) { modifier, enabled, onClick ->
+            DateField(
+                value = SpecimenDate,
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Post date",
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateTimeField",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            accessibleName = "Publish at",
+        ) { modifier, enabled, onClick ->
+            DateTimeField(
+                value = LocalDateTime(SpecimenDate, SpecimenTime),
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Publish at",
             )
         }
     )

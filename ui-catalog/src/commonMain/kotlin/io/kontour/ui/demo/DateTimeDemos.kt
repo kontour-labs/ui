@@ -30,7 +30,9 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.ActivityCalendarDefaults
 import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
@@ -41,6 +43,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
+import io.kontour.ui.overlay.Dialog
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -172,6 +175,46 @@ internal val TimeFieldDemo = ComponentDemo(slug = "time-field") {
             modifier = Modifier.fillMaxWidth(),
         )
         TimePicker(value = leaveAt, onValueChange = { leaveAt = it }, minuteStep = 5)
+    }
+}
+
+/**
+ * Whether the field starts with no date, so its placeholder shows until a day
+ * is picked.
+ */
+private val dateFieldEmpty = Knob.Flag("Starts empty", initial = false)
+
+/** How the date is written, from "14/03/2026" to the weekday spelled out. */
+private val dateFieldStyle = Knob.Choice("Style", DateStyle.entries.toList(), DateStyle.Medium)
+
+internal val DateFieldDemo = ComponentDemo(slug = "date-field", knobs = listOf(dateFieldEmpty, dateFieldStyle)) {
+    val empty = this[dateFieldEmpty]
+    val style = this[dateFieldStyle]
+    var date by remember(empty) { mutableStateOf<LocalDate?>(if (empty) null else LocalDate(2026, 3, 14)) }
+    var publishAt by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 3, 14), LocalTime(9, 30))) }
+    var picking by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        DateField(
+            value = date,
+            onClick = { picking = true },
+            label = "Post date",
+            style = style,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DateTimeField(
+            value = publishAt,
+            onClick = { echo("Would open a DateTimePicker in a sheet") },
+            label = "Publish at",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Dialog(
+            visible = picking,
+            onDismissRequest = { picking = false },
+            title = { +"Post date" },
+            actions = { cancel() },
+        ) {
+            DatePicker(value = date, onValueChange = { date = it; picking = false })
+        }
     }
 }
 
@@ -378,6 +421,7 @@ internal val dateTimeDemos = listOf(
     CalendarMonthDemo,
     TimePickerDemo,
     TimeFieldDemo,
+    DateFieldDemo,
     WheelPickerDemo,
     RelativeTimeTextDemo,
     LocaleFormatsDemo,

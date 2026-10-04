@@ -44,6 +44,10 @@ On `main`, and in the next release.
   table. It came out as an unnamed control. In a `SelectionRow` the row's label
   is still the name; leave it `null` there.
 
+- **[`DateField`](components/date-field.md) and `DateTimeField`**, the tappable
+  field a form shows for a `DatePicker` and a `DateTimePicker`, as `TimeField`
+  is for a `TimePicker`. A `DateField` with no date yet shows its placeholder.
+
 - **[`SegmentedControl`](components/segmented-control.md) takes values**:
   `value`, `options`, `onValueChange` and `optionLabel`, as `Select` and
   `RadioGroup` do, so nothing maps an index back to an option. The overload
