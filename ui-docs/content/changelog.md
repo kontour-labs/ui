@@ -110,6 +110,10 @@ On `main`, and in the next release.
   for.** It is the hairline between rows, and form fields put straight in a
   section stacked edge to edge with it; the page and the parameter now say to
   give fields `Theme.spacing.md`.
+- **Images from the network have a recipe**, on
+  [`AspectRatioBox`](components/aspect-ratio-box.md#images-from-the-network):
+  Coil 3 inside the box, with a `Skeleton` while it loads and a sunken well if
+  it fails. The library itself stays free of a network client.
 
 ### Fixed
 
