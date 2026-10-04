@@ -80,7 +80,7 @@ One version for all three, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.4.0"
+kontour = "0.4.1"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -103,7 +103,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.4.0")`, and so on.
+`implementation("io.kontour:ui:0.4.1")`, and so on.
 
 ---
 

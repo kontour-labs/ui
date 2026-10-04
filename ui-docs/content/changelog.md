@@ -24,7 +24,17 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.1 — 4 October 2026
+
+A `Hero` bar a mouse wheel could not open again, a segmented control's thumb
+that jiggled on a click, and a page indicator you can drag along. Nothing
+breaks: an app on 0.4.0 moves to 0.4.1 by changing the version. To get the
+wheel fix, put `Modifier.topBarCollapse(state)` where
+`Modifier.nestedScroll(state.nestedScrollConnection)` was.
 
 ### Added
 
