@@ -268,7 +268,10 @@ fun Modifier.dropList(state: DropListState<*>, enabled: Boolean = true): Modifie
  * ```kotlin
  * LazyColumn(state = scroll, modifier = Modifier.dropList(stops)) {
  *     dragItems(stops) { index, stop ->
- *         ListItem(trailing = { Icon(Grip, null, Modifier.dragHandle()) }) { +stop.name }
+ *         ListItem {
+ *             +stop.name
+ *             trailing { Icon(Grip, null, Modifier.dragHandle()) }
+ *         }
  *     }
  * }
  * ```

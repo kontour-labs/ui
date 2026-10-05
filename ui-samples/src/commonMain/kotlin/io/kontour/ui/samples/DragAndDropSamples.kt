@@ -40,7 +40,7 @@ fun KanbanColumns() {
     val lists = remember { mutableMapOf<DropListState<*>, MutableList<Task>>() }
 
     @Composable
-    fun Lane(title: String, tasks: MutableList<Task>, modifier: Modifier) {
+    fun TaskLane(title: String, tasks: MutableList<Task>, modifier: Modifier) {
         val scroll = rememberLazyListState()
         // One call per drop: what, where, and where it came from. The lists
         // are yours, and nothing in them moves until this moves it.
@@ -68,8 +68,8 @@ fun KanbanColumns() {
     }
 
     Row {
-        Lane("To do", todo, Modifier.weight(1f))
-        Lane("Done", done, Modifier.weight(1f))
+        TaskLane("To do", todo, Modifier.weight(1f))
+        TaskLane("Done", done, Modifier.weight(1f))
     }
 }
 
