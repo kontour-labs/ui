@@ -1389,11 +1389,18 @@ private fun BoxScope.SheetSurface(
                 // its target, so a drag down from full height ran ahead of the
                 // finger and a drag on the content did not move it at all. The
                 // pinned detent is the lowest, where the sheet still floats.
-                val bottomAtRest = bottomBlock?.let { block ->
-                    val now = safeArea.calculateBottomPadding().roundToPx()
-                    val atRest = (safeArea as? BottomInsetTheMarginNoLongerClears)?.floating()?.roundToPx() ?: now
-                    block.height - now + atRest
-                } ?: 0
+                val now = safeArea.calculateBottomPadding().roundToPx()
+                val safeAtRest = (safeArea as? BottomInsetTheMarginNoLongerClears)?.floating()?.roundToPx() ?: now
+                // The safe area under what the sheet shows, which a bottom part
+                // carries in its own height. With only top parts nothing did:
+                // an edge sheet came to rest at the handle and the parts, and
+                // the last of them sat behind the home indicator or the
+                // gesture bar — *"the edge bottom sheet style now doesn't clear
+                // the safe area when it's collapsed with a pinned item"*. A
+                // floating sheet's margin has cleared it already, and hands
+                // out none.
+                val bottomAtRest = bottomBlock?.let { block -> block.height - now + safeAtRest }
+                    ?: if (floating && morph == null) 0 else safeAtRest
                 state.pinnedHeight = if (topBlock == null && bottomBlock == null) {
                     0f
                 } else {

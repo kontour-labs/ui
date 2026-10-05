@@ -194,10 +194,13 @@ up with the pinned part take `BottomSheetDefaults.ContentPadding` there
 themselves, as the example does.
 
 **`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
-whatever is pinned to the top, and whatever is pinned to the bottom with the
-safe area under it. That is the collapsed sheet that is only a search field, at
+whatever is pinned to the top, whatever is pinned to the bottom, and the safe
+area under them all. That is the collapsed sheet that is only a search field, at
 whatever height the field turns out to be at the reader's font scale. Until the
-parts have been measured, and on a sheet with none, it uses its `fallback`.
+parts have been measured, and on a sheet with none, it uses its `fallback`. The
+safe area used to come only with a part pinned to the bottom: an edge sheet
+collapsed to a part pinned to the top came to rest with that part's foot behind
+the home indicator.
 
 Where `pinned` is written in the content does not decide where it is drawn.
 Several at one edge stack in the order they were first composed. A pinned part is

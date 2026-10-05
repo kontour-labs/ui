@@ -191,6 +191,13 @@ no icons has arrows either side of its month.
 
 ### Fixed
 
+- **An edge [bottom sheet](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind)
+  collapsed to a part pinned to its top clears the safe area.** The pinned
+  detent counted the safe area only under a part pinned to the bottom, so with
+  the part at the top the sheet came to rest with its foot behind the home
+  indicator: *"the "edge" bottom sheet style now doesn't clear the safe area
+  when it's collapsed with a "pinned" item"*. Not new in this release — the
+  arithmetic is 0.3.0's.
 - **A [coachmark tour](components/coachmark.md#coachmarktour) dims the page
   once, from one step to the next.** Each step had a dim of its own, and the
   next arrived while the last was leaving, so the page went twice as dark

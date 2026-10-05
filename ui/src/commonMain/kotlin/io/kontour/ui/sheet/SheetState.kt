@@ -625,8 +625,9 @@ class SheetState internal constructor(
 
     /**
      * How tall the sheet is when it shows its pinned parts and nothing else: the
-     * drag handle, the parts pinned to the top, and those pinned to the bottom
-     * with the safe area under them. What [SheetDetent.pinned] resolves to; `0`
+     * drag handle, the parts pinned to the top, those pinned to the bottom, and
+     * the safe area under them all — under the top ones too when there are no
+     * bottom ones. What [SheetDetent.pinned] resolves to; `0`
      * while the sheet has no pinned parts, which leaves the detent its fallback.
      *
      * Measured by the sheet's own layout rather than from positions in the root,
