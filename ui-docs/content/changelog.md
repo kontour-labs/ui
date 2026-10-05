@@ -44,12 +44,13 @@ that needs more than an answer.
 A lambda literal compiles everywhere as it did, but a builder held in a variable
 and a few arguments passed by position need a change, and anything built
 against 0.4.1 has to be recompiled — see **Breaking**, and
-[Migrating](migrating.md#041-to-042) for the code before and after. Three things
+[Migrating](migrating.md#041-to-042) for the code before and after. Four things
 look different without any change: an app with no `WindowSizeClassProvider` now
 gets a rail and two panes on a wide window rather than a phone's layout, a
 floating `NavBar` sits lower over a home indicator, with the page fading out
-under it (`fadeUnder = false` keeps the page as it was), and a date picker given
-no icons has arrows either side of its month.
+under it (`fadeUnder = false` keeps the page as it was), a date picker given
+no icons has arrows either side of its month, and a bottom sheet's top corners
+on a round phone stop at 40dp.
 
 ### Breaking
 
@@ -82,6 +83,14 @@ no icons has arrows either side of its month.
 
 ### Changed
 
+- **A [bottom sheet](components/bottom-sheet.md)'s top corners stop at 40dp** on
+  a round display. They followed the display's corners all the way — an iPhone's
+  55pt, a newer Pixel's 51dp — at any height, and at half height that curve sat
+  close to the header's text: *"on iphones and newer pixels, it starts to look
+  like the rounded corners get a bit close to the text in the sheet header"*. A
+  display rounder than the theme's 34dp still rounds them, to 40dp at most; at
+  full height the display's own corner covers them either way. A theme whose
+  sheet corner is rounder than 40dp keeps it.
 - **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)'s
   scrub pill fades in as it grows** and is its colour from half its thickness
   on, and fades as it shrinks back. The line through the dots it starts as was

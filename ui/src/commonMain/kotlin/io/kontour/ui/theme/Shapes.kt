@@ -623,14 +623,19 @@ fun CornerBasedShape.atLeast(floor: Dp?): CornerBasedShape =
  * **A square corner still stays square.** The same [MaxCornerSize] does the
  * flooring here, so `sheet`'s zeroed bottom pair and `sideSheet`'s zeroed
  * trailing pair survive the roundest display in the table.
+ *
+ * [max] caps the floor — the display's radius, less [gap] — but never the
+ * shape's own: a display rounder than [max] raises a corner only to [max], and a
+ * shape already rounder than that keeps its corner.
  */
 internal fun CornerBasedShape.concentricWith(
     corners: DeviceCorners?,
     gap: Dp = 0.dp,
     direction: LayoutDirection = LayoutDirection.Ltr,
+    max: Dp = Dp.Infinity,
 ): CornerBasedShape {
     if (corners == null || corners.isSquare) return this
-    fun floor(radius: Dp): Dp = (radius - gap).coerceAtLeast(0.dp)
+    fun floor(radius: Dp): Dp = (radius - gap).coerceIn(0.dp, max)
     val ltr = direction == LayoutDirection.Ltr
     val floored = copy(
         topStart = MaxCornerSize(topStart, floor(if (ltr) corners.topLeft else corners.topRight)),

@@ -36,10 +36,11 @@ import kotlin.test.assertTrue
  *
  * Asked for as *"the sheet header still feels like it's a little bit close to the
  * rounded corners of the sheet, especially on devices with extra-rounded corners
- * like iphones and newer pixels."* An edge sheet takes the display's corners, 55pt
- * on an iPhone against the theme's 34dp, and the header's 16dp inset left the
- * title's corner 5dp from the curve. It moves in by what the rounder corner cuts
- * into the diagonal, 1 − 1/√2 of the difference: 6.15dp at 55.
+ * like iphones and newer pixels."* An edge sheet takes the display's corners, up
+ * to [EdgeSheetCornerCap] — 55pt on an iPhone is 40dp on its sheet — against the
+ * theme's 34dp. The header moves in by what the rounder corner cuts into the
+ * diagonal, 1 − 1/√2 of the difference: 1.76dp at the cap, where it was 6.15dp
+ * for the whole of an iPhone's corner.
  *
  * In `jvmTest`, because the display's corners come through the JVM's override.
  * The harness is [SheetHeaderInsetTest]'s, with the corners set.
@@ -93,8 +94,8 @@ class SheetCornerInsetTest {
     @Test
     fun onAnIphonesCornersTheTitleMovesInAlongTheCorner() {
         val m = measure(DeviceCorners.uniform(55.dp))
-        near(Inset + Room55, m.title.left - m.body.left, "beside the title, from the sheet's side")
-        near(Band + Room55 + centring(m), m.title.top - m.sheetTop.value, "above the title, from the sheet's top edge")
+        near(Inset + RoomIphone, m.title.left - m.body.left, "beside the title, from the sheet's side")
+        near(Band + RoomIphone + centring(m), m.title.top - m.sheetTop.value, "above the title, from the sheet's top edge")
     }
 
     @Test
@@ -108,7 +109,8 @@ class SheetCornerInsetTest {
     fun eachSideFromItsOwnCornerAndMirroredRightToLeft() {
         // Rounder at the top left than at the top right.
         val corners = DeviceCorners(topLeft = 60.dp, topRight = 20.dp, bottomRight = 20.dp, bottomLeft = 60.dp)
-        val left = cornerRoom(60.dp, 34.dp).value
+        // 60dp at the left, capped like any corner rounder than the cap.
+        val left = cornerRoom(EdgeSheetCornerCap, 34.dp).value
         val ltr = measure(corners)
         near(Inset + left, ltr.title.left - ltr.body.left, "left to right, the title starts beside the rounder corner")
         val rtl = measure(corners, rtl = true)
@@ -119,7 +121,7 @@ class SheetCornerInsetTest {
     @Test
     fun withoutAHandleTheHeaderClearsTheCornerAbove() {
         val m = measure(DeviceCorners.uniform(55.dp), handle = false)
-        near(Inset + Room55 + centring(m), m.title.top - m.sheetTop.value, "above the title, with no band over it")
+        near(Inset + RoomIphone + centring(m), m.title.top - m.sheetTop.value, "above the title, with no band over it")
     }
 
     @Test
@@ -150,8 +152,8 @@ class SheetCornerInsetTest {
                 // The body fills the sheet's width: its sides are the sheet's.
                 val body = onNodeWithTag(Body).getBoundsInRoot()
                 val pin = onNodeWithTag(Pin).getBoundsInRoot()
-                near(Inset + Room55, (pin.left - body.left).value, "beside a top pinned part, from the sheet's side")
-                near(Inset + Room55, (body.right - pin.right).value, "and from the other side")
+                near(Inset + RoomIphone, (pin.left - body.left).value, "beside a top pinned part, from the sheet's side")
+                near(Inset + RoomIphone, (body.right - pin.right).value, "and from the other side")
             }
         } finally {
             deviceCornersOverride = null
@@ -192,7 +194,7 @@ class SheetCornerInsetTest {
         const val Band = 24f
         const val Icon = 24f
 
-        /** 21dp more corner than the theme's 34, times 1 − 1/√2. */
-        val Room55 = cornerRoom(55.dp, 34.dp).value
+        /** An iPhone's 55pt corner, capped, less the theme's 34, times 1 − 1/√2. */
+        val RoomIphone = cornerRoom(EdgeSheetCornerCap, 34.dp).value
     }
 }

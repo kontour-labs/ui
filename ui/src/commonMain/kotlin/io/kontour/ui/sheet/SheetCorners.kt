@@ -18,13 +18,15 @@ import kotlin.math.sqrt
  * What a sheet's own parts add to their insets near its top corners, because
  * those corners are rounder than the theme's.
  *
- * An edge sheet's top corners are the display's own (`concentricWith`), and a
- * display's can be far rounder than the sheet's: about 55pt on an iPhone, 51dp on
- * a newer Pixel, against the theme's 34dp. The header's 16dp inset was chosen
- * against the theme's corner, and under a display's it put the title's corner
- * 5dp from the curve, where it had 13: *"the sheet header still feels like it's a
- * little bit close to the rounded corners … especially on devices with
- * extra-rounded corners like iphones and newer pixels."*
+ * An edge sheet's top corners are the display's own (`concentricWith`), up to
+ * [EdgeSheetCornerCap], and a display's can be rounder than the sheet's: about
+ * 55pt on an iPhone, 51dp on a newer Pixel, against the theme's 34dp. The
+ * header's 16dp inset was chosen against the theme's corner, and under a
+ * display's whole corner it put the title's corner 5dp from the curve, where it
+ * had 13: *"the sheet header still feels like it's a little bit close to the
+ * rounded corners … especially on devices with extra-rounded corners like
+ * iphones and newer pixels."* The cap now keeps the corner itself from getting
+ * that round; this keeps the header the theme's distance from whatever is left.
  *
  * So the header, the drag handle's band and a top pinned part move in along the
  * corner by as much as the rounder corner cuts in: [start] at the start edge,

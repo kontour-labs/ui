@@ -106,6 +106,7 @@ import io.kontour.ui.overlay.OverlayBackState
 import io.kontour.ui.overlay.OverlayEntry
 import io.kontour.ui.overlay.OverlayLayer
 import io.kontour.ui.overlay.ScrimStyle
+import io.kontour.ui.platform.DeviceCorners
 import io.kontour.ui.platform.platformDeviceCorners
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.SquircleShape
@@ -248,7 +249,15 @@ object BottomSheetDefaults {
      * `atLeast` is a floor rather than an assignment, so a device with gentler
      * corners than the scale's own leaves the scale alone, and `atLeast(null)`
      * is the identity — which is what JVM and web return, and is why there is no
-     * branch here. The backdrop has done exactly this since it started insetting
+     * branch here.
+     *
+     * **Up to [edgeSheetShape]'s cap.** A display's corners can be far rounder
+     * than the theme's — about 55pt on an iPhone, 51dp on a newer Pixel — and a
+     * sheet resting at half height, its top corners in the middle of the
+     * screen, wore all of that round its header: *"on iphones and newer pixels,
+     * it starts to look like the rounded corners get a bit close to the text in
+     * the sheet header"*. At full height the display's own curve covers the
+     * sheet's, whatever its radius, so a cap costs nothing there. The backdrop has done exactly this since it started insetting
      * a receding page; this is the same rule for the thing in front of it.
      *
      * No longer `@ReadOnlyComposable`, which it was while it only read tokens:
@@ -264,10 +273,7 @@ object BottomSheetDefaults {
             // because it is flush to the window, and `MaxCornerSize` passes a
             // zero through untouched — so handing it all four is safe and says
             // what is meant. The bezel's own curve comes with them.
-            Theme.shapes.sheet.concentricWith(
-                platformDeviceCorners(),
-                direction = LocalLayoutDirection.current,
-            )
+            edgeSheetShape(Theme.shapes.sheet, platformDeviceCorners(), LocalLayoutDirection.current)
         SheetPresentation.Floating -> Theme.shapes.panel
     }
 
@@ -2512,3 +2518,22 @@ private class SheetSnapping(private val state: SheetState, private val minVeloci
         return if (at.isNaN()) 0f else at - from
     }
 }
+
+/**
+ * An edge sheet's corners: [sheet]'s, raised to the display's where those are
+ * rounder, but no further than [EdgeSheetCornerCap].
+ *
+ * Its own function, with the display's corners passed in, so it can be tested
+ * on displays the test does not run on.
+ */
+internal fun edgeSheetShape(sheet: CornerBasedShape, device: DeviceCorners?, direction: LayoutDirection): CornerBasedShape =
+    sheet.concentricWith(device, direction = direction, max = EdgeSheetCornerCap)
+
+/**
+ * The roundest an edge sheet's top corners get from the display's: a little
+ * rounder than the theme's 34dp, so a sheet on a round phone still reads as
+ * belonging to it, and far short of an iPhone's 55pt — which, worn by a sheet
+ * at half height, crowded its header. A theme whose own sheet corner is rounder
+ * keeps it.
+ */
+internal val EdgeSheetCornerCap: Dp = 40.dp

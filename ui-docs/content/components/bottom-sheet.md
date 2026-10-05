@@ -300,7 +300,7 @@ it right on every size of device without a rule per size:
 
 | Window | Where the expanded sheet ends up |
 |---|---|
-| Phone, portrait or landscape | The bottom and both sides, top corners concentric with the display's |
+| Phone, portrait or landscape | The bottom and both sides, top corners concentric with the display's, up to 40dp |
 | Tablet or desktop, wider than the 480dp cap | The bottom only, at the cap's width, wherever `alignment` put it |
 | Cutouts, side insets, a gesture bar | The surface reaches the window's edge and the **content** is handed the insets, exactly as an edge sheet's is |
 

@@ -224,6 +224,11 @@ scale did not choose, and the exemption has a boundary: the backdrop's clip and 
 sheet's top corners are concentric with the *bezel* rather than with the card
 beside them. A third shape wanting it would need its own reason.
 
+A sheet's corners follow the bezel only so far: up to 40dp. An iPhone's 55pt,
+worn by a sheet resting at half height, was a curve in the middle of the screen
+that crowded the sheet's header. At full height the bezel's own curve covers the
+sheet's corners whatever their radius, so the cap shows only where it should.
+
 The radius also **ramps** with the recede rather than arriving whole. That was the
 other half of the report: the travel is 12dp over 220ms and reads as smooth, but
 the clip switched on at the first non-zero frame with its full radius, so a 34dp
