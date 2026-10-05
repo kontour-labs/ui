@@ -293,6 +293,24 @@ data class Strings(
     /** And its other state. */
     val hide: String = "Hide",
 
+    // Drag and drop.
+    /** A drag handle's action, for a keyboard or a switch: take hold of the item. */
+    val pickUp: String = "Pick up",
+    /** A carried thing's move straight to a target, offered to a screen reader: "Move to Done". */
+    val moveTo: (target: String) -> String = { target -> "Move to $target" },
+    /** Said as something is taken hold of: "Picked up Fix the 960 timetable". */
+    val dragPickedUp: (item: String) -> String = { item -> "Picked up $item" },
+    /**
+     * Said as a carried thing comes to a place: the target, and where in it —
+     * "Doing, 3 of 5", from [itemOfCount] — or the target alone.
+     */
+    val dragPosition: (target: String, position: String) -> String = { target, position -> "$target, $position" },
+    /** Said as it is put down: "Fix the 960 timetable dropped in Done". */
+    val dragDropped: (item: String, target: String) -> String = { item, target -> "$item dropped in $target" },
+    /** Said as a drag is called off and the thing goes back. */
+    val dragCancelled: (item: String) -> String = { item -> "$item put back" },
+    /** Said as a carried thing is let go over a target that will not take it. */
+    val dragRefused: (target: String) -> String = { target -> "$target can't take this" },
 ) {
     companion object {
         /**
@@ -423,6 +441,13 @@ data class Strings(
         more = lookup.text("more") ?: fallback.more,
         show = lookup.text("show") ?: fallback.show,
         hide = lookup.text("hide") ?: fallback.hide,
+        pickUp = lookup.text("pickUp") ?: fallback.pickUp,
+        moveTo = { target -> lookup.phrase("moveTo", null, target) ?: fallback.moveTo(target) },
+        dragPickedUp = { item -> lookup.phrase("dragPickedUp", null, item) ?: fallback.dragPickedUp(item) },
+        dragPosition = { target, position -> lookup.phrase("dragPosition", null, target, position) ?: fallback.dragPosition(target, position) },
+        dragDropped = { item, target -> lookup.phrase("dragDropped", null, item, target) ?: fallback.dragDropped(item, target) },
+        dragCancelled = { item -> lookup.phrase("dragCancelled", null, item) ?: fallback.dragCancelled(item) },
+        dragRefused = { target -> lookup.phrase("dragRefused", null, target) ?: fallback.dragRefused(target) },
         )
     }
 }
@@ -596,4 +621,11 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     more = transform(more),
     show = transform(show),
     hide = transform(hide),
+    pickUp = transform(pickUp),
+    moveTo = { a0 -> transform(moveTo(a0)) },
+    dragPickedUp = { a0 -> transform(dragPickedUp(a0)) },
+    dragPosition = { a0, a1 -> transform(dragPosition(a0, a1)) },
+    dragDropped = { a0, a1 -> transform(dragDropped(a0, a1)) },
+    dragCancelled = { a0 -> transform(dragCancelled(a0)) },
+    dragRefused = { a0 -> transform(dragRefused(a0)) },
 )

@@ -368,6 +368,7 @@ def public_modifiers() -> dict[str, Path]:
 # each in the adaptive index, and nobody could see one without writing it.
 MODIFIERS_IN_GUIDES = {
     "Modifier.concentric": "tokens.md",
+    "Modifier.dragSource": "drag-and-drop.md",
     "Modifier.contentSwipeBack": "navigation3.md",
     "Modifier.focusRing": "accessibility.md",
     "Modifier.pageEffects": "navigation3.md",
@@ -788,6 +789,7 @@ HAPTIC_FILE_NAMES = {
     "Select": "MultiSelect",
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
+    "DragHost": "Modifier.dragSource",
 }
 
 # The mechanism rather than a component: one defines the dispatcher, one is the

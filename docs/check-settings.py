@@ -430,6 +430,7 @@ LITERAL_FILES_ALLOWED = {
 }
 LITERAL_ALLOWED = {
     "digit$index": "a test tag, not text",
+    "kontour.dropGap.$id": "a lazy list's key for the gap a drop list opens, not text",
 }
 MAX_LITERAL_PHRASES = 0
 

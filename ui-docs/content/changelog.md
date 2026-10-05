@@ -133,6 +133,20 @@ no icons has arrows either side of its month.
 
 ### Added
 
+- **[Drag and drop](drag-and-drop.md) across the app**, so a card moves
+  between a board's columns, which `ReorderableItem` could not do.
+  `Modifier.dragSource` carries a typed payload, `Modifier.dropTarget` with
+  `rememberDropTargetState` takes it, and `rememberDropListState`,
+  `Modifier.dropList` and `dragItems` make a lazy list both. Each drop is one
+  `onDrop`, with the index it lands at and where it came from, and nothing in
+  your lists moves before then. The list opens a gap where the card would land,
+  and scrolls as the card nears either end; anything else that scrolls takes
+  `Modifier.dragAutoScroll`. The nearest `OverlayHost` draws the carried card
+  above everything, so it can leave a sheet. Every move also works without a
+  pointer: *Move to Done*, *Move up* and *Move down* for a screen reader, Space,
+  Enter and the arrows for a keyboard, and each step is said aloud through
+  `Theme.strings`.
+
 - **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
   and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
   read in place of the label where the label alone does not say enough — "Save"
