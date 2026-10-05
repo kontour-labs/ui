@@ -49,12 +49,22 @@ import io.kontour.ui.theme.Theme
  * the same as having none.
  */
 @Composable
-fun Stat(
+inline fun Stat(
     modifier: Modifier = Modifier,
     alignment: Alignment.Horizontal = Alignment.Start,
-    content: StatScope.() -> Unit,
+    content: @Composable StatScope.() -> Unit,
 ) {
-    val slots = statSlots(content)
+    // Inline, as `KeyValueList` is and for its reason: the builder runs in the
+    // caller's restart scope, so a value read from the theme in it is read where
+    // it is written, and a state it reads recomposes what draws it. See
+    // `ListGroupScope`.
+    StatLayout(StatScope().apply { content() }, modifier, alignment)
+}
+
+/** [Stat], with its regions collected. */
+@PublishedApi
+@Composable
+internal fun StatLayout(slots: StatScope, modifier: Modifier, alignment: Alignment.Horizontal) {
     val spoken = slots.spoken(Theme.strings.sentences)
 
     Column(
@@ -142,13 +152,16 @@ private fun StatTrend.colour() = when (this) {
  * The regions of a [Stat]. A bare `+` fills the label, as everywhere else.
  *
  * Collects rather than emits, because the merged announcement is assembled in
- * speaking order once every region has been declared — and so the builder is
- * plain Kotlin, for the reason argued on
+ * speaking order once every region has been declared.
+ *
+ * The builder is composable, so the figure is formatted where it is written —
+ * `value(Theme.formats.currency(total, "AUD"))` — and [Stat] is `inline` so that
+ * this is safe, for the reason argued on
  * [io.kontour.ui.components.list.ListGroupScope].
  */
 @LayoutScopeMarker
 @Stable
-class StatScope internal constructor() {
+class StatScope @PublishedApi internal constructor() {
     internal var value: (@Composable ContentScope.() -> Unit)? = null
         private set
     internal var label: (@Composable ContentScope.() -> Unit)? = null
@@ -247,6 +260,3 @@ class StatScope internal constructor() {
         return sentences(parts).takeIf { it.isNotBlank() }
     }
 }
-
-internal fun statSlots(content: StatScope.() -> Unit): StatScope =
-    StatScope().apply(content)

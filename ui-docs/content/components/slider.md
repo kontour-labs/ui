@@ -95,12 +95,17 @@ there to read — and then fades it. An arrow key, which moves the value with
 nothing held, shows it for the same half second:
 
 ```kotlin
+val formats = Theme.formats
 Slider(
     value = volume,
     onValueChange = { volume = it },
-    valueLabel = { "${(it * 100).roundToInt()}%" },
+    valueLabel = { formats.percent(it.toDouble()) },
 )
 ```
+
+`valueLabel` is a plain function rather than a composable one — it is called
+while drawing, every frame the bubble moves — so `Theme.formats` is read once
+outside it and captured, as above.
 
 It is drawn outside the slider's bounds, so the control's size and hit area are
 the same with or without it — give it room above, or a clipping parent (a card,

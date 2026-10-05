@@ -3,6 +3,7 @@
 <!--sample:KnobBasics-->
 ```kotlin
 var volume by remember { mutableStateOf(40f) }
+val formats = Theme.formats
 
 Knob(
     value = volume,
@@ -10,9 +11,9 @@ Knob(
     valueRange = 0f..100f,
     steps = 9,
     contentDescription = "Volume",
-    stateDescription = { "${it.roundToInt()}%" },
+    stateDescription = { formats.percent(it / 100.0) },
 ) {
-    +"${volume.roundToInt()}"
+    +formats.integer(volume.roundToInt())
 }
 ```
 

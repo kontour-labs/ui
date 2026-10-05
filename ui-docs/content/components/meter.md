@@ -2,6 +2,7 @@
 
 <!--sample:MeterBasics-->
 ```kotlin
+val formats = Theme.formats
 // A battery across the page: bands along the scale, a thumb at the reading,
 // and the label above it.
 Meter(
@@ -10,7 +11,7 @@ Meter(
     modifier = Modifier.fillMaxWidth(),
     indicator = GaugeIndicator.Thumb,
     majorTicks = 5,
-    tickLabel = { "${it.roundToInt()}%" },
+    tickLabel = { formats.percent(it / 100.0) },
     colours = MeterDefaults.colours(
         indicator = ScaleColours.bands {
             band(from = 0f, colour = Theme.colours.danger.solid)

@@ -124,7 +124,7 @@ import kotlin.math.roundToInt
  *   the reading and kept inside the meter's ends.
  */
 @Composable
-fun Meter(
+inline fun Meter(
     value: Float,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
@@ -138,16 +138,70 @@ fun Meter(
     needleMatchesFill: Boolean = false,
     majorTicks: Int = 0,
     minorTicks: Int = 0,
-    tickLabel: ((Float) -> String)? = null,
+    noinline tickLabel: ((Float) -> String)? = null,
     tickPlacement: GaugeTickPlacement = GaugeTickPlacement.Outside,
     contentPlacement: MeterContentPlacement = MeterContentPlacement.Fixed,
     showContentBackground: Boolean = false,
     animateValue: Boolean = true,
     contentDescription: String? = null,
-    stateDescription: ((Float) -> String)? = null,
-    content: ReadoutScope.() -> Unit = {},
+    noinline stateDescription: ((Float) -> String)? = null,
+    content: @Composable ReadoutScope.() -> Unit = {},
 ) {
-    val readout = readoutSlots(content)
+    // Inline, as `KeyValueList` is and for its reason: the builder runs in the
+    // caller's restart scope, so a figure read from the theme in it is read
+    // where it is written, and a state it reads recomposes what draws it. See
+    // `ListGroupScope`.
+    MeterLayout(
+        readout = ReadoutScope().apply { content() },
+        value = value,
+        modifier = modifier,
+        valueRange = valueRange,
+        origin = origin,
+        orientation = orientation,
+        thickness = thickness,
+        cap = cap,
+        colours = colours,
+        indicator = indicator,
+        needleLength = needleLength,
+        needleMatchesFill = needleMatchesFill,
+        majorTicks = majorTicks,
+        minorTicks = minorTicks,
+        tickLabel = tickLabel,
+        tickPlacement = tickPlacement,
+        contentPlacement = contentPlacement,
+        showContentBackground = showContentBackground,
+        animateValue = animateValue,
+        contentDescription = contentDescription,
+        stateDescription = stateDescription,
+    )
+}
+
+/** [Meter], with its readout collected. */
+@PublishedApi
+@Composable
+internal fun MeterLayout(
+    readout: ReadoutScope,
+    value: Float,
+    modifier: Modifier,
+    valueRange: ClosedFloatingPointRange<Float>,
+    origin: Float,
+    orientation: MeterOrientation,
+    thickness: Dp,
+    cap: StrokeCap,
+    colours: DialColours,
+    indicator: GaugeIndicator,
+    needleLength: Float,
+    needleMatchesFill: Boolean,
+    majorTicks: Int,
+    minorTicks: Int,
+    tickLabel: ((Float) -> String)?,
+    tickPlacement: GaugeTickPlacement,
+    contentPlacement: MeterContentPlacement,
+    showContentBackground: Boolean,
+    animateValue: Boolean,
+    contentDescription: String?,
+    stateDescription: ((Float) -> String)?,
+) {
     require(valueRange.start <= valueRange.endInclusive) {
         "Meter was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }
