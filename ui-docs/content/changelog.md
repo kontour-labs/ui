@@ -141,6 +141,11 @@ was).
 
 ### Fixed
 
+- **A [`Table`](components/table.md)'s fitted column is measured against rows
+  spread through the data** — the first twenty, the last ten and twenty between —
+  rather than the first fifty alone, and again, widening only, when `items` is a
+  new list. A wider date past the first rows was cut off as it scrolled into
+  view, and data loaded later never refitted the column.
 - **A [`SearchField`](components/search-field.md) is named by its placeholder**,
   and "Search" without one, as are the fields in `NavSearch` and the command
   palette. It had no name at all — a screen reader announced an edit box — and

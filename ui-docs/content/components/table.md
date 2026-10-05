@@ -39,10 +39,14 @@ Each column is sized one of three ways:
 - **`weight`** takes a share of the room left once the others are sized, the way
   a `Row`'s weights share it. The table fills its width exactly when it can. A
   weighted column never goes narrower than its title, or than `minWidth`.
-- **Neither** fits the column to its title and to the cells of its first 50
-  rows. The width is remembered and only ever grows, so a column doesn't jump as
-  rows scroll in or the items are re-sorted. A column whose contents vary more
-  than its first rows show should be given a `width`.
+- **Neither** fits the column to its title and to fifty of its rows: the first
+  twenty, the last ten and twenty spread between, so a wider value further down
+  is seen as well as the ones on screen when the table opens. It is fitted
+  again when `items` is a new list — a page loaded in, a refresh, a sort — and
+  takes the wider of the two: a column can widen once when the data changes,
+  and never narrows or moves while it scrolls. A row the sample misses can still
+  be wider than its column and is cut short, so a column whose values must
+  never be — dates, amounts — is given a `width` or a `minWidth`.
 
 `numeric = true` sets a column in tabular figures, so its digits line up down
 the rows, and against its end edge. `align` places any column's cells, and
