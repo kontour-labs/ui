@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.foundation.Icon
@@ -101,6 +102,7 @@ import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
@@ -813,7 +815,18 @@ fun MenuItem(
     }
 }
 
-/** Separates groups of related items. */
+/**
+ * Separates groups of related items.
+ *
+ * Drawn in the menu's own content colour, faintly, rather than in a line token,
+ * because a menu is a raised panel and every line token is chosen for a lower
+ * ground. `outlineSubtle`, which this was, is the faintest rule for a dense list
+ * on `surface`: on the panel it measured 1.15:1 in light and, in dark, 1.06:1
+ * and *darker* than the panel, which is a rule nobody can find. A wash of the
+ * content colour stands off whatever it is drawn on — a submenu's level, a nav
+ * menu, a theme's own panel colour — by as much as a list's divider stands off
+ * a list. At high contrast it is the tier's `outline`, near ink, as before.
+ */
 @Composable
 fun MenuDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
@@ -821,9 +834,15 @@ fun MenuDivider(modifier: Modifier = Modifier) {
             horizontal = Theme.spacing.xs,
             vertical = Theme.spacing.xxs,
         ),
-        colour = Theme.colours.outlineSubtle,
+        colour = if (highContrast()) Theme.colours.outlineSubtle else LocalContentColour.current.copy(alpha = DividerAlpha),
     )
 }
+
+/**
+ * How much of the content colour a divider is: 1.28:1 off the panel in light and
+ * 1.39:1 in dark, which is `outline` on its own ground in each.
+ */
+private const val DividerAlpha: Float = 0.12f
 
 /**
  * Labels a group of items.

@@ -150,6 +150,12 @@ was).
 
 ### Fixed
 
+- **A menu's dividers can be seen on the menu.** They were `outlineSubtle`, the
+  faintest rule, chosen for a list on `surface`; on a menu's raised panel that
+  was 1.15:1 in light and, in dark, 1.06:1 and darker than the panel. A
+  [`MenuDivider`](components/dropdown-menu.md), and every menu's `divider()`, is
+  the menu's text colour at 12% now — 1.28:1 and 1.39:1, what a list's divider
+  stands off a list — and the tier's `outline` at high contrast, as before.
 - **A [`Table`](components/table.md)'s fitted column is measured against rows
   spread through the data** — the first twenty, the last ten and twenty between —
   rather than the first fifty alone, and again, widening only, when `items` is a
