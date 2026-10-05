@@ -1,5 +1,7 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -65,6 +67,24 @@ class DropListState<T : Any> internal constructor(
 
     /** The host, for which of this list's own items is carried. */
     internal var host: DragHost? = null
+
+    /**
+     * Which way the list runs, as its last layout said. State, set from layout
+     * rather than read from [LazyListState.layoutInfo] as items compose: a
+     * composition that reads the layout info is invalidated by every layout,
+     * and a list whose caller cannot skip recomposing then lays out and
+     * recomposes for ever. This changes once at most, for a row.
+     */
+    internal var orientation: Orientation by mutableStateOf(Orientation.Vertical)
+
+    /** Reads [orientation] off the list once it is placed. */
+    internal val readOrientation: (LayoutCoordinates) -> Unit = {
+        val info = listState.layoutInfo
+        if (info.totalItemsCount > 0 && info.orientation != orientation) orientation = info.orientation
+    }
+
+    /** Takes the layout direction the list is laid out in. */
+    internal val readDirection: (LayoutDirection) -> Unit = { layoutDirection = it }
 
     /**
      * The index of one of this list's own items while it is carried, and its
@@ -258,8 +278,9 @@ fun <T : Any> rememberDropListState(
  */
 fun Modifier.dropList(state: DropListState<*>, enabled: Boolean = true): Modifier =
     this.registersDropTarget(state.target, enabled)
-        .dragAutoScroll(state.listState, state.listState.layoutInfo.orientation, enabled)
-        .readsLayoutDirection { state.layoutDirection = it }
+        .dragAutoScroll(state.listState, state.orientation, enabled)
+        .readsLayoutDirection(state.readDirection)
+        .onGloballyPositioned(state.readOrientation)
 
 /**
  * [state]'s items, each one draggable, with room opened where a carried thing
@@ -375,7 +396,7 @@ private fun <T : Any> LazyItemScope.DragItem(
             runCatching { focus.requestFocus() }
         }
     }
-    val vertical = state.listState.layoutInfo.orientation == Orientation.Vertical
+    val vertical = state.orientation == Orientation.Vertical
     androidx.compose.foundation.layout.Box(
         Modifier
             .then(if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
@@ -402,7 +423,7 @@ private fun <T : Any> LazyListScope.gapItem(state: DropListState<T>) {
     item(key = state.gapKey, contentType = "kontour.dropGap") {
         val density = LocalDensity.current
         val length = with(density) { state.gapSize.toDp() }
-        val vertical = state.listState.layoutInfo.orientation == Orientation.Vertical
+        val vertical = state.orientation == Orientation.Vertical
         Spacer(
             Modifier
                 .then(if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
