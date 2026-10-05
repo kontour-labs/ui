@@ -63,8 +63,8 @@ one is the control. That is the rule that runs through
 [`SelectionRow`](selection-row.md) and [`RadioGroup`](radio-group.md).
 
 `label`, `supporting` and `overline` merge into one announcement in reading
-order. `leading` and `trailing` icons take `null` unless they carry meaning the
-text does not.
+order. `leading` and `trailing` icons take a `null` description: what one means
+belongs in the row's text, for the reason below.
 
 **A description inside a clickable row can take the row's name.** The row is one
 merged node, and a merged node that holds both a child's `contentDescription`

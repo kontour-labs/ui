@@ -359,6 +359,26 @@ Decorative elements are marked so, rather than left for a screen reader to
 describe. Reading order is set with `isTraversalGroup` and `traversalIndex`
 where visual order and composition order disagree.
 
+### In the browser
+
+The roles above reach Android's and iOS's accessibility trees as written. **In a
+browser, under Compose 1.12, they do not**: Compose's web layer names every
+clickable node `button`, whatever its `Role`, and writes no `aria-selected` or
+`aria-checked`. So a [`TabBar`](components/tab-bar.md)'s tabs, a
+[`SegmentedControl`](components/segmented-control.md)'s segments, a
+[`RadioGroup`](components/radio-group.md)'s options, a
+[`Select`](components/select.md)'s menu, a [`Checkbox`](components/checkbox.md),
+a [`Switch`](components/switch.md) and a
+[`SelectionRow`](components/selection-row.md) are all announced as buttons
+there, with nothing to say which is chosen or on. The library passes the role
+and the state as it does on every other platform; Compose 1.13, in alpha at the
+time of writing, maps them — the role from 1.13.0-alpha01, the checked and
+selected states after it.
+
+**Names do reach the browser**: a label, a `contentDescription`, a field's name.
+So a test of a web build should find a control by its name rather than by its
+role until the browser is on Compose 1.13.
+
 ---
 
 ## The per-component contract

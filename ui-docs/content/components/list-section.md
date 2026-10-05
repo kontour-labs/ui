@@ -29,7 +29,8 @@ ListSection(
 that makes a group of rows read as one object, and it is the gap fields get too.
 Form fields are separate controls rather than one card, so give them the space a
 form has: `ListSection(title = { +"Contact" }, spacing = Theme.spacing.md) { TextField(…); TextField(…) }`.
-The heading and the footer keep their own padding either way.
+The same `spacing` is the gap under the heading and above the footer, which keep
+their own padding besides — so a form's wider gap opens there too.
 
 ## In a lazy list: `listSection`
 

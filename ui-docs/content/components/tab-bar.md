@@ -133,6 +133,9 @@ Tabs are `Role.Tab` inside a `selectableGroup()`, so a screen reader announces
 "2 of 3" and which one is selected. The travelling pill is drawn by the bar and
 carries no semantics — selection is reported by the tab.
 
+In a browser under Compose 1.12 this is announced as a button, with no state —
+see [In the browser](../accessibility.md#in-the-browser).
+
 The overflow menu button sits **outside** the group deliberately: inside it, it
 would be counted as a tab, and the bar would announce four tabs when it has
 three.

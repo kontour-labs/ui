@@ -131,6 +131,9 @@ angle.
 A `selectableGroup()` of `Role.RadioButton` segments, so it announces "2 of 3"
 and "selected" — which is what it is, and what a row of buttons would not be.
 
+In a browser under Compose 1.12 this is announced as a button, with no state —
+see [In the browser](../accessibility.md#in-the-browser).
+
 That is the difference from [`ButtonGroup`](button-group.md), whose items are
 actions, and from [`TabBar`](tab-bar.md), whose items are `Role.Tab` and change
 what is on screen below them.

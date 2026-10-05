@@ -14,7 +14,8 @@ Rows, and the things that happen to them.
 | [`PullToRefresh`](pull-to-refresh.md) | Pull at the top to reload | A toolbar action, which you owe anyway |
 | [`LoadMore`](load-more.md) | The paging row at the end | — |
 | [`Modifier.fadingEdges`](modifier-fading-edges.md) | Fading content at a scrollable edge | — |
-| [`Scrollbar`](scrollbar.md) | Where you are in a long list | — |
+| [`Scrollbar`](scrollbar.md) | Where you are in a long list | `Modifier.scrollbar`, on the scroller itself |
+| [`Modifier.scrollbar`](scrollbar.md) | The same bar, on any scroller, with nothing to wrap it in | `Scrollbar`, as a component of its own |
 | [`IndexScroller`](index-scroller.md) | Jumping to a letter in a long sorted list | Search, which you may owe as well |
 | [`Table`](table.md) | Rows of records compared across columns | `ListItem`, when each row is one thing to open |
 

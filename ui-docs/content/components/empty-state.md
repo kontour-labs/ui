@@ -71,11 +71,14 @@ screen that only says it is empty leaves a screen-reader user exactly where they
 were, with nothing to move to. Give it somewhere to go.
 
 The `leading` icon is decorative and cleared. Whatever it depicts should be in
-the words.
+the words. `LoadingState`'s spinner is the exception when it has no title: then
+it is the only thing there, and it is announced as `loadingLabel`, "Loading".
+With a title, the title says it and the spinner is quiet.
 
-At high contrast both states take the enhanced scheme's colours and draw no line
-of their own. `ErrorState`'s retry is a secondary button, whose border thickens
-with the tier.
+At high contrast all three states take the enhanced scheme's colours and draw no
+line of their own. `ErrorState`'s retry is a secondary button, whose border
+thickens with the tier, and `LoadingState`'s spinner is drawn as every spinner is
+at that tier.
 
 In a `StateSwitcher` the state leaving is cleared from the semantics while it
 fades, so a screen reader hears the one arriving and not both.

@@ -163,10 +163,9 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   "Failed to execute 'put' on 'Cache'" while the bundled fonts load: that is
   Compose Resources' own font cache, which the library never touches. And under
   Compose 1.12 the browser's accessibility tree names every clickable node a
-  `button` and writes no `aria-checked`, so a `SelectionRow` with
-  `Role.Checkbox` is announced as a button there though its role is passed
-  through. The fix is in Compose 1.13, in alpha at the time of writing: the
-  role from 1.13.0-alpha01, the checked state after it.
+  `button`, with no checked or selected state, whatever role the library passes;
+  [In the browser](accessibility.md#in-the-browser) has what that affects and
+  when Compose fixes it.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`

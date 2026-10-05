@@ -81,10 +81,8 @@ turned on by pressing it and off by pressing another.
 The label in the row is the accessible name. A row with only an icon has none.
 
 In the browser, under Compose 1.12, the row is announced as a button whatever
-its `role`, with no checked state: Compose's web mapping names any clickable
-node `button` and writes no `aria-checked`. The role is passed to `toggleable`
-or `selectable` as on every other platform; Compose 1.13, in alpha at the time
-of writing, maps it.
+its `role`, with no checked state — see
+[In the browser](../accessibility.md#in-the-browser).
 
 At high contrast the row gains no edge, because it has no ground or border of
 its own to outline, and a press's tonal wash is stronger. The control in it

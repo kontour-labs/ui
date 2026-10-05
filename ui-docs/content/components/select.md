@@ -48,6 +48,9 @@ screen reader say which of how many an option is. A menu of buttons all
 announcing "button" tells a screen reader user nothing about which is in force,
 or that the others are choices at all.
 
+In a browser under Compose 1.12 each option is announced as a button, with no
+state — see [In the browser](../accessibility.md#in-the-browser).
+
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.
 

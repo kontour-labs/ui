@@ -16,6 +16,8 @@ Things that show rather than take input.
 | [`Redacted` / `Modifier.redacted`](redaction.md) | Draws a real layout as a placeholder of itself |
 | [`EmptyState`](empty-state.md) | Nothing here, and that is fine | `ErrorState` — see below |
 | [`ErrorState`](empty-state.md) | Something went wrong | `EmptyState` — see below |
+| [`LoadingState`](empty-state.md#loading-and-the-move-between-them) | A region with nothing to show yet | `Skeleton`, when the shape is known |
+| [`StateSwitcher`](empty-state.md#loading-and-the-move-between-them) | Loading, empty, failed and the content in one place, moving between them | A `when`, which swaps them in a frame |
 | [`Banner`](banner.md) | A message about the screen you are on | `Toast`, for something you just did |
 | [`Callout`](callout.md) | The markdown blockquote treatment | `Banner`, for anything dismissible |
 | [`Timeline`](timeline.md) | A vertical sequence — the itinerary | A plain list, when there is no progression |

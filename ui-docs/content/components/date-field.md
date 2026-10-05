@@ -51,8 +51,8 @@ The label is the field's accessible name and the written date its
 `stateDescription`, as on a [`TimeField`](time-field.md): "Post date, 14 Mar
 2026, button". The visible label is cleared, since Compose has no `labelledBy`
 and a label drawn above a control is otherwise an unrelated node. With no date
-the placeholder is the state, so an empty field is announced as empty rather
-than as a name with nothing after it.
+the placeholder is the state — "Post date, Select, button" — so an empty field
+says what to do with it rather than a name with nothing after it.
 
 It is a button, not an editable field: typing a date is how a form gets
 "31/02". Pressing it opens the picker the caller chose.

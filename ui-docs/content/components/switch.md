@@ -140,6 +140,9 @@ way it went, `ToggleOn` or `ToggleOff`, and the two feel different;
 pedantry: a switch takes effect immediately, and a checkbox is a value that is
 submitted later.
 
+In a browser under Compose 1.12 this is announced as a button, with no state —
+see [In the browser](../accessibility.md#in-the-browser).
+
 Put it in a [`SelectionRow`](selection-row.md) with `onCheckedChange = null` so
 the row is the target — a bare switch has no name. One that has to stand alone
 takes `contentDescription`; leave it `null` in a row, which names it already.

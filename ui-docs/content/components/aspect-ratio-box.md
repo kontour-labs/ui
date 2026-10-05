@@ -32,6 +32,7 @@ showed a remote image or not. An image loader brings all three and is one
 line in the build; [Coil 3](https://coil-kt.github.io/coil/) is Compose
 Multiplatform's, and it fits inside this box:
 
+<!--sample:RemoteImageBasics-->
 ```kotlin
 // Coil 3: implementation("io.coil-kt.coil3:coil-compose:<version>"), and a
 // network module — coil-network-ktor3 with a Ktor engine per platform.
@@ -47,7 +48,14 @@ AspectRatioBox(
         // The box holds the space; these fill it while there is nothing yet.
         loading = { Skeleton(Modifier.fillMaxSize(), shape = RectangleShape) },
         error = {
-            Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken), Alignment.Center) {
+            // The well a missing picture leaves, with an edge at high
+            // contrast as every sunken ground takes one.
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                containerColour = Theme.colours.surfaceSunken,
+                border = contrastEdge(),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(Tabler.Outline.PhotoOff, contentDescription = null, tint = Theme.colours.contentSubtle)
             }
         },
@@ -58,7 +66,9 @@ AspectRatioBox(
 The box is the reason the page does not jump when the cover lands, the
 [`Skeleton`](skeleton.md) says something is coming, and the failed state is
 the same sunken well with the picture's absence drawn in it rather than a
-broken-image glyph. A slot that takes a `Painter` —
+broken-image glyph — with an edge at high contrast, as every sunken ground
+takes there. `SubcomposeAsyncImage` is Coil's; the example compiles against a
+stand-in with its parameters, since the library takes no loader. A slot that takes a `Painter` —
 [`Avatar`](avatar.md)'s `image`, a list row's leading picture — takes Coil's
 `rememberAsyncImagePainter(url)` as it is.
 

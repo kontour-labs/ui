@@ -240,9 +240,14 @@ Dragging the marker is a shortcut for a finger and adds nothing to the tree:
 each destination is still its own tab, chosen by a screen reader's activation,
 a switch or a key exactly as before.
 
-At high contrast the bar takes an edge. The travelling marker takes an accent outline, `selectionEdge()`,
-because a tint alone is too faint at that tier, and the focus ring is drawn
-thicker.
+At high contrast the bar takes an edge in place of its rim, and the page does
+not fade out under it: a fade is a gradient of nearly-the-same colour, which is
+what that tier exists to remove. The travelling marker takes an accent outline,
+`selectionEdge()`, because a tint alone is too faint at that tier, and the focus
+ring is drawn thicker.
+
+The fade under a floating bar is drawn, not laid out: nothing under it becomes
+unreachable, and a screen reader still finds the rows it covers.
 
 Under reduced motion the marker does not travel: it fades out and fades up on
 the new destination, and it does not lean toward a finger dragging it or a
