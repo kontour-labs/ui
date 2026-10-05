@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.theme.Theme
@@ -48,6 +50,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * The clear button appears only when there is something to clear, and pops in
  * with a small scale rather than fading — at 16dp a cross-fade is barely
  * perceptible.
+ *
+ * The field is named by its [placeholder], which says what it searches, and by
+ * `Strings.search` without one: a search field shows no label, and with nothing
+ * to name it a screen reader announced an unnamed edit box.
  *
  * @param onSearch Called when the user submits from the keyboard. Fires
  *   immediately, bypassing the debounce, because an explicit submit should not
@@ -86,20 +92,33 @@ fun SearchField(
 
     val currentOnSearch by rememberUpdatedState(onSearch)
 
-    TextField(
+    TextFieldImpl(
         state = state,
         modifier = modifier,
         enabled = enabled,
+        readOnly = false,
+        label = null,
         placeholder = placeholder,
         supporting = supporting,
+        errorMessage = null,
         leadingIcon = searchIcon,
+        leading = null,
+        trailingIcon = null,
         variant = variant,
         shape = shape,
-        colours = colours,
-        metrics = metrics,
+        keyboardType = KeyboardType.Text,
         imeAction = ImeAction.Search,
         onKeyboardAction = { currentOnSearch?.invoke(state.text.toString()) },
+        imeChain = null,
+        inputTransformation = null,
+        outputTransformation = null,
+        lineLimits = TextFieldLineLimits.SingleLine,
+        colours = colours,
+        metrics = metrics,
         interactionSource = interactionSource,
+        // A search field shows no label: what it is for is its placeholder,
+        // and with none, that it searches. It was an unnamed edit box.
+        accessibleName = placeholder ?: Theme.strings.search,
         trailing = if (clearIcon != null) {
             {
                 AnimatedVisibility(

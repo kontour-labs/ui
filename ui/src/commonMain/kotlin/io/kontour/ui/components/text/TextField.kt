@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.error as semanticsError
@@ -123,6 +124,67 @@ fun TextField(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
+) {
+    TextFieldImpl(
+        state = state,
+        modifier = modifier,
+        enabled = enabled,
+        readOnly = readOnly,
+        label = label,
+        placeholder = placeholder,
+        supporting = supporting,
+        errorMessage = errorMessage,
+        leadingIcon = leadingIcon,
+        leading = leading,
+        trailingIcon = trailingIcon,
+        trailing = trailing,
+        variant = variant,
+        shape = shape,
+        keyboardType = keyboardType,
+        imeAction = imeAction,
+        onKeyboardAction = onKeyboardAction,
+        imeChain = imeChain,
+        inputTransformation = inputTransformation,
+        outputTransformation = outputTransformation,
+        lineLimits = lineLimits,
+        colours = colours,
+        metrics = metrics,
+        interactionSource = interactionSource,
+        accessibleName = label,
+    )
+}
+
+/**
+ * The field, named for assistive tech by [accessibleName]: [TextField]'s
+ * label, or what a [SearchField] says it is for when it has no label to show.
+ */
+@Composable
+internal fun TextFieldImpl(
+    state: TextFieldState,
+    modifier: Modifier,
+    enabled: Boolean,
+    readOnly: Boolean,
+    label: String?,
+    placeholder: String?,
+    supporting: String?,
+    errorMessage: String?,
+    leadingIcon: ImageVector?,
+    leading: (@Composable () -> Unit)?,
+    trailingIcon: ImageVector?,
+    trailing: (@Composable () -> Unit)?,
+    variant: TextFieldVariant,
+    shape: Shape,
+    keyboardType: KeyboardType,
+    imeAction: ImeAction,
+    onKeyboardAction: KeyboardActionHandler?,
+    imeChain: ImeChainStep?,
+    inputTransformation: InputTransformation?,
+    outputTransformation: OutputTransformation?,
+    lineLimits: TextFieldLineLimits,
+    colours: TextFieldColours,
+    metrics: TextFieldMetrics,
+    interactionSource: MutableInteractionSource?,
+    accessibleName: String?,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
@@ -243,8 +305,9 @@ fun TextField(
                             // Without this the field announces as an unnamed edit
                             // box: the user hears "Origin", moves to the next
                             // node, and is then in a text field with no idea what
-                            // it is for.
-                            if (label != null) contentDescription = label
+                            // it is for. A search field with no label is named
+                            // by its placeholder instead — see `SearchField`.
+                            if (accessibleName != null) contentDescription = accessibleName
                             if (errorMessage != null) semanticsError(errorMessage)
                             // Foundation greys the field out and stops accepting
                             // input, but does not mark the node disabled — so a
@@ -279,6 +342,9 @@ fun TextField(
             if (placeholder != null && state.text.isEmpty()) {
                 Text(
                     text = placeholder,
+                    // Said once, as the field's name, when it is that: read
+                    // again as a line of its own it is the same words twice.
+                    modifier = if (placeholder == accessibleName) Modifier.clearAndSetSemantics {} else Modifier,
                     style = Theme.typography.bodyMedium,
                     // The disabled grey when disabled, as the text it stands in
                     // for is. It kept its own colour, darker than that grey, so

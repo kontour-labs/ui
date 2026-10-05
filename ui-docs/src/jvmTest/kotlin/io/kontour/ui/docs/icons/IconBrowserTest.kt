@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
@@ -183,7 +184,10 @@ class IconBrowserTest {
     @Test
     fun theSearchSaysHowManyOfTheStyleItSearches() = runComposeUiTest {
         browser()
-        fun placeholder(text: String) = onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        // The placeholder is the field's name, said once as that, so it is read
+        // off the input rather than found as a line of text.
+        fun placeholder(text: String) =
+            onAllNodes(hasSetTextAction() and hasContentDescription(text), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         assertTrue(placeholder("Search 1,001 outline icons"), "the placeholder does not count the outline icons")
         onNodeWithText("Filled").performClick()
         waitForIdle()

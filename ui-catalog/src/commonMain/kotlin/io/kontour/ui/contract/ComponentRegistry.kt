@@ -1411,6 +1411,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             activatedByClick = false,
             control = ControlLocator.TextInput,
+            // No label to show: the placeholder says what it searches.
+            accessibleName = "Search stops",
         ) { modifier, enabled, _ ->
             SearchField(
                 state = rememberTextFieldState(),

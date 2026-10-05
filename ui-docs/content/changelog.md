@@ -141,6 +141,10 @@ was).
 
 ### Fixed
 
+- **A [`SearchField`](components/search-field.md) is named by its placeholder**,
+  and "Search" without one, as are the fields in `NavSearch` and the command
+  palette. It had no name at all — a screen reader announced an edit box — and
+  nothing from outside could give it one.
 - **A [`Select`](components/select.md)'s and a
   [`Combobox`](components/combobox.md)'s options are each a radio button, chosen
   or not, in one group.** Only the chosen one was; the rest announced as
