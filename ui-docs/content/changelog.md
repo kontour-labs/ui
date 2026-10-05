@@ -122,6 +122,11 @@ no icons has arrows either side of its month.
   they had no buttons either side of the month, and paged only by a swipe —
   *"there's no left/right buttons"*, of one in a dialog. `previousIcon = null`
   and `nextIcon = null` leave them out.
+- **A [toast](components/toast.md) stands 8dp off its edge**, the window's top
+  or foot inside its insets, and 8dp above a navigation bar, where it stood 16dp
+  off the window and 28dp above the bar: *"the clearance between the toast and
+  the top/bottom of the page (or the clearance above the nav bar) is a bit too
+  large"*.
 
 ### Added
 

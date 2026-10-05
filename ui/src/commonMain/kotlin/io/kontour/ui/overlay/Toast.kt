@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -71,6 +72,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.highContrast
@@ -740,9 +742,11 @@ fun ToastHost(
  * From the bars that report themselves to the host ([clearedByToasts]), and
  * only those near the foot — within [BarReach] of it, which takes a floating
  * bar over the gesture bar and leaves out one drawn mid-page. The stack then
- * stands [ToastDefaults]' own margin's worth above the bar's top: as an inset,
- * taken with the window's own as the larger of the two, so a keyboard up over
- * the bar still lifts it further, and the two are never added.
+ * stands on the bar's top as it would on the window's foot, the same
+ * [ToastEdgeGap] off it: as an inset, taken with the window's own as the larger
+ * of the two, so a keyboard up over the bar still lifts it further, and the
+ * two are never added. It stood `sm` above the bar *and* the card's own ring
+ * above that, 28dp of page between a toast and the bar it was raised over.
  *
  * Moves when a bar comes or goes — a page covering the bar takes it away at
  * the end of its slide — rather than jumping, and is where it should be from
@@ -761,14 +765,13 @@ private class BarLift {
 private fun rememberBarLift(position: ToastPosition, host: OverlayHostState, density: Density): BarLift {
     val lift = remember { BarLift() }
     val reach = with(density) { BarReach.toPx() }
-    val margin = with(density) { Theme.spacing.sm.toPx() }
     val root = lift.rootHeight
     val target = if (position != ToastPosition.Bottom || root <= 0f) {
         0f
     } else {
         host.bottomBars.values
             .filter { root - it.bottom <= reach }
-            .maxOfOrNull { root - it.top + margin }
+            .maxOfOrNull { root - it.top }
             ?: 0f
     }
     val spec = Theme.motion.springOrTween<Float>()
@@ -787,6 +790,29 @@ private fun rememberBarLift(position: ToastPosition, host: OverlayHostState, den
 
 /** How near the foot of the window a bar has to end to count as along it. */
 private val BarReach = 96.dp
+
+/**
+ * How far a toast stands off the edge it is shown at — the window's top or
+ * foot inside its insets, or the top of a navigation bar along the foot.
+ *
+ * Less than the ring round each card, which is `md` because the card's shadow
+ * is drawn in it and a swiped card's fade is clipped to it: the stack is moved
+ * toward its edge by the difference, so the ring reaches past the edge rather
+ * than holding the card off it. With the ring as the gap, a toast stood 16dp
+ * off the window and 28dp above a bar — *"the clearance between the toast and
+ * the top/bottom of the page (or the clearance above the nav bar) is a bit too
+ * large"*. Eight: clear of the edge without a band of page under it.
+ */
+private val ToastEdgeGap: Dp
+    @Composable @ReadOnlyComposable get() = Theme.spacing.xs
+
+/**
+ * The stack moved toward its edge by [shift]: the part of each card's ring that
+ * is more than [ToastEdgeGap]. A placement, fixed for a given theme; nothing
+ * about it moves.
+ */
+private fun Modifier.standingOffItsEdge(towardEdge: Boolean, shift: Dp): Modifier =
+    offset { IntOffset(0, (if (towardEdge) 1 else -1) * shift.roundToPx()) }
 
 /**
  * Whether a drag is aimed back into the screen, which is the one that returns.
@@ -876,6 +902,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
     // The stack grows away from the edge it is anchored to: a bottom-anchored
     // stack recedes upward, a top-anchored one downward.
     val towardEdge = config.position.towardEdge
+    val edgeShift = Theme.spacing.md - ToastEdgeGap
     val visible = state.toasts.takeLast(config.maxVisible)
     val density = LocalDensity.current
     val barLift = rememberBarLift(config.position, LocalOverlayHost.current, density)
@@ -1104,7 +1131,8 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         Modifier
             .fillMaxSize()
             .onPlaced { barLift.rootHeight = it.findRootCoordinates().size.height.toFloat() }
-            .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt()))),
+            .overlappingInsetsPadding(config.windowInsets.union(WindowInsets(bottom = barLift.value.roundToInt())))
+            .standingOffItsEdge(towardEdge, edgeShift),
         contentAlignment = config.position.alignmentFor(config.alignment),
     ) {
         visible.forEachIndexed { index, toast ->
