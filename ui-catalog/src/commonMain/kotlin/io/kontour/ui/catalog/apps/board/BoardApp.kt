@@ -151,6 +151,8 @@ private fun LaneColumn(
         itemLabel = { it.title },
         onDrop = { drop -> board.moveTask(drop, lane) },
         accepts = lane::takes,
+        // A card's own shape, so the shadow it lifts with has its corners.
+        previewShape = Theme.shapes.container,
         // Files from the desktop, another window or the Files app: a card of
         // their own, where they are let go — or at the end, where the platform
         // does not say where. A full column is not offered them.

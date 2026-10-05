@@ -20,7 +20,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -757,6 +759,16 @@ internal fun DragLayer(host: DragHost) {
     val position = remember(session) { Animatable(session.topLeft, Offset.VectorConverter) }
     val scale = remember(session) { Animatable(1f) }
 
+    // How far off the page it is, 0 to 1: its shadow, and — where things may
+    // move — the little it grows. It rises as the thing is picked up rather
+    // than arriving with it, and comes back down as the thing goes to its
+    // place, so it is flat by the time it gets there and the item it hands
+    // over to, which casts no shadow, takes over without a step.
+    val lift = remember(session) { Animatable(0f) }
+    LaunchedEffect(session) {
+        lift.animateTo(1f, motion.springOrTween(motion.springSnappy))
+    }
+
     // Under the pointer while carried, with nothing between the two — or, carried
     // by a keyboard, over the place it would land, moving to each in turn.
     LaunchedEffect(session) {
@@ -782,29 +794,37 @@ internal fun DragLayer(host: DragHost) {
     LaunchedEffect(session, session.phase) {
         if (session.phase == DragPhase.Carrying) return@LaunchedEffect
         val to = session.destination
-        if (!motion.reduceMotion) {
-            if (to != null) {
-                position.animateTo(to.topLeft, motion.springOrTween(motion.springSnappy))
-            } else {
-                // Into a target with no place of its own: in, and gone.
-                scale.animateTo(0.6f, motion.tweenFast())
+        if (motion.reduceMotion) {
+            // No flight to set it down during: down with the drop.
+            lift.snapTo(0f)
+        } else {
+            coroutineScope {
+                // The same spring as the flight, so the two arrive together.
+                launch { lift.animateTo(0f, motion.springOrTween(motion.springSnappy)) }
+                if (to != null) {
+                    position.animateTo(to.topLeft, motion.springOrTween(motion.springSnappy))
+                } else {
+                    // Into a target with no place of its own: in, and gone.
+                    scale.animateTo(0.6f, motion.tweenFast())
+                }
             }
         }
         host.finish(session)
     }
 
     val edge = contrastEdge()
-    val lift = DragLift
+    val grows = !motion.reduceMotion
     Box(
         Modifier
             .offset { (position.value - host.originOf()).let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
             .size(with(density) { session.size.width.toDp() }, with(density) { session.size.height.toDp() })
             .graphicsLayer {
-                val grow = if (session.phase == DragPhase.Carrying) DragPreviewScale else 1f
+                val up = lift.value.coerceIn(0f, 1f)
+                val grow = if (grows) 1f + (DragPreviewScale - 1f) * up else 1f
                 scaleX = grow * scale.value
                 scaleY = grow * scale.value
                 alpha = if (scale.value < 1f) (scale.value - 0.6f) / 0.4f else 1f
-                shadowElevation = lift.toPx()
+                shadowElevation = DragLift.toPx() * up
                 shape = session.shape
                 clip = false
             }

@@ -209,6 +209,13 @@ and a card over a target that will not take it `NotAllowed`. At high contrast th
 carried card has an edge, so it stands off whatever it is over. Under reduced
 motion the card does not fly to its place or home, and the gap opens at once.
 
+**It lifts off and sets down.** A picked-up card rises off the page, its shadow
+deepening over a moment rather than arriving with it, and settles back flat as it
+flies to its place, so the card that takes over there — which casts no shadow —
+does so without a step. Give `rememberDropListState` the `previewShape` your items
+are drawn in, so the shadow has their corners: a `Card`'s is
+`Theme.shapes.container`. Under reduced motion it does not grow as it lifts.
+
 ## Reorderable lists
 
 `ReorderableItem` is still the simpler thing for a list whose rows only move
