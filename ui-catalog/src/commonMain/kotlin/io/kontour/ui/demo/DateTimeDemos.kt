@@ -22,8 +22,6 @@ import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
 import io.kontour.icons.tabler.outline.ChevronDown
-import io.kontour.icons.tabler.outline.ChevronLeft
-import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityLegend
 import io.kontour.ui.components.datetime.ActivityMark
@@ -44,6 +42,9 @@ import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import io.kontour.ui.overlay.Dialog
+import androidx.compose.foundation.layout.padding
+import io.kontour.ui.sheet.SheetHeader
+import io.kontour.ui.sheet.ModalBottomSheet
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -75,8 +76,6 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
             // Past dates are unselectable, which is what a departure date is —
             // and it is the parameter people reach for first.
             isDateSelectable = { it >= Today },
-            previousIcon = Tabler.Outline.ChevronLeft,
-            nextIcon = Tabler.Outline.ChevronRight,
             // The header opens two wheels. Without a glyph it is a title that
             // happens to be a button, which on a touch screen has no hover to
             // discover it with.
@@ -99,8 +98,6 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
         today = Today,
         // In the middle of a card wider than the picker's 308dp.
         modifier = Modifier.fillMaxWidth().wrapContentWidth(),
-        previousIcon = Tabler.Outline.ChevronLeft,
-        nextIcon = Tabler.Outline.ChevronRight,
         chooserIcon = Tabler.Outline.ChevronDown,
     )
 }
@@ -155,8 +152,6 @@ internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs
                 onValueChange = { leave = it },
                 today = Today,
                 isDateSelectable = { it >= Today },
-                previousIcon = Tabler.Outline.ChevronLeft,
-                nextIcon = Tabler.Outline.ChevronRight,
                 chooserIcon = Tabler.Outline.ChevronDown,
                 minuteStep = 5,
             )
@@ -167,14 +162,23 @@ internal val DateTimePickerDemo = ComponentDemo(slug = "date-time-picker", knobs
 
 internal val TimeFieldDemo = ComponentDemo(slug = "time-field") {
     var leaveAt by remember { mutableStateOf(LocalTime(8, 15)) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-        TimeField(
+    var picking by remember { mutableStateOf(false) }
+    TimeField(
+        value = leaveAt,
+        onClick = { picking = true },
+        label = "Leave at",
+        modifier = Modifier.fillMaxWidth(),
+    )
+    // The wheels set the time as they turn, so the sheet needs no Done: its
+    // close button, a drag down or a tap outside puts it away.
+    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
+        SheetHeader { +"Leave at" }
+        TimePicker(
             value = leaveAt,
-            onClick = { echo("Would open a TimePicker in a sheet") },
-            label = "Leave at",
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange = { leaveAt = it },
+            minuteStep = 5,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
         )
-        TimePicker(value = leaveAt, onValueChange = { leaveAt = it }, minuteStep = 5)
     }
 }
 
@@ -192,29 +196,48 @@ internal val DateFieldDemo = ComponentDemo(slug = "date-field", knobs = listOf(d
     val style = this[dateFieldStyle]
     var date by remember(empty) { mutableStateOf<LocalDate?>(if (empty) null else LocalDate(2026, 3, 14)) }
     var publishAt by remember { mutableStateOf(LocalDateTime(LocalDate(2026, 3, 14), LocalTime(9, 30))) }
-    var picking by remember { mutableStateOf(false) }
+    var pickingDate by remember { mutableStateOf(false) }
+    var pickingPublish by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
         DateField(
             value = date,
-            onClick = { picking = true },
+            onClick = { pickingDate = true },
             label = "Post date",
             style = style,
             modifier = Modifier.fillMaxWidth(),
         )
         DateTimeField(
             value = publishAt,
-            onClick = { echo("Would open a DateTimePicker in a sheet") },
+            onClick = { pickingPublish = true },
             label = "Publish at",
             modifier = Modifier.fillMaxWidth(),
         )
-        Dialog(
-            visible = picking,
-            onDismissRequest = { picking = false },
-            title = { +"Post date" },
-            actions = { cancel() },
-        ) {
-            DatePicker(value = date, onValueChange = { date = it; picking = false })
-        }
+    }
+    Dialog(
+        visible = pickingDate,
+        onDismissRequest = { pickingDate = false },
+        title = { +"Post date" },
+        actions = { cancel() },
+    ) {
+        DatePicker(
+            value = date,
+            onValueChange = { date = it; pickingDate = false },
+            today = Today,
+            chooserIcon = Tabler.Outline.ChevronDown,
+            // In the middle of a dialog wider than the picker's 308dp.
+            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
+        )
+    }
+    ModalBottomSheet(visible = pickingPublish, onDismissRequest = { pickingPublish = false }) { padding ->
+        SheetHeader { +"Publish at" }
+        DateTimePicker(
+            value = publishAt,
+            onValueChange = { publishAt = it },
+            today = Today,
+            chooserIcon = Tabler.Outline.ChevronDown,
+            minuteStep = 5,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
+        )
     }
 }
 

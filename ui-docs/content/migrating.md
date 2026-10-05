@@ -108,6 +108,13 @@ A `Scrollbar` shows, thinner, while the content moves under a finger, and fades
 after it stops, where it drew nothing before. `alwaysVisible = false` was always
 the default and still is; it is touch that changed.
 
+### Check: a date picker given no arrows
+
+A `DatePicker`, `DateRangePicker` or `DateTimePicker` called without
+`previousIcon` and `nextIcon` has the library's chevrons either side of its
+month, where it had no buttons. One that is meant to page only by a swipe
+should pass `null` for both.
+
 ---
 
 ## 0.3 to 0.4

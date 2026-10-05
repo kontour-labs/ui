@@ -43,11 +43,12 @@ and for a question that needs more than an answer.
 A lambda literal compiles everywhere as it did, but a builder held in a variable
 and a few arguments passed by position need a change, and anything built
 against 0.4.1 has to be recompiled — see **Breaking**, and
-[Migrating](migrating.md#041-to-042) for the code before and after. Two things
+[Migrating](migrating.md#041-to-042) for the code before and after. Three things
 look different without any change: an app with no `WindowSizeClassProvider` now
-gets a rail and two panes on a wide window rather than a phone's layout, and a
+gets a rail and two panes on a wide window rather than a phone's layout, a
 floating `NavBar` sits lower over a home indicator, with the page fading out
-under it (`fadeUnder = false` keeps the page as it was).
+under it (`fadeUnder = false` keeps the page as it was), and a date picker given
+no icons has arrows either side of its month.
 
 ### Breaking
 
@@ -110,6 +111,12 @@ under it (`fadeUnder = false` keeps the page as it was).
   under a long message**, which scrolls, rather than scrolling away below it.
   A dialog's content fades at the edge it scrolls under while there is more
   past it.
+- **A [`DatePicker`](components/date-picker.md#the-header-is-the-way-out-of-paging),
+  `DateRangePicker` and `DateTimePicker` have their paging arrows by default**:
+  the library's chevrons, back and on in the reading direction. Given no icons
+  they had no buttons either side of the month, and paged only by a swipe —
+  *"there's no left/right buttons"*, of one in a dialog. `previousIcon = null`
+  and `nextIcon = null` leave them out.
 
 ### Added
 

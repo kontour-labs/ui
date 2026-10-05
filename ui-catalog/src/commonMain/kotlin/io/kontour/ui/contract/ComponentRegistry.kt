@@ -167,7 +167,6 @@ import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.nav.NavBar
@@ -2158,8 +2157,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value = SpecimenDate,
                 onValueChange = {},
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
         }
@@ -2185,8 +2182,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 end = LocalDate(2026, 6, 24),
                 onRangeChange = { _, _ -> },
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
         }
@@ -2217,8 +2212,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value = LocalDateTime(SpecimenDate, SpecimenTime),
                 onValueChange = {},
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 minuteStep = 5,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )

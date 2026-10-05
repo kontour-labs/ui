@@ -5,6 +5,14 @@ import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import io.kontour.ui.components.datetime.DatePickerDefaults
+import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SheetHeader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -96,7 +104,14 @@ fun DateFieldBasics() {
         title = { +"Post date" },
         actions = { cancel() },
     ) {
-        DatePicker(value = date, onValueChange = { date = it; picking = false })
+        DatePicker(
+            value = date,
+            onValueChange = { date = it; picking = false },
+            // Marks today, and gives the header its way back to it.
+            today = remember { DatePickerDefaults.currentDate() },
+            // The picker stops at a phone's width; this centres it in a wider dialog.
+            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
+        )
     }
 }
 
@@ -104,9 +119,23 @@ fun DateFieldBasics() {
 fun TimeFieldBasics() {
     var departAt by remember { mutableStateOf(LocalTime(8, 15)) }
 
+    var picking by remember { mutableStateOf(false) }
+
     // A read-only field that opens a picker — `onClick`, not `onValueChange`.
     // Typing a time into a text field is how you get 25:61.
-    TimeField(value = departAt, onClick = { start() }, label = "Leave at")
+    TimeField(value = departAt, onClick = { picking = true }, label = "Leave at")
+
+    // The wheels set the time as they turn, so the sheet needs no Done: its
+    // close button, a drag down or a tap outside puts it away.
+    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
+        SheetHeader { +"Leave at" }
+        TimePicker(
+            value = departAt,
+            onValueChange = { departAt = it },
+            minuteStep = 5,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
+        )
+    }
 }
 
 @Composable

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.locale.DateStyle
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
@@ -43,8 +44,6 @@ import kotlinx.datetime.LocalDateTime
  *     onValueChange = viewModel::setLeaveAt,
  *     today = today,
  *     isDateSelectable = { it >= today },
- *     previousIcon = Tabler.Outline.ChevronLeft,
- *     nextIcon = Tabler.Outline.ChevronRight,
  *     minuteStep = 5,
  * )
  * ```
@@ -94,8 +93,8 @@ fun DateTimePicker(
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
-    previousIcon: ImageVector? = null,
-    nextIcon: ImageVector? = null,
+    previousIcon: ImageVector? = SystemIcons.ChevronBack,
+    nextIcon: ImageVector? = SystemIcons.ChevronForward,
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,

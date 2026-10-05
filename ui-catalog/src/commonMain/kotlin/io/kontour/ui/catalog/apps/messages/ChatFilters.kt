@@ -15,8 +15,6 @@ import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Check
 import io.kontour.icons.tabler.outline.ChevronDown
-import io.kontour.icons.tabler.outline.ChevronLeft
-import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.TextButton
@@ -154,8 +152,6 @@ private fun ColumnScope.FiltersContent(state: MessagesState, onDone: () -> Unit,
             // A dot under each day somebody said something, so the range is
             // picked from the days that have anything in them.
             markerFor = { day -> marker.takeIf { day in activeDays } },
-            previousIcon = Tabler.Outline.ChevronLeft,
-            nextIcon = Tabler.Outline.ChevronRight,
             chooserIcon = Tabler.Outline.ChevronDown,
             // September, where most of the conversations are, rather than the
             // month of today with two days in it.

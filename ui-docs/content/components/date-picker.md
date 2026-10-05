@@ -26,6 +26,14 @@ else, `Modifier.fillMaxWidth().wrapContentWidth()` does.
 
 ### The header is the way out of paging
 
+**The arrows either side are there by default**: the library's own chevrons,
+back and on in the reading direction, so a right-to-left layout swaps their
+ends and they still point the way they go. They used to be the caller's to
+pass, and a picker given none had no buttons at all — it paged by a swipe
+nobody could see, and with a mouse not at all; reported, of one in a dialog,
+as *"there's no left/right buttons"*. `previousIcon` and `nextIcon` take an
+app's own glyphs to match its set, and null leaves a button out.
+
 **The month and year sit in the middle of the calendar**, over the middle of
 the grid, not in the middle of whatever the buttons either side leave — the end
 has the today button as well as the next month's, so the two sides are not the
@@ -49,11 +57,10 @@ DatePicker(
 
 **`chooserIcon` is the switch**, not just the glyph. Pass one and the header
 becomes a `Role.Button` with a focus ring and a press state; leave it out and the
-header is the title it always was. That is the same bargain the paging arrows
-make — the glyph is the app's to choose — with a second reason behind it: a popover
-needs an `OverlayHost` and throws without one, and a calendar turns up in tests,
-previews and pages that have none. An affordance you did not ask for must not be
-why your picker will not render.
+header is the title it always was. Unlike the arrows it is off by default,
+because a popover needs an `OverlayHost` and throws without one, and a calendar
+turns up in tests, previews and pages that have none. An affordance you did not
+ask for must not be why your picker will not render.
 
 The wheels drive the calendar **live**, so the grid behind the popover is already
 on the month the drum is showing. A wheel that only committed on dismiss would be

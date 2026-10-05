@@ -21,7 +21,14 @@ Dialog(
     title = { +"Post date" },
     actions = { cancel() },
 ) {
-    DatePicker(value = date, onValueChange = { date = it; picking = false })
+    DatePicker(
+        value = date,
+        onValueChange = { date = it; picking = false },
+        // Marks today, and gives the header its way back to it.
+        today = remember { DatePickerDefaults.currentDate() },
+        // The picker stops at a phone's width; this centres it in a wider dialog.
+        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
+    )
 }
 ```
 
