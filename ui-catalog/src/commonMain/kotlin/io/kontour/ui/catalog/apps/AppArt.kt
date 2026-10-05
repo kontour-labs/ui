@@ -86,6 +86,34 @@ internal fun ConversationArt(modifier: Modifier = Modifier) {
     }
 }
 
+/** Three columns of cards, one on its way between two: Board's picture. */
+@Composable
+internal fun BoardArt(modifier: Modifier = Modifier) {
+    Canvas(modifier.clearAndSetSemantics {}) {
+        drawRect(Brush.linearGradient(listOf(Mint, Teal), start = Offset.Zero, end = Offset(size.width, size.height)))
+        val unit = size.height / 10f
+        val column = size.width * 0.24f
+        val gap = (size.width - column * 3) / 4f
+        val cards = listOf(3, 2, 1)
+        for ((i, count) in cards.withIndex()) {
+            val x = gap + i * (column + gap)
+            drawRoundRect(Lane, Offset(x, unit * 1.2f), Size(column, unit * 7.6f), CornerRadius(unit * 0.5f))
+            for (c in 0 until count) {
+                drawRoundRect(
+                    CardFace,
+                    topLeft = Offset(x + unit * 0.35f, unit * (1.9f + c * 1.9f)),
+                    size = Size(column - unit * 0.7f, unit * 1.5f),
+                    cornerRadius = CornerRadius(unit * 0.35f),
+                )
+            }
+        }
+        // The card being carried, lifted and turned a little, between the first two columns.
+        val carried = Offset(gap + column * 0.7f, unit * 5.8f)
+        drawRoundRect(Shade, carried + Offset(unit * 0.15f, unit * 0.25f), Size(column - unit * 0.7f, unit * 1.5f), CornerRadius(unit * 0.35f))
+        drawRoundRect(Lifted, carried, Size(column - unit * 0.7f, unit * 1.5f), CornerRadius(unit * 0.35f))
+    }
+}
+
 private val Dusk = Color(0xFF2B2A5C)
 private val Ember = Color(0xFFE0796B)
 private val Haze = Color(0xFFF6C38B)
@@ -103,3 +131,10 @@ private val BubbleIn = Color(0xFFFFFFFF)
 private val BubbleOut = Color(0xFF5B3FD6)
 private val Paper = Color(0xFFFFF6D8)
 private val Ink = Color(0xFF8A7A4A)
+
+private val Mint = Color(0xFFB8EBD0)
+private val Teal = Color(0xFF6CC3C9)
+private val Lane = Color(0x33FFFFFF)
+private val CardFace = Color(0xFFFFFFFF)
+private val Lifted = Color(0xFFFFF3C4)
+private val Shade = Color(0x33000000)
