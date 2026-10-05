@@ -27,8 +27,8 @@ selection without being opened, which is most of what a filter bar is for.
 ## Accessibility
 
 Everything on [`Select`](select.md), except the one thing that makes it a
-different component: its options report **`Role.Checkbox`**, because any number
-of them can be on.
+different component: its options report **`Role.Checkbox`**, ticked or not,
+because any number of them can be on.
 
 The distinction is `MenuItem(multiple = true)`, and it changes what is
 announced and nothing that is drawn. Get it wrong and a screen reader tells the

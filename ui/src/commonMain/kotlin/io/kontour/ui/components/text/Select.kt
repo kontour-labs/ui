@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +40,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.LocalMenuPicksOne
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.WithAnchor
@@ -93,9 +95,9 @@ fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
  * screen. Above roughly a dozen, use [Combobox] so the user can type rather than
  * scroll.
  *
- * The menu matches the field's width and ticks the current value, reporting
- * `Role.RadioButton` per item to assistive tech — "one of these is on" is what
- * is actually being conveyed.
+ * The menu matches the field's width and ticks the current value. To assistive
+ * tech each option is a radio button, chosen or not, in one group — "one of
+ * these is on" is what is actually being conveyed.
  *
  * @param optionLabel How to render each option. Needed in practice: the default
  *   `toString()` is right only for a `List<String>`.
@@ -136,6 +138,7 @@ fun <T> Select(
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
+        picksOne = true,
     ) { dismiss ->
         for (option in options) {
             MenuItem(
@@ -215,6 +218,7 @@ fun <T> MultiSelect(
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
+        picksOne = false,
     ) {
         for (option in options) {
             MenuItem(
@@ -306,6 +310,7 @@ fun <T> Combobox(
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
+        picksOne = true,
         // The query belongs to one opening of the menu. Carrying it over would
         // reopen the list already filtered by something the user typed a screen
         // ago and has no reason to remember.
@@ -369,6 +374,9 @@ fun <T> Combobox(
  *   Receives the slot modifier and a [FocusRequester] that fires when the menu
  *   opens — a search box the user has to tap a second time to type in is a
  *   search box nobody uses.
+ * @param picksOne Whether the options are one choice among them, as a [Select]'s
+ *   and a [Combobox]'s are: each is then announced as chosen or not, in one group.
+ *   A [MultiSelect]'s say so themselves, as checkboxes.
  * @param content The menu body, given a `dismiss`. [Select] calls it; [MultiSelect]
  *   deliberately does not.
  */
@@ -386,6 +394,7 @@ private fun SelectFrame(
     metrics: TextFieldMetrics,
     state: SelectState,
     interactionSource: MutableInteractionSource?,
+    picksOne: Boolean,
     onOpenChange: (Boolean) -> Unit = {},
     editor: (@Composable RowScope.(Modifier, FocusRequester) -> Unit)? = null,
     content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
@@ -477,10 +486,15 @@ private fun SelectFrame(
             visible = expanded,
             anchor = bounds,
             onDismissRequest = { setExpanded(false) },
+            // One group, so a reader says how many options there are and which
+            // of them this is.
+            modifier = if (picksOne) Modifier.selectableGroup() else Modifier,
             alignment = OverlayAlignment.Start,
             matchAnchorWidth = true,
         ) {
-            content { setExpanded(false) }
+            CompositionLocalProvider(LocalMenuPicksOne provides picksOne) {
+                content { setExpanded(false) }
+            }
         }
     }
 }

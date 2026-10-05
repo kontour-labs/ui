@@ -87,6 +87,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -643,6 +645,19 @@ internal class MenuLevel(
 /** The in-place levels of the menu a row is in, or null where submenus cascade. */
 internal val LocalMenuLevels = staticCompositionLocalOf<MenuLevels?> { null }
 
+/**
+ * Whether the rows of this menu are one choice among them, as a
+ * [Select][io.kontour.ui.components.text.Select]'s options are, rather than
+ * actions.
+ *
+ * A row cannot tell from its own `selected = false` whether it is an option not
+ * chosen or an action with nothing to choose, and announced as the second it
+ * was a button: a select's chosen option was the one radio button among
+ * buttons. The selects say which they are; a menu of actions says nothing, and
+ * its rows stay buttons.
+ */
+internal val LocalMenuPicksOne = staticCompositionLocalOf { false }
+
 private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
@@ -654,14 +669,18 @@ private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - 
  * @param selected Marks a chosen item. Draws a check, and reports a role that
  *   depends on [multiple].
  * @param multiple Whether more than one item in this menu can be selected at
- *   once. It decides the announced role and nothing visual: `Role.Checkbox`
- *   where several can be on, `Role.RadioButton` where exactly one can.
+ *   once. It decides the announced role and nothing visual: `Role.Checkbox`,
+ *   ticked or not, where several can be on, `Role.RadioButton` where exactly one
+ *   can.
  *
  *   The distinction is the whole difference between the two components built on
  *   this. [Select][io.kontour.ui.components.text.Select] picks one;
  *   [MultiSelect][io.kontour.ui.components.text.MultiSelect] picks any number,
  *   and announced as radio buttons it was telling every screen-reader user that
- *   choosing a second mode of transport would clear the first.
+ *   choosing a second mode of transport would clear the first. The selects mark
+ *   their menus as choices themselves, so each of their options is announced as
+ *   chosen or not; in a menu of actions only a row that is [selected] is a
+ *   radio button, and the rest are buttons.
  * @param destructive Renders in the danger tone. For anything the user cannot
  *   undo.
  */
@@ -679,6 +698,7 @@ fun MenuItem(
     val slots = listItemSlots(content)
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val picksOne = LocalMenuPicksOne.current
 
     // One shape for the clip and the indication, remembered.
     //
@@ -700,12 +720,25 @@ fun MenuItem(
             modifier = modifier
                 .fillMaxWidth()
                 .semantics(mergeDescendants = true) {
-                    role = when {
-                        multiple -> Role.Checkbox
-                        selected -> Role.RadioButton
-                        else -> Role.Button
+                    when {
+                        // Ticked or not, said either way: a checkbox with no
+                        // state is announced as neither.
+                        multiple -> {
+                            role = Role.Checkbox
+                            toggleableState = ToggleableState(selected)
+                        }
+                        // One of a select's options, chosen or not.
+                        picksOne -> {
+                            role = Role.RadioButton
+                            this.selected = selected
+                        }
+                        // A ticked row in a menu of actions — a sort order.
+                        selected -> {
+                            role = Role.RadioButton
+                            this.selected = true
+                        }
+                        else -> role = Role.Button
                     }
-                    if (selected) this.selected = true
                 }
                 // `fill`, so the row that lights up is the row the finger gets.
                 //

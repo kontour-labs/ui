@@ -141,6 +141,12 @@ was).
 
 ### Fixed
 
+- **A [`Select`](components/select.md)'s and a
+  [`Combobox`](components/combobox.md)'s options are each a radio button, chosen
+  or not, in one group.** Only the chosen one was; the rest announced as
+  buttons, so nothing said they were choices. A
+  [`MultiSelect`](components/multi-select.md)'s checkboxes now say whether they
+  are ticked. A menu of actions is unchanged.
 - **A `Dialog`, `AlertDialog` or `CommandPalette` that leaves composition while
   it is up goes with it**, as a popover, a menu and a sheet already did. It
   stayed on screen when its caller went — a screen navigated away from, an `if`
