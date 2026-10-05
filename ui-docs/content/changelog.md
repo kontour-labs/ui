@@ -99,17 +99,18 @@ no icons has arrows either side of its month.
   kept.
 - **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
   sits just clear of iOS's home indicator and Android's gesture handle**, about
-  22dp up from the window's foot, rather than above the whole strip the system
-  keeps for them: 20dp lower on an iPhone, 10dp lower over a gesture handle.
+  28dp up from the window's foot, rather than above the whole strip the system
+  keeps for them: 14dp lower on an iPhone, 4dp lower over a gesture handle.
   Android's three buttons, and a docked bar, keep the whole inset, as does a
   `windowInsets` taller than the handle's, which is kept as given. There is no
   switch for this: it is where the bar belongs. The scaffold's padding comes
   down with it.
-- **The page fades out under a floating bar, and its capsule has a rim.** Over
-  the rows of a list, which are `surface` as the bar is, it was a shadow apart
-  from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
-  leaves the page as it is. The fade is the colour the bar sits on,
-  `LocalContainerColour`.
+- **The page fades out under a floating bar**, which stands off it on a shadow
+  a little deeper than the theme's `high`. Over the rows of a list, which are
+  `surface` as the bar is, it was a shadow apart from them. `fadeUnder = false`
+  (`barFadeUnder` on `NavigationSuiteScaffold`) leaves the page as it is and
+  gives the capsule a rim, a hairline of its own ink, instead. The fade is the
+  colour the bar sits on, `LocalContainerColour`.
 - **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
   under a long message**, which scrolls, rather than scrolling away below it.
   A dialog's content fades at the edge it scrolls under while there is more

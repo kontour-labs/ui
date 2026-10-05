@@ -37,6 +37,12 @@ import kotlin.test.assertTrue
  * navigation, it's perfect)"*. The bar padded by the whole inset: 34dp of an
  * iPhone's, and about 24dp of Android's gesture handle, under 8dp of its own.
  *
+ * Then, from a phone, the other way: *"the floating navbar needs to sit just a
+ * bit higher, it's now too close to the home bar (at least on android, maybe a
+ * bit on ios too)"*. It kept clear of the handle's top alone, 14dp up, with its
+ * own 8dp as the whole gap; it keeps 20dp now, so 6dp of air sits above the
+ * handle as well.
+ *
  * Measured as how much higher a destination stands than it does with no inset
  * at all, so the bar's own padding and size cancel out.
  */
@@ -85,13 +91,13 @@ class NavBarHandleInsetTest {
 
     @Test
     fun aFloatingBarSitsLowOverAHomeIndicator() = runComposeUiTest {
-        assertNear(14.dp, rise(WindowInsets(bottom = 34.dp), homeIndicator), "a floating bar over iOS's home indicator")
+        assertNear(20.dp, rise(WindowInsets(bottom = 34.dp), homeIndicator), "a floating bar over iOS's home indicator")
     }
 
     @Test
     fun overAGestureHandleItSitsAsLow() = runComposeUiTest {
         val gestures = HandleInsets(WindowInsets(bottom = 24.dp), WindowInsets(0))
-        assertNear(14.dp, rise(WindowInsets(bottom = 24.dp), gestures), "a floating bar over Android's gesture handle")
+        assertNear(20.dp, rise(WindowInsets(bottom = 24.dp), gestures), "a floating bar over Android's gesture handle")
     }
 
     @Test
@@ -132,7 +138,7 @@ class NavBarHandleInsetTest {
         val whole = bottom
         system = homeIndicator
         waitForIdle()
-        assertNear(20.dp, whole - bottom, "the content's padding should come down with the bar")
+        assertNear(14.dp, whole - bottom, "the content's padding should come down with the bar")
     }
 
     @Test

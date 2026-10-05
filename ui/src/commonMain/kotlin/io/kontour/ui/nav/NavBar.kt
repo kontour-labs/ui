@@ -311,8 +311,9 @@ enum class NavBarStyle {
  *   the capsule, so what scrolls under it fades away rather than running
  *   behind it. On by default: a floating bar is `surface`, and the rows of a
  *   list under it are too, so without it the bar was only a shadow apart from
- *   them. Never at high contrast, where nothing that is text fades, and the bar
- *   has its edge.
+ *   them. With it the capsule stands on a deeper shadow; without it, it has a
+ *   rim, a hairline of its own ink. Never at high contrast, where nothing that
+ *   is text fades, and the bar has its edge.
  * @param windowInsets What the bar keeps clear of. A floating bar over a system
  *   handle — iOS's home indicator, Android's gesture handle — keeps clear of the
  *   handle itself rather than of the whole strip the system keeps for it, and
@@ -551,8 +552,15 @@ internal fun NavBarLayout(
                 modifier = Modifier,
                 shape = shape ?: Theme.shapes.pill,
                 colours = colours,
-                shadow = Theme.elevation.high,
-                rim = true,
+                // With the page faded out under it, the bar stands on the page's
+                // own colour, and its shadow parts it from that rather than a
+                // hairline: the rim was there to tell it from rows of `surface`
+                // running behind it, and the fade leaves none there to tell it
+                // from. A shadow alone has more to do then, so it is a little
+                // deeper — the theme's own `high`, darker, rather than another
+                // rank.
+                shadow = if (fades) Theme.elevation.high.deepened(BarShadowDepth) else Theme.elevation.high,
+                rim = !fades,
             ) {
                 Destinations(
                     Modifier.padding(horizontal = floatingEnds, vertical = Theme.spacing.xs),
@@ -629,11 +637,12 @@ private fun BarGround(
         // A floating bar is `surface` on `background` with a shadow for an
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
         //
-        // And a rim at any tier, as a toast's pill has, for the same reason:
-        // over the rows of a list, which are `surface` too, a shadow alone did
-        // not part the bar from them — *"it blends in a lot with content behind
-        // it, especially when you're scrolling over list items"*. A hairline of
-        // the bar's own ink, faint, reads as the edge catching the light.
+        // And a rim at any tier where the page does not fade out under it, as a
+        // toast's pill has, for the same reason: over the rows of a list, which
+        // are `surface` too, a shadow alone did not part the bar from them —
+        // *"it blends in a lot with content behind it, especially when you're
+        // scrolling over list items"*. A hairline of the bar's own ink, faint,
+        // reads as the edge catching the light.
         border = contrastEdge() ?: if (rim) BorderStroke(Theme.sizing.borderWidth, contentColour.copy(alpha = BarRim)) else null,
     ) {
         content()
@@ -668,12 +677,29 @@ private val FadeAbove = 16.dp
 private const val BarRim = 0.22f
 
 /**
- * Where a system handle ends, up from the foot of the window: iOS's home
- * indicator tops out about 13pt up, and Android's gesture handle, centred in
- * its strip, a little higher. A floating bar over one keeps clear of this much
- * of it, and its own `xs` of padding is the gap above the handle.
+ * How much darker a floating bar's shadow is than `high` when the page fades
+ * out under it and the rim is left off.
  */
-private val HandleReach = 14.dp
+private const val BarShadowDepth = 1.5f
+
+/** [this] shadow with every layer [by] times as strong. */
+private fun Shadow.deepened(by: Float): Shadow =
+    Shadow(layers.map { it.copy(alpha = (it.alpha * by).coerceAtMost(1f)) })
+
+/**
+ * How far up from the foot of the window a floating bar keeps clear of a
+ * system handle: where the handle ends, and some air above it. iOS's home
+ * indicator tops out about 13pt up, and Android's gesture handle, centred in its
+ * strip, a little higher, at about 14. With the bar's own `xs` of padding on
+ * top, the capsule's foot is 28dp up.
+ *
+ * It was 14, the handle's top alone, so the bar's padding was the whole gap:
+ * *"the floating navbar needs to sit just a bit higher, it's now too close to
+ * the home bar (at least on android, maybe a bit on ios too)"*. Before that it
+ * was the whole strip, 42dp up on an iPhone and 32 over Android's gestures,
+ * which was too high the other way.
+ */
+private val HandleReach = 20.dp
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */
 private sealed interface BarChild {

@@ -43,22 +43,24 @@ navigation, and every other surface in the library has a ground.
 
 **Just clear of the system's handle.** A floating bar over iOS's home indicator,
 or Android's gesture handle, keeps clear of the handle itself rather than of the
-whole strip the system keeps for it: it sits 8dp above where the handle ends,
-about 22dp up from the window's foot. Padded by the whole strip it stood 42dp up
-on an iPhone, over nothing but the indicator. Android's three buttons take taps,
-and the bar stays clear of all of them, as a docked bar stays clear of all of
-any of them.
+whole strip the system keeps for it: its capsule's foot is about 28dp up from
+the window's foot, 14dp above where the handle ends. Padded by the whole strip
+it stood 42dp up on an iPhone, over nothing but the indicator. Android's three
+buttons take taps, and the bar stays clear of all of them, as a docked bar stays
+clear of all of any of them.
 
 **The page fades out under it.** A floating bar is `surface`, and so are the rows
 of a list, so over a list the bar was a shadow apart from what it sat on. With
 `fadeUnder`, on by default, the page's colour runs solid from the bar's middle to
 the window's foot and thins out a little above the capsule, so what scrolls
-under the bar fades away rather than running behind it; and the capsule has a
-rim, a hairline of its own ink. The colour is the one the bar sits on —
-`LocalContainerColour`, which a `Surface` and a `NavigationSuiteScaffold` set —
-so a page painted with `Modifier.background` in anything but `background` should
-say so the same way. `fadeUnder = false` leaves the page as it is. At high
-contrast nothing fades, and the bar has its edge instead.
+under the bar fades away rather than running behind it, and its shadow,
+a little deeper than the theme's `high`, is all that parts it from the page. The
+colour is the one the bar sits on — `LocalContainerColour`, which a `Surface` and
+a `NavigationSuiteScaffold` set — so a page painted with `Modifier.background` in
+anything but `background` should say so the same way. `fadeUnder = false` leaves
+the page as it is, and gives the capsule a rim instead: a hairline of its own
+ink, to part it from rows running behind it. At high contrast nothing fades, and
+the bar has its edge.
 
 `showLabels` is off by default. A word under every icon is a row of words, and the
 few destinations of a bar are ones its user already knows. A hidden label is still
@@ -240,11 +242,11 @@ Dragging the marker is a shortcut for a finger and adds nothing to the tree:
 each destination is still its own tab, chosen by a screen reader's activation,
 a switch or a key exactly as before.
 
-At high contrast the bar takes an edge in place of its rim, and the page does
-not fade out under it: a fade is a gradient of nearly-the-same colour, which is
-what that tier exists to remove. The travelling marker takes an accent outline,
-`selectionEdge()`, because a tint alone is too faint at that tier, and the focus
-ring is drawn thicker.
+At high contrast the bar takes an edge, in place of its rim or its deeper
+shadow, and the page does not fade out under it: a fade is a gradient of
+nearly-the-same colour, which is what that tier exists to remove. The travelling
+marker takes an accent outline, `selectionEdge()`, because a tint alone is too
+faint at that tier, and the focus ring is drawn thicker.
 
 The fade under a floating bar is drawn, not laid out: nothing under it becomes
 unreachable, and a screen reader still finds the rows it covers.

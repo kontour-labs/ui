@@ -83,9 +83,9 @@ provider, or a class provided outright, is kept as it is.
 ### Check: a floating `NavBar`
 
 It sits lower over iOS's home indicator and Android's gesture handle, and the
-page fades out under it, with a rim round the capsule. A screen that measured
-its own room above the bar should use the scaffold's padding, which comes down
-with it; `fadeUnder = false` keeps the page as it was.
+page fades out under it. A screen that measured its own room above the bar
+should use the scaffold's padding, which comes down with it; `fadeUnder = false`
+keeps the page as it was, and rims the capsule instead.
 
 ### Check: tests that find a select's options, or a search field
 
