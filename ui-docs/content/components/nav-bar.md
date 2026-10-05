@@ -220,15 +220,27 @@ seeing each one as the finger passes is the point. Asked for as an option:
 *"when you drag the navbar selection indicator, it can switch tabs as you're
 dragging"*.
 
-Only sideways, and only from a destination: a slot — a search — keeps its own
-gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
+**A group is somewhere to drag it, too.** Let go of the marker over a
+[group](#a-group-in-a-bar) and its menu opens, inviting a pick, and the group
+keeps the marker for as long as the menu is open. Pick from it and the marker
+stays, the group now carrying where you are; close it without a pick and the
+marker goes back to where it was. Asked for: *"when you drag the selection
+indicator onto an option that's a dropdown, the dropdown expands, inviting the
+user to pick an option"*. Only on the lift, under either rule: a menu that
+opened under a finger on its way past would be a menu in the way of the next
+destination, so a drag across a group to the one beyond opens nothing and, while
+choosing as it goes, skips the group.
+
+Only sideways, and only from a destination or a group: a slot — a search — keeps
+its own gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
 dragged at all: a rail scrolls, and a drag along it could not be told from a
 scroll.
 
 ### A group in a bar
 
 A `group` is a circle that opens a menu of its destinations above the bar. While
-the selected destination is inside it, the group's circle carries the marker.
+the selected destination is inside it, the group's circle carries the marker,
+and the marker can be dragged to it to open it.
 
 ---
 
@@ -240,7 +252,8 @@ is a `Role.Button` that opens a menu.
 
 Dragging the marker is a shortcut for a finger and adds nothing to the tree:
 each destination is still its own tab, chosen by a screen reader's activation,
-a switch or a key exactly as before.
+a switch or a key exactly as before, and a group still opens by its own
+activation.
 
 At high contrast the bar takes an edge, in place of its rim or its deeper
 shadow, and the page does not fade out under it: a fade is a gradient of

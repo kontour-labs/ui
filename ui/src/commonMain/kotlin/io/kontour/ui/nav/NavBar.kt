@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
@@ -952,20 +954,48 @@ private class BarScope(
         var open by remember { mutableStateOf(false) }
         var bounds by remember { mutableStateOf<Rect?>(null) }
         val selection = rememberGroupSelection(hidden = true, content = content)
+        // A place the marker can be dragged to, as a destination is: let go of
+        // it here and the menu opens, and the group keeps the marker while it
+        // is open.
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = { open = true }
+            target.opensMenu = true
+            target.enabled = enabled
+            target.selected = selection.any
+        }
+        DisposableEffect(drag, key) {
+            drag.targets[key] = target
+            onDispose { drag.targets.remove(key) }
+        }
+        // The marker the drag left here goes back once the menu has closed —
+        // a frame later, so that an answer picked in it has become the bar's
+        // selection by then, and the marker stays where it is rather than
+        // setting off for the old destination and turning round.
+        if (!open && drag.holding == key) {
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                drag.letGo(key)
+            }
+        }
         NavDestination(
             label = text,
             icon = icon,
             selected = false,
-            // Not a place the marker can be dragged to: while it is being
-            // dragged it is wherever the finger is, never on the group.
-            marked = selection.any && !drag.previewing,
+            // While the marker is dragged it is wherever the finger is, this
+            // group included; left here, it stays while the menu is open.
+            marked = drag.marks(key, selection.any),
             onClick = { open = !open },
             markerKey = key,
             colours = colours,
             layout = NavLayout.Stacked,
             showLabel = showLabels,
             indicatorSize = circle,
-            modifier = modifier.layoutId(BarChild.Destination).anchorBounds { bounds = it },
+            modifier = modifier
+                .layoutId(BarChild.Destination)
+                .anchorBounds { bounds = it }
+                .onPlaced { target.coordinates = it }
+                .then(if (dragging != null) Modifier.markerDrag(dragging, target, enabled) else Modifier),
             action = NavAction.Menu,
             enabled = enabled,
             badge = badge,
@@ -1022,6 +1052,13 @@ private class DragTarget {
     var onClick: () -> Unit = {}
     var enabled: Boolean = true
     var selected: Boolean = false
+
+    /**
+     * A group, whose [onClick] opens its menu rather than going anywhere: the
+     * marker can be dragged to it and left there, and it is never chosen on
+     * the way past.
+     */
+    var opensMenu: Boolean = false
 }
 
 /** What a destination needs to start dragging the marker. Stable per bar. */
@@ -1072,6 +1109,14 @@ private fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled:
  * can switch tabs as you're dragging". For pages that are cheap to show, where
  * scrubbing across them is the point: each destination's `onClick` runs as the
  * marker reaches it, once, and the lift chooses nothing more.
+ *
+ * **A group is somewhere to drag it too.** Let go over one and its menu opens,
+ * inviting a pick, and the group keeps the marker for as long as the menu is
+ * open; closed without a pick, the marker goes back to where it was. Asked
+ * for: *"when you drag the selection indicator onto an option that's a
+ * dropdown, the dropdown expands, inviting the user to pick an option"*. Only
+ * on the lift, under either rule: a menu that opened under a finger on its way
+ * past would be a menu in the way of the next destination.
  *
  * Only the bar's: a rail scrolls, and a sideways drag is the one thing a
  * vertical list cannot be sure is not a scroll.
@@ -1132,7 +1177,19 @@ private class MarkerDrag {
         state.reach = if (fingerAt.isNaN()) null else IndicatorReach(Offset(fingerAt, Float.NaN), SliderDefaults.DetentPull)
     }
 
-    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: selected
+    /**
+     * The group a drag was let go over, which keeps the marker while its menu
+     * is open. Cleared by the group, with [letGo], once the menu has closed.
+     */
+    var holding: Any? by mutableStateOf(null)
+        private set
+
+    /** The group whose menu has closed gives the marker back. */
+    fun letGo(key: Any) {
+        if (holding == key) holding = null
+    }
+
+    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: holding?.let { it == key } ?: selected
 
     private fun boundsOf(target: DragTarget): Rect? {
         val row = row ?: return null
@@ -1160,7 +1217,8 @@ private class MarkerDrag {
         ticker.at(index)
         val key = all[index].first
         over = key
-        if (selectsWhileDragging && key != chosen) {
+        // A group is never chosen on the way past: its menu waits for the lift.
+        if (selectsWhileDragging && key != chosen && targets[key]?.opensMenu != true) {
             chosen = key
             targets[key]?.takeIf { it.enabled }?.onClick?.invoke()
         }
@@ -1205,12 +1263,22 @@ private class MarkerDrag {
     }
 
     fun end(ticker: DetentTicker) {
-        val target = over?.let { targets[it] }
+        val key = over
+        val target = key?.let { targets[it] }
         val lifted = released
         released = false
         dragging = false
         indicator?.reach = null
         ticker.reset()
+        // Let go over a group: its menu opens, and the marker stays on it while
+        // the menu is open — set in the same breath as `over` is cleared, so it
+        // never sets off back to the destination it came from.
+        if (lifted && target != null && target.opensMenu && target.enabled && !target.selected) {
+            holding = key
+            over = null
+            target.onClick()
+            return
+        }
         // In one breath with the app's own change, so the marker heads straight
         // for the destination rather than back to the old one first.
         over = null

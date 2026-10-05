@@ -172,6 +172,11 @@ no icons has arrows either side of its month.
   button of your own — is drawn too, leading it. An `AlertDialog` keeps its
   fixed shape.
 
+- **A [`NavBar`](components/nav-bar.md#dragging-the-marker)'s marker can be
+  dragged to a group.** Let go over one and its menu opens, and the group keeps
+  the marker while it is open; closed without a pick, the marker goes back to
+  where it was. A drag across a group to the destination beyond opens nothing.
+
 ### Fixed
 
 - **A menu's dividers can be seen on the menu.** They were `outlineSubtle`, the
