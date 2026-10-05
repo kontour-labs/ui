@@ -773,7 +773,7 @@ HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 # A component that fires, either directly or through the shared ticker.
 PERFORMS = re.compile(
     r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
-    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\("
+    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\(|\brememberLandingFeedback\("
 )
 
 # Files whose component is not their filename. Written out rather than
@@ -790,9 +790,10 @@ HAPTIC_FILE_NAMES = {
     "Pressable": "Modifier.pressable",
 }
 
-# The mechanism rather than a component: one defines the dispatcher, the other
-# is the shared detent ticker every snapping component calls.
-HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+# The mechanism rather than a component: one defines the dispatcher, one is the
+# shared detent ticker every snapping component calls, and one is the pick-up
+# every carried thing — a reordered row, a dragged card — lands through.
+HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt", "PickUp.kt"}
 
 
 MAX_PLATFORM_HAPTICS = 0
