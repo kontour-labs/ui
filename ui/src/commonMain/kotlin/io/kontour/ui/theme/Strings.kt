@@ -279,6 +279,10 @@ data class Strings(
     val nextSection: String = "Next section",
     /** And back. */
     val previousSection: String = "Previous section",
+
+    // Navigation, continued: last so that nothing passed by position moves.
+    /** The destination at the end of a bar that holds the ones with no room of their own. */
+    val more: String = "More",
 ) {
     companion object {
         /**
@@ -406,6 +410,7 @@ data class Strings(
         otherSection = lookup.text("otherSection") ?: fallback.otherSection,
         nextSection = lookup.text("nextSection") ?: fallback.nextSection,
         previousSection = lookup.text("previousSection") ?: fallback.previousSection,
+        more = lookup.text("more") ?: fallback.more,
         )
     }
 }
@@ -576,4 +581,5 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     otherSection = transform(otherSection),
     nextSection = transform(nextSection),
     previousSection = transform(previousSection),
+    more = transform(more),
 )

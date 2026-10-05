@@ -242,13 +242,49 @@ A `group` is a circle that opens a menu of its destinations above the bar. While
 the selected destination is inside it, the group's circle carries the marker,
 and the marker can be dragged to it to open it.
 
+### More than a bar has room for
+
+<!--sample:NavBarMore-->
+```kotlin
+var here by remember { mutableStateOf("home") }
+
+// The destinations with no room of their own go in `more`, at the end: a
+// circle of three dots that opens a menu of them. In a rail there is room,
+// and they are drawn in line with the rest.
+NavBar {
+    item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+    item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+    item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+    more {
+        item(here == "alerts", { here = "alerts" }, key = "alerts", icon = Tabler.Outline.Bell) { +"Alerts" }
+        item(here == "saved", { here = "saved" }, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+        item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+```
+
+**`more { }` is the end of a bar with too many destinations**: a circle of the
+library's three dots, named `Theme.strings.more`, that opens a menu of what is
+written inside it. A group with nothing left to decide — no icon, no name and no
+key to choose — asked for as *"an easy api to add a '…' menu to the end with one
+of those dropdown options. this is useful for lots of nav items"*. A bar has
+room for about five destinations; an app with eight puts the first four in the
+bar and the rest in `more`.
+
+It is a [`NavScope`](nav-scope.md) call rather than a bar's, so the same block
+reads right in a `NavigationSuiteScaffold`: in a rail, which has room, the
+destinations inside it are drawn in line with the rest, as if `more` were not
+there. Like any group it carries the marker while the current destination is
+inside it. One per surface.
+
 ---
 
 ## Accessibility
 
 Destinations are `Role.Tab` inside a `selectableGroup()`. A slot is outside the
 count, so a search is not announced as "3 of 5" among four destinations. A group
-is a `Role.Button` that opens a menu.
+is a `Role.Button` that opens a menu, and `more` is one named "More" — the
+theme's word, so a translation reaches it.
 
 Dragging the marker is a shortcut for a finger and adds nothing to the tree:
 each destination is still its own tab, chosen by a screen reader's activation,

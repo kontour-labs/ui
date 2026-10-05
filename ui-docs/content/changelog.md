@@ -32,13 +32,14 @@ On `main`, and in the next release. Nothing yet.
 
 Feedback from building an app on 0.4.1. A loading state and a way to move
 between states, a scrollbar that shows under touch and goes on any scroller, a
-row of buttons for a form dialog, date fields, money in the theme's formats, and
-builders that read the theme where they are written. Fixes for overlays left up
-when their caller went, a select's options and a search field as a screen
-reader meets them, a table column fitted to more than its first rows, swipe back
-over a moving list, `LoadMore` in a plain column, helpers in a navigation group
-and a POSIX browser locale. The docs gain recipes for images from the network
-and for a question that needs more than an answer.
+row of buttons for a form dialog, date fields, money in the theme's formats,
+builders that read the theme where they are written, and a "More" for a bar with
+more destinations than room. Fixes for overlays left up when their caller went,
+a select's options and a search field as a screen reader meets them, a table
+column fitted to more than its first rows, swipe back over a moving list,
+`LoadMore` in a plain column, helpers in a navigation group and a POSIX browser
+locale. The docs gain recipes for images from the network and for a question
+that needs more than an answer.
 
 A lambda literal compiles everywhere as it did, but a builder held in a variable
 and a few arguments passed by position need a change, and anything built
@@ -73,8 +74,8 @@ no icons has arrows either side of its month.
   meaning something else. Name the argument.
 - **Recompile rather than swap the jar.** The six builders above are `inline`
   now, and `Dialog`, `NavBar`, `NavigationSuiteScaffold`, the selection
-  controls, `ComponentDefaults` and `LocaleFormats` gained members, so a library
-  built against 0.4.1 fails when it calls one until it is rebuilt.
+  controls, `ComponentDefaults`, `LocaleFormats` and `Strings` gained members,
+  so a library built against 0.4.1 fails when it calls one until it is rebuilt.
 
 ### Changed
 
@@ -176,6 +177,12 @@ no icons has arrows either side of its month.
   dragged to a group.** Let go over one and its menu opens, and the group keeps
   the marker while it is open; closed without a pick, the marker goes back to
   where it was. A drag across a group to the destination beyond opens nothing.
+
+- **[`more { }`](components/nav-bar.md#more-than-a-bar-has-room-for)** on any
+  `NavScope`: the destinations a bar has no room for, behind a circle of three
+  dots at its end, named `Theme.strings.more`, that opens a menu of them. A
+  group with no icon, name or key to choose. A rail has room, and draws them in
+  line, so one block reads right in a `NavigationSuiteScaffold`.
 
 ### Fixed
 

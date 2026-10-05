@@ -71,6 +71,7 @@ import androidx.compose.ui.geometry.Size
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.WindowInsets
 import io.kontour.ui.nav.TopBarStyle
+import io.kontour.ui.nav.more
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.sheet.SheetSide
@@ -232,9 +233,12 @@ private fun markerDragName(drag: NavBarMarkerDrag): String = when (drag) {
     NavBarMarkerDrag.SelectWhileDragging -> "Choose while dragging"
 }
 
+/** Four more destinations than the bar has room for, behind `more` at its end. */
+private val barMore = Knob.Flag("More")
+
 internal val NavBarDemo = ComponentDemo(
     slug = "nav-bar",
-    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded, barDrag),
+    knobs = listOf(barStyle, barLabels, barSearch, barSearchPlacement, barAction, barItemWidth, barMarker, barRounded, barDrag, barMore),
 ) {
     var here by remember { mutableStateOf("map") }
     val search = rememberNavSearchState()
@@ -282,6 +286,13 @@ internal val NavBarDemo = ComponentDemo(
                     }
                     allDestinations.subList(2, 4).forEach { d ->
                         item(here == d.key, { here = d.key }, key = d.key, icon = d.icon) { +d.label }
+                    }
+                }
+                if (this@ComponentDemo[barMore]) {
+                    more {
+                        allDestinations.drop(4).take(4).forEach { d ->
+                            item(here == d.key, { here = d.key }, key = d.key, icon = d.icon) { +d.label }
+                        }
                     }
                 }
             }

@@ -37,6 +37,7 @@ Four calls, and what each draws depends on the surface it is in:
 | `section` | nothing: its items are inline | a hairline | a title over its items |
 | `group` | a circle that opens a menu of its children | an icon that opens a menu beside the rail | a row that opens and closes its children below it |
 | `divider` | nothing | a hairline | a hairline |
+| `more` | a "More" circle that opens a menu of its children | its children, inline | its children, inline |
 
 **It emits, the way a menu does.** Each call draws where it is written, so the
 destinations can come from state, a loop or `stringResource` like any other
@@ -65,6 +66,11 @@ which is nearly always right and not something the component can know.
 
 `badge` is a slot, `{ Badge(count = 3) }` or `{ Badge() }` for a dot, drawn on the
 icon's corner and announced as part of the destination.
+
+**`more { }` is for destinations a bar has no room for**: in a bar, a group with
+the library's three dots and the theme's "More" that opens a menu of them; in a
+rail, which has room, they are drawn in line where `more` is written. See
+[`NavBar`](nav-bar.md#more-than-a-bar-has-room-for).
 
 ### How selection is shown
 

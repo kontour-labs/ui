@@ -27,9 +27,9 @@ check, and tests that find controls by role or by text should be run.
 - **Move all three modules at once**: `kontour = "0.4.2"`.
 - **Rebuild anything compiled against 0.4.1.** `ListGroup`, `KeyValueList`,
   `Stat`, `Gauge`, `Meter` and `Knob` are `inline` now, and `Dialog`, `NavBar`,
-  `NavigationSuiteScaffold`, the four selection controls and `ComponentDefaults`
-  gained parameters, so a library of your own built against 0.4.1 fails when it
-  calls one, until it is rebuilt.
+  `NavigationSuiteScaffold`, the four selection controls, `ComponentDefaults`
+  and `Strings` gained parameters, so a library of your own built against 0.4.1
+  fails when it calls one, until it is rebuilt.
 
 ### Builders are composable
 

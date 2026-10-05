@@ -49,6 +49,7 @@ import io.kontour.ui.nav.rememberTopBarCollapseState
 import io.kontour.ui.nav.rememberNavSearchState
 import io.kontour.ui.nav.rememberNavigationSuiteState
 import io.kontour.ui.nav.topBarCollapse
+import io.kontour.ui.nav.more
 
 @Composable
 fun TopBarCollapsing() {
@@ -198,6 +199,25 @@ fun NavBarCircles() {
         item(here == "drive", { here = "drive" }, key = "drive", icon = Tabler.Outline.Car) { +"Drive" }
         item(here == "shop", { here = "shop" }, key = "shop", icon = Tabler.Outline.Basket) { +"Shop" }
         item(here == "you", { here = "you" }, key = "you", icon = Tabler.Outline.User) { +"You" }
+    }
+}
+
+@Composable
+fun NavBarMore() {
+    var here by remember { mutableStateOf("home") }
+
+    // The destinations with no room of their own go in `more`, at the end: a
+    // circle of three dots that opens a menu of them. In a rail there is room,
+    // and they are drawn in line with the rest.
+    NavBar {
+        item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+        item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+        item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+        more {
+            item(here == "alerts", { here = "alerts" }, key = "alerts", icon = Tabler.Outline.Bell) { +"Alerts" }
+            item(here == "saved", { here = "saved" }, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+            item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+        }
     }
 }
 
