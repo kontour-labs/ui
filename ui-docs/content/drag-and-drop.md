@@ -68,9 +68,11 @@ caller's lists before then, which keeps cancelling, and undo, simple: a drag tha
 is called off has changed nothing. A card let go in its own place is not a drop,
 and calls nothing.
 
-**The list makes room as it goes.** The card's own place folds away as it is
-picked up and a gap opens where it would land, measured from the card's centre;
-the neighbours slide aside as the gap moves. A place, once taken, sticks: the
+**The list makes room as it goes.** A gap opens where the card would land,
+measured from the card's centre, and the neighbours slide aside as it moves. Over
+its own list the gap is the card's own place, moved: exactly the room the card
+will take, spacing and all, so the cards it passes end up where it left them.
+Carried off its list, its place closes up behind it. A place, once taken, sticks: the
 card has to pass the middle of the item beyond it, where that item now is, to
 take the next one, so a hand held still does not make the list twitch.
 

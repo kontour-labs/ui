@@ -131,13 +131,14 @@ class DropListState<T : Any> internal constructor(
         index = { externalIndex },
     )
 
-    /**
-     * The index of one of this list's own items while it is carried, and its
-     * place is folded away: not once it is on its way home, when the place
-     * opens again for it to land in.
-     */
-    internal val carriedIndex: Int?
-        get() = host?.session?.takeIf { it.fromList === this && it.phase != DragPhase.Returning }?.fromIndex
+    /** The key of one of this list's own items while it is carried; `null` while none is. */
+    @Suppress("UNCHECKED_CAST")
+    internal val carriedKey: Any?
+        get() = host?.session?.takeIf { it.fromList === this }?.let { key(it.payload as T) }
+
+    /** Whether the carried item is on its way home, when its own place opens again for it to land in. */
+    internal val carriedHome: Boolean
+        get() = host?.session?.takeIf { it.fromList === this }?.phase == DragPhase.Returning
 
     /** Where the gap is, counted without the carried item. */
     internal var gapIndex: Int? by mutableStateOf(null)
@@ -299,11 +300,18 @@ class DropListState<T : Any> internal constructor(
         session.index = index
     }
 
-    /** The gap's place in the root, for a landing to fly to. */
+    /**
+     * Where a landing here flies to, in the root: the gap — or, for one of this
+     * list's own items, its own place, which it holds where it would land.
+     * Read from the list's layout rather than from the item, whose drawn
+     * position may still be on its way there.
+     */
+    @Suppress("UNCHECKED_CAST")
     private fun gapBounds(session: DragSession): Rect? {
         val coordinates = target.coordinates?.takeIf { it.isAttached } ?: return null
         val info = listState.layoutInfo
-        val gap = info.visibleItemsInfo.firstOrNull { it.key == gapKey } ?: return null
+        val slot = if (session.fromList === this) key(session.payload as T) else gapKey
+        val gap = info.visibleItemsInfo.firstOrNull { it.key == slot } ?: return null
         val vertical = info.orientation == Orientation.Vertical
         val origin = coordinates.positionInRoot()
         val start = (gap.offset + info.beforeContentPadding).toFloat()
@@ -406,7 +414,13 @@ private val InsertionLine = 2.dp
  *
  * A press held on an item picks it up, or a mouse's drag; a press on its
  * [DragItemScope.dragHandle] picks it up at once. The neighbours slide aside as
- * the gap moves, and the carried item's own place folds away.
+ * the gap moves.
+ *
+ * A carried item over its own list **is** the gap: it keeps its full size,
+ * unseen, at the place it would land, so the list makes exactly the room the
+ * item will take. Carried anywhere else, its place folds away — and the folded
+ * item goes to the end of the list, where the space a list leaves after every
+ * item, folded or not, falls after the last card rather than between two.
  */
 fun <T : Any> LazyListScope.dragItems(
     state: DropListState<T>,
@@ -415,21 +429,41 @@ fun <T : Any> LazyListScope.dragItems(
 ) {
     val items = state.items
     val gap = state.gapIndex
-    val carried = state.carriedIndex
-    var place = 0
-    var gapped = false
-    items.forEachIndexed { index, item ->
-        val isCarried = index == carried
-        if (!isCarried && gap != null && !gapped && place == gap) {
-            gapItem(state)
-            gapped = true
-        }
+    val carried = state.carriedKey
+    fun emit(index: Int, item: T, folded: Boolean) {
         item(key = state.key(item), contentType = contentType(item)) {
-            DragItem(state, index, item, isCarried, itemContent)
+            DragItem(state, index, item, folded, itemContent)
         }
-        if (!isCarried) place++
     }
-    if (gap != null && !gapped) gapItem(state)
+    val carriedAt = if (carried == null) -1 else items.indexOfFirst { state.key(it) == carried }
+    if (carriedAt < 0 || state.carriedHome) {
+        // Nothing of its own carried, or on its way back to its own place:
+        // every item where it is, and a gap for something from elsewhere.
+        var gapped = false
+        items.forEachIndexed { index, item ->
+            if (gap != null && !gapped && index == gap) {
+                gapItem(state)
+                gapped = true
+            }
+            emit(index, item, folded = false)
+        }
+        if (gap != null && !gapped) gapItem(state)
+        return
+    }
+    // One of its own carried: the others in order, with the carried item at the
+    // gap if it would land here and folded away at the end if not.
+    var place = 0
+    var placed = false
+    items.forEachIndexed { index, item ->
+        if (index == carriedAt) return@forEachIndexed
+        if (gap != null && !placed && place == gap) {
+            emit(carriedAt, items[carriedAt], folded = false)
+            placed = true
+        }
+        emit(index, item, folded = false)
+        place++
+    }
+    if (!placed) emit(carriedAt, items[carriedAt], folded = gap == null)
 }
 
 /** What an item of [dragItems] can do besides draw itself. */
@@ -486,7 +520,7 @@ private fun <T : Any> LazyItemScope.DragItem(
     state: DropListState<T>,
     index: Int,
     item: T,
-    carried: Boolean,
+    folded: Boolean,
     content: @Composable DragItemScope.(index: Int, item: T) -> Unit,
 ) {
     val handle = remember { SourceHandle() }
@@ -504,10 +538,13 @@ private fun <T : Any> LazyItemScope.DragItem(
         }
     }
     val vertical = state.orientation == Orientation.Vertical
+    // Carried, it is not drawn, and goes straight to each place it holds: what
+    // a landing flies to is where it is, not where it is on its way to.
+    val still = Theme.motion.reduceMotion || scope.isDragging
     androidx.compose.foundation.layout.Box(
         Modifier
-            .then(if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
-            .foldedAway(carried, vertical)
+            .then(if (still) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
+            .foldedAway(folded, vertical)
             .focusRequester(focus)
             .focusGroup()
             .carriedElement(handle, list = true, shape = state.shape ?: DragAndDropDefaults.previewShape)
