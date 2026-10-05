@@ -3264,7 +3264,7 @@ public final class io/kontour/ui/overlay/ConfirmHostState {
 public final class io/kontour/ui/overlay/DialogActionsScope {
 	public static final field $stable I
 	public final fun cancel (Ljava/lang/String;ZLandroidx/compose/runtime/Composer;II)V
-	public final fun confirm (Ljava/lang/String;ZZZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public final fun confirm (Ljava/lang/String;ZZZZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 	public final fun neutral (Ljava/lang/String;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 }
 

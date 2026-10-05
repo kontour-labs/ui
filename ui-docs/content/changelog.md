@@ -90,7 +90,10 @@ was).
   It is also how to ask a question that needs more than an answer — type the
   account's email to delete it, give a reason — with a field above a confirm
   that waits for it; [the alert dialog's page](components/alert-dialog.md#a-question-that-needs-more-than-an-answer)
-  has the recipe. An `AlertDialog` keeps its fixed shape.
+  has the recipe. A destructive `confirm` warns once as the dialog arrives, as
+  a destructive `AlertDialog` does, and anything else written in the row — a
+  button of your own — is drawn too, leading it. An `AlertDialog` keeps its
+  fixed shape.
 
 ### Changed
 

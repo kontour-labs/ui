@@ -243,6 +243,7 @@ component still works inside it, unchanged:
 | `MenuScope` | `ColumnScope` | `DropdownMenu`, `AnchoredDropdownMenu`, `SubMenu` |
 | `NavScope` | — | `NavBar` (as `NavBarScope`), `NavRail`, `ModalNavRail`, `NavigationSuiteScaffold` |
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
+| `DialogActionsScope` | — | `Dialog`'s `actions` |
 
 ```kotlin
 DropdownMenu(visible = open, onDismissRequest = { open = false }) {

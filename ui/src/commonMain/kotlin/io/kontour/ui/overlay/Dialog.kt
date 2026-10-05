@@ -133,6 +133,7 @@ fun Dialog(
     val latestTitle by rememberUpdatedState(title)
     val latestActions by rememberUpdatedState(actions)
     val latestDismiss = rememberUpdatedState(onDismissRequest)
+    val latestVisible = rememberUpdatedState(visible)
 
     // Taken down with the composable that showed it, not only by `visible =
     // false`: the entry lives in the host, and a screen navigated away from, or
@@ -244,7 +245,7 @@ fun Dialog(
                                         // and the row's own `sm`, as it was when the row
                                         // was the last thing in the scroller, so an alert
                                         // dialog came out of this move pixel for pixel.
-                                        val scope = remember(latestDismiss) { DialogActionsScope { latestDismiss.value() } }
+                                        val scope = remember(latestDismiss) { DialogActionsScope(dismiss = { latestDismiss.value() }, visible = { latestVisible.value }) }
                                         Column {
                                             Column(
                                                 modifier = Modifier
@@ -348,20 +349,7 @@ fun AlertDialog(
     dismissible: Boolean = true,
     content: StateScope.() -> Unit,
 ) {
-    // Once per question: not again when the screen is recreated with the same
-    // question up, and again for a second question asked in the same dialog —
-    // it used to be keyed on `visible` alone, which did both of those wrong.
-    val feedback = Feedback
-    val question = LocalAlertQuestion.current
-    var warned by rememberSaveable(question) { mutableStateOf(false) }
-    LaunchedEffect(visible, question) {
-        if (!visible) {
-            warned = false
-        } else if (destructive && hapticWarning && !warned) {
-            warned = true
-            feedback.perform(FeedbackIntent.Warn)
-        }
-    }
+    WarnOnArrival(visible, destructive && hapticWarning)
 
     // Reuses the state block's regions: a title and a body under it. The actions
     // stay parameters rather than slots because the component owns their order,
@@ -386,7 +374,8 @@ fun AlertDialog(
             val threeWay = hasNeutral && hasConfirm && cancelLabel != null
             if (hasNeutral) neutral(neutralLabel, onClick = onNeutral)
             if (cancelLabel != null && !threeWay) cancel(cancelLabel)
-            if (hasConfirm) confirm(confirmLabel, destructive = destructive, onClick = onConfirm)
+            // Warned above, once per question: not again by the button.
+            if (hasConfirm) confirm(confirmLabel, destructive = destructive, hapticWarning = false, onClick = onConfirm)
             if (threeWay) cancel(cancelLabel)
         },
     ) {
@@ -422,20 +411,29 @@ fun AlertDialog(
  * It sits under the content rather than in it, so a form taller than the window
  * scrolls and its Save stays on screen.
  *
- * Each is at most once, and the row places them by what they are, not by the
- * order they are called in: the confirm on the trailing edge and the cancel
- * beside it, sharing the width as equal halves — or, with a [neutral] as well,
- * the two answers together and the cancel on a line of its own beneath them.
- * The order of the calls is the order a screen reader and the Tab key take them
- * in, so write them in the order they should be read. A second call of the
- * same one is not drawn.
+ * The row places them by what they are, not by the order they are called in:
+ * the confirm on the trailing edge and the cancel beside it, sharing the width
+ * as equal halves — or, with a [neutral] as well, the two answers together and
+ * the cancel on a line of its own beneath them. The order of the calls is the
+ * order a screen reader and the Tab key take them in, so write them in the
+ * order they should be read.
+ *
+ * Each is meant once. Anything else written here — a second confirm, a button
+ * of your own — is drawn too, sharing the top row on its leading side, so the
+ * confirm keeps the trailing edge; nothing written in the row is dropped.
+ *
+ * A destructive [confirm] buzzes once as the dialog arrives, as a destructive
+ * [AlertDialog] does.
  *
  * Composable, so a label can come from `Theme.strings` or a string resource
  * where it is written.
  */
 @LayoutScopeMarker
 @Stable
-class DialogActionsScope internal constructor(private val dismiss: () -> Unit) {
+class DialogActionsScope internal constructor(
+    private val dismiss: () -> Unit,
+    private val visible: () -> Boolean = { true },
+) {
 
     /**
      * The way out: asks the dialog to close, as a tap outside it or back does —
@@ -460,6 +458,11 @@ class DialogActionsScope internal constructor(private val dismiss: () -> Unit) {
      * @param destructive In the danger tone, for an answer that cannot be undone.
      * @param loading A spinner in place of the label while the answer is being
      *   acted on, and no second press meanwhile.
+     * @param hapticWarning Buzzes once as the dialog arrives, as an
+     *   [AlertDialog]'s destructive question does: the thing about to be
+     *   confirmed cannot be undone. Defaults to [destructive], and does nothing
+     *   on an answer that is not. Set it `false` on a dialog that opens often
+     *   enough for the warning to become wallpaper.
      */
     @Composable
     fun confirm(
@@ -467,8 +470,10 @@ class DialogActionsScope internal constructor(private val dismiss: () -> Unit) {
         enabled: Boolean = true,
         destructive: Boolean = false,
         loading: Boolean = false,
+        hapticWarning: Boolean = destructive,
         onClick: () -> Unit,
     ) {
+        WarnOnArrival(visible(), destructive && hapticWarning)
         Button(
             onClick = onClick,
             modifier = Modifier.layoutId(DialogActionRole.Confirm),
@@ -529,8 +534,12 @@ private fun DialogActionRow(
         val neutral = measurables.firstOrNull { it.layoutId == DialogActionRole.Neutral }
         val cancel = measurables.firstOrNull { it.layoutId == DialogActionRole.Cancel }
         val confirm = measurables.firstOrNull { it.layoutId == DialogActionRole.Confirm }
+        // Whatever else was written in the row — a second confirm, a button of
+        // the caller's own — leads the top row, so the confirm keeps the
+        // trailing edge. It used to compile and never be placed.
+        val others = measurables.filter { it !== neutral && it !== cancel && it !== confirm }
         val threeWay = neutral != null && cancel != null && confirm != null
-        val row = if (threeWay) listOfNotNull(neutral, confirm) else listOfNotNull(neutral, cancel, confirm)
+        val row = others + if (threeWay) listOfNotNull(neutral, confirm) else listOfNotNull(neutral, cancel, confirm)
 
         val gapPx = gap.roundToPx()
         val width = if (constraints.hasBoundedWidth) {
@@ -541,8 +550,23 @@ private fun DialogActionRow(
             row.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) }?.let { it * row.size + gapPx * (row.size - 1) } ?: 0
         }
         val shares = equalShares(width - gapPx * (row.size - 1), row.size)
+        // One height for the row, the tallest answer's: at a large type size
+        // "Don't save" wraps in its half and "Save" does not, and a short button
+        // beside a tall one reads as two unrelated things. Asked of the
+        // library's own buttons only — a caller's could be a subcompose layout,
+        // which has no intrinsics to give.
+        val tallest = row.mapIndexedNotNull { index, measurable ->
+            if (measurable.layoutId is DialogActionRole) measurable.maxIntrinsicHeight(shares[index]) else null
+        }.maxOrNull() ?: 0
         val placed = row.mapIndexed { index, measurable ->
-            measurable.measure(Constraints(minWidth = shares[index], maxWidth = shares[index], maxHeight = constraints.maxHeight))
+            measurable.measure(
+                Constraints(
+                    minWidth = shares[index],
+                    maxWidth = shares[index],
+                    minHeight = tallest.coerceAtMost(constraints.maxHeight),
+                    maxHeight = constraints.maxHeight,
+                ),
+            )
         }
         val rowHeight = placed.maxOfOrNull { it.height } ?: 0
         val under = if (threeWay) {
@@ -697,3 +721,26 @@ fun ConfirmHost(state: ConfirmHostState, modifier: Modifier = Modifier) {
  * question for the dialog's life — everywhere else.
  */
 private val LocalAlertQuestion = staticCompositionLocalOf<Any?> { null }
+
+/**
+ * A warning felt as a destructive question arrives: once per question, not again
+ * when the screen is recreated with the same question up, and again for a second
+ * question asked in the same dialog — it used to be keyed on `visible` alone,
+ * which did both of those wrong. An [AlertDialog]'s and a destructive confirm in
+ * a [Dialog]'s actions both come here, so there is one warning in the library,
+ * not two.
+ */
+@Composable
+private fun WarnOnArrival(visible: Boolean, warns: Boolean) {
+    val feedback = Feedback
+    val question = LocalAlertQuestion.current
+    var warned by rememberSaveable(question) { mutableStateOf(false) }
+    LaunchedEffect(visible, question) {
+        if (!visible) {
+            warned = false
+        } else if (warns && !warned) {
+            warned = true
+            feedback.perform(FeedbackIntent.Warn)
+        }
+    }
+}

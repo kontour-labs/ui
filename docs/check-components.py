@@ -776,12 +776,13 @@ PERFORMS = re.compile(
     r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\("
 )
 
-# Two files whose component is not their filename. Written out rather than
+# Files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
-# `Dialog.kt` but belongs to `AlertDialog`.
+# `Dialog.kt` and belongs to both `AlertDialog` and a `Dialog`'s destructive
+# confirm.
 HAPTIC_FILE_NAMES = {
     "Reorderable": "ReorderableItem",
-    "Dialog": "AlertDialog",
+    "Dialog": ("AlertDialog", "Dialog"),
     "IconButton": "IconToggleButton",
     "NavRail": "NavScope",
     "Select": "MultiSelect",
@@ -866,7 +867,8 @@ def haptics_policy_drift() -> list[str]:
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         if PERFORMS.search(text):
             stem = path.stem
-            firing.add(HAPTIC_FILE_NAMES.get(stem, stem))
+            names = HAPTIC_FILE_NAMES.get(stem, stem)
+            firing.update((names,) if isinstance(names, str) else names)
 
     problems = []
     for name in sorted(policy - firing):

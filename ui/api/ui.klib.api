@@ -2481,7 +2481,7 @@ final class io.kontour.ui.overlay/ConfirmHostState { // io.kontour.ui.overlay/Co
 
 final class io.kontour.ui.overlay/DialogActionsScope { // io.kontour.ui.overlay/DialogActionsScope|null[0]
     final fun cancel(kotlin/String?, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.overlay/DialogActionsScope.cancel|cancel(kotlin.String?;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
-    final fun confirm(kotlin/String, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Function0<kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.overlay/DialogActionsScope.confirm|confirm(kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Function0<kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+    final fun confirm(kotlin/String, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Function0<kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.overlay/DialogActionsScope.confirm|confirm(kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Function0<kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
     final fun neutral(kotlin/String, kotlin/Boolean, kotlin/Function0<kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // io.kontour.ui.overlay/DialogActionsScope.neutral|neutral(kotlin.String;kotlin.Boolean;kotlin.Function0<kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 }
 

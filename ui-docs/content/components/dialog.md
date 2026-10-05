@@ -43,7 +43,7 @@ in `titleLarge` as an [`AlertDialog`](alert-dialog.md)'s is and announced as a
 heading. The content under it is any column.
 
 **`actions` is the row of buttons along the foot**: `cancel()`, `confirm(…)` and,
-rarely, `neutral(…)`, each at most once. It is the row an
+rarely, `neutral(…)`, each meant once. It is the row an
 [`AlertDialog`](alert-dialog.md) draws, laid out the same way: the confirm on the
 trailing edge and the cancel beside it as equal halves, or with a third answer,
 the two answers together and the cancel on a line of its own beneath them. The
@@ -53,6 +53,17 @@ outside or back does. `confirm` takes `enabled` for a form that is not done yet,
 `destructive` for an answer that cannot be undone, and `loading` while the answer
 is being acted on. The builder is composable, so a label can come from
 `Theme.strings` or a string resource where it is written.
+
+Anything else written in the row — a second confirm, a button of your own — is
+drawn too, leading the top row so the confirm keeps the trailing edge. Nothing
+written there is dropped.
+
+**A `destructive` confirm warns as the dialog arrives**: one `Warn`, the
+platform's own warning, as a destructive [`AlertDialog`](alert-dialog.md) gives —
+it is the same question asked with a form. Once per showing, not again while it
+stays up. `hapticWarning = false` on the confirm turns it off for a dialog that
+opens often enough for the warning to become wallpaper; see
+[physical feedback](../theming.md#physical-feedback).
 
 The row sits **under** the content, not in it: a form taller than the window
 scrolls, and its Save stays on screen. A button written into the content scrolls

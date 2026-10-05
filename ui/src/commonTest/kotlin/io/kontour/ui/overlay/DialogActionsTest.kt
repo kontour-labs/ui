@@ -17,18 +17,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.text.TextField
+import io.kontour.ui.interaction.FeedbackDispatcher
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.LocalFeedback
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -266,6 +273,36 @@ class DialogActionsTest {
         assertTrue(cancel.top > save.bottom, "and the cancel takes a line of its own beneath them")
     }
 
+    /** At twice the type size "Don't save" wraps in its half; "Save" stands as tall beside it. */
+    @Test
+    fun theAnswersInARowAreOneHeight() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f)) {
+                    Box(Modifier.width(400.dp).height(800.dp)) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            Dialog(
+                                visible = true,
+                                onDismissRequest = {},
+                                actions = {
+                                    neutral("Don't save") {}
+                                    confirm("Save") {}
+                                    cancel()
+                                },
+                            ) { Text("Body") }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val neutral = bounds("Don't save")
+        val save = bounds("Save")
+        assertTrue(neutral.height > bounds("Cancel").height, "the neutral's label should wrap at this size, or this proves nothing: $neutral")
+        assertEquals(neutral.top, save.top)
+        assertEquals(neutral.height, save.height, "a short button beside a tall one")
+    }
+
     @Test
     fun aLabelCanBeReadFromTheTheme() = runComposeUiTest {
         var expected = ""
@@ -282,6 +319,132 @@ class DialogActionsTest {
         }
         waitForIdle()
         onNodeWithText(expected).fetchSemanticsNode()
+    }
+
+    /**
+     * A destructive confirm warns as the dialog arrives, as a destructive alert
+     * does — once, and an alert still only once.
+     */
+    @Test
+    fun aDestructiveConfirmWarnsOnce() {
+        for (alert in listOf(false, true)) runComposeUiTest {
+            val felt = mutableListOf<FeedbackIntent>()
+            var visible by mutableStateOf(true)
+            setContent {
+                KontourTheme(reduceMotion = true) {
+                    CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { felt += it }) {
+                        OverlayHost(Modifier.fillMaxSize()) {
+                            if (alert) {
+                                AlertDialog(
+                                    visible = visible,
+                                    onDismissRequest = { visible = false },
+                                    confirmLabel = "Delete",
+                                    onConfirm = {},
+                                    destructive = true,
+                                ) { +"Delete this account?" }
+                            } else {
+                                Dialog(
+                                    visible = visible,
+                                    onDismissRequest = { visible = false },
+                                    actions = {
+                                        cancel()
+                                        confirm("Delete account", destructive = true) {}
+                                    },
+                                ) { Text("Type the address to delete it") }
+                            }
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+            val what = if (alert) "an alert" else "a dialog"
+            assertEquals(1, felt.count { it == FeedbackIntent.Warn }, "$what arriving with a destructive answer: $felt")
+            mainClock.advanceTimeBy(300)
+            waitForIdle()
+            assertEquals(1, felt.count { it == FeedbackIntent.Warn }, "$what staying up warns no more: $felt")
+
+            visible = false
+            waitForIdle()
+            visible = true
+            waitForIdle()
+            assertEquals(2, felt.count { it == FeedbackIntent.Warn }, "$what asked again warns again: $felt")
+        }
+    }
+
+    /** `hapticWarning = false` keeps a destructive confirm quiet, as on `AlertDialog`. */
+    @Test
+    fun aConfirmAskedNotToWarnIsSilent() = runComposeUiTest {
+        val felt = mutableListOf<FeedbackIntent>()
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                CompositionLocalProvider(LocalFeedback provides FeedbackDispatcher { felt += it }) {
+                    OverlayHost(Modifier.fillMaxSize()) {
+                        Dialog(
+                            visible = true,
+                            onDismissRequest = {},
+                            actions = {
+                                cancel()
+                                confirm("Delete", destructive = true, hapticWarning = false) {}
+                            },
+                        ) { Text("Body") }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        assertEquals(emptyList(), felt.filter { it == FeedbackIntent.Warn })
+    }
+
+    /** A button of the caller's own, written in the row, is drawn and takes a press. */
+    @Test
+    fun aButtonOfYourOwnIsPlacedToo() = runComposeUiTest {
+        var helped = 0
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Dialog(
+                        visible = true,
+                        onDismissRequest = {},
+                        actions = {
+                            Button(onClick = { helped++ }) { +"Help" }
+                            cancel()
+                            confirm("Save") {}
+                        },
+                    ) { Text("Body") }
+                }
+            }
+        }
+        waitForIdle()
+        val help = bounds("Help")
+        val save = bounds("Save")
+        assertTrue(help.width > 0f && help.height > 0f, "it should be drawn: $help")
+        assertEquals(save.top, help.top, "in the top row with the answers")
+        assertTrue(help.right <= bounds("Cancel").left, "and leading it, so the confirm keeps the trailing edge")
+        onNodeWithText("Help").performClick()
+        waitForIdle()
+        assertEquals(1, helped)
+    }
+
+    @Test
+    fun aConfirmBeingActedOnTakesNoSecondPress() = runComposeUiTest {
+        var saved = 0
+        var loading = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                loading = Theme.strings.loading
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Dialog(
+                        visible = true,
+                        onDismissRequest = {},
+                        actions = { confirm("Save", loading = true, onClick = { saved++ }) },
+                    ) { Text("Body") }
+                }
+            }
+        }
+        waitForIdle()
+        onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, loading)).performClick()
+        waitForIdle()
+        assertEquals(0, saved, "a confirm already being acted on should not take another press")
     }
 
     /** The shares are a weighted `Row`'s, to the pixel, at every width a dialog takes. */
