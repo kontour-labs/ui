@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -183,8 +184,15 @@ fun <T : Any> rememberDropTargetState(
     state.accepting = accepts
     state.external = external
     state.reader = if (external != null) rememberDropReader() else null
+    if (external != null) LocalExternalDropProbe.current?.invoke(state)
     return state
 }
+
+/**
+ * Hears each target that takes drags from outside the app as it composes: for
+ * tests, which cannot make a platform drag.
+ */
+internal val LocalExternalDropProbe = staticCompositionLocalOf<((DropTargetState<*>) -> Unit)?> { null }
 
 /**
  * The state of a target for drags from outside the app only: an upload area
@@ -204,7 +212,7 @@ fun rememberDropTargetState(label: String, external: ExternalDrops): DropTargetS
     rememberDropTargetState(OutsideOnly, label, onDrop = {}, external = external)
 
 /** The type of a target that takes only drags from outside the app: no source carries it. */
-private val OutsideOnly = DragType<Nothing>("outside")
+internal val OutsideOnly = DragType<Nothing>("outside")
 
 /**
  * Takes drops for [state] over this element's bounds.

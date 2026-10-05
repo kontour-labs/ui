@@ -338,6 +338,10 @@ data class Strings(
     val gigabytes: String = "GB",
     /** A chosen file's remove button: "Remove timetable.pdf". */
     val removeFile: (name: String) -> String = { name -> "Remove $name" },
+    /** What a file field says while a file dragged in from outside the app is over it. */
+    val dropFileHere: String = "Drop file here",
+    /** And for a field that takes several. */
+    val dropFilesHere: String = "Drop files here",
 ) {
     companion object {
         /**
@@ -485,6 +489,8 @@ data class Strings(
         megabytes = lookup.text("megabytes") ?: fallback.megabytes,
         gigabytes = lookup.text("gigabytes") ?: fallback.gigabytes,
         removeFile = { name -> lookup.phrase("removeFile", null, name) ?: fallback.removeFile(name) },
+        dropFileHere = lookup.text("dropFileHere") ?: fallback.dropFileHere,
+        dropFilesHere = lookup.text("dropFilesHere") ?: fallback.dropFilesHere,
         )
     }
 }
@@ -675,4 +681,6 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     megabytes = transform(megabytes),
     gigabytes = transform(gigabytes),
     removeFile = { a0 -> transform(removeFile(a0)) },
+    dropFileHere = transform(dropFileHere),
+    dropFilesHere = transform(dropFilesHere),
 )

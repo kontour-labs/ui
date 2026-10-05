@@ -134,6 +134,9 @@ private val fileImages = Knob.Flag("Images only")
 private val fileSamples = Knob.Flag("Start with files")
 private val fileEnabled = Knob.Flag("Enabled", initial = true)
 
+/** Files dragged in from outside the app land in it, where the platform allows. */
+private val fileDrops = Knob.Flag("Takes drops", initial = true)
+
 /**
  * The platform's own picker: a file dialog on a desktop, the document picker on
  * a phone, the page's file input in a browser. "Start with files" fills it with
@@ -141,7 +144,7 @@ private val fileEnabled = Knob.Flag("Enabled", initial = true)
  */
 internal val FileFieldDemo = ComponentDemo(
     slug = "file-field",
-    knobs = listOf(fileMultiple, fileImages, fileSamples, fileEnabled),
+    knobs = listOf(fileMultiple, fileImages, fileSamples, fileEnabled, fileDrops),
 ) {
     val multiple = this[fileMultiple]
     val samples = this[fileSamples]
@@ -174,6 +177,7 @@ internal val FileFieldDemo = ComponentDemo(
             types = if (this@ComponentDemo[fileImages]) FileTypes.of("image/*") else FileTypes.Any,
             multiple = multiple,
             enabled = this@ComponentDemo[fileEnabled],
+            acceptsDrops = this@ComponentDemo[fileDrops],
             modifier = Modifier.fillMaxWidth(),
         )
     }

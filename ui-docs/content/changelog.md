@@ -153,7 +153,8 @@ no icons has arrows either side of its month.
   size, with a clear button; several read as chips. `FileTypes` says what to
   offer (`image/png`, a whole family, `.pdf`), and what comes back is checked
   against it again. What is picked arrives as `PickedFile`s, read on demand.
-  `LocalFileChooser` swaps the picker for a test's or an app's own. Before, it
+  `LocalFileChooser` swaps the picker for a test's or an app's own. Files
+  dragged in from outside the app can be dropped on the field too. Before, it
   took a button and a text area. On Android, `:ui` now depends on
   `androidx.activity:activity-compose` for the picker's result registry.
 

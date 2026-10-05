@@ -57,6 +57,13 @@ taken. Not every platform's picker can be told what to show: a desktop's file
 dialog shows everything on macOS and Windows. So what comes back is checked again,
 and anything else is dropped before the field sees it.
 
+**Files can be dropped on it**, dragged in from outside the app: the desktop,
+another window, the Files app beside yours on an iPad. A drop is taken as a pick
+is, and only files of `types` are offered the field at all. While one is over it,
+the frame lights as it does for focus and the empty field says "Drop file here".
+`acceptsDrops = false` turns this off. Where a drag from outside can happen
+depends on the platform: see [drag and drop](../drag-and-drop.md#from-outside-the-app).
+
 **The field reads nothing.** It holds `PickedFile`s: a name, a size and a media
 type where the platform reports them, and `readBytes()` and `readText()` to read
 the contents on demand. Uploading, or parsing, is the caller's, when it is ready.
@@ -123,5 +130,8 @@ nothing else changes, as nothing else is drawn on a ground of its own. Nothing i
 the field moves, so reduced motion changes nothing.
 
 The words are `Theme.strings`: `chooseFile`, `chooseFiles`, `noFileChosen`,
-`fileCount`, `fileBytes`, `fileSize`, `kilobytes`, `megabytes`, `gigabytes` and
-`removeFile`. They translate with the rest.
+`fileCount`, `fileBytes`, `fileSize`, `kilobytes`, `megabytes`, `gigabytes`,
+`removeFile`, `dropFileHere` and `dropFilesHere`. They translate with the rest.
+
+A drop is for a pointer only, and nothing is announced while one is over the
+field: pressing it does the same with the picker.

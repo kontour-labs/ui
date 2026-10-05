@@ -24,6 +24,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.selection.InputChip
+import io.kontour.ui.dragdrop.ExternalDrops
+import io.kontour.ui.dragdrop.OutsideOnly
+import io.kontour.ui.dragdrop.dropTarget
+import io.kontour.ui.dragdrop.rememberDropTargetState
 import io.kontour.ui.files.FileTypes
 import io.kontour.ui.files.LocalFileChooser
 import io.kontour.ui.files.PickedFile
@@ -61,6 +65,11 @@ import kotlin.math.round
  * reads none of them: reading, and uploading, are the caller's, when it is
  * ready.
  *
+ * Files dragged in from outside the app — the desktop, the Files app, another
+ * window — can be dropped on it as well, where the platform allows, and are
+ * taken as a pick is. While one is over it the frame lights as it does for
+ * focus, and the empty field says "Drop file here".
+ *
  * A screen reader hears a button named by [label], and what it holds: "Timetable,
  * timetable.pdf, 2.4 MB, button", or "No file chosen".
  *
@@ -69,6 +78,8 @@ import kotlin.math.round
  * @param types What the picker offers. See [FileTypes].
  * @param sizeLabel How a file's size is written. [FileFieldDefaults.sizeLabel]
  *   counts in thousands, as the platforms' file browsers do.
+ * @param acceptsDrops Whether files dragged in from outside the app can be
+ *   dropped on it. Only files of [types] are offered it.
  */
 @Composable
 fun FileField(
@@ -84,6 +95,7 @@ fun FileField(
     types: FileTypes = FileTypes.Any,
     multiple: Boolean = false,
     sizeLabel: (bytes: Long) -> String = FileFieldDefaults.sizeLabel(),
+    acceptsDrops: Boolean = true,
     colours: TextFieldColours = TextFieldDefaults.colours(),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
@@ -91,22 +103,32 @@ fun FileField(
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val strings = Theme.strings
-    val picker = rememberFilePicker { picked ->
-        if (picked.isEmpty()) return@rememberFilePicker
-        onFilesChange(
-            if (multiple) {
-                files + picked.filter { new -> files.none { it.name == new.name && it.size == new.size } }
-            } else {
-                picked.take(1)
-            },
-        )
+    // A pick and a drop are taken the same way.
+    val take: (List<PickedFile>) -> Unit = { picked ->
+        if (picked.isNotEmpty()) {
+            onFilesChange(
+                if (multiple) {
+                    files + picked.filter { new -> files.none { it.name == new.name && it.size == new.size } }
+                } else {
+                    picked.take(1)
+                },
+            )
+        }
     }
+    val picker = rememberFilePicker(take)
+    val drops = rememberDropTargetState(
+        OutsideOnly,
+        label = label ?: strings.chooseFile,
+        onDrop = {},
+        external = if (acceptsDrops) ExternalDrops.files(types) { dropped, _ -> take(dropped) } else null,
+    )
+    val dropOver = enabled && drops.isOver
     val single = files.singleOrNull()?.takeIf { !multiple }
 
     FieldScaffold(
-        modifier = modifier,
+        modifier = modifier.dropTarget(drops, enabled = enabled && acceptsDrops),
         enabled = enabled,
-        focused = focused,
+        focused = focused || dropOver,
         colours = colours,
         metrics = metrics,
         shape = Theme.shapes.field,
@@ -155,7 +177,10 @@ fun FileField(
         val contentColour = if (enabled) colours.content else colours.contentDisabled
         when {
             files.isEmpty() -> Text(
-                text = placeholder ?: if (multiple) strings.chooseFiles else strings.chooseFile,
+                text = when {
+                    dropOver -> if (multiple) strings.dropFilesHere else strings.dropFileHere
+                    else -> placeholder ?: if (multiple) strings.chooseFiles else strings.chooseFile
+                },
                 // Said once, by the frame's state, rather than as a value.
                 modifier = Modifier.weight(1f).clearAndSetSemantics {},
                 style = Theme.typography.bodyMedium,
