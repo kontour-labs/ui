@@ -39,6 +39,7 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.Surface
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.platform.opensKeyboard
 
 /**
  * The query, and whether the search is currently open.
@@ -170,7 +171,9 @@ fun NavSearch(
     NavExpandingSlot(
         expanded = state.expanded,
         onExpandedChange = { if (it) state.expand() else state.collapse() },
-        modifier = modifier,
+        // The field is focused once the panel opens, from an effect, which iOS
+        // WebKit gives no keyboard; the pill opens it on the tap instead.
+        modifier = modifier.opensKeyboard(enabled = enabled && !state.expanded),
         enabled = enabled,
         placement = placement,
         containerColour = containerColour,

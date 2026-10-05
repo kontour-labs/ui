@@ -228,6 +228,12 @@ no icons has arrows either side of its month.
   said `Password`, from the password keyboard, so a password manager offered a
   saved password where it should have offered to make one. The specialised
   fields' hints are now on the input itself.
+- **On an iPhone or iPad, the keyboard opens on the tap that focuses a text
+  field in the browser.** WebKit opens it only for an input focused during the
+  tap, and Compose focuses its own a frame later — later still for a combobox,
+  the nav bar's search and a knob's typed value, which focus from an effect.
+  `KontourTheme` installs a primer that holds the keyboard open for them. See
+  [installing](installing.md#per-platform); untested on a device here.
 - **An [`Avatar`](components/avatar.md) or a [`Badge`](components/badge.md)
   inside a row no longer names it.** A clickable `Card`, a `ListItem`, a
   `SelectionRow` and a button each merge into one node, and a description in it

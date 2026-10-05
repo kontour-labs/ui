@@ -57,6 +57,7 @@ import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
+import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mono
 
@@ -265,6 +266,10 @@ internal fun TextFieldImpl(
                 Cursor.Text,
                 enabled = enabled && !readOnly,
             )
+            // A tap here puts a caret in the field, and in a browser on an
+            // iPhone that has to open the keyboard during the tap: see
+            // `opensKeyboard`.
+            .opensKeyboard(enabled = enabled && !readOnly)
             // On the frame, not the input, and that placement is the mechanism:
             // the Initial pointer pass runs parent to child, so a secondary
             // press is consumed here before the text input's own detector can

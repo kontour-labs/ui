@@ -37,6 +37,7 @@ import io.kontour.ui.motion.catchRestedFlicks
 import io.kontour.ui.platform.platformLosesRestedFlicks
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
+import io.kontour.ui.platform.InstallKeyboardPrimer
 import io.kontour.ui.platform.platformReportAppearance
 import io.kontour.ui.platform.platformSystemDark
 
@@ -368,6 +369,11 @@ fun KontourTheme(
     // a screen forcing dark over a light app — re-provides tokens for its
     // subtree and has no business repainting the window.
     if (!alreadyTracking) platformReportAppearance(colours.isDark)
+
+    // A browser on an iPhone opens the keyboard only for an input focused on the
+    // tap itself, which Compose's text input never is: see `opensKeyboard`. Once
+    // per window, so on the outermost theme alone; nothing off the web.
+    if (!alreadyTracking) InstallKeyboardPrimer()
 
     // The window's size class wherever nothing has said one: see
     // `LocalWindowSizeClass`. Only over the untouched default, so a provider

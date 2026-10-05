@@ -166,6 +166,14 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   `button`, with no checked or selected state, whatever role the library passes;
   [In the browser](accessibility.md#in-the-browser) has what that affects and
   when Compose fixes it.
+
+  On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
+  for an input focused during the tap itself; Compose focuses its own a frame
+  later. `KontourTheme` installs a primer for that: a tap on a text field, a
+  combobox, a nav bar's search or an editable knob focuses a hidden input
+  straight away, the keyboard opens for it, and Compose's input takes it over a
+  moment later. Nothing is added off iOS. A text field of your own on
+  `BasicTextField` does not get it.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`

@@ -45,6 +45,7 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
+import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
 
@@ -443,6 +444,9 @@ private fun SelectFrame(
         },
         frameModifier = Modifier
             .anchorBounds { anchor = it }
+            // A combobox's tap opens its editor and focuses it from an effect,
+            // which iOS WebKit gives no keyboard; this opens it on the tap.
+            .opensKeyboard(enabled = enabled && editor != null && !expanded)
             .semantics {
                 role = Role.DropdownList
                 // The frame merges its value text, so this names the control

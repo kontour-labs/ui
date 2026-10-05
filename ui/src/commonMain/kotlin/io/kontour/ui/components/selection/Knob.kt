@@ -80,6 +80,7 @@ import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.lines
+import io.kontour.ui.platform.opensKeyboard
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -473,6 +474,9 @@ internal fun KnobLayout(
                     },
                     onEnd = { if (spin?.isActive != true) finish() },
                 )
+                // The tap below opens a field focused from an effect, which iOS
+                // WebKit gives no keyboard; this opens it on the tap.
+                .opensKeyboard(enabled = canEdit && !editing)
                 // A tap on the face, which the drag above leaves alone: it claims on
                 // movement, and a tap never moves far enough to be one.
                 .pointerInput(canEdit, radius) {
