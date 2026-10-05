@@ -200,6 +200,11 @@ internal fun DragHost?.movesFor(
         }
     }
     val host = this@movesFor ?: return@buildList
+    // Read here, in the semantics block, which is what Compose observes: a
+    // target that attaches later — a column a `LazyRow` lays out after this
+    // card's — or one that leaves offers the moves again. Read in composition
+    // it did nothing, since the block it fed was the same block every time.
+    host.attached.size
     val probe = DragSession.probe(spec)
     for (target in host.offered(probe, layoutDirection)) {
         if (target === list?.target || !target.accepts(spec.payload)) continue

@@ -129,6 +129,13 @@ the next target, Home and End to either end; Enter puts it down and Escape puts 
 back. The keys are the host's while a card is carried, wherever the focus was, and
 a card put down by keys takes the focus back in its new place.
 
+**A move is offered to a target that is composed.** A target joins the moves as
+it is laid out, wherever that is, and leaves them when it goes. So a target
+inside a lazy list's item that has scrolled away, and been disposed, is not
+somewhere to move to until it is back. A board of a few columns is better as a
+`Row` with `horizontalScroll` and `Modifier.dragAutoScroll` than as a `LazyRow`:
+every column is then always somewhere to move a card to.
+
 **Each step is said**, through a polite live region the host keeps: "Picked up
 Fares", "Done, 3 of 4", "Fares dropped in Done", "Fares put back". The words are
 `Theme.strings` — `dragPickedUp`, `dragPosition`, `dragDropped`, `dragCancelled`,

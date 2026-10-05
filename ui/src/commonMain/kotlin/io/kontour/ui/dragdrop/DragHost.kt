@@ -110,7 +110,7 @@ internal class DragHost {
     var strings: Strings = Strings()
     var formats: LocaleFormats? = null
 
-    /** Targets as they attach, read in composition for the moves offered to a screen reader. */
+    /** Targets as they attach, read where the moves offered to a screen reader are worked out. */
     val attached = mutableStateListOf<DropTarget>()
 
     /** Told when a drag is over, however it ended. */
@@ -569,8 +569,6 @@ internal fun Modifier.pickUpGesture(
         warnNoHost()
         return this.then(moves)
     }
-    // Read here, so a target attaching or leaving offers the moves again.
-    host.attached.size
     val longPressed = rememberLongPressFeedback()
     val modality = LocalInputModality.current
     val mouse by rememberUpdatedState(!modality.needsLargeTargets)
