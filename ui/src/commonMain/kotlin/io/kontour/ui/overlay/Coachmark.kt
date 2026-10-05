@@ -1,5 +1,6 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +21,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
@@ -158,6 +161,21 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
 
     internal fun isShowing(id: String): Boolean = current == id
 
+    /**
+     * The tour's one spotlight, the overlay every step shows itself in.
+     *
+     * One for the tour rather than one per step: a step shown in an entry of its
+     * own faded in over the last one fading out, two dims at once, and the
+     * page behind went twice as dark between every pair of steps and came back
+     * — reported as *"the background gets twice as dim when animating between
+     * two coachmarks"*. Shown under one key, the next step replaces the last in
+     * place, and the dim stays one dim from the first step to the last.
+     */
+    internal val spotlight: Any = Any()
+
+    /** Which step's composition last showed [spotlight], so a step that has gone only takes it down if nobody has taken it over. */
+    internal var spotlightShownBy: Any? = null
+
     private companion object {
         const val NotRunning = -1
     }
@@ -222,9 +240,12 @@ fun Modifier.coachmarkStep(
 /**
  * The dim, the hole in it, and the bubble.
  *
- * Rendered as a single overlay entry at [OverlayLayer.Tooltip] with the host's
- * own scrim switched off, because the host draws a plain rectangle and this one
- * has a hole in it.
+ * Rendered as the tour's single overlay entry, [CoachmarkTour.spotlight], at
+ * [OverlayLayer.Tooltip] with the host's own scrim switched off, because the
+ * host draws a plain rectangle and this one has a hole in it. The step showing
+ * puts its own content in it; the next step replaces that content rather than
+ * adding an entry, and the hole and the bubble travel from the one control to
+ * the other.
  */
 @Composable
 private fun CoachmarkSpotlight(
@@ -241,21 +262,42 @@ private fun CoachmarkSpotlight(
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
-    val key = remember { Any() }
+    // This step's own identity, against which the tour's entry is claimed.
+    val step = remember { Any() }
+    val key = tour.spotlight
     val dismissLabel = Theme.strings.gotIt
     // Read here rather than by the caller — see `TooltipOverlay`.
     val anchorNow = anchor()
     val latestAnchor by rememberUpdatedState(anchorNow)
     val latestTour by rememberUpdatedState(tour)
 
-    DisposableEffect(Unit) { onDispose { host.hide(key) } }
+    // Taken down only by the step that put it up. Another step showing now
+    // has taken it over, and a step that hid it then would take the next
+    // one's spotlight down with its own.
+    DisposableEffect(tour) {
+        onDispose {
+            if (tour.spotlightShownBy === step) {
+                tour.spotlightShownBy = null
+                host.hide(key)
+            }
+        }
+    }
 
     LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
         if (!visible || anchorNow == null) {
-            host.hide(key)
+            // A frame's grace, for the step after this one to show itself in
+            // the same entry. Hidden at once, it began to fade out and was
+            // then turned round. Nobody took it over — the next step's
+            // control is not on screen, or the tour has ended — and it goes.
+            withFrameNanos { }
+            if (tour.spotlightShownBy === step) {
+                tour.spotlightShownBy = null
+                host.hide(key)
+            }
             return@LaunchedEffect
         }
 
+        tour.spotlightShownBy = step
         host.show(
             OverlayEntry(
                 key = key,
@@ -270,14 +312,17 @@ private fun CoachmarkSpotlight(
                 // work around, because they asked for it.
                 trapFocus = true,
                 content = {
+                    // From the last step's control to this one's, for the
+                    // hole and the bubble alike, rather than a cut.
+                    val travelling = rememberTravellingAnchor(step) { latestAnchor }
                     Spotlight(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = travelling,
                         padding = padding,
                         shape = shape,
                         onDismissRequest = { latestTour.finish() },
                     )
                     AnchoredOverlayLayout(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = travelling,
                         fromScale = 0.85f,
                         side = side,
                         alignment = alignment,
@@ -299,6 +344,51 @@ private fun CoachmarkSpotlight(
             )
         )
     }
+}
+
+/**
+ * Where the spotlight is: [anchor], or on its way there from wherever it was
+ * when [step] last changed.
+ *
+ * Read in draw and in measure, as the anchor itself is, so a control that moves
+ * while the spotlight travels — a list scrolling under it — is still where it
+ * lands. Under reduced motion it does not travel: it is at the new control the
+ * moment the step changes.
+ */
+@Composable
+private fun rememberTravellingAnchor(step: Any, anchor: () -> Rect?): () -> Rect? {
+    val motion = Theme.motion
+    val latest by rememberUpdatedState(anchor)
+    val travel = remember { Animatable(1f) }
+    val trip = remember { TravellingFrom() }
+    val read = remember {
+        {
+            val to = latest()
+            val from = trip.from
+            val t = travel.value
+            val at = if (from == null || to == null || t >= 1f) to else lerp(from, to, t)
+            trip.last = at
+            at
+        }
+    }
+    LaunchedEffect(step) {
+        // The first step arrives with the entry itself, and has nowhere to come from.
+        if (trip.last == null || motion.reduceMotion) {
+            trip.from = null
+            travel.snapTo(1f)
+            return@LaunchedEffect
+        }
+        trip.from = trip.last
+        travel.snapTo(0f)
+        travel.animateTo(1f, motion.springOrTween(motion.springDefault))
+    }
+    return read
+}
+
+/** Where the spotlight set off from, and where it was last drawn. Not state: read and written in draw. */
+private class TravellingFrom {
+    var from: Rect? = null
+    var last: Rect? = null
 }
 
 /**

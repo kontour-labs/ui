@@ -186,6 +186,11 @@ no icons has arrows either side of its month.
 
 ### Fixed
 
+- **A [coachmark tour](components/coachmark.md#coachmarktour) dims the page
+  once, from one step to the next.** Each step had a dim of its own, and the
+  next arrived while the last was leaving, so the page went twice as dark
+  between steps and came back. The dim stays, and the hole and the bubble
+  travel to the next control.
 - **A menu's dividers can be seen on the menu.** They were `outlineSubtle`, the
   faintest rule, chosen for a list on `surface`; on a menu's raised panel that
   was 1.15:1 in light and, in dark, 1.06:1 and darker than the panel. A

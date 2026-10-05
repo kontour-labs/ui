@@ -99,6 +99,14 @@ theme's container corner. **Everything the dim covers is blocked, the lit contro
 included**: a tap on the control being explained is the likeliest accident here,
 and letting it through would run an action the user was only being shown.
 
+**One dim for the whole tour.** From one step to the next the dim stays where
+it is, and the hole and the bubble travel from the one control to the other.
+Each step used to be an overlay of its own, with its own dim, and the next one
+arrived while the last was leaving, so between every pair of steps the page
+went twice as dark and came back — *"the background gets twice as dim when
+animating between two coachmarks"*. A step whose control is not on screen shows
+nothing, as before, and the dim goes with it.
+
 ---
 
 ## Accessibility
@@ -120,4 +128,5 @@ gains the edge those take at this tier. A tour's bubble is the solid accent with
 its own ink, and its position is drawn at full strength rather than faded.
 
 Under reduced motion a coach mark and a tour's bubble fade in where they will sit
-rather than scaling into place.
+rather than scaling into place, and from one step to the next the hole and the
+bubble are at the new control at once rather than travelling to it.
