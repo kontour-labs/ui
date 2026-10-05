@@ -66,6 +66,8 @@ import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The drag under way in one [io.kontour.ui.overlay.OverlayHost], and every
@@ -144,7 +146,7 @@ internal class DragHost {
         // edge: picked up beside one, it is not asking to be carried past it.
         for (region in regions) {
             region.armed = false
-            region.enteredAt = -1L
+            region.enteredAt = null
         }
         retarget()
     }
@@ -161,7 +163,7 @@ internal class DragHost {
      * Scrolls what is under the pointer, innermost first, one frame's worth.
      * Returns whether anything moved; a list already at its end does not.
      */
-    fun autoScroll(nowMillis: Long, frameMillis: Float, edge: Float, maxSpeed: Float, rampMillis: Long): Boolean {
+    fun autoScroll(now: Duration, frame: Duration, edge: Float, maxSpeed: Float, ramp: Duration): Boolean {
         val current = session ?: return false
         if (current.phase != DragPhase.Carrying) return false
         val under = regions
@@ -169,7 +171,7 @@ internal class DragHost {
             .mapNotNull { region -> region.bounds()?.takeIf { it.contains(current.pointer) }?.let { region to it } }
             .sortedBy { it.second.width * it.second.height }
         for ((region, _) in under) {
-            val step = region.step(current.pointer, edge, maxSpeed, rampMillis, nowMillis, frameMillis)
+            val step = region.step(current.pointer, edge, maxSpeed, ramp, now, frame)
             if (step == 0f) continue
             if (region.state.dispatchRawDelta(step) != 0f) {
                 retarget()
@@ -739,7 +741,7 @@ internal fun DragLayer(host: DragHost) {
             var moving = true
             while (moving && session.phase == DragPhase.Carrying && host.wantsToScroll(edge)) {
                 withFrameMillis { now ->
-                    if (last >= 0) moving = host.autoScroll(now, (now - last).toFloat(), edge, speed, AutoScrollRampMillis)
+                    if (last >= 0) moving = host.autoScroll(now.milliseconds, (now - last).milliseconds, edge, speed, AutoScrollRamp)
                     last = now
                 }
                 // At its end: nothing more until the pointer moves.

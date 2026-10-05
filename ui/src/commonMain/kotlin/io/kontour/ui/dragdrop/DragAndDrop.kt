@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * What is carried, by name. A source and a target meet only on the same type,
@@ -94,11 +96,11 @@ internal val AutoScrollEdge: Dp = 64.dp
 internal val AutoScrollMaxSpeed: Dp = 1600.dp
 
 /**
- * How long a region takes to reach the speed its edge asks for, in milliseconds:
+ * How long a region takes to reach the speed its edge asks for:
  * a carried thing passing through an edge on its way somewhere does not throw
  * the list.
  */
-internal const val AutoScrollRampMillis: Long = 400L
+internal val AutoScrollRamp: Duration = 400.milliseconds
 
 /**
  * The state of a plain drop target: a bin, a column header, a folder. A list

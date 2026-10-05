@@ -16,6 +16,8 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.min
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Scrolls [state] while something is carried near this element's ends, so a
@@ -48,8 +50,8 @@ internal class AutoScrollRegion(
     /** Whether the carried thing has been anywhere but an edge, this drag. */
     var armed: Boolean = false
 
-    /** When it came into the edge it is in, for the ramp; `-1` while it is in neither. */
-    var enteredAt: Long = -1L
+    /** When it came into the edge it is in, for the ramp; `null` while it is in neither. */
+    var enteredAt: Duration? = null
 
     fun bounds(): Rect? = coordinates?.takeIf { it.isAttached }?.boundsInRoot()
 
@@ -83,7 +85,7 @@ internal class AutoScrollRegion(
      * [at]; positive toward the end. Zero outside the edges, before it is armed,
      * and at the very start of the ramp.
      */
-    fun step(at: Offset, edge: Float, maxSpeed: Float, rampMillis: Long, nowMillis: Long, frameMillis: Float): Float {
+    fun step(at: Offset, edge: Float, maxSpeed: Float, ramp: Duration, now: Duration, frame: Duration): Float {
         val box = bounds() ?: return 0f
         val vertical = currentOrientation == Orientation.Vertical
         val start = if (vertical) box.top else box.left
@@ -95,19 +97,19 @@ internal class AutoScrollRegion(
         val towardStart = position - start < zone
         if (!towardEnd && !towardStart) {
             armed = true
-            enteredAt = -1L
+            enteredAt = null
             return 0f
         }
         if (!armed) return 0f
-        if (enteredAt < 0) enteredAt = nowMillis
+        val entered = enteredAt ?: now.also { enteredAt = it }
         val depth = if (towardEnd) (zone - (end - position)) / zone else (zone - (position - start)) / zone
         // Quadratic in how far in, so the edge of the zone barely moves and its
         // far side moves fast; ramped over the first moments in it.
         // Never quite nothing, so the first frame in an edge moves the list a
         // hair: a list that moved is one still able to.
-        val ramp = if (rampMillis <= 0) 1f else ((nowMillis - enteredAt).toFloat() / rampMillis).coerceIn(MinimumRamp, 1f)
-        val speed = maxSpeed * depth.coerceIn(0f, 1f).let { it * it } * ramp
-        val distance = speed * frameMillis / 1000f
+        val rampedTo = if (ramp <= Duration.ZERO) 1f else ((now - entered) / ramp).toFloat().coerceIn(MinimumRamp, 1f)
+        val speed = maxSpeed * depth.coerceIn(0f, 1f).let { it * it } * rampedTo
+        val distance = speed * (frame / 1.seconds).toFloat()
         val forward = if (!vertical && layoutDirection == LayoutDirection.Rtl) !towardEnd else towardEnd
         return if (forward) distance else -distance
     }

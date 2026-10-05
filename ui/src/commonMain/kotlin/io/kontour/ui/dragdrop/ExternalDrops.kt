@@ -139,10 +139,10 @@ internal class ExternalDropHandle(
     /** Whether there is anything to take drags for. */
     val active: Boolean get() = external() != null && reader() != null
 
-    val shouldStart: (DragAndDropEvent) -> Boolean = { event ->
+    val shouldStart: (DragAndDropEvent) -> Boolean = { drag ->
         val terms = external()
         val read = reader()
-        terms != null && read != null && read.info(event)?.let(terms.accepts) == true
+        terms != null && read != null && read.info(drag)?.let(terms.accepts) == true
     }
 
     val target: DragAndDropTarget = object : DragAndDropTarget {

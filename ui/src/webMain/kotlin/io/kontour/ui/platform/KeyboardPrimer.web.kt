@@ -16,6 +16,7 @@ import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.time.Duration
 import kotlin.time.TimeSource
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -45,7 +46,7 @@ private val handover = KeyboardPrimerHandover()
 
 private val clock = TimeSource.Monotonic.markNow()
 
-private fun nowMillis(): Long = clock.elapsedNow().inWholeMilliseconds
+private fun now(): Duration = clock.elapsedNow()
 
 /**
  * How many themes have installed the primer. `KontourTheme` nests, and a nested
@@ -128,7 +129,7 @@ internal actual fun InstallKeyboardPrimer() {
                 y = touch.clientY.toFloat(),
                 inRegion = regions.contains(x, y),
                 editing = editing,
-                nowMillis = nowMillis(),
+                now = now(),
             )
             if (prime) {
                 // Where the finger was, so WebKit has nothing to scroll into view.
@@ -137,7 +138,7 @@ internal actual fun InstallKeyboardPrimer() {
                 primer.focus()
                 scope.launch {
                     delay(KeyboardPrimerHandover.Hold)
-                    if (handover.shouldRelease(nowMillis()) && document.activeElement == primer) primer.blur()
+                    if (handover.shouldRelease(now()) && document.activeElement == primer) primer.blur()
                 }
             }
         }

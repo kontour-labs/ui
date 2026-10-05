@@ -3,6 +3,8 @@ package io.kontour.ui.platform
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Marks a region a tap on which puts a caret in a text field, so the browser
@@ -82,7 +84,7 @@ internal class KeyboardPrimerRegions {
  * does not leave a keyboard open over nothing.
  */
 internal class KeyboardPrimerHandover {
-    private var primedAt: Long? = null
+    private var primedAt: Duration? = null
     private var startX = Float.NaN
     private var startY = Float.NaN
 
@@ -100,7 +102,7 @@ internal class KeyboardPrimerHandover {
      * — inside a region, and only when nothing is being typed into already, as a
      * keyboard that is up stays up as focus moves between fields.
      */
-    fun onTouchEnd(x: Float, y: Float, inRegion: Boolean, editing: Boolean, nowMillis: Long): Boolean {
+    fun onTouchEnd(x: Float, y: Float, inRegion: Boolean, editing: Boolean, now: Duration): Boolean {
         val dx = x - startX
         val dy = y - startY
         startX = Float.NaN
@@ -108,7 +110,7 @@ internal class KeyboardPrimerHandover {
         // NaN when no start was seen, which compares false: not a tap.
         val tap = dx * dx + dy * dy <= TapSlop * TapSlop
         if (!tap || !inRegion || editing) return false
-        primedAt = nowMillis
+        primedAt = now
         return true
     }
 
@@ -117,10 +119,10 @@ internal class KeyboardPrimerHandover {
         if (!toPrimer) primedAt = null
     }
 
-    /** Whether to blur the primer at [nowMillis]: still holding, and for long enough. */
-    fun shouldRelease(nowMillis: Long): Boolean {
+    /** Whether to blur the primer [now]: still holding, and for long enough. */
+    fun shouldRelease(now: Duration): Boolean {
         val at = primedAt ?: return false
-        if (nowMillis - at < Hold) return false
+        if (now - at < Hold) return false
         primedAt = null
         return true
     }
@@ -134,7 +136,7 @@ internal class KeyboardPrimerHandover {
          * tap on a field that never takes focus — a disabled one that changed
          * state under the finger — shows a keyboard only in passing.
          */
-        const val Hold: Long = 750L
+        val Hold: Duration = 750.milliseconds
 
         /**
          * How far a touch can travel, in CSS pixels, and still be a tap: about a

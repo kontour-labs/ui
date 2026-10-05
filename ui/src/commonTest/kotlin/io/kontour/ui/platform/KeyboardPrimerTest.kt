@@ -5,6 +5,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The parts of the iOS keyboard primer that are decisions rather than DOM calls.
@@ -56,9 +59,9 @@ class KeyboardPrimerTest {
     }
 
     /** A tap at (100, 100), ending in a region or not, with a keyboard up or not. */
-    private fun KeyboardPrimerHandover.tap(inRegion: Boolean = true, editing: Boolean = false, now: Long = 0, moved: Float = 0f): Boolean {
+    private fun KeyboardPrimerHandover.tap(inRegion: Boolean = true, editing: Boolean = false, now: Duration = Duration.ZERO, moved: Float = 0f): Boolean {
         onTouchStart(100f, 100f)
-        return onTouchEnd(100f + moved, 100f, inRegion = inRegion, editing = editing, nowMillis = now)
+        return onTouchEnd(100f + moved, 100f, inRegion = inRegion, editing = editing, now = now)
     }
 
     @Test
@@ -79,7 +82,7 @@ class KeyboardPrimerTest {
         assertFalse(handover.tap(moved = KeyboardPrimerHandover.TapSlop + 1f))
         assertFalse(handover.primed)
         assertFalse(
-            handover.onTouchEnd(100f, 100f, inRegion = true, editing = false, nowMillis = 0),
+            handover.onTouchEnd(100f, 100f, inRegion = true, editing = false, now = Duration.ZERO),
             "an end with no start seen is not a tap",
         )
     }
@@ -87,20 +90,20 @@ class KeyboardPrimerTest {
     @Test
     fun focusMovingOnHandsOverAndNothingIsReleased() {
         val handover = KeyboardPrimerHandover()
-        handover.tap(now = 1_000)
+        handover.tap(now = 1.seconds)
         handover.onFocusMoved(toPrimer = true)
         assertTrue(handover.primed, "the primer taking focus is the priming, not a handover")
         handover.onFocusMoved(toPrimer = false)
         assertFalse(handover.primed)
-        assertFalse(handover.shouldRelease(1_000 + KeyboardPrimerHandover.Hold), "a field took the keyboard: leave it")
+        assertFalse(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold), "a field took the keyboard: leave it")
     }
 
     @Test
     fun aPrimerNobodyTookIsReleasedAfterTheHoldAndOnlyThen() {
         val handover = KeyboardPrimerHandover()
-        handover.tap(now = 1_000)
-        assertFalse(handover.shouldRelease(1_000 + KeyboardPrimerHandover.Hold - 1))
-        assertTrue(handover.shouldRelease(1_000 + KeyboardPrimerHandover.Hold))
-        assertFalse(handover.shouldRelease(1_000 + KeyboardPrimerHandover.Hold * 2), "released once")
+        handover.tap(now = 1.seconds)
+        assertFalse(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold - 1.milliseconds))
+        assertTrue(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold))
+        assertFalse(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold * 2), "released once")
     }
 }
