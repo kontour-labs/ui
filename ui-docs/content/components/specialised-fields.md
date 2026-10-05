@@ -1,6 +1,6 @@
 # `PasswordField` and the rest
 
-*Also on this page: `NumberField`, `PhoneField`, `EmailField`.*
+*Also on this page: `SecretField`, `NumberField`, `PhoneField`, `EmailField`.*
 
 <!--sample:SpecialisedFieldsBasics-->
 ```kotlin
@@ -22,6 +22,7 @@ EmailField(state = email, label = "Email")
 | | |
 |---|---|
 | `PasswordField` | Reveal toggle, autofill content type |
+| `SecretField` | The same mask and toggle, kept away from autofill |
 | `NumberField` | Digits or decimals, rejected at the keystroke |
 | `PhoneField` | Live mask, digits stored clean |
 | `EmailField` | Email keyboard, autofill, no capitalisation |
@@ -47,6 +48,46 @@ likely to be watched.
 **The eye says what is true now**: struck through while the password is hidden,
 plain while it can be read. Pass `revealIcon` alone and the slash draws itself;
 pass an already-slashed `hideIcon` and the two cross-fade.
+
+### A key is not a password
+
+**`SecretField` is for an API key, a token or a recovery code.** `PasswordField`
+tells the platform's autofill it holds a password, which is how a password
+manager knows to offer the one it saved — and how a key typed into one came to
+be offered for saving as the reader's login. `SecretField` masks, reveals and
+shows the character just typed exactly as `PasswordField` does, and tells the
+platform none of that:
+
+<!--sample:SecretFieldBasics-->
+```kotlin
+val apiKey = rememberTextFieldState()
+
+// Masked and revealed as a password is, and not one to the platform: no
+// autofill hint, so nothing offers to save it as the reader's login.
+SecretField(state = apiKey, label = "API key", revealIcon = Tabler.Outline.Eye)
+```
+
+- **No autofill.** No content type, and marked as holding nothing to fill
+  (`ContentDataType.None`), so Android's autofill neither offers to fill it nor,
+  from the field, to save it.
+- **Not a password field to the keyboard.** `KeyboardType.Password` is what
+  makes iOS treat a field as secure entry and Android hint it as a password, and
+  Compose adds `ContentType.Password` for it besides. `SecretField` asks for an
+  ASCII keyboard with no autocorrect and no capitalisation instead.
+- **In the mono face**, so a revealed key reads character by character.
+
+What each platform still does, as far as Compose 1.12's sources show:
+
+| | `PasswordField` | `SecretField` |
+|---|---|---|
+| Android | Autofill hint `password`, password input type | No hint, not autofillable; the keyboard is shown the masked text |
+| iOS | Secure entry, content type password | Ordinary entry: the keyboard may learn from it and suggest it |
+| Web | Neither sets `type="password"`: Compose's hidden input is always text, so a browser's own "save password" does not come from either | The same |
+| Desktop | No autofill | No autofill |
+
+The iOS row is the trade: a secure field is one the keyboard leaves alone, and
+it is also one the system treats as a password. A key that should never be
+learned and never be saved has no field on iOS that does both.
 
 **`NumberField` clears when its rules narrow under it.** Turn `allowDecimal` or
 `allowNegative` off, or lower `maxLength`, while the field holds something the new

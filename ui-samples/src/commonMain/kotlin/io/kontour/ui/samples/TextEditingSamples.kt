@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Eye
 import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.EmailField
@@ -20,6 +21,7 @@ import io.kontour.ui.components.text.NumberField
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
+import io.kontour.ui.components.text.SecretField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
@@ -93,6 +95,15 @@ fun CodeTextArea() {
     // that neither corrects nor capitalises: either would change what was meant.
     TextArea(state = config, label = "Feed override", code = true)
     TextField(state = stop, label = "Stop code", placeholder = "per-10352", code = true)
+}
+
+@Composable
+fun SecretFieldBasics() {
+    val apiKey = rememberTextFieldState()
+
+    // Masked and revealed as a password is, and not one to the platform: no
+    // autofill hint, so nothing offers to save it as the reader's login.
+    SecretField(state = apiKey, label = "API key", revealIcon = Tabler.Outline.Eye)
 }
 
 @Composable

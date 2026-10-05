@@ -4,6 +4,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldBuffer
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.then
@@ -16,10 +17,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentDataType
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDataType
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import io.kontour.ui.components.action.ButtonSize
@@ -53,7 +56,9 @@ import androidx.compose.ui.graphics.Shape
  * being covered and uncovered, and it is one icon to supply rather than two.
  *
  * Sets the autofill content type so the platform offers a saved password, and
- * so a password manager can save a new one.
+ * so a password manager can save a new one. **For an API key, a token or a
+ * recovery code, use [SecretField]**: masked the same way, but not a password,
+ * so nothing offers to save it as one.
  *
  * @param revealIcon The eye: shown plain while the password can be read, and
  *   struck through while it is hidden. No toggle at all without one.
@@ -88,6 +93,162 @@ fun PasswordField(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
+) {
+    MaskedField(
+        state = state,
+        // What makes it a password to the platform's autofill — and on Android
+        // so does `KeyboardType.Password`, which Compose maps to the same hint.
+        modifier = modifier,
+        inputSemantics = { contentType = if (newPassword) ContentType.NewPassword else ContentType.Password },
+        enabled = enabled,
+        label = label,
+        placeholder = placeholder,
+        supporting = supporting,
+        errorMessage = errorMessage,
+        revealIcon = revealIcon,
+        hideIcon = hideIcon,
+        revealLabel = revealLabel,
+        hideLabel = hideLabel,
+        revealLastTyped = revealLastTyped,
+        hiddenKeyboard = KeyboardType.Password,
+        shownKeyboard = KeyboardType.Text,
+        code = false,
+        imeAction = imeAction,
+        variant = variant,
+        shape = shape,
+        imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
+        interactionSource = interactionSource,
+    )
+}
+
+/**
+ * A field for a secret that is not a password: an API key, an access token, a
+ * recovery code.
+ *
+ * ```kotlin
+ * SecretField(
+ *     state = apiKey,
+ *     label = "API key",
+ *     revealIcon = FontAwesome.Solid.Eye,
+ * )
+ * ```
+ *
+ * Reported: *"`PasswordField` marks everything as a password, so a browser may
+ * offer to save an API key."* It does, and should: that is how a password
+ * manager knows to offer the password it saved. A key is not that. Saved as a
+ * password it is filed against the site as the reader's login, offered back on
+ * the sign-in form, and synced wherever their passwords go.
+ *
+ * Masked and revealed exactly as [PasswordField] is, with the same toggle and
+ * the same character-just-typed. What differs is what the platform is told:
+ *
+ * - **No autofill.** No content type, and marked as holding nothing to fill, so
+ *   an autofill service neither offers to fill it nor, from the field, to save
+ *   it.
+ * - **Not a password field.** `KeyboardType.Password` is what makes iOS treat a
+ *   field as secure entry and Android hint it as a password, so this asks for
+ *   an ASCII keyboard instead, with no autocorrect and no capitalisation: a key
+ *   is typed exactly, and usually pasted.
+ * - **Set in the mono face**, as a [TextField] with `code` is, so a revealed key
+ *   reads character by character and a 0 is not an O.
+ *
+ * The cost is the keyboard's. On iOS a field that is not secure entry is one the
+ * keyboard may learn from and suggest; on Android the keyboard is shown the
+ * masked text, not the key. [PasswordField] has neither cost and is right for a
+ * password.
+ *
+ * @param revealIcon The eye: shown plain while the secret can be read, and
+ *   struck through while it is hidden. No toggle at all without one.
+ * @param hideIcon An already-slashed eye to show while the secret is hidden,
+ *   instead of drawing the slash across [revealIcon].
+ * @param revealLastTyped Shows the character just typed for a moment before it
+ *   is masked. On by default, as [PasswordField]'s is.
+ */
+@Composable
+fun SecretField(
+    state: TextFieldState,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: String? = null,
+    placeholder: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
+    revealIcon: ImageVector? = null,
+    hideIcon: ImageVector? = null,
+    revealLabel: String = Theme.strings.show,
+    hideLabel: String = Theme.strings.hide,
+    revealLastTyped: Boolean = true,
+    imeAction: ImeAction = ImeAction.Done,
+    variant: TextFieldVariant = TextFieldVariant.Outlined,
+    shape: Shape = Theme.shapes.field,
+    imeChain: ImeChainStep? = null,
+    colours: TextFieldColours = TextFieldDefaults.colours(variant),
+    metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
+    interactionSource: MutableInteractionSource? = null,
+) {
+    MaskedField(
+        state = state,
+        modifier = modifier,
+        // Holds nothing to fill. The text field says `Text` of itself, which is
+        // what makes it a candidate for an autofill service at all; this, on the
+        // same node, is the one that counts.
+        inputSemantics = { contentDataType = ContentDataType.None },
+        enabled = enabled,
+        label = label,
+        placeholder = placeholder,
+        supporting = supporting,
+        errorMessage = errorMessage,
+        revealIcon = revealIcon,
+        hideIcon = hideIcon,
+        revealLabel = revealLabel,
+        hideLabel = hideLabel,
+        revealLastTyped = revealLastTyped,
+        // The same either way, so revealing it does not restart the keyboard.
+        hiddenKeyboard = KeyboardType.Ascii,
+        shownKeyboard = KeyboardType.Ascii,
+        code = true,
+        imeAction = imeAction,
+        variant = variant,
+        shape = shape,
+        imeChain = imeChain,
+        colours = colours,
+        metrics = metrics,
+        interactionSource = interactionSource,
+    )
+}
+
+/**
+ * [PasswordField] and [SecretField]: a [TextField] with a mask, a reveal toggle
+ * and the character just typed shown for a moment. What the platform is told
+ * the field is comes in on [modifier] and the two keyboards.
+ */
+@Composable
+private fun MaskedField(
+    state: TextFieldState,
+    modifier: Modifier,
+    inputSemantics: SemanticsPropertyReceiver.() -> Unit,
+    enabled: Boolean,
+    label: String?,
+    placeholder: String?,
+    supporting: String?,
+    errorMessage: String?,
+    revealIcon: ImageVector?,
+    hideIcon: ImageVector?,
+    revealLabel: String,
+    hideLabel: String,
+    revealLastTyped: Boolean,
+    hiddenKeyboard: KeyboardType,
+    shownKeyboard: KeyboardType,
+    code: Boolean,
+    imeAction: ImeAction,
+    variant: TextFieldVariant,
+    shape: Shape,
+    imeChain: ImeChainStep?,
+    colours: TextFieldColours,
+    metrics: TextFieldMetrics,
+    interactionSource: MutableInteractionSource?,
 ) {
     var revealed by remember { mutableStateOf(false) }
 
@@ -126,19 +287,27 @@ fun PasswordField(
     // read inside it changes, so the key was never needed.
     val mask = remember { PasswordMask(unmasked = { lastTypedState.intValue }) }
 
-    TextField(
+    TextFieldImpl(
         state = state,
-        modifier = modifier.semantics {
-            contentType = if (newPassword) ContentType.NewPassword else ContentType.Password
-        },
+        modifier = modifier,
         enabled = enabled,
+        readOnly = false,
         label = label,
         placeholder = placeholder,
         supporting = supporting,
         errorMessage = errorMessage,
+        leadingIcon = null,
+        leading = null,
+        trailingIcon = null,
         variant = variant,
         shape = shape,
-        keyboardType = if (revealed) KeyboardType.Text else KeyboardType.Password,
+        keyboardType = if (revealed) shownKeyboard else hiddenKeyboard,
+        onKeyboardAction = null,
+        inputTransformation = null,
+        lineLimits = TextFieldLineLimits.SingleLine,
+        accessibleName = label,
+        inputSemantics = inputSemantics,
+        code = code,
         // The thing that actually hides the password.
         //
         // `KeyboardType.Password` is an IME hint and substitutes no glyphs, so
@@ -353,26 +522,36 @@ fun PhoneField(
     format: PhoneFormat = PhoneFormat.None,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    TextField(
+    TextFieldImpl(
         state = state,
-        modifier = modifier.semantics { contentType = ContentType.PhoneNumber },
+        modifier = modifier,
         enabled = enabled,
+        readOnly = false,
         label = label,
         placeholder = placeholder,
         supporting = supporting,
         errorMessage = errorMessage,
+        leadingIcon = null,
+        leading = null,
+        trailingIcon = null,
+        trailing = null,
         variant = variant,
         shape = shape,
         keyboardType = KeyboardType.Phone,
+        onKeyboardAction = null,
         inputTransformation = remember(format) {
             InputTransformation.digitsOnly().then(InputTransformation.limit(format.maxDigits))
         },
         outputTransformation = remember(format) { if (format.groups.isEmpty()) null else phoneMask(format) },
+        lineLimits = TextFieldLineLimits.SingleLine,
         imeAction = imeAction,
         imeChain = imeChain,
         colours = colours,
         metrics = metrics,
         interactionSource = interactionSource,
+        accessibleName = label,
+        // On the input, where autofill reads it; the caller's modifier is the frame's.
+        inputSemantics = { contentType = ContentType.PhoneNumber },
     )
 }
 
@@ -400,21 +579,33 @@ fun EmailField(
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    TextField(
+    TextFieldImpl(
         state = state,
-        modifier = modifier.semantics { contentType = ContentType.EmailAddress },
+        modifier = modifier,
         enabled = enabled,
+        readOnly = false,
         label = label,
         placeholder = placeholder,
         supporting = supporting,
         errorMessage = errorMessage,
+        leadingIcon = null,
+        leading = null,
+        trailingIcon = null,
+        trailing = null,
         variant = variant,
         shape = shape,
         keyboardType = KeyboardType.Email,
+        onKeyboardAction = null,
+        inputTransformation = null,
+        outputTransformation = null,
+        lineLimits = TextFieldLineLimits.SingleLine,
         imeAction = imeAction,
         imeChain = imeChain,
         colours = colours,
         metrics = metrics,
         interactionSource = interactionSource,
+        accessibleName = label,
+        // On the input, where autofill reads it; the caller's modifier is the frame's.
+        inputSemantics = { contentType = ContentType.EmailAddress },
     )
 }

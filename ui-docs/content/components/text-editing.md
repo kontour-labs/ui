@@ -21,6 +21,7 @@ hoisting round-tripped through a recomposition.
 | [`TextArea`](text-area.md) | Several lines | `TextField`, for a name or a code |
 | [`SearchField`](search-field.md) | A query that filters as you type | `TextField`, when submission is explicit |
 | [`PasswordField`](specialised-fields.md) | A secret, with a reveal toggle | — |
+| [`SecretField`](specialised-fields.md#a-key-is-not-a-password) | An API key or a token: masked, but not a password to autofill | `PasswordField`, for the reader's own login |
 | [`NumberField`](specialised-fields.md) | Digits or decimals | `Slider`, for "about this much" |
 | [`PhoneField`](specialised-fields.md) | A number with a live mask | — |
 | [`EmailField`](specialised-fields.md) | An address | — |

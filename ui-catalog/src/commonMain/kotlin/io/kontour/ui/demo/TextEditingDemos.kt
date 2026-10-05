@@ -31,6 +31,7 @@ import io.kontour.ui.components.text.NumberField
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
+import io.kontour.ui.components.text.SecretField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
@@ -146,6 +147,15 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
             state = rememberTextFieldState("hunter2"),
             label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
             newPassword = this@ComponentDemo[passwordIsNew],
+            revealLastTyped = this@ComponentDemo[passwordRevealLast],
+            revealIcon = Tabler.Outline.Eye,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        // Masked as a password is, and not one: no autofill, no "save
+        // password", an ASCII keyboard and the mono face.
+        SecretField(
+            state = rememberTextFieldState("kt_live_51Hx7Qp"),
+            label = "API key",
             revealLastTyped = this@ComponentDemo[passwordRevealLast],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),

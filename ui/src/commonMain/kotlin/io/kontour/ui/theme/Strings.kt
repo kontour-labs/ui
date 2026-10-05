@@ -283,6 +283,16 @@ data class Strings(
     // Navigation, continued: last so that nothing passed by position moves.
     /** The destination at the end of a bar that holds the ones with no room of their own. */
     val more: String = "More",
+
+    // Text editing, continued.
+    /**
+     * A `SecretField`'s reveal toggle, beside the field's own label: "API key",
+     * then "Show". Not "Show password", since a key is not one.
+     */
+    val show: String = "Show",
+    /** And its other state. */
+    val hide: String = "Hide",
+
 ) {
     companion object {
         /**
@@ -411,6 +421,8 @@ data class Strings(
         nextSection = lookup.text("nextSection") ?: fallback.nextSection,
         previousSection = lookup.text("previousSection") ?: fallback.previousSection,
         more = lookup.text("more") ?: fallback.more,
+        show = lookup.text("show") ?: fallback.show,
+        hide = lookup.text("hide") ?: fallback.hide,
         )
     }
 }
@@ -582,4 +594,6 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     nextSection = transform(nextSection),
     previousSection = transform(previousSection),
     more = transform(more),
+    show = transform(show),
+    hide = transform(hide),
 )

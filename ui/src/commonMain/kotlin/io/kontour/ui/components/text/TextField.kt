@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.error as semanticsError
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -193,6 +194,13 @@ internal fun TextFieldImpl(
     interactionSource: MutableInteractionSource?,
     accessibleName: String?,
     code: Boolean = false,
+    /**
+     * What the input itself tells the platform beyond its name: an autofill
+     * content type, or that it holds nothing to fill. On the input rather than
+     * on the caller's modifier, which lands on the frame — a node an autofill
+     * service never reads.
+     */
+    inputSemantics: (SemanticsPropertyReceiver.() -> Unit)? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Code in the theme's mono face, at the field's own size: the family and
@@ -325,6 +333,7 @@ internal fun TextFieldImpl(
                             // screen reader still offers "double tap to edit" on
                             // a field that will not take a character.
                             if (!enabled) disabled()
+                            inputSemantics?.invoke(this)
                         },
                     enabled = enabled,
                     readOnly = readOnly,
