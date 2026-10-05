@@ -215,18 +215,28 @@ fun <T> StateSwitcher(
     }
 }
 
+/**
+ * A state's icon, title, message and action, centred.
+ *
+ * @param announced Whether it is a live region. A [DropZone] lays its words out
+ *   the same way and is not news when it appears.
+ * @param messageColour The message's colour: muted, unless the ground under it
+ *   is a tone's.
+ */
 @Composable
-private fun StateBlock(
+internal fun StateBlock(
     modifier: Modifier,
     slots: StateScope,
     iconTint: Color,
     assertive: Boolean,
+    announced: Boolean = true,
+    messageColour: Color = Theme.colours.contentMuted,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                liveRegion = if (assertive) LiveRegionMode.Assertive else LiveRegionMode.Polite
+                if (announced) liveRegion = if (assertive) LiveRegionMode.Assertive else LiveRegionMode.Polite
             }
             .padding(Theme.spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -249,7 +259,7 @@ private fun StateBlock(
         slots.message?.let { message ->
             // Long lines are hard to read centred; cap the measure.
             Box(Modifier.widthIn(max = 320.dp)) {
-                ProvideContentColour(Theme.colours.contentMuted) {
+                ProvideContentColour(messageColour) {
                     ProvideTextStyle(
                         Theme.typography.bodyMedium.copy(textAlign = TextAlign.Center)
                     ) {

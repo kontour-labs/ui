@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.icons.tabler.outline.Check
 import io.kontour.icons.tabler.outline.ChevronDown
@@ -58,6 +59,12 @@ import io.kontour.ui.components.display.CarouselStyle
 import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.DropZone
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.ExternalDrops
+import io.kontour.ui.dragdrop.dragSource
+import io.kontour.ui.dragdrop.rememberDropTargetState
+import androidx.compose.runtime.key
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdDefaults
@@ -1243,6 +1250,65 @@ internal val ChatBubbleDemo = ComponentDemo(
     }
 }
 
+/**
+ * Off, the archive turns cards away: they show the danger colour over it and
+ * go home when let go.
+ */
+private val zoneFull = Knob.Flag("Archive full")
+private val zoneEnabled = Knob.Flag("Enabled", initial = true)
+
+/** The cards the drop zone demo carries. */
+private val DemoCard = DragType<String>("demo-card")
+
+/**
+ * Cards to carry to an archive — held with a finger, picked up with a mouse —
+ * and the archive's restore button to bring them back. Files from outside the
+ * app land in it too, where the platform lets them: the desktop, a browser, an
+ * iPad or Android tablet beside another app.
+ */
+internal val DropZoneDemo = ComponentDemo(slug = "drop-zone", knobs = listOf(zoneFull, zoneEnabled)) {
+    val full = this[zoneFull]
+    var cards by remember { mutableStateOf(listOf("Timetable", "Fares", "Signage")) }
+    var archived by remember { mutableStateOf(emptyList<String>()) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            cards.forEach { card ->
+                key(card) {
+                    Tag(Modifier.dragSource(DemoCard, card, label = card)) { +card }
+                }
+            }
+        }
+        val archive = rememberDropTargetState(
+            DemoCard,
+            label = "Archive",
+            onDrop = { card ->
+                cards = cards - card
+                archived = archived + card
+            },
+            accepts = { !full },
+            external = ExternalDrops.files { files, _ ->
+                echo("Dropped ${files.joinToString { it.name }}")
+            },
+        )
+        DropZone(archive, Modifier.fillMaxWidth(), enabled = this@ComponentDemo[zoneEnabled]) {
+            leading { +Tabler.Outline.Archive }
+            +"Archive"
+            message { +(if (full) "The archive is full." else "Drop a card here to put it away.") }
+            if (archived.isNotEmpty()) {
+                action {
+                    Button(
+                        onClick = {
+                            cards = cards + archived
+                            archived = emptyList()
+                        },
+                        variant = ButtonVariant.Secondary,
+                    ) { +"Restore ${archived.size}" }
+                }
+            }
+        }
+    }
+}
+
 internal val displayDemos = listOf(
     CardDemo,
     TagDemo,
@@ -1258,6 +1324,7 @@ internal val displayDemos = listOf(
     RedactionDemo,
     SkeletonDemo,
     EmptyStateDemo,
+    DropZoneDemo,
     AccordionDemo,
     AnimatedCounterDemo,
     MarqueeDemo,

@@ -166,6 +166,13 @@ no icons has arrows either side of its month.
   the drop's read permission is asked for through the activity, and lasts as
   long as the activity does.
 
+- **[`DropZone`](components/drop-zone.md)**, a drop target that shows where a
+  drag stands with it — a dashed place at rest, the accent while something it
+  would take is carried, the accent's ground over it, the danger colour's when
+  it would turn the thing away — laid out as an `EmptyState`, with room for a
+  picker beside the drop. `rememberDropTargetState(label, external)` makes a
+  target that takes only drags from outside the app, for an upload area.
+
 - **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
   and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
   read in place of the label where the label alone does not say enough — "Save"

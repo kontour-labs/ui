@@ -153,7 +153,9 @@ LazyColumn(state = scroll, modifier = Modifier.dropList(list)) {
 as a [picker's](components/file-field.md) do, and are read when you ask. A list
 also gets the position the drop was let go at, where the platform says where.
 While a drag from outside is over a list, a line shows where it would land: such a
-drag has no size to make room for.
+drag has no size to make room for. For a target that takes only these, an
+upload area, `rememberDropTargetState(label, external)` takes no in-app type,
+and a [`DropZone`](components/drop-zone.md) draws one.
 
 **`accepts` decides before the drop**, from what the platform says while the
 drag is under way. A drag it turns away is not offered to the target at all.

@@ -813,6 +813,10 @@ public final class io/kontour/ui/components/display/DialColours {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/kontour/ui/components/display/DropZoneKt {
+	public static final fun DropZone (Lio/kontour/ui/dragdrop/DropTargetState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/components/display/GaugeDefaults {
 	public static final field $stable I
 	public static final field ContentBackgroundAlpha F
@@ -1934,6 +1938,7 @@ public final class io/kontour/ui/dragdrop/DragAndDropKt {
 	public static final fun dropTarget (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;Z)Landroidx/compose/ui/Modifier;
 	public static synthetic fun dropTarget$default (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
 	public static final fun rememberDropTargetState (Lio/kontour/ui/dragdrop/DragType;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/dragdrop/DropTargetState;
+	public static final fun rememberDropTargetState (Ljava/lang/String;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/dragdrop/DropTargetState;
 }
 
 public final class io/kontour/ui/dragdrop/DragAutoScrollKt {

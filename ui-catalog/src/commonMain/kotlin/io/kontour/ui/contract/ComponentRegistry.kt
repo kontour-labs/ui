@@ -37,6 +37,9 @@ import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.DropZone
+import io.kontour.ui.dragdrop.ExternalDrops
+import io.kontour.ui.dragdrop.rememberDropTargetState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.FileUpload
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.CurrentLocation
 import io.kontour.icons.tabler.outline.GripVertical
@@ -2452,6 +2456,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // to pass `bodySmall` by hand and any one of them could have not.
             Callout(modifier.widthIn(max = SpecimenProseWidth)) {
                 +"Melbourne, Sydney and Canberra do not currently support journey planning."
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DropZone",
+            role = null,
+            underContract = false,
+            renderHeight = 200,
+            minWidth = 240,
+        ) { modifier, enabled, _ ->
+            // At rest, which is how a page shows one nearly all the time. Its
+            // other looks need something carried over it, and a still render
+            // has nothing carried: `DropZoneTest` and `DropZoneDragTest` read
+            // them from the pixels instead.
+            val upload = rememberDropTargetState(label = "Attachments", external = ExternalDrops.files { _, _ -> })
+            DropZone(upload, modifier.widthIn(max = SpecimenProseWidth), enabled = enabled) {
+                leading { +Tabler.Outline.FileUpload }
+                +"Drop timetables here"
+                message { +"PDF or CSV, up to 10 MB" }
             }
         }
     )

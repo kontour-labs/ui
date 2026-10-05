@@ -187,6 +187,26 @@ fun <T : Any> rememberDropTargetState(
 }
 
 /**
+ * The state of a target for drags from outside the app only: an upload area
+ * that takes files from the desktop, a field that takes a link from another
+ * window. It takes nothing dragged within the app — there is no type to drag.
+ *
+ * ```kotlin
+ * val upload = rememberDropTargetState(
+ *     label = "Attachments",
+ *     external = ExternalDrops.files { files, _ -> attach(files) },
+ * )
+ * DropZone(upload) { +"Drop files here" }
+ * ```
+ */
+@Composable
+fun rememberDropTargetState(label: String, external: ExternalDrops): DropTargetState<Nothing> =
+    rememberDropTargetState(OutsideOnly, label, onDrop = {}, external = external)
+
+/** The type of a target that takes only drags from outside the app: no source carries it. */
+private val OutsideOnly = DragType<Nothing>("outside")
+
+/**
  * Takes drops for [state] over this element's bounds.
  *
  * Inside another target, the innermost takes the drop; in an overlay — a sheet,
