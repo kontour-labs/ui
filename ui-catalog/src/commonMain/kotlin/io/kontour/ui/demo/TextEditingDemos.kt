@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,16 +88,31 @@ internal val SearchFieldDemo = ComponentDemo(slug = "search-field") {
     )
 }
 
-internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
-    val state = rememberTextFieldState(
-        "The 960 was 12 minutes late and the app still showed it as on time.",
-    )
+/**
+ * The mono face, and a keyboard that leaves what is typed alone. It swaps the
+ * prose for a snippet, since the difference is the columns lining up and the
+ * 0 that is not an O.
+ */
+private val areaCode = Knob.Flag("Code")
+
+internal val TextAreaDemo = ComponentDemo(slug = "text-area", knobs = listOf(areaCode)) {
+    val code = this[areaCode]
+    val state = remember(code) {
+        TextFieldState(
+            if (code) {
+                "route  = 960\nfrom   = \"Curtin Central\"\nto     = \"Perth Busport\"\nretry  = 0"
+            } else {
+                "The 960 was 12 minutes late and the app still showed it as on time."
+            },
+        )
+    }
     TextArea(
         state = state,
-        label = "What went wrong?",
+        label = if (code) "Feed override" else "What went wrong?",
         // Clear the text to see it: at the top, where the first line goes.
-        placeholder = "Which service, where, and when",
+        placeholder = if (code) "key = value" else "Which service, where, and when",
         lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 6),
+        code = code,
         modifier = Modifier.fillMaxWidth(),
     )
 }

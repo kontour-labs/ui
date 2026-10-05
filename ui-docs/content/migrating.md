@@ -67,6 +67,8 @@ type differs from the argument that was in its place.
 |---|---|---|
 | `Checkbox`, `TriStateCheckbox`, `Switch`, `RadioButton` | `contentDescription`, after `enabled` | `interactionSource` |
 | `Button`, `TextButton`, `SplitButton` | `contentDescription`, after `enabled` | `variant` (`colour` on `TextButton`), and those after it |
+| `TextField` | `code`, after `trailing` | `variant`, and those after it |
+| `TextArea` | `code`, after `lineLimits` | `variant`, and those after it |
 | `NavBar` | `fadeUnder`, before `windowInsets` | `windowInsets`, and those after it |
 | `NavigationSuiteScaffold` | `barFadeUnder`, after `railExpandedWidth` | `containerColour`, and those after it |
 

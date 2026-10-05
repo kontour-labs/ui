@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.error as semanticsError
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.mono
 
 /**
  * A single-line text field.
@@ -91,6 +93,9 @@ import io.kontour.ui.theme.Theme
  *   clean digits out of [state].
  * @param supporting Guidance shown below the field. Replaced by
  *   [errorMessage] when the field is invalid, so the two never stack.
+ * @param code For text that is code, a key or a command: set in the theme's
+ *   mono face, and typed with no autocorrect or capitalisation, which would
+ *   change what was meant.
  */
 @Composable
 fun TextField(
@@ -106,6 +111,7 @@ fun TextField(
     leading: (@Composable () -> Unit)? = null,
     trailingIcon: ImageVector? = null,
     trailing: (@Composable () -> Unit)? = null,
+    code: Boolean = false,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     shape: Shape = Theme.shapes.field,
     keyboardType: KeyboardType = KeyboardType.Text,
@@ -151,6 +157,7 @@ fun TextField(
         metrics = metrics,
         interactionSource = interactionSource,
         accessibleName = label,
+        code = code,
     )
 }
 
@@ -185,8 +192,12 @@ internal fun TextFieldImpl(
     metrics: TextFieldMetrics,
     interactionSource: MutableInteractionSource?,
     accessibleName: String?,
+    code: Boolean = false,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    // Code in the theme's mono face, at the field's own size: the family and
+    // tabular figures from `mono`, the metrics from the scale.
+    val textStyle = if (code) Theme.typography.bodyMedium.mono() else Theme.typography.bodyMedium
     val focused by interactions.collectIsFocusedAsState()
 
     // The requester the frame hands a press to.
@@ -317,7 +328,7 @@ internal fun TextFieldImpl(
                         },
                     enabled = enabled,
                     readOnly = readOnly,
-                    textStyle = Theme.typography.bodyMedium.merge(color = contentColour),
+                    textStyle = textStyle.merge(color = contentColour),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = keyboardType,
                         // A chain decides the action key outright, overriding
@@ -329,6 +340,10 @@ internal fun TextFieldImpl(
                         // The reader's language, so a keyboard that can switch
                         // offers theirs and its dictionary.
                         hintLocales = LocaleList(Theme.locale),
+                        // Code is typed as it is meant: a keyboard that
+                        // corrected `val` or capitalised a key would change it.
+                        autoCorrectEnabled = if (code) false else null,
+                        capitalization = if (code) KeyboardCapitalization.None else KeyboardCapitalization.Unspecified,
                     ),
                     onKeyboardAction = onKeyboardAction ?: imeChain?.handler,
                     lineLimits = lineLimits,
@@ -345,7 +360,7 @@ internal fun TextFieldImpl(
                     // Said once, as the field's name, when it is that: read
                     // again as a line of its own it is the same words twice.
                     modifier = if (placeholder == accessibleName) Modifier.clearAndSetSemantics {} else Modifier,
-                    style = Theme.typography.bodyMedium,
+                    style = textStyle,
                     // The disabled grey when disabled, as the text it stands in
                     // for is. It kept its own colour, darker than that grey, so
                     // an empty disabled field said more than a filled one.
@@ -379,6 +394,9 @@ internal fun TextFieldImpl(
  *
  * @param lineLimits The same `TextFieldLineLimits` a [TextField] takes, held to
  *   the multi-line kind: three lines to start with, growing to eight.
+ * @param code For a snippet, a config file or a key pasted in: set in the
+ *   theme's mono face, so columns line up and a 0 is not an O, and typed with
+ *   no autocorrect or capitalisation.
  */
 @Composable
 fun TextArea(
@@ -391,6 +409,7 @@ fun TextArea(
     supporting: String? = null,
     errorMessage: String? = null,
     lineLimits: TextFieldLineLimits.MultiLine = TextAreaDefaults.LineLimits,
+    code: Boolean = false,
     variant: TextFieldVariant = TextFieldVariant.Outlined,
     shape: Shape = Theme.shapes.field,
     inputTransformation: InputTransformation? = null,
@@ -407,6 +426,7 @@ fun TextArea(
         placeholder = placeholder,
         supporting = supporting,
         errorMessage = errorMessage,
+        code = code,
         variant = variant,
         shape = shape,
         imeAction = ImeAction.Default,

@@ -65,18 +65,19 @@ no icons has arrows either side of its month.
   compiles as before; a builder held in a variable of the old, non-composable
   type, or a plain function passed for one, no longer does** — mark it
   `@Composable`. `listGroup` in a `LazyColumn` is unchanged.
-- **A selection control's `interactionSource`, or a button's `variant`, passed
-  by position no longer compiles.** `Checkbox`, `TriStateCheckbox`, `Switch`,
-  `RadioButton`, `Button`, `TextButton` and `SplitButton` take a
-  `contentDescription` after `enabled`; `NavBar` takes `fadeUnder` before
+- **A selection control's `interactionSource`, or a button's or a text field's
+  `variant`, passed by position no longer compiles.** `Checkbox`,
+  `TriStateCheckbox`, `Switch`, `RadioButton`, `Button`, `TextButton` and
+  `SplitButton` take a `contentDescription` after `enabled`; `TextField` and
+  `TextArea` take `code` before `variant`; `NavBar` takes `fadeUnder` before
   `windowInsets`, and `NavigationSuiteScaffold` `barFadeUnder` after
   `railExpandedWidth`. Each is a different type from what was in its place, so a
   call that passed those arguments by position fails to compile rather than
   meaning something else. Name the argument.
 - **Recompile rather than swap the jar.** The six builders above are `inline`
   now, and `Dialog`, `NavBar`, `NavigationSuiteScaffold`, the selection
-  controls, the buttons, `ComponentDefaults`, `LocaleFormats` and `Strings`
-  gained members,
+  controls, the buttons, the text fields, `ComponentDefaults`, `LocaleFormats`
+  and `Strings` gained members,
   so a library built against 0.4.1 fails when it calls one until it is rebuilt.
 
 ### Changed
@@ -139,6 +140,12 @@ no icons has arrows either side of its month.
   modifier of your own. An [`ExtendedFloatingActionButton`](components/fab.md)'s
   description is now its name open as well as collapsed, as its documentation
   said; open, the label was.
+
+- **[`TextArea`](components/text-area.md#code) and
+  [`TextField`](components/text-field.md) take `code = true`** for a snippet, a
+  config file or an identifier: the text and placeholder in the theme's mono
+  face, at the field's own size, and a keyboard asked for no autocorrect and no
+  capitalisation. The fields take no text style, so there was no asking for one.
 
 - **`Theme.formats.currency(amount, code)`** writes an amount of money as the
   reader writes it — `€3.20`, `3,20 €`, `￥320` — with the currency's own places,

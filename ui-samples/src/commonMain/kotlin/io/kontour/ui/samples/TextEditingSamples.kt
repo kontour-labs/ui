@@ -85,6 +85,17 @@ fun TextAreaBasics() {
 }
 
 @Composable
+fun CodeTextArea() {
+    val config = rememberTextFieldState("route = 960\nretry = 0")
+    val stop = rememberTextFieldState()
+
+    // The mono face, so columns line up and a 0 is not an O, and a keyboard
+    // that neither corrects nor capitalises: either would change what was meant.
+    TextArea(state = config, label = "Feed override", code = true)
+    TextField(state = stop, label = "Stop code", placeholder = "per-10352", code = true)
+}
+
+@Composable
 fun SearchFieldBasics() {
     val query = rememberTextFieldState()
 
