@@ -501,6 +501,7 @@ def literal_phrases() -> list[str]:
 CASE_CHANGE = re.compile(r"\.(?:uppercase|lowercase)\(\)")
 CASE_ALLOWED = {
     "ColourSpaces.kt": "hex digits, which are not language",
+    "CurrencyCode.kt": "an ISO 4217 currency code, which the standard says is three ASCII letters",
     "InlineMarkdown.kt": "a URL scheme, which RFC 3986 says is ASCII",
     "DeviceCorner.kt": "a device model name, matched against a table",
     "DeviceCurves.kt": "a manufacturer and codename, matched against a table",

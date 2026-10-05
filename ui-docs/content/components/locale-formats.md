@@ -41,6 +41,27 @@ right-to-left.
 A locale tag's own keywords win over the platform: `en-AU-u-hc-h23` is a
 24-hour clock, `-u-fw-mon` a Monday week, `-u-nu-latn` Western digits.
 
+### Money
+
+`currency(amount, code)` writes an amount of a currency, named by its ISO 4217
+code, as this reader writes it: `€3.20` to an American, `3,20 €` to a German,
+`￥320` in Japan. The places after the separator are the currency's own — none
+for the yen, three for a Kuwaiti dinar — and the digits, the grouping and where
+the minus goes are the reader's. The code is the caller's to give, because only
+the data says which currency a price is in: a fare in euros is in euros
+wherever it is read.
+
+```kotlin
+Text(Theme.formats.currency(fare.cents / 100.0, "AUD"))
+```
+
+Keep money exact where it is added up — in minor units as a `Long`, or in a
+decimal type — and make a `Double` of it only to show it: a `Double` cannot hold
+`0.10`, and a sum of them drifts. A code the platform does not know is written
+as the code before the number rather than thrown over. The built-in English
+writes the Australian dollar as `$` and every other currency as its code, as
+Australian English does, so a test's money does not move between machines.
+
 ## Pseudo-locales
 
 `PseudoLocalised(mode) { … }` runs a screen in a language that does not exist,

@@ -43,6 +43,13 @@ internal class LocaleData(
     val dateTimePattern: String,
     val lists: Map<ListStyle, ListPattern>,
     val relative: RelativeWords,
+    /**
+     * How an amount of a currency is written, by ISO 4217 code, or `null` for a
+     * code this has nothing on — which is then written as the code before the
+     * number. The platform's reading of the locale, or the built-in English's
+     * table.
+     */
+    val currency: (code: String) -> CurrencyFormat? = { null },
 ) {
     init {
         require(datePatterns.size == DateStyle.entries.size) { "a pattern for each DateStyle" }
@@ -69,8 +76,59 @@ internal class LocaleData(
         dateTimePattern = dateTimePattern,
         lists = lists,
         relative = relative,
+        currency = currency,
+    )
+
+    /** This data with currencies read by [read] instead. */
+    fun withCurrency(read: (code: String) -> CurrencyFormat?): LocaleData = LocaleData(
+        language = language,
+        symbols = symbols,
+        percentPrefix = percentPrefix,
+        percentSuffix = percentSuffix,
+        months = months,
+        weekdays = weekdays,
+        am = am,
+        pm = pm,
+        datePatterns = datePatterns,
+        datePatternsByOrder = datePatternsByOrder,
+        monthYearPattern = monthYearPattern,
+        twelveHourPattern = twelveHourPattern,
+        twentyFourHourPattern = twentyFourHourPattern,
+        dateTimePattern = dateTimePattern,
+        lists = lists,
+        relative = relative,
+        currency = read,
     )
 }
+
+/**
+ * How a locale writes an amount of one currency: what goes before the number
+ * and after it — `$` and nothing, nothing and ` €`, `CHF ` and nothing — and how
+ * many digits follow the separator.
+ */
+internal class CurrencyFormat(val prefix: String, val suffix: String, val fractionDigits: Int)
+
+/**
+ * A currency no reading of the locale knows: its code before the number, held
+ * to it by a no-break space, at the places ISO 4217 gives it.
+ */
+internal fun fallbackCurrency(code: String): CurrencyFormat = CurrencyFormat("$code\u00A0", "", isoFractionDigits(code))
+
+/**
+ * The places after the separator ISO 4217 gives [code]: none for the yen and
+ * the won, three for the dinars of the Gulf, two for nearly everything else.
+ */
+internal fun isoFractionDigits(code: String): Int = when (code) {
+    in NoMinorUnits -> 0
+    in ThreeMinorUnits -> 3
+    else -> 2
+}
+
+private val NoMinorUnits = setOf(
+    "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF",
+)
+
+private val ThreeMinorUnits = setOf("BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND")
 
 /**
  * Month or weekday names in each width, in the form they take inside a date and

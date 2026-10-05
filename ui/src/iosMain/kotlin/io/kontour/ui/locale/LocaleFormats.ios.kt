@@ -23,6 +23,7 @@ import platform.Foundation.NSLocale
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSNumber
 import platform.Foundation.NSNumberFormatter
+import platform.Foundation.NSNumberFormatterCurrencyStyle
 import platform.Foundation.NSNumberFormatterDecimalStyle
 import platform.Foundation.NSNumberFormatterPercentStyle
 import platform.Foundation.NSOperationQueue
@@ -110,6 +111,19 @@ internal actual fun readPlatformLocale(locale: Locale): PlatformReading {
         minimumGroupingDigits = if (grouping !in (numbers.stringFromNumber(NSNumber(int = 1000)) ?: "")) 2 else 1,
     )
     return PlatformReading(conventions, symbols) { foundationData(ns, tag, symbols) }
+}
+
+/** Foundation's currency format for [code], with the currency's own places. */
+internal actual fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat? {
+    val money = NSNumberFormatter()
+    money.locale = NSLocale(localeIdentifier = locale.toLanguageTag())
+    money.numberStyle = NSNumberFormatterCurrencyStyle
+    money.currencyCode = code
+    return CurrencyFormat(
+        prefix = money.positivePrefix,
+        suffix = money.positiveSuffix,
+        fractionDigits = money.maximumFractionDigits.toInt(),
+    )
 }
 
 private fun foundationData(ns: NSLocale, tag: LocaleTag, symbols: NumberSymbols): LocaleData {

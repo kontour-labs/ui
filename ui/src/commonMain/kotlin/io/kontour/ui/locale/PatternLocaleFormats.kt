@@ -72,6 +72,20 @@ internal class PatternLocaleFormats(
         return (if (negative) symbols.minusSign else "") + data.percentPrefix + number + data.percentSuffix
     }
 
+    override fun currency(amount: Double, currency: String): String {
+        val format = currencies[isoCurrencyCode(currency)]
+        val number = decimal(abs(amount), format.fractionDigits)
+        val negative = amount < 0 && number.any { it != symbols.zeroDigit && it.isLocalDigit() }
+        return (if (negative) symbols.minusSign else "") + format.prefix + number + format.suffix
+    }
+
+    /**
+     * Each currency's format, read once: the platform's reading of one is a
+     * formatter built and taken apart, which is not something to do per row of a
+     * list of fares.
+     */
+    private val currencies = CurrencyFormats(data.currency)
+
     override fun parseDecimal(text: String): Double? = parseNumber(text, symbols)
 
     // --- Plurals ---------------------------------------------------------
@@ -367,4 +381,17 @@ internal fun parseNumber(text: String, symbols: NumberSymbols): Double? {
     }
     if (!Regex("""-?(\d+\.?\d*|\.\d+)""").matches(candidate)) return null
     return candidate.toDoubleOrNull()
+}
+
+/** [read]'s answer for each code, kept, and [fallbackCurrency] where it has none. */
+private class CurrencyFormats(private val read: (String) -> CurrencyFormat?) {
+    @kotlin.concurrent.Volatile
+    private var known: Map<String, CurrencyFormat> = emptyMap()
+
+    operator fun get(code: String): CurrencyFormat {
+        known[code]?.let { return it }
+        val made = runCatching { read(code) }.getOrNull() ?: fallbackCurrency(code)
+        known = known + (code to made)
+        return made
+    }
 }

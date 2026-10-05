@@ -47,6 +47,10 @@ was).
 
 ### Added
 
+- **`Theme.formats.currency(amount, code)`** writes an amount of money as the
+  reader writes it — `€3.20`, `3,20 €`, `￥320` — with the currency's own places,
+  from the platform's CLDR. See [`LocaleFormats`](components/locale-formats.md#money).
+
 - **[`LoadingState`](components/empty-state.md#loading-and-the-move-between-them)**,
   the third of the states beside `EmptyState` and `ErrorState`, drawn as they
   are with a spinner where their icon is.

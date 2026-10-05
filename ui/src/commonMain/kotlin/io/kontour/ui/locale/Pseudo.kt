@@ -110,6 +110,7 @@ private class PseudoFormats(private val base: LocaleFormats, private val mode: P
     override fun digits(value: Long): String = number(base.digits(value))
     override fun decimal(value: Double, fractionDigits: Int): String = number(base.decimal(value, fractionDigits))
     override fun percent(fraction: Double, fractionDigits: Int): String = number(base.percent(fraction, fractionDigits))
+    override fun currency(amount: Double, currency: String): String = number(base.currency(amount, currency))
     override fun quantity(count: Long): Quantity = Quantity(count, integer(count), pluralCategory(count))
     override fun quantity(count: Int): Quantity = quantity(count.toLong())
 

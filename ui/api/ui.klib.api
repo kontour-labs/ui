@@ -1012,6 +1012,7 @@ abstract interface io.kontour.ui.locale/LocaleFormats { // io.kontour.ui.locale/
     abstract fun uppercase(kotlin/String): kotlin/String // io.kontour.ui.locale/LocaleFormats.uppercase|uppercase(kotlin.String){}[0]
     abstract fun weekdayName(kotlinx.datetime/DayOfWeek, io.kontour.ui.locale/NameWidth = ..., kotlin/Boolean = ...): kotlin/String // io.kontour.ui.locale/LocaleFormats.weekdayName|weekdayName(kotlinx.datetime.DayOfWeek;io.kontour.ui.locale.NameWidth;kotlin.Boolean){}[0]
     abstract fun withConventions(io.kontour.ui.locale/DateTimeConventions): io.kontour.ui.locale/LocaleFormats // io.kontour.ui.locale/LocaleFormats.withConventions|withConventions(io.kontour.ui.locale.DateTimeConventions){}[0]
+    open fun currency(kotlin/Double, kotlin/String): kotlin/String // io.kontour.ui.locale/LocaleFormats.currency|currency(kotlin.Double;kotlin.String){}[0]
     open fun integer(kotlin/Int): kotlin/String // io.kontour.ui.locale/LocaleFormats.integer|integer(kotlin.Int){}[0]
     open fun quantity(kotlin/Int): io.kontour.ui.locale/Quantity // io.kontour.ui.locale/LocaleFormats.quantity|quantity(kotlin.Int){}[0]
     open fun quantity(kotlin/Long): io.kontour.ui.locale/Quantity // io.kontour.ui.locale/LocaleFormats.quantity|quantity(kotlin.Long){}[0]

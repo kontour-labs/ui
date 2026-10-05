@@ -2488,6 +2488,7 @@ public final class io/kontour/ui/locale/ListStyle : java/lang/Enum {
 
 public abstract interface class io/kontour/ui/locale/LocaleFormats {
 	public static final field Companion Lio/kontour/ui/locale/LocaleFormats$Companion;
+	public fun currency (DLjava/lang/String;)Ljava/lang/String;
 	public abstract fun date (Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;)Ljava/lang/String;
 	public static synthetic fun date$default (Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;ILjava/lang/Object;)Ljava/lang/String;
 	public abstract fun dateTime (Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalTime;)Ljava/lang/String;
@@ -2531,6 +2532,7 @@ public final class io/kontour/ui/locale/LocaleFormats$Companion {
 }
 
 public final class io/kontour/ui/locale/LocaleFormats$DefaultImpls {
+	public static fun currency (Lio/kontour/ui/locale/LocaleFormats;DLjava/lang/String;)Ljava/lang/String;
 	public static synthetic fun date$default (Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;ILjava/lang/Object;)Ljava/lang/String;
 	public static synthetic fun decimal$default (Lio/kontour/ui/locale/LocaleFormats;DIILjava/lang/Object;)Ljava/lang/String;
 	public static fun integer (Lio/kontour/ui/locale/LocaleFormats;I)Ljava/lang/String;

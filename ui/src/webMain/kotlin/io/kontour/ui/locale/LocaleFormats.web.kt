@@ -73,6 +73,24 @@ internal actual fun readPlatformLocale(locale: Locale): PlatformReading {
     return PlatformReading(conventions, symbols) { intlData(tag, parsed, symbols) }
 }
 
+/**
+ * `Intl`'s currency format for [code]: what comes before the number and after
+ * it in an amount of one, and the places `Intl` gives the currency. `null` where
+ * `Intl` refuses the code.
+ */
+internal actual fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat? {
+    val tag = locale.toLanguageTag()
+    val money = parts(intlNumberParts(tag, """{"style":"currency","currency":"$code"}""", 1.0))
+    val first = money.indexOfFirst { it.first == "integer" }
+    val last = money.indexOfLast { it.first == "integer" || it.first == "fraction" }
+    if (first < 0 || last < 0) return null
+    return CurrencyFormat(
+        prefix = money.take(first).joinToString("") { it.second },
+        suffix = money.drop(last + 1).joinToString("") { it.second },
+        fractionDigits = money.firstOrNull { it.first == "fraction" }?.second?.length ?: 0,
+    )
+}
+
 private fun intlData(tag: String, parsed: LocaleTag, symbols: NumberSymbols): LocaleData {
     fun names(month: Boolean, style: String, standalone: Boolean): List<String> =
         intlNames(tag, month, style, standalone).split(Separator)
