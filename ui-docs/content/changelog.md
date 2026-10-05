@@ -147,6 +147,16 @@ no icons has arrows either side of its month.
   Enter and the arrows for a keyboard, and each step is said aloud through
   `Theme.strings`.
 
+- **[`FileField`](components/file-field.md)**, and **`rememberFilePicker`**
+  under it, which opens each platform's own picker: Android's document picker, iOS's,
+  a desktop file dialog and a browser's file input. One file reads as its name and
+  size, with a clear button; several read as chips. `FileTypes` says what to
+  offer (`image/png`, a whole family, `.pdf`), and what comes back is checked
+  against it again. What is picked arrives as `PickedFile`s, read on demand.
+  `LocalFileChooser` swaps the picker for a test's or an app's own. Before, it
+  took a button and a text area. On Android, `:ui` now depends on
+  `androidx.activity:activity-compose` for the picker's result registry.
+
 - **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
   and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
   read in place of the label where the label alone does not say enough — "Save"

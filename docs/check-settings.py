@@ -508,6 +508,7 @@ CASE_ALLOWED = {
     "DeviceCurves.kt": "a manufacturer and codename, matched against a table",
     "LocaleTag.kt": "a BCP 47 tag's subtags, which the standard says are case-insensitive ASCII",
     "PluralRules.kt": "a language subtag, looked up in CLDR's table",
+    "PickedFile.kt": "media types and file extensions, matched case-insensitively as RFC 6838 says",
 }
 MAX_CASE_CHANGES = 0
 

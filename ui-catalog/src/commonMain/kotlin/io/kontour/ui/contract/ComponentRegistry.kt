@@ -1,5 +1,9 @@
 package io.kontour.ui.contract
 
+import androidx.compose.runtime.CompositionLocalProvider
+import io.kontour.ui.files.LocalFileChooser
+import io.kontour.ui.files.FileChooser
+import io.kontour.ui.components.text.FileField
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -1432,6 +1436,29 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
                 label = "When",
             )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "FileField",
+            role = Role.Button,
+            expectsMinimumTarget = false,
+            control = ControlLocator.Clickable,
+            accessibleName = "Timetable",
+        ) { modifier, enabled, onClick ->
+            // A press asks the picker; this one answers with nothing, so the
+            // contract sees the press arrive without a platform dialog opening.
+            val chooser = remember(onClick) { FileChooser { _, _, answer -> onClick(); answer(emptyList()) } }
+            CompositionLocalProvider(LocalFileChooser provides chooser) {
+                FileField(
+                    files = emptyList(),
+                    onFilesChange = {},
+                    modifier = modifier,
+                    enabled = enabled,
+                    label = "Timetable",
+                )
+            }
         }
     )
 

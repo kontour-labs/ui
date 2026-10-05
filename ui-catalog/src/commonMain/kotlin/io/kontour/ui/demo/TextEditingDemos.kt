@@ -1,5 +1,11 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.files.PickedFile
+import io.kontour.ui.files.FileTypes
+import io.kontour.ui.files.FileChooser
+import io.kontour.ui.files.LocalFileChooser
+import io.kontour.ui.files.rememberPlatformFileChooser
+import io.kontour.ui.components.text.FileField
 import io.kontour.ui.components.text.PhoneFormat
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -117,6 +124,63 @@ internal val TextAreaDemo = ComponentDemo(slug = "text-area", knobs = listOf(are
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+private val fileMultiple = Knob.Flag("Several files")
+
+/** Images only: what the picker offers, and what a pick is checked against. */
+private val fileImages = Knob.Flag("Images only")
+
+/** Starts filled, so the filled field can be seen without a picker. */
+private val fileSamples = Knob.Flag("Start with files")
+private val fileEnabled = Knob.Flag("Enabled", initial = true)
+
+/**
+ * The platform's own picker: a file dialog on a desktop, the document picker on
+ * a phone, the page's file input in a browser. "Start with files" fills it with
+ * made-up files, which are never read.
+ */
+internal val FileFieldDemo = ComponentDemo(
+    slug = "file-field",
+    knobs = listOf(fileMultiple, fileImages, fileSamples, fileEnabled),
+) {
+    val multiple = this[fileMultiple]
+    val samples = this[fileSamples]
+    var files by remember(multiple, samples) {
+        mutableStateOf(
+            when {
+                !samples -> emptyList()
+                multiple -> listOf(sampleFile("platform-2.jpg", 2_400_000), sampleFile("concourse.png", 812_000))
+                else -> listOf(sampleFile("timetable-960.pdf", 184_000))
+            },
+        )
+    }
+    // The platform's own picker, saying so when it comes back with nothing —
+    // as it does at once where there is no screen to show it on.
+    val platform = rememberPlatformFileChooser()
+    val chooser = remember(platform) {
+        FileChooser { types, several, onResult ->
+            platform.choose(types, several) { picked ->
+                if (picked.isEmpty()) echo("Nothing chosen")
+                onResult(picked)
+            }
+        }
+    }
+    CompositionLocalProvider(LocalFileChooser provides chooser) {
+        FileField(
+            files = files,
+            onFilesChange = { files = it },
+            label = if (multiple) "Photos" else "Timetable",
+            supporting = if (this@ComponentDemo[fileImages]) "JPEG, PNG or HEIC" else "A PDF or a spreadsheet export",
+            types = if (this@ComponentDemo[fileImages]) FileTypes.of("image/*") else FileTypes.Any,
+            multiple = multiple,
+            enabled = this@ComponentDemo[fileEnabled],
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** A file for the demo to hold: a name and a size, and nothing in it. */
+private fun sampleFile(name: String, size: Long) = PickedFile(name, size, null) { ByteArray(0) }
 
 /** A decimal point, for a walking speed rather than a passenger count. */
 private val numberDecimal = Knob.Flag("Decimals")
@@ -331,6 +395,7 @@ internal val textEditingDemos = listOf(
     SearchFieldDemo,
     TextAreaDemo,
     SpecialisedFieldsDemo,
+    FileFieldDemo,
     SelectDemo,
     WheelSelectDemo,
     MultiSelectDemo,

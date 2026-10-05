@@ -311,6 +311,33 @@ data class Strings(
     val dragCancelled: (item: String) -> String = { item -> "$item put back" },
     /** Said as a carried thing is let go over a target that will not take it. */
     val dragRefused: (target: String) -> String = { target -> "$target can't take this" },
+
+    // Files.
+    /** A file field's prompt while it is empty: "Choose file…". */
+    val chooseFile: String = "Choose file…",
+    /** And for a field that takes several. */
+    val chooseFiles: String = "Choose files…",
+    /** What an empty file field holds, as a screen reader is told it. */
+    val noFileChosen: String = "No file chosen",
+    /** How many files there are, where there are too many to name: "3 files". */
+    val fileCount: (count: Quantity) -> String =
+        { count -> count.select(one = "${count.formatted} file", other = "${count.formatted} files") },
+    /** A file's size under a thousand bytes: "512 bytes". */
+    val fileBytes: (count: Quantity) -> String =
+        { count -> count.select(one = "${count.formatted} byte", other = "${count.formatted} bytes") },
+    /**
+     * A file's size from a thousand bytes up: the amount, already in the reader's
+     * digits, and one of [kilobytes], [megabytes] or [gigabytes] — "2.4 MB".
+     */
+    val fileSize: (amount: String, unit: String) -> String = { amount, unit -> "$amount $unit" },
+    /** The unit of [fileSize] for thousands of bytes. */
+    val kilobytes: String = "KB",
+    /** For millions. */
+    val megabytes: String = "MB",
+    /** For thousands of millions. */
+    val gigabytes: String = "GB",
+    /** A chosen file's remove button: "Remove timetable.pdf". */
+    val removeFile: (name: String) -> String = { name -> "Remove $name" },
 ) {
     companion object {
         /**
@@ -448,6 +475,16 @@ data class Strings(
         dragDropped = { item, target -> lookup.phrase("dragDropped", null, item, target) ?: fallback.dragDropped(item, target) },
         dragCancelled = { item -> lookup.phrase("dragCancelled", null, item) ?: fallback.dragCancelled(item) },
         dragRefused = { target -> lookup.phrase("dragRefused", null, target) ?: fallback.dragRefused(target) },
+        chooseFile = lookup.text("chooseFile") ?: fallback.chooseFile,
+        chooseFiles = lookup.text("chooseFiles") ?: fallback.chooseFiles,
+        noFileChosen = lookup.text("noFileChosen") ?: fallback.noFileChosen,
+        fileCount = { count -> lookup.phrase("fileCount", count, count.formatted) ?: fallback.fileCount(count) },
+        fileBytes = { count -> lookup.phrase("fileBytes", count, count.formatted) ?: fallback.fileBytes(count) },
+        fileSize = { amount, unit -> lookup.phrase("fileSize", null, amount, unit) ?: fallback.fileSize(amount, unit) },
+        kilobytes = lookup.text("kilobytes") ?: fallback.kilobytes,
+        megabytes = lookup.text("megabytes") ?: fallback.megabytes,
+        gigabytes = lookup.text("gigabytes") ?: fallback.gigabytes,
+        removeFile = { name -> lookup.phrase("removeFile", null, name) ?: fallback.removeFile(name) },
         )
     }
 }
@@ -628,4 +665,14 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     dragDropped = { a0, a1 -> transform(dragDropped(a0, a1)) },
     dragCancelled = { a0 -> transform(dragCancelled(a0)) },
     dragRefused = { a0 -> transform(dragRefused(a0)) },
+    chooseFile = transform(chooseFile),
+    chooseFiles = transform(chooseFiles),
+    noFileChosen = transform(noFileChosen),
+    fileCount = { a0 -> transform(fileCount(a0)) },
+    fileBytes = { a0 -> transform(fileBytes(a0)) },
+    fileSize = { a0, a1 -> transform(fileSize(a0, a1)) },
+    kilobytes = transform(kilobytes),
+    megabytes = transform(megabytes),
+    gigabytes = transform(gigabytes),
+    removeFile = { a0 -> transform(removeFile(a0)) },
 )

@@ -15,7 +15,7 @@ prose that is about the family rather than any one of them.
 |---|---|---|
 | [**Actions**](components/actions.md) | Things you press | `Button` `IconButton` `TextButton` `TextIconButton` `IconToggleButton` `FloatingActionButton` `ExtendedFloatingActionButton` `FabMenu` `SplitButton` `ButtonGroup` `Toolbar` `Modifier.pressable` |
 | [**Selection**](components/selection.md) | Recording a choice | `Checkbox` `TriStateCheckbox` `RadioButton` `RadioGroup` `Switch` `SelectionRow` `Chip` `SegmentedControl` `Slider` `RangeSlider` `Stepper` `Rating` `ColourSwatchPicker` `ColourPicker` `Knob` |
-| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `SecretField` `NumberField` `PhoneField` `EmailField` `Select` `WheelSelect` `MultiSelect` `Combobox` `rememberImeChain` |
+| [**Text editing**](components/text-editing.md) | Fields and pickers | `TextField` `TextArea` `SearchField` `PasswordField` `SecretField` `NumberField` `PhoneField` `EmailField` `FileField` `Select` `WheelSelect` `MultiSelect` `Combobox` `rememberImeChain` |
 | [**Date and time**](components/date-time.md) | Calendars and clocks | `ActivityCalendar` `CalendarMonth` `DatePicker` `DateRangePicker` `DateTimePicker` `TimePicker` `TimeField` `DateField` `WheelPicker` `RelativeTimeText` `LocaleFormats` |
 | [**Display**](components/display.md) | Showing rather than taking | `Card` `Tag` `Badge` `Avatar` `LinearProgress` `Spinner` `Skeleton` `Redacted` `EmptyState` `LoadingState` `StateSwitcher` `Banner` `Callout` `Timeline` `TimelineList` `BranchTimeline` `Accordion` `AnimatedCounter` `Modifier.marquee` `Stat` `KeyValueList` `Carousel` `PageIndicator` `Kbd` `Gauge` `Meter` `ChatBubble` |
 | [**Collections**](components/collections.md) | Rows, and what happens to them | `ListItem` `ExpandingListItem` `DisclosureListItem` `ListSection` `SwipeActions` `ReorderableItem` `PullToRefresh` `LoadMore` `Scrollbar` `Modifier.scrollbar` `IndexScroller` `Modifier.fadingEdges` `Table` |
@@ -62,8 +62,6 @@ Per phase — see [README](../../docs/README.md#status). Everything above is bui
 ## Not yet built
 
 Listed so the shape of the finished system is visible.
-
-**Selection, remaining** — `FilePicker`
 
 **Date and time, remaining** — `DurationPicker`, and a multi-month scrolling
 calendar that shows several months at once
