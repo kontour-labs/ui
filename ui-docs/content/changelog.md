@@ -32,18 +32,84 @@ On `main`, and in the next release. Nothing yet.
 
 Feedback from building an app on 0.4.1. A loading state and a way to move
 between states, a scrollbar that shows under touch and goes on any scroller, a
-row of buttons for a form dialog, date fields, and fixes for swipe back over a
-moving list, `LoadMore` in a plain column, helpers in a navigation group and a
-POSIX browser locale.
+row of buttons for a form dialog, date fields, money in the theme's formats, and
+builders that read the theme where they are written. Fixes for overlays left up
+when their caller went, a select's options and a search field as a screen
+reader meets them, a table column fitted to more than its first rows, swipe back
+over a moving list, `LoadMore` in a plain column, helpers in a navigation group
+and a POSIX browser locale. The docs gain recipes for images from the network
+and for a question that needs more than an answer.
 
-Source-compatible for the calls an app writes, but **recompile** rather than
-swap the jar: `Dialog`, `ListGroup`, `KeyValueList` and the four selection
-controls gained parameters, and `ListGroup` and `KeyValueList` are now
-`inline`. Two things look different without any change: an app with no
-`WindowSizeClassProvider` now gets a rail and two panes on a wide window rather
-than a phone's layout, and a floating `NavBar` sits lower over a home indicator,
-with the page fading out under it (`fadeUnder = false` keeps the page as it
-was).
+A lambda literal compiles everywhere as it did, but a builder held in a variable
+and a few arguments passed by position need a change, and anything built
+against 0.4.1 has to be recompiled — see **Breaking**, and
+[Migrating](migrating.md#041-to-042) for the code before and after. Two things
+look different without any change: an app with no `WindowSizeClassProvider` now
+gets a rail and two panes on a wide window rather than a phone's layout, and a
+floating `NavBar` sits lower over a home indicator, with the page fading out
+under it (`fadeUnder = false` keeps the page as it was).
+
+### Breaking
+
+- **[`ListGroup`](components/list-item.md), [`KeyValueList`](components/key-value-list.md),
+  [`Stat`](components/stat.md) and the readouts of [`Gauge`](components/gauge.md),
+  [`Meter`](components/meter.md) and [`Knob`](components/knob.md) take
+  composable builders**, so `Theme.formats`, `Theme.strings` and a string
+  resource are read where a row or a figure is written —
+  `item("Departs", supporting = Theme.formats.time(departure))`,
+  `value(Theme.formats.currency(total, "AUD"))` — rather than hoisted above it.
+  All six are `inline`, as `Column` is, so the builder runs in the caller's
+  composition and a state it reads recomposes what draws it. **A lambda literal
+  compiles as before; a builder held in a variable of the old, non-composable
+  type, or a plain function passed for one, no longer does** — mark it
+  `@Composable`. `listGroup` in a `LazyColumn` is unchanged.
+- **A selection control's `interactionSource` passed by position no longer
+  compiles.** `Checkbox`, `TriStateCheckbox`, `Switch` and `RadioButton` take a
+  `contentDescription` after `enabled`; `NavBar` takes `fadeUnder` before
+  `windowInsets`, and `NavigationSuiteScaffold` `barFadeUnder` after
+  `railExpandedWidth`. Each is a different type from what was in its place, so a
+  call that passed those arguments by position fails to compile rather than
+  meaning something else. Name the argument.
+- **Recompile rather than swap the jar.** The six builders above are `inline`
+  now, and `Dialog`, `NavBar`, `NavigationSuiteScaffold`, the selection
+  controls, `ComponentDefaults` and `LocaleFormats` gained members, so a library
+  built against 0.4.1 fails when it calls one until it is rebuilt.
+
+### Changed
+
+- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)'s
+  scrub pill fades in as it grows** and is its colour from half its thickness
+  on, and fades as it shrinks back. The line through the dots it starts as was
+  drawn at full colour, a hard thin bar for a frame or two. The fade rides the
+  same spring as the size.
+- **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
+  moves**, thinner, and fades 600ms after it stops, where it used to draw
+  nothing at all. It takes no touches: a finger on the strip at a list's edge
+  is the list's, which it was not under an `alwaysVisible` bar. With a keyboard
+  it is drawn at rest, as with a mouse and as the docs always said.
+- **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
+  is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
+  that leave the provider out — the root setup has none — now get a rail and two
+  panes on a tablet or a desktop window rather than the bottom bar. A provider
+  still measures a region, and wins inside it; a class provided outright is
+  kept.
+- **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
+  sits just clear of iOS's home indicator and Android's gesture handle**, about
+  22dp up from the window's foot, rather than above the whole strip the system
+  keeps for them: 20dp lower on an iPhone, 10dp lower over a gesture handle.
+  Android's three buttons, and a docked bar, keep the whole inset, as does a
+  `windowInsets` taller than the handle's, which is kept as given. There is no
+  switch for this: it is where the bar belongs. The scaffold's padding comes
+  down with it.
+- **The page fades out under a floating bar, and its capsule has a rim.** Over
+  the rows of a list, which are `surface` as the bar is, it was a shadow apart
+  from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
+  leaves the page as it is. The fade is the colour the bar sits on,
+  `LocalContainerColour`.
+- **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
+  under a long message**, which scrolls, rather than scrolling away below it.
+  A dialog's content fades at the edge it scrolls under while there is more
+  past it.
 
 ### Added
 
@@ -94,59 +160,6 @@ was).
   a destructive `AlertDialog` does, and anything else written in the row — a
   button of your own — is drawn too, leading it. An `AlertDialog` keeps its
   fixed shape.
-
-### Changed
-
-- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)'s
-  scrub pill fades in as it grows** and is its colour from half its thickness
-  on, and fades as it shrinks back. The line through the dots it starts as was
-  drawn at full colour, a hard thin bar for a frame or two. The fade rides the
-  same spring as the size.
-- **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
-  moves**, thinner, and fades 600ms after it stops, where it used to draw
-  nothing at all. It takes no touches: a finger on the strip at a list's edge
-  is the list's, which it was not under an `alwaysVisible` bar. With a keyboard
-  it is drawn at rest, as with a mouse and as the docs always said.
-- **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
-  is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
-  that leave the provider out — the root setup has none — now get a rail and two
-  panes on a tablet or a desktop window rather than the bottom bar. A provider
-  still measures a region, and wins inside it; a class provided outright is
-  kept.
-- **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
-  sits just clear of iOS's home indicator and Android's gesture handle**, about
-  22dp up from the window's foot, rather than above the whole strip the system
-  keeps for them: 20dp lower on an iPhone, 10dp lower over a gesture handle.
-  Android's three buttons, and a docked bar, keep the whole inset. The
-  scaffold's padding comes down with it.
-- **The page fades out under a floating bar, and its capsule has a rim.** Over
-  the rows of a list, which are `surface` as the bar is, it was a shadow apart
-  from them. `fadeUnder = false` (`barFadeUnder` on `NavigationSuiteScaffold`)
-  leaves the page as it is. The fade is the colour the bar sits on,
-  `LocalContainerColour`.
-- **[`ListGroup`](components/list-item.md), [`KeyValueList`](components/key-value-list.md),
-  [`Stat`](components/stat.md) and the readouts of [`Gauge`](components/gauge.md),
-  [`Meter`](components/meter.md) and [`Knob`](components/knob.md) take
-  composable builders**, so `Theme.formats`, `Theme.strings` and a string
-  resource are read where a row or a figure is written —
-  `item("Departs", supporting = Theme.formats.time(departure))`,
-  `value(Theme.formats.currency(total, "AUD"))` — rather than hoisted above it.
-  All six are `inline`, as `Column` is, so the builder runs in the caller's
-  composition and a state it reads recomposes what draws it. A lambda literal
-  compiles as before; a builder held in a variable of the old, non-composable
-  type no longer does. `listGroup` in a `LazyColumn` is unchanged.
-- **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
-  under a long message**, which scrolls, rather than scrolling away below it.
-  A dialog's content fades at the edge it scrolls under while there is more
-  past it.
-- **[`ListSection`](components/list-section.md) says what its `spacing` is
-  for.** It is the hairline between rows, and form fields put straight in a
-  section stacked edge to edge with it; the page and the parameter now say to
-  give fields `Theme.spacing.md`.
-- **Images from the network have a recipe**, on
-  [`AspectRatioBox`](components/aspect-ratio-box.md#images-from-the-network):
-  Coil 3 inside the box, with a `Skeleton` while it loads and a sunken well if
-  it fails. The library itself stays free of a network client.
 
 ### Fixed
 
