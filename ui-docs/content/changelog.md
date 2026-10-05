@@ -191,6 +191,14 @@ no icons has arrows either side of its month.
 
 ### Fixed
 
+- **An [`Avatar`](components/avatar.md) or a [`Badge`](components/badge.md)
+  inside a row no longer names it.** A clickable `Card`, a `ListItem`, a
+  `SelectionRow` and a button each merge into one node, and a description in it
+  is read instead of the row's text — so a chat row was announced as its person,
+  or as "3 unread", and nothing else. Inside one, an avatar says no name and a
+  badge says itself as text, read with the rest of the row; an `AvatarGroup` is
+  "3 people" rather than "3 people, Ada, Grace, Katherine". An avatar given a
+  `contentDescription` still says it.
 - **An edge [bottom sheet](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind)
   collapsed to a part pinned to its top clears the safe area.** The pinned
   detent counted the safe area only under a part pinned to the bottom, so with

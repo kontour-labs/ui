@@ -44,6 +44,7 @@ import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.LocalRowToggle
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /**
  * A labelled row wrapping a selection control.
@@ -292,6 +293,8 @@ private fun SelectionRowFrame(
         LocalRowInteractionSource provides interactions,
         LocalRowToggle provides rowToggle,
         LocalRowEnabled provides enabled,
+        // One node, named by its label; see `LocalNamedByContent`.
+        LocalNamedByContent provides true,
     ) {
         DisableSelection {
             Row(

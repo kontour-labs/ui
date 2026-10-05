@@ -70,7 +70,19 @@ colour come from. That is why it doubles as the announcement: an avatar with a
 name has one whether or not anybody remembered `contentDescription`.
 
 `AvatarGroup`'s overflow count is part of its description rather than a separate
-node — "+3" read on its own tells a screen-reader user nothing.
+node — "+3" read on its own tells a screen-reader user nothing. The avatars in
+it say no names of their own: the group is "3 people", not "3 people, Ada,
+Grace, Katherine".
+
+**Inside a row, the row does the naming.** In a clickable `Card`, a `ListItem`,
+a `SelectionRow` or a button's label, an avatar announces no name. The row is
+one merged node, and a description in it is read *instead of* the row's text —
+on Android in place of it, in the browser as the row's `aria-label` — so a chat
+row with an avatar was announced as its person and nothing else: not the last
+message, not the time. The name is nearly always the row's title anyway. Its
+decorations are still heard, as text, with the rest of the row. A
+`contentDescription` you pass is the exception: it is said, and it becomes the
+row's name, so pass one there only where the picture is the point.
 
 **Decorations are said with the avatar**, after the name — "Ada Lovelace. Online.
 3 new" — since a dot is drawn, not heard. A count with no `description` of its

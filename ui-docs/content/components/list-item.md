@@ -72,7 +72,10 @@ and the row's text is named by the description where the platform prefers one �
 in the browser a status row announced its uptime bars, "90 days: 99.35% up",
 instead of its service. So a graphic inside a row carries no description of its
 own; what it says goes into the row's text, `supporting { +"99.35% up over 90
-days" }`, where it is read after the label rather than in place of it.
+days" }`, where it is read after the label rather than in place of it. An
+[`Avatar`](avatar.md) in `leading` and a [`Badge`](badge.md) on it already
+behave: the avatar says no name — it is nearly always the row's title — and the
+badge and the avatar's status dot are said as text, in the row's reading order.
 
 At high contrast every row takes an edge in the scheme's `outline`, because its
 sunken ground is too close to the page to say where a row ends, and a selected

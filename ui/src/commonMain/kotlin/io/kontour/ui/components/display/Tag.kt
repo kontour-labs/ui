@@ -46,6 +46,9 @@ import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.text
+import io.kontour.ui.a11y.LocalNamedByContent
 
 
 /**
@@ -215,6 +218,14 @@ fun Badge(
         count > max -> strings.moreThan(formats.quantity(max))
         else -> strings.newCount(formats.quantity(count))
     }
+    // In a row named by its own text, said as text among the rest, not as a
+    // description read in the row's place: a chat row was "3 unread" and
+    // nothing else. See `LocalNamedByContent`.
+    val said = if (LocalNamedByContent.current) {
+        Modifier.clearAndSetSemantics { text = AnnotatedString(announcement) }
+    } else {
+        Modifier.semantics { this.contentDescription = announcement }
+    }
 
     // At the enhanced tier a ring of the page's colour round the badge, so a red
     // dot straddling a black icon is a dot on the icon rather than part of it.
@@ -223,7 +234,7 @@ fun Badge(
     if (label == null) {
         Box(
             modifier
-                .semantics { this.contentDescription = announcement }
+                .then(said)
                 .defaultMinSize(minWidth = 8.dp, minHeight = 8.dp)
                 .clip(round)
                 .background(containerColour)
@@ -232,7 +243,7 @@ fun Badge(
     } else {
         Box(
             modifier = modifier
-                .semantics { this.contentDescription = announcement }
+                .then(said)
                 .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                 .clip(Theme.shapes.capsule)
                 .background(containerColour)

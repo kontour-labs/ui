@@ -49,6 +49,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /**
  * A button.
@@ -155,7 +156,9 @@ fun Button(
         horizontalArrangement = Arrangement.spacedBy(metrics.gap, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides contentColour) {
+        // The label names the button: an avatar or a picture in it stays quiet
+        // rather than being read in its place. See `LocalNamedByContent`.
+        CompositionLocalProvider(LocalContentColour provides contentColour, LocalNamedByContent provides true) {
             ProvideTextStyle(metrics.textStyle) {
                 ButtonContent(
                     loading = loading,

@@ -38,7 +38,9 @@ container with its own buttons — not both.
 The same merge decides the card's name. A chart or an image inside a clickable
 card with a `contentDescription` of its own can be announced in place of the
 card's title — in the browser it is — so give it none, and say what it shows in
-the card's text.
+the card's text. An [`Avatar`](avatar.md) or a [`Badge`](badge.md) does this
+for you: inside a clickable card an avatar says no name, and a badge says its
+count as text, read with the rest of the card.
 
 Elevation and border are `CardVariant`, which is visual. Nothing about the
 variant changes what is announced.

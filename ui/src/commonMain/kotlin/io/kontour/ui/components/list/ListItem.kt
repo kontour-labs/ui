@@ -51,6 +51,7 @@ import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /** What a [ListItem] takes by default. */
 object ListItemDefaults {
@@ -274,7 +275,13 @@ internal fun ListItemImpl(
     // Published so a control in a slot can show the row's press — a `Switch` in
     // a trailing slot has no callback of its own and would otherwise never see
     // the tap that the row just handled.
-    CompositionLocalProvider(LocalRowInteractionSource provides interactions, LocalRowEnabled provides enabled) {
+    // And the row is one node, named by what it says: an avatar in its leading
+    // slot stays quiet rather than becoming that name. See `LocalNamedByContent`.
+    CompositionLocalProvider(
+        LocalRowInteractionSource provides interactions,
+        LocalRowEnabled provides enabled,
+        LocalNamedByContent provides true,
+    ) {
         // A row with an `onClick` is a control, and its text is chrome; one
         // without is content — a stop's address, a fare — and stays selectable
         // inside a `SelectableText`.

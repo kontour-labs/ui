@@ -34,6 +34,7 @@ import io.kontour.ui.foundation.contentScope
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /**
  * A button that is only its label, at the size of the text around it.
@@ -116,7 +117,7 @@ fun TextButton(
         horizontalArrangement = Arrangement.spacedBy(TextGap, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompositionLocalProvider(LocalContentColour provides ink) {
+        CompositionLocalProvider(LocalContentColour provides ink, LocalNamedByContent provides true) {
             contentScope(iconSize = textSizedIcon(), content = content)
         }
     }
