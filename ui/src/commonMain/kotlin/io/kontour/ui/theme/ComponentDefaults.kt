@@ -148,8 +148,6 @@ data class ComponentDefaults(
     val swipePositionalThreshold: Float = 0.35f,
     val scrollbarThickness: Dp = 6.dp,
     val scrollbarHoveredThickness: Dp = 10.dp,
-    /** A scrollbar under touch, where it is an indicator rather than a handle: thinner, as every phone's is. */
-    val scrollbarTouchThickness: Dp = 4.dp,
     val swipeActionWidth: Dp = 88.dp,
 
     // --- Display ---
@@ -258,4 +256,13 @@ data class ComponentDefaults(
     val toastMaxWidth: Dp = 420.dp,
     val toastPillWidth: Dp = 72.dp,
     val toastPillHeight: Dp = 36.dp,
+    /**
+     * A scrollbar under touch, where it is an indicator rather than a handle:
+     * thinner, as every phone's is.
+     *
+     * Last, rather than beside the other scrollbar widths, because it came
+     * after them: a `Dp` added in the middle would have taken the place of the
+     * one after it in a call that gave these by position.
+     */
+    val scrollbarTouchThickness: Dp = 4.dp,
 )

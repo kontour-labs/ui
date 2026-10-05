@@ -184,14 +184,8 @@ private fun glueOf(parts: List<Pair<String, String>>): String {
  * ([LocaleTag.cleanPlatformTag]) and offered to `Intl.getCanonicalLocales`, and
  * the first it accepts is the one; with none, the library's own default.
  */
-private fun browserLanguage(): String {
-    for (raw in browserLanguageList().split(Separator)) {
-        val tag = LocaleTag.cleanPlatformTag(raw) ?: continue
-        val canonical = intlCanonical(tag)
-        if (canonical.isNotEmpty()) return canonical
-    }
-    return "en-AU"
-}
+private fun browserLanguage(): String =
+    LocaleTag.firstUsableTag(browserLanguageList().split(Separator), fallback = "en-AU") { intlCanonical(it) }
 
 private fun browserLanguageList(): String = js(
     """(function(){try{

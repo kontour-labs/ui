@@ -83,6 +83,24 @@ internal class LocaleTag private constructor(
             return tag.takeUnless { it.isEmpty() || it.equals("C", ignoreCase = true) || it.equals("POSIX", ignoreCase = true) }
         }
 
+        /**
+         * The first of [candidates] a platform takes, as it writes it: each
+         * cleaned ([cleanPlatformTag]) and offered to [canonical], which
+         * answers the platform's own form of a tag it accepts and `null` for
+         * one it refuses. [fallback] when it takes none.
+         *
+         * A browser's languages go through this with `Intl.getCanonicalLocales`
+         * as [canonical]. Here, rather than beside it, so the choice is tested
+         * on every target and not only in a browser that reports a bad tag.
+         */
+        fun firstUsableTag(candidates: List<String>, fallback: String, canonical: (String) -> String?): String {
+            for (raw in candidates) {
+                val tag = cleanPlatformTag(raw) ?: continue
+                canonical(tag)?.takeIf { it.isNotEmpty() }?.let { return it }
+            }
+            return fallback
+        }
+
         fun parse(tag: String): LocaleTag {
             val parts = tag.replace('_', '-').split('-').filter { it.isNotEmpty() }
             val language = parts.firstOrNull()?.lowercase() ?: ""

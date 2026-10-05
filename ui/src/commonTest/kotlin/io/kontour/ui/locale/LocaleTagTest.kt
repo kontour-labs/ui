@@ -68,4 +68,21 @@ class LocaleTagTest {
         assertNull(LocaleTag.cleanPlatformTag("C.UTF-8"))
         assertNull(LocaleTag.cleanPlatformTag(""))
     }
+
+    /**
+     * A browser's languages, in order, until one is taken: the choice the web
+     * makes with `Intl.getCanonicalLocales`, here with a stand-in for it that
+     * refuses what Headless Chromium's `Intl.Locale` refused.
+     */
+    @Test
+    fun theFirstLanguageTheBrowserTakesIsTheOne() {
+        val refused = setOf("en-US@posix", "xx-INVALID")
+        val canonical = { tag: String -> if (tag in refused || tag.length > 12) null else tag.replace("en-us", "en-US") }
+        assertEquals("en-US", LocaleTag.firstUsableTag(listOf("en-US@posix", "de-DE"), "en-AU", canonical), "cleaned, the first is taken")
+        assertEquals("de-DE", LocaleTag.firstUsableTag(listOf("C", "POSIX", "de-DE"), "en-AU", canonical), "none of a locale is skipped")
+        assertEquals("en-US", LocaleTag.firstUsableTag(listOf("en-us"), "en-AU", canonical), "as the platform writes it")
+        assertEquals("fr", LocaleTag.firstUsableTag(listOf("xx-INVALID", "fr"), "en-AU", canonical), "one it refuses is passed over")
+        assertEquals("en-AU", LocaleTag.firstUsableTag(listOf("", "C.UTF-8"), "en-AU", canonical), "with none, the default")
+        assertEquals("en-AU", LocaleTag.firstUsableTag(listOf("ja-JP"), "en-AU") { "" }, "an empty answer is a refusal")
+    }
 }

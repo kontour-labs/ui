@@ -129,6 +129,12 @@ fun ErrorState(
  *
  * Polite, as an empty state is: something on its way is not something the user
  * needs to stop for.
+ *
+ * **For a region with nothing to show yet** — a list before its first page, a
+ * screen before its data. Where the shape of what is coming is known, a
+ * [Skeleton] of it says more and moves less when it arrives; where something
+ * small is busy inside content that is already there — a button, a row — a
+ * [Spinner] on its own is the size of the thing that is waiting.
  */
 @Composable
 fun LoadingState(
@@ -184,6 +190,9 @@ fun LoadingState(
  *   class; a change of it is a change of state.
  * @param contentAlignment Where a smaller state sits in the space of a larger
  *   one while the size changes.
+ * @param content Draws a state, given it: called with the state arriving and,
+ *   while it goes, the one leaving, so it should draw from what it is given
+ *   rather than from [target].
  */
 @Composable
 fun <T> StateSwitcher(

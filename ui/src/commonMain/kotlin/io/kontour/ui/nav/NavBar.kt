@@ -968,6 +968,12 @@ private class BarScope(
 
     @Composable
     override fun slot(weight: Float, content: @Composable () -> Unit) {
+        // Called on this scope from inside a group, through a helper, it draws
+        // where it is called from — and if that is a group's menu or the probe
+        // counting a hidden group's destinations, it is dropped on purpose. A
+        // slot is the bar's own room, a search or a spacer, and neither a menu
+        // nor a count has room for one: drawn there it would be a row that is
+        // not a destination.
         emitter().let { if (it !== this) return (it as? NavBarScope)?.slot(weight, content) ?: Unit }
         if (weight > 0f) {
             // `propagateMinConstraints`, so the content is given the width rather

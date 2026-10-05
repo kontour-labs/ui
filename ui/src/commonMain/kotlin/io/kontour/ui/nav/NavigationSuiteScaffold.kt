@@ -164,10 +164,12 @@ fun NavigationSuiteScaffold(
     barItemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     barMarker: NavBarMarker = NavBarDefaults.destinationMarker(),
     barMarkerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
-    barFadeUnder: Boolean = true,
     showLabels: Boolean? = null,
     railExpandable: Boolean = false,
     railExpandedWidth: Dp = NavRailDefaults.ExpandedWidth,
+    // After the 0.4.1 parameters, and after one of another type, so a call that
+    // passed them by position cannot land in it.
+    barFadeUnder: Boolean = true,
     containerColour: Color = Theme.colours.background,
     colours: NavColours = NavDefaults.colours(),
     searchIndex: Int? = null,

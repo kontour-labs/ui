@@ -60,10 +60,10 @@ internal val CheckboxDemo = ComponentDemo(
     slug = "checkbox",
     knobs = listOf(checkboxEnabled),
 ) {
-    // In a SelectionRow, because a bare checkbox has no name of its own and the
-    // page it sits on says so — `namedByContext` in the registry is the same
-    // fact, asserted. Showing it alone would demonstrate the one arrangement
-    // the documentation tells you not to use.
+    // In a SelectionRow, the way a checkbox is nearly always used: the row's
+    // label is its name and the whole row is the target. One on its own — a
+    // select-all box over a table — takes a `contentDescription` instead, and
+    // the registry's contract holds the bare control to that.
     var delays by remember { mutableStateOf(true) }
     val enabled = this[checkboxEnabled]
     SelectionRow(

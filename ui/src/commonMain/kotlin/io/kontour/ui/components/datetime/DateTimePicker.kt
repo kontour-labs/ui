@@ -216,9 +216,28 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
 /**
  * The chosen date and time, shown as a tappable field.
  *
+ * ```
+ * var departs by remember { mutableStateOf(LocalDateTime(2026, 3, 14, 9, 5)) }
+ * var picking by remember { mutableStateOf(false) }
+ *
+ * DateTimeField(value = departs, onClick = { picking = true }, label = "Departs")
+ *
+ * Dialog(
+ *     visible = picking,
+ *     onDismissRequest = { picking = false },
+ *     actions = { confirm("Done") { picking = false } },
+ * ) {
+ *     DateTimePicker(value = departs, onValueChange = { departs = it })
+ * }
+ * ```
+ *
  * The thing you put on a form, as [TimeField] and [DateField] are: tapping it is
  * expected to open a [DateTimePicker] in a dialog or a sheet. Written as the
  * locale writes a date and a time together.
+ *
+ * @param value The date and time chosen. Always one, as a [DateTimePicker]
+ *   always has one: there is no empty state to show a placeholder for.
+ * @param formats Writes the value; the theme's, by default.
  */
 @Composable
 fun DateTimeField(

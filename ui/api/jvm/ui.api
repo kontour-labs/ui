@@ -3056,7 +3056,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-RWjBNf8 (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;ZLjava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun NavigationSuiteScaffold-8r1ps0M (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Ljava/lang/Boolean;ZFZJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
 	public static final fun navigationSuitePadding (Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/PaddingValues;
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
@@ -3803,8 +3803,8 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun component30-D9Ej5fM ()F
 	public final fun component31-D9Ej5fM ()F
 	public final fun component32-D9Ej5fM ()F
-	public final fun component33-D9Ej5fM ()F
-	public final fun component34 ()F
+	public final fun component33 ()F
+	public final fun component34-D9Ej5fM ()F
 	public final fun component35-D9Ej5fM ()F
 	public final fun component36-D9Ej5fM ()F
 	public final fun component37-D9Ej5fM ()F
@@ -3834,8 +3834,8 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun component7-D9Ej5fM ()F
 	public final fun component8-D9Ej5fM ()F
 	public final fun component9-D9Ej5fM ()F
-	public final fun copy-7e5B_-8 (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
-	public static synthetic fun copy-7e5B_-8$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
+	public final fun copy-VdG4Oio (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
+	public static synthetic fun copy-VdG4Oio$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBackdropBlurRadius-D9Ej5fM ()F
 	public final fun getBackdropInset-D9Ej5fM ()F

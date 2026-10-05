@@ -192,6 +192,12 @@ fun deviceInDarkTheme(): Boolean = platformSystemDark()
  * platform again. A screen that forces dark with `KontourTheme(darkTheme = true)`
  * keeps the in-app "Reduce motion" the reader turned on above it.
  *
+ * It also provides
+ * [LocalWindowSizeClass][io.kontour.ui.adaptive.LocalWindowSizeClass], read
+ * from the window, where nothing outside it has: a rail and two panes on a wide
+ * window without a `WindowSizeClassProvider`. A provider around it, or a class
+ * provided outright, is kept as it is.
+ *
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
  * @param contrast Which contrast tier to render at. Follows the enclosing theme,
  *   or the system at the root.

@@ -170,10 +170,9 @@ class ComponentContractTest {
     fun everyControlAnnouncesSomething() {
         forEachComponent { spec ->
             // Something with no role is not a control and has nothing to be
-            // called; a `namedByContext` one is named by the row it sits in.
-            // Everything else has to answer to a name.
+            // called. Everything else has to answer to a name — the bare
+            // selection controls too, since 0.4.2, when they could take one.
             spec.role ?: return@forEachComponent
-            if (spec.namedByContext) return@forEachComponent
             runComposeUiTest {
                 setContent {
                     Harness { spec.content(Modifier.testTag(tag), true) {} }

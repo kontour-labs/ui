@@ -84,7 +84,10 @@ class BackOverAMovingListTest {
 
     @Test
     fun fromTheContentAMovingListGoesBack() {
-        for (feel in listOf(true, false)) backOverAThrow(LayoutDirection.Ltr, fromEdge = false, iosFeel = feel)
+        for (feel in listOf(true, false)) {
+            backOverAThrow(LayoutDirection.Ltr, fromEdge = false, iosFeel = feel)
+            backOverAThrow(LayoutDirection.Rtl, fromEdge = false, iosFeel = feel)
+        }
     }
 
     private fun backOverAThrow(direction: LayoutDirection, fromEdge: Boolean, iosFeel: Boolean) = runComposeUiTest {

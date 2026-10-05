@@ -272,18 +272,6 @@ class ComponentSpec(
     val control: ControlLocator? = null,
     val accessibleName: String? = null,
     /**
-     * True for a control that cannot name itself and is designed not to.
-     *
-     * A bare `Checkbox` has no text of its own — it is meant to sit in a
-     * `SelectionRow`, or beside a label whose click target it shares, and take
-     * its name from there. Material's does the same.
-     *
-     * An opt-out rather than an opt-in, so a component that *loses* its name —
-     * which is now possible, since slots let a caller build a row with no label
-     * in it — fails rather than passing quietly.
-     */
-    val namedByContext: Boolean = false,
-    /**
      * False for a specimen that exists only to be **drawn**.
      *
      * The contract's seven assertions are about being operable: they ask for a
@@ -570,7 +558,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "Checkbox",
             role = Role.Checkbox,
-            namedByContext = true,
+            // On its own, so named by its own description: a select-all box
+            // over a table. In a `SelectionRow` the row's label names it.
+            accessibleName = "Notify on delay",
             states = listOf(
                 RenderState("checked") { modifier ->
                     Checkbox(checked = true, onCheckedChange = {}, modifier = modifier)
@@ -582,6 +572,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onCheckedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Notify on delay",
             )
         }
     )
@@ -590,7 +581,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "RadioButton",
             role = Role.RadioButton,
-            namedByContext = true,
+            accessibleName = "Fastest",
             states = listOf(
                 RenderState("selected") { modifier ->
                     RadioButton(selected = true, onClick = {}, modifier = modifier)
@@ -602,6 +593,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Fastest",
             )
         }
     )
@@ -610,7 +602,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "Switch",
             role = Role.Switch,
-            namedByContext = true,
+            accessibleName = "Live vehicles",
             states = listOf(
                 RenderState("checked") { modifier ->
                     Switch(checked = true, onCheckedChange = {}, modifier = modifier)
@@ -628,6 +620,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onCheckedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Live vehicles",
             )
         }
     )
@@ -711,12 +704,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("TriStateCheckbox", Role.Checkbox, namedByContext = true) { modifier, enabled, onClick ->
+        ComponentSpec("TriStateCheckbox", Role.Checkbox, accessibleName = "Everything in this area") { modifier, enabled, onClick ->
             TriStateCheckbox(
                 state = ToggleableState.Indeterminate,
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Everything in this area",
             )
         }
     )

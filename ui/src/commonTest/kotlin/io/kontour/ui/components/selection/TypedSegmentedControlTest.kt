@@ -12,7 +12,6 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.theme.KontourTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * A segmented control takes values, as `Select` and `RadioGroup` do.
@@ -44,7 +43,7 @@ class TypedSegmentedControlTest {
         waitForIdle()
         assertEquals(Filter.World, filter, "a press should hand back the value, not its index")
         assertEquals(true, selected("World"))
-        assertTrue(selected("All") != true)
+        assertEquals(false, selected("All"))
     }
 
     /** A value that is not among the options draws none as chosen, and does not throw. */
@@ -56,7 +55,8 @@ class TypedSegmentedControlTest {
             }
         }
         waitForIdle()
-        assertTrue(selected("Day") != true && selected("Week") != true)
+        assertEquals(false, selected("Day"), "a segment not chosen says so, rather than saying nothing")
+        assertEquals(false, selected("Week"))
     }
 
     private fun androidx.compose.ui.test.ComposeUiTest.selected(text: String): Boolean? =
