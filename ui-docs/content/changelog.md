@@ -157,6 +157,15 @@ no icons has arrows either side of its month.
   took a button and a text area. On Android, `:ui` now depends on
   `androidx.activity:activity-compose` for the picker's result registry.
 
+- **Drops from outside the app**: files from the desktop, the Files app or
+  another window, and text. A drop target or a drop list takes an
+  `ExternalDrops` — `ExternalDrops.files(types)` for files of some types — and
+  hears each drop once, as `PickedFile`s read on demand and, on a list, the
+  position it was let go at where the platform says (a desktop and Android; a
+  browser and iOS do not). A list shows a line where it would land. On Android
+  the drop's read permission is asked for through the activity, and lasts as
+  long as the activity does.
+
 - **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
   and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
   read in place of the label where the label alone does not say enough — "Save"

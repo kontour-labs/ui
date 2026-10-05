@@ -116,6 +116,60 @@ Inside another target the innermost takes the drop; in an overlay it outranks th
 page under it; and the page behind a dimmed modal takes nothing, as it takes no
 taps.
 
+## From outside the app
+
+A target or a list can also take what is dragged in from outside the app: files
+from the desktop or the Files app, and text from another window. Give its state
+an `ExternalDrops`, or `ExternalDrops.files(types)` for files of some types:
+
+<!--sample:ExternalFileDrop-->
+```kotlin
+val attachments = remember { mutableStateListOf<PickedFile>() }
+val scroll = rememberLazyListState()
+
+// Its own rows move within it; files from outside the app land in it too.
+val list = rememberDropListState(
+    listState = scroll,
+    type = AttachmentType,
+    items = attachments,
+    key = { it.name },
+    label = "Attachments",
+    itemLabel = { it.name },
+    onDrop = { drop ->
+        attachments.removeAt(drop.fromIndex!!)
+        attachments.add(drop.index, drop.payload)
+    },
+    external = ExternalDrops.files(FileTypes.of("image/*", ".pdf")) { files, index ->
+        // Where it was let go, where the platform says; otherwise the end.
+        attachments.addAll(index ?: attachments.size, files)
+    },
+)
+LazyColumn(state = scroll, modifier = Modifier.dropList(list)) {
+    dragItems(list) { _, file -> ListItem { +file.name } }
+}
+```
+
+**Each drop is heard once**, when it is let go. Files arrive as `PickedFile`s,
+as a [picker's](components/file-field.md) do, and are read when you ask. A list
+also gets the position the drop was let go at, where the platform says where.
+While a drag from outside is over a list, a line shows where it would land: such a
+drag has no size to make room for.
+
+**`accepts` decides before the drop**, from what the platform says while the
+drag is under way. A drag it turns away is not offered to the target at all.
+What `ExternalDrops.files` is given is checked against its types again when it
+lands, and only matching files reach it: it is never called with an empty list.
+
+| Platform | Where it comes from | Said while dragging | The position in a list |
+|---|---|---|---|
+| Desktop | The file manager, another app | Whether there are files or text, but not their types | Yes |
+| Web | The desktop, another tab | The media types of what is dragged | No: the drop lands at the end |
+| Android | Another app beside this one, or the taskbar | The media types | Yes. Reading what was dropped needs a permission, which is asked for through the activity |
+| iOS | Files, Photos, another app on an iPad | The media types, from their type identifiers | No: the drop lands at the end |
+
+In-app drags never go through the platform's drag and drop: a card carried
+within the app is the host's, as above, on every platform.
+
 ## Accessibility
 
 **Every move has a way without a pointer.** A screen reader is offered each move

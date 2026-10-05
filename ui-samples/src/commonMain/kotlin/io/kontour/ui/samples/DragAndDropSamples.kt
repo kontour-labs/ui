@@ -17,12 +17,15 @@ import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropListState
 import io.kontour.ui.dragdrop.DropStatus
+import io.kontour.ui.dragdrop.ExternalDrops
 import io.kontour.ui.dragdrop.dragItems
 import io.kontour.ui.dragdrop.dragSource
 import io.kontour.ui.dragdrop.dropList
 import io.kontour.ui.dragdrop.dropTarget
 import io.kontour.ui.dragdrop.rememberDropListState
 import io.kontour.ui.dragdrop.rememberDropTargetState
+import io.kontour.ui.files.FileTypes
+import io.kontour.ui.files.PickedFile
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.Text
@@ -89,5 +92,35 @@ fun DropTargetTrash() {
             val over = bin.status == DropStatus.Over
             Icon(Tabler.Outline.Trash, bin.label, tint = if (over) Theme.colours.danger.solid else LocalContentColour.current)
         }
+    }
+}
+
+/** What an attachment list's rows are carried as. */
+internal val AttachmentType = DragType<PickedFile>("attachment")
+
+@Composable
+fun ExternalFileDrop() {
+    val attachments = remember { mutableStateListOf<PickedFile>() }
+    val scroll = rememberLazyListState()
+
+    // Its own rows move within it; files from outside the app land in it too.
+    val list = rememberDropListState(
+        listState = scroll,
+        type = AttachmentType,
+        items = attachments,
+        key = { it.name },
+        label = "Attachments",
+        itemLabel = { it.name },
+        onDrop = { drop ->
+            attachments.removeAt(drop.fromIndex!!)
+            attachments.add(drop.index, drop.payload)
+        },
+        external = ExternalDrops.files(FileTypes.of("image/*", ".pdf")) { files, index ->
+            // Where it was let go, where the platform says; otherwise the end.
+            attachments.addAll(index ?: attachments.size, files)
+        },
+    )
+    LazyColumn(state = scroll, modifier = Modifier.dropList(list)) {
+        dragItems(list) { _, file -> ListItem { +file.name } }
     }
 }

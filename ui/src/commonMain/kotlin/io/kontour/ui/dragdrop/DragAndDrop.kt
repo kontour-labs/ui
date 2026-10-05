@@ -6,8 +6,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -111,6 +113,21 @@ class DropTargetState<T : Any> internal constructor(
     internal var onDrop: (T) -> Unit = {}
     internal var accepting: (T) -> Boolean = { true }
 
+    /** Its terms for drags from outside the app, and what reads them. */
+    internal var external: ExternalDrops? = null
+    internal var reader: DropReader? = null
+
+    /** Where a drag from outside the app stands with this target. */
+    internal var externalStatus: DropStatus by mutableStateOf(DropStatus.Idle)
+
+    internal val externalHandle = ExternalDropHandle(
+        external = { external },
+        reader = { reader },
+        status = { externalStatus = it },
+        over = {},
+        index = { null },
+    )
+
     internal val target: DropTarget = object : DropTarget(type, label) {
         @Suppress("UNCHECKED_CAST")
         override fun accepts(payload: Any): Boolean = accepting(payload as T)
@@ -124,11 +141,14 @@ class DropTargetState<T : Any> internal constructor(
     /** What it is called, for "Move to …" and for what is announced. */
     val label: String get() = target.label
 
-    /** Where this target stands with whatever is being carried. */
-    val status: DropStatus get() = target.statusState
+    /**
+     * Where this target stands with whatever is being carried: something of its
+     * own type in the app, or a drag from outside it that [ExternalDrops] takes.
+     */
+    val status: DropStatus get() = externalStatus.takeIf { it != DropStatus.Idle } ?: target.statusState
 
     /** Whether something it would take is over it. */
-    val isOver: Boolean get() = target.statusState == DropStatus.Over
+    val isOver: Boolean get() = status == DropStatus.Over
 }
 
 /**
@@ -145,6 +165,9 @@ class DropTargetState<T : Any> internal constructor(
  * @param accepts Whether this would take [T]: the right type and still turned
  *   away — a full column, a card already there. Refused, it shows
  *   [DropStatus.Refused] and the thing goes home.
+ * @param external Drags from outside the app it takes — files from the desktop,
+ *   text from another window — and what to do with them. `null`, the default,
+ *   takes none.
  */
 @Composable
 fun <T : Any> rememberDropTargetState(
@@ -152,11 +175,14 @@ fun <T : Any> rememberDropTargetState(
     label: String,
     onDrop: (T) -> Unit,
     accepts: (T) -> Boolean = { true },
+    external: ExternalDrops? = null,
 ): DropTargetState<T> {
     val state = remember(type) { DropTargetState(type, label) }
     state.target.label = label
     state.onDrop = onDrop
     state.accepting = accepts
+    state.external = external
+    state.reader = if (external != null) rememberDropReader() else null
     return state
 }
 
@@ -169,6 +195,7 @@ fun <T : Any> rememberDropTargetState(
  */
 fun Modifier.dropTarget(state: DropTargetState<*>, enabled: Boolean = true): Modifier =
     this.registersDropTarget(state.target, enabled)
+        .externalDrops(state.externalHandle, enabled)
 
 /**
  * Makes this element carry [payload] when dragged.

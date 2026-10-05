@@ -1,7 +1,6 @@
 package io.kontour.ui.dragdrop
 
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -11,9 +10,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.focusGroup
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -21,14 +17,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
 
 /**
@@ -68,6 +72,23 @@ class DropListState<T : Any> internal constructor(
     /** The host, for which of this list's own items is carried. */
     internal var host: DragHost? = null
 
+    /** Its terms for drags from outside the app, and what reads them. */
+    internal var external: ExternalDrops? = null
+    internal var reader: DropReader? = null
+
+    /** Where a drag from outside the app stands with this list. */
+    internal var externalStatus: DropStatus by mutableStateOf(DropStatus.Idle)
+
+    /**
+     * Where a drag from outside the app would land, where the platform says
+     * where it is: an insertion line rather than a gap, since there is no size
+     * to make room for.
+     */
+    internal var externalIndex: Int? by mutableStateOf(null)
+
+    /** The insertion line's colour, read from the theme as the state is remembered. */
+    internal var lineColour: Color = Color.Unspecified
+
     /**
      * Which way the list runs, as its last layout said. State, set from layout
      * rather than read from [LazyListState.layoutInfo] as items compose: a
@@ -85,6 +106,30 @@ class DropListState<T : Any> internal constructor(
 
     /** Takes the layout direction the list is laid out in. */
     internal val readDirection: (LayoutDirection) -> Unit = { layoutDirection = it }
+
+    /** Draws the line a drag from outside the app would land at. */
+    internal val drawInsertion: ContentDrawScope.() -> Unit = {
+        drawContent()
+        val index = externalIndex?.takeIf { externalStatus == DropStatus.Over }
+        val along = index?.let { insertionAt(it) }
+        if (along != null) {
+            val stroke = InsertionLine.toPx()
+            if (orientation == Orientation.Vertical) {
+                drawLine(lineColour, Offset(0f, along), Offset(size.width, along), stroke)
+            } else {
+                val x = if (layoutDirection == LayoutDirection.Rtl) size.width - along else along
+                drawLine(lineColour, Offset(x, 0f), Offset(x, size.height), stroke)
+            }
+        }
+    }
+
+    internal val externalHandle = ExternalDropHandle(
+        external = { external },
+        reader = { reader },
+        status = { externalStatus = it },
+        over = { externalOver(it) },
+        index = { externalIndex },
+    )
 
     /**
      * The index of one of this list's own items while it is carried, and its
@@ -146,14 +191,63 @@ class DropListState<T : Any> internal constructor(
     /** What the list is called, for "Move to …" and for what is announced. */
     val label: String get() = target.label
 
-    /** Where this list stands with whatever is being carried. */
-    val status: DropStatus get() = target.statusState
+    /**
+     * Where this list stands with whatever is being carried: something of its
+     * own type in the app, or a drag from outside it that [ExternalDrops] takes.
+     */
+    val status: DropStatus get() = externalStatus.takeIf { it != DropStatus.Idle } ?: target.statusState
 
     /**
      * Where a drop would land while something is over this list — counted as
      * [DropEvent.index] is, without the carried item — and `null` otherwise.
      */
-    val dropIndex: Int? get() = gapIndex
+    val dropIndex: Int? get() = gapIndex ?: externalIndex
+
+    /**
+     * Where a drag from outside the app at [pointerInRoot] would land: before the
+     * first item whose middle is past it. `null`, where the platform does not say
+     * where the drag is, leaves it to the caller.
+     */
+    internal fun externalOver(pointerInRoot: Offset?) {
+        val coordinates = target.coordinates?.takeIf { it.isAttached }
+        if (pointerInRoot == null || coordinates == null) {
+            externalIndex = null
+            return
+        }
+        val info = listState.layoutInfo
+        val vertical = info.orientation == Orientation.Vertical
+        val local = coordinates.windowToLocal(pointerInRoot)
+        var probe = if (vertical) local.y else local.x
+        if (!vertical && layoutDirection == LayoutDirection.Rtl) probe = coordinates.size.width - probe
+        probe -= info.beforeContentPadding
+        val positions = HashMap<Any, Int>(items.size)
+        items.forEachIndexed { index, item -> positions[key(item)] = index }
+        var landing: Int? = null
+        var lastSeen: Int? = null
+        for (item in info.visibleItemsInfo) {
+            val index = positions[item.key] ?: continue
+            lastSeen = index
+            if (landing == null && probe < item.offset + item.size / 2f) landing = index
+        }
+        externalIndex = (landing ?: lastSeen?.plus(1) ?: 0).coerceIn(0, items.size)
+    }
+
+    /** Where the insertion line for [externalIndex] is drawn, along the list from its start; `null` if not on screen. */
+    internal fun insertionAt(index: Int): Float? {
+        val info = listState.layoutInfo
+        val positions = HashMap<Any, Int>(items.size)
+        items.forEachIndexed { i, item -> positions[key(item)] = i }
+        val visible = info.visibleItemsInfo.filter { it.key in positions }
+        val before = visible.firstOrNull { positions[it.key] == index }
+        val after = visible.lastOrNull { positions[it.key] == index - 1 }
+        val at = when {
+            before != null && after != null -> (after.offset + after.size + before.offset) / 2f
+            before != null -> before.offset.toFloat()
+            after != null -> (after.offset + after.size).toFloat()
+            else -> return null
+        }
+        return at + info.beforeContentPadding
+    }
 
     /** How many items there are, not counting one of its own being carried. */
     private fun count(session: DragSession): Int =
@@ -244,6 +338,10 @@ class DropListState<T : Any> internal constructor(
  *   that holds no duplicates.
  * @param canDrag Whether an item can be picked up at all.
  * @param previewShape The shape its items' shadows are cast in while carried.
+ * @param external Drags from outside the app it takes — files from the desktop,
+ *   text from another window — and what to do with them. `null`, the default,
+ *   takes none. An insertion line shows where one would land, where the
+ *   platform says where the drag is.
  */
 @Composable
 fun <T : Any> rememberDropListState(
@@ -257,9 +355,13 @@ fun <T : Any> rememberDropListState(
     accepts: (T) -> Boolean = { true },
     canDrag: (T) -> Boolean = { true },
     previewShape: Shape = DragAndDropDefaults.previewShape,
+    external: ExternalDrops? = null,
 ): DropListState<T> {
     val state = remember(listState, type) { DropListState(listState, type, label) }
     state.host = LocalDragHost.current
+    state.external = external
+    state.reader = if (external != null) rememberDropReader() else null
+    state.lineColour = Theme.colours.accent.solid
     state.items = items
     state.key = key
     state.target.label = label
@@ -281,6 +383,11 @@ fun Modifier.dropList(state: DropListState<*>, enabled: Boolean = true): Modifie
         .dragAutoScroll(state.listState, state.orientation, enabled)
         .readsLayoutDirection(state.readDirection)
         .onGloballyPositioned(state.readOrientation)
+        .externalDrops(state.externalHandle, enabled)
+        .drawWithContent(state.drawInsertion)
+
+/** How thick the line is that shows where a drag from outside the app would land. */
+private val InsertionLine = 2.dp
 
 /**
  * [state]'s items, each one draggable, with room opened where a carried thing

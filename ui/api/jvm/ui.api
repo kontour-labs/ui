@@ -1933,7 +1933,7 @@ public final class io/kontour/ui/dragdrop/DragAndDropKt {
 	public static final fun dragSource (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DragType;Ljava/lang/Object;Ljava/lang/String;ZLio/kontour/ui/dragdrop/DragStart;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun dropTarget (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;Z)Landroidx/compose/ui/Modifier;
 	public static synthetic fun dropTarget$default (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
-	public static final fun rememberDropTargetState (Lio/kontour/ui/dragdrop/DragType;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/dragdrop/DropTargetState;
+	public static final fun rememberDropTargetState (Lio/kontour/ui/dragdrop/DragType;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/dragdrop/DropTargetState;
 }
 
 public final class io/kontour/ui/dragdrop/DragAutoScrollKt {
@@ -1975,7 +1975,7 @@ public final class io/kontour/ui/dragdrop/DropListKt {
 	public static synthetic fun dragItems$default (Landroidx/compose/foundation/lazy/LazyListScope;Lio/kontour/ui/dragdrop/DropListState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function5;ILjava/lang/Object;)V
 	public static final fun dropList (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropListState;Z)Landroidx/compose/ui/Modifier;
 	public static synthetic fun dropList$default (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropListState;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
-	public static final fun rememberDropListState (Landroidx/compose/foundation/lazy/LazyListState;Lio/kontour/ui/dragdrop/DragType;Ljava/util/List;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/dragdrop/DropListState;
+	public static final fun rememberDropListState (Landroidx/compose/foundation/lazy/LazyListState;Lio/kontour/ui/dragdrop/DragType;Ljava/util/List;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;III)Lio/kontour/ui/dragdrop/DropListState;
 }
 
 public final class io/kontour/ui/dragdrop/DropListState {
@@ -2001,6 +2001,39 @@ public final class io/kontour/ui/dragdrop/DropTargetState {
 	public final fun getLabel ()Ljava/lang/String;
 	public final fun getStatus ()Lio/kontour/ui/dragdrop/DropStatus;
 	public final fun isOver ()Z
+}
+
+public final class io/kontour/ui/dragdrop/DroppedData {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Ljava/util/List;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getFiles ()Ljava/util/List;
+	public final fun getHasText ()Z
+	public final fun readText (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDragInfo {
+	public static final field $stable I
+	public fun <init> (ZZLjava/util/List;)V
+	public synthetic fun <init> (ZZLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getHasFiles ()Z
+	public final fun getHasText ()Z
+	public final fun getMimeTypes ()Ljava/util/List;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDrops {
+	public static final field $stable I
+	public static final field Companion Lio/kontour/ui/dragdrop/ExternalDrops$Companion;
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAccepts ()Lkotlin/jvm/functions/Function1;
+	public final fun getOnDrop ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDrops$Companion {
+	public final fun files (Lio/kontour/ui/files/FileTypes;Lkotlin/jvm/functions/Function2;)Lio/kontour/ui/dragdrop/ExternalDrops;
+	public static synthetic fun files$default (Lio/kontour/ui/dragdrop/ExternalDrops$Companion;Lio/kontour/ui/files/FileTypes;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/kontour/ui/dragdrop/ExternalDrops;
 }
 
 public abstract interface class io/kontour/ui/files/FileChooser {
