@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.DropEvent
 import io.kontour.ui.dragdrop.DropListState
 import io.kontour.ui.dragdrop.dragItems
 import io.kontour.ui.dragdrop.dropList
@@ -108,7 +109,14 @@ internal val CardColours: Map<String, Color> = mapOf(
  * overlay host, on a white page: the least a drag between lists needs, and
  * nothing that draws on its own between the cards.
  */
-internal class SpacedBoard(todo: List<String>, done: List<String>) {
+internal class SpacedBoard(
+    todo: List<String>,
+    done: List<String>,
+    val gutter: Boolean = false,
+    val reduceMotion: Boolean = false,
+    /** Holds each drop in [pending] rather than moving the card, as a caller that moves it later would. */
+    val deferMoves: Boolean = false,
+) {
     class Lane(initial: List<String>, val label: String) {
         val items: SnapshotStateList<String> = mutableStateListOf<String>().also { it.addAll(initial) }
         var state: DropListState<String>? = null
@@ -117,13 +125,25 @@ internal class SpacedBoard(todo: List<String>, done: List<String>) {
     val todo = Lane(todo, "To do")
     val done = Lane(done, "Done")
     val bounds = mutableMapOf<String, Rect>()
+    var todoList = Rect.Zero
     var doneList = Rect.Zero
+    var gutterBounds = Rect.Zero
+    /** A drop held back by [deferMoves], and the lane it was made into. */
+    var pending: Pair<DropEvent<String>, Lane>? = null
+
+    /** Moves [event]'s card into [into], as `onDrop` would have. */
+    fun move(event: DropEvent<String>, into: Lane) {
+        val from = listOf(todo, done).first { it.state === event.fromList }
+        from.items.removeAt(event.fromIndex!!)
+        into.items.add(event.index, event.payload)
+    }
 
     fun run(drive: (Scene) -> Unit) {
-        Scene(width = 640, height = 900) {
+        Scene(width = 640, height = 900, reduceMotion = reduceMotion) {
             OverlayHost {
                 Row(Modifier.fillMaxSize().background(Color.White)) {
-                    Lane(todo, Modifier.weight(1f))
+                    Lane(todo, Modifier.weight(1f).reportBounds { todoList = it })
+                    if (gutter) Box(Modifier.weight(0.5f).fillMaxHeight().reportBounds { gutterBounds = it })
                     Lane(done, Modifier.weight(1f).reportBounds { doneList = it })
                 }
             }
@@ -143,11 +163,7 @@ internal class SpacedBoard(todo: List<String>, done: List<String>) {
             key = { it },
             label = lane.label,
             itemLabel = { it },
-            onDrop = { event ->
-                val from = listOf(todo, done).first { it.state === event.fromList }
-                from.items.removeAt(event.fromIndex!!)
-                lane.items.add(event.index, event.payload)
-            },
+            onDrop = { event -> if (deferMoves) pending = event to lane else move(event, lane) },
         )
         lane.state = state
         LazyColumn(

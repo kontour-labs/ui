@@ -1,7 +1,6 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
 import java.awt.image.BufferedImage
 import kotlin.math.abs
@@ -81,7 +80,7 @@ internal fun cardRun(image: BufferedImage, card: String, x: Float): IntRange? {
     var start = -1
     val column = x.toInt()
     for (y in 0..image.height) {
-        val inside = y < image.height && matches(image.getRGB(column, y), colour)
+        val inside = y < image.height && sameColour(image.getRGB(column, y), colour)
         if (inside && start < 0) start = y
         if (!inside && start >= 0) {
             val run = start until y
@@ -101,20 +100,4 @@ internal fun shadowUnder(image: BufferedImage, card: String, x: Float): Float? {
     return (run.last + 3..run.last + 12)
         .filter { it < image.height }
         .maxOfOrNull { 1f - luminance(image.getRGB(x.toInt(), it)) }
-}
-
-private fun matches(rgb: Int, colour: Color): Boolean {
-    val r = (rgb shr 16) and 0xFF
-    val g = (rgb shr 8) and 0xFF
-    val b = rgb and 0xFF
-    return abs(r - (colour.red * 255).toInt()) <= 6 &&
-        abs(g - (colour.green * 255).toInt()) <= 6 &&
-        abs(b - (colour.blue * 255).toInt()) <= 6
-}
-
-private fun luminance(rgb: Int): Float {
-    val r = ((rgb shr 16) and 0xFF) / 255f
-    val g = ((rgb shr 8) and 0xFF) / 255f
-    val b = (rgb and 0xFF) / 255f
-    return 0.2126f * r + 0.7152f * g + 0.0722f * b
 }

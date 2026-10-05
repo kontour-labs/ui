@@ -1,6 +1,8 @@
 package io.kontour.ui.dragdrop
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationVector2D
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.DragInteraction
@@ -273,16 +275,27 @@ internal class DragHost {
         announce(strings.dragCancelled(current.label))
     }
 
-    /** The landing has finished: the drop happens, once, and the drag is over. */
+    /**
+     * The landing has reached its place: the drop happens, once.
+     *
+     * The drag is not over yet. It stays [DragPhase.Dropped] — the gap held,
+     * the dropped item laid out in it without fading in — until the lists the
+     * caller moves it between show the move, so the carried thing hands over to
+     * the item in its place rather than to a list that has not caught up.
+     */
+    fun land(ended: DragSession) {
+        if (session !== ended || ended.phase != DragPhase.Landing) return
+        val landedOn = ended.landingOn ?: return
+        ended.phase = DragPhase.Dropped
+        landedOn.drop(ended)
+        onLanding(true)
+        announce(strings.dragDropped(ended.label, landedOn.label))
+        refocus = ended.payload
+    }
+
+    /** The drag is over: home, or dropped and shown. */
     fun finish(ended: DragSession) {
         if (session !== ended) return
-        val landedOn = ended.landingOn
-        if (ended.phase == DragPhase.Landing && landedOn != null) {
-            landedOn.drop(ended)
-            onLanding(true)
-            announce(strings.dragDropped(ended.label, landedOn.label))
-            refocus = ended.payload
-        }
         ended.target?.leave()
         for (target in targets) target.statusState = DropStatus.Idle
         session = null
@@ -293,6 +306,12 @@ internal class DragHost {
     fun abandon(source: SourceHandle) {
         val current = session ?: return
         if (current.source !== source) return
+        // Dropped, the source going is the drop being shown — the item has left
+        // the list it was in — and the item in its new place takes over.
+        if (current.phase == DragPhase.Dropped) {
+            source.gone = true
+            return
+        }
         current.target?.leave()
         for (target in targets) target.statusState = DropStatus.Idle
         session = null
@@ -300,7 +319,11 @@ internal class DragHost {
     }
 }
 
-internal enum class DragPhase { Carrying, Landing, Returning }
+/**
+ * Where a drag is: carried; flying to where it was let go, or home; or dropped,
+ * and waiting for the lists to show it.
+ */
+internal enum class DragPhase { Carrying, Landing, Returning, Dropped }
 
 /** One drag: what is carried, from where, and where it is now. */
 internal class DragSession(
@@ -326,7 +349,20 @@ internal class DragSession(
     var index: Int? by mutableStateOf(null)
 
     var landingOn: DropTarget? = null
+
+    /** Where it was going when it was let go: what [aim] falls back on. */
     var destination: Rect? = null
+
+    /**
+     * Where it is going, read again each frame of the flight: a list can scroll
+     * under a landing, and a place opening again for a thing on its way home
+     * moves as the list lays itself out.
+     */
+    fun aim(): Rect? = when (phase) {
+        DragPhase.Landing -> landingOn?.landingBounds(this)
+        DragPhase.Returning -> fromList?.target?.landingBounds(this) ?: source.homeBounds()
+        else -> null
+    } ?: destination
 
     val topLeft: Offset get() = pointer - grab
 
@@ -354,6 +390,13 @@ internal class SourceHandle {
     var coordinates: LayoutCoordinates? = null
     var layer: GraphicsLayer? = null
     var shape: Shape = androidx.compose.ui.graphics.RectangleShape
+
+    /**
+     * Whether the element has gone since its thing was dropped — taken out of
+     * the list it was in. Its layer goes with it, and the carried thing, drawn
+     * from that layer, is no longer drawn.
+     */
+    var gone: Boolean by mutableStateOf(false)
 
     /** Where the thing goes back to, in the root. */
     fun homeBounds(): Rect? = coordinates?.takeIf { it.isAttached }?.let {
@@ -394,6 +437,9 @@ internal abstract class DropTarget(
 
     /** What is said as the thing comes over this. */
     open fun positionText(session: DragSession): String = label
+
+    /** The list this target is, if it is one. */
+    open val list: DropListState<*>? get() = null
 
     /** Whether it runs down the screen, for which arrows move along it. */
     open val vertical: Boolean get() = true
@@ -790,23 +836,45 @@ internal fun DragLayer(host: DragHost) {
             }
         }
     }
-    // Then to where it ends, and the drop happens when it gets there.
-    LaunchedEffect(session, session.phase) {
-        if (session.phase == DragPhase.Carrying) return@LaunchedEffect
-        val to = session.destination
+    // Then to where it ends, and the drop happens when it gets there. Keyed on
+    // whether it has been let go, not on the phase: the phase moves on to
+    // Dropped inside this, and must not restart it.
+    val letGo = session.phase != DragPhase.Carrying
+    LaunchedEffect(session, letGo) {
+        if (!letGo) return@LaunchedEffect
         if (motion.reduceMotion) {
-            // No flight to set it down during: down with the drop.
+            // No flight: to its place at once, and down with the drop.
+            session.aim()?.let { position.snapTo(it.topLeft) }
             lift.snapTo(0f)
         } else {
+            val spring = motion.springOrTween<Offset>(motion.springSnappy)
             coroutineScope {
                 // The same spring as the flight, so the two arrive together.
                 launch { lift.animateTo(0f, motion.springOrTween(motion.springSnappy)) }
-                if (to != null) {
-                    position.animateTo(to.topLeft, motion.springOrTween(motion.springSnappy))
+                if (session.aim() != null) {
+                    chase(position, session::aim, spring)
                 } else {
                     // Into a target with no place of its own: in, and gone.
                     scale.animateTo(0.6f, motion.tweenFast())
                 }
+            }
+        }
+        if (session.phase == DragPhase.Landing) {
+            // The lists the move is between, as they were before it.
+            val shown = listOfNotNull(session.fromList, session.landingOn?.list).distinct()
+            val before = shown.map { it.keys() }
+            host.land(session)
+            if (shown.isNotEmpty()) {
+                // Until the caller's lists show the move — at once, for one
+                // that moves its items in `onDrop` — and then one layout of
+                // them with the dropped item still held, so it appears in its
+                // place without fading in and the carried thing hands over to it.
+                // Timed on the frame clock, as the flight is.
+                val since = withFrameMillis { it }
+                while (shown.map { it.keys() } == before) {
+                    if ((withFrameMillis { it } - since).milliseconds >= DropShownWithin) break
+                }
+                withFrameMillis { }
             }
         }
         host.finish(session)
@@ -823,13 +891,47 @@ internal fun DragLayer(host: DragHost) {
                 val grow = if (grows) 1f + (DragPreviewScale - 1f) * up else 1f
                 scaleX = grow * scale.value
                 scaleY = grow * scale.value
-                alpha = if (scale.value < 1f) (scale.value - 0.6f) / 0.4f else 1f
+                alpha = when {
+                    // Its source has gone with the drop: the item in its new place is drawn instead.
+                    session.source.gone -> 0f
+                    scale.value < 1f -> (scale.value - 0.6f) / 0.4f
+                    else -> 1f
+                }
                 shadowElevation = DragLift.toPx() * up
                 shape = session.shape
                 clip = false
             }
             .then(if (edge != null) Modifier.border(edge, session.shape) else Modifier)
-            .drawWithContent { session.layer?.let { drawLayer(it) } },
+            .drawWithContent { if (!session.source.gone) session.layer?.let { drawLayer(it) } },
     )
 }
 
+/**
+ * Flies [position] to where [aim] says, following it if it moves on the way:
+ * each frame the aim is read again, and a new one is flown to from where the
+ * thing is, at the speed it already has.
+ */
+private suspend fun chase(
+    position: Animatable<Offset, AnimationVector2D>,
+    aim: () -> Rect?,
+    spec: AnimationSpec<Offset>,
+) = coroutineScope {
+    var to = aim()?.topLeft ?: return@coroutineScope
+    var flight = launch { position.animateTo(to, spec) }
+    while (flight.isActive) {
+        withFrameMillis { }
+        val now = aim()?.topLeft ?: continue
+        if ((now - to).getDistance() > 0.5f) {
+            to = now
+            // Takes over from the flight under way, keeping its velocity.
+            flight = launch { position.animateTo(to, spec) }
+        }
+    }
+}
+
+/**
+ * How long a dropped thing waits, in its place, for the lists to show the drop
+ * before the drag ends anyway. A caller that moves its items in `onDrop` takes a
+ * frame; one that moves them on a round trip somewhere gets this long.
+ */
+private val DropShownWithin: Duration = 500.milliseconds

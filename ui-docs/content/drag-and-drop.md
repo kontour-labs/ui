@@ -66,7 +66,10 @@ move within one list is `removeAt(fromIndex)` then `add(index, …)`, and a move
 between two is the remove from one and the add to the other. Nothing moves in the
 caller's lists before then, which keeps cancelling, and undo, simple: a drag that
 is called off has changed nothing. A card let go in its own place is not a drop,
-and calls nothing.
+and calls nothing. Move the card in `onDrop`, or soon after — round a view model
+is fine: the carried card waits in its place until your lists show the move, for
+up to half a second, and then the card in the list takes over where it is, without
+fading in.
 
 **The list makes room as it goes.** A gap opens where the card would land,
 measured from the card's centre, and the neighbours slide aside as it moves. Over

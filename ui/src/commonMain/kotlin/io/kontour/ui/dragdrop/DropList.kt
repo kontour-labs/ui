@@ -1,5 +1,9 @@
 package io.kontour.ui.dragdrop
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +35,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.Theme
@@ -131,10 +136,27 @@ class DropListState<T : Any> internal constructor(
         index = { externalIndex },
     )
 
-    /** The key of one of this list's own items while it is carried; `null` while none is. */
+    /**
+     * The key of the item a drag is about, in this list: one of its own while
+     * it is carried, or one just dropped here until the drag is over. `null`
+     * while there is none.
+     *
+     * Such an item is *held*: it takes each place without sliding there, and
+     * comes and goes without fading, because while it is held the carried
+     * thing is what is seen — and when the drag ends, the item takes over
+     * exactly where the carried thing was.
+     */
     @Suppress("UNCHECKED_CAST")
-    internal val carriedKey: Any?
-        get() = host?.session?.takeIf { it.fromList === this }?.let { key(it.payload as T) }
+    internal val heldKey: Any?
+        get() {
+            val session = host?.session ?: return null
+            val ours = session.fromList === this ||
+                (session.phase == DragPhase.Dropped && session.landingOn === target)
+            return if (ours) key(session.payload as T) else null
+        }
+
+    /** Its items' keys, in order: what a drop waits to see change. */
+    internal fun keys(): List<Any> = items.map(key)
 
     /** Whether the carried item is on its way home, when its own place opens again for it to land in. */
     internal val carriedHome: Boolean
@@ -162,6 +184,8 @@ class DropListState<T : Any> internal constructor(
             !(session.fromList === this@DropListState && gapIndex == session.fromIndex)
 
         override fun landingBounds(session: DragSession): Rect? = this@DropListState.gapBounds(session)
+
+        override val list: DropListState<*> get() = this@DropListState
 
         override fun positionText(session: DragSession): String {
             val index = gapIndex ?: return label
@@ -341,7 +365,10 @@ class DropListState<T : Any> internal constructor(
  *   a carried thing comes over it.
  * @param itemLabel What each item is called, for what is said as it is picked up.
  * @param onDrop One call per drop: what, where, and where it came from. A drop
- *   back where it started is not one, and calls nothing.
+ *   back where it started is not one, and calls nothing. Move the item here,
+ *   or soon after: the carried thing waits in its place, over the gap, until
+ *   the lists show the move — up to half a second — and then hands over to
+ *   the item there.
  * @param accepts Whether this list would take [T] — a column at its limit, a list
  *   that holds no duplicates.
  * @param canDrag Whether an item can be picked up at all.
@@ -429,7 +456,7 @@ fun <T : Any> LazyListScope.dragItems(
 ) {
     val items = state.items
     val gap = state.gapIndex
-    val carried = state.carriedKey
+    val carried = state.heldKey
     fun emit(index: Int, item: T, folded: Boolean) {
         item(key = state.key(item), contentType = contentType(item)) {
             DragItem(state, index, item, folded, itemContent)
@@ -538,12 +565,21 @@ private fun <T : Any> LazyItemScope.DragItem(
         }
     }
     val vertical = state.orientation == Orientation.Vertical
-    // Carried, it is not drawn, and goes straight to each place it holds: what
-    // a landing flies to is where it is, not where it is on its way to.
-    val still = Theme.motion.reduceMotion || scope.isDragging
+    // Held — carried, or just dropped here — it goes straight to each place:
+    // what a landing flies to is where it is, not where it is on its way to.
+    // And it neither fades in where it is dropped nor fades out of the list it
+    // left: the carried thing is drawn over it until the drag ends, and then it
+    // is simply there.
+    val held = state.heldKey == state.key(item)
+    val fade: SpringSpec<Float>? = if (held) null else spring(stiffness = Spring.StiffnessMediumLow)
+    val slide: SpringSpec<IntOffset>? = if (held || Theme.motion.reduceMotion) {
+        null
+    } else {
+        spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
+    }
     androidx.compose.foundation.layout.Box(
         Modifier
-            .then(if (still) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
+            .animateItem(fadeInSpec = fade, placementSpec = slide, fadeOutSpec = fade)
             .foldedAway(folded, vertical)
             .focusRequester(focus)
             .focusGroup()
