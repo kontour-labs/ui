@@ -208,6 +208,13 @@ no icons has arrows either side of its month.
 
 ### Fixed
 
+- **[`SegmentedControl`](components/segmented-control.md#when-the-labels-do-not-fit)'s
+  labels keep apart at phone width.** A segment keeps
+  `SegmentedControlDefaults.LabelPadding`, 4dp, either side of its label, and the
+  control stacks its options rather than let two labels closer than 8dp. A label
+  could fill its share to the last dp, and "Standard" met "Keyboard" with nothing
+  between them. A control that fitted with a few dp to spare now stacks: the
+  gallery's settings at 130% text, for one.
 - **An [`Avatar`](components/avatar.md) or a [`Badge`](components/badge.md)
   inside a row no longer names it.** A clickable `Card`, a `ListItem`, a
   `SelectionRow` and a button each merge into one node, and a description in it

@@ -34,10 +34,16 @@ control is *expected* to run out of room. **When one does, the options stop
 sharing a row and stack into full-width rows instead** — one per option, every
 label drawn whole.
 
+A segment keeps `SegmentedControlDefaults.LabelPadding`, 4dp, either side of its
+label, and a label fits only with that room round it, so two neighbours on a row
+are at least 8dp apart. Before, a label could fill its share to the last dp and
+meet the next one: at 130% text "Standard" sat 6dp from "Keyboard", and at phone
+width with longer labels they ran together.
+
 Note "short" is relative to the *control's* width, not to the label. Four
 segments in 244dp is 58dp each — the track is the control less 6dp of padding a
-side, which an earlier version of this page forgot — and "Keyboard" exceeds that
-at the default type scale, so a control that narrow stacks. A reader who has
+side, which an earlier version of this page forgot — and "Keyboard" with its
+padding exceeds that at the default type scale, so a control that narrow stacks. A reader who has
 turned text size up makes every segment tighter without making the control wider,
 which is why this is a text-size question as much as a layout one: at 200% both
 `Standard` and `Keyboard` are about twice their segment's width.

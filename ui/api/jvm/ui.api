@@ -1543,6 +1543,7 @@ public final class io/kontour/ui/components/selection/RatingKt {
 public final class io/kontour/ui/components/selection/SegmentedControlDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/components/selection/SegmentedControlDefaults;
+	public final fun getLabelPadding (Landroidx/compose/runtime/Composer;I)F
 	public final fun getTrackPadding (Landroidx/compose/runtime/Composer;I)F
 }
 

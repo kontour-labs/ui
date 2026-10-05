@@ -5,6 +5,7 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
+import io.kontour.ui.components.selection.SegmentedControlDefaults
 import io.kontour.ui.demo.theme.demoThemes
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
@@ -27,7 +28,7 @@ import kotlin.test.assertEquals
  * the number the ellipsis decision is made from — so this compares it against
  * the segment width directly instead of hunting for an ellipsis in pixels. Both
  * real surfaces are covered: the gallery's sheet is 380dp wide with 16dp of
- * padding a side, and the site's popover caps at 320dp with the same padding.
+ * padding a side, and the site's popover caps at 360dp with the same padding.
  * Six dp of track padding comes off each end inside that.
  *
  * ### What the numbers said
@@ -46,24 +47,24 @@ import kotlin.test.assertEquals
  * 200% to every option readable. The site's narrower popover still cuts one
  * label there, and it is now `Auto` alone rather than all five.
  *
- * **Input modality cannot be fixed this way and is not fixed here**: four word
- * labels do not fit four 84dp segments at 200% however they are spelled, and
- * `Keys` is not what that setting is called. That wants an adaptive fallback in
- * the control — segments sized to content, or stacked when they cannot be — and
- * that is a change to `:ui`, not a change to a string.
+ * **Input modality and Haptics could not be fixed that way**: four word labels
+ * do not fit four 84dp segments at 200% however they are spelled, and `Keys` or
+ * `Std` is not what the setting is called. `SegmentedControl` answers both now
+ * by stacking its options into rows when a label does not fit, so `STACKS` below
+ * is a control laid out in rows rather than a label cut short.
  *
- * **Haptics is the second control in that position** and it arrived knowing it.
- * `Standard` is eight characters in four segments, which is the shape that
- * already failed once: it fits the sheet at 130% and cuts at 200%, and cuts the
- * narrower popover from 130% up. The same fix answers both, and the same wrong
- * fix is available for both — `Std` would measure fine and is not what the level
- * is called. Two controls waiting on one change to `SegmentedControl` is a better
- * argument for making it than one was.
+ * **A label fits with its padding**, `SegmentedControlDefaults.LabelPadding`
+ * either side. Before that, `Standard` at 78dp in an 84dp segment counted as
+ * fitting and sat 6dp from its neighbour; at 130% on the sheet Haptics and
+ * Input modality now stack rather than crowd.
  *
  * So this is a table rather than a pass/fail: every combination is pinned as it
  * measures today, and both directions of change have to be stated here.
  */
 class SettingsLabelFitTest {
+
+    /** A segment's room either side of its label, in dp, read from the theme. */
+    private var labelPadding = 0f
 
     /** The widest label in [labels] and its width in dp at [fontScale]. */
     private fun widest(labels: List<String>, fontScale: Float): Pair<String, Float> {
@@ -73,6 +74,7 @@ class SettingsLabelFitTest {
                 CompositionLocalProvider(LocalDensity provides Density(2f, fontScale)) {
                     val measurer = rememberTextMeasurer()
                     val density = LocalDensity.current
+                    labelPadding = SegmentedControlDefaults.LabelPadding.value
                     for (label in labels) {
                         val width = measurer
                             .measure(label, style = Theme.typography.labelMedium)
@@ -115,7 +117,7 @@ class SettingsLabelFitTest {
                         add(
                             "$surface $control at $scale: '$label' " +
                                 "${width}dp in ${segment}dp — " +
-                                if (width <= segment) "fits" else "ELLIPSISED"
+                                if (width + labelPadding * 2 <= segment) "fits" else "STACKS"
                         )
                     }
                 }
@@ -126,8 +128,8 @@ class SettingsLabelFitTest {
             rows.joinToString("\n"),
             "a settings label changed how it fits its segment. Every row is a " +
                 "measurement, not a target: a label that started fitting is as " +
-                "much a change as one that stopped, and `ELLIPSISED` means a " +
-                "reader at that text size sees the label cut to an ellipsis.",
+                "much a change as one that stopped, and `STACKS` means a reader " +
+                "at that text size gets the options in rows.",
         )
     }
 
@@ -136,10 +138,11 @@ class SettingsLabelFitTest {
          * The two panels' track widths in dp.
          *
          * Sheet: 380dp phone, 16dp of `Column` padding a side, 6dp of track
-         * padding each end. Popover: `PopoverPanel` caps at 320dp and spends
-         * 16dp a side, then the same 6dp each end.
+         * padding each end. Popover: the site's caps at 360dp, wider than a
+         * popover's 320 so four labels keep apart on a row, and `PopoverPanel`
+         * spends 16dp a side, then the same 6dp each end.
          */
-        val Surfaces = listOf("sheet" to 336f, "popover" to 276f)
+        val Surfaces = listOf("sheet" to 336f, "popover" to 316f)
 
         /** What the table reads today. */
         val Pinned = listOf(
@@ -149,24 +152,24 @@ class SettingsLabelFitTest {
             "sheet Input modality at 1.0: 'Keyboard' 62.0dp in 84.0dp — fits",
             "sheet Theme at 1.3: 'Kontour' 67.0dp in 168.0dp — fits",
             "sheet Text size at 1.3: 'Auto' 40.0dp in 67.2dp — fits",
-            "sheet Haptics at 1.3: 'Standard' 78.0dp in 84.0dp — fits",
-            "sheet Input modality at 1.3: 'Keyboard' 81.0dp in 84.0dp — fits",
+            "sheet Haptics at 1.3: 'Standard' 78.0dp in 84.0dp — STACKS",
+            "sheet Input modality at 1.3: 'Keyboard' 81.0dp in 84.0dp — STACKS",
             "sheet Theme at 2.0: 'Kontour' 103.0dp in 168.0dp — fits",
-            "sheet Text size at 2.0: 'Auto' 61.0dp in 67.2dp — fits",
-            "sheet Haptics at 2.0: 'Standard' 119.5dp in 84.0dp — ELLIPSISED",
-            "sheet Input modality at 2.0: 'Keyboard' 124.0dp in 84.0dp — ELLIPSISED",
-            "popover Theme at 1.0: 'Kontour' 51.5dp in 138.0dp — fits",
-            "popover Text size at 1.0: 'Auto' 30.5dp in 55.2dp — fits",
-            "popover Haptics at 1.0: 'Standard' 60.0dp in 69.0dp — fits",
-            "popover Input modality at 1.0: 'Keyboard' 62.0dp in 69.0dp — fits",
-            "popover Theme at 1.3: 'Kontour' 67.0dp in 138.0dp — fits",
-            "popover Text size at 1.3: 'Auto' 40.0dp in 55.2dp — fits",
-            "popover Haptics at 1.3: 'Standard' 78.0dp in 69.0dp — ELLIPSISED",
-            "popover Input modality at 1.3: 'Keyboard' 81.0dp in 69.0dp — ELLIPSISED",
-            "popover Theme at 2.0: 'Kontour' 103.0dp in 138.0dp — fits",
-            "popover Text size at 2.0: 'Auto' 61.0dp in 55.2dp — ELLIPSISED",
-            "popover Haptics at 2.0: 'Standard' 119.5dp in 69.0dp — ELLIPSISED",
-            "popover Input modality at 2.0: 'Keyboard' 124.0dp in 69.0dp — ELLIPSISED",
+            "sheet Text size at 2.0: 'Auto' 61.0dp in 67.2dp — STACKS",
+            "sheet Haptics at 2.0: 'Standard' 119.5dp in 84.0dp — STACKS",
+            "sheet Input modality at 2.0: 'Keyboard' 124.0dp in 84.0dp — STACKS",
+            "popover Theme at 1.0: 'Kontour' 51.5dp in 158.0dp — fits",
+            "popover Text size at 1.0: 'Auto' 30.5dp in 63.2dp — fits",
+            "popover Haptics at 1.0: 'Standard' 60.0dp in 79.0dp — fits",
+            "popover Input modality at 1.0: 'Keyboard' 62.0dp in 79.0dp — fits",
+            "popover Theme at 1.3: 'Kontour' 67.0dp in 158.0dp — fits",
+            "popover Text size at 1.3: 'Auto' 40.0dp in 63.2dp — fits",
+            "popover Haptics at 1.3: 'Standard' 78.0dp in 79.0dp — STACKS",
+            "popover Input modality at 1.3: 'Keyboard' 81.0dp in 79.0dp — STACKS",
+            "popover Theme at 2.0: 'Kontour' 103.0dp in 158.0dp — fits",
+            "popover Text size at 2.0: 'Auto' 61.0dp in 63.2dp — STACKS",
+            "popover Haptics at 2.0: 'Standard' 119.5dp in 79.0dp — STACKS",
+            "popover Input modality at 2.0: 'Keyboard' 124.0dp in 79.0dp — STACKS",
         )
     }
 }

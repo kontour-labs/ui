@@ -4153,6 +4153,8 @@ final object io.kontour.ui.components.selection/RatingDefaults { // io.kontour.u
 }
 
 final object io.kontour.ui.components.selection/SegmentedControlDefaults { // io.kontour.ui.components.selection/SegmentedControlDefaults|null[0]
+    final val LabelPadding // io.kontour.ui.components.selection/SegmentedControlDefaults.LabelPadding|{}LabelPadding[0]
+        final fun <get-LabelPadding>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.components.selection/SegmentedControlDefaults.LabelPadding.<get-LabelPadding>|<get-LabelPadding>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
     final val TrackPadding // io.kontour.ui.components.selection/SegmentedControlDefaults.TrackPadding|{}TrackPadding[0]
         final fun <get-TrackPadding>(androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui.unit/Dp // io.kontour.ui.components.selection/SegmentedControlDefaults.TrackPadding.<get-TrackPadding>|<get-TrackPadding>(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 }

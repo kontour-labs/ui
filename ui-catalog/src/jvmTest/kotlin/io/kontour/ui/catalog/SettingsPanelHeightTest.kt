@@ -162,12 +162,13 @@ class SettingsPanelHeightTest {
      * the threshold shows up as a number moving rather than as a boolean that was
      * always going to be true.
      *
-     * 144dp is one four-option control stacking — `4 × 48dp` of rows against the
-     * 48dp it occupied in a line. Which control it is depends on this harness
+     * Each four-option control that stacks adds 96dp — see [NarrowGrowth] —
+     * and which controls they are depends on this harness
      * rather than on the site: it renders `SettingsSheetContent`, which carries
      * the *sheet's* own padding, so at 288dp the control ends up with a 244dp
-     * track where the real popover gives it 276. `SettingsLabelFitTest` measures
-     * the real one, and says every label still fits there at 100%.
+     * track where the real popover — the site's, 360dp wide — gives it 316.
+     * `SettingsLabelFitTest` measures the real one, and says every label still
+     * fits there at 100%.
      */
     @Test
     fun narrowingToThePopoverDoesNotMakeItTaller() {
@@ -199,16 +200,25 @@ class SettingsPanelHeightTest {
          * The sheet's uniform inset took 12dp off at every scale: the header
          * keeps the sheet's 16dp round what it draws, and the panel stopped
          * padding it a second time.
+         *
+         * A segment keeping `SegmentedControlDefaults.LabelPadding` round its
+         * label raised 130% to 1137dp and 200% to 1561dp: at 130% Haptics'
+         * `Standard` sat 6dp from its neighbour and Input modality's `Keyboard`
+         * 3dp, and both now stack rather than crowd; at 200% Text size's `Auto`
+         * joins them. Nothing moved at 100%.
          */
-        val Ceilings = listOf(1f to 911, 1.3f to 945, 2f to 1419)
+        val Ceilings = listOf(1f to 911, 1.3f to 1137, 2f to 1561)
 
         /**
          * How much taller the panel is at the popover's width than at the sheet's.
          *
          * One four-option `SegmentedControl` laying its options out in rows:
          * four content boxes of 32dp against the 44dp a single line occupies,
-         * plus the track's padding either way.
+         * plus the track's padding either way — 96dp a control.
+         *
+         * Three of them since a segment keeps its label padding: at this
+         * harness's 244dp track a label has to clear 8dp more than it did.
          */
-        const val NarrowGrowth = 96
+        const val NarrowGrowth = 288
     }
 }
