@@ -81,6 +81,9 @@ import io.kontour.ui.theme.Theme
  *
  * @param onClick The default action. Runs on the main half, without opening
  *   anything.
+ * @param contentDescription What a screen reader announces for the main half
+ *   in place of its label, where the label alone does not say enough. `null`,
+ *   the default, leaves the label as its name.
  * @param menuContentDescription Names the chevron half, which has no text of its
  *   own. Required, and separate from the label: a screen reader that reads
  *   "Save, Save" for the two halves has described neither.
@@ -97,6 +100,7 @@ fun SplitButton(
     menuContentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
     chevron: ImageVector = SystemIcons.ChevronDown,
@@ -124,6 +128,7 @@ fun SplitButton(
             Button(
                 onClick = onClick,
                 enabled = enabled,
+                contentDescription = contentDescription,
                 variant = variant,
                 size = size,
                 shape = GroupPosition.First.shape(shape, ButtonGroupDefaults.InnerCorner, Orientation.Horizontal),

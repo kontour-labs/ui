@@ -50,6 +50,7 @@ import io.kontour.ui.interaction.kontourIndication
 import androidx.compose.ui.graphics.graphicsLayer
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.a11y.LocalNamedByContent
+import androidx.compose.ui.semantics.contentDescription
 
 /**
  * A button.
@@ -75,6 +76,11 @@ import io.kontour.ui.a11y.LocalNamedByContent
  *
  * @param onClick Fired on click. Not fired when [enabled] is false or [loading]
  *   is true.
+ * @param contentDescription What a screen reader announces in place of the
+ *   label, where the label alone does not say enough: "Save" on screen, "Save
+ *   this trip to Perth" read aloud. Leave it `null` and the label is the name,
+ *   which is nearly always right; there was no way to give one but a
+ *   `semantics` modifier of your own.
  * @param loading Shows a spinner in place of the content and blocks input.
  * @param loadingLabel What a screen reader announces while [loading]. Defaults
  *   to "Loading"; pass something specific where you can ("Planning your trip").
@@ -84,6 +90,7 @@ fun Button(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     variant: ButtonVariant = ButtonVariant.Primary,
     size: ButtonSize = ButtonSize.Medium,
     loading: Boolean = false,
@@ -114,6 +121,7 @@ fun Button(
         modifier = modifier
             .semantics(mergeDescendants = true) {
                 role = Role.Button
+                if (contentDescription != null) this.contentDescription = contentDescription
                 if (loading) stateDescription = loadingLabel
             }
             .minimumTouchTarget()

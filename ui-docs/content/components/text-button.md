@@ -110,8 +110,9 @@ A `richText` link has link semantics rather than button semantics. That is the
 whole reason to prefer it in prose: a screen reader's link rotor is how a reader
 finds where a paragraph can take them, and a button is not in it.
 
-A `TextButton` whose label is the only thing naming it needs that label to say
-where it goes — "See replacement buses", not "See more". This is the control
+`contentDescription` is read in place of the label where the label cannot say
+enough on its own. A `TextButton` whose label is the only thing naming it needs
+that label to say where it goes — "See replacement buses", not "See more". This is the control
 most likely to be read out of context, because it is the one most likely to be
 one of several on a screen.
 

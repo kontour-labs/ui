@@ -46,8 +46,9 @@ two halves has described neither.
 
 The two halves are two separate buttons inside one `isTraversalGroup`, so they
 are reached in order and announced separately — which is what they are. The main
-half takes its name from its content; the menu half takes
-`menuContentDescription`, and it needs one because it is an icon.
+half takes its name from its content, or from `contentDescription` where you
+pass one; the menu half takes `menuContentDescription`, and it needs one because
+it is an icon.
 
 The group reserves `Theme.sizing.minTouchTarget` in height, so the menu half is a
 full-size target however narrow it looks.

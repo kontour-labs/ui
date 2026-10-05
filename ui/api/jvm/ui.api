@@ -237,7 +237,7 @@ public final class io/kontour/ui/components/action/ButtonGroupScope {
 }
 
 public final class io/kontour/ui/components/action/ButtonKt {
-	public static final fun Button (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;ZLjava/lang/String;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/action/ButtonColours;Lio/kontour/ui/components/action/ButtonMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Button (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;ZLjava/lang/String;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/action/ButtonColours;Lio/kontour/ui/components/action/ButtonMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/action/ButtonMetrics {
@@ -341,11 +341,11 @@ public final class io/kontour/ui/components/action/IconButtonKt {
 }
 
 public final class io/kontour/ui/components/action/SplitButtonKt {
-	public static final fun SplitButton (Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SplitButton (Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/action/TextButtonKt {
-	public static final fun TextButton-hYmLsZ8 (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZJLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TextButton-NpZTi58 (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;JLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun TextIconButton-1YH7lEI (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZJLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 }
 

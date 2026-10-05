@@ -35,6 +35,7 @@ import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.a11y.LocalNamedByContent
+import androidx.compose.ui.semantics.contentDescription
 
 /**
  * A button that is only its label, at the size of the text around it.
@@ -68,6 +69,11 @@ import io.kontour.ui.a11y.LocalNamedByContent
  * see [io.kontour.ui.foundation.LinkDefaults.styles] for why a link's feedback
  * cannot be the scale every filled control uses.
  *
+ * @param contentDescription What a screen reader announces in place of the
+ *   label, where the label alone does not say enough: "Save" on screen, "Save
+ *   this trip to Perth" read aloud. Leave it `null` and the label is the name,
+ *   which is nearly always right; there was no way to give one but a
+ *   `semantics` modifier of your own.
  * @param colour The label's colour. Accent by default, which is the interactive
  *   colour; a destructive text button takes `Theme.colours.danger.solid`.
  * @param content The label, as a slot — so `+"Save"`, `+icon` and
@@ -79,6 +85,7 @@ fun TextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     colour: Color = Theme.colours.accent.solid,
     shape: Shape = Theme.shapes.small,
     interactionSource: MutableInteractionSource? = null,
@@ -98,7 +105,10 @@ fun TextButton(
 
     Row(
         modifier = modifier
-            .semantics(mergeDescendants = true) { role = Role.Button }
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                if (contentDescription != null) this.contentDescription = contentDescription
+            }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .background(ground, shape)

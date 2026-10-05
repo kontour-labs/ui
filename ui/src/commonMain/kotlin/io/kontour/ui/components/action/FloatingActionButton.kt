@@ -285,6 +285,11 @@ fun ExtendedFloatingActionButton(
 
     Surface(
         modifier = modifier
+            // The description is the button's name open or shut, as promised
+            // above: on the button itself rather than on its icon, where it
+            // was dropped whenever the label was showing — so "Start" was the
+            // name of a button meant to say "Start trip to Perth Station".
+            .semantics { this.contentDescription = contentDescription }
             .minimumTouchTarget()
             .focusRing(interactions, shape)
             .height(size.container)
@@ -318,7 +323,7 @@ fun ExtendedFloatingActionButton(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = if (expanded) null else contentDescription,
+                contentDescription = null,
                 size = size.icon,
             )
             AnimatedSlot(

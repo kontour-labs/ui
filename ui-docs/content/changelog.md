@@ -65,8 +65,9 @@ no icons has arrows either side of its month.
   compiles as before; a builder held in a variable of the old, non-composable
   type, or a plain function passed for one, no longer does** — mark it
   `@Composable`. `listGroup` in a `LazyColumn` is unchanged.
-- **A selection control's `interactionSource` passed by position no longer
-  compiles.** `Checkbox`, `TriStateCheckbox`, `Switch` and `RadioButton` take a
+- **A selection control's `interactionSource`, or a button's `variant`, passed
+  by position no longer compiles.** `Checkbox`, `TriStateCheckbox`, `Switch`,
+  `RadioButton`, `Button`, `TextButton` and `SplitButton` take a
   `contentDescription` after `enabled`; `NavBar` takes `fadeUnder` before
   `windowInsets`, and `NavigationSuiteScaffold` `barFadeUnder` after
   `railExpandedWidth`. Each is a different type from what was in its place, so a
@@ -74,7 +75,8 @@ no icons has arrows either side of its month.
   meaning something else. Name the argument.
 - **Recompile rather than swap the jar.** The six builders above are `inline`
   now, and `Dialog`, `NavBar`, `NavigationSuiteScaffold`, the selection
-  controls, `ComponentDefaults`, `LocaleFormats` and `Strings` gained members,
+  controls, the buttons, `ComponentDefaults`, `LocaleFormats` and `Strings`
+  gained members,
   so a library built against 0.4.1 fails when it calls one until it is rebuilt.
 
 ### Changed
@@ -129,6 +131,14 @@ no icons has arrows either side of its month.
   large"*.
 
 ### Added
+
+- **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
+  and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
+  read in place of the label where the label alone does not say enough — "Save"
+  on screen, "Save this trip to Perth" read aloud. It took a `semantics`
+  modifier of your own. An [`ExtendedFloatingActionButton`](components/fab.md)'s
+  description is now its name open as well as collapsed, as its documentation
+  said; open, the label was.
 
 - **`Theme.formats.currency(amount, code)`** writes an amount of money as the
   reader writes it — `€3.20`, `3,20 €`, `￥320` — with the currency's own places,
