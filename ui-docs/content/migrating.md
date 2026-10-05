@@ -105,8 +105,10 @@ be given `width`.
 ### Check: a scrollbar under touch
 
 A `Scrollbar` shows, thinner, while the content moves under a finger, and fades
-after it stops, where it drew nothing before. `alwaysVisible = false` was always
-the default and still is; it is touch that changed.
+after it stops, where it drew nothing before. While it is drawn, a finger on its
+thumb drags it, and a press there is no longer the row's under it.
+`alwaysVisible = false` was always the default and still is; it is touch that
+changed.
 
 ### Check: a date picker given no arrows
 

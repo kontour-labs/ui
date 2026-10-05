@@ -67,6 +67,13 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
+import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.PointerInputModifierNode
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.IntSize
 
 /** How much of the track the thumb covers, and where it sits. 0 to 1. */
 @Immutable
@@ -158,20 +165,26 @@ object ScrollbarDefaults {
  * |---|---|---|
  * | At rest | not drawn | drawn, half-faded |
  * | While scrolling | drawn, fading out 600ms after it stops | drawn |
- * | Dragged | no: the scroller's own | yes |
+ * | Dragged | by its thumb, while it is drawn | anywhere along it |
  *
  * Under touch it is an indicator, as every phone's is: it appears as the
  * content moves, says where it is and how much there is, and fades once it has
- * stopped. It takes no touches — a strip at the edge of a list that took them
- * would be a strip of the list that did not scroll. With a mouse or a keyboard
- * it is the bar every other window on the machine has, there all the time, and
- * a long list without one reads as broken. [alwaysVisible] draws it at rest
- * under touch too, for a scroller whose length is the point.
+ * stopped. **While it is drawn, a finger on its thumb takes hold of it**, and
+ * the thumb thickens under the finger to say so. Only the thumb, give or take a
+ * fingertip: the rest of the strip at the edge of a list is still the list's,
+ * for a tap on a row or a scroll, and so is all of it while the bar is not
+ * drawn. It took no touches at all, so a bar on a phone could be seen and not
+ * moved — *"if the scrollbar is visible (even on mobile), then dragging it should
+ * do what you expect"*. With a mouse or a keyboard it is the bar every other
+ * window on the machine has, there all the time, and a long list without one
+ * reads as broken. [alwaysVisible] draws it at rest under touch too, for a
+ * scroller whose length is the point.
  *
  * **Dragging it scrolls the container**, at the rate the track's length says:
- * grab it anywhere and the content follows, rather than jumping to where it was
+ * take hold of it and the content follows, rather than jumping to where it was
  * pressed. Raw rather than a fling — a scrollbar is a position control, and
- * letting go of one leaves the content where the thumb is.
+ * letting go of one leaves the content where the thumb is. A finger that takes
+ * hold of a moving list's thumb stops the list, as a finger on the list does.
  *
  * It is hidden from the accessibility tree: it conveys nothing a screen reader
  * cannot already get from the scroller itself, and the drag is not an action
@@ -187,7 +200,7 @@ object ScrollbarDefaults {
  *   corner — `container` is 22dp, `panel` 28 — so a length is exact for all of
  *   them.
  * @param alwaysVisible Drawn at rest under touch as well, half-faded as with a
- *   mouse. Not draggable by a finger even so: the scroller keeps its touches.
+ *   mouse, and so there to take hold of all along.
  */
 @Composable
 fun Scrollbar(
@@ -205,10 +218,11 @@ fun Scrollbar(
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsHoveredAsState()
     val dragged by interactions.collectIsDraggedAsState()
+    val touch = remember { ScrollbarTouchGrip() }
     // A drag that has wandered off the bar is still a drag on it, and a
     // scrollbar that thinned out halfway through one would be reporting that
     // the grip had been lost.
-    val active = pointer && (hovered || dragged)
+    val active = (pointer && (hovered || dragged)) || touch.held
 
     // Everything but the position, which changes on every frame of a scroll and
     // is read where it is used — in the thumb's placement. Composition only
@@ -219,7 +233,7 @@ fun Scrollbar(
     }
     if (!extent.isUseful) return
 
-    val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness)
+    val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness, touch.held)
     val width by look.width
     val alpha by look.alpha
 
@@ -238,10 +252,42 @@ fun Scrollbar(
         if (travel > 0f) state.dispatchRawDelta(delta * extent.scrollable / travel)
     }
 
+    // Where a finger finds the thumb, in the bar's own box: across the whole of
+    // it, which is narrow, and along the thumb and a fingertip either side. The
+    // box is padded by `xxs` and then by the corner before the track starts.
+    val density = LocalDensity.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val lead = with(density) { (Theme.spacing.xxs + cornerInset).toPx() }
+    val slop = with(density) { TouchGripSlop.toPx() }
+    touch.update(
+        state = state,
+        orientation = orientation,
+        // A horizontal track runs from the right in right to left.
+        sign = if (orientation == Orientation.Horizontal && rtl) -1f else 1f,
+        shown = { look.alpha.value > 0f },
+        rate = { _ -> if (travel > 0f) extent.scrollable / travel else 0f },
+        target = { size ->
+            val along = travel * scrollbarGeometry(state).position
+            if (orientation == Orientation.Vertical) {
+                Rect(0f, lead + along - slop, size.width.toFloat(), lead + along + thumbLength + slop)
+            } else {
+                val start = if (rtl) size.width - lead - along - thumbLength else lead + along
+                Rect(start - slop, 0f, start + thumbLength + slop, size.height.toFloat())
+            }
+        },
+    )
+
     Box(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
+            // A finger on the thumb, while it is drawn. There whatever the hand,
+            // and ahead of the mouse's nodes, so that the tap that turns a
+            // mouse's bar into a finger's, and takes those nodes away, is not
+            // cancelled with them. Under touch a press anywhere else on the
+            // strip goes on to the scroller under it, as if the bar were not
+            // there; with a mouse the strip is the bar's.
+            .then(ScrollbarTouchGripElement(touch, shareWithSiblings = !pointer))
             .then(
                 if (pointer) {
                     Modifier
@@ -262,8 +308,6 @@ fun Scrollbar(
                             interactionSource = interactions,
                         )
                 } else {
-                    // Under touch: nothing that takes a pointer at all, so the
-                    // strip the bar stands in is still the scroller's.
                     Modifier
                 }
             )
@@ -347,7 +391,8 @@ fun Scrollbar(
  * Drawn and shown exactly as [Scrollbar] is — see it for the table. With a mouse
  * it is dragged from a strip [ScrollbarDefaults.HoveredThickness] wide at the
  * edge, which thickens under the pointer; a press anywhere else is the
- * content's. Under touch it takes nothing.
+ * content's. Under touch a finger takes hold of the thumb while it is drawn,
+ * within a fingertip of it, and anything else is the content's.
  */
 @Composable
 fun Modifier.scrollbar(
@@ -362,38 +407,58 @@ fun Modifier.scrollbar(
 ): Modifier {
     val pointer = scrollbarTakesAPointer()
     val grip = remember { ScrollbarGrip() }
-    val active = pointer && (grip.hovered || grip.dragging)
-    val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness)
+    val touch = remember { ScrollbarTouchGrip() }
+    val active = (pointer && (grip.hovered || grip.dragging)) || touch.held
+    val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness, touch.held)
     val density = LocalDensity.current
     val margin = with(density) { Theme.spacing.xxs.toPx() }
     val strip = with(density) { hoveredThickness.toPx() } + 2 * margin
     val minThumb = with(density) { minThumbLength.toPx() }
     val corner = with(density) { cornerInset.toPx() }
     val track = remember { ScrollbarTrack() }
-    track.update(orientation, LocalLayoutDirection.current, margin, strip, minThumb, corner)
+    val direction = LocalLayoutDirection.current
+    track.update(orientation, direction, margin, strip, minThumb, corner)
+    val reach = with(density) { TouchGripReach.toPx() }
+    val slop = with(density) { TouchGripSlop.toPx() }
+    touch.update(
+        state = state,
+        orientation = orientation,
+        sign = if (orientation == Orientation.Horizontal && direction == LayoutDirection.Rtl) -1f else 1f,
+        shown = { look.alpha.value > 0f },
+        rate = { size ->
+            val geometry = scrollbarGeometry(state)
+            val (travel, _) = track.travel(Size(size.width.toFloat(), size.height.toFloat()), geometry)
+            if (travel > 0f) geometry.scrollable / travel else 0f
+        },
+        target = { size ->
+            val geometry = scrollbarGeometry(state)
+            if (!geometry.isUseful) null else track.touchTarget(Size(size.width.toFloat(), size.height.toFloat()), geometry, reach, slop)
+        },
+    )
 
+    // The same nodes whatever the hand, each minding only its own: a mouse's
+    // and a finger's. Not chosen by the hand, as they were, because the hand is
+    // read from the press — a tap is what turns a mouse's bar into a finger's —
+    // and a node taken off the scroller mid-press cancels the press on
+    // everything inside it: the row, or the menu item, the tap was for.
     return this
-        .then(
-            if (pointer) {
-                // There all along and the arrow, overriding nothing, until the
-                // pointer is on the bar: Compose asks the nodes under a press
-                // at the moment it goes down. See `heldCursor`.
-                Modifier
-                    .pointerHoverIcon(
-                        icon = pointerIconFor(
-                            when {
-                                grip.dragging -> Cursor.Grabbing
-                                grip.hovered -> Cursor.Grab
-                                else -> Cursor.Default
-                            }
-                        ),
-                        overrideDescendants = grip.hovered || grip.dragging,
-                    )
-                    .pointerInput(state, track) { gripBar(state, track, grip) }
-            } else {
-                Modifier
-            }
+        // There all along and the arrow, overriding nothing, until the pointer
+        // is on the bar: Compose asks the nodes under a press at the moment it
+        // goes down. See `heldCursor`.
+        .pointerHoverIcon(
+            icon = pointerIconFor(
+                when {
+                    grip.dragging -> Cursor.Grabbing
+                    grip.hovered -> Cursor.Grab
+                    else -> Cursor.Default
+                }
+            ),
+            overrideDescendants = grip.hovered || grip.dragging,
         )
+        .pointerInput(state, track) { gripBar(state, track, grip) }
+        // On the scroller itself, so it sees a finger before the content does,
+        // and takes only the one on the thumb.
+        .then(ScrollbarTouchGripElement(touch, shareWithSiblings = false))
         .drawWithContent {
             drawContent()
             val alpha = look.alpha.value
@@ -434,9 +499,10 @@ private fun rememberScrollbarLook(
     active: Boolean,
     thickness: Dp,
     hoveredThickness: Dp,
+    held: Boolean,
 ): ScrollbarLook {
     val motion = Theme.motion
-    val shown = pointer || alwaysVisible || rememberShownWhileScrolling(state)
+    val shown = pointer || alwaysVisible || rememberShownWhileScrolling(state, held)
     val alpha = animateFloatAsState(
         targetValue = when {
             !shown -> 0f
@@ -450,8 +516,10 @@ private fun rememberScrollbarLook(
     )
     val width = animateDpAsState(
         targetValue = when {
-            !pointer -> ScrollbarDefaults.TouchThickness
+            // Held by a finger as well as under a mouse: the thumb thickens to
+            // say it has been taken hold of.
             active -> hoveredThickness
+            !pointer -> ScrollbarDefaults.TouchThickness
             else -> thickness
         },
         animationSpec = motion.tweenFast(),
@@ -461,12 +529,12 @@ private fun rememberScrollbarLook(
 }
 
 /**
- * Whether a touch scroller's bar is up: while it scrolls, and for
- * [LingerTime] after.
+ * Whether a touch scroller's bar is up: while it scrolls or a finger holds it,
+ * and for [LingerTime] after.
  */
 @Composable
-private fun rememberShownWhileScrolling(state: ScrollableState): Boolean {
-    val scrolling = state.isScrollInProgress
+private fun rememberShownWhileScrolling(state: ScrollableState, held: Boolean): Boolean {
+    val scrolling = state.isScrollInProgress || held
     var lingering by remember { mutableStateOf(false) }
     LaunchedEffect(scrolling) {
         if (scrolling) {
@@ -527,6 +595,21 @@ private class ScrollbarTrack {
         Orientation.Vertical ->
             if (direction == LayoutDirection.Rtl) at.x <= strip else at.x >= size.width - strip
         Orientation.Horizontal -> at.y >= size.height - strip
+    }
+
+    /**
+     * Where a finger takes hold of the thumb: [reach] in from the edge, and along
+     * the thumb with [slop] either side. Null where there is no thumb.
+     */
+    fun touchTarget(size: Size, geometry: ScrollbarGeometry, reach: Float, slop: Float): Rect? {
+        val thumb = thumb(size, direction, geometry, 0f) ?: return null
+        return when (orientation) {
+            Orientation.Vertical -> {
+                val x = if (direction == LayoutDirection.Rtl) 0f else size.width - reach
+                Rect(x, thumb.top - slop, x + reach, thumb.bottom + slop)
+            }
+            Orientation.Horizontal -> Rect(thumb.left - slop, size.height - reach, thumb.right + slop, size.height)
+        }
     }
 
     /** The thumb's rectangle, [width] across, or null where there is no room for one. */
@@ -603,6 +686,142 @@ private suspend fun PointerInputScope.gripBar(state: ScrollableState, track: Scr
             }
         }
     }
+}
+
+/**
+ * How far in from its edge a finger takes hold of a bar's thumb on a scroller:
+ * the half of a touch target that is on the screen, the other half being past
+ * the edge the bar is on.
+ */
+private val TouchGripReach: Dp = 24.dp
+
+/**
+ * How far past either end of the thumb a finger still takes hold of it. The
+ * shortest thumb, [ScrollbarDefaults.MinThumbLength], is then a touch target
+ * long.
+ */
+private val TouchGripSlop: Dp = 8.dp
+
+/**
+ * A finger on a bar, and what the bar knows about where its thumb is. Written
+ * from composition, read when a finger goes down, so the node that takes the
+ * finger never holds a number that has gone stale.
+ */
+@Stable
+private class ScrollbarTouchGrip {
+    /** Whether a finger has hold of the thumb now. */
+    var held by mutableStateOf(false)
+
+    var state: ScrollableState? = null
+        private set
+    var orientation: Orientation = Orientation.Vertical
+        private set
+    var sign: Float = 1f
+        private set
+    var shown: () -> Boolean = { false }
+        private set
+    /** Pixels of content for a pixel along the track, in a box [IntSize] big. */
+    var rate: (IntSize) -> Float = { 0f }
+        private set
+    /** Where a finger takes hold, in a box [IntSize] big, or null where it cannot. */
+    var target: (IntSize) -> Rect? = { null }
+        private set
+
+    fun update(
+        state: ScrollableState,
+        orientation: Orientation,
+        sign: Float,
+        shown: () -> Boolean,
+        rate: (IntSize) -> Float,
+        target: (IntSize) -> Rect?,
+    ) {
+        this.state = state
+        this.orientation = orientation
+        this.sign = sign
+        this.shown = shown
+        this.rate = rate
+        this.target = target
+    }
+}
+
+private data class ScrollbarTouchGripElement(
+    private val grip: ScrollbarTouchGrip,
+    private val shareWithSiblings: Boolean,
+) : ModifierNodeElement<ScrollbarTouchGripNode>() {
+    override fun create() = ScrollbarTouchGripNode(grip, shareWithSiblings)
+
+    override fun update(node: ScrollbarTouchGripNode) {
+        node.grip = grip
+        node.shareWithSiblings = shareWithSiblings
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "scrollbarTouchGrip"
+    }
+}
+
+/**
+ * A finger on a shown bar's thumb: the press is the bar's, and its moves scroll
+ * the content at the track's rate until it lifts. Seen before the content sees
+ * anything, so the content neither scrolls under it nor takes it for a tap. A
+ * finger anywhere else, a bar that is not drawn, and a mouse — which has
+ * `gripBar` — are left entirely alone.
+ *
+ * The moves go to the scroller raw, as a mouse's on the bar do. Not through a
+ * `scroll` of its own, which was the first draft and moved nothing: the
+ * scroller stops whatever user scroll is running when a finger goes down on
+ * it, this one included, consumed or not — which is also what stops a fling
+ * the finger caught. The bar stays up while it is held because it is held,
+ * [ScrollbarTouchGrip.held], rather than because a scroll is running.
+ *
+ * A node rather than `pointerInput` for [shareWithSiblings]: a [Scrollbar] laid
+ * over its list is the list's sibling, and only a node can let a press it does
+ * not want go on to the sibling underneath.
+ */
+private class ScrollbarTouchGripNode(
+    var grip: ScrollbarTouchGrip,
+    var shareWithSiblings: Boolean,
+) : Modifier.Node(), PointerInputModifierNode {
+    private var finger: PointerId? = null
+
+    override fun onPointerEvent(pointerEvent: PointerEvent, pass: PointerEventPass, bounds: IntSize) {
+        if (pass != PointerEventPass.Initial) return
+        val held = finger
+        if (held == null) {
+            if (pointerEvent.type != PointerEventType.Press) return
+            val change = pointerEvent.changes.firstOrNull { it.changedToDown() } ?: return
+            if (change.type == PointerType.Mouse) return
+            val state = grip.state ?: return
+            if (!grip.shown()) return
+            val target = grip.target(bounds) ?: return
+            if (!target.contains(change.position)) return
+            change.consume()
+            finger = change.id
+            grip.held = true
+        } else {
+            val change = pointerEvent.changes.firstOrNull { it.id == held } ?: return
+            if (!change.pressed) {
+                change.consume()
+                letGo()
+                return
+            }
+            val moved = change.position - change.previousPosition
+            val along = if (grip.orientation == Orientation.Vertical) moved.y else moved.x
+            if (along != 0f) grip.state?.dispatchRawDelta(grip.sign * along * grip.rate(bounds))
+            change.consume()
+        }
+    }
+
+    private fun letGo() {
+        finger = null
+        grip.held = false
+    }
+
+    override fun onCancelPointerInput() = letGo()
+
+    override fun onDetach() = letGo()
+
+    override fun sharePointerInputWithSiblings(): Boolean = shareWithSiblings
 }
 
 /**

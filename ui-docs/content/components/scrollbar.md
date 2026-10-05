@@ -10,7 +10,7 @@ since it conveys nothing the list does not already.
 val scroll = rememberScrollState()
 // On the scroller itself, before its scroll. Under touch it appears while
 // the content moves and fades after; with a mouse or a keyboard it is there
-// all along, and can be dragged.
+// all along. Either way it can be dragged while it is there.
 Column(Modifier.fillMaxWidth().scrollbar(scroll).verticalScroll(scroll)) { Screen() }
 
 // Any scroller foundation ships — a lazy list, a grid, a pager — across or
@@ -40,12 +40,18 @@ nothing at all.
 |---|---|---|
 | At rest | not drawn | drawn, half-faded |
 | While scrolling | drawn, fading out 600ms after it stops | drawn |
-| Dragged | no — the scroller's own | yes |
+| Dragged | by its thumb, while it is drawn | anywhere along it |
 
 Under touch it is an indicator, as every phone's is: thinner, up while the
 content moves to say where it is and how much there is, and gone once it has
-settled. It takes no touches, so a strip at the edge of a list is still the
-list's. With a mouse or a keyboard it is the bar every other window on the
+settled. **While it is drawn, a finger on its thumb takes hold of it** — the
+thumb thickens under the finger to say so, and a list still moving stops, as it
+would for a finger on the list. Only the thumb and a fingertip either side of
+it: the rest of the strip at the edge of a list is still the list's, for a tap
+on a row or a scroll, and so is all of it while the bar is not drawn. It used to
+take no touches at all, so a bar on a phone could be seen and not moved —
+*"if the scrollbar is visible (even on mobile), then dragging it should do what
+you expect"*. With a mouse or a keyboard it is the bar every other window on the
 machine has, there all the time: a long list with none reads as broken.
 `alwaysVisible = true` draws it at rest under touch too, for a scroller whose
 length is the point.
@@ -54,7 +60,7 @@ Hovering it thickens the thumb and takes it to full opacity, so it is a target
 before you have to aim at it.
 
 **Dragging it scrolls the container**, at the rate the track's length says:
-grab it anywhere and the content follows rather than jumping. It scrolls raw
+take hold of it and the content follows rather than jumping. It scrolls raw
 rather than flinging — a scrollbar is a position control, and letting go of one
 should leave the content where the thumb is.
 
@@ -69,9 +75,9 @@ The scrollbar **clears its own semantics** entirely. It is a read-out of a
 position that the scrolling container already reports, and a second node
 announcing the same thing is noise.
 
-Scrolling itself is reachable through the container. The scrollbar is a pointer
-affordance: under touch it only indicates, and takes no touches, so it costs a
-touch user nothing.
+Scrolling itself is reachable through the container. The scrollbar is a
+shortcut for a hand: under touch it takes only a finger on a thumb that is
+drawn, so it costs a touch user nothing they had.
 
 `alwaysVisible` makes it permanent. That is a visual decision — it does not make
 anything reachable that was not.
@@ -82,5 +88,5 @@ scrollbar's own and does not change with the tier.
 
 Reduced motion changes nothing here: the thumb follows the scroll or the drag
 the reader is making, which is never touched, and its widening under the pointer
-and its fading in and out under touch are the same short tweens at every
+or the finger and its fading in and out under touch are the same short tweens at every
 setting — a change of opacity, not a movement.

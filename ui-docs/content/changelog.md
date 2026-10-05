@@ -85,9 +85,12 @@ no icons has arrows either side of its month.
   same spring as the size.
 - **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
   moves**, thinner, and fades 600ms after it stops, where it used to draw
-  nothing at all. It takes no touches: a finger on the strip at a list's edge
-  is the list's, which it was not under an `alwaysVisible` bar. With a keyboard
-  it is drawn at rest, as with a mouse and as the docs always said.
+  nothing at all. While it is drawn a finger on its thumb takes hold of it and
+  drags the content, as a mouse does — *"if the scrollbar is visible (even on
+  mobile), then dragging it should do what you expect"*. Only the thumb: the
+  rest of the strip at a list's edge is the list's, which it was not under an
+  `alwaysVisible` bar. With a keyboard it is drawn at rest, as with a mouse and
+  as the docs always said.
 - **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
   is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
   that leave the provider out — the root setup has none — now get a rail and two

@@ -233,7 +233,7 @@ fun ScrollbarBasics() {
     val scroll = rememberScrollState()
     // On the scroller itself, before its scroll. Under touch it appears while
     // the content moves and fades after; with a mouse or a keyboard it is there
-    // all along, and can be dragged.
+    // all along. Either way it can be dragged while it is there.
     Column(Modifier.fillMaxWidth().scrollbar(scroll).verticalScroll(scroll)) { Screen() }
 
     // Any scroller foundation ships — a lazy list, a grid, a pager — across or

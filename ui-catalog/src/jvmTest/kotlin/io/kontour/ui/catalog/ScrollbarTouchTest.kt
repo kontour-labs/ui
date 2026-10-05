@@ -30,14 +30,17 @@ import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.input.InputModality
 import io.kontour.ui.input.LocalInputModality
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * A scrollbar under touch is an indicator: it appears while the content moves
- * and fades once it stops, and takes no touches. With a mouse or a keyboard it
- * is there all along. And it reads every scroller foundation ships.
+ * and fades once it stops, and while it is drawn a finger can take hold of its
+ * thumb — and of nothing else, so the rest of the strip is still the list's.
+ * With a mouse or a keyboard it is there all along. And it reads every scroller
+ * foundation ships.
  *
  * Asked for: *"scrollbar: make it so it can show up on mobile when you start
  * scrolling, and make that the default behaviour. also have a horizontal
@@ -143,6 +146,131 @@ class ScrollbarTouchTest {
             scene.tap(Offset(Width - 6f, 2 * 80f + 40f))
             scene.frames(4)
             assertEquals(listOf(2), clicked, "a tap under a touch bar's strip should be the row's")
+        }
+    }
+
+    // ── A finger on a drawn bar ─────────────────────────────────────────────────
+
+    /** How far the list is through what it can scroll: sixty 80px rows in a 600px window. */
+    private fun through(list: LazyListState): Float =
+        (list.firstVisibleItemIndex * 80f + list.firstVisibleItemScrollOffset) / (60 * 80f - Height)
+
+    /**
+     * The thumb's travel at a scene's density of 2: the track is the height less
+     * `xxs` at each end, and the thumb is the eighth of it the window shows.
+     */
+    private val travel = (Height - 16f) * (1f - Height / (60 * 80f))
+
+    /**
+     * Asked for: *"if the scrollbar is visible (even on mobile), then dragging
+     * it should do what you expect"*. It took no touches, so a bar on a phone
+     * could be seen and not moved.
+     *
+     * Down the thumb is down the list, and by the track's rate. The same drag on
+     * the content would have pulled a list at its top nowhere, so a list that
+     * went forward went by the bar.
+     */
+    @Test
+    fun aFingerDragsADrawnBarsThumb() {
+        lateinit var list: LazyListState
+        Scene(width = Width, height = Height) {
+            list = rememberLazyListState()
+            Rows(list, Modifier.scrollbar(list, alwaysVisible = true))
+        }.use { scene ->
+            scene.frames(6)
+            scene.drag(Offset(Width - 6f, 30f), Offset(Width - 6f, 330f), steps = 20)
+            scene.frames(10)
+            val expected = 300f / travel
+            assertTrue(
+                abs(through(list) - expected) < 0.05f,
+                "a finger dragging the thumb 300px should take the list ${expected} of its way, took ${through(list)}",
+            )
+        }
+    }
+
+    /** The same, on the composable laid over its list rather than the modifier on it. */
+    @Test
+    fun aFingerDragsAnOverlaidBarsThumb() {
+        lateinit var list: LazyListState
+        Scene(width = Width, height = Height) {
+            list = rememberLazyListState()
+            Box(Modifier.fillMaxSize()) {
+                Rows(list)
+                Scrollbar(list, Modifier.align(Alignment.CenterEnd), alwaysVisible = true)
+            }
+        }.use { scene ->
+            scene.frames(6)
+            scene.drag(Offset(Width - 6f, 30f), Offset(Width - 6f, 330f), steps = 20)
+            scene.frames(10)
+            val expected = 300f / travel
+            assertTrue(
+                abs(through(list) - expected) < 0.05f,
+                "a finger dragging the thumb 300px should take the list ${expected} of its way, took ${through(list)}",
+            )
+        }
+    }
+
+    /**
+     * Up because the list scrolled, not because it was asked to stay: the
+     * thumb can be taken hold of in the linger after a scroll, which is when a
+     * phone shows it.
+     */
+    @Test
+    fun aBarUpAfterAScrollCanBeTakenHoldOf() {
+        lateinit var list: LazyListState
+        Scene(width = Width, height = Height) {
+            list = rememberLazyListState()
+            Rows(list, Modifier.scrollbar(list))
+        }.use { scene ->
+            scene.frames(6)
+            // Held still before lifting, so nothing flings on afterwards.
+            scene.drag(Offset(200f, 450f), Offset(200f, 250f), steps = 20, release = false)
+            scene.frames(4)
+            scene.release(Offset(200f, 250f))
+            scene.frames(2)
+            val before = through(list)
+            val thumb = 8f + travel * before + 20f
+            scene.drag(Offset(Width - 6f, thumb), Offset(Width - 6f, thumb + 200f), steps = 20)
+            scene.frames(10)
+            assertTrue(
+                through(list) - before > 0.3f,
+                "dragging the thumb down in the linger should take the list on, went from $before to ${through(list)}",
+            )
+        }
+    }
+
+    /** Off the thumb, a drawn bar's strip is the list's to scroll. */
+    @Test
+    fun offTheThumbTheStripIsTheLists() {
+        lateinit var list: LazyListState
+        Scene(width = Width, height = Height) {
+            list = rememberLazyListState()
+            Box(Modifier.fillMaxSize()) {
+                Rows(list)
+                Scrollbar(list, Modifier.align(Alignment.CenterEnd), alwaysVisible = true)
+            }
+        }.use { scene ->
+            scene.frames(6)
+            scene.drag(Offset(Width - 6f, 450f), Offset(Width - 6f, 250f), steps = 20, release = false)
+            scene.frames(4)
+            scene.release(Offset(Width - 6f, 250f))
+            scene.frames(4)
+            assertEquals(2, list.firstVisibleItemIndex, "a drag up the strip below the thumb should scroll the list by 200px")
+        }
+    }
+
+    /** A bar that is not drawn takes nothing, even where its thumb would be. */
+    @Test
+    fun aBarThatIsNotDrawnTakesNothing() {
+        lateinit var list: LazyListState
+        Scene(width = Width, height = Height) {
+            list = rememberLazyListState()
+            Rows(list, Modifier.scrollbar(list))
+        }.use { scene ->
+            scene.frames(6)
+            scene.drag(Offset(Width - 6f, 30f), Offset(Width - 6f, 330f), steps = 20)
+            scene.frames(10)
+            assertEquals(0f, through(list), "a drag down on a list at its top, with no bar drawn, should leave it there")
         }
     }
 
@@ -271,6 +399,46 @@ class ScrollbarTouchTest {
             scene.drag(Offset(200f, 450f), Offset(200f, 250f), steps = 20, release = false)
             assertTrue(right(scene.frames(8)) > 0, "under touch, the bar should be up while the list moves")
             scene.release(Offset(200f, 250f))
+        }
+    }
+
+    // ── A press that changes the hand ───────────────────────────────────────────
+
+    /**
+     * The hand is read from the press, so a tap is what turns a mouse's bar into
+     * a finger's. Whatever the bar does about that, the tap is still the row's.
+     * The bar's nodes for a mouse were taken off the scroller as the tap went
+     * down, which cancelled the press on everything inside it.
+     */
+    @Test
+    fun aFingersTapAfterAMouseReachesTheRow() {
+        val clicked = mutableListOf<Int>()
+        Scene(width = Width, height = Height) {
+            val list = rememberLazyListState()
+            Rows(list, Modifier.scrollbar(list)) { clicked += it }
+        }.use { scene ->
+            scene.hover()
+            scene.tap(Offset(200f, 2 * 80f + 40f))
+            scene.frames(4)
+            assertEquals(listOf(2), clicked, "a finger's tap on a row, after a mouse, should be the row's")
+        }
+    }
+
+    /** And the other way: a mouse's click on a list a finger last touched. */
+    @Test
+    fun aMouseClickAfterAFingerReachesTheRow() {
+        val clicked = mutableListOf<Int>()
+        Scene(width = Width, height = Height) {
+            val list = rememberLazyListState()
+            Rows(list, Modifier.scrollbar(list)) { clicked += it }
+        }.use { scene ->
+            scene.frames(6)
+            val at = Offset(200f, 2 * 80f + 40f)
+            scene.press(at, PointerType.Mouse)
+            scene.frame()
+            scene.release(at, PointerType.Mouse)
+            scene.frames(4)
+            assertEquals(listOf(2), clicked, "a mouse's click on a row, under touch, should be the row's")
         }
     }
 }
