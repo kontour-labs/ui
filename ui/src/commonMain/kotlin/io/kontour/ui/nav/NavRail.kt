@@ -37,6 +37,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
@@ -211,6 +212,14 @@ fun NavRail(
         // See [BarSurface].
         BarSurface(
             modifier = modifier
+                // Over what is beside it. A page sliding to or from the rail's
+                // side — the one going as the next comes, both screens with the
+                // rail — went over the rail, drawn after it, and was cut off
+                // where the transition ended: *"the old screen goes above the
+                // nav rail briefly and then cuts out of existence. it should go
+                // behind the nav rail"*. A sum over the chain, so it holds
+                // wherever a caller's modifier puts the rail.
+                .zIndex(1f)
                 .layout { measurable, constraints ->
                     val w = constraints.constrainWidth(railWidth.value.roundToPx())
                     val placeable = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
