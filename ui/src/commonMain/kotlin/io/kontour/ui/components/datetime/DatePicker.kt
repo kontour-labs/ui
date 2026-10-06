@@ -1409,6 +1409,11 @@ private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.or
  *
  * @param value The date chosen, or `null` for none yet, when [placeholder]
  *   is shown, as a [DatePicker] takes one.
+ * @param supporting A line under the field, as a [TextField][io.kontour.ui.components.text.TextField]'s:
+ *   what the date is for, or what it has to be.
+ * @param errorMessage In place of [supporting], in the error colour, the
+ *   field's edge in it too, and said with the field: *"Choose a date after
+ *   today"*.
  * @param style How the date is written: `DateStyle.Medium`, "14 Mar 2026" in
  *   English, by default; `Full` adds the weekday.
  */
@@ -1420,6 +1425,8 @@ fun DateField(
     enabled: Boolean = true,
     label: String? = null,
     placeholder: String = Theme.strings.select,
+    supporting: String? = null,
+    errorMessage: String? = null,
     style: DateStyle = DateStyle.Medium,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
@@ -1432,5 +1439,7 @@ fun DateField(
         label = label,
         interactionSource = interactionSource,
         placeholder = placeholder,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }

@@ -241,6 +241,9 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
  *
  * @param value The date and time chosen. Always one, as a [DateTimePicker]
  *   always has one: there is no empty state to show a placeholder for.
+ * @param supporting A line under the field, as a [DateField]'s.
+ * @param errorMessage In place of [supporting], in the error colour, as a
+ *   [DateField]'s.
  * @param formats Writes the value; the theme's, by default.
  */
 @Composable
@@ -250,6 +253,8 @@ fun DateTimeField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -260,5 +265,7 @@ fun DateTimeField(
         enabled = enabled,
         label = label,
         interactionSource = interactionSource,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }

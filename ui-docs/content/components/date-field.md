@@ -32,6 +32,11 @@ Dialog(
 }
 ```
 
+**A line under it, as a text field has.** `supporting` says what the date is
+for or what it has to be, and `errorMessage` takes its place in the error colour,
+with the field's edge in it and said with the field — *"Choose a date after
+today"*. `DateTimeField` and [`TimeField`](time-field.md) take the same two.
+
 **One target, not two.** A read-only text field with a calendar button beside
 it is two controls that open the same thing, and the larger of them does
 nothing when pressed. The field is the button.

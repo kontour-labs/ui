@@ -1,5 +1,18 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.error
+import io.kontour.ui.components.text.TextFieldDefaults
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import io.kontour.ui.locale.TimePart
@@ -209,6 +222,10 @@ fun TimePicker(
  * a sheet. Kept separate from the picker so the picker never has to know how it
  * is being presented. [DateField] and [DateTimeField] are the same field for a
  * [DatePicker] and a [DateTimePicker].
+ *
+ * @param supporting A line under the field, as a [DateField]'s.
+ * @param errorMessage In place of [supporting], in the error colour, as a
+ *   [DateField]'s.
  */
 @Composable
 fun TimeField(
@@ -217,6 +234,8 @@ fun TimeField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -227,6 +246,8 @@ fun TimeField(
         enabled = enabled,
         label = label,
         interactionSource = interactionSource,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }
 
@@ -236,6 +257,10 @@ fun TimeField(
  *
  * @param text What is chosen, as the field shows it; `null` for nothing yet,
  *   when [placeholder] is shown instead.
+ * @param supporting A line under the field, as a text field's: what the value is
+ *   for, or what it has to be.
+ * @param errorMessage In place of [supporting], in the error colour, with the
+ *   field's edge in it too; and said with the field, as a text field's is.
  */
 @Composable
 internal fun PickerField(
@@ -246,10 +271,15 @@ internal fun PickerField(
     label: String?,
     interactionSource: MutableInteractionSource?,
     placeholder: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.field
     val shown = text ?: placeholder.orEmpty()
+    // A text field's own colours for the line under it, so a date in a form
+    // says "required" in the same grey and the same red as the name above it.
+    val fieldColours = TextFieldDefaults.colours()
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
@@ -275,6 +305,7 @@ internal fun PickerField(
                 .semantics {
                     if (label != null) contentDescription = label
                     stateDescription = shown
+                    if (errorMessage != null) error(errorMessage)
                 }
                 .pointerCursor(enabled = enabled)
                 .clickable(
@@ -290,8 +321,12 @@ internal fun PickerField(
             shape = shape,
             containerColour = Theme.colours.surfaceSunken,
             // A well on the page is 1.13:1 at the enhanced tier; the field has
-            // to be seen to be pressed.
-            border = contrastEdge(),
+            // to be seen to be pressed. In error, the error colour all round.
+            border = if (errorMessage != null) {
+                BorderStroke(Theme.sizing.borderWidth, fieldColours.error)
+            } else {
+                contrastEdge()
+            },
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
@@ -308,6 +343,30 @@ internal fun PickerField(
                     horizontal = Theme.spacing.sm,
                     vertical = Theme.spacing.sm,
                 ),
+            )
+        }
+        // The same slot a text field has: one line, the error in place of the
+        // supporting text, opening and closing in place.
+        val message = errorMessage ?: supporting
+        val motion = Theme.motion
+        AnimatedVisibility(
+            visible = message != null,
+            enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+            exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
+        ) {
+            var last by remember { mutableStateOf(message.orEmpty()) }
+            if (message != null) last = message
+            Text(
+                text = message ?: last,
+                style = Theme.typography.bodySmall,
+                colour = when {
+                    !enabled -> Theme.colours.contentDisabled
+                    errorMessage != null -> fieldColours.error
+                    else -> fieldColours.supporting
+                },
+                // Said with the field: its error as the field's, its supporting
+                // line as a line of its own after it.
+                modifier = if (errorMessage != null) Modifier.clearAndSetSemantics {} else Modifier,
             )
         }
     }
