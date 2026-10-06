@@ -25,13 +25,16 @@ FileField(
 echoes the name is two things that are one choice, and the larger of them does
 nothing when pressed. The field is the button.
 
-**One file reads as its name and size**, with a button that clears it:
-"timetable.pdf  2.4 MB". The name is cut in the middle when it does not fit, so
-its extension stays visible. The size is written by `sizeLabel`, which by default
-is `FileFieldDefaults.sizeLabel()`. That counts in thousands, as Finder, Files and
+**Each file is a chip with its name and size**, "timetable.pdf  2.4 MB", one
+file or many, so a field holding one looks like a field holding several. A single
+file is cleared by the button where the attach glyph was; with `multiple` each
+chip has its own remove. The chips are one row that scrolls sideways, fading at
+the edge it scrolls past, so the field is a field's height however many it holds.
+The size is written by `sizeLabel`, which by default is
+`FileFieldDefaults.sizeLabel()`. That counts in thousands, as Finder, Files and
 Android's storage settings now do, in the reader's digits.
 
-**Several read as chips**, each with its own remove:
+**Several add up**:
 
 <!--sample:FileFieldMultiple-->
 ```kotlin

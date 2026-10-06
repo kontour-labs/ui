@@ -1,12 +1,23 @@
 package io.kontour.ui.components.text
 
 import androidx.compose.foundation.clickable
+import io.kontour.ui.components.list.fadingEdges
+import io.kontour.ui.motion.ScrollDefaults
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -20,7 +31,6 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextOverflow
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.selection.InputChip
@@ -54,10 +64,12 @@ import kotlin.math.round
  * )
  * ```
  *
- * One file reads as its name and size, with a button to clear it. Several read
- * as chips, each with its own remove. A field that takes [multiple] adds what is
- * picked to what it holds, leaving out a file it already has; one that takes a
- * single file replaces it.
+ * Each file is a chip with its name and size, in one row that scrolls sideways
+ * and fades at the edge it scrolls past, so the field is a field's height
+ * however many it holds. A field that takes [multiple] adds what is picked to
+ * what it holds, leaving out a file it already has, and each chip has its own
+ * remove; one that takes a single file replaces it, and its clear button is
+ * where the attach glyph was.
  *
  * The picker is [rememberFilePicker]'s — the platform's own, unless
  * [LocalFileChooser] provides another — and what it hands back is checked
@@ -137,21 +149,28 @@ fun FileField(
         errorMessage = errorMessage,
         leadingIcon = leadingIcon,
         trailing = {
-            if (single != null) {
-                IconButton(
-                    icon = SystemIcons.Close,
-                    contentDescription = strings.removeFile(single.name),
-                    onClick = { onFilesChange(emptyList()) },
-                    enabled = enabled,
-                    size = ButtonSize.XSmall,
-                )
-            } else {
-                Icon(
-                    imageVector = SystemIcons.Attach,
-                    contentDescription = null,
-                    tint = if (enabled) colours.label else colours.contentDisabled,
-                    size = Theme.sizing.iconMedium,
-                )
+            // The attach glyph's box, whichever is in it: the clear button is
+            // laid out round the same centre, its target spilling into the
+            // padding, rather than widening the slot and moving its glyph in
+            // from where the attach glyph was.
+            Box(Modifier.size(Theme.sizing.iconMedium), contentAlignment = Alignment.Center) {
+                if (single != null) {
+                    IconButton(
+                        icon = SystemIcons.Close,
+                        contentDescription = strings.removeFile(single.name),
+                        onClick = { onFilesChange(emptyList()) },
+                        enabled = enabled,
+                        size = ButtonSize.XSmall,
+                        modifier = Modifier.wrapContentSize(unbounded = true),
+                    )
+                } else {
+                    Icon(
+                        imageVector = SystemIcons.Attach,
+                        contentDescription = null,
+                        tint = if (enabled) colours.label else colours.contentDisabled,
+                        size = Theme.sizing.iconMedium,
+                    )
+                }
             }
         },
         frameModifier = Modifier
@@ -174,7 +193,6 @@ fun FileField(
                 onClick = { picker.launch(types, multiple) },
             ),
     ) {
-        val contentColour = if (enabled) colours.content else colours.contentDisabled
         when {
             files.isEmpty() -> Text(
                 text = when {
@@ -187,45 +205,80 @@ fun FileField(
                 colour = if (enabled) colours.placeholder else colours.contentDisabled,
                 maxLines = 1,
             )
-            files.size == 1 -> Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val file = files.single()
-                Text(
-                    text = file.name,
-                    modifier = Modifier.weight(1f, fill = false),
-                    style = Theme.typography.bodyMedium,
-                    colour = contentColour,
-                    maxLines = 1,
-                    overflow = TextOverflow.MiddleEllipsis,
-                )
-                val size = file.size
-                if (size != null) {
-                    Text(
-                        text = sizeLabel(size),
-                        style = Theme.typography.bodyMedium,
-                        colour = if (enabled) colours.label else colours.contentDisabled,
-                        maxLines = 1,
-                    )
-                }
-            }
-            else -> FlowRow(
-                modifier = Modifier.weight(1f).padding(vertical = Theme.spacing.xxs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-            ) {
-                for (file in files) {
-                    InputChip(
-                        onRemove = { onFilesChange(files - file) },
-                        removeLabel = strings.removeFile(file.name),
-                        enabled = enabled,
-                    ) { +file.name }
+            else -> {
+                // **One row of chips, one file or many.** A single file was its
+                // name and size as text and several were wrapping chips, which
+                // read as two different fields: asked for as "several files
+                // looks too different from a single file. maybe we should make
+                // all of them come up as chips like that, and also show the file
+                // size inside the chip".
+                //
+                // And the field stays a field's height: the row scrolls sideways
+                // rather than wrapping, fading at the edge it scrolls past, and
+                // tells the field it is a line of text tall — a chip and its
+                // touch target are taller, and spill into the field's own
+                // padding instead of growing it.
+                val scroll = rememberScrollState()
+                val line = (metrics.minHeight - metrics.verticalPadding * 2).coerceAtLeast(0.dp)
+                Box(Modifier.weight(1f).atMostTall(line)) {
+                    Row(
+                        modifier = Modifier
+                            .fadingEdges(scroll, Orientation.Horizontal, fadeLength = Theme.spacing.md)
+                            .horizontalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()),
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        for (file in files) {
+                            FileChip(
+                                file = file,
+                                sizeLabel = sizeLabel,
+                                enabled = enabled,
+                                // A single file is cleared by the field's own
+                                // button, where the attach glyph was; several
+                                // each have their own remove.
+                                onRemove = if (single == null) ({ onFilesChange(files - file) }) else null,
+                                removeLabel = strings.removeFile(file.name),
+                                muted = if (enabled) colours.label else colours.contentDisabled,
+                            )
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/** A file in a [FileField]: its name, and its size after it in the field's quieter ink. */
+@Composable
+private fun FileChip(
+    file: PickedFile,
+    sizeLabel: (bytes: Long) -> String,
+    enabled: Boolean,
+    onRemove: (() -> Unit)?,
+    removeLabel: String,
+    muted: Color,
+) {
+    InputChip(
+        onRemove = { onRemove?.invoke() },
+        removeLabel = removeLabel,
+        enabled = enabled,
+        removeIcon = if (onRemove != null) SystemIcons.Close else null,
+    ) {
+        +file.name
+        val size = file.size
+        if (size != null) Text(text = sizeLabel(size), colour = muted, maxLines = 1)
+    }
+}
+
+/**
+ * Reports at most [height] to its parent, and centres what it holds on that,
+ * letting it spill over above and below: a row of chips in a field, which is a
+ * line of text tall to the field and a chip tall to the eye.
+ */
+private fun Modifier.atMostTall(height: Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+    val reported = minOf(placeable.height, height.roundToPx()).coerceIn(constraints.minHeight, constraints.maxHeight)
+    layout(placeable.width, reported) { placeable.placeRelative(0, (reported - placeable.height) / 2) }
 }
 
 /** What [FileField] takes by default. */

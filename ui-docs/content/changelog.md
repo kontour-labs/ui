@@ -180,8 +180,9 @@ on a round phone stop at 40dp.
 
 - **[`FileField`](components/file-field.md)**, and **`rememberFilePicker`**
   under it, which opens each platform's own picker: Android's document picker, iOS's,
-  a desktop file dialog and a browser's file input. One file reads as its name and
-  size, with a clear button; several read as chips. `FileTypes` says what to
+  a desktop file dialog and a browser's file input. Each file is a chip with its
+  name and size, in one row that scrolls sideways so the field keeps its height;
+  a single file clears with the button where the attach glyph was. `FileTypes` says what to
   offer (`image/png`, a whole family, `.pdf`), and what comes back is checked
   against it again. What is picked arrives as `PickedFile`s, read on demand.
   `LocalFileChooser` swaps the picker for a test's or an app's own. Files
