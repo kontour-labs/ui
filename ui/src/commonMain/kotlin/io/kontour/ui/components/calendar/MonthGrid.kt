@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -62,7 +63,7 @@ internal fun MonthView(scope: CalendarScope) {
             // week is as tall as a date and three events.
             val bounded = constraints.hasBoundedHeight
             val minRow = monthRowMinHeight()
-            val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled) }
+            val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
             PeriodStrip(pager, Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier).then(swipe)) { month ->
                 MonthPage(scope, month, if (bounded) null else minRow)
             }
@@ -157,13 +158,21 @@ private fun MonthWeek(
                     date = date,
                     inMonth = date.month == firstOfMonth.month && date.year == firstOfMonth.year,
                     count = count,
-                    more = pack.more[column],
+                    // Only where a row is left for it: a box too short for even
+                    // one says how many it has to a screen reader, and no more.
+                    more = if (pack.shownRows[column] < maxRows) pack.more[column] else 0,
                     moreRow = pack.shownRows[column],
                     itemHeight = item,
                     dateLabel = dateLabel,
                     events = weekEvents,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
+            }
+        }
+        // Each day's place, for an event carried by whole days.
+        Row(Modifier.fillMaxSize()) {
+            for (column in 0 until DaysPerWeek) {
+                DayTarget(scope, dayInWeek(weekStart, column), Modifier.weight(1f).fillMaxHeight())
             }
         }
         for (placement in pack.placed) {
@@ -249,7 +258,7 @@ private fun DayBox(
             .semantics { contentDescription = described },
     ) {
         // The date: its day, opened by pressing its number.
-        Box(Modifier.padding(Theme.spacing.xxs).height(dateLabel - Theme.spacing.xxs * 2), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.padding(Theme.spacing.xxs).heightIn(min = dateLabel - Theme.spacing.xxs * 2), contentAlignment = Alignment.CenterStart) {
             Text(
                 formats.integer(date.day),
                 style = Theme.typography.labelMedium,

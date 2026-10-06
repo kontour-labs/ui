@@ -164,7 +164,10 @@ passed by position need naming — see **Breaking**, and
   is wall-clock and half-open; the app keeps the events and the calendar
   reports presses on an event, a day and an empty time. The header steps,
   goes to today and switches the view, a swipe pages as the date picker's
-  months do, and a day's number opens the day.
+  months do, and a day's number opens the day. Events can be drawn out,
+  carried and stretched — by finger, mouse, keyboard or a screen reader's
+  actions — in steps of `snap`, reported through `onCreateRequest`,
+  `onEventMove` and `onEventResize`.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

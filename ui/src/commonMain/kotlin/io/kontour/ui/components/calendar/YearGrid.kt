@@ -36,7 +36,7 @@ import kotlinx.datetime.plus
 @Composable
 internal fun YearView(scope: CalendarScope) {
     val pager = scope.pager
-    val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled) }
+    val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
     val tones = Tone.entries.associateWith { toneColours(it).solid }
     BoxWithConstraints(Modifier.fillMaxWidth().then(swipe)) {
         val columns = (maxWidth / CalendarMonthDefaults.MaxWidth).toInt().coerceIn(1, MaxColumns)

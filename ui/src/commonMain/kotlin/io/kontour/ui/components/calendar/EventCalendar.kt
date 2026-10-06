@@ -1,5 +1,17 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateOf
+import io.kontour.ui.interaction.rememberLongPressFeedback
+import io.kontour.ui.interaction.rememberLandingFeedback
+import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.locale.ListStyle
+import io.kontour.ui.theme.Strings
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,6 +120,20 @@ import kotlinx.datetime.toLocalDateTime
  *   its events — to make an event there, say. Null: the boxes are not buttons.
  * @param onTimeClick An empty time pressed in the day or week view, to the
  *   quarter-hour before it. Null: empty time is not a button.
+ * @param onCreateRequest A new event drawn out on empty time in the day or
+ *   week view — held and dragged on a touchscreen, dragged with a mouse — from
+ *   its start to its end, on whole [snap]s. The calendar shows it while it is
+ *   drawn and adds nothing: add the event to [events] to keep it. Null: empty
+ *   time cannot be drawn on.
+ * @param onEventMove An event carried to another time or day — held and
+ *   dragged, dragged with a mouse, picked up with Space and moved with the
+ *   arrows, or moved by a screen reader's actions — with where it would start
+ *   and end. Its length is kept. Null, or an event not [CalendarEvent.editable]:
+ *   it stays where it is.
+ * @param onEventResize An event's start or end dragged — by its edge, or with
+ *   Shift and the arrows — with its new times, never shorter than [snap].
+ * @param snap The step every edit moves in: a quarter-hour by default. A whole
+ *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
  * @param formats How dates, times and numbers are written: the theme's.
  * @param header Above the calendar: by default [EventCalendarDefaults.Header],
@@ -128,15 +154,28 @@ fun EventCalendar(
     onEventClick: ((CalendarEvent) -> Unit)? = null,
     onDateClick: ((LocalDate) -> Unit)? = null,
     onTimeClick: ((LocalDateTime) -> Unit)? = null,
+    onCreateRequest: ((start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
+    onEventMove: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
+    onEventResize: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
+    snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     formats: LocaleFormats = Theme.formats,
     header: (@Composable (EventCalendarState) -> Unit)? = { EventCalendarDefaults.Header(it) },
     eventContent: @Composable (event: CalendarEvent, presentation: EventPresentation) -> Unit =
         { event, presentation -> EventCalendarDefaults.EventContent(event, presentation) },
 ) {
+    val snapMinutes = snap.inWholeMinutes
+    require(snap.isPositive() && snap == snapMinutes.minutes && MinutesPerDay % snapMinutes == 0L) {
+        "EventCalendar: `snap` is $snap, and every edit moves in whole steps of it through a day — give it a whole " +
+            "number of minutes that divides a day: 5, 10, 15, 30 or 60 minutes."
+    }
     val today = now?.date
     SideEffect { state.today = today }
     val pager = rememberCalendarPager(state)
+    val edit = rememberEventEdit()
+    edit.stepMinutes = snapMinutes.toInt()
+    val announcer = remember { Announcer() }
+    val modality = LocalInputModality.current
     val scope = CalendarScope(
         state = state,
         events = events,
@@ -149,7 +188,16 @@ fun EventCalendar(
         formats = formats,
         eventContent = eventContent,
         pager = pager,
+        edit = edit,
+        onCreateRequest = onCreateRequest,
+        onEventMove = onEventMove,
+        onEventResize = onEventResize,
+        announcer = announcer,
+        touch = modality.needsLargeTargets,
+        strings = Theme.strings,
     )
+    // Turned off — disabled — mid-edit, the edit is put back.
+    if (!enabled && edit.live) SideEffect { edit.cancel() }
     BoxWithConstraints(modifier) {
         // Given no width — in a row that scrolls sideways, say — a phone's.
         // Clipped, so a calendar squeezed narrower than its header's buttons
@@ -163,6 +211,9 @@ fun EventCalendar(
                 CalendarView.Year -> YearView(scope)
             }
         }
+        // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
+        // Over the calendar rather than in its column, so it takes no room.
+        Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcer.message })
     }
 }
 
@@ -183,7 +234,43 @@ internal class CalendarScope(
     val formats: LocaleFormats,
     val eventContent: @Composable (CalendarEvent, EventPresentation) -> Unit,
     val pager: CalendarPager,
+    val edit: EventEdit,
+    val onCreateRequest: ((LocalDateTime, LocalDateTime) -> Unit)?,
+    val onEventMove: ((CalendarEvent, LocalDateTime, LocalDateTime) -> Unit)?,
+    val onEventResize: ((CalendarEvent, LocalDateTime, LocalDateTime) -> Unit)?,
+    val announcer: Announcer,
+    /** Whether the pointer is a finger: an edit then starts with a long press, and a quick swipe still pages. */
+    val touch: Boolean,
+    val strings: Strings,
 ) {
+    /** Whether [event] can be carried. */
+    fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
+
+    /** Whether [event]'s edges can be dragged. */
+    fun resizable(event: CalendarEvent): Boolean = enabled && onEventResize != null && event.editable
+
+    /** Puts the edit in hand down, and reports and reads out what it did. */
+    fun putDown() {
+        val done = edit.finish() ?: return
+        val event = done.event
+        when {
+            done.kind == EditKind.Create -> onCreateRequest?.invoke(done.start, done.end)
+            event == null -> Unit
+            // Moved from the keyboard with only its end changed: that is a resize.
+            done.kind == EditKind.Move && done.start == event.start -> onEventResize?.invoke(event, done.start, done.end)
+            done.kind == EditKind.Move -> onEventMove?.invoke(event, done.start, done.end)
+            else -> onEventResize?.invoke(event, done.start, done.end)
+        }
+        announce(event?.title ?: strings.newEvent, done.start, done.end)
+    }
+
+    /** Reads out where [title] now is. */
+    fun announce(title: String, start: LocalDateTime, end: LocalDateTime) {
+        val days = formats.date(start.date, DateStyle.Full)
+        val time = strings.timeRange(formats.time(start.time), formats.time(end.time))
+        announcer.say(strings.eventMoved(title, formats.list(listOf(days, time), ListStyle.Unit)))
+    }
+
     val today: LocalDate? get() = now?.date
 
     /** The events with any part between [from] and [to], both included. */
@@ -199,6 +286,9 @@ object EventCalendarDefaults {
     /** How tall an hour is in the day and week views. */
     val HourHeight: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.eventCalendarHourHeight
+
+    /** The step every edit moves in: a quarter-hour. */
+    val Snap: Duration get() = DefaultSnap
 
     /** Today, on the system's clock in its time zone. */
     fun currentDate(): LocalDate = DatePickerDefaults.currentDate()
@@ -246,6 +336,35 @@ object EventCalendarDefaults {
 }
 
 private val DefaultScrollTime = LocalTime(8, 0)
+private val DefaultSnap = 15.minutes
+
+/** What the calendar last said, for its live region. A message repeated is said again. */
+@Stable
+internal class Announcer {
+    var message by mutableStateOf("")
+        private set
+    private var count = 0
+
+    fun say(text: String) {
+        // A space either side changes nothing heard and makes the same words a
+        // new value, so a second identical move is announced too.
+        count++
+        message = if (count % 2 == 0) text else " $text"
+    }
+}
+
+/**
+ * The calendar's edit state, with the haptics it is felt through: a detent per
+ * step, the pick-up, the landing. Built here so that everything the calendar
+ * makes felt is in this one file.
+ */
+@Composable
+internal fun rememberEventEdit(): EventEdit {
+    val steps = rememberDetentTicker(FeedbackIntent.Snap)
+    val landing = rememberLandingFeedback()
+    val pickedUp = rememberLongPressFeedback()
+    return remember(steps, landing) { EventEdit(steps, landing, pickedUp) }
+}
 
 private fun systemNow(): LocalDateTime =
     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -422,16 +541,27 @@ internal class CalendarPager(
 ) {
     var pageWidth by mutableIntStateOf(0)
 
-    /** The swipe, on whatever the pages are under. */
+    /**
+     * The swipe, on whatever the pages are under. With a mouse, not on
+     * anything [edit] takes a drag on — an event, empty time that can be drawn
+     * on — where a mouse drag is the edit; a finger holds first to edit, so its
+     * quick swipe still pages.
+     */
     @Composable
-    fun Modifier.swipesPeriods(enabled: Boolean): Modifier {
+    fun Modifier.swipesPeriods(enabled: Boolean, edit: EventEdit, touch: Boolean): Modifier {
         val scope = rememberCoroutineScope()
         val towardsEnd = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
-        return horizontalDragOwning(
+        val placed = remember { PlacedAt() }
+        val isTouch by rememberUpdatedState(touch)
+        return onGloballyPositioned { placed.coordinates = it }.horizontalDragOwning(
             enabled = enabled,
             interactionSource = null,
             scope = scope,
             claimsOn = DragClaim.Direction,
+            accepts = { at ->
+                val coordinates = placed.coordinates
+                isTouch || coordinates == null || !coordinates.isAttached || !edit.draggableAt(coordinates.localToRoot(at))
+            },
             onStart = { periods.take() },
             onDelta = { delta ->
                 val width = pageWidth.toFloat()
@@ -528,6 +658,11 @@ internal fun PeriodStrip(pager: CalendarPager, modifier: Modifier = Modifier, co
             }
         }
     }
+}
+
+/** A node's coordinates, kept for a gesture to read. Not state: written in layout, read in input. */
+internal class PlacedAt {
+    var coordinates: LayoutCoordinates? = null
 }
 
 /** Where a page that has no place is put: well off the side, not drawn. */

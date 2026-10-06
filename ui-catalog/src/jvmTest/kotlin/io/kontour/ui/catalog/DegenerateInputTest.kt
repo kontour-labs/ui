@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import kotlin.time.Duration.Companion.minutes
 import androidx.compose.foundation.layout.height
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalDate
@@ -218,6 +219,16 @@ class DegenerateInputTest {
     fun anEventEndingBeforeItStartsSaysSo() = refuses("CalendarEvent(end before start)", "CalendarEvent", "end") {
         CalendarEvent(1, "Backwards", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 9, 0))
         Unit
+    }
+
+    /** A step that does not divide a day: edits would drift off the hour. */
+    @Test
+    fun aSnapThatDoesNotDivideADaySaysSo() = refuses("EventCalendar(snap = 7.minutes)", "EventCalendar", "snap") {
+        EventCalendar(
+            state = rememberEventCalendarState(initialDate = LocalDate(2026, 10, 14)),
+            events = emptyList(),
+            snap = 7.minutes,
+        )
     }
 
     /** A calendar opened before its events have loaded, in every view. */

@@ -80,6 +80,30 @@ unless `rememberEventCalendarState` is given another.
 | `onDateClick` | A day's box pressed in the month, away from its number and its events — to start a new event there, say. |
 | `onTimeClick` | An empty time pressed in the day or week view, to the quarter-hour before it. |
 
+## Editing
+
+Give the calendar the callbacks for the edits you take and it offers them; it
+still changes nothing itself. It shows each edit while it is in hand, and when
+the edit is put down it reports where the event would go. Change your `events`
+to keep the result, or leave them as they are to refuse it.
+
+| Callback | The edit |
+|---|---|
+| `onCreateRequest(start, end)` | A new event drawn out on empty time in the day or week view: held and dragged with a finger, dragged with a mouse. It starts on the step the pointer took hold of and runs to where it was let go, at least one step long. |
+| `onEventMove(event, start, end)` | An event carried somewhere else, keeping its length. In the hours it moves by time, and to another day by moving across; holding it past the first or last day pages the week and carries on there, and near the top or bottom of the hours they scroll. A bar, or a line in a month, moves by whole days and keeps its time. |
+| `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. With a mouse the edges are always there, with the resize cursor. On a touchscreen, hold the event and let go without moving to show its edges' handles. |
+
+Every edit moves in steps of `snap`, a quarter-hour by default, and each step
+is felt as a tick. A step must be a whole number of minutes that divides a day.
+On a touchscreen an edit starts with a long press, so a quick swipe still
+scrolls the hours or pages the period. With a mouse an edit starts as soon as
+the pointer moves, so swiping a mouse across an event moves the event instead
+of paging.
+
+An event the app only shows, such as a holiday from a subscribed calendar,
+says so with `editable = false` and can't be moved or resized, though it can
+still be pressed.
+
 ## Your own pieces
 
 `header` replaces the default `EventCalendarDefaults.Header`, or is null for
@@ -119,6 +143,19 @@ language, and every word comes from the theme's strings.
 At high contrast the grid's lines take the stronger outline, an event's tinted
 box takes the tier's edge so it reads as a box rather than a wash, and muted
 text is drawn at full ink.
+
+**Every edit can be made without a pointer.** A focused event is picked up
+with Space. The up and down arrows then move it a step at a time, left and
+right move it a day (mirrored for right-to-left reading), Shift with up or down
+changes its end, Enter or Space puts it down, and Escape puts it back. A screen
+reader is offered the same edits as actions on the event: move earlier, move
+later, move to the day before or after, make longer and make shorter, each for
+the edits the app takes. After each edit, a screen reader is told where the
+event now is.
+
+While an event is carried, the copy left behind is faded and the place it
+would land is drawn as a lifted copy in its own tone with a stronger edge. In
+a month, the days it would land on are edged.
 
 Under reduced motion the swipe and the header's arrows change the period in
 place, without sliding.

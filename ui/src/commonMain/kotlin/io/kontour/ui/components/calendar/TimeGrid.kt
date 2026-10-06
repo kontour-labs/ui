@@ -1,5 +1,13 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.scrollBy
+import io.kontour.ui.interaction.detectPickUp
+import io.kontour.ui.interaction.PickUpAxis
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +53,7 @@ import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.NameWidth
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
@@ -64,8 +73,9 @@ internal fun TimeView(scope: CalendarScope) {
     val pager = scope.pager
     val days = if (state.view == CalendarView.Day) 1 else DaysPerWeek
     val gutter = gutterWidth(scope)
-    val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled) }
+    val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
     val hourPx = with(LocalDensity.current) { scope.hourHeight.toPx() }
+    val hours = remember { PlacedAt() }
 
     Column(Modifier.fillMaxWidth().then(swipe)) {
         Row(Modifier.fillMaxWidth()) {
@@ -80,6 +90,7 @@ internal fun TimeView(scope: CalendarScope) {
             Row(
                 viewport
                     .fillMaxWidth()
+                    .onGloballyPositioned { hours.coordinates = it }
                     .verticalScroll(state.timeScroll, flingBehavior = ScrollDefaults.flingBehavior()),
             ) {
                 HourGutter(scope, gutter)
@@ -89,6 +100,8 @@ internal fun TimeView(scope: CalendarScope) {
             }
         }
     }
+
+    EditScroll(scope, hours, days)
 
     // Opened at the start of a working day, once, or put back where it was.
     LaunchedEffect(state, hourPx) {
@@ -103,6 +116,82 @@ internal fun TimeView(scope: CalendarScope) {
         state.scrolledToStart = true
     }
 }
+
+/**
+ * While an edit is in hand: the hours scroll when the pointer is near their
+ * top or bottom — once it has been away from that edge, so taking hold of an
+ * event beside the edge does not run off with it — and a carry held past the
+ * first or last day pages to the period before or after, and goes on there.
+ */
+@Composable
+private fun EditScroll(scope: CalendarScope, hours: PlacedAt, days: Int) {
+    val edit = scope.edit
+    val state = scope.state
+    val density = LocalDensity.current
+    val zone = with(density) { EdgeZone.toPx() }
+    val fastest = with(density) { EdgeSpeed.toPx() }
+    LaunchedEffect(edit) {
+        snapshotFlow { edit.live }.collect { live ->
+            if (!live) return@collect
+            var armed = false
+            var held = 0L
+            var last = withFrameNanos { it }
+            while (edit.live) {
+                val now = withFrameNanos { it }
+                val seconds = (now - last) / NanosPerSecond
+                last = now
+                val pointer = edit.lastPointer ?: continue
+                val box = hours.coordinates?.takeIf { it.isAttached } ?: continue
+                val top = box.localToRoot(Offset.Zero).y
+                val bottom = top + box.size.height
+                val depth = when {
+                    pointer.y < top + zone -> -((top + zone - pointer.y) / zone).coerceAtMost(1f)
+                    pointer.y > bottom - zone -> ((pointer.y - (bottom - zone)) / zone).coerceAtMost(1f)
+                    else -> 0f
+                }
+                if (depth == 0f) armed = true
+                if (armed && depth != 0f && !edit.byDays) {
+                    state.timeScroll.scrollBy(depth * fastest * seconds)
+                    edit.move(pointer)
+                }
+                // Past the first or last day, held: the next period.
+                if (edit.kind == EditKind.Move && !edit.byDays) {
+                    val dates = state.visibleDates
+                    val first = edit.columns[dates.start]?.takeIf { it.isAttached }
+                    val lastColumn = edit.columns[dates.start.plus(days - 1, DateTimeUnit.DAY)]?.takeIf { it.isAttached }
+                    val left = first?.localToRoot(Offset.Zero)?.x
+                    val right = lastColumn?.let { it.localToRoot(Offset.Zero).x + it.size.width }
+                    val rtl = box.size.width > 0 && left != null && right != null && left > right
+                    val out = when {
+                        left != null && pointer.x < minOf(left, right ?: left) -> if (rtl) 1 else -1
+                        right != null && pointer.x > maxOf(right, left ?: right) -> if (rtl) -1 else 1
+                        else -> 0
+                    }
+                    if (out == 0) {
+                        held = 0L
+                    } else {
+                        held += (seconds * NanosPerSecond).toLong()
+                        if (held >= DwellNanos) {
+                            held = 0L
+                            state.step(out)
+                            withFrameNanos { }
+                            edit.move(pointer)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** How near the top or bottom of the hours an edit starts them scrolling. */
+private val EdgeZone = 48.dp
+
+/** How fast, at the very edge, a second. */
+private val EdgeSpeed = 1200.dp
+
+private const val NanosPerSecond = 1_000_000_000f
+private const val DwellNanos = 700_000_000L
 
 private const val HoursPerDay = 24
 private const val MinutesPerHour = 60
@@ -204,6 +293,12 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
             BoxWithConstraints(Modifier.fillMaxWidth().height(item * rows)) {
                 val cell = maxWidth / days
                 val gap = Theme.spacing.xxs / 2
+                // Each day's place in the row, for a bar carried by whole days.
+                Row(Modifier.fillMaxSize()) {
+                    for (column in 0 until days) {
+                        DayTarget(scope, from.plus(column, DateTimeUnit.DAY), Modifier.weight(1f).fillMaxHeight())
+                    }
+                }
                 for (placement in pack.placed) {
                     val placed = placement.item
                     EventChip(
@@ -241,6 +336,27 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
             }
         }
     }
+}
+
+/**
+ * A day's place for an edit by days to find, edged while a carried bar would
+ * land on it.
+ */
+@Composable
+internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier) {
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    DisposableEffect(edit, date) {
+        onDispose { if (edit.days[date] === placed.coordinates) edit.days.remove(date) }
+    }
+    Box(
+        modifier
+            .onGloballyPositioned { coordinates ->
+                placed.coordinates = coordinates
+                edit.days[date] = coordinates
+            }
+            .then(if (edit.landsOn(date)) Modifier.border(Theme.sizing.borderWidthStrong, Theme.colours.accent.solid) else Modifier),
+    )
 }
 
 /** At most this many rows of all-day bars before a day says "+N". */
@@ -290,7 +406,8 @@ private fun DayColumns(scope: CalendarScope, period: Int, days: Int) {
 
 /**
  * One day's hours: a line each hour, its events laid side by side where they
- * overlap, and the line for now on today.
+ * overlap, the line for now on today — and, where the calendar takes edits, a
+ * new event drawn out on its empty time and the ghost of an edit landing here.
  */
 @Composable
 private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier) {
@@ -308,16 +425,58 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val click by rememberUpdatedState(scope.onTimeClick)
     val step = TapStepMinutes
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    val press = remember { PressAt() }
+    val creates = scope.enabled && scope.onCreateRequest != null
+    val isTouch by rememberUpdatedState(scope.touch)
+
+    // Where an edit in hand would put it, if any of that is on this day.
+    val ghost = run {
+        val start = edit.start
+        val end = edit.end
+        if (!edit.live || edit.byDays || start == null || end == null) return@run null
+        val shown = CalendarEvent(
+            id = GhostId,
+            title = edit.event?.title ?: scope.strings.newEvent,
+            start = start,
+            end = end,
+            tone = edit.event?.tone ?: Tone.Accent,
+        )
+        layoutTimedDay(date, listOf(shown), minMinutes).singleOrNull()
+    }
+
+    DisposableEffect(edit, date) {
+        onDispose {
+            if (edit.columns[date] === placed.coordinates) edit.columns.remove(date)
+            edit.draggables.remove(placed)
+        }
+    }
 
     Layout(
         content = {
             for (placement in placements) {
                 key(placement.event.id, placement.start) {
-                    EventChip(event = placement.event, presentation = EventPresentation.Block, scope = scope)
+                    EventChip(
+                        event = placement.event,
+                        presentation = EventPresentation.Block,
+                        scope = scope,
+                        clippedStart = placement.clippedStart,
+                        clippedEnd = placement.clippedEnd,
+                    )
                 }
+            }
+            if (ghost != null) {
+                EventChip(event = ghost.event, presentation = EventPresentation.Block, scope = scope, ghost = true)
             }
         },
         modifier = modifier
+            .onGloballyPositioned { coordinates ->
+                placed.coordinates = coordinates
+                edit.columns[date] = coordinates
+                edit.pixelsPerMinute = hourPx / MinutesPerHour
+                if (creates) edit.draggables[placed] = coordinates else edit.draggables.remove(placed)
+            }
             .drawBehind {
                 val width = line.toPx()
                 // The day's start edge, and an hour's line across it each hour.
@@ -346,13 +505,38 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 } else {
                     Modifier
                 },
+            )
+            .then(
+                // Inside the tap, so a drawn-out range, put down, is not also a tap.
+                if (creates) {
+                    Modifier.notesPress(press).pointerInput(edit, date) {
+                        detectPickUp(
+                            axis = PickUpAxis.Free,
+                            immediate = { !isTouch },
+                            onPickUp = { at ->
+                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(press.position ?: at) ?: return@detectPickUp
+                                edit.beginCreate(date, root)
+                                if (isTouch) edit.pickedUp()
+                            },
+                            onCarry = { change, _ ->
+                                change.consume()
+                                placed.coordinates?.takeIf { it.isAttached }?.localToRoot(change.position)?.let(edit::move)
+                            },
+                            onPutDown = { scope.putDown() },
+                            onCancel = { edit.cancel() },
+                        )
+                    }
+                } else {
+                    Modifier
+                },
             ),
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val perMinute = hourPx / MinutesPerHour
+        val all = if (ghost != null) placements + ghost else placements
         val placeables = measurables.mapIndexed { i, measurable ->
-            val p = placements[i]
+            val p = all[i]
             val lane = width.toFloat() / p.lanes
             val w = (lane - gapPx).roundToInt().coerceAtLeast(0)
             val h = (maxOf(minChipPx, (p.end - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
@@ -360,13 +544,16 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         }
         layout(width, height) {
             placeables.forEachIndexed { i, placeable ->
-                val p = placements[i]
+                val p = all[i]
                 val lane = width.toFloat() / p.lanes
                 placeable.placeRelative((p.lane * lane + gapPx / 2).roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt())
             }
         }
     }
 }
+
+/** The id of the ghost an edit draws: nothing an app's events could be. */
+private object GhostId
 
 /** An empty time pressed is the quarter-hour it is in. */
 private const val TapStepMinutes = 15

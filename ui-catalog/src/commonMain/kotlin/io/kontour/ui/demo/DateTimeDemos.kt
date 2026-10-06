@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.LaunchedEffect
@@ -504,8 +505,13 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
     val view = this[eventCalendarView]
     val calendar = rememberEventCalendarState(initialDate = today, initialView = view)
     LaunchedEffect(view) { calendar.show(view) }
-    val events = remember { demoCalendarEvents(today) }
+    // The demo keeps its events, as an app does, and takes the calendar's edits.
+    var events by remember { mutableStateOf(demoCalendarEvents(today)) }
+    var made by remember { mutableIntStateOf(100) }
     val formats = Theme.formats
+    fun replace(event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) {
+        events = events.map { if (it.id == event.id) it.copy(start = start, end = end) else it }
+    }
     EventCalendar(
         state = calendar,
         events = events,
@@ -513,6 +519,18 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
         onEventClick = { echo(it.title) },
         onDateClick = { echo(formats.date(it, DateStyle.Medium)) },
         onTimeClick = { echo("${formats.date(it.date, DateStyle.Medium)} ${formats.time(it.time)}") },
+        onCreateRequest = { start, end ->
+            events = events + CalendarEvent(made++, "New event", start, end)
+            echo("New event at ${formats.time(start.time)}")
+        },
+        onEventMove = { event, start, end ->
+            replace(event, start, end)
+            echo("${event.title} moved")
+        },
+        onEventResize = { event, start, end ->
+            replace(event, start, end)
+            echo("${event.title} now ends ${formats.time(end.time)}")
+        },
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )
 }

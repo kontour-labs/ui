@@ -404,10 +404,11 @@ public final class io/kontour/ui/components/calendar/EventCalendarDefaults {
 	public final fun currentTime (Landroidx/compose/runtime/Composer;I)Lkotlinx/datetime/LocalDateTime;
 	public final fun getHourHeight (Landroidx/compose/runtime/Composer;I)F
 	public final fun getScrollTime ()Lkotlinx/datetime/LocalTime;
+	public final fun getSnap-UwyO8pc ()J
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarKt {
-	public static final fun EventCalendar-wn8IZOc (Lio/kontour/ui/components/calendar/EventCalendarState;Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;FLio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
+	public static final fun EventCalendar-QwuqQlM (Lio/kontour/ui/components/calendar/EventCalendarState;Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;JFLio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarState {
