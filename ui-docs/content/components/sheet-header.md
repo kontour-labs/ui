@@ -59,7 +59,7 @@ Outside a sheet with a handle it has the inset above as well as below.
 the corner.** An edge sheet's top corners are the display's own, about 55pt on
 an iPhone and 51dp on a newer Pixel, against the sheet's 34dp, and at 16dp in
 the title's corner was 5dp from the curve. So the header, the handle's band
-above it and a part pinned to the top move in by what the rounder corner cuts
+above it and the sheet's `header` move in by what the rounder corner cuts
 into its diagonal, 1 − 1/√2 of the difference: 5dp at 51, 6dp at 55, nothing at
 the sheet's own 34 or the floating sheet's 28. Each side follows its own corner,
 and the band grows by the deeper of the two. It is worked out once for a sheet

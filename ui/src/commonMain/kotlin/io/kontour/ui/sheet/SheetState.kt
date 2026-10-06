@@ -270,7 +270,7 @@ class SheetState internal constructor(
             sheetHeight = resolvingHeight(),
             peekHeight = peekHeight,
             density = density,
-            pinnedHeight = pinnedHeight,
+            slotsHeight = slotsHeight,
         )
     }
 
@@ -624,17 +624,17 @@ class SheetState internal constructor(
     internal var peekContentHeight by mutableFloatStateOf(Float.NaN)
 
     /**
-     * How tall the sheet is when it shows its pinned parts and nothing else: the
-     * drag handle, the parts pinned to the top, those pinned to the bottom, and
-     * the safe area under them all — under the top ones too when there are no
-     * bottom ones. What [SheetDetent.pinned] resolves to; `0`
-     * while the sheet has no pinned parts, which leaves the detent its fallback.
+     * How tall the sheet is when it shows its header and its footer and nothing
+     * else: the drag handle, the header, the footer, and the safe area under them
+     * all — under the header too when there is no footer. What
+     * [SheetDetent.headerAndFooter] resolves to; `0` while the sheet has neither,
+     * which leaves the detent its fallback.
      *
      * Measured by the sheet's own layout rather than from positions in the root,
      * for the reason [peekContentHeight] gives: it is a fact about the content,
      * and must not move while the sheet does.
      */
-    internal var pinnedHeight by mutableFloatStateOf(0f)
+    internal var slotsHeight by mutableFloatStateOf(0f)
 
     /**
      * The two live layout nodes the peek is measured between.
@@ -932,7 +932,7 @@ class SheetState internal constructor(
         val container: Int,
         val sheet: Int,
         val peek: Int,
-        val pinned: Int,
+        val slots: Int,
         val detents: List<SheetDetent>,
         val density: Float,
         val fontScale: Float,
@@ -1011,7 +1011,7 @@ class SheetState internal constructor(
             container = containerHeight.roundToInt(),
             sheet = resolving.roundToInt(),
             peek = peekHeight.roundToInt(),
-            pinned = pinnedHeight.roundToInt(),
+            slots = slotsHeight.roundToInt(),
             detents = allowedDetents,
             density = density.density,
             fontScale = density.fontScale,
@@ -1026,7 +1026,7 @@ class SheetState internal constructor(
             sheetHeight = resolving,
             peekHeight = peekHeight,
             density = density,
-            pinnedHeight = pinnedHeight,
+            slotsHeight = slotsHeight,
         )
         if (positions.isEmpty()) return
 
@@ -1539,8 +1539,8 @@ fun rememberSheetState(
  *
  * - **The measured peek wins over the detent's fallback.** [SheetDetent.peek]
  *   carries a fixed height so a sheet has somewhere to sit before its header has
- *   been measured; once it has, the real height replaces it. [SheetDetent.pinned]
- *   is the same, with the pinned parts' height.
+ *   been measured; once it has, the real height replaces it. [SheetDetent.headerAndFooter]
+ *   is the same, with the header's and the footer's height.
  * - **Duplicates are dropped.** Two anchors at the same offset make
  *   `settledValue` ambiguous, and the sheet flickers between two names for one
  *   position. It happens easily: on a short screen `Half` and `Expanded` can
@@ -1552,7 +1552,7 @@ internal fun resolveAnchors(
     sheetHeight: Float,
     peekHeight: Float,
     density: Density,
-    pinnedHeight: Float = 0f,
+    slotsHeight: Float = 0f,
 ): LinkedHashMap<SheetDetent, Float> {
     val positions = LinkedHashMap<SheetDetent, Float>()
     if (containerHeight <= 0f) return positions
@@ -1564,7 +1564,7 @@ internal fun resolveAnchors(
             sheetHeight = sheetHeight,
             peekHeight = peekHeight,
             density = density,
-            pinnedHeight = pinnedHeight,
+            slotsHeight = slotsHeight,
         )
         if (positions.values.none { abs(it - offset) < 0.5f }) {
             positions[detent] = offset
@@ -1587,11 +1587,11 @@ internal fun detentOffset(
     sheetHeight: Float,
     peekHeight: Float,
     density: Density,
-    pinnedHeight: Float = 0f,
+    slotsHeight: Float = 0f,
 ): Float {
     val visible = when {
         detent.id == PeekDetentId && peekHeight > 0f -> peekHeight
-        detent.id == PinnedDetentId && pinnedHeight > 0f -> pinnedHeight
+        detent.id == SlotsDetentId && slotsHeight > 0f -> slotsHeight
         else -> with(density) { detent.resolve(this, containerHeight, sheetHeight) }
     }
     // **Any detent may reach the very top of the container**, `Full` and a

@@ -153,30 +153,30 @@ private val sheetControlsAlignment =
     Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
 
 /**
- * A search field pinned to the bottom of the sheet, over a list that scrolls
- * behind it — and collapsed, the sheet is only the field.
+ * A search field in the sheet's footer, over a list that scrolls behind it —
+ * and collapsed, the sheet is only the field.
  *
- * Asked for in those words. The sheet's detents change with it, to
- * `SheetDetent.pinned()` in place of the peek, so the knob starts the sheet over
- * rather than bending the one already open.
+ * The sheet's detents change with it, to `SheetDetent.headerAndFooter()` in
+ * place of the peek, so the knob starts the sheet over rather than bending the
+ * one already open.
  */
-private val sheetPinnedSearch = Knob.Flag("Pinned search")
+private val sheetFooterSearch = Knob.Flag("Search in the footer")
 
 /**
- * The pinned field on no ground of its own, so the list goes under it and shows
- * round it. Does nothing without the field.
+ * No fade under the footer, so the list shows round the field. Does nothing
+ * without the field.
  */
-private val sheetUnderPinned = Knob.Flag("Content under the field")
+private val sheetNoFade = Knob.Flag("No fade under it")
 
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetPinnedSearch, sheetUnderPinned),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetFooterSearch, sheetNoFade),
 ) {
     val presentation = this[sheetPresentation]
-    val pinnedSearch = this[sheetPinnedSearch]
-    // Where it rests collapsed: the header, or the pinned field.
-    val collapsed = if (pinnedSearch) SheetDetent.pinned() else SheetDetent.peek(140.dp)
-    val sheet = key(pinnedSearch) {
+    val footerSearch = this[sheetFooterSearch]
+    // Where it rests collapsed: the header, or the field in the footer.
+    val collapsed = if (footerSearch) SheetDetent.headerAndFooter() else SheetDetent.peek(140.dp)
+    val sheet = key(footerSearch) {
         rememberSheetState(
             detents = listOf(
                 SheetDetent.Hidden,
@@ -207,14 +207,17 @@ internal val BottomSheetDemo = ComponentDemo(
                     variant = ButtonVariant.Secondary,
                 )
             },
+            // At the foot of the sheet, over the list, which fades out under it;
+            // it moves with the sheet, and settles at the foot of the size the
+            // sheet comes to rest at.
+            footer = if (footerSearch) {
+                { SearchField(query, placeholder = "Search stops") }
+            } else {
+                null
+            },
+            fadeUnder = !this@ComponentDemo[sheetNoFade],
         ) { padding ->
-            if (pinnedSearch) {
-                // Over the list, on the bottom of what the sheet shows at every
-                // size: on the sheet's own colour, or on nothing with the list
-                // going under it.
-                pinned(
-                    containerColour = if (this@ComponentDemo[sheetUnderPinned]) Color.Transparent else Color.Unspecified,
-                ) { SearchField(query, placeholder = "Search stops") }
+            if (footerSearch) {
                 // The padding grows by the field's height, so the last stop
                 // scrolls out from behind it; the sides are the sheet's inset,
                 // the same as the field's.
@@ -256,7 +259,7 @@ internal val BottomSheetDemo = ComponentDemo(
     }
 }
 
-/** Enough stops that the list scrolls behind the pinned field at every size. */
+/** Enough stops that the list scrolls behind the field at every size. */
 private val PinnedStops = listOf(
     "Perth Underground", "Elizabeth Quay", "Esplanade", "McIver", "Claisebrook",
     "East Perth", "Mount Lawley", "Maylands", "Meltham", "Bayswater",

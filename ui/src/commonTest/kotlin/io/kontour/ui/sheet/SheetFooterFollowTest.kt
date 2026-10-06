@@ -23,6 +23,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -30,36 +32,32 @@ import io.kontour.ui.PhaseCounts
 import io.kontour.ui.countPhases
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A part pinned to the bottom stays on the part of the sheet that is shown, in
- * every presentation, above the inset, and a drag only moves it.
+ * A sheet's footer rests on the bottom of what the sheet shows, in every
+ * presentation, above the inset; a drag carries it with the sheet, and once
+ * the sheet lands it settles at the new foot.
  *
- * `SheetPinnedTest` asks this of an edge sheet with no insets. These are the
- * cases it leaves out, and they came from a second implementation of the same
- * request on another branch — a `bottomBar` slot on `BottomSheet`, asked for as
- * a search field and an account button on a sheet over a map. `pinned` already
- * does what that slot did, and more, so the slot was not taken; its tests were,
- * rewritten for `pinned`, because they held the pinned part to things nothing
- * here had checked:
+ * `SheetSlotsTest` asks the first of these of an edge sheet with no insets.
+ * These are the cases it leaves out:
  *
  * - **Floating**, its surface is exactly as tall as it is shown, a margin off the
- *   window's bottom, and the part belongs on the surface's own bottom edge.
+ *   window's bottom, and the footer belongs on the surface's own bottom edge.
  * - **Morphing** from floating to an edge sheet as it expands, it is the first
  *   at the bottom of its travel and the second at the top.
  * - **Above the inset** — the gesture bar, or the keyboard — and the content is
  *   told how much it now has to keep clear of.
- * - **A drag** translates the part and does nothing else to it.
+ * - **A drag** carries the footer with the sheet, and does nothing else to it;
+ *   let go, it settles at the foot of the size the sheet came to rest at.
  *
  * The window is 360 by 800 at a density of 1, so every number is a pixel and a
  * dp at once. The part is 56dp, with the sheet's inset, [Inset], round it.
  */
 @OptIn(ExperimentalTestApi::class)
-class SheetPinnedFollowTest {
+class SheetFooterFollowTest {
 
     @Test
     fun aFloatingSheetsPartSitsOnTheSheetsOwnBottomEdge() {
@@ -69,7 +67,7 @@ class SheetPinnedFollowTest {
         bottoms.forEach { (detent, bottom) ->
             assertEquals(
                 WindowHeight - margin - Inset.value, bottom, Tolerance,
-                "at $detent a floating sheet's pinned part ended at $bottom, where the sheet " +
+                "at $detent a floating sheet's footer ended at $bottom, where the sheet " +
                     "itself ends at ${WindowHeight - margin}, a margin off the window's bottom",
             )
         }
@@ -82,7 +80,7 @@ class SheetPinnedFollowTest {
         bottoms.forEach { (detent, bottom) ->
             assertEquals(
                 WindowHeight - Inset.value, bottom, Tolerance,
-                "at $detent an edge sheet's pinned part ended at $bottom in an " +
+                "at $detent an edge sheet's footer ended at $bottom in an " +
                     "${WindowHeight}px window: an edge sheet's surface runs off the window",
             )
         }
@@ -111,7 +109,7 @@ class SheetPinnedFollowTest {
      * and the band of the sheet's colour above it.
      *
      * A search field on the window's bottom would be typed at from behind the
-     * keyboard. Without a pinned part the content is owed the inset alone,
+     * keyboard. Without a footer the content is owed the inset alone,
      * exactly as before pinning existed.
      */
     @Test
@@ -148,26 +146,27 @@ class SheetPinnedFollowTest {
         )
         assertEquals(
             WindowHeight - (partTop - Inset.value), withPart.value, Tolerance,
-            "with a part pinned, the content was handed $withPart of bottom padding; it has " +
+            "with a footer, the content was handed $withPart of bottom padding; it has " +
                 "to reach from the window's bottom to the top of the band above the part",
         )
         assertEquals(
             SafeArea, withoutPart,
             "without a part, the content was handed $withoutPart; it is still owed the " +
-                "safe area, $SafeArea, exactly as it was before pinning existed",
+                "safe area, $SafeArea, exactly as it was before footers existed",
         )
     }
 
     /**
-     * A drag moves the part and does nothing else to it: no composition, and
-     * measured and drawn at most now and then over a drag of forty frames. The
-     * same budget `SheetFramePressureTest` holds the sheet's content to, and the
-     * part is on screen for every frame of the gesture the sheet exists for.
+     * A drag carries the footer with the sheet, and does nothing else to it: no
+     * composition, and measured and drawn at most now and then over a drag of
+     * forty frames — the budget `SheetFramePressureTest` holds the sheet's content
+     * to. Asked for as a footer that *"moves with the sheet"*: it used to stay on
+     * the window's bottom while the sheet's top edge climbed, which did not read
+     * as part of the sheet.
      */
     @Test
-    fun aDraggedSheetMovesItsPartWithoutComposingOrMeasuringIt() {
+    fun aDragCarriesTheFooterWithTheSheetWithoutComposingOrMeasuringIt() {
         var frames = 0
-        var moved = 0f
         var compositions = 0
         val counts = PhaseCounts()
 
@@ -189,30 +188,45 @@ class SheetPinnedFollowTest {
             val sheetBefore = sheet.offset
             val partBefore = partBounds().top.value
 
-            // Upwards, from Half towards Expanded: the part stays on the window's
-            // bottom while the sheet's top edge climbs.
-            repeat(DraggedFrames) { step ->
-                sheet.anchoredState.dispatchRawDelta(if (step % 2 == 0) -6f else -4f)
+            // By hand, from the handle's band, upwards, from Half towards
+            // Expanded; held at the end.
+            val x = WindowWidth / 2f
+            val y = sheet.offset + 8f
+            onNodeWithTag(WindowTag).performTouchInput { down(Offset(x, y)) }
+            var at = y
+            repeat(DraggedFrames) {
+                at -= 5f
+                onNodeWithTag(WindowTag).performTouchInput { moveTo(Offset(x, at)) }
                 mainClock.advanceTimeByFrame()
                 frames++
             }
-            moved = abs(sheet.offset - sheetBefore)
+            val moved = sheetBefore - sheet.offset
             compositions -= composedBefore
+            val carried = partBefore - partBounds().top.value
 
+            assertTrue(moved > 40f, "the sheet moved ${moved}px, so this measured a sheet standing still")
             assertEquals(
-                partBefore, partBounds().top.value, Tolerance,
-                "the part moved while the sheet was dragged taller: it is following the " +
-                    "sheet's top edge rather than staying on its visible bottom",
+                moved, carried, 1.5f,
+                "the sheet moved up ${moved}px under the finger and its footer $carried: " +
+                    "the footer is staying on the window's bottom rather than moving with the sheet",
+            )
+            assertEquals(0, compositions, "the footer was recomposed $compositions times by a drag")
+            assertTrue(
+                counts.measures <= frames / 8 && counts.draws <= frames / 8,
+                "the footer was measured ${counts.measures} and drawn ${counts.draws} times " +
+                    "over $frames frames of dragging; a footer that is only being moved should cost neither",
+            )
+
+            // Let go, and settled: at the foot of whatever size it landed at.
+            onNodeWithTag(WindowTag).performTouchInput { up() }
+            settle()
+            val shownBottom = WindowHeight
+            assertEquals(
+                shownBottom - Inset.value, partBounds().bottom.value, Tolerance,
+                "landed, the footer ended at ${partBounds().bottom.value}, not at the foot of the size " +
+                    "the sheet came to rest at, ${shownBottom - Inset.value}",
             )
         }
-
-        assertTrue(moved > 20f, "the sheet moved ${moved}px, so this measured a sheet standing still")
-        assertEquals(0, compositions, "the pinned part was recomposed $compositions times by a drag")
-        assertTrue(
-            counts.measures <= frames / 8 && counts.draws <= frames / 8,
-            "the pinned part was measured ${counts.measures} and drawn ${counts.draws} times " +
-                "over $frames frames of dragging; a part that is only being moved should cost neither",
-        )
     }
 
     /** Where the part's bottom edge settles at each detent, by detent id. */
@@ -275,9 +289,8 @@ class SheetPinnedFollowTest {
                     presentation = presentation,
                     edgeMorph = edgeMorph,
                     windowInsets = windowInsets,
-                ) { padding ->
-                    if (showPart) {
-                        pinned {
+                    footer = if (showPart) {
+                        {
                             SideEffect(onPartComposed)
                             Box(
                                 Modifier
@@ -288,7 +301,10 @@ class SheetPinnedFollowTest {
                                     .background(Color(0xFF3355AA))
                             )
                         }
-                    }
+                    } else {
+                        null
+                    },
+                ) { padding ->
                     LazyColumn(
                         modifier = Modifier.reportBottom(padding, onPadding),
                         contentPadding = padding,
@@ -324,7 +340,7 @@ class SheetPinnedFollowTest {
         /** `BottomSheetDefaults.ContentPadding` in the default theme. */
         val Inset = 16.dp
 
-        /** The handle's band and the part, which is what collapsed to the part is. */
-        val Collapsed = SheetDetent.pinned()
+        /** The handle's band and the footer, which is what collapsed to the footer is. */
+        val Collapsed = SheetDetent.headerAndFooter()
     }
 }

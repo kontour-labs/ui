@@ -81,14 +81,18 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
         toast("Three routes found")
     }
 
-    ModalBottomSheet(visible = visible, onDismissRequest = onDismiss, state = sheet) { padding ->
-        pinned {
+    ModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+        state = sheet,
+        footer = {
             Button(
                 onClick = { finding = true },
                 loading = finding,
                 modifier = Modifier.fillMaxWidth().testTag("find-routes"),
             ) { +"Find routes" }
-        }
+        },
+    ) { padding ->
         // Inside a scroller, so a short phone reaches the clock under the
         // calendar; the parts are still the sheet's, named through its scope.
         val sheetParts = this

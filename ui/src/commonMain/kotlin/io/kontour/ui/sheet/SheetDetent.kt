@@ -91,20 +91,19 @@ class SheetDetent(
         }
 
         /**
-         * Showing the sheet's [pinned][io.kontour.ui.sheet.SheetContentScope.pinned]
-         * parts and nothing else: the drag handle, whatever is pinned to the top,
-         * and whatever is pinned to the bottom with the safe area under it.
+         * Showing the sheet's `header` and `footer` and nothing else: the drag
+         * handle, the header, the footer, and the safe area under them.
          *
          * The collapsed size of a sheet that is a search field until it is pulled
-         * up. Put the field in `pinned { … }` and this in the detent list, and
-         * collapsed the sheet is exactly the field, at whatever height the field
-         * turns out to be — at every font scale, which a fixed height cannot
-         * follow.
+         * up. Put the field in the sheet's `footer` and this in the detent list,
+         * and collapsed the sheet is exactly the field, at whatever height the
+         * field turns out to be — at every font scale, which a fixed height
+         * cannot follow.
          *
-         * Falls back to [fallback] until the pinned parts have been measured, and
-         * if the sheet has none.
+         * Falls back to [fallback] until they have been measured, and if the
+         * sheet has neither.
          */
-        fun pinned(fallback: Dp = 96.dp): SheetDetent = SheetDetent(PinnedDetentId) { container, _ ->
+        fun headerAndFooter(fallback: Dp = 96.dp): SheetDetent = SheetDetent(SlotsDetentId) { container, _ ->
             // Replaced by the measured height once there is one, as `peek`'s is.
             minOf(fallback.toPx(), container)
         }
@@ -129,7 +128,7 @@ class SheetDetent(
  */
 internal const val PeekDetentId: String = "peek"
 
-/** The id [SheetState] looks for when substituting the measured pinned height. */
-internal const val PinnedDetentId: String = "pinned"
+/** The id [SheetState] looks for when substituting the measured height of the header and the footer. */
+internal const val SlotsDetentId: String = "headerAndFooter"
 
 

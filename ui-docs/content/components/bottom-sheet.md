@@ -114,27 +114,28 @@ bottom of the window a part cannot be seen or tapped, and it is not read out
 either.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
-with `part` and `pinned` added — so `weight`, `align` and everything else a
+with `part` added — so `weight`, `align` and everything else a
 column offers are unchanged, and content written before this existed reads and
 behaves the same.
 
 ---
 
-## `pinned` — a part that stays at an edge, with the content passing behind
+## `header` and `footer` — the sheet's top and foot, with the content passing behind
 
-<!--sample:BottomSheetPinnedSearch-->
+<!--sample:BottomSheetFooterSearch-->
 ```kotlin
 val sheet = rememberSheetState(
-    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-    initialDetent = SheetDetent.pinned(),
+    detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.headerAndFooter(),
 )
 val query = rememberTextFieldState()
 
-BottomSheet(state = sheet) { padding ->
-    // On the bottom of what the sheet shows at every size, over the list
-    // and on the sheet's own colour, with the sheet's inset round it.
-    // Collapsed, it is all there is: the search, and the account beside it.
-    pinned {
+BottomSheet(
+    state = sheet,
+    // At the foot of the sheet, with the sheet's inset round it, and the
+    // list fading out under it. Collapsed, it is all there is: the
+    // search, and the account beside it.
+    footer = {
         Row(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
@@ -142,10 +143,10 @@ BottomSheet(state = sheet) { padding ->
             SearchField(query, placeholder = "Search stops", modifier = Modifier.weight(1f))
             IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
         }
-    }
-    // The padding has grown by the field's height, so the last row
-    // scrolls out from behind it. At the sides, the sheet's inset, the
-    // same as the field's.
+    },
+) { padding ->
+    // The padding ends above the footer, so the last row scrolls out from
+    // behind it. At the sides, the sheet's inset, the same as the field's.
     LazyColumn(
         modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
         contentPadding = padding,
@@ -159,53 +160,51 @@ and when the sheet is collapsed, only the search bar should show."* And asked fo
 again, separately, for a map: a search field with an account button beside it,
 in reach at every height the sheet is at, which is the example above.
 
-**`SheetPin.Bottom`, the default, rides the bottom of what the sheet shows.**
-That is the window's edge for an edge sheet and the sheet's own for a floating
-one, above the safe area, at every detent and on every frame of a drag. Pulled
-down past the point where it would cover the handle, it stops there and leaves
-with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
-starts.
+**They are the sheet's own slots**, as a [`Scaffold`](scaffold.md) has a top bar
+and a bottom bar and a [`NavRail`](nav-rail.md) a header and a footer: written
+where the sheet is, not somewhere in its content. They were a `pinned { }` call
+in the content until 0.4.3, which could be written anywhere and was drawn
+somewhere else, and its part rode the bottom of the window while the sheet moved
+under the finger — *"it just doesn't feel intuitive, and it doesn't feel like it
+fits in with [the rest] of the library"*. [Migrating](../migrating.md) has the
+change.
 
-**It is drawn over the content, with the sheet's inset round it.** The sheet pads
-it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
-drag handle's 24dp band above is the space over it. A sheet collapsed to its
-search field shows the field with the handle in the middle of the band above it
-and 16dp beside and below it. A top part moves in from a display's rounder
-corners as the header does; see [`SheetHeader`](sheet-header.md#the-space-round-it).
+**`header` sits under the drag handle**, where the content starts, laid out as
+the content is: a [`SheetHeader`](sheet-header.md) in it insets itself as it does
+anywhere in a sheet, and moves in from a display's rounder corners.
 
-**On the sheet's own colour by default**, so whatever scrolls behind it is hidden
-rather than showing through. Once a bottom part has risen off the band, it has the
-inset in the sheet's colour above it too, so the content never meets it edge to
-edge. The colour runs the full width and, at the bottom, down through the safe
-area. At high contrast a line marks the edge the content passes behind, where the
-two grounds would otherwise be the same colour.
+**`footer` is at the foot of the sheet**, inset by
+`BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, with the
+handle's band above it when the sheet is collapsed to it, and above the safe
+area. **It moves with the sheet.** Dragged, the sheet carries its footer at the
+foot of the size it was resting at, as it carries everything else on it, so
+pulling a collapsed sheet up shows what is under the field coming up with it;
+once the sheet has come to rest, the footer slides to the foot of the size it
+landed at. A sheet opened or moved in code takes its footer along at its foot
+all the way.
 
-**`containerColour = Color.Transparent` lets the content go under it** and show
-round it, with only the part itself — a search field's own ground — drawn over
-the rows. Asked for as *"the ability for the content to go under the pinned
-item"*. The padding is the same either way, so the last row can still be scrolled
-clear of the part. Any other colour is drawn where the sheet's would be.
+**The content fades out under both**, as a page does under a
+[`TopBar`](top-bar.md): the sheet's colour behind them, thinning out over their
+inner 12dp and gone 4dp past them, so a row passing behind shows faintly at the
+edge and is gone under the field. What is in the slot is drawn whole over that —
+a search field's own ground and its words. `fadeUnder = false` leaves the content
+as it is, showing round them. At high contrast a line marks the edge instead.
 
-**The padding the content is handed grows by the pinned parts' heights**, and by
-the inset above a bottom part. A `LazyColumn` given it as `contentPadding` scrolls
-its first and last rows out from behind them, just as it does for the safe area. Content that ignores the padding
-runs under them. The padding has no inset at the sides, so rows that should line
-up with the pinned part take `BottomSheetDefaults.ContentPadding` there
-themselves, as the example does.
+**The padding the content is handed starts below the header and ends above the
+footer**, with 16dp to spare above the footer. A `LazyColumn` given it as
+`contentPadding` scrolls its first and last rows out from behind them, just as it
+does for the safe area. Content that ignores the padding runs under them. The
+padding has no inset at the sides, so rows that should line up with the footer
+take `BottomSheetDefaults.ContentPadding` there themselves, as the example does.
 
-**`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
-whatever is pinned to the top, whatever is pinned to the bottom, and the safe
-area under them all. That is the collapsed sheet that is only a search field, at
-whatever height the field turns out to be at the reader's font scale. Until the
-parts have been measured, and on a sheet with none, it uses its `fallback`. The
-safe area used to come only with a part pinned to the bottom: an edge sheet
-collapsed to a part pinned to the top came to rest with that part's foot behind
-the home indicator.
+**`SheetDetent.headerAndFooter()` shows them and nothing else**: the handle, the
+header, the footer, and the safe area under them all. That is the collapsed sheet
+that is only a search field, at whatever height the field turns out to be at the
+reader's font scale. Until they have been measured, and on a sheet with neither,
+it uses its `fallback`.
 
-Where `pinned` is written in the content does not decide where it is drawn.
-Several at one edge stack in the order they were first composed. A pinned part is
-always on screen, so it is always in the assistive tree, and read after the
-content.
+Both are always on screen, so always in the assistive tree: the header read
+before the content, the footer after it.
 
 ---
 

@@ -166,12 +166,6 @@ object TopBarDefaults {
     /** A [TopBarStyle.Hero] bar open: its picture's height, the status bar included. */
     val HeroHeight: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.topBarHeroHeight
-
-    /**
-     * How fast a finger let go of a collapsing bar has to be moving, a second,
-     * for the bar to finish the way it was going rather than to the nearer end.
-     */
-    val FinishFling: Dp = 125.dp
 }
 
 /**
@@ -1225,6 +1219,12 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     }
 }
 
+/**
+ * How fast a finger let go of a collapsing bar has to be moving, a second, for
+ * the bar to finish the way it was going rather than to the nearer end.
+ */
+private val FinishFling: Dp = 125.dp
+
 /** Remembers a [TopBarCollapseState], open to begin with, kept across recreation. */
 @Composable
 fun rememberTopBarCollapseState(): TopBarCollapseState {
@@ -1233,7 +1233,7 @@ fun rememberTopBarCollapseState(): TopBarCollapseState {
     // travelling the rest of a bar's height.
     val motion = Theme.motion
     state.settle = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
-    state.flingThreshold = with(LocalDensity.current) { TopBarDefaults.FinishFling.toPx() }
+    state.flingThreshold = with(LocalDensity.current) { FinishFling.toPx() }
     return state
 }
 

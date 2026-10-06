@@ -24,7 +24,118 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release: 0.4.3.
+
+Mobile web, mostly: the keyboard on the first tap of a text field on an iPhone,
+a focused field's selection and menu that are the browser's own, and tabs,
+checkboxes and switches named as themselves to a screen reader in a browser. A
+sheet's top and foot become slots of the sheet, with a footer that moves with it.
+Days in a date picker can carry a colour and a few characters, a scrollbar keeps
+clear of bars over its list, a large top bar follows the finger, and a page
+slides under a navigation rail. On Compose Multiplatform 1.12.1, with Java 11
+bytecode on the JVM.
+
+A sheet's `pinned { }` is now its `header` and `footer`, and a few arguments
+passed by position need naming — see **Breaking**, and
+[Migrating](migrating.md#042-to-043).
+
+### Breaking
+
+- **A [bottom sheet](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind)'s
+  `pinned { }` is its `header` and `footer`.** Asked for: *"refine the 'pinned'
+  logic … it just doesn't feel intuitive, and it doesn't feel like it fits in
+  with [the rest] of the library"*. They are slots of `BottomSheet` and
+  `ModalBottomSheet` now, as a `Scaffold`'s bars are, rather than a call that
+  could be written anywhere in the content and was drawn somewhere else.
+  `pinned(to = SheetPin.Top)` is `header = { … }`, laid out as the content is,
+  so a `SheetHeader` in it insets itself; `pinned { }` is `footer = { … }`.
+  `SheetPin` is gone, and `SheetDetent.pinned()` is
+  `SheetDetent.headerAndFooter()`. What changed on screen is under **Changed**.
+- **Recompile against Compose Multiplatform 1.12.1.** The library moved from
+  1.12.0-rc01 to the stable release.
+- **A few arguments passed by position no longer compile**, where a parameter
+  arrived in the middle of a list, each of a different type from what was there
+  so nothing silently means something else: `DatePicker`, `DateRangePicker` and
+  `DateTimePicker` take `containerColourFor` and `annotationFor` after
+  `markerFor`; `DateField` takes `supporting` and `errorMessage` after
+  `placeholder`, `TimeField` and `DateTimeField` after `label`; `BottomSheet`
+  and `ModalBottomSheet` take `fadeUnder` after `draggable`; `Select` and
+  `MultiSelect` take `otherPlaceholder` after `otherLabel`. Name the argument.
+
+### Changed
+
+- **On an iPhone or iPad, the first tap on a text field opens the keyboard.**
+  0.4.2's fix did not: *"the first tap doesn't open it, but a second tap
+  does"*. Driven in a browser with an iPhone's agent, Compose focuses its input
+  while the finger is still down, a frame after it lands, which WebKit does not
+  count as the reader's; 0.4.2's primer then took the focus from it as the
+  finger lifted, and Compose took it back a frame later, outside the touch
+  again. The primer now focuses Compose's own input again as the finger lifts,
+  which is the focus WebKit opens the keyboard for. Untested on a device here.
+- **On a phone or a tablet, in any browser, a focused text field's selection,
+  handles and menu are the browser's own**: *"it shows the compose one instead,
+  it needs to show just the native one"*. Compose's input is laid over the
+  field's text while it has the focus, in the same face at the same size, and
+  takes the touches on it; Compose's own caret, selection, handles and toolbar
+  stand aside for the field. Paste, Cut and drops from the browser's menu reach
+  the field. A field whose text is drawn as something else — a phone number
+  grouped as it is typed — keeps Compose's. See
+  [installing](installing.md#per-platform).
+- **In a browser, tabs, checkboxes, switches and radio buttons are named as
+  themselves**, with their checked or selected state: *"toggleable rows show up
+  as buttons in the browser's accessibility tree, and so do tabs"*. Compose
+  1.12's web layer names any clickable node a button and writes no state; the
+  library's own controls put theirs back. See
+  [In the browser](accessibility.md#in-the-browser).
+- **A sheet's footer moves with the sheet**, at the foot of the size it was
+  resting at, and slides to the foot of the new size once the sheet has come to
+  rest. It rode the bottom of the window through every frame of a drag. A sheet
+  moved in code takes it along at its foot, as before.
+- **Content fades out under a sheet's header and footer**, as a page does under
+  a `TopBar`, where a pinned part stood on a solid band of the sheet's colour,
+  with 16dp of it above a part that had risen. `fadeUnder = false` lets the
+  content show round them, as `containerColour = Color.Transparent` did.
+- **A part in a sheet's header has no inset of its own.** A part pinned to the
+  top was padded by 16dp at the sides and below; the header is laid out as the
+  content is, so a `SheetHeader` there looks as it does in the content, and
+  anything else is as wide as the sheet.
+- **A page sliding towards a [`NavRail`](components/nav-rail.md) goes under
+  it.** *"the old screen goes above the nav rail briefly and then cuts out of
+  existence. it should go behind the nav rail/drawer"*. The rail draws over
+  what is beside it now, in a `NavigationSuiteScaffold` or anywhere else.
+- **A large or hero [`TopBar`](components/top-bar.md) follows the finger.**
+  *"sometimes they half collapse and stop, other times they don't expand
+  properly"*. Pulled open at the top of a list, it opens over its own height,
+  so the list comes down with the finger, where a bar with less height than
+  its title's journey opened slower than the pull. Let go part-way, it finishes
+  the way the finger was going rather than to the nearer end, and a fling that
+  carries the list back to its top opens it.
+- **[`StateSwitcher`](components/empty-state.md) lays each state out as a
+  column**: *"When a page's content had several sections, they drew on top of
+  each other."* A state that wants a box writes one.
+- **The JVM artifacts are Java 11 bytecode.** `:ui` and `:ui-nav3` were the
+  toolchain's Java 25, and with the builders inline, an app using them had to
+  compile for Java 25 too.
+
+### Added
+
+- **A day's own colour and a few characters under its number**, in a
+  [`DatePicker`](components/date-picker.md#what-the-app-has-to-say-about-a-day),
+  `DateRangePicker`, `DateTimePicker` and `CalendarMonth`: *"the ability to
+  colour and annotate dates (with things like small numbers or text or stuff)"*.
+  `containerColourFor` fills a day, under the selection and the range;
+  `annotationFor` gives a `DayAnnotation`, its text, colour and what a screen
+  reader says after the date. Given annotations, every week is a line taller.
+- **A [scrollbar](components/scrollbar.md) keeps clear of bars over its
+  scroller**: `contentPadding` on `Modifier.scrollbar` and `Scrollbar`, usually
+  the padding the list's own content keeps clear of, so the track stops short
+  of a top bar or a floating tab or nav bar. *"we need to make sure the
+  scrollbar modifier can keep the bar clear of floating tabs or top bars"*.
+- **`otherPlaceholder` on a [`Select`](components/select.md) and a
+  `MultiSelect`**, for the hint in the "Other" box. `otherLabel` already named
+  the option in the app's own words; the example now shows it.
+- **`supporting` and `errorMessage` on a [`DateField`](components/date-field.md)**,
+  `DateTimeField` and `TimeField`, as a text field has.
 
 ---
 
@@ -315,7 +426,7 @@ on a round phone stop at 40dp.
   badge says itself as text, read with the rest of the row; an `AvatarGroup` is
   "3 people" rather than "3 people, Ada, Grace, Katherine". An avatar given a
   `contentDescription` still says it.
-- **An edge [bottom sheet](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind)
+- **An edge [bottom sheet](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind)
   collapsed to a part pinned to its top clears the safe area.** The pinned
   detent counted the safe area only under a part pinned to the bottom, so with
   the part at the top the sheet came to rest with its foot behind the home
@@ -826,7 +937,7 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   `containerColour = Color.Transparent` the content goes under it and shows
   round it. `SheetDetent.pinned()` is the size that shows the pinned parts and
   nothing else: a sheet that collapses to its search field. See
-  [`BottomSheet`](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind).
+  [`BottomSheet`](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind).
 - `SelectionRow(onClick)`, and `position` on both `SelectionRow` overloads, so
   a group can mix toggles, rows that open a choice, and plain rows.
 - [`NavBar`](components/nav-bar.md): `shape`; `itemWidth`

@@ -30,7 +30,7 @@ all.
 
 **Its band is the content's top padding, and all of it.** In a sheet the handle
 sits in the middle of a 24dp band, `DragHandleDefaults.Target`, and nothing under
-it adds more: a `SheetHeader` or a pinned part starts at the band's foot. The
+it adds more: a `SheetHeader` or the sheet's `header` starts at the band's foot. The
 header used to add its own padding and its close button's empty space under the
 band, reported as *"a fair bit of extra space between the top of the sheet header
 … and the sheet handle"*. For a while the band was 16dp, the sheet's inset at the

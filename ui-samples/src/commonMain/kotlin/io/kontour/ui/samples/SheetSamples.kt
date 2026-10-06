@@ -183,18 +183,19 @@ fun DragHandleBasics() {
 }
 
 @Composable
-fun BottomSheetPinnedSearch() {
+fun BottomSheetFooterSearch() {
     val sheet = rememberSheetState(
-        detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-        initialDetent = SheetDetent.pinned(),
+        detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half, SheetDetent.Expanded),
+        initialDetent = SheetDetent.headerAndFooter(),
     )
     val query = rememberTextFieldState()
 
-    BottomSheet(state = sheet) { padding ->
-        // On the bottom of what the sheet shows at every size, over the list
-        // and on the sheet's own colour, with the sheet's inset round it.
-        // Collapsed, it is all there is: the search, and the account beside it.
-        pinned {
+    BottomSheet(
+        state = sheet,
+        // At the foot of the sheet, with the sheet's inset round it, and the
+        // list fading out under it. Collapsed, it is all there is: the
+        // search, and the account beside it.
+        footer = {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
@@ -202,10 +203,10 @@ fun BottomSheetPinnedSearch() {
                 SearchField(query, placeholder = "Search stops", modifier = Modifier.weight(1f))
                 IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
             }
-        }
-        // The padding has grown by the field's height, so the last row
-        // scrolls out from behind it. At the sides, the sheet's inset, the
-        // same as the field's.
+        },
+    ) { padding ->
+        // The padding ends above the footer, so the last row scrolls out from
+        // behind it. At the sides, the sheet's inset, the same as the field's.
         LazyColumn(
             modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
             contentPadding = padding,
