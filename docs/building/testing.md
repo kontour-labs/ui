@@ -402,6 +402,28 @@ real regression more than once.
 
 ---
 
+## When the icons move
+
+The icons, `io.kontour:tabler-icons-*`, follow Tabler's releases, and
+`.github/workflows/icons.yml` keeps the library on the newest: on every push to
+`main`, once a day and by hand it asks GitHub Packages for the newest release
+both styles have, and when that is newer than the pin in
+`gradle/libs.versions.toml` it moves every pin with
+`python3 docs/bump-tabler-icons.py --write <version>` — the catalogue,
+`docs/icondata.py`'s tarball integrity for the docs' icon browser, and a
+changelog line — on a branch `bot/tabler-icons-<version>`, opens a pull request
+and runs CI there with the slow classes.
+
+What fails there is the point of it. A renamed or removed icon fails the
+compile; a redrawn one is a golden diff, in the run's `screenshot-diffs`. Look
+at those before re-recording them on the branch: an icon that changed shape is
+a change the library's users see. The integrity is npm's own `dist.integrity`
+for that version; the pull request names it, to be checked against the one
+`kontour-labs/tabler` pins.
+
+The same by hand: `python3 docs/bump-tabler-icons.py --latest` (with
+`KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN` set), then `--write` it.
+
 ## Two clocks, and which one a test is on
 
 `Scene` in `Gestures.kt` drives `ImageComposeScene` by hand: every call to
