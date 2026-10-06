@@ -148,7 +148,8 @@ on a round phone stop at 40dp.
   `HeroImages(state) { page -> … }` and the picture is a
   [`Carousel`](components/carousel.md), one page at a time, swiped anywhere
   that is not a button, with its [`PageIndicator`](components/page-indicator.md)
-  centred over the fade, 16dp above the title.
+  at the bottom end of the bar, over the fade, on the last line of the title
+  block, which stops short of it.
   The dots go up with the title as the bar collapses and are gone a third of
   the way in. Decorative like a single hero picture, so hidden from screen
   readers, dots and all; outside a hero bar it is a carousel announced as

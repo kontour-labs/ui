@@ -61,7 +61,7 @@ class TopBarHeroImagesTest {
     private var progress by mutableFloatStateOf(0f)
     private var count by mutableIntStateOf(3)
 
-    private fun ComposeUiTest.hero(pictures: Int = 3) = setContent {
+    private fun ComposeUiTest.hero(pictures: Int = 3, title: String = "Platform 9") = setContent {
         KontourTheme(darkTheme = false, reduceMotion = false) {
             active = Theme.colours.primary
             inactive = Theme.colours.inactive
@@ -78,7 +78,7 @@ class TopBarHeroImagesTest {
                     contentColour = Ink,
                     collapseProgress = progress,
                     windowInsets = WindowInsets(0),
-                ) { +"Platform 9" }
+                ) { +title }
             }
         }
     }
@@ -97,20 +97,32 @@ class TopBarHeroImagesTest {
     }
 
     /**
-     * 16dp from the foot of the dots to the top of the title's line, wherever
-     * the platform's touch target makes the indicator's box: asked for as
-     * *"move the pager indicator down ever so slightly"*, from 24dp here and
-     * 36dp on a phone, where the gap was measured from the foot of a 48dp box.
+     * At the bottom end of the header, over the fade: on the title's last
+     * line, in from the end by the title's margin. Asked for as *"move that
+     * pager indicator over the faded bit, down in the bottom-right of the
+     * header"*.
      */
     @Test
-    fun theDotsSitCentred16dpAboveTheTitle() = runComposeUiTest {
+    fun theDotsSitAtTheEndOfTheTitlesLine() = runComposeUiTest {
         hero()
         val dots = assertNotNull(box(bar(), listOf(active, inactive)), "a hero with three pictures should show their dots")
         val title = onNodeWithText("Platform 9").fetchSemanticsNode().boundsInRoot
         val bar = onNodeWithTag("bar").fetchSemanticsNode().boundsInRoot
-        val gap = ((title.top - bar.top) - dots.bottom) / density.density
-        assertTrue(abs(gap - 16f) <= 1.5f, "the dots should be 16dp above the title: they are ${gap}dp above it")
-        assertTrue(abs(dots.center.x - bar.width / 2f) <= 2f, "the dots should be centred: $dots in a bar ${bar.width} wide")
+        val margin = 16f * density.density
+        assertTrue(abs(dots.right - (bar.width - margin)) <= 2f, "the dots should end the title's margin from the bar's end: $dots in a bar ${bar.width} wide")
+        val top = title.top - bar.top
+        val bottom = title.bottom - bar.top
+        assertTrue(dots.top > top && dots.bottom < bottom, "the dots should be on the title's line: dots $dots, title $title")
+        assertTrue(dots.center.y > (top + bottom) / 2f, "the dots should sit low on the line, on its baseline: dots $dots, title $title")
+    }
+
+    /** A title long enough to reach the end stops short of the dots. */
+    @Test
+    fun aLongTitleStopsShortOfTheDots() = runComposeUiTest {
+        hero(title = "Platform 9 and three quarters, Kings Cross")
+        val dots = assertNotNull(box(bar(), listOf(active, inactive)))
+        val title = onNodeWithText("Platform 9 and three quarters, Kings Cross").fetchSemanticsNode().boundsInRoot
+        assertTrue(title.right <= dots.left - 8f * density.density, "the title should stop short of the dots: title $title, dots $dots")
     }
 
     /**

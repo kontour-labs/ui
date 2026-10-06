@@ -135,8 +135,9 @@ TopBar(
 ```
 
 It is a [`Carousel`](carousel.md) filling the picture, one page at a time, and
-the carousel's [`PageIndicator`](page-indicator.md) centred over the fade, 16dp
-above the title. A finger swipes anywhere on the picture that is not a button, and a pointer
+the carousel's [`PageIndicator`](page-indicator.md) at the bottom end of the bar,
+over the fade, on the last line of the title block — the subtitle, or the title
+without one — which stops short of the dots. A finger swipes anywhere on the picture that is not a button, and a pointer
 clicks or drags along the dots. One picture shows no dots. As the bar collapses
 the dots go up with the title and are gone a third of the way in, before the
 title nears the first line. Like a single picture, it is decoration and hidden
