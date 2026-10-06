@@ -32,6 +32,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
@@ -201,6 +205,12 @@ object ScrollbarDefaults {
  *   them.
  * @param alwaysVisible Drawn at rest under touch as well, half-faded as with a
  *   mouse, and so there to take hold of all along.
+ * @param contentPadding What is over the ends of the scroller — a top bar, a
+ *   floating tab bar or nav bar — for the track to stop short of, as the
+ *   scroller's own `contentPadding` keeps its first and last rows clear of
+ *   them. Usually the same padding. The track keeps clear of the top and the
+ *   foot, and the end it sits at; a horizontal one of the start, the end and
+ *   the foot.
  */
 @Composable
 fun Scrollbar(
@@ -213,6 +223,7 @@ fun Scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
+    contentPadding: PaddingValues = NoContentPadding,
 ) {
     val pointer = scrollbarTakesAPointer()
     val interactions = remember { MutableInteractionSource() }
@@ -281,6 +292,9 @@ fun Scrollbar(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
+            // Clear of what is over the scroller's ends, and outside everything
+            // that takes a press: what is there is the bar's or tab's over it.
+            .padding(trackPadding(contentPadding, orientation, LocalLayoutDirection.current))
             // A finger on the thumb, while it is drawn. There whatever the hand,
             // and ahead of the mouse's nodes, so that the tap that turns a
             // mouse's bar into a finger's, and takes those nodes away, is not
@@ -393,6 +407,26 @@ fun Scrollbar(
  * edge, which thickens under the pointer; a press anywhere else is the
  * content's. Under touch a finger takes hold of the thumb while it is drawn,
  * within a fingertip of it, and anything else is the content's.
+ *
+ * **Under a floating bar**, give it the padding the content keeps clear of, and
+ * the track stops short of the bar rather than running under it:
+ *
+ * ```kotlin
+ * Scaffold(topBar = { TopBar { +"Stops" } }) { padding ->
+ *     LazyColumn(
+ *         Modifier.scrollbar(listState, contentPadding = padding),
+ *         state = listState,
+ *         contentPadding = padding,
+ *     ) { … }
+ * }
+ * ```
+ *
+ * @param contentPadding What is over the ends of the scroller — a top bar, a
+ *   floating tab bar or nav bar — for the track to stop short of, as the
+ *   scroller's own `contentPadding` keeps its first and last rows clear of
+ *   them. Usually the same padding. The track keeps clear of the top and the
+ *   foot, and the end it sits at; a horizontal one of the start, the end and
+ *   the foot.
  */
 @Composable
 fun Modifier.scrollbar(
@@ -404,6 +438,7 @@ fun Modifier.scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
+    contentPadding: PaddingValues = NoContentPadding,
 ): Modifier {
     val pointer = scrollbarTakesAPointer()
     val grip = remember { ScrollbarGrip() }
@@ -417,7 +452,8 @@ fun Modifier.scrollbar(
     val corner = with(density) { cornerInset.toPx() }
     val track = remember { ScrollbarTrack() }
     val direction = LocalLayoutDirection.current
-    track.update(orientation, direction, margin, strip, minThumb, corner)
+    val clear = trackClearance(contentPadding, orientation, direction, density)
+    track.update(orientation, direction, margin, strip, minThumb, corner, clear)
     val reach = with(density) { TouchGripReach.toPx() }
     val slop = with(density) { TouchGripSlop.toPx() }
     touch.update(
@@ -560,6 +596,62 @@ private class ScrollbarGrip {
     var dragging by mutableStateOf(false)
 }
 
+/** A scroller with nothing over it: the track runs its whole length. */
+private val NoContentPadding = PaddingValues(0.dp)
+
+/**
+ * What a track keeps clear of, in pixels: [lead] before it and [trail] after it
+ * along its axis, in the reading direction, and [side] in from the edge it sits
+ * on — the end, or the foot.
+ */
+@Immutable
+internal data class TrackClearance(val lead: Float, val trail: Float, val side: Float) {
+    companion object {
+        val None = TrackClearance(0f, 0f, 0f)
+    }
+}
+
+/**
+ * The parts of [padding] a track along [orientation] keeps clear of: the top
+ * and the foot, and the end it sits at, for a bar down the side; the start and
+ * the end, and the foot, for one along the foot. The other edge is the
+ * content's, and nothing of the bar's is near it.
+ */
+internal fun trackClearance(
+    padding: PaddingValues,
+    orientation: Orientation,
+    direction: LayoutDirection,
+    density: Density,
+): TrackClearance = with(density) {
+    when (orientation) {
+        Orientation.Vertical -> TrackClearance(
+            lead = padding.calculateTopPadding().toPx(),
+            trail = padding.calculateBottomPadding().toPx(),
+            side = padding.calculateEndPadding(direction).toPx(),
+        )
+        Orientation.Horizontal -> TrackClearance(
+            lead = padding.calculateStartPadding(direction).toPx(),
+            trail = padding.calculateEndPadding(direction).toPx(),
+            side = padding.calculateBottomPadding().toPx(),
+        )
+    }
+}
+
+/** [trackClearance] as padding, for a [Scrollbar] of its own. */
+private fun trackPadding(padding: PaddingValues, orientation: Orientation, direction: LayoutDirection): PaddingValues =
+    when (orientation) {
+        Orientation.Vertical -> PaddingValues(
+            top = padding.calculateTopPadding(),
+            bottom = padding.calculateBottomPadding(),
+            end = padding.calculateEndPadding(direction),
+        )
+        Orientation.Horizontal -> PaddingValues(
+            start = padding.calculateStartPadding(direction),
+            end = padding.calculateEndPadding(direction),
+            bottom = padding.calculateBottomPadding(),
+        )
+    }
+
 /** Where a [Modifier.scrollbar]'s track is in its scroller, and where the thumb is on it. All in pixels. */
 private class ScrollbarTrack {
     var orientation = Orientation.Vertical
@@ -570,18 +662,29 @@ private class ScrollbarTrack {
     private var strip = 0f
     private var minThumb = 0f
     private var corner = 0f
+    private var clear = TrackClearance.None
 
-    fun update(orientation: Orientation, direction: LayoutDirection, margin: Float, strip: Float, minThumb: Float, corner: Float) {
+    fun update(
+        orientation: Orientation,
+        direction: LayoutDirection,
+        margin: Float,
+        strip: Float,
+        minThumb: Float,
+        corner: Float,
+        clear: TrackClearance,
+    ) {
         this.orientation = orientation
         this.direction = direction
         this.margin = margin
         this.strip = strip
         this.minThumb = minThumb
         this.corner = corner
+        this.clear = clear
     }
 
     private fun length(size: Size): Float =
-        ((if (orientation == Orientation.Vertical) size.height else size.width) - 2 * (margin + corner)).coerceAtLeast(0f)
+        ((if (orientation == Orientation.Vertical) size.height else size.width) -
+            2 * (margin + corner) - clear.lead - clear.trail).coerceAtLeast(0f)
 
     /** The distance the thumb can travel, and its length, for [geometry] in a scroller [size]. */
     fun travel(size: Size, geometry: ScrollbarGeometry): Pair<Float, Float> {
@@ -591,10 +694,27 @@ private class ScrollbarTrack {
     }
 
     /** Whether [at] is on the strip the bar is grabbed by. */
-    fun onStrip(at: Offset, size: Size, direction: LayoutDirection): Boolean = when (orientation) {
-        Orientation.Vertical ->
-            if (direction == LayoutDirection.Rtl) at.x <= strip else at.x >= size.width - strip
-        Orientation.Horizontal -> at.y >= size.height - strip
+    fun onStrip(at: Offset, size: Size, direction: LayoutDirection): Boolean {
+        val (from, to) = alongRange(size)
+        return when (orientation) {
+            Orientation.Vertical -> at.y in from..to && if (direction == LayoutDirection.Rtl) {
+                at.x >= clear.side && at.x <= clear.side + strip
+            } else {
+                at.x <= size.width - clear.side && at.x >= size.width - clear.side - strip
+            }
+            Orientation.Horizontal -> {
+                // Along the track from where it starts: the right, in right
+                // to left.
+                val x = if (direction == LayoutDirection.Rtl) size.width - at.x else at.x
+                x in from..to && at.y <= size.height - clear.side && at.y >= size.height - clear.side - strip
+            }
+        }
+    }
+
+    /** Where the track starts and ends along its axis, from its start in the reading direction. */
+    private fun alongRange(size: Size): Pair<Float, Float> {
+        val full = if (orientation == Orientation.Vertical) size.height else size.width
+        return clear.lead to (full - clear.trail)
     }
 
     /**
@@ -605,10 +725,13 @@ private class ScrollbarTrack {
         val thumb = thumb(size, direction, geometry, 0f) ?: return null
         return when (orientation) {
             Orientation.Vertical -> {
-                val x = if (direction == LayoutDirection.Rtl) 0f else size.width - reach
+                val x = if (direction == LayoutDirection.Rtl) clear.side else size.width - clear.side - reach
                 Rect(x, thumb.top - slop, x + reach, thumb.bottom + slop)
             }
-            Orientation.Horizontal -> Rect(thumb.left - slop, size.height - reach, thumb.right + slop, size.height)
+            Orientation.Horizontal -> {
+                val y = size.height - clear.side
+                Rect(thumb.left - slop, y - reach, thumb.right + slop, y)
+            }
         }
     }
 
@@ -616,16 +739,16 @@ private class ScrollbarTrack {
     fun thumb(size: Size, direction: LayoutDirection, geometry: ScrollbarGeometry, width: Float): Rect? {
         val (travel, thumb) = travel(size, geometry)
         if (thumb <= 0f) return null
-        val along = margin + corner + travel * geometry.position
+        val along = clear.lead + margin + corner + travel * geometry.position
         return when (orientation) {
             Orientation.Vertical -> {
-                val x = if (direction == LayoutDirection.Rtl) margin else size.width - margin - width
+                val x = if (direction == LayoutDirection.Rtl) clear.side + margin else size.width - clear.side - margin - width
                 Rect(x, along, x + width, along + thumb)
             }
             // From the visual start, which is the right in right to left, as a
             // horizontal scroller's offset is.
             Orientation.Horizontal -> {
-                val y = size.height - margin - width
+                val y = size.height - clear.side - margin - width
                 val x = if (direction == LayoutDirection.Rtl) size.width - along - thumb else along
                 Rect(x, y, x + thumb, y + width)
             }
