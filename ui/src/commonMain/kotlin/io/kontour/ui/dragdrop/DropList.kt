@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -168,6 +169,16 @@ class DropListState<T : Any> internal constructor(
     /** How long the gap is along the list, in pixels: the carried thing's size. */
     internal var gapSize: Int by mutableIntStateOf(0)
 
+    /**
+     * How wide the gap is across the list, in pixels: the carried thing's own
+     * width, so the list puts it across where it would put the thing — at its
+     * padding, centred, wherever its items go.
+     */
+    internal var gapCross: Int by mutableIntStateOf(0)
+
+    /** Where the gap is laid out, for where across the list a landing goes. */
+    internal var gapCoordinates: LayoutCoordinates? = null
+
     internal val gapKey: String = "kontour.dropGap.$id"
 
     internal val target: DropTarget = object : DropTarget(type, label) {
@@ -201,6 +212,7 @@ class DropListState<T : Any> internal constructor(
         override fun place(session: DragSession, index: Int) {
             if (session.size != androidx.compose.ui.unit.IntSize.Zero) {
                 gapSize = if (vertical) session.size.height else session.size.width
+                gapCross = if (vertical) session.size.width else session.size.height
             }
             gapIndex = index
             session.index = index
@@ -305,6 +317,7 @@ class DropListState<T : Any> internal constructor(
         probe -= info.beforeContentPadding
 
         gapSize = if (vertical) session.size.height else session.size.width
+        gapCross = if (vertical) session.size.width else session.size.height
         val from = if (session.fromList === this) session.fromIndex else null
         val positions = HashMap<Any, Int>(items.size)
         items.forEachIndexed { index, item -> positions[key(item)] = index }
@@ -327,23 +340,33 @@ class DropListState<T : Any> internal constructor(
     /**
      * Where a landing here flies to, in the root: the gap — or, for one of this
      * list's own items, its own place, which it holds where it would land.
-     * Read from the list's layout rather than from the item, whose drawn
-     * position may still be on its way there.
+     *
+     * Along the list, read from the list's layout rather than from the item,
+     * whose drawn position may still be on its way there. Across it, from where
+     * the list put the place: the layout says nothing about across, and the
+     * list's own edge — what this used — is not where its items are when it
+     * has padding at the sides or centres them, so a landing settled that far
+     * to one side and stepped across as the item in the list took over.
      */
     @Suppress("UNCHECKED_CAST")
     private fun gapBounds(session: DragSession): Rect? {
         val coordinates = target.coordinates?.takeIf { it.isAttached } ?: return null
         val info = listState.layoutInfo
-        val slot = if (session.fromList === this) key(session.payload as T) else gapKey
+        val own = session.fromList === this
+        val slot = if (own) key(session.payload as T) else gapKey
         val gap = info.visibleItemsInfo.firstOrNull { it.key == slot } ?: return null
         val vertical = info.orientation == Orientation.Vertical
         val origin = coordinates.positionInRoot()
         val start = (gap.offset + info.beforeContentPadding).toFloat()
         val size = Size(session.size.width.toFloat(), session.size.height.toFloat())
+        // The held item is the carried thing at full size, where it would land;
+        // the gap is the carried thing's width across.
+        val placed = if (own) session.source.homeBounds()?.topLeft else gapCoordinates?.takeIf { it.isAttached }?.positionInRoot()
+        val across = placed?.let { if (vertical) it.x else it.y } ?: if (vertical) origin.x else origin.y
         val topLeft = when {
-            vertical -> Offset(origin.x, origin.y + start)
-            layoutDirection == LayoutDirection.Rtl -> Offset(origin.x + coordinates.size.width - start - gap.size, origin.y)
-            else -> Offset(origin.x + start, origin.y)
+            vertical -> Offset(across, origin.y + start)
+            layoutDirection == LayoutDirection.Rtl -> Offset(origin.x + coordinates.size.width - start - gap.size, across)
+            else -> Offset(origin.x + start, across)
         }
         return Rect(topLeft, size)
     }
@@ -603,11 +626,16 @@ private fun <T : Any> LazyListScope.gapItem(state: DropListState<T>) {
     item(key = state.gapKey, contentType = "kontour.dropGap") {
         val density = LocalDensity.current
         val length = with(density) { state.gapSize.toDp() }
+        // As wide across as the carried thing, so the list places it across as
+        // it would place the thing; where that is is where a landing goes.
+        val across = with(density) { state.gapCross.toDp() }
         val vertical = state.orientation == Orientation.Vertical
+        DisposableEffect(state) { onDispose { state.gapCoordinates = null } }
         Spacer(
             Modifier
                 .then(if (Theme.motion.reduceMotion) Modifier.animateItem(placementSpec = null) else Modifier.animateItem())
-                .then(if (vertical) Modifier.size(width = Theme.spacing.xxs, height = length) else Modifier.size(width = length, height = Theme.spacing.xxs)),
+                .then(if (vertical) Modifier.size(width = across, height = length) else Modifier.size(width = length, height = across))
+                .onPlaced { state.gapCoordinates = it },
         )
     }
 }

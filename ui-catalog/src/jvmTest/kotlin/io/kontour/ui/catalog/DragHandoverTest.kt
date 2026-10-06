@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.unit.dp
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.math.max
@@ -130,6 +131,58 @@ class DragHandoverTest {
             scene.release(drop, PointerType.Mouse)
             // No flight: a step into its place is the point, and nothing else.
             follow(scene, board, "Fares", flies = false)
+        }
+    }
+
+    /**
+     * Cards with room either side of them in their list, as a list with
+     * `contentPadding` has, land where the list puts them across it as well as
+     * along it.
+     *
+     * Reported as *"when it snaps into place, it sort of settles a little bit
+     * over to the left, then snaps back to the regular position"*. Where a
+     * landing flew to was read from the list's layout, which says where an item
+     * is along the list and nothing about across it, so it took the list's own
+     * edge: the carried card settled the list's padding to the left of its
+     * place, and stepped across when the card in the list took over.
+     */
+    @Test
+    fun aCardMovedWithinAnInsetListArrivesWithoutAStepSideways() {
+        val board = SpacedBoard(todo = listOf("Timetable", "Fares", "Signage", "Lifts", "Bins"), done = listOf("Maps"), inset = 24.dp)
+        board.run { scene ->
+            val grab = board.bounds.getValue("Fares").center
+            val drop = Offset(grab.x, board.bounds.getValue("Bins").top + 4f)
+            scene.pickUp(grab)
+            scene.carry(grab + Offset(0f, 24f), drop)
+            scene.release(drop, PointerType.Mouse)
+            follow(scene, board, "Fares")
+        }
+    }
+
+    @Test
+    fun aCardMovedIntoAnInsetListArrivesWithoutAStepSideways() {
+        val board = SpacedBoard(todo = listOf("Timetable", "Fares", "Signage", "Lifts"), done = listOf("Maps", "Wi-Fi"), inset = 24.dp)
+        board.run { scene ->
+            val grab = board.bounds.getValue("Fares").center
+            val drop = Offset(board.doneList.center.x, board.bounds.getValue("Wi-Fi").top + 4f)
+            scene.pickUp(grab)
+            scene.carry(grab + Offset(0f, 24f), drop)
+            scene.release(drop, PointerType.Mouse)
+            follow(scene, board, "Fares")
+        }
+    }
+
+    /** And cards narrower than their list, centred in it, land centred. */
+    @Test
+    fun aNarrowCardMovedIntoACentredListArrivesWithoutAStepSideways() {
+        val board = SpacedBoard(todo = listOf("Timetable", "Fares", "Signage", "Lifts"), done = listOf("Maps", "Wi-Fi"), cardWidth = 100.dp)
+        board.run { scene ->
+            val grab = board.bounds.getValue("Fares").center
+            val drop = Offset(board.doneList.center.x, board.bounds.getValue("Wi-Fi").top + 4f)
+            scene.pickUp(grab)
+            scene.carry(grab + Offset(0f, 24f), drop)
+            scene.release(drop, PointerType.Mouse)
+            follow(scene, board, "Fares")
         }
     }
 

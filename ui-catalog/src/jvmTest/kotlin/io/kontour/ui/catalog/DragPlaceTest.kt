@@ -3,20 +3,24 @@ package io.kontour.ui.catalog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropEvent
@@ -116,6 +120,10 @@ internal class SpacedBoard(
     val reduceMotion: Boolean = false,
     /** Holds each drop in [pending] rather than moving the card, as a caller that moves it later would. */
     val deferMoves: Boolean = false,
+    /** Space either side of the cards, inside each list. */
+    val inset: Dp = 0.dp,
+    /** Cards this wide, centred in their lists, rather than as wide as the list. */
+    val cardWidth: Dp? = null,
 ) {
     class Lane(initial: List<String>, val label: String) {
         val items: SnapshotStateList<String> = mutableStateListOf<String>().also { it.addAll(initial) }
@@ -169,12 +177,14 @@ internal class SpacedBoard(
         LazyColumn(
             state = scroll,
             modifier = modifier.fillMaxHeight().dropList(state),
+            contentPadding = PaddingValues(horizontal = inset),
             verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             dragItems(state) { _, item ->
                 Box(
                     Modifier
-                        .fillMaxWidth()
+                        .then(if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth())
                         .height(60.dp)
                         .background(CardColours.getValue(item))
                         .reportBounds { bounds[item] = it },
