@@ -46,6 +46,7 @@ import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -373,6 +374,8 @@ private fun TooltipBubble(content: @Composable ContentScope.() -> Unit, modifier
  * @param priority Higher shows first. See [OverlayRequest].
  * @param prerequisites Other coach-mark ids that must be dismissed first, for
  *   teaching a sequence in order.
+ * @param tone The bubble's colour: the accent by default, any [Tone] the tip is
+ *   better said in.
  */
 @Composable
 fun Modifier.coachmark(
@@ -382,6 +385,7 @@ fun Modifier.coachmark(
     icon: ImageVector? = null,
     side: OverlaySide = OverlaySide.Bottom,
     alignment: OverlayAlignment = OverlayAlignment.Centre,
+    tone: Tone = Tone.Accent,
     priority: Int = 0,
     minSessions: Int = 0,
     prerequisites: Set<String> = emptySet(),
@@ -416,6 +420,7 @@ fun Modifier.coachmark(
         icon = icon,
         side = side,
         alignment = alignment,
+        tone = tone,
         dismissLabel = dismissLabel,
         onDismiss = { queue.dismiss(id) },
     )
@@ -432,11 +437,12 @@ private fun CoachMarkOverlay(
     icon: ImageVector?,
     side: OverlaySide,
     alignment: OverlayAlignment,
+    tone: Tone,
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
     val host = LocalOverlayHost.current
-    val colours = Theme.colours
+    val colours = solidTone(tone)
     val key = remember { Any() }
     val dismissNow by rememberUpdatedState(onDismiss)
     // Read here rather than by the caller — see [TooltipOverlay].
@@ -447,7 +453,7 @@ private fun CoachMarkOverlay(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment) {
+    LaunchedEffect(visible, anchorNow != null, title, message, side, alignment, tone) {
         if (!visible || anchorNow == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -473,12 +479,13 @@ private fun CoachMarkOverlay(
                         alignment = alignment,
                         gap = Theme.spacing.xxs,
                         margin = MenuDefaults.ScreenMargin,
-                        arrow = ArrowSpec(colour = colours.accent.solid),
+                        arrow = ArrowSpec(colour = colours.container),
                     ) {
                         CoachMarkBubble(
                             title = title,
                             message = message,
                             icon = icon,
+                            colours = colours,
                             dismissLabel = dismissLabel,
                             onDismiss = { dismissNow() },
                         )
@@ -494,18 +501,18 @@ private fun CoachMarkBubble(
     title: String,
     message: String,
     icon: ImageVector?,
+    colours: SolidTone,
     dismissLabel: String,
     onDismiss: () -> Unit,
 ) {
-    val colours = Theme.colours
     val announced = Theme.strings.sentences(listOf(title, message))
     Surface(
         modifier = Modifier
             .widthIn(max = 320.dp)
             .semantics(mergeDescendants = true) { contentDescription = announced },
         shape = Theme.shapes.container,
-        containerColour = colours.accent.solid,
-        contentColour = colours.accent.onSolid,
+        containerColour = colours.container,
+        contentColour = colours.content,
         shadow = Theme.elevation.overlay,
     ) {
         // As `TooltipBubble` above: bounded to its side, so it needs somewhere for
@@ -541,7 +548,7 @@ private fun CoachMarkBubble(
                     onClick = onDismiss,
                     variant = ButtonVariant.Ghost,
                     // Ghost takes its label from LocalContentColour, which the
-                    // bubble's Surface has already set to `accent.onSolid`.
+                    // bubble's Surface has already set to the tone's ink.
                     size = ButtonSize.Small,
                 ) { +dismissLabel }
             }

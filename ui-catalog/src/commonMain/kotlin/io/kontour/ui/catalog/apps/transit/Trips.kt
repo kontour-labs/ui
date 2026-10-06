@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.theme.Tone
+import io.kontour.ui.overlay.coachmarkStep
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,7 +88,17 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
                 today = TransitToday,
                 selected = picked,
                 onDayClick = { picked = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(
+                    LocalTransitTour.current?.let { tour ->
+                        Modifier.coachmarkStep(
+                            tour,
+                            id = "activity",
+                            title = "A year of trips",
+                            message = "A shade a day: the darker the day, the more you travelled.",
+                            tone = Tone.Success,
+                        )
+                    } ?: Modifier,
+                ),
             )
             picked?.let { day ->
                 val count = tripsByDay[day] ?: 0

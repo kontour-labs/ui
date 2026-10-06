@@ -55,6 +55,8 @@ import io.kontour.ui.overlay.LoadingOverlay
 import io.kontour.ui.overlay.LocalOverlayHost
 import io.kontour.ui.overlay.LocalOverlayQueue
 import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.CoachmarkTransition
+import io.kontour.ui.overlay.CoachmarkStep
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
 import io.kontour.ui.overlay.rememberOverlayQueue
@@ -413,6 +415,13 @@ internal val TooltipDemo = ComponentDemo(slug = "tooltip") {
 
 private val coachmarkSide = Knob.Choice("Side", OverlaySide.entries.toList(), initial = OverlaySide.Bottom)
 
+/** The tour's way between its steps: a ball by default, a fade for a quieter one. */
+private val coachmarkTransition =
+    Knob.Choice("Transition", CoachmarkTransition.entries.toList(), initial = CoachmarkTransition.Morph)
+
+/** Any tone, not only the accent: *"please allow different colours that aren't just the accent colour"*. */
+private val coachmarkTone = Knob.Choice("Tone", Tone.entries.toList(), initial = Tone.Accent)
+
 /**
  * Both kinds, side by side, because the page is about telling them apart.
  *
@@ -421,13 +430,23 @@ private val coachmarkSide = Knob.Choice("Side", OverlaySide.entries.toList(), in
  * thing a coach mark must not do. "Show the tip" is the app deciding the moment
  * has come; the queue then shows it, and shows it again only after a reset.
  */
-internal val CoachmarkDemo = ComponentDemo(slug = "coachmark", knobs = listOf(coachmarkSide)) {
+internal val CoachmarkDemo = ComponentDemo(
+    slug = "coachmark",
+    knobs = listOf(coachmarkSide, coachmarkTransition, coachmarkTone),
+) {
     val side = this[coachmarkSide]
+    val tone = this[coachmarkTone]
     var tipWanted by remember { mutableStateOf(false) }
     Stage {
         // Inside the stage, so the queue watches the stage's own host.
         val queue = rememberOverlayQueue()
-        val tour = rememberCoachmarkTour("plan", "saved", "alerts")
+        val tour = rememberCoachmarkTour("welcome", "plan", "saved", "alerts", transition = this@ComponentDemo[coachmarkTransition])
+        // The first step points at nothing: a card in the middle, to say what
+        // the tour is before it starts pointing at things.
+        CoachmarkStep(
+            tour, id = "welcome", title = "Welcome aboard",
+            message = "A quick look at the three buttons you will use most.", tone = tone,
+        )
         CompositionLocalProvider(LocalOverlayQueue provides queue) {
             Column(
                 modifier = Modifier.align(Alignment.Center),
@@ -441,7 +460,7 @@ internal val CoachmarkDemo = ComponentDemo(slug = "coachmark", knobs = listOf(co
                         onClick = { echo("Plan a trip") },
                         modifier = Modifier.coachmarkStep(
                             tour, id = "plan", title = "Plan a trip",
-                            message = "From here to anywhere on the network.", side = side,
+                            message = "From here to anywhere on the network.", side = side, tone = tone,
                         ),
                     )
                     IconButton(
@@ -451,13 +470,14 @@ internal val CoachmarkDemo = ComponentDemo(slug = "coachmark", knobs = listOf(co
                         modifier = Modifier
                             .coachmarkStep(
                                 tour, id = "saved", title = "Saved trips",
-                                message = "The ones you keep show up here.", side = side,
+                                message = "The ones you keep show up here.", side = side, tone = tone,
                             )
                             .coachmark(
                                 id = "save-trip",
                                 title = "Save this trip",
                                 message = "Trips you save show up on the home screen.",
                                 side = side,
+                                tone = tone,
                                 enabled = tipWanted,
                             ),
                     )
@@ -467,7 +487,7 @@ internal val CoachmarkDemo = ComponentDemo(slug = "coachmark", knobs = listOf(co
                         onClick = { echo("Alerts") },
                         modifier = Modifier.coachmarkStep(
                             tour, id = "alerts", title = "Alerts",
-                            message = "Tell us your line and we will tell you when it changes.", side = side,
+                            message = "Tell us your line and we will tell you when it changes.", side = side, tone = tone,
                         ),
                     )
                 }

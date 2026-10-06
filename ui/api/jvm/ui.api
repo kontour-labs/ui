@@ -3388,8 +3388,9 @@ public final class io/kontour/ui/overlay/CoachmarkDefaults {
 }
 
 public final class io/kontour/ui/overlay/CoachmarkKt {
-	public static final fun coachmarkStep-Wu8B24Y (Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/CoachmarkTour;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;FLandroidx/compose/foundation/shape/CornerBasedShape;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
-	public static final fun rememberCoachmarkTour ([Ljava/lang/String;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/overlay/CoachmarkTour;
+	public static final fun CoachmarkStep (Lio/kontour/ui/overlay/CoachmarkTour;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/theme/Tone;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun coachmarkStep-wn8IZOc (Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/CoachmarkTour;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;FLandroidx/compose/foundation/shape/CornerBasedShape;Lio/kontour/ui/theme/Tone;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun rememberCoachmarkTour ([Ljava/lang/String;Lio/kontour/ui/overlay/CoachmarkTransition;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/overlay/CoachmarkTour;
 }
 
 public final class io/kontour/ui/overlay/CoachmarkTour {
@@ -3406,6 +3407,14 @@ public final class io/kontour/ui/overlay/CoachmarkTour {
 	public final fun next ()V
 	public final fun previous ()V
 	public final fun start ()V
+}
+
+public final class io/kontour/ui/overlay/CoachmarkTransition : java/lang/Enum {
+	public static final field Fade Lio/kontour/ui/overlay/CoachmarkTransition;
+	public static final field Morph Lio/kontour/ui/overlay/CoachmarkTransition;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/overlay/CoachmarkTransition;
+	public static fun values ()[Lio/kontour/ui/overlay/CoachmarkTransition;
 }
 
 public final class io/kontour/ui/overlay/Command {
@@ -3699,7 +3708,7 @@ public final class io/kontour/ui/overlay/TooltipDefaults {
 
 public final class io/kontour/ui/overlay/TooltipKt {
 	public static final fun Tooltip (ZLandroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun coachmark (Landroidx/compose/ui/Modifier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;IILjava/util/Set;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun coachmark (Landroidx/compose/ui/Modifier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/theme/Tone;IILjava/util/Set;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 	public static final fun tooltip (Landroidx/compose/ui/Modifier;Ljava/lang/String;Lio/kontour/ui/overlay/OverlaySide;Lio/kontour/ui/overlay/OverlayAlignment;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 

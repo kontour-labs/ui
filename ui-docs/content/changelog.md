@@ -142,6 +142,18 @@ passed by position need naming — see **Breaking**, and
   the option in the app's own words; the example now shows it.
 - **`supporting` and `errorMessage` on a [`DateField`](components/date-field.md)**,
   `DateTimeField` and `TimeField`, as a text field has.
+- **Coach mark tours across the app, a step that points at nothing, a way
+  between steps, and any colour** — [coach marks](components/coachmark.md):
+  *"better guided tours that takes the user across the app"*.
+  `rememberCoachmarkTour` takes a `navigate`, told each step as the tour reaches
+  it, to take the reader to the screen it is on; the dim stays up while the
+  screen changes, and a step whose control never turns up is passed over.
+  `CoachmarkStep(tour, id, title, message)` is a step with no control, a card in
+  the middle of the screen, for a welcome. `transition` is
+  `CoachmarkTransition.Morph` — the mark shrinks into a ball, zips to the next
+  step and grows into its mark — or `Fade`, and the page is still dimmed once
+  throughout. `tone` on `Modifier.coachmarkStep`, `CoachmarkStep` and
+  `Modifier.coachmark` draws a mark in any `Tone`, not only the accent.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

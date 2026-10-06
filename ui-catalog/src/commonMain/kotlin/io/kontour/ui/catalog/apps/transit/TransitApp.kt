@@ -1,5 +1,9 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.runtime.staticCompositionLocalOf
+import io.kontour.ui.overlay.CoachmarkTour
+import io.kontour.ui.overlay.rememberCoachmarkTour
+import io.kontour.ui.overlay.CoachmarkStep
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -53,6 +57,12 @@ internal data class TripRoute(val id: String)
 private val tabs = listOf(DeparturesRoute, StopsRoute, TripsRoute, SettingsRoute)
 
 /**
+ * The app's tour, for the pages its steps are on. Null outside the app — a page
+ * shown on its own — where a page keeps a tour of its own steps.
+ */
+internal val LocalTransitTour = staticCompositionLocalOf<CoachmarkTour?> { null }
+
+/**
  * Transit: the next departures from a home stop, an A–Z of stops, a year of
  * trips and the app's settings, with a ticket over the navigation and a trip
  * planner in a sheet.
@@ -82,6 +92,19 @@ internal fun TransitApp() {
         backStack.clear()
         backStack += tab
     }
+
+    // The tour is the app's, not a page's: it starts on the departures and
+    // ends on the trips, taking the reader from the one tab to the other.
+    val tour = rememberCoachmarkTour("welcome", "ticket", "filters", "plan", "activity") { step ->
+        val tab = if (step == "activity") TripsRoute else DeparturesRoute
+        if (root != tab || backStack.size > 1) go(tab)
+    }
+    CoachmarkStep(
+        tour,
+        id = "welcome",
+        title = "Welcome aboard",
+        message = "A minute's tour: the departures first, then the trips you have taken.",
+    )
 
     val suite = rememberNavigationSuiteSceneStrategy<Any> { pages ->
         NavigationSuiteScaffold(
@@ -128,7 +151,7 @@ internal fun TransitApp() {
     // at the side, out of the way, and the page stays inside it.
     val detail: Map<String, Any> = if (compact) coversNavigation() else emptyMap()
 
-    CompositionLocalProvider(LocalLeaveInTopBar provides compact) {
+    CompositionLocalProvider(LocalLeaveInTopBar provides compact, LocalTransitTour provides tour) {
         NavDisplay(
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
