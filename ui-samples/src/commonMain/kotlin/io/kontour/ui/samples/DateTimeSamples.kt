@@ -1,5 +1,10 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.fillMaxSize
+import io.kontour.ui.theme.Tone
+import io.kontour.ui.components.calendar.rememberEventCalendarState
+import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
@@ -255,3 +260,20 @@ fun LocaleFormatsBasics() {
         Screen()
     }
 }
+
+@Composable
+fun EventCalendarBasics() {
+    // The app keeps the events; the calendar shows them and says what was pressed.
+    val calendar = rememberEventCalendarState()
+    val events = listOf(
+        CalendarEvent(id = 1, title = "Stand-up", start = LocalDateTime(2026, 10, 14, 9, 0), end = LocalDateTime(2026, 10, 14, 9, 15)),
+        CalendarEvent(id = 2, title = "Perth trip", startDate = LocalDate(2026, 10, 13), endDate = LocalDate(2026, 10, 16), tone = Tone.Warning),
+    )
+    EventCalendar(
+        state = calendar,
+        events = events,
+        onEventClick = { open(it.title) },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+

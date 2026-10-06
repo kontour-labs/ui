@@ -61,6 +61,9 @@ passed by position need naming — see **Breaking**, and
   `placeholder`, `TimeField` and `DateTimeField` after `label`; `BottomSheet`
   and `ModalBottomSheet` take `fadeUnder` after `draggable`; `Select` and
   `MultiSelect` take `otherPlaceholder` after `otherLabel`. Name the argument.
+- **Recompile rather than swap the jar.** `Strings` gained the event
+  calendar's words and `ComponentDefaults` its hour height, so a library built
+  against 0.4.2 that constructs either fails until it is rebuilt.
 
 ### Changed
 
@@ -154,6 +157,14 @@ passed by position need naming — see **Breaking**, and
   step and grows into its mark — or `Fade`, and the page is still dimmed once
   throughout. `tone` on `Modifier.coachmarkStep`, `CoachmarkStep` and
   `Modifier.coachmark` draws a mark in any `Tone`, not only the accent.
+- **An [`EventCalendar`](components/event-calendar.md)**: events in a day's or
+  a week's hours, a month of day boxes, or a year of small months — *"a proper
+  calendar component … not like a date picker, but more of a calendar that has
+  boxes for each day of the month, designed to show events"*. `CalendarEvent`
+  is wall-clock and half-open; the app keeps the events and the calendar
+  reports presses on an event, a day and an empty time. The header steps,
+  goes to today and switches the view, a swipe pages as the date picker's
+  months do, and a day's number opens the day.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

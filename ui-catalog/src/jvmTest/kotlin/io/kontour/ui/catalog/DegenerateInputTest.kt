@@ -1,5 +1,12 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.layout.height
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalDate
+import io.kontour.ui.components.calendar.rememberEventCalendarState
+import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.CalendarView
+import io.kontour.ui.components.calendar.CalendarEvent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
@@ -203,6 +210,42 @@ class DegenerateInputTest {
     }
 
     // ---- the two shapes --------------------------------------------------
+
+    // ---- calendars -------------------------------------------------------
+
+    /** An event whose times were swapped on the way in. */
+    @Test
+    fun anEventEndingBeforeItStartsSaysSo() = refuses("CalendarEvent(end before start)", "CalendarEvent", "end") {
+        CalendarEvent(1, "Backwards", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 9, 0))
+        Unit
+    }
+
+    /** A calendar opened before its events have loaded, in every view. */
+    @Test
+    fun anEventCalendarWithNoEventsDraws() = survives("EventCalendar(events = emptyList())") {
+        for (view in CalendarView.entries) {
+            EventCalendar(
+                state = rememberEventCalendarState(initialDate = LocalDate(2026, 10, 14), initialView = view),
+                events = emptyList(),
+                modifier = Modifier.width(360.dp).height(480.dp),
+            )
+        }
+    }
+
+    /** A thousand events on one day: a "+N", and lanes, not a hang. */
+    @Test
+    fun anEventCalendarWithAThousandEventsOnADayDraws() = survives("EventCalendar(1000 events on one day)") {
+        val events = (0 until 1000).map {
+            CalendarEvent(it, "Event $it", LocalDateTime(2026, 10, 14, it % 24, 0), LocalDateTime(2026, 10, 14, it % 24, 30))
+        }
+        for (view in listOf(CalendarView.Month, CalendarView.Day)) {
+            EventCalendar(
+                state = rememberEventCalendarState(initialDate = LocalDate(2026, 10, 14), initialView = view),
+                events = events,
+                modifier = Modifier.width(360.dp).height(480.dp),
+            )
+        }
+    }
 
     private fun survives(what: String, content: @Composable () -> Unit) {
         try {

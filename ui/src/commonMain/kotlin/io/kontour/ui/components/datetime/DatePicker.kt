@@ -289,10 +289,10 @@ private const val TodayFlashOutMillis: Int = 170
 private const val TodayFlashPulses: Int = 2
 
 /** How far a swipe has to go to page, as a share of the calendar's width. */
-private const val SwipeCommitShare: Float = 1f / 3f
+internal const val SwipeCommitShare: Float = 1f / 3f
 
 /** How fast a swipe has to be moving, when let go, to page however short it was. */
-private val MonthFlick = 400.dp
+internal val MonthFlick = 400.dp
 
 /** Weeks in the tallest month, and so in every month a picker draws. */
 private const val CalendarWeeks: Int = 6

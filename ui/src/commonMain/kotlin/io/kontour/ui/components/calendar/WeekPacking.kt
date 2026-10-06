@@ -40,15 +40,15 @@ internal class WeekPlacement(val item: WeekItem, val row: Int)
 internal class WeekPack(val placed: List<WeekPlacement>, val more: IntArray, val shownRows: IntArray)
 
 /**
- * The events in the week from [weekStart], as [WeekItem]s.
+ * The events in the [days] from [weekStart] — a week, or the one day of a day view — as [WeekItem]s.
  *
  * With [lines], a month's week: every event, the ones on a single day as
  * lines. Without, the strip above a week's hours: only what is not in the
  * hours — all day, or a whole day long or longer.
  */
-internal fun weekItems(weekStart: LocalDate, events: List<CalendarEvent>, lines: Boolean): List<WeekItem> {
+internal fun weekItems(weekStart: LocalDate, events: List<CalendarEvent>, lines: Boolean, days: Int = DaysPerWeek): List<WeekItem> {
     val weekFrom = weekStart.toEpochDays()
-    val weekTo = weekFrom + DaysPerWeek - 1
+    val weekTo = weekFrom + days - 1
     val items = ArrayList<WeekItem>()
     for (event in events) {
         val firstDay = event.start.date.toEpochDays()
@@ -84,7 +84,7 @@ internal fun weekItems(weekStart: LocalDate, events: List<CalendarEvent>, lines:
  * counts in every day it would have crossed. [maxRows] may be 0, where a day
  * is too short for even one: nothing is shown, and every day counts all of its own.
  */
-internal fun packWeek(items: List<WeekItem>, maxRows: Int): WeekPack {
+internal fun packWeek(items: List<WeekItem>, maxRows: Int, days: Int = DaysPerWeek): WeekPack {
     val ordered = items.withIndex().sortedWith(
         compareBy<IndexedValue<WeekItem>>(
             { if (it.value.bar) 0 else 1 },
@@ -102,7 +102,7 @@ internal fun packWeek(items: List<WeekItem>, maxRows: Int): WeekPack {
         var row = rows.indexOfFirst { taken -> (item.from..item.to).none { taken[it] } }
         if (row < 0) {
             row = rows.size
-            rows += BooleanArray(DaysPerWeek)
+            rows += BooleanArray(days)
         }
         for (day in item.from..item.to) rows[row][day] = true
         rowOf[item] = row
@@ -112,9 +112,9 @@ internal fun packWeek(items: List<WeekItem>, maxRows: Int): WeekPack {
     // fewer, for its "+N", once anything on it is hidden. Hiding a bar can put
     // a "+N" on a day that fitted, which can hide another bar, so round again
     // until nothing changes; each round only takes rows away.
-    val shownRows = IntArray(DaysPerWeek) { maxRows }
+    val shownRows = IntArray(days) { maxRows }
     while (true) {
-        val hidden = IntArray(DaysPerWeek)
+        val hidden = IntArray(days)
         for (item in ordered) {
             val row = rowOf.getValue(item)
             if ((item.from..item.to).any { row >= shownRows[it] }) {
@@ -122,7 +122,7 @@ internal fun packWeek(items: List<WeekItem>, maxRows: Int): WeekPack {
             }
         }
         var changed = false
-        for (day in 0 until DaysPerWeek) {
+        for (day in 0 until days) {
             if (hidden[day] > 0 && shownRows[day] == maxRows && maxRows > 0) {
                 shownRows[day] = maxRows - 1
                 changed = true

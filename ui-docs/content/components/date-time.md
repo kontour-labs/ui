@@ -3,6 +3,7 @@
 | | For | Instead of |
 |---|---|---|
 | [`ActivityCalendar`](activity-calendar.md) | A year of activity, a shade a day | A chart, when the shape of each day matters |
+| [`EventCalendar`](event-calendar.md) | Events in a day's or week's hours, a month of boxes, or a year | A list, when there are only a few and their order is what matters |
 | [`CalendarMonth`](calendar-month.md) | Building your own picker | A picker, unless you need the grid |
 | [`DatePicker`](date-picker.md) | One date | — |
 | [`DateRangePicker`](date-range-picker.md) | A start and an end | Two `DatePicker`s |
