@@ -47,6 +47,9 @@ apply `selectableGroup()`, which is what makes a screen reader announce the
 position within the set — "2 of 5". It also makes the invalid states, two
 selected or none, unrepresentable.
 
+In a browser under Compose 1.12 this is announced as a button, with no state —
+see [In the browser](../accessibility.md#in-the-browser).
+
 Each row is a [`SelectionRow`](selection-row.md) with `role = Role.RadioButton`
 and the button inside taking `onClick = null`, so the whole row is the target and
 there is exactly one of them.

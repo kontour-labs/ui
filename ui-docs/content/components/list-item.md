@@ -32,6 +32,10 @@ carries that, and `of(index, count)` gets the one-item case right — which is t
 case a three-item example in a catalog never exercises and every settings screen
 with a single row hits immediately.
 
+`ListGroup` counts the rows for you, so there is no position to pass. Its
+builder is composable: a row's text can be read from the theme where the row is
+written, `item("Departs", supporting = Theme.formats.time(departure))`.
+
 **Rows default to a *sunken* ground.** In this scheme `surface` and `background`
 are the same white, so a row drawn on `surface` is invisible on a page and a
 group of them reads as loose text.
@@ -59,8 +63,19 @@ one is the control. That is the rule that runs through
 [`SelectionRow`](selection-row.md) and [`RadioGroup`](radio-group.md).
 
 `label`, `supporting` and `overline` merge into one announcement in reading
-order. `leading` and `trailing` icons take `null` unless they carry meaning the
-text does not.
+order. `leading` and `trailing` icons take a `null` description: what one means
+belongs in the row's text, for the reason below.
+
+**A description inside a clickable row can take the row's name.** The row is one
+merged node, and a merged node that holds both a child's `contentDescription`
+and the row's text is named by the description where the platform prefers one —
+in the browser a status row announced its uptime bars, "90 days: 99.35% up",
+instead of its service. So a graphic inside a row carries no description of its
+own; what it says goes into the row's text, `supporting { +"99.35% up over 90
+days" }`, where it is read after the label rather than in place of it. An
+[`Avatar`](avatar.md) in `leading` and a [`Badge`](badge.md) on it already
+behave: the avatar says no name — it is nearly always the row's title — and the
+badge and the avatar's status dot are said as text, in the row's reading order.
 
 At high contrast every row takes an edge in the scheme's `outline`, because its
 sunken ground is too close to the page to say where a row ends, and a selected

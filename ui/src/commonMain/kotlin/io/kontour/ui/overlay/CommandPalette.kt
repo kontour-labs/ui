@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -173,6 +174,13 @@ fun CommandPalette(
     val latestDismissible by rememberUpdatedState(dismissible)
     // Read here: the entry below is built in an effect, which has no theme.
     val dismissLabel = Theme.strings.dismiss
+
+    // Taken down with the composable that showed it, not only by `visible =
+    // false`: the entry lives in the host, and a screen navigated away from, or
+    // an `if` round this turning false, otherwise left it up with nothing to
+    // close it. Keyed on `key` too, so a key changed while it is up does not
+    // leave the old entry behind. Popovers, menus and sheets do the same.
+    DisposableEffect(key) { onDispose { host.hide(key) } }
 
     LaunchedEffect(visible, key) {
         if (visible) {

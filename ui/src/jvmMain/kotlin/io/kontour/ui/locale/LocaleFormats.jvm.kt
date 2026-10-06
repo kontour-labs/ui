@@ -60,6 +60,19 @@ internal actual fun readPlatformLocale(locale: Locale): PlatformReading {
     return PlatformReading(conventions, symbols) { jdkData(jdk, tag, symbols, shortTime) }
 }
 
+/** The JDK's currency format for [code], with the currency's own places; `null` for a code it does not know. */
+internal actual fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat? {
+    val jdk = java.util.Locale.forLanguageTag(locale.toLanguageTag())
+    val currency = runCatching { java.util.Currency.getInstance(code) }.getOrNull() ?: return null
+    val format = NumberFormat.getCurrencyInstance(jdk) as? DecimalFormat ?: return null
+    format.currency = currency
+    return CurrencyFormat(
+        prefix = format.positivePrefix,
+        suffix = format.positiveSuffix,
+        fractionDigits = currency.defaultFractionDigits.takeIf { it >= 0 } ?: isoFractionDigits(code),
+    )
+}
+
 private fun jdkData(jdk: java.util.Locale, tag: LocaleTag, symbols: NumberSymbols, shortTime: String): LocaleData {
     val names = DateFormatSymbols.getInstance(jdk)
     val percent = NumberFormat.getPercentInstance(jdk) as? DecimalFormat

@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.components.list.indexedBy
 import io.kontour.ui.components.list.listSection
@@ -228,12 +231,16 @@ fun LoadMoreBasics() {
 @Composable
 fun ScrollbarBasics() {
     val scroll = rememberScrollState()
+    // On the scroller itself, before its scroll. Under touch it appears while
+    // the content moves and fades after; with a mouse or a keyboard it is there
+    // all along. Either way it can be dragged while it is there.
+    Column(Modifier.fillMaxWidth().scrollbar(scroll).verticalScroll(scroll)) { Screen() }
 
-    Box {
-        Column(Modifier.fillMaxWidth().verticalScroll(scroll)) { Screen() }
-        // It hides itself unless the pointer can hover, so it costs a touch user
-        // nothing. `alwaysVisible` is for a pane where the scroll is the point.
-        Scrollbar(state = scroll, modifier = Modifier.align(Alignment.CenterEnd))
+    // Any scroller foundation ships — a lazy list, a grid, a pager — across or
+    // down: a row's runs along its foot.
+    val row = rememberLazyListState()
+    LazyRow(Modifier.scrollbar(row, Orientation.Horizontal), state = row) {
+        items(stops) { Text(it.name) }
     }
 }
 

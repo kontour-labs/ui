@@ -1,5 +1,6 @@
 package io.kontour.ui.nav
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableFloatStateOf
@@ -28,10 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -44,11 +51,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
+import io.kontour.ui.adaptive.rememberHandleClearingInsets
+import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.SelectionIndicatorState
 import io.kontour.ui.foundation.IndicatorSizing
 import io.kontour.ui.foundation.IndicatorReach
@@ -298,6 +308,19 @@ enum class NavBarStyle {
  *   destination is chosen: [NavBarMarkerDrag.SelectOnRelease], the one under the
  *   finger as it lifts, or [NavBarMarkerDrag.SelectWhileDragging], each as the
  *   marker reaches it. A tap is still a tap either way.
+ * @param fadeUnder For a floating bar: the page's colour, solid from the
+ *   bar's middle down to the window's foot and thinning out a little above
+ *   the capsule, so what scrolls under it fades away rather than running
+ *   behind it. On by default: a floating bar is `surface`, and the rows of a
+ *   list under it are too, so without it the bar was only a shadow apart from
+ *   them. With it the capsule stands on a deeper shadow; without it, it has a
+ *   rim, a hairline of its own ink. Never at high contrast, where nothing that
+ *   is text fades, and the bar has its edge.
+ * @param windowInsets What the bar keeps clear of. A floating bar over a system
+ *   handle — iOS's home indicator, Android's gesture handle — keeps clear of the
+ *   handle itself rather than of the whole strip the system keeps for it, and
+ *   sits just above it. Android's three buttons, and any foot taller than the
+ *   handle, are kept clear of whole.
  * @param action Something the screen does rather than somewhere it goes — a
  *   [io.kontour.ui.components.action.FloatingActionButton], usually. A floating
  *   bar puts it **beside** the capsule, on the page and centred on the capsule's
@@ -316,6 +339,7 @@ fun NavBar(
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    fadeUnder: Boolean = true,
     windowInsets: WindowInsets = WindowInsets.bottomEdges,
     action: (@Composable () -> Unit)? = null,
     content: @Composable NavBarScope.() -> Unit,
@@ -334,6 +358,7 @@ fun NavBar(
         itemWidth = itemWidth,
         marker = marker,
         markerDrag = markerDrag,
+        fadeUnder = fadeUnder,
         content = content,
     )
 }
@@ -360,6 +385,7 @@ internal fun NavBarLayout(
     itemWidth: NavBarItemWidth = NavBarItemWidth.Equal,
     marker: NavBarMarker = NavBarDefaults.destinationMarker(),
     markerDrag: NavBarMarkerDrag = NavBarMarkerDrag.SelectOnRelease,
+    fadeUnder: Boolean = true,
     content: @Composable NavBarScope.() -> Unit,
 ) {
     val indicator = rememberSelectionIndicatorState()
@@ -469,7 +495,7 @@ internal fun NavBarLayout(
                 // under it. The drag is each destination's; see `BarScope.item`.
                 modifier = Modifier.selectableGroup().onPlaced { drag.row = it },
             ) {
-                scope.content()
+                scope.emit(content)
                 if (search != null) {
                     Box(Modifier.layoutId(BarChild.Search), propagateMinConstraints = true) { BarSlot(search) }
                 }
@@ -485,6 +511,13 @@ internal fun NavBarLayout(
             }
         }
     }
+
+    // Clear of a system handle rather than of the whole strip kept for it: see
+    // `HandleClearingInsets`. A docked bar's colour runs under the handle and
+    // keeps its destinations above all of it, as iOS's tab bar does.
+    val clear = rememberHandleClearingInsets(windowInsets, HandleReach)
+    val fades = fadeUnder && !highContrast()
+    val fadeColour = LocalContainerColour.current.takeOrElse { Theme.colours.background }
 
     when (style) {
         // The surface reaches the window's edge and the insets are applied
@@ -508,7 +541,8 @@ internal fun NavBarLayout(
         NavBarStyle.Floating -> FloatingBar(
             modifier = modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(windowInsets)
+                .then(if (fades) Modifier.fadeUnderBar(fadeColour, clear) else Modifier)
+                .windowInsetsPadding(clear)
                 .padding(horizontal = NavBarDefaults.Inset, vertical = Theme.spacing.xs),
             hug = hug,
             gap = NavBarDefaults.ActionGap,
@@ -520,7 +554,15 @@ internal fun NavBarLayout(
                 modifier = Modifier,
                 shape = shape ?: Theme.shapes.pill,
                 colours = colours,
-                shadow = Theme.elevation.high,
+                // With the page faded out under it, the bar stands on the page's
+                // own colour, and its shadow parts it from that rather than a
+                // hairline: the rim was there to tell it from rows of `surface`
+                // running behind it, and the fade leaves none there to tell it
+                // from. A shadow alone has more to do then, so it is a little
+                // deeper — the theme's own `high`, darker, rather than another
+                // rank.
+                shadow = if (fades) Theme.elevation.high.deepened(BarShadowDepth) else Theme.elevation.high,
+                rim = !fades,
             ) {
                 Destinations(
                     Modifier.padding(horizontal = floatingEnds, vertical = Theme.spacing.xs),
@@ -578,8 +620,10 @@ private fun BarGround(
     shape: Shape,
     colours: NavColours,
     shadow: Shadow,
+    rim: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val contentColour = SurfaceDefaults.contentColour(colours.container)
     // **A tap on the bar is the bar's.** Between two destinations there is
     // nothing to press, and with nothing there to take it a tap went through to
     // whatever the page had under the bar — a row opened from underneath its
@@ -590,15 +634,74 @@ private fun BarGround(
         modifier = modifier.clearedByToasts(),
         shape = shape,
         containerColour = colours.container,
-        contentColour = SurfaceDefaults.contentColour(colours.container),
+        contentColour = contentColour,
         shadow = shadow,
         // A floating bar is `surface` on `background` with a shadow for an
         // edge, and those two grounds are 1.00:1 at the enhanced light tier.
-        border = contrastEdge(),
+        //
+        // And a rim at any tier where the page does not fade out under it, as a
+        // toast's pill has, for the same reason: over the rows of a list, which
+        // are `surface` too, a shadow alone did not part the bar from them —
+        // *"it blends in a lot with content behind it, especially when you're
+        // scrolling over list items"*. A hairline of the bar's own ink, faint,
+        // reads as the edge catching the light.
+        border = contrastEdge() ?: if (rim) BorderStroke(Theme.sizing.borderWidth, contentColour.copy(alpha = BarRim)) else null,
     ) {
         content()
     }
 }
+
+/**
+ * The page's [colour] under a floating bar, solid from the bar's middle down to
+ * the window's foot, through [insets], and thinning out to nothing [FadeAbove]
+ * above the bar. Drawn behind the bar, over whatever scrolls under it.
+ */
+private fun Modifier.fadeUnderBar(colour: Color, insets: WindowInsets): Modifier = drawWithCache {
+    val foot = insets.getBottom(this).toFloat()
+    // On a whole pixel, so the solid part and the fade meet without a seam.
+    val middle = ((size.height - foot) / 2f).toInt().toFloat()
+    val top = -FadeAbove.toPx()
+    val brush = easedFade(colour, solidAt = middle, clearAt = top)
+    onDrawBehind {
+        drawRect(brush, topLeft = Offset(0f, top), size = Size(size.width, middle - top))
+        drawRect(colour, topLeft = Offset(0f, middle), size = Size(size.width, size.height - middle))
+    }
+}
+
+/**
+ * How far above a floating bar its fade reaches: far enough that the rows
+ * beside its rounded ends are mostly gone, and near enough that the fade is
+ * the bar's and not a wash over the page.
+ */
+private val FadeAbove = 16.dp
+
+/** How strongly a floating bar's rim is drawn: a toast's pill's, for the same reason. */
+private const val BarRim = 0.22f
+
+/**
+ * How much darker a floating bar's shadow is than `high` when the page fades
+ * out under it and the rim is left off.
+ */
+private const val BarShadowDepth = 1.5f
+
+/** [this] shadow with every layer [by] times as strong. */
+private fun Shadow.deepened(by: Float): Shadow =
+    Shadow(layers.map { it.copy(alpha = (it.alpha * by).coerceAtMost(1f)) })
+
+/**
+ * How far up from the foot of the window a floating bar keeps clear of a
+ * system handle: where the handle ends, and some air above it. iOS's home
+ * indicator tops out about 13pt up, and Android's gesture handle, centred in its
+ * strip, a little higher, at about 14. With the bar's own `xs` of padding on
+ * top, the capsule's foot is 28dp up.
+ *
+ * It was 14, the handle's top alone, so the bar's padding was the whole gap:
+ * *"the floating navbar needs to sit just a bit higher, it's now too close to
+ * the home bar (at least on android, maybe a bit on ios too)"*. Before that it
+ * was the whole strip, 42dp up on an iPhone and 32 over Android's gestures,
+ * which was too high the other way.
+ */
+private val HandleReach = 20.dp
 
 /** What a child of the bar's row is, so the row can count destinations and share out room. */
 private sealed interface BarChild {
@@ -783,6 +886,7 @@ private class BarScope(
         badge: (@Composable () -> Unit)?,
         label: NavLabelScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.item(selected, onClick, key, icon, modifier, enabled, selectedIcon, contentDescription, interactionSource, badge, label) }
         val text = navLabel(label)
         ClaimNavKey(keys, key)
         val target = remember(drag) { DragTarget() }
@@ -827,6 +931,7 @@ private class BarScope(
     /** Inline: a bar has no room for a title, and its destinations are few. */
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        emitter().let { if (it !== this) return it.section(title, modifier, content) }
         content()
     }
 
@@ -843,25 +948,54 @@ private class BarScope(
         badge: (@Composable () -> Unit)?,
         content: @Composable NavScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.group(expanded, onExpandedChange, key, icon, header, modifier, enabled, interactionSource, badge, content) }
         val text = navLabel(header)
         ClaimNavKey(keys, key)
         var open by remember { mutableStateOf(false) }
         var bounds by remember { mutableStateOf<Rect?>(null) }
         val selection = rememberGroupSelection(hidden = true, content = content)
+        // A place the marker can be dragged to, as a destination is: let go of
+        // it here and the menu opens, and the group keeps the marker while it
+        // is open.
+        val target = remember(drag) { DragTarget() }
+        SideEffect {
+            target.onClick = { open = true }
+            target.opensMenu = true
+            target.enabled = enabled
+            target.selected = selection.any
+        }
+        DisposableEffect(drag, key) {
+            drag.targets[key] = target
+            onDispose { drag.targets.remove(key) }
+        }
+        // The marker the drag left here goes back once the menu has closed —
+        // a frame later, so that an answer picked in it has become the bar's
+        // selection by then, and the marker stays where it is rather than
+        // setting off for the old destination and turning round.
+        if (!open && drag.holding == key) {
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                drag.letGo(key)
+            }
+        }
         NavDestination(
             label = text,
             icon = icon,
             selected = false,
-            // Not a place the marker can be dragged to: while it is being
-            // dragged it is wherever the finger is, never on the group.
-            marked = selection.any && !drag.previewing,
+            // While the marker is dragged it is wherever the finger is, this
+            // group included; left here, it stays while the menu is open.
+            marked = drag.marks(key, selection.any),
             onClick = { open = !open },
             markerKey = key,
             colours = colours,
             layout = NavLayout.Stacked,
             showLabel = showLabels,
             indicatorSize = circle,
-            modifier = modifier.layoutId(BarChild.Destination).anchorBounds { bounds = it },
+            modifier = modifier
+                .layoutId(BarChild.Destination)
+                .anchorBounds { bounds = it }
+                .onPlaced { target.coordinates = it }
+                .then(if (dragging != null) Modifier.markerDrag(dragging, target, enabled) else Modifier),
             action = NavAction.Menu,
             enabled = enabled,
             badge = badge,
@@ -878,16 +1012,25 @@ private class BarScope(
             onDismissRequest = { open = false },
             side = OverlaySide.Top,
         ) {
-            NavMenuScope(this, dismiss = { open = false }).content()
+            NavMenuScope(this, dismiss = { open = false }).emit(content)
         }
     }
 
     /** Left out: a bar's destinations are one run. */
     @Composable
-    override fun divider(modifier: Modifier) = Unit
+    override fun divider(modifier: Modifier) {
+        emitter().let { if (it !== this) return it.divider(modifier) }
+    }
 
     @Composable
     override fun slot(weight: Float, content: @Composable () -> Unit) {
+        // Called on this scope from inside a group, through a helper, it draws
+        // where it is called from — and if that is a group's menu or the probe
+        // counting a hidden group's destinations, it is dropped on purpose. A
+        // slot is the bar's own room, a search or a spacer, and neither a menu
+        // nor a count has room for one: drawn there it would be a row that is
+        // not a destination.
+        emitter().let { if (it !== this) return (it as? NavBarScope)?.slot(weight, content) ?: Unit }
         if (weight > 0f) {
             // `propagateMinConstraints`, so the content is given the width rather
             // than offered it.
@@ -909,6 +1052,13 @@ private class DragTarget {
     var onClick: () -> Unit = {}
     var enabled: Boolean = true
     var selected: Boolean = false
+
+    /**
+     * A group, whose [onClick] opens its menu rather than going anywhere: the
+     * marker can be dragged to it and left there, and it is never chosen on
+     * the way past.
+     */
+    var opensMenu: Boolean = false
 }
 
 /** What a destination needs to start dragging the marker. Stable per bar. */
@@ -959,6 +1109,14 @@ private fun Modifier.markerDrag(wiring: DragWiring, target: DragTarget, enabled:
  * can switch tabs as you're dragging". For pages that are cheap to show, where
  * scrubbing across them is the point: each destination's `onClick` runs as the
  * marker reaches it, once, and the lift chooses nothing more.
+ *
+ * **A group is somewhere to drag it too.** Let go over one and its menu opens,
+ * inviting a pick, and the group keeps the marker for as long as the menu is
+ * open; closed without a pick, the marker goes back to where it was. Asked
+ * for: *"when you drag the selection indicator onto an option that's a
+ * dropdown, the dropdown expands, inviting the user to pick an option"*. Only
+ * on the lift, under either rule: a menu that opened under a finger on its way
+ * past would be a menu in the way of the next destination.
  *
  * Only the bar's: a rail scrolls, and a sideways drag is the one thing a
  * vertical list cannot be sure is not a scroll.
@@ -1019,7 +1177,19 @@ private class MarkerDrag {
         state.reach = if (fingerAt.isNaN()) null else IndicatorReach(Offset(fingerAt, Float.NaN), SliderDefaults.DetentPull)
     }
 
-    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: selected
+    /**
+     * The group a drag was let go over, which keeps the marker while its menu
+     * is open. Cleared by the group, with [letGo], once the menu has closed.
+     */
+    var holding: Any? by mutableStateOf(null)
+        private set
+
+    /** The group whose menu has closed gives the marker back. */
+    fun letGo(key: Any) {
+        if (holding == key) holding = null
+    }
+
+    fun marks(key: Any, selected: Boolean): Boolean = over?.let { it == key } ?: holding?.let { it == key } ?: selected
 
     private fun boundsOf(target: DragTarget): Rect? {
         val row = row ?: return null
@@ -1047,7 +1217,8 @@ private class MarkerDrag {
         ticker.at(index)
         val key = all[index].first
         over = key
-        if (selectsWhileDragging && key != chosen) {
+        // A group is never chosen on the way past: its menu waits for the lift.
+        if (selectsWhileDragging && key != chosen && targets[key]?.opensMenu != true) {
             chosen = key
             targets[key]?.takeIf { it.enabled }?.onClick?.invoke()
         }
@@ -1092,12 +1263,22 @@ private class MarkerDrag {
     }
 
     fun end(ticker: DetentTicker) {
-        val target = over?.let { targets[it] }
+        val key = over
+        val target = key?.let { targets[it] }
         val lifted = released
         released = false
         dragging = false
         indicator?.reach = null
         ticker.reset()
+        // Let go over a group: its menu opens, and the marker stays on it while
+        // the menu is open — set in the same breath as `over` is cleared, so it
+        // never sets off back to the destination it came from.
+        if (lifted && target != null && target.opensMenu && target.enabled && !target.selected) {
+            holding = key
+            over = null
+            target.onClick()
+            return
+        }
         // In one breath with the app's own change, so the marker heads straight
         // for the destination rather than back to the old one first.
         over = null

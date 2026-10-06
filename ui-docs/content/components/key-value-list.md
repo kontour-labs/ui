@@ -39,6 +39,9 @@ content. A row whose value is not text needs `announcement` — a tick icon in a
 "Accessible" row otherwise announces as "Accessible" and stops, which reads as a
 row with its value missing.
 
+The builder is composable, so a value is formatted where it is written:
+`item("Updated", Theme.formats.date(updated))`.
+
 `labelWidth` is a fixed minimum rather than intrinsic, so the values line up down
 the column. A ragged value column is what makes a details panel look untidy, and
 an intrinsic width re-rags it every time the content changes.

@@ -1,6 +1,12 @@
 package io.kontour.ui.components.text
 
 import io.kontour.ui.locale.ListStyle
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import io.kontour.ui.theme.inset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -11,15 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -32,6 +38,8 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.motion.chevronTurn
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.SystemIcons
@@ -39,12 +47,21 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.LocalMenuPicksOne
 import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
+import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 
 /**
  * Whether a [Select], [MultiSelect] or [Combobox] has its menu open.
@@ -93,14 +110,45 @@ fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
  * screen. Above roughly a dozen, use [Combobox] so the user can type rather than
  * scroll.
  *
- * The menu matches the field's width and ticks the current value, reporting
- * `Role.RadioButton` per item to assistive tech — "one of these is on" is what
- * is actually being conveyed.
+ * The menu matches the field's width and ticks the current value. To assistive
+ * tech each option is a radio button, chosen or not, in one group — "one of
+ * these is on" is what is actually being conveyed.
+ *
+ * ### An answer of their own
+ *
+ * Pass [onOtherTextChange] and the menu ends with [otherLabel] — "Other" — for
+ * an answer none of the options give. Picked, a box opens inside the field's
+ * outline, under the value, and takes the keyboard:
+ *
+ * ```kotlin
+ * Select(
+ *     value = reason,
+ *     options = Reason.entries,
+ *     onValueChange = { reason = it },
+ *     label = "Reason",
+ *     optionLabel = { it.label },
+ *     otherText = otherReason,
+ *     onOtherTextChange = { otherReason = it },
+ * )
+ * ```
+ *
+ * [otherText] not null **is** the choice, whatever [value] is: picking "Other"
+ * calls [onOtherTextChange] with what was typed before, or `""`; typing calls it
+ * with the text; and picking one of the options calls it with `null`, after
+ * [onValueChange]. So the answer is `otherText ?: value`, and neither callback
+ * has to clear the other's state.
  *
  * @param optionLabel How to render each option. Needed in practice: the default
  *   `toString()` is right only for a `List<String>`.
  * @param optionIcon Draws an icon beside each option in the menu, and beside the
  *   value in the closed field.
+ * @param otherText What was typed for an answer of the user's own, `""` until
+ *   something is; `null` while one of the options is the answer, or none is.
+ * @param onOtherTextChange Called as "Other" is picked, as its box is typed in,
+ *   and with `null` as an option is picked instead. Null, the default, offers no
+ *   "Other".
+ * @param otherLabel The last option, and what the closed field says while it is
+ *   the choice.
  */
 @Composable
 fun <T> Select(
@@ -121,33 +169,60 @@ fun <T> Select(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
+    otherText: String? = null,
+    onOtherTextChange: ((String?) -> Unit)? = null,
+    otherLabel: String = Theme.strings.selectOther,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val other = otherText != null && onOtherTextChange != null
+    val otherBox = rememberOtherBox()
     SelectFrame(
-        valueLabel = value?.let(optionLabel),
+        valueLabel = if (other) otherLabel else value?.let(optionLabel),
         placeholder = placeholder,
         modifier = modifier,
         label = label,
         enabled = enabled,
         supporting = supporting,
         errorMessage = errorMessage,
-        leadingIcon = leadingIcon ?: value?.let { optionIcon?.invoke(it) },
+        leadingIcon = leadingIcon ?: value?.takeIf { !other }?.let { optionIcon?.invoke(it) },
         colours = colours,
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
+        picksOne = true,
+        below = onOtherTextChange?.let { change ->
+            {
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
+            }
+        },
     ) { dismiss ->
         for (option in options) {
             MenuItem(
                 onClick = {
                     onValueChange(option)
+                    onOtherTextChange?.invoke(null)
                     dismiss()
                 },
                 enabled = optionEnabled(option),
-                selected = option == value,
+                selected = !other && option == value,
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
+        }
+        if (onOtherTextChange != null) {
+            MenuItem(
+                onClick = {
+                    onOtherTextChange(otherText ?: "")
+                    otherBox.focusOnShow()
+                    dismiss()
+                },
+                // Its box takes the keyboard from an effect after the tap,
+                // which iOS WebKit gives no keyboard; this opens it on the tap.
+                modifier = Modifier.opensKeyboard(enabled = enabled),
+                selected = other,
+            ) {
+                +otherLabel
             }
         }
     }
@@ -174,9 +249,21 @@ fun <T> Select(
  * thing that matters for a filter. A multi-select earns its place when the list
  * is long, or when a summary line reads better than a row of chips.
  *
+ * Pass [onOtherTextChange] for an "Other" at the end of the menu, as on a
+ * [Select]: ticked, it closes the menu and opens a box in the field's outline to
+ * type the rest in; ticked again, it is cleared, and [onOtherTextChange] is
+ * called with `null`. The options ticked alongside it stay ticked.
+ *
  * @param summary How to describe the selection in the closed field. The default
  *   lists up to three labels and then collapses to a count, because "Bus, Train,
- *   Ferry, Tram, Coa…" truncated mid-word says less than "5 selected".
+ *   Ferry, Tram, Coa…" truncated mid-word says less than "5 selected". An
+ *   "Other" that is ticked is added after it.
+ * @param otherText What was typed for an answer of the user's own, `""` until
+ *   something is; `null` while "Other" is not ticked.
+ * @param onOtherTextChange Called as "Other" is ticked, as its box is typed in,
+ *   and with `null` as it is unticked. Null, the default, offers no "Other".
+ * @param otherLabel The last option, and what the closed field adds while it is
+ *   ticked.
  */
 @Composable
 fun <T> MultiSelect(
@@ -198,12 +285,23 @@ fun <T> MultiSelect(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
+    otherText: String? = null,
+    onOtherTextChange: ((String?) -> Unit)? = null,
+    otherLabel: String = Theme.strings.selectOther,
     interactionSource: MutableInteractionSource? = null,
 ) {
     // Checkboxes, so they toggle — as `FilterChip`, their alternative, does.
     val toggled = rememberToggleFeedback()
+    val other = otherText != null && onOtherTextChange != null
+    val otherBox = rememberOtherBox()
+    val formats = Theme.formats
+    val chosen = summary(value)
     SelectFrame(
-        valueLabel = summary(value).takeIf { it.isNotEmpty() },
+        valueLabel = when {
+            !other -> chosen.takeIf { it.isNotEmpty() }
+            chosen.isEmpty() -> otherLabel
+            else -> formats.list(listOf(chosen, otherLabel), ListStyle.Unit)
+        },
         placeholder = placeholder,
         modifier = modifier,
         label = label,
@@ -215,7 +313,13 @@ fun <T> MultiSelect(
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
-    ) {
+        picksOne = false,
+        below = onOtherTextChange?.let { change ->
+            {
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
+            }
+        },
+    ) { dismiss ->
         for (option in options) {
             MenuItem(
                 onClick = {
@@ -234,6 +338,27 @@ fun <T> MultiSelect(
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
+        }
+        if (onOtherTextChange != null) {
+            MenuItem(
+                onClick = {
+                    toggled(!other)
+                    if (other) {
+                        onOtherTextChange(null)
+                    } else {
+                        // Ticked, the next thing to do is type: the menu goes
+                        // and the box takes the keyboard.
+                        onOtherTextChange("")
+                        otherBox.focusOnShow()
+                        dismiss()
+                    }
+                },
+                modifier = Modifier.opensKeyboard(enabled = enabled && !other),
+                selected = other,
+                multiple = true,
+            ) {
+                +otherLabel
             }
         }
     }
@@ -306,6 +431,7 @@ fun <T> Combobox(
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
+        picksOne = true,
         // The query belongs to one opening of the menu. Carrying it over would
         // reopen the list already filtered by something the user typed a screen
         // ago and has no reason to remember.
@@ -369,6 +495,9 @@ fun <T> Combobox(
  *   Receives the slot modifier and a [FocusRequester] that fires when the menu
  *   opens — a search box the user has to tap a second time to type in is a
  *   search box nobody uses.
+ * @param picksOne Whether the options are one choice among them, as a [Select]'s
+ *   and a [Combobox]'s are: each is then announced as chosen or not, in one group.
+ *   A [MultiSelect]'s say so themselves, as checkboxes.
  * @param content The menu body, given a `dismiss`. [Select] calls it; [MultiSelect]
  *   deliberately does not.
  */
@@ -386,8 +515,10 @@ private fun SelectFrame(
     metrics: TextFieldMetrics,
     state: SelectState,
     interactionSource: MutableInteractionSource?,
+    picksOne: Boolean,
     onOpenChange: (Boolean) -> Unit = {},
     editor: (@Composable RowScope.(Modifier, FocusRequester) -> Unit)? = null,
+    below: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -432,8 +563,14 @@ private fun SelectFrame(
                 size = Theme.sizing.iconMedium,
             )
         },
+        // The menu drops below the whole outline: below an "Other" box too,
+        // rather than over what was typed in it.
+        outlineModifier = Modifier.anchorBounds { anchor = it },
+        below = below,
         frameModifier = Modifier
-            .anchorBounds { anchor = it }
+            // A combobox's tap opens its editor and focuses it from an effect,
+            // which iOS WebKit gives no keyboard; this opens it on the tap.
+            .opensKeyboard(enabled = enabled && editor != null && !expanded)
             .semantics {
                 role = Role.DropdownList
                 // The frame merges its value text, so this names the control
@@ -477,10 +614,15 @@ private fun SelectFrame(
             visible = expanded,
             anchor = bounds,
             onDismissRequest = { setExpanded(false) },
+            // One group, so a reader says how many options there are and which
+            // of them this is.
+            modifier = if (picksOne) Modifier.selectableGroup() else Modifier,
             alignment = OverlayAlignment.Start,
             matchAnchorWidth = true,
         ) {
-            content { setExpanded(false) }
+            CompositionLocalProvider(LocalMenuPicksOne provides picksOne) {
+                content { setExpanded(false) }
+            }
         }
     }
 }
@@ -517,3 +659,122 @@ object SelectDefaults {
         return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
     }
 }
+
+/** An "Other" box's focus, asked for as "Other" is picked and given once the box is there. */
+@Stable
+internal class OtherBoxState {
+    val focus = FocusRequester()
+    var wantsFocus: Boolean by mutableStateOf(false)
+
+    fun focusOnShow() {
+        wantsFocus = true
+    }
+}
+
+@Composable
+private fun rememberOtherBox(): OtherBoxState = remember { OtherBoxState() }
+
+/**
+ * The box an answer of the user's own is typed in: inside the select's outline,
+ * under its value, opening as "Other" is picked and closing as an option is.
+ *
+ * A text box within the field rather than a field of its own under it, so the
+ * select and its "Other" read as one question with one answer. Inset from the
+ * outline on three sides, its corners concentric with the field's, and its text
+ * starting where the value's does.
+ */
+@Composable
+private fun OtherBox(
+    box: OtherBoxState,
+    text: String?,
+    onTextChange: (String) -> Unit,
+    label: String?,
+    otherLabel: String,
+    enabled: Boolean,
+    variant: TextFieldVariant,
+    metrics: TextFieldMetrics,
+) {
+    val motion = Theme.motion
+    AnimatedVisibility(
+        visible = text != null,
+        // Under reduced motion it takes its room at once and fades, as a
+        // field's message does.
+        enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+        exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
+    ) {
+        // The words typed, kept while it closes so they do not vanish before
+        // the box does, and put back if the caller changes them.
+        val state = rememberTextFieldState(text.orEmpty())
+        val change by rememberUpdatedState(onTextChange)
+        LaunchedEffect(state) {
+            // The first value is the one just put in, which nobody typed.
+            snapshotFlow { state.text.toString() }.drop(1).collect { change(it) }
+        }
+        LaunchedEffect(text) {
+            if (text != null && text != state.text.toString()) state.setTextAndPlaceCursorAtEnd(text)
+        }
+        LaunchedEffect(box) {
+            // Collected rather than keyed on: clearing the flag would restart
+            // an effect keyed on it, and cancel the asking.
+            snapshotFlow { box.wantsFocus }.collect { wanted ->
+                if (!wanted) return@collect
+                box.wantsFocus = false
+                // The menu "Other" was picked in is still closing, and on the
+                // frame the box arrives it cannot take the focus yet: asked
+                // again each frame, for a few, until it has.
+                for (attempt in 0 until FocusTries) {
+                    if (runCatching { box.focus.requestFocus() }.getOrDefault(false)) break
+                    withFrameMillis { }
+                }
+            }
+        }
+        // **A filled text field, the field's own height, inside the outline.**
+        // Inset by the same space at the sides and the foot, with the field's
+        // corners less that space, so its corners are concentric with the
+        // outline's. Asked for as "use the style of our regular 'filled' text
+        // field. same height, just indented a bit horizontally to accomodate
+        // for proper concentric padding".
+        //
+        // Inside a filled select the well would be the select's own ground, so
+        // there it is the page's colour instead: a well in the other direction.
+        val inset = Theme.spacing.xs
+        val colours = if (variant == TextFieldVariant.Filled) {
+            TextFieldDefaults.colours(TextFieldVariant.Filled, container = Theme.colours.background)
+        } else {
+            TextFieldDefaults.colours(TextFieldVariant.Filled)
+        }
+        TextFieldImpl(
+            state = state,
+            modifier = Modifier.padding(start = inset, end = inset, bottom = inset),
+            enabled = enabled,
+            readOnly = false,
+            label = null,
+            placeholder = Theme.strings.selectOtherHint,
+            supporting = null,
+            errorMessage = null,
+            leadingIcon = null,
+            leading = null,
+            trailingIcon = null,
+            trailing = null,
+            variant = TextFieldVariant.Filled,
+            shape = Theme.shapes.field.inset(inset),
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Done,
+            onKeyboardAction = null,
+            imeChain = null,
+            inputTransformation = null,
+            outputTransformation = null,
+            lineLimits = TextFieldLineLimits.SingleLine,
+            colours = colours,
+            metrics = metrics,
+            interactionSource = null,
+            // Named as the question and the option it answers: "Reason, Other",
+            // joined as the reader's language joins a list.
+            accessibleName = Theme.formats.list(listOfNotNull(label, otherLabel), ListStyle.Unit),
+            focusRequester = box.focus,
+        )
+    }
+}
+
+/** How many frames an "Other" box asks for the focus before it gives up. */
+private const val FocusTries = 10

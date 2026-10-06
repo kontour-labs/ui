@@ -18,6 +18,12 @@ MultiSelect(
 )
 ```
 
+**"Other", ticked alongside the options.** As on a [`Select`](select.md),
+`onOtherTextChange` ends the menu with "Other". Ticking it closes the menu and
+opens a box inside the field's outline to type the rest in, with the options
+already ticked left as they are; the closed field adds "Other" to its summary.
+Ticked again, it is cleared and `onOtherTextChange(null)` is called.
+
 **Reach for a [`ChipGroup`](chip.md) of
 `FilterChip`s instead** when the options fit on screen. Chips show the current
 selection without being opened, which is most of what a filter bar is for.
@@ -27,8 +33,8 @@ selection without being opened, which is most of what a filter bar is for.
 ## Accessibility
 
 Everything on [`Select`](select.md), except the one thing that makes it a
-different component: its options report **`Role.Checkbox`**, because any number
-of them can be on.
+different component: its options report **`Role.Checkbox`**, ticked or not,
+because any number of them can be on.
 
 The distinction is `MenuItem(multiple = true)`, and it changes what is
 announced and nothing that is drawn. Get it wrong and a screen reader tells the

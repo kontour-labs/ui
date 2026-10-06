@@ -245,6 +245,11 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
                             visible = settingsOpen,
                             onDismissRequest = { settingsOpen = false },
                             alignment = OverlayAlignment.End,
+                            // Wider than a popover's 320dp, so the four-way
+                            // controls keep their labels apart on one row at
+                            // 100% type: in 320dp "Standard" and "Keyboard"
+                            // had 4dp either side and the controls stack now.
+                            maxWidth = 360.dp,
                         ) {
                             Text("Display", style = Theme.typography.titleSmall)
                             SettingsPanel(settings, systemDark)

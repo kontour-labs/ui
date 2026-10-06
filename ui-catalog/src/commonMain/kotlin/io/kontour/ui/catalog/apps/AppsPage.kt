@@ -31,8 +31,8 @@ import io.kontour.ui.theme.Theme
  * The gallery's apps, each a card with a picture, what it is, the components
  * it is the best demo of, and a button that runs it in place of the gallery.
  *
- * Side by side when there is room for two cards a phone wide, one above the
- * other when not.
+ * As many side by side as there is room for at a phone's width each, one above
+ * the other when not even two fit.
  */
 @Composable
 internal fun AppsPage(modifier: Modifier = Modifier) {
@@ -43,7 +43,7 @@ internal fun AppsPage(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             Text(
-                "Two small apps built from the library, each with its own navigation, sheets and back stack. " +
+                "Three small apps built from the library, each with its own navigation, sheets and back stack. " +
                     "They take the whole window while they run; back at an app's first page, or its close " +
                     "button, comes back here.",
                 style = Theme.typography.bodyMedium,
@@ -51,12 +51,21 @@ internal fun AppsPage(modifier: Modifier = Modifier) {
             )
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val apps = MiniApp.entries
-                if (maxWidth >= AppCardWidth * 2 + Theme.spacing.md) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-                        for (app in apps) AppCard(app, onOpen = { open(app) }, modifier = Modifier.weight(1f))
+                val gap = Theme.spacing.md
+                // As many to a row as fit a phone wide, and the rows filled from
+                // the start: three on a desktop, two and one on a tablet.
+                val across = ((maxWidth + gap) / (AppCardWidth + gap)).toInt().coerceIn(1, apps.size)
+                if (across > 1) {
+                    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                        for (row in apps.chunked(across)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                for (app in row) AppCard(app, onOpen = { open(app) }, modifier = Modifier.weight(1f))
+                                repeat(across - row.size) { Box(Modifier.weight(1f)) }
+                            }
+                        }
                     }
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                         for (app in apps) AppCard(app, onOpen = { open(app) }, modifier = Modifier.fillMaxWidth())
                     }
                 }
@@ -75,6 +84,7 @@ private fun AppCard(app: MiniApp, onOpen: () -> Unit, modifier: Modifier = Modif
         when (app) {
             MiniApp.Transit -> SkylineArt(Modifier.fillMaxWidth().height(AppArtHeight))
             MiniApp.Messages -> ConversationArt(Modifier.fillMaxWidth().height(AppArtHeight))
+            MiniApp.Board -> BoardArt(Modifier.fillMaxWidth().height(AppArtHeight))
         }
         Column(
             Modifier.padding(Theme.spacing.md),

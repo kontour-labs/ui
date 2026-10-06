@@ -80,7 +80,7 @@ One version for all three, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.4.1"
+kontour = "0.4.2"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -103,7 +103,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.4.1")`, and so on.
+`implementation("io.kontour:ui:0.4.2")`, and so on.
 
 ---
 
@@ -158,7 +158,22 @@ and figures, both bundled; there is nothing to add unless you reskin, which
 - **The web.** Nothing is required. For text in a script the bundled fonts do
   not cover, Compose fetches Noto from Google Fonts on its own, which a strict
   content security policy or an offline app will want to know;
-  [localisation](localisation.md) has the preload helper.
+  [localisation](localisation.md) has the preload helper. Two things in the
+  browser are Compose's rather than the library's. A headless Chromium can log
+  "Failed to execute 'put' on 'Cache'" while the bundled fonts load: that is
+  Compose Resources' own font cache, which the library never touches. And under
+  Compose 1.12 the browser's accessibility tree names every clickable node a
+  `button`, with no checked or selected state, whatever role the library passes;
+  [In the browser](accessibility.md#in-the-browser) has what that affects and
+  when Compose fixes it.
+
+  On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
+  for an input focused during the tap itself; Compose focuses its own a frame
+  later. `KontourTheme` installs a primer for that: a tap on a text field, a
+  combobox, a nav bar's search or an editable knob focuses a hidden input
+  straight away, the keyboard opens for it, and Compose's input takes it over a
+  moment later. Nothing is added off iOS. A text field of your own on
+  `BasicTextField` does not get it.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`

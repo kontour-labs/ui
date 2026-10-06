@@ -33,7 +33,9 @@ Prefer two states for the user's press — on and off — and let indeterminate 
 something the *children* produce, which is what it means.
 
 The label still belongs on the row. Put it in a
-[`SelectionRow`](selection-row.md).
+[`SelectionRow`](selection-row.md). A select-all box that stands alone over the
+rows it selects — "everything in this area" — has no row to name it, and takes
+`contentDescription` instead.
 
 At high contrast the box's outline and the tick or dash inside it are drawn at
 `borderWidthStrong`, which is thicker at this tier, in the enhanced scheme's

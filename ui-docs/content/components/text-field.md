@@ -42,6 +42,11 @@ sentence; focus brings back the tint and the accent edge, an error its edge,
 and high contrast keeps the edge. A text field with nothing round it is hard to
 find on a page, so think twice before using it on one.
 
+`code = true` sets the text and the placeholder in the theme's mono face and
+asks the keyboard for no autocorrect and no capitalisation: for a stop code, a
+command or an identifier, which a keyboard's help would change. See
+[`TextArea`](text-area.md#code) for a sample.
+
 ### The keyboard
 
 **A field that takes focus brings itself into view whole** — label, frame and the

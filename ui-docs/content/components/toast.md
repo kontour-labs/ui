@@ -134,6 +134,12 @@ top — or above the keyboard and the gesture bar, whichever is higher; the two 
 never added. A page that covers the bar, or a bar that goes, brings the stack back
 down, moving rather than jumping. A bar drawn partway down a page does not count.
 
+**8dp off its edge.** A toast stands 8dp off the window's top or foot, inside its
+insets, and 8dp above a navigation bar. It was the 16dp ring each card is drawn
+in — the room its shadow takes — and above a bar `sm` more, 28dp of page between
+a toast and the bar, reported as *"a bit too large"*. The ring is still there;
+the stack is moved toward its edge so that the ring reaches past it.
+
 ---
 
 ## Accessibility

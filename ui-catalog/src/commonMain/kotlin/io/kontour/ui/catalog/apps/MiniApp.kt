@@ -4,6 +4,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.LayoutKanban
 import io.kontour.icons.tabler.outline.Messages
 
 /**
@@ -48,6 +49,16 @@ internal enum class MiniApp(
         components = listOf(
             "ChatBubble", "List-detail", "SideSheet", "DateRangePicker", "Popover", "DropdownMenu",
             "ReorderableItem", "SelectableText", "TextArea", "EmptyState", "Kbd", "Badge",
+        ),
+    ),
+    Board(
+        title = "Board",
+        summary = "A team's work as cards in columns, carried between them by hand or by keyboard, " +
+            "a column that holds three at once, an archive to drop on, and files dropped in from outside.",
+        icon = Tabler.Outline.LayoutKanban,
+        components = listOf(
+            "dragItems", "dropList", "dragAutoScroll", "DropZone", "ExternalDrops", "FileField", "Card",
+            "Tag", "BottomSheet", "Toast",
         ),
     ),
 }

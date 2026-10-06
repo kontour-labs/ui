@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
+import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.icons.tabler.outline.Check
 import io.kontour.icons.tabler.outline.ChevronDown
@@ -41,9 +43,11 @@ import io.kontour.ui.components.display.AvatarDecorationScope
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.CircularStepProgress
+import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.ProgressDefaults
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Banner
+import io.kontour.ui.components.display.StateSwitcher
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.BranchProgress
 import io.kontour.ui.components.display.Callout
@@ -55,6 +59,12 @@ import io.kontour.ui.components.display.CarouselStyle
 import io.kontour.ui.components.display.CircularProgress
 import io.kontour.ui.components.display.ConnectorStyle
 import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.DropZone
+import io.kontour.ui.dragdrop.DragType
+import io.kontour.ui.dragdrop.ExternalDrops
+import io.kontour.ui.dragdrop.dragSource
+import io.kontour.ui.dragdrop.rememberDropTargetState
+import androidx.compose.runtime.key
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdDefaults
@@ -105,6 +115,7 @@ import io.kontour.ui.motion.marquee
 import io.kontour.ui.theme.Theme
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.Orientation
 
@@ -587,37 +598,50 @@ internal val SkeletonDemo = ComponentDemo(slug = "skeleton") {
 }
 
 /**
- * The two states share a page and a shape, so they share a demo.
+ * The three states share a page and a shape, so they share a demo — through a
+ * `StateSwitcher`, so changing the knob is the transition the page is about.
  *
  * `ErrorState` is not a variant of `EmptyState` — it owns its retry button
  * rather than taking an action slot, on the argument that an error with no way
  * forward is a dead end. A knob is still the right way to show them: they are
  * the same slot on the same screen, and the difference is what a reader came to
- * see.
+ * see. Retrying goes to loading, and loading comes back empty a moment later,
+ * which is the sequence worth watching.
  */
-private val stateKind = Knob.Choice("State", listOf("Empty", "Error"))
+private val stateKind = Knob.Choice("State", listOf("Empty", "Error", "Loading"))
 
 internal val EmptyStateDemo = ComponentDemo(
     slug = "empty-state",
     knobs = listOf(stateKind),
 ) {
-    if (this@ComponentDemo[stateKind] == "Error") {
-        ErrorState(Modifier.fillMaxWidth(), onRetry = { echo("Retry") }) {
-            +"Couldn't load your favourites"
-            message { +"Check your connection and try again." }
-            leading { +Tabler.Outline.AlertTriangle }
+    val picked = this[stateKind]
+    var shown by remember { mutableStateOf(picked) }
+    LaunchedEffect(picked) { shown = picked }
+    LaunchedEffect(shown) {
+        if (shown == "Loading") {
+            delay(1_200)
+            shown = "Empty"
         }
-        return@ComponentDemo
     }
-    EmptyState(Modifier.fillMaxWidth()) {
-        +"No favourites yet"
-        message { +"Star a stop or route and it will appear here." }
-        leading { +Tabler.Outline.Star }
-        action {
-            Button(
-                onClick = { echo("Browse routes") },
-                variant = ButtonVariant.Secondary,
-            ) { +"Browse routes" }
+    StateSwitcher(shown, Modifier.fillMaxWidth()) { state ->
+        when (state) {
+            "Error" -> ErrorState(Modifier.fillMaxWidth(), onRetry = { shown = "Loading" }) {
+                +"Couldn't load your favourites"
+                message { +"Check your connection and try again." }
+                leading { +Tabler.Outline.AlertTriangle }
+            }
+            "Loading" -> LoadingState(Modifier.fillMaxWidth()) { +"Loading your favourites" }
+            else -> EmptyState(Modifier.fillMaxWidth()) {
+                +"No favourites yet"
+                message { +"Star a stop or route and it will appear here." }
+                leading { +Tabler.Outline.Star }
+                action {
+                    Button(
+                        onClick = { echo("Browse routes") },
+                        variant = ButtonVariant.Secondary,
+                    ) { +"Browse routes" }
+                }
+            }
         }
     }
 }
@@ -1226,6 +1250,65 @@ internal val ChatBubbleDemo = ComponentDemo(
     }
 }
 
+/**
+ * Off, the archive turns cards away: they show the danger colour over it and
+ * go home when let go.
+ */
+private val zoneFull = Knob.Flag("Archive full")
+private val zoneEnabled = Knob.Flag("Enabled", initial = true)
+
+/** The cards the drop zone demo carries. */
+private val DemoCard = DragType<String>("demo-card")
+
+/**
+ * Cards to carry to an archive — held with a finger, picked up with a mouse —
+ * and the archive's restore button to bring them back. Files from outside the
+ * app land in it too, where the platform lets them: the desktop, a browser, an
+ * iPad or Android tablet beside another app.
+ */
+internal val DropZoneDemo = ComponentDemo(slug = "drop-zone", knobs = listOf(zoneFull, zoneEnabled)) {
+    val full = this[zoneFull]
+    var cards by remember { mutableStateOf(listOf("Timetable", "Fares", "Signage")) }
+    var archived by remember { mutableStateOf(emptyList<String>()) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs)) {
+            cards.forEach { card ->
+                key(card) {
+                    Tag(Modifier.dragSource(DemoCard, card, label = card)) { +card }
+                }
+            }
+        }
+        val archive = rememberDropTargetState(
+            DemoCard,
+            label = "Archive",
+            onDrop = { card ->
+                cards = cards - card
+                archived = archived + card
+            },
+            accepts = { !full },
+            external = ExternalDrops.files { files, _ ->
+                echo("Dropped ${files.joinToString { it.name }}")
+            },
+        )
+        DropZone(archive, Modifier.fillMaxWidth(), enabled = this@ComponentDemo[zoneEnabled]) {
+            leading { +Tabler.Outline.Archive }
+            +"Archive"
+            message { +(if (full) "The archive is full." else "Drop a card here to put it away.") }
+            if (archived.isNotEmpty()) {
+                action {
+                    Button(
+                        onClick = {
+                            cards = cards + archived
+                            archived = emptyList()
+                        },
+                        variant = ButtonVariant.Secondary,
+                    ) { +"Restore ${archived.size}" }
+                }
+            }
+        }
+    }
+}
+
 internal val displayDemos = listOf(
     CardDemo,
     TagDemo,
@@ -1241,6 +1324,7 @@ internal val displayDemos = listOf(
     RedactionDemo,
     SkeletonDemo,
     EmptyStateDemo,
+    DropZoneDemo,
     AccordionDemo,
     AnimatedCounterDemo,
     MarqueeDemo,

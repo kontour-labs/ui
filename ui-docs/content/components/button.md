@@ -73,7 +73,11 @@ not look like two different controls.
 
 The content slot is the accessible name, so a button whose content is only an
 icon has no name — that is what `IconButton` is for, and why its
-`contentDescription` is required. A component that announces nothing fails
+`contentDescription` is required. Where the label is too terse to stand alone
+for a screen reader — "Save" beside a trip — pass `contentDescription`, "Save
+this trip to Perth", and that is read in its place; leave it `null` and the
+label is the name. An avatar or a badge inside the label stays out of the
+name. A component that announces nothing fails
 the build, which is what replaced the guarantee the old `label: String`
 parameter gave.
 

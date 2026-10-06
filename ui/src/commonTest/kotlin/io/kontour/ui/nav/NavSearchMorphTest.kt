@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -99,9 +100,7 @@ class NavSearchMorphTest {
         mainClock.autoAdvance = false
         state.expand()
         val opening = frames { drawn }.filter { it.icon != null && it.word != null }
-        val fieldWord = onAllNodesWithText("Search", useUnmergedTree = true).fetchSemanticsNodes()
-            .map { it.boundsInRoot }
-            .single { !it.near(pillWord) }
+        val fieldWord = placeholderOfTheField()
         mainClock.autoAdvance = true
 
         assertTrue(opening.size > 2, "the capsule carried nothing: ${drawn.take(3)}")
@@ -208,6 +207,20 @@ class NavSearchMorphTest {
             if (quiet > 10) return drawn().toList()
         }
         return drawn().toList()
+    }
+
+    /**
+     * Where the field draws its placeholder. Not found by its words: the
+     * placeholder is the field's name, said once as that, so its own text is
+     * cleared from the tree. It is the cleared node at the start of the input,
+     * where the placeholder and the typed text both begin.
+     */
+    private fun ComposeUiTest.placeholderOfTheField(): Rect {
+        val input = onNode(hasSetTextAction(), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val cleared = SemanticsMatcher("cleared") { it.config.isClearingSemantics && it.config.toList().isEmpty() }
+        return onAllNodes(cleared, useUnmergedTree = true).fetchSemanticsNodes()
+            .map { it.boundsInRoot }
+            .single { abs(it.left - input.left) <= 2f && abs(it.top - input.top) <= 2f }
     }
 
     private fun Rect.near(other: Rect): Boolean =

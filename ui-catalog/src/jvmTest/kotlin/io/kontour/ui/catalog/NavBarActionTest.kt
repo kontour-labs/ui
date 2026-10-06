@@ -112,7 +112,8 @@ class NavBarActionTest {
     fun aFloatingBarsActionSitsBesideTheCapsuleOnThePage() {
         val bounds = Bounds()
         val image = render {
-            NavBar(action = { Fab(bounds) }) { items(bounds) }
+            // No fade: this finds the capsule by the page round it, which the fade would cover.
+            NavBar(fadeUnder = false, action = { Fab(bounds) }) { items(bounds) }
         }
 
         val last = bounds.items.maxBy { it.right }

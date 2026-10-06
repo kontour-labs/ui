@@ -14,11 +14,11 @@ One per screen. A second FAB is two competing "the" actions.
 `contentDescription` is required and is the button's name. A FAB is an icon with
 no label, so nothing else supplies one.
 
-`ExtendedFloatingActionButton` announces its visible label while expanded and
-falls back to `contentDescription` once it has collapsed to an icon. Write the
-two to say the same thing: otherwise the control is called one name at the top of
-a list and another after the user has scrolled, and the name of a control must
-not change because the layout did.
+`ExtendedFloatingActionButton` is named by its `contentDescription` whether it
+is open or has collapsed to an icon, so the label can be terse — "Start" — while
+the name says the whole thing, "Start trip to Perth Station". The name of a
+control must not change because the layout did; until 0.4.2 it did, since the
+open button was named by its label and the collapsed one by its description.
 
 A FAB floats over the content, which means it can cover it. `Scaffold` accounts
 for that in the padding it hands out; a FAB positioned by hand over a scrolling

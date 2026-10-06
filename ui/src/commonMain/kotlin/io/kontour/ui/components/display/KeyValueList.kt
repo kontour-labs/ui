@@ -65,13 +65,23 @@ import io.kontour.ui.theme.Theme
  *   already aligns them, and a rule per row is a lot of lines for a short list.
  */
 @Composable
-fun KeyValueList(
+inline fun KeyValueList(
     modifier: Modifier = Modifier,
     labelWidth: Dp = KeyValueListDefaults.LabelWidth,
     showDividers: Boolean = false,
-    content: KeyValueScope.() -> Unit,
+    content: @Composable KeyValueScope.() -> Unit,
 ) {
-    val rows = keyValueRows(content)
+    // Inline, as `ListGroup` is and for its reason: the builder runs in the
+    // caller's restart scope, so a value read in it is never collected into a
+    // list nothing draws. See `ListGroupScope`.
+    KeyValueRows(KeyValueScope().apply { content() }, modifier, labelWidth, showDividers)
+}
+
+/** The rows [KeyValueList] collected, laid out. */
+@PublishedApi
+@Composable
+internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: Dp, showDividers: Boolean) {
+    val rows = scope.rows
     val gap = Theme.spacing.sm
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
@@ -170,14 +180,14 @@ internal class KeyValueRow(
  * column is one width shared by every row, and the widest label is not known
  * until they have all been declared.
  *
- * Plain Kotlin rather than `@Composable`, for the reason argued at length on
- * [io.kontour.ui.components.list.ListGroupScope] — a collecting scope with a
- * composable builder collects in
- * one recompose scope and is consumed in another.
+ * The builder is composable, so a value from `Theme.formats` is read where the
+ * row is written — `item("Updated", Theme.formats.date(updated))` — and
+ * [KeyValueList] is `inline` so that this is safe, for the reason argued on
+ * [io.kontour.ui.components.list.ListGroupScope].
  */
 @LayoutScopeMarker
 @Stable
-class KeyValueScope internal constructor() {
+class KeyValueScope @PublishedApi internal constructor() {
     internal val rows = mutableListOf<KeyValueRow>()
 
     /** The common case: two strings. */
@@ -218,9 +228,6 @@ class KeyValueScope internal constructor() {
         rows += KeyValueRow(label = label, value = value, spoken = announcement)
     }
 }
-
-internal fun keyValueRows(content: KeyValueScope.() -> Unit): List<KeyValueRow> =
-    KeyValueScope().apply(content).rows
 
 /** What a [KeyValueList] takes by default. */
 object KeyValueListDefaults {

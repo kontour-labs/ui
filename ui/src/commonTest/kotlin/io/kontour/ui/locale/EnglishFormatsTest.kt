@@ -84,6 +84,22 @@ class EnglishFormatsTest {
         assertEquals("12.5%", english.percent(0.125, 1))
     }
 
+    /**
+     * Money, in the currency's own places. Reported from an app: *"Theme.formats
+     * has no currency formatting, so I wrote a small money() helper by hand."*
+     */
+    @Test
+    fun moneyInItsCurrencysPlaces() {
+        assertEquals("$3.20", english.currency(3.2, "AUD"))
+        assertEquals("$1,234.50", english.currency(1234.5, "aud"), "grouped, and the code read whatever its case")
+        assertEquals("-$3.20", english.currency(-3.2, "AUD"), "the minus before the sign, as a reader writes it")
+        assertEquals("$0.00", english.currency(-0.001, "AUD"), "nothing is not negative")
+        assertEquals("EUR\u00A03.20", english.currency(3.2, "EUR"), "another currency is its code, as Australian English writes it")
+        assertEquals("JPY\u00A0320", english.currency(320.0, "JPY"), "the yen has no places after the point")
+        assertEquals("KWD\u00A01.250", english.currency(1.25, "KWD"), "and a Kuwaiti dinar three")
+        assertEquals("XYZ\u00A03.20", english.currency(3.2, "XYZ"), "a code nothing knows is still written, not thrown over")
+    }
+
     @Test
     fun aTypedNumberIsReadEitherWay() {
         assertEquals(4.5, english.parseDecimal("4.5"))

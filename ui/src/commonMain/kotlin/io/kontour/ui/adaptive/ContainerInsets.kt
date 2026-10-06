@@ -1,9 +1,13 @@
 package io.kontour.ui.adaptive
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -14,6 +18,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.roundToInt
 
@@ -134,4 +139,85 @@ internal class OverlapInsets(
     override fun hashCode(): Int = base.hashCode() * 31 + gaps.hashCode()
 
     override fun toString(): String = "OverlapInsets($base)"
+}
+
+/**
+ * [base], less the part of its foot that is only a system handle: iOS's home
+ * indicator, or Android's gesture handle — a short line drawn over the app,
+ * which leaves the rest of the strip it reserves free to look at.
+ *
+ * A floating bar padded by the whole of that strip stood clear of empty space:
+ * 42dp up on an iPhone, and 32dp over Android's gesture handle. *"move the
+ * navbar down a bit, it's very high (especially on ios, since the home bar is
+ * not so visible …). on android with button navigation, it's perfect."* So
+ * where the foot is a handle, it counts only up to [reach], where the handle
+ * ends; Android's buttons, which take taps, are a strip of their own and are
+ * kept whole.
+ *
+ * **Which part is a handle** is the navigation bars' inset less the part of it
+ * that takes taps: all of iOS's, all of Android's under gestures, and none of
+ * Android's three buttons, or of a desktop's or a browser's, which have none.
+ *
+ * **A foot that is more than the handle** — a caller's insets with the keyboard
+ * in them, say — rises from [reach] back to the whole of itself over the next
+ * stretch as long as the trimmed part, twice as fast as it grows, so the bar
+ * moves continuously rather than jumping as the keyboard comes up.
+ *
+ * Read in layout, like any inset.
+ */
+@Stable
+internal class HandleClearingInsets(
+    private val base: WindowInsets,
+    private val navigationBars: WindowInsets,
+    private val tappable: WindowInsets,
+    private val reach: Dp,
+) : WindowInsets {
+    override fun getLeft(density: Density, layoutDirection: LayoutDirection): Int = base.getLeft(density, layoutDirection)
+
+    override fun getTop(density: Density): Int = base.getTop(density)
+
+    override fun getRight(density: Density, layoutDirection: LayoutDirection): Int = base.getRight(density, layoutDirection)
+
+    override fun getBottom(density: Density): Int {
+        val handle = (navigationBars.getBottom(density) - tappable.getBottom(density)).coerceAtLeast(0)
+        return handleClearedBottom(base.getBottom(density), handle, with(density) { reach.roundToPx() })
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is HandleClearingInsets && other.base == base && other.navigationBars == navigationBars &&
+            other.tappable == tappable && other.reach == reach
+
+    override fun hashCode(): Int = ((base.hashCode() * 31 + navigationBars.hashCode()) * 31 + tappable.hashCode()) * 31 + reach.hashCode()
+
+    override fun toString(): String = "HandleClearingInsets($base)"
+}
+
+/**
+ * The foot [bottom] keeps when [handle] of it is a system handle that ends
+ * [reach] up: see [HandleClearingInsets]. All in pixels.
+ */
+internal fun handleClearedBottom(bottom: Int, handle: Int, reach: Int): Int {
+    val trimmed = handle - reach
+    if (handle <= 0 || trimmed <= 0) return bottom
+    return when {
+        bottom <= handle -> minOf(bottom, reach)
+        bottom < handle + trimmed -> reach + 2 * (bottom - handle)
+        else -> bottom
+    }
+}
+
+/** The system's own insets [HandleClearingInsets] works out a handle from, when a test stands in for them. */
+@Immutable
+internal class HandleInsets(val navigationBars: WindowInsets, val tappable: WindowInsets)
+
+/** Null, the default, reads the platform's; a test has none and provides its own. */
+internal val LocalHandleInsets = staticCompositionLocalOf<HandleInsets?> { null }
+
+/** [base] as [HandleClearingInsets] has it, against the platform's insets or a test's. */
+@Composable
+internal fun rememberHandleClearingInsets(base: WindowInsets, reach: Dp): WindowInsets {
+    val standIn = LocalHandleInsets.current
+    val navigationBars = standIn?.navigationBars ?: WindowInsets.navigationBars
+    val tappable = standIn?.tappable ?: WindowInsets.tappableElement
+    return remember(base, navigationBars, tappable, reach) { HandleClearingInsets(base, navigationBars, tappable, reach) }
 }

@@ -1,0 +1,171 @@
+package io.kontour.ui.components.list
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.foundation.layout.Column
+import io.kontour.ui.components.display.Gauge
+import io.kontour.ui.components.display.KeyValueList
+import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.Stat
+import io.kontour.ui.components.selection.Knob
+import io.kontour.ui.theme.KontourTheme
+import io.kontour.ui.theme.Theme
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * `ListGroup`, `KeyValueList`, `Stat` and the readout builders are composable:
+ * the theme's formats and strings are read where a row or a figure is written.
+ *
+ * Reported from an app: *"`KeyValueList`'s `item(label, value)` and
+ * `ListGroup`'s `item(...)` builders aren't composable, so `Theme.formats`
+ * (dates, numbers) has to be computed before the builder. That was the most
+ * common compile error in P2."*
+ *
+ * A composable lambda on an ordinary function is a restartable group of its
+ * own, which is what kept these builders plain: a state read in one restarts the
+ * builder alone and the group draws what it had. Both are `inline` now, as
+ * `Column` is, so the builder is the caller's composition. The last two tests
+ * are the failure that was documented, kept as guards.
+ */
+@OptIn(ExperimentalTestApi::class)
+class ComposableBuilderTest {
+
+    @Test
+    fun aBuilderReadsTheTheme() = runComposeUiTest {
+        var time = ""
+        var date = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                time = Theme.formats.time(LocalTime(9, 5))
+                date = Theme.formats.date(LocalDate(2026, 3, 14))
+                ListGroup {
+                    item("Departs", supporting = Theme.formats.time(LocalTime(9, 5)))
+                }
+                KeyValueList {
+                    item("Updated", Theme.formats.date(LocalDate(2026, 3, 14)))
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText(time, substring = true).fetchSemanticsNode()
+        onNodeWithText(date, substring = true).fetchSemanticsNode()
+    }
+
+    /** The catalog's grouped rows: a selection written in the builder redraws. */
+    @Test
+    fun aSelectionWiredThroughTheBuilderRedraws() = runComposeUiTest {
+        var current by mutableStateOf(0)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                ListGroup {
+                    repeat(3) { index ->
+                        item("Row $index", selected = current == index, onClick = { current = index })
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText("Row 2").performClick()
+        waitForIdle()
+        assertEquals(2, current)
+        assertEquals(true, selectedOf("Row 2"), "the row tapped should draw selected")
+        assertTrue(selectedOf("Row 0") != true, "and the one selected before it should not")
+    }
+
+    @Test
+    fun aStateReadInTheBuilderRecomposesIt() = runComposeUiTest {
+        var signedIn by mutableStateOf(false)
+        var fare by mutableStateOf("$3.20")
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                ListGroup {
+                    item("Help")
+                    if (signedIn) item("Sign out")
+                }
+                KeyValueList { item("Fare", fare) }
+            }
+        }
+        waitForIdle()
+        assertEquals(0, onAllNodesWithText("Sign out").fetchSemanticsNodes().size)
+        signedIn = true
+        fare = "$4.80"
+        waitForIdle()
+        onNodeWithText("Sign out").fetchSemanticsNode()
+        onNodeWithText("$4.80", substring = true).fetchSemanticsNode()
+    }
+
+    /**
+     * A stat's figure and a dial's readout, formatted where they are written.
+     *
+     * Reported from an app: *"The Stat and KeyValueList builders aren't
+     * composable, so formatted dates and amounts have to be worked out before
+     * the builder is called."*
+     */
+    @Test
+    fun aStatAndAReadoutReadTheTheme() = runComposeUiTest {
+        var fare = ""
+        var speed = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                fare = Theme.formats.currency(4.8, "AUD")
+                speed = Theme.formats.integer(1234)
+                Column {
+                    Stat {
+                        value(Theme.formats.currency(4.8, "AUD"))
+                        +"Fare"
+                    }
+                    Gauge(value = 0.5f, contentDescription = "Speed") {
+                        +Theme.formats.integer(1234)
+                        label("km/h")
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithText(fare, useUnmergedTree = true).fetchSemanticsNode()
+        onNodeWithText(speed, useUnmergedTree = true).fetchSemanticsNode()
+    }
+
+    @Test
+    fun aStateReadInAStatOrAReadoutRecomposesIt() = runComposeUiTest {
+        var fare by mutableStateOf("$3.20")
+        var speed by mutableStateOf("72")
+        var level by mutableStateOf("40")
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                Column {
+                    Stat {
+                        value(fare)
+                        +"Fare"
+                    }
+                    Gauge(value = 0.5f, contentDescription = "Speed") { +speed }
+                    Meter(value = 0.4f, contentDescription = "Level") { +level }
+                    Knob(value = 0.3f, onValueChange = {}, contentDescription = "Volume") { +"knob $level" }
+                }
+            }
+        }
+        waitForIdle()
+        fare = "$4.80"
+        speed = "88"
+        level = "65"
+        waitForIdle()
+        for (text in listOf("$4.80", "88", "65", "knob 65")) {
+            onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode("$text should be drawn once the state it reads changes")
+        }
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.selectedOf(text: String): Boolean? =
+        onNodeWithText(text).fetchSemanticsNode().config.getOrNull(SemanticsProperties.Selected)
+}

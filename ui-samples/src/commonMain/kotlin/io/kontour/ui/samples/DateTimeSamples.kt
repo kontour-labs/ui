@@ -5,6 +5,14 @@ import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import io.kontour.ui.components.datetime.DatePickerDefaults
+import io.kontour.ui.sheet.ModalBottomSheet
+import io.kontour.ui.sheet.SheetHeader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -14,6 +22,7 @@ import androidx.compose.runtime.setValue
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
+import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -23,6 +32,7 @@ import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
+import io.kontour.ui.overlay.Dialog
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -80,12 +90,52 @@ fun TimePickerBasics() {
 }
 
 @Composable
+fun DateFieldBasics() {
+    var date by remember { mutableStateOf<LocalDate?>(null) }
+    var picking by remember { mutableStateOf(false) }
+
+    // One tap target that opens the picker, as `TimeField` is for a time —
+    // not a text field with a calendar button beside it.
+    DateField(value = date, onClick = { picking = true }, label = "Post date")
+
+    Dialog(
+        visible = picking,
+        onDismissRequest = { picking = false },
+        title = { +"Post date" },
+        actions = { cancel() },
+    ) {
+        DatePicker(
+            value = date,
+            onValueChange = { date = it; picking = false },
+            // Marks today, and gives the header its way back to it.
+            today = remember { DatePickerDefaults.currentDate() },
+            // The picker stops at a phone's width; this centres it in a wider dialog.
+            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
+        )
+    }
+}
+
+@Composable
 fun TimeFieldBasics() {
     var departAt by remember { mutableStateOf(LocalTime(8, 15)) }
 
+    var picking by remember { mutableStateOf(false) }
+
     // A read-only field that opens a picker — `onClick`, not `onValueChange`.
     // Typing a time into a text field is how you get 25:61.
-    TimeField(value = departAt, onClick = { start() }, label = "Leave at")
+    TimeField(value = departAt, onClick = { picking = true }, label = "Leave at")
+
+    // The wheels set the time as they turn, so the sheet needs no Done: its
+    // close button, a drag down or a tap outside puts it away.
+    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
+        SheetHeader { +"Leave at" }
+        TimePicker(
+            value = departAt,
+            onValueChange = { departAt = it },
+            minuteStep = 5,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
+        )
+    }
 }
 
 @Composable

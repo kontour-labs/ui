@@ -258,11 +258,11 @@ fun TabBar(
 
                 // A row you can tell scrolls.
                 //
-                // `Scrollbar` draws nothing for a finger unless it is asked to —
-                // `LocalInputModality` is `Touch` by default and
-                // `supportsHover` is true only for a mouse — so the default
-                // would put this affordance on every platform except the one it
-                // was reported from. A tab bar's whole problem is that you
+                // Under touch a `Scrollbar` shows only while the content moves
+                // and fades once it stops, and `LocalInputModality` is `Touch`
+                // until a mouse or a key says otherwise — so at rest the
+                // default would put this affordance on every platform except
+                // the one it was reported from. A tab bar's whole problem is that you
                 // cannot see there are more tabs off the edge, and a hairline
                 // that appears only when you already have a pointer to discover
                 // them with is not an answer to it.

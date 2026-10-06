@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.locale.DateStyle
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
@@ -42,8 +44,6 @@ import kotlinx.datetime.LocalDateTime
  *     onValueChange = viewModel::setLeaveAt,
  *     today = today,
  *     isDateSelectable = { it >= today },
- *     previousIcon = Tabler.Outline.ChevronLeft,
- *     nextIcon = Tabler.Outline.ChevronRight,
  *     minuteStep = 5,
  * )
  * ```
@@ -93,8 +93,8 @@ fun DateTimePicker(
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
-    previousIcon: ImageVector? = null,
-    nextIcon: ImageVector? = null,
+    previousIcon: ImageVector? = SystemIcons.ChevronBack,
+    nextIcon: ImageVector? = SystemIcons.ChevronForward,
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
@@ -210,4 +210,50 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
             placeables.getOrNull(index)?.let { it.placeRelative((width - it.width) / 2, (height - it.height) / 2) }
         }
     }
+}
+
+/**
+ * The chosen date and time, shown as a tappable field.
+ *
+ * ```
+ * var departs by remember { mutableStateOf(LocalDateTime(2026, 3, 14, 9, 5)) }
+ * var picking by remember { mutableStateOf(false) }
+ *
+ * DateTimeField(value = departs, onClick = { picking = true }, label = "Departs")
+ *
+ * Dialog(
+ *     visible = picking,
+ *     onDismissRequest = { picking = false },
+ *     actions = { confirm("Done") { picking = false } },
+ * ) {
+ *     DateTimePicker(value = departs, onValueChange = { departs = it })
+ * }
+ * ```
+ *
+ * The thing you put on a form, as [TimeField] and [DateField] are: tapping it is
+ * expected to open a [DateTimePicker] in a dialog or a sheet. Written as the
+ * locale writes a date and a time together.
+ *
+ * @param value The date and time chosen. Always one, as a [DateTimePicker]
+ *   always has one: there is no empty state to show a placeholder for.
+ * @param formats Writes the value; the theme's, by default.
+ */
+@Composable
+fun DateTimeField(
+    value: LocalDateTime,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: String? = null,
+    formats: LocaleFormats = Theme.formats,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    PickerField(
+        text = formats.dateTime(value.date, value.time),
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        label = label,
+        interactionSource = interactionSource,
+    )
 }

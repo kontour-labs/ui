@@ -72,8 +72,10 @@ class NavBarFloatingShapeTest {
         val image = Scene(width = 800, height = 400, darkTheme = true) {
             KontourTheme(darkTheme = true) {
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    // No fade: this finds the capsule by the page round it, which the fade would cover.
                     NavBar(
                         style = NavBarStyle.Floating,
+                        fadeUnder = false,
                         modifier = Modifier.reportBounds { bounds = it },
                     ) {
                         item(true, {}, key = "nearby", icon = Tabler.Outline.MapPin) { +"Nearby" }

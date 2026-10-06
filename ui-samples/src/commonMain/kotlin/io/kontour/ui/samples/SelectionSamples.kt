@@ -33,6 +33,7 @@ import io.kontour.ui.components.selection.Slider
 import io.kontour.ui.components.selection.Stepper
 import io.kontour.ui.components.selection.Switch
 import io.kontour.ui.components.selection.TriStateCheckbox
+import io.kontour.ui.theme.Theme
 import kotlin.math.roundToInt
 
 @Composable
@@ -128,14 +129,20 @@ fun FilterChipGroup() {
 
 @Composable
 fun SegmentedControlBasics() {
-    var selected by remember { mutableStateOf(0) }
+    var mode by remember { mutableStateOf(TransitMode.Bus) }
 
+    // Values, as `Select` and `RadioGroup` take; `optionLabel` names each one.
+    // An overload takes a list of strings and the chosen one's index.
     SegmentedControl(
-        options = listOf("Bus", "Train", "Ferry"),
-        selectedIndex = selected,
-        onSelectedIndexChange = { selected = it },
+        value = mode,
+        options = TransitMode.entries,
+        onValueChange = { mode = it },
+        optionLabel = { it.label },
     )
 }
+
+/** The kinds of service a sample switches between. */
+internal enum class TransitMode(val label: String) { Bus("Bus"), Train("Train"), Ferry("Ferry") }
 
 @Composable
 fun ColourSwatchPickerBasics() {
@@ -153,6 +160,7 @@ fun ColourSwatchPickerBasics() {
 @Composable
 fun KnobBasics() {
     var volume by remember { mutableStateOf(40f) }
+    val formats = Theme.formats
 
     Knob(
         value = volume,
@@ -160,9 +168,9 @@ fun KnobBasics() {
         valueRange = 0f..100f,
         steps = 9,
         contentDescription = "Volume",
-        stateDescription = { "${it.roundToInt()}%" },
+        stateDescription = { formats.percent(it / 100.0) },
     ) {
-        +"${volume.roundToInt()}"
+        +formats.integer(volume.roundToInt())
     }
 }
 

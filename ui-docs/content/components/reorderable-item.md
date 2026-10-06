@@ -2,6 +2,11 @@
 
 Drag to reorder, with `rememberReorderableState`.
 
+For a row that has to leave its list — a card between a board's columns, a stop
+into another trip — use [drag and drop](../drag-and-drop.md): `dragItems` in a
+`dropList`. `ReorderableItem` stays the simpler thing for a list whose rows only
+move within it, and it reorders live under the finger rather than at the drop.
+
 The lift — shadow, scale, offset — is the whole of the feedback, and none of it
 exists at rest. `ReorderableState.start(index)`, `drag(delta)` and `stop()` are
 public so a drag can be begun without one: for a keyboard affordance, and for a

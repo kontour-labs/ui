@@ -3,10 +3,12 @@ package io.kontour.ui.nav
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.foundation.SurfaceDefaults
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.Theme
 
 /**
@@ -49,6 +52,7 @@ import io.kontour.ui.theme.Theme
  * | [section] | nothing: its items are inline | a hairline | a title over its items |
  * | [group] | a circle opening a menu of its children | an icon opening a menu | a row that discloses its children |
  * | [divider] | nothing | a hairline | a hairline |
+ * | [more] | a "More" circle opening a menu of its children | its children, inline | its children, inline |
  *
  * A group carries the selection marker while the destination selected inside it
  * is hidden, so the surface always says where you are.
@@ -62,6 +66,12 @@ import io.kontour.ui.theme.Theme
  * is what a screen reader announces wherever the surface draws only the icon.
  * It is a `String` rather than content for that reason — see
  * `ui-docs/content/dsls.md`, on announcements.
+ *
+ * **A call draws where it is written, whichever scope it is made on.** A
+ * helper written in the outer block — `fun stop(id: String) = item(…)` — closes
+ * over the outer scope, and called inside a [group] it still draws as one of
+ * the group's. The DSL marker on this scope already refuses an implicit outer
+ * receiver, but cannot see a captured one.
  */
 @Stable
 @LayoutScopeMarker
@@ -167,6 +177,98 @@ sealed interface NavBarScope : NavScope {
     @Composable
     fun slot(weight: Float = 0f, content: @Composable () -> Unit)
 }
+
+/**
+ * The destinations with no room of their own, behind a "More" at the end of a
+ * bar.
+ *
+ * ```kotlin
+ * NavBar {
+ *     item(here == Home, { go(Home) }, key = Home, icon = Tabler.Outline.Home) { +"Home" }
+ *     item(here == Map, { go(Map) }, key = Map, icon = Tabler.Outline.Map) { +"Map" }
+ *     item(here == Saved, { go(Saved) }, key = Saved, icon = Tabler.Outline.Star) { +"Saved" }
+ *     more {
+ *         item(here == Settings, { go(Settings) }, key = Settings, icon = Tabler.Outline.Settings) { +"Settings" }
+ *         item(here == Help, { go(Help) }, key = Help, icon = Tabler.Outline.Help) { +"Help" }
+ *     }
+ * }
+ * ```
+ *
+ * A [NavScope.group] with nothing to decide: the library's horizontal dots
+ * (`SystemIcons.More`), `Theme.strings.more` for its name, and a key of its
+ * own, so there is one per surface. Asked for as *"an easy api to add a '…'
+ * menu to the end with one of those dropdown options. this is useful for lots
+ * of nav items"* — a bar has room for five destinations, and an app with nine
+ * needs somewhere for the other four.
+ *
+ * **Where it is written**, which is the end of the bar by convention, as it is
+ * on every platform: the destinations people reach for first come first.
+ *
+ * **Only a bar needs it.** In a rail, at any width, there is room, and the
+ * destinations are drawn inline where `more` is written, as if it were not
+ * there; in a group's menu they are rows of the menu. So the same block reads
+ * right in a [NavigationSuiteScaffold], which draws a bar on a phone and a rail
+ * on anything wider.
+ *
+ * Like any group it carries the marker while the current destination is inside
+ * it, and the bar's marker can be dragged to it to open it.
+ *
+ * @param badge Drawn on the dots, as a group's is: `{ Badge() }` when something
+ *   inside wants attention.
+ */
+@Composable
+fun NavScope.more(
+    modifier: Modifier = Modifier,
+    badge: (@Composable () -> Unit)? = null,
+    content: @Composable NavScope.() -> Unit,
+) {
+    when (val here = emitter()) {
+        is NavBarScope -> {
+            val name = Theme.strings.more
+            here.group(
+                expanded = false,
+                onExpandedChange = {},
+                key = NavMoreKey,
+                icon = SystemIcons.More,
+                header = { +name },
+                modifier = modifier,
+                badge = badge,
+                content = content,
+            )
+        }
+        else -> here.content()
+    }
+}
+
+/** [more]'s key: one per surface, and never one of an app's own. */
+private data object NavMoreKey
+
+/**
+ * The scope composing destinations at this point of the composition: a
+ * surface's own at its root, a group's inside its run or its menu, a probe's
+ * while a group's destinations are hidden.
+ *
+ * Every destination call goes through it ([emitter]), so a call made on a
+ * scope captured from further out — a helper written in the outer block,
+ * called inside a group — draws as what the place it is called from draws.
+ * Reported from an app: *"items I emitted inside `group { … }` through a
+ * helper ended up added to the outer scope, outside their group"*. In a rail
+ * they drew over a shut group, unindented in an open one; in a bar as a
+ * circle of their own, and opening the group's menu claimed their key twice,
+ * which throws.
+ */
+internal val LocalNavEmitter = compositionLocalOf<NavScope?> { null }
+
+/** Runs [content] on this scope, as the one destinations here draw through. */
+@Composable
+internal fun <S : NavScope> S.emit(content: @Composable S.() -> Unit) {
+    CompositionLocalProvider(LocalNavEmitter provides this) { content() }
+}
+
+/** The scope a destination called on this one draws through: see [LocalNavEmitter]. */
+@Composable
+@ReadOnlyComposable
+internal fun NavScope.emitter(): NavScope = LocalNavEmitter.current ?: this
 
 /** Collects a destination's label: `+"Stops"`. */
 @LayoutScopeMarker

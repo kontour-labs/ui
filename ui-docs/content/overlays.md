@@ -49,6 +49,12 @@ right up until someone opens a menu from inside a sheet.
 
 Within a layer, push order decides — `sortedBy` is stable.
 
+**An overlay lives in the host, and leaves with the composable that showed it.**
+`visible = false` closes one; so does the call leaving composition — a screen
+navigated away from, an `if` round a `Dialog` turning false — which takes it
+down with its usual exit rather than leaving it on screen with nothing to close
+it. A dialog, a command palette and the toast stack did not, until 0.4.2.
+
 ### Why in-composition rather than platform windows
 
 Material renders each dialog into its own platform window. That is fine on
@@ -217,6 +223,11 @@ This is the one place in the library where a shape may carry a smoothing the
 scale did not choose, and the exemption has a boundary: the backdrop's clip and a
 sheet's top corners are concentric with the *bezel* rather than with the card
 beside them. A third shape wanting it would need its own reason.
+
+A sheet's corners follow the bezel only so far: up to 40dp. An iPhone's 55pt,
+worn by a sheet resting at half height, was a curve in the middle of the screen
+that crowded the sheet's header. At full height the bezel's own curve covers the
+sheet's corners whatever their radius, so the cap shows only where it should.
 
 The radius also **ramps** with the recede rather than arriving whole. That was the
 other half of the report: the travel is 12dp over 220ms and reads as smooth, but

@@ -22,6 +22,7 @@ import io.kontour.ui.theme.Shadow
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.theme.ProvideConcentric
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.NamedByContent
 
 /** How a card separates itself from the page behind it. */
 enum class CardVariant {
@@ -104,7 +105,11 @@ fun Card(
             // less `spacing.md`'s 16dp floors at 6dp, and a control asking for
             // it gets that — but it tracks a caller who overrides either.
             val column = this
-            ProvideConcentric(shape, contentPadding) { column.content() }
+            ProvideConcentric(shape, contentPadding) {
+                // A clickable card is one node named by what it says; see
+                // `LocalNamedByContent`.
+                if (onClick != null) NamedByContent { column.content() } else column.content()
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.TargetBasedAnimation
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
@@ -12,6 +13,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -22,6 +26,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcher
@@ -30,6 +35,9 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.kontour.ui.interaction.DirectionDecisionShare
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -53,6 +61,13 @@ import kotlinx.coroutines.launch
  * that goes more sideways than up or down past the touch slop, and towards the
  * trailing edge, becomes one. A pan starting at the leading edge itself is left
  * to the edge gesture.
+ *
+ * **A list still moving from a throw does not keep it.** A finger that lands on
+ * a moving list catches it, and the list takes the press to do so — which, read
+ * as above, would make every pan that follows the list's. A press that caught a
+ * list moving up or down is watched before the list instead, so a pan that goes
+ * sideways is back and one that goes up or down is still the list's. See
+ * [FlingWatch].
  *
  * **Let go, it carries on at the finger's speed.** Decided as UIKit decides it:
  * by where the page would come to rest if it coasted on at that speed, so a
@@ -303,6 +318,9 @@ internal class BackPan(
      * A slider pressed inside the band is different: it took the press itself,
      * before anything moved, and a slider against the edge that could not be
      * dragged would be the page's fault.
+     *
+     * A list caught moving up or down is not a slider, though it takes the press
+     * the same way: see [FlingWatch].
      */
     val early: Boolean = false,
 )
@@ -316,10 +334,78 @@ internal fun Modifier.swipeBack(pan: BackPan, input: SwipeBackInput, travel: (()
     val scope = rememberCoroutineScope()
     val slop = LocalViewConfiguration.current.touchSlop
     val placed = remember { Placed() }
+    val watch = remember { FlingWatch() }
     return this
         .onPlaced { placed.coordinates = it }
-        .pointerInput(pan, input, slop) { trackBackPan(pan, input, slop, placed, scope, travel) }
+        .nestedScroll(watch)
+        .pointerInput(pan, input, slop) { trackBackPan(pan, input, slop, placed, scope, travel, watch) }
 }
+
+/**
+ * Whether a scroller under this node is still moving from a throw, and which
+ * way — told by the scroller itself, through nested scrolling.
+ *
+ * A scroller that is still moving takes the press that lands on it: that is
+ * how a finger catches a throw. To a swipe back that press looks exactly like a
+ * slider's, taken before anything moved, and a swipe back leaves a slider's
+ * press alone. So while any list was moving, back did nothing at all — *"on
+ * ios, you can't swipe back if there is scrolling content that is moving even
+ * just a little bit. not even from the very edge."* A throw runs on long after
+ * it stops looking like one: the last second and a half of a fast one moves
+ * less than a third of a pixel a frame.
+ *
+ * **Every frame of a throw passes up as a side-effect scroll**, the library's
+ * fling and Compose's alike, so the last one seen says which way it was going.
+ * It is read and cleared at each press ([takeAtPress]): a throw the press did
+ * not catch scrolls again on its next frame and is seen again, and one it did
+ * catch stops, so what was seen cannot outlive the throw. Bracketing the throw
+ * between its start and its end would not work, because a caught throw is
+ * cancelled and never reports its end.
+ *
+ * **A throw that ran into the end** reports velocity left over, and on iOS the
+ * list then bounces back from the end on a spring of its own that sends nothing
+ * up. Its axis is kept for [BounceWindow] after, the length of that spring.
+ */
+internal class FlingWatch(private val clock: TimeSource = TimeSource.Monotonic) : NestedScrollConnection {
+    private var moving: Orientation? = null
+    private var bouncing: Orientation? = null
+    private var bouncingSince: TimeMark? = null
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (source == NestedScrollSource.SideEffect) {
+            val moved = consumed + available
+            if (moved != Offset.Zero) moving = if (abs(moved.y) >= abs(moved.x)) Orientation.Vertical else Orientation.Horizontal
+        }
+        return Offset.Zero
+    }
+
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+        val axis = moving
+        moving = null
+        if (available != Velocity.Zero) {
+            bouncing = axis ?: if (abs(available.y) >= abs(available.x)) Orientation.Vertical else Orientation.Horizontal
+            bouncingSince = clock.markNow()
+        }
+        return Velocity.Zero
+    }
+
+    /** Which way something was still moving as a finger went down, and forgets it. */
+    fun takeAtPress(): Orientation? {
+        val bounce = bouncing?.takeIf { bouncingSince?.let { it.elapsedNow() < BounceWindow } == true }
+        val axis = moving ?: bounce
+        moving = null
+        bouncing = null
+        bouncingSince = null
+        return axis
+    }
+}
+
+/**
+ * How long after a throw ran into its end the list may still be bouncing back
+ * from it: iOS's rubber band settles on a critically damped spring in about
+ * 0.7s.
+ */
+internal val BounceWindow = 1.seconds
 
 private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBackPan(
     pan: BackPan,
@@ -328,6 +414,7 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
     placed: Placed,
     scope: CoroutineScope,
     travel: (() -> Float)?,
+    watch: FlingWatch,
 ) {
     val sign = if (pan.rightwards) 1f else -1f
     val claimAt = if (pan.early) slop * DirectionDecisionShare else slop
@@ -335,7 +422,14 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
         while (true) {
             val down = awaitPointerEvent(pan.pass)
             val first = down.changes.firstOrNull() ?: continue
-            if (!first.pressed || first.previousPressed || first.type != PointerType.Touch) continue
+            if (!first.pressed || first.previousPressed) continue
+            // At every press, whatever it turns out to be, so what was moving
+            // before it is never read at a later one.
+            //
+            // A pan back is sideways, so a list moving up or down that took
+            // the press took it to stop, not to be dragged sideways.
+            val caught = watch.takeAtPress() == Orientation.Vertical
+            if (first.type != PointerType.Touch) continue
             if (!input.armed || input.releasing) continue
             // In the window's coordinates, not this node's: the page moves with
             // the finger once the gesture is under way, so a finger measured
@@ -346,15 +440,22 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             val id = first.id
             if (pan.early) {
                 // The same press, after everything under it has seen it: a control
-                // that took the press itself keeps it.
+                // that took the press itself keeps it — but a list that took it
+                // to stop moving is not a control.
                 val settled = awaitPointerEvent(PointerEventPass.Final)
-                if (settled.changes.firstOrNull { it.id == id }?.isConsumed == true) continue
+                if (!caught && settled.changes.firstOrNull { it.id == id }?.isConsumed == true) continue
             }
+            // A press that caught a moving list is the list's from here on, and
+            // it takes every move after it, in any direction, before anything
+            // above it sees one. Watched before the list instead, so a pan that
+            // goes sideways can be claimed — and claiming it, by consuming the
+            // move, ends the list's drag.
+            val pass = if (caught && first.isConsumed) PointerEventPass.Initial else pan.pass
             val tracker = VelocityTracker()
             tracker.addPosition(first.uptimeMillis, start)
             var claimed = false
             while (true) {
-                val event = awaitPointerEvent(pan.pass)
+                val event = awaitPointerEvent(pass)
                 val change = event.changes.firstOrNull { it.id == id }
                 if (change == null) {
                     if (claimed) input.abandon()

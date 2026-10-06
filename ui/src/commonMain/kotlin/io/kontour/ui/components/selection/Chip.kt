@@ -411,7 +411,9 @@ fun InputChip(
                     Modifier
                 }
             )
-            .padding(start = Theme.spacing.sm, end = 4.dp),
+            // The remove button brings its own 4dp to the end; without one the
+            // end is the start's, as every other chip's is.
+            .padding(start = Theme.spacing.sm, end = if (removeIcon != null) 4.dp else Theme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

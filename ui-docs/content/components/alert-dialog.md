@@ -32,8 +32,52 @@ in a third of a dialog, which is where a button starts ellipsising its own verb.
 The cancel answer takes a line of its own instead — see
 [the overlay guide](../overlays.md#alert-dialogs-with-three-answers).
 
+**The buttons stay on screen.** They sit under the message rather than at the
+end of it, so a long message on a short window scrolls and the answers stay in
+reach. They are the row a `Dialog` draws from its
+[`actions`](dialog.md), which is where to go for the same buttons under a body
+of your own.
+
 Awaiting an answer from a coroutine rather than hoisting a `visible` flag is what
 `ConfirmHostState.confirm()` is for.
+
+### A question that needs more than an answer
+
+Typing an account's email before deleting it, or giving a reason for disabling
+it, is a [`Dialog`](dialog.md) with `actions`, not an alert with a field in it.
+The buttons are the same row, the confirm takes `destructive` and an `enabled`
+that waits for the input, and the body is whatever the question needs:
+
+<!--sample:TypeToConfirmBasics-->
+```kotlin
+var open by remember { mutableStateOf(false) }
+val typed = rememberTextFieldState()
+
+// A question with more than an answer is a `Dialog` with `actions`: the
+// same row an alert draws, under whatever the question needs.
+Dialog(
+    visible = open,
+    onDismissRequest = { open = false },
+    title = { +"Delete this account?" },
+    actions = {
+        cancel()
+        confirm("Delete account", destructive = true, enabled = typed.text.trim() == account.email) {
+            deleteAccount()
+            open = false
+        }
+    },
+) {
+    Text(
+        "Every journey and favourite goes with it. Type ${account.email} to confirm.",
+        colour = Theme.colours.contentMuted,
+    )
+    TextField(typed, label = "Email", keyboardType = KeyboardType.Email)
+}
+```
+
+An `AlertDialog` stays the fixed shape it is — a title, a message, the answers —
+so that every alert in an app reads the same way. A text field in it would be a
+second way to build the dialog above, and the dialog above already exists.
 
 ---
 

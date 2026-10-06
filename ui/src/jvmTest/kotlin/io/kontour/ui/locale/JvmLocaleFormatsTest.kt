@@ -40,6 +40,25 @@ class JvmLocaleFormatsTest {
         assertEquals(PluralCategory.Two, arabic.pluralCategory(2))
     }
 
+    /**
+     * Money as the JDK's CLDR writes it in each place: the sign where the locale
+     * puts it, its separators, and the currency's own places.
+     */
+    @Test
+    fun moneyIsWrittenTheLocalesWay() {
+        val german = LocaleFormats.of(Locale("de-DE")).currency(1234.5, "EUR")
+        assertTrue(german.startsWith("1.234,50") && german.endsWith("€"), german)
+        val american = LocaleFormats.of(Locale("en-US"))
+        assertEquals("$1,234.50", american.currency(1234.5, "USD"))
+        assertEquals("-$3.20", american.currency(-3.2, "USD"))
+        assertEquals("€3.20", american.currency(3.2, "EUR"), "an American's euro is the platform's, not the built-in English's code")
+        val yen = LocaleFormats.of(Locale("ja-JP")).currency(320.0, "JPY")
+        assertTrue(yen.endsWith("320") && !yen.contains('.') && yen.length > 3, "the yen has no places: $yen")
+        val swiss = LocaleFormats.of(Locale("de-CH")).currency(3.2, "CHF")
+        assertTrue(swiss.contains("CHF") && swiss.contains("3.20"), swiss)
+        assertEquals("XYZ\u00A03.20", american.currency(3.2, "XYZ"), "a code the JDK does not know")
+    }
+
     @Test
     fun japanesePutsTheYearFirst() {
         val japanese = LocaleFormats.of(Locale("ja-JP"))

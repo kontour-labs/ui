@@ -1,6 +1,10 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.foundation.MutatePriority
+import androidx.compose.foundation.ScrollIndicatorState
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.Orientation
 import io.kontour.ui.foundation.GroupPosition
 import kotlin.test.Test
@@ -136,6 +140,36 @@ class ScrollbarGeometryTest {
     fun overscrollDoesNotPushTheThumbPastItsTrack() {
         assertEquals(1f, scrollbarGeometry(400f, 1000f, 5000f).position)
         assertEquals(0f, scrollbarGeometry(400f, 1000f, -50f).position)
+    }
+
+    /**
+     * Any scroller that reports a `scrollIndicatorState` is read from it: a
+     * grid, a staggered grid or a pager used to fall to the end of a `when` and
+     * draw nothing at all.
+     */
+    @Test
+    fun aStateThatReportsItsIndicatorIsReadFromIt() {
+        val geometry = scrollbarGeometry(Reporting(offset = 300, content = 1000, viewport = 400))
+        assertEquals(0.4f, geometry.fraction)
+        assertEquals(0.5f, geometry.position)
+        assertEquals(600f, geometry.scrollable)
+    }
+
+    @Test
+    fun anIndicatorNotYetKnownDrawsNothing() {
+        val geometry = scrollbarGeometry(Reporting(offset = Int.MAX_VALUE, content = Int.MAX_VALUE, viewport = 400))
+        assertTrue(!geometry.isUseful)
+    }
+
+    private class Reporting(offset: Int, content: Int, viewport: Int) : ScrollableState {
+        override val scrollIndicatorState: ScrollIndicatorState = object : ScrollIndicatorState {
+            override val scrollOffset = offset
+            override val contentSize = content
+            override val viewportSize = viewport
+        }
+        override fun dispatchRawDelta(delta: Float): Float = 0f
+        override val isScrollInProgress: Boolean = false
+        override suspend fun scroll(scrollPriority: MutatePriority, block: suspend ScrollScope.() -> Unit) = Unit
     }
 
     @Test

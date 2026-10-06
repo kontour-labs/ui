@@ -55,7 +55,8 @@ import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.EmptyState
 import io.kontour.ui.components.display.ErrorState
-import io.kontour.ui.components.display.Spinner
+import io.kontour.ui.components.display.LoadingState
+import io.kontour.ui.components.display.StateSwitcher
 import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.selection.SegmentedControl
@@ -142,36 +143,47 @@ internal fun IconsPage(source: IconSource = SiteIconSource) {
                         )
                     },
                 )
-                when {
-                    store.failed -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        ErrorState(onRetry = { scope.launch { store.load() } }) {
-                            +"The icons did not load"
-                            message { +"They are fetched beside the page. Check the connection, and try again." }
-                            leading { +Tabler.Outline.WifiOff }
+                // One place for the four, so a search that empties the grid,
+                // or a retry that starts loading again, fades from one to the
+                // next rather than swapping in a frame.
+                val showing = when {
+                    store.failed -> IconsShowing.Failed
+                    index == null -> IconsShowing.Loading
+                    results.isEmpty() -> IconsShowing.Empty
+                    else -> IconsShowing.Grid
+                }
+                StateSwitcher(showing, Modifier.fillMaxSize()) { now ->
+                    when (now) {
+                        IconsShowing.Failed -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                            ErrorState(onRetry = { scope.launch { store.load() } }) {
+                                +"The icons did not load"
+                                message { +"They are fetched beside the page. Check the connection, and try again." }
+                                leading { +Tabler.Outline.WifiOff }
+                            }
                         }
-                    }
-                    index == null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        Spinner(size = 32.dp, contentDescription = "Loading the icons")
-                    }
-                    results.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        EmptyState {
-                            +"No icon answers “$query”"
-                            message { +"Try another word for it: Tabler tags its icons with what they show and what they are for." }
-                            leading { +Tabler.Outline.MoodEmpty }
+                        IconsShowing.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                            LoadingState { +"Loading the icons" }
                         }
+                        IconsShowing.Empty -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                            EmptyState {
+                                +"No icon answers “$query”"
+                                message { +"Try another word for it: Tabler tags its icons with what they show and what they are for." }
+                                leading { +Tabler.Outline.MoodEmpty }
+                            }
+                        }
+                        IconsShowing.Grid -> IconGrid(
+                            results = results,
+                            style = style,
+                            store = store,
+                            selected = selected,
+                            onSelect = { selected = if (selected == it) null else it },
+                            restingWidth = if (beside && selected != null) {
+                                pageWidth - DetailWidth - Theme.sizing.dividerThickness
+                            } else {
+                                pageWidth
+                            },
+                        )
                     }
-                    else -> IconGrid(
-                        results = results,
-                        style = style,
-                        store = store,
-                        selected = selected,
-                        onSelect = { selected = if (selected == it) null else it },
-                        restingWidth = if (beside && selected != null) {
-                            pageWidth - DetailWidth - Theme.sizing.dividerThickness
-                        } else {
-                            pageWidth
-                        },
-                    )
                 }
             }
             if (beside) {
@@ -521,3 +533,6 @@ private val DetailWidth: Dp = 360.dp
 
 /** Below this, the search and the styles stack rather than share a row. */
 private val StackedBelowWidth: Dp = 600.dp
+
+/** What the page shows where the grid goes. */
+private enum class IconsShowing { Failed, Loading, Empty, Grid }

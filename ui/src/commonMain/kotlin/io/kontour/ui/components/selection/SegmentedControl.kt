@@ -88,6 +88,22 @@ object SegmentedControlDefaults {
      */
     val TrackPadding: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.segmentedTrackPadding
+
+    /**
+     * The room a segment keeps either side of its label.
+     *
+     * Two neighbours on one row are at least twice this apart, and the control
+     * stacks its options rather than let them closer. Without it a label could
+     * fill its share to the last dp and meet the next one: at phone width
+     * "Standard" and "Keyboard" read as one word, with nothing but the thumb's
+     * edge between them.
+     *
+     * 4dp, so 8dp between two labels: a word space and a half. Twice that
+     * stacked a 150dp "One / Two / Three" — a control with room to spare —
+     * and every settings panel's controls a size sooner.
+     */
+    val LabelPadding: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.xxs
 }
 
 /**
@@ -174,11 +190,15 @@ private const val SegmentSquash = 0.16f
  *
  * ```
  * SegmentedControl(
- *     options = listOf("Depart", "Arrive"),
- *     selectedIndex = mode,
- *     onSelectedIndexChange = viewModel::setMode,
+ *     value = filter,
+ *     options = NewsFilter.entries,
+ *     onValueChange = { filter = it },
+ *     optionLabel = { it.label },
  * )
  * ```
+ *
+ * Takes values rather than positions, as `Select` and `RadioGroup` do. An
+ * overload takes a list of strings and the chosen one's index.
  *
  * Best for two to four short options that the user switches between often — a
  * depart/arrive toggle, a day/week/month range. Beyond four, or with long
@@ -189,6 +209,44 @@ private const val SegmentSquash = 0.16f
  * rather than each segment fading its own background. That is what makes the
  * control read as one physical thing with a moving part, and it is why the
  * indicator is drawn behind the labels rather than per segment.
+ *
+ * @param value The option chosen. One of [options]; a value that is not draws
+ *   no segment as chosen.
+ * @param optionLabel The words on an option's segment.
+ */
+@Composable
+fun <T> SegmentedControl(
+    value: T,
+    options: List<T>,
+    onValueChange: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    optionLabel: (T) -> String = { it.toString() },
+) {
+    val labels = options.map(optionLabel)
+    SegmentedControl(
+        options = labels,
+        selectedIndex = options.indexOf(value),
+        onSelectedIndexChange = { index -> options.getOrNull(index)?.let(onValueChange) },
+        modifier = modifier,
+        enabled = enabled,
+    )
+}
+
+/**
+ * A row of mutually exclusive options, by position: [selectedIndex] in
+ * [options].
+ *
+ * ```
+ * SegmentedControl(
+ *     options = listOf("Depart", "Arrive"),
+ *     selectedIndex = mode,
+ *     onSelectedIndexChange = viewModel::setMode,
+ * )
+ * ```
+ *
+ * The overload taking values is the one to reach for when the options are
+ * values of your own, so that nothing maps an index back to one.
  */
 @Composable
 fun SegmentedControl(
@@ -300,8 +358,10 @@ fun SegmentedControl(
      * Whether the labels have to stop sharing one row.
      *
      * **Measured, not guessed**, and measured against the same number the
-     * ellipsis decision is made from: the widest label at `labelMedium` against
-     * the width one segment would get.
+     * ellipsis decision is made from: the widest label at `labelMedium`, with
+     * [SegmentedControlDefaults.LabelPadding] either side, against the width one
+     * segment would get. A label that only just fitted its share used to stay on
+     * the row and meet its neighbour's.
      *
      * At 200% type "Keyboard" is 124dp against an 84dp segment, and `Standard` is
      * 119.5dp against the same — so two of the settings panel's three segmented
@@ -316,11 +376,12 @@ fun SegmentedControl(
     // Read out here: `TrackPadding` is a `@ReadOnlyComposable` property off the
     // theme, and `remember`'s calculation is not a composable context.
     val trackPadding = SegmentedControlDefaults.TrackPadding
-    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding) {
+    val labelPadding = SegmentedControlDefaults.LabelPadding
+    val stacked = remember(labels, measurer, constraints.maxWidth, density, labelStyle, trackPadding, labelPadding) {
         val track = with(density) { constraints.maxWidth.toDp() } - trackPadding * 2
         val each = track / options.size
         val widest = labels.maxOf { measurer.measure(it, labelStyle).size.width }
-        with(density) { widest.toDp() } > each
+        with(density) { widest.toDp() } + labelPadding * 2 > each
     }
 
     /**
@@ -876,6 +937,7 @@ private fun SegmentedOption(
                     colour = labelColour,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = SegmentedControlDefaults.LabelPadding),
                 )
             }
         }

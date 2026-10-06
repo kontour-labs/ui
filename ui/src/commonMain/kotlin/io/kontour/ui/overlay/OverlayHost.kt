@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
@@ -59,6 +60,11 @@ import io.kontour.ui.motion.RelaySystemBack
 import io.kontour.ui.motion.rememberSwipeBackInput
 import io.kontour.ui.motion.swipeBack
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.dragdrop.DragHost
+import io.kontour.ui.dragdrop.DragLayer
+import io.kontour.ui.dragdrop.handleKey
+import io.kontour.ui.dragdrop.LocalDragHost
+import io.kontour.ui.dragdrop.LocalOverlayLayer
 
 /**
  * Where an overlay sits in the stack.
@@ -626,6 +632,7 @@ private fun EntryHost(
             LocalOverlayProgress provides reader,
             LocalOverlayLeaving provides leavingReader,
             LocalOverlayBack provides back,
+            LocalOverlayLayer provides index + 1,
         ) {
             if (backOwner != null) {
                 CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backOwner) {
@@ -890,16 +897,31 @@ fun OverlayHost(
     val backTarget = state.backTarget
     val pageBack = rememberChildBackDispatcher(enabled = backTarget == null, parent = backRoot)
 
+    // What is being dragged in here, drawn over everything — the overlays as
+    // well, so a card can be carried out of a sheet. The page behind a dimmed
+    // modal takes no drops, as it takes no taps.
+    val drags = remember { DragHost() }
+    val blockedBelow = shutBy?.let { top -> stack.indexOfFirst { it.key == top.key } + 1 } ?: 0
+    SideEffect {
+        drags.originOf = { state.originInRoot }
+        drags.blockedBelow = blockedBelow
+    }
+
     CompositionLocalProvider(
         LocalOverlayHost provides state,
         LocalOverlayHostOrNull provides state,
+        LocalDragHost provides drags,
         LocalTakesBackSwipe provides false,
         LocalRelaysSystemBack provides false,
         *(if (ownBack != null) arrayOf(LocalNavigationEventDispatcherOwner provides ownBack) else emptyArray()),
     ) {
+        val direction = LocalLayoutDirection.current
         Box(
             modifier
                 .fillMaxSize()
+                // A drag's keys, before anything focused sees them: the arrows
+                // move a carried thing, Enter puts it down, Escape calls it off.
+                .onPreviewKeyEvent { drags.handleKey(it, direction) }
                 .trackHostOrigin(state)
                 .clearFocusOnTap(clearFocusOnTap)
                 .then(if (ownBack != null && tracksSwipe) Modifier.edgeSwipeBack(ownBack.navigationEventDispatcher) else Modifier),
@@ -1004,6 +1026,9 @@ fun OverlayHost(
                     )
                 }
             }
+
+            // Last, so above every entry.
+            DragLayer(drags)
         }
     }
 }

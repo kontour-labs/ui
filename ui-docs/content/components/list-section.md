@@ -25,6 +25,13 @@ ListSection(
 }
 ```
 
+**Rows, not fields.** The `spacing` between a section's children is the hairline
+that makes a group of rows read as one object, and it is the gap fields get too.
+Form fields are separate controls rather than one card, so give them the space a
+form has: `ListSection(title = { +"Contact" }, spacing = Theme.spacing.md) { TextField(…); TextField(…) }`.
+The same `spacing` is the gap under the heading and above the footer, which keep
+their own padding besides — so a form's wider gap opens there too.
+
 ## In a lazy list: `listSection`
 
 A `LazyColumn` arranges every item one way, and a sectioned list needs two gaps:

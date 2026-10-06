@@ -2,6 +2,15 @@ package io.kontour.ui.nav
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import io.kontour.ui.components.display.Carousel
+import io.kontour.ui.components.display.CarouselState
+import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.PageIndicatorDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -45,6 +54,7 @@ import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.BarSurface
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.adaptive.topEdges
+import io.kontour.ui.motion.smoothstep
 import io.kontour.ui.theme.Theme
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animate
@@ -76,6 +86,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -196,6 +207,9 @@ fun TopBar(
      * and under the status bar: crop it rather than fit it. Decorative, and
      * hidden from screen readers: say what matters in the title. Only `Hero`
      * draws it.
+     *
+     * Several pictures, swiped between, are a [HeroImages] here, with its
+     * page dots just above the title.
      */
     image: (@Composable () -> Unit)? = null,
     containerColour: Color = LocalContainerColour.current.takeOrElse { Theme.colours.background },
@@ -369,15 +383,7 @@ private fun Modifier.fadedGround(colour: Color): Modifier = drawWithCache {
     val inside = FadeUnderInside.toPx().coerceAtMost(size.height)
     val outside = FadeUnderOutside.toPx()
     val from = size.height - inside
-    val brush = Brush.verticalGradient(
-        0f to colour,
-        0.25f to colour.copy(alpha = colour.alpha * 0.84f),
-        0.5f to colour.copy(alpha = colour.alpha * 0.5f),
-        0.75f to colour.copy(alpha = colour.alpha * 0.16f),
-        1f to colour.copy(alpha = 0f),
-        startY = from,
-        endY = size.height + outside,
-    )
+    val brush = easedFade(colour, solidAt = from, clearAt = size.height + outside)
     onDrawBehind {
         // One rect for the solid part and one for the fade, meeting on a whole
         // pixel so their edges do not leave a seam between them.
@@ -421,6 +427,20 @@ private fun HeroBar(
 ) {
     val progress = { collapseState?.progress ?: collapseProgress }
     val geometry = remember { HeroGeometry() }
+    // Where a `HeroImages` in the picture says it is, for the dots this bar
+    // draws over the fade, above the title.
+    val images = remember { HeroImageHost() }
+    val dotSize = PageIndicatorDefaults.DotSize
+    // How wide the dots are as drawn, which the indicator's box — its touch
+    // target — is not; and the room the last line of the title block keeps
+    // clear for them at its end.
+    val dotCount = images.carousel?.pageCount ?: 0
+    val dotsWidth = if (dotCount < 2) {
+        0.dp
+    } else {
+        PageIndicatorDefaults.ActiveWidth + (PageIndicatorDefaults.DotSize + PageIndicatorDefaults.Gap) * (dotCount - 1)
+    }
+    val dotsReserve = if (dotCount < 2) 0.dp else dotsWidth + HeroDotsGap
     val insetTop = with(LocalDensity.current) { windowInsets.getTop(this).toDp() }
     val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - progress() } }
     val solid = highContrast()
@@ -432,7 +452,11 @@ private fun HeroBar(
     BarSurface(modifier = modifier.fillMaxWidth(), containerColour = ground, contentColour = contentColour) {
         Layout(
             contents = listOf(
-                { Box(Modifier.clearAndSetSemantics {}) { image() } },
+                {
+                    Box(Modifier.clearAndSetSemantics {}) {
+                        CompositionLocalProvider(LocalHeroImageHost provides images) { image() }
+                    }
+                },
                 // Under the title: from a little above it to the bar's foot, the
                 // picture fading into the bar's own colour.
                 {
@@ -496,19 +520,24 @@ private fun HeroBar(
                                 slots = slots,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
                                 hero = geometry,
+                                endReserve = dotsReserve,
                             )
                         }
                         if (showDivider) HorizontalDivider()
                     }
                 },
+                // Over the fade and under the title: the pictures' dots, when
+                // there are pictures to page between.
+                { images.carousel?.let { HeroDots(it) } },
             ),
             modifier = Modifier.fillMaxWidth().clipToBounds(),
-        ) { (picturePart, fadePart, barPart), constraints ->
+        ) { (picturePart, fadePart, barPart, dotsPart), constraints ->
             val bar = barPart.first().measure(constraints)
             val p = progress().coerceIn(0f, 1f)
             val height = (bar.height + geometry.shrink * p).roundToInt().coerceAtLeast(bar.height)
             val picture = picturePart.first().measure(Constraints.fixed(bar.width, height))
             val fade = fadePart.first().measure(Constraints.fixed(bar.width, height))
+            val dots = dotsPart.firstOrNull()?.measure(Constraints(maxWidth = bar.width, maxHeight = height))
             layout(bar.width, bar.height) {
                 picture.placeWithLayer(0, 0) {
                     val now = progress().coerceIn(0f, 1f)
@@ -518,6 +547,32 @@ private fun HeroBar(
                     alpha = 1f - smoothstep(HeroFadeFrom, HeroFadeTo, now)
                 }
                 fade.place(0, 0)
+                if (dots != null) {
+                    // At the end of the title block's last line, over the fade —
+                    // asked for as "move that pager indicator over the faded
+                    // bit, down in the bottom-right of the header" — sitting on
+                    // its baseline, in from the end by the title's margin.
+                    // Carried up with the title as the bar collapses, and gone
+                    // before the title nears the first line.
+                    //
+                    // Placed by the dots as drawn, not by the indicator's box,
+                    // which is its touch target: 48dp tall on a phone round 8dp
+                    // dots, and wider than three of them.
+                    val rise = (geometry.textTopCollapsed - geometry.textTopOpen) * p
+                    val baseline = windowInsets.getTop(this@Layout) + geometry.lastBaselineOpen + rise
+                    val centreY = baseline - dotSize.toPx() / 2f
+                    val drawn = dotsWidth.toPx()
+                    val centreX = if (layoutDirection == LayoutDirection.Rtl) {
+                        geometry.margin + drawn / 2f
+                    } else {
+                        bar.width - geometry.margin - drawn / 2f
+                    }
+                    val x = centreX - dots.width / 2f
+                    val y = centreY - dots.height / 2f
+                    dots.placeWithLayer(x.roundToInt(), y.roundToInt()) {
+                        alpha = 1f - smoothstep(0f, HeroDotsGoneBy, progress().coerceIn(0f, 1f))
+                    }
+                }
                 bar.place(0, 0)
             }
         }
@@ -529,7 +584,116 @@ internal class HeroGeometry {
     var textTopOpen: Float = 0f
     var textTopCollapsed: Float = 0f
     var shrink: Float = 0f
+    /** The baseline of the title block's last line, open: the subtitle's, or the title's without one. */
+    var lastBaselineOpen: Float = 0f
+    /** The title's margin from either side. */
+    var margin: Float = 0f
 }
+
+/** The carousel a hero's picture is, if it is one: told by [HeroImages], read by the bar for its dots. */
+@Stable
+internal class HeroImageHost {
+    var carousel: CarouselState? by mutableStateOf(null)
+}
+
+/** Provided round a [TopBarStyle.Hero] bar's picture. */
+internal val LocalHeroImageHost = staticCompositionLocalOf<HeroImageHost?> { null }
+
+/**
+ * Several pictures behind a [TopBarStyle.Hero] bar, swiped between.
+ *
+ * ```kotlin
+ * val photos = rememberCarouselState { stop.photos.size }
+ * TopBar(
+ *     style = TopBarStyle.Hero,
+ *     onBack = ::goBack,
+ *     image = {
+ *         HeroImages(photos) { page ->
+ *             Image(stop.photos[page], contentDescription = null, contentScale = ContentScale.Crop)
+ *         }
+ *     },
+ * ) { +stop.name }
+ * ```
+ *
+ * A [Carousel] filling the picture, edge to edge and under the status bar, and
+ * the carousel's [PageIndicator] at the bottom end of the bar, over the fade:
+ * on the last line of the title block — the subtitle, or the title without
+ * one — which stops short of it. A finger swipes anywhere on the picture that
+ * is not a button; a pointer clicks or drags along the dots. One picture shows
+ * no dots.
+ *
+ * Collapsing, the pictures do what a hero's picture does — rise at half the
+ * bar's pace and fade over the second half — and the dots go up with the title
+ * and are gone a third of the way in, before the title nears the first line.
+ *
+ * Outside a hero bar it is the same carousel with its dots at the foot, and
+ * announced by `Theme.strings.images`.
+ *
+ * **Decorative, like any hero picture**, and hidden from screen readers with
+ * its dots: say what matters in the title. A set of pictures someone needs to
+ * page through — a listing's photos — is a [Carousel] in the page, where its
+ * pages are announced and it carries previous and next.
+ *
+ * @param state Which picture is showing, and how many there are.
+ * @param content The picture for each page. Fill the box and crop.
+ */
+@Composable
+fun HeroImages(
+    state: CarouselState,
+    modifier: Modifier = Modifier,
+    content: @Composable (page: Int) -> Unit,
+) {
+    val host = LocalHeroImageHost.current
+    if (host != null) {
+        DisposableEffect(host, state) {
+            host.carousel = state
+            onDispose { if (host.carousel === state) host.carousel = null }
+        }
+    }
+    Box(modifier.fillMaxSize()) {
+        // Hidden with the rest of the picture inside a hero bar; the words are
+        // for anywhere else it is put.
+        Carousel(
+            state = state,
+            contentDescription = Theme.strings.images,
+            modifier = Modifier.fillMaxSize(),
+            pageSpacing = 0.dp,
+            peek = 0.dp,
+        ) { page ->
+            Box(Modifier.fillMaxSize()) { content(page) }
+        }
+        // Outside a hero bar there is no title to sit over: the dots go at the
+        // pictures' foot.
+        if (host == null) {
+            Box(Modifier.align(Alignment.BottomCenter).padding(bottom = Theme.spacing.md)) {
+                HeroDots(state)
+            }
+        }
+    }
+}
+
+/**
+ * A hero carousel's dots, on the picture as they are: a capsule of the bar's
+ * colour behind them was tried and taken away, asked for as *"can we get rid
+ * of the square bubble altogether?"*. Hidden from screen readers with the
+ * pictures; a pointer can click and drag along them.
+ */
+@Composable
+private fun HeroDots(state: CarouselState) {
+    if (state.pageCount < 2) return
+    val scope = rememberCoroutineScope()
+    PageIndicator(
+        state,
+        modifier = Modifier.clearAndSetSemantics {},
+        onPageClick = { page -> scope.launch { state.animateScrollToPage(page) } },
+    )
+}
+
+/** The room between the end of a hero's last line of text and its carousel's dots. */
+private val HeroDotsGap = 16.dp
+
+/** How far into a hero bar's collapse its carousel's dots are gone: well before the title nears the first line. */
+private const val HeroDotsGoneBy = 0.35f
 
 /**
  * A disc of [colour] behind an icon button, at [alpha] — a [TopBarStyle.Hero]
@@ -561,11 +725,6 @@ private const val HeroFadeWholeAt = 0.5f
 /** Over which part of the collapse a hero's picture fades out. */
 private const val HeroFadeFrom = 0.5f
 private const val HeroFadeTo = 0.9f
-
-private fun smoothstep(from: Float, to: Float, x: Float): Float {
-    val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
-    return t * t * (3f - 2f * t)
-}
 
 /**
  * A [TopBarStyle.Large] bar, at [progress] of the way to collapsed.
@@ -630,6 +789,11 @@ private fun LargeBar(
     minExpanded: Dp = 0.dp,
     /** Where the title block sits, open and collapsed, for a hero's fade. */
     hero: HeroGeometry? = null,
+    /**
+     * Room kept clear at the end of the title block's last line — the
+     * subtitle, or the title without one — for what a hero draws there.
+     */
+    endReserve: Dp = 0.dp,
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val large = Theme.typography.displaySmall
@@ -738,9 +902,12 @@ private fun LargeBar(
         val smallEnd = width - gutterPx - actsWidth - gutterPx
         val largeWidth = (width - marginPx * 2).coerceAtLeast(0)
         val smallWidth = (smallEnd - smallStart).coerceAtLeast(0)
-        val big = largePart.firstOrNull()?.measure(Constraints(maxWidth = largeWidth))
+        // The last line stops short of what is kept clear at its end.
+        val lastWidth = (largeWidth - endReserve.roundToPx()).coerceAtLeast(0)
+        val hasSubtitle = subtitlePart.isNotEmpty()
+        val big = largePart.firstOrNull()?.measure(Constraints(maxWidth = if (hasSubtitle) largeWidth else lastWidth))
         val tiny = smallPart.firstOrNull()?.measure(Constraints(maxWidth = smallWidth))
-        val sub = subtitlePart.firstOrNull()?.measure(Constraints(maxWidth = largeWidth))
+        val sub = subtitlePart.firstOrNull()?.measure(Constraints(maxWidth = lastWidth))
         val subSmall = smallSubtitlePart.firstOrNull()?.measure(Constraints(maxWidth = smallWidth))
 
         // Collapsed, it is a Small bar: the title and the subtitle under it,
@@ -759,6 +926,14 @@ private fun LargeBar(
             hero.textTopOpen = textTop.toFloat()
             hero.textTopCollapsed = Alignment.CenterVertically.align(stack, collapsed).toFloat()
             hero.shrink = shrink
+            hero.margin = marginPx.toFloat()
+            fun lastBaseline(placeable: Placeable): Int =
+                placeable[LastBaseline].takeIf { it != AlignmentLine.Unspecified } ?: placeable.height
+            hero.lastBaselineOpen = textTop + when {
+                sub != null -> (big?.height ?: 0) + lastBaseline(sub)
+                big != null -> lastBaseline(big)
+                else -> 0
+            }.toFloat()
         }
         val p = progress().coerceIn(0f, 1f)
         val height = (expanded + (collapsed - expanded) * p).roundToInt()

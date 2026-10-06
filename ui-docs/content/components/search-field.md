@@ -27,6 +27,13 @@ of the options.
 
 ## Accessibility
 
+**The field is named by its `placeholder`**, which says what it searches, and by
+`Strings.search` — "Search" — without one. A search field shows no label, and a
+screen reader would otherwise announce an unnamed edit box. So make the
+placeholder say what is searched, "Search stops and routes", rather than leaving
+it at the default where there is more than one. While it shows, the placeholder
+is read once, as the name, rather than again as a line of its own.
+
 The clear button carries `clearLabel`, which it needs — it is an icon inside a
 field and has no other name.
 

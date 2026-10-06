@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
+import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.a11y.optionalBorder
+import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Motion
@@ -86,19 +88,21 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.list.ListItemScope
-import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.list.ScrollbarDefaults
 import io.kontour.ui.components.list.listItemSlots
 import io.kontour.ui.foundation.AnimatedCheckMark
 import io.kontour.ui.foundation.ContentScope
 import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.HorizontalDivider
+import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
@@ -478,9 +482,9 @@ private fun MenuSurface(
         // A menu is the archetypal short container holding a list that may not
         // fit — a `Combobox` over forty stops, a context menu on a small window
         // — and until now the only clue that there was more below was that the
-        // last row was cut in half. `Scrollbar` returns nothing on touch and
-        // nothing when the content fits, so this costs an empty composable on a
-        // phone and draws only when it has something to say.
+        // last row was cut in half. The bar draws nothing when the content
+        // fits, and under touch only while the list is moving, so it says
+        // something only when there is something to say.
         //
         // In the panel rather than at each call site, which is the point: every
         // menu in the library goes through here, so `Select`, `MultiSelect`,
@@ -496,24 +500,17 @@ private fun MenuSurface(
         ) {
             Column(
                 modifier = Modifier
+                    // On the scroller, before its scroll: see `Modifier.scrollbar`.
+                    // Start below the panel's own corner. Derived from the shape
+                    // rather than restated as a number, so a consumer who
+                    // overrides `Theme.shapes.container` gets a scrollbar that
+                    // still clears it. A proportional corner answers zero, which
+                    // is the right degenerate: no inset, as if the panel were square.
+                    .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(shape))
                     .verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior())
                     .padding(horizontal = Theme.spacing.xxs, vertical = Theme.spacing.xxs)
                     .fillMaxWidth(),
                 content = content,
-            )
-
-            Scrollbar(
-                state = scroll,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                // Start below the panel's own corner. Derived from the shape
-                // rather than restated as a number, so a consumer who overrides
-                // `Theme.shapes.container` gets a scrollbar that still clears it.
-                //
-                // Resolved against `Size.Zero` because a fixed-`Dp` corner — what
-                // every rounded host here uses — ignores the size it is given.
-                // A proportional corner answers zero instead, which is the right
-                // degenerate: no inset, exactly as if the panel were square.
-                cornerInset = ScrollbarDefaults.cornerInset(shape),
             )
         }
     }
@@ -650,6 +647,19 @@ internal class MenuLevel(
 /** The in-place levels of the menu a row is in, or null where submenus cascade. */
 internal val LocalMenuLevels = staticCompositionLocalOf<MenuLevels?> { null }
 
+/**
+ * Whether the rows of this menu are one choice among them, as a
+ * [Select][io.kontour.ui.components.text.Select]'s options are, rather than
+ * actions.
+ *
+ * A row cannot tell from its own `selected = false` whether it is an option not
+ * chosen or an action with nothing to choose, and announced as the second it
+ * was a button: a select's chosen option was the one radio button among
+ * buttons. The selects say which they are; a menu of actions says nothing, and
+ * its rows stay buttons.
+ */
+internal val LocalMenuPicksOne = staticCompositionLocalOf { false }
+
 private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
@@ -661,14 +671,18 @@ private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - 
  * @param selected Marks a chosen item. Draws a check, and reports a role that
  *   depends on [multiple].
  * @param multiple Whether more than one item in this menu can be selected at
- *   once. It decides the announced role and nothing visual: `Role.Checkbox`
- *   where several can be on, `Role.RadioButton` where exactly one can.
+ *   once. It decides the announced role and nothing visual: `Role.Checkbox`,
+ *   ticked or not, where several can be on, `Role.RadioButton` where exactly one
+ *   can.
  *
  *   The distinction is the whole difference between the two components built on
  *   this. [Select][io.kontour.ui.components.text.Select] picks one;
  *   [MultiSelect][io.kontour.ui.components.text.MultiSelect] picks any number,
  *   and announced as radio buttons it was telling every screen-reader user that
- *   choosing a second mode of transport would clear the first.
+ *   choosing a second mode of transport would clear the first. The selects mark
+ *   their menus as choices themselves, so each of their options is announced as
+ *   chosen or not; in a menu of actions only a row that is [selected] is a
+ *   radio button, and the rest are buttons.
  * @param destructive Renders in the danger tone. For anything the user cannot
  *   undo.
  */
@@ -686,6 +700,7 @@ fun MenuItem(
     val slots = listItemSlots(content)
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
+    val picksOne = LocalMenuPicksOne.current
 
     // One shape for the clip and the indication, remembered.
     //
@@ -707,12 +722,25 @@ fun MenuItem(
             modifier = modifier
                 .fillMaxWidth()
                 .semantics(mergeDescendants = true) {
-                    role = when {
-                        multiple -> Role.Checkbox
-                        selected -> Role.RadioButton
-                        else -> Role.Button
+                    when {
+                        // Ticked or not, said either way: a checkbox with no
+                        // state is announced as neither.
+                        multiple -> {
+                            role = Role.Checkbox
+                            toggleableState = ToggleableState(selected)
+                        }
+                        // One of a select's options, chosen or not.
+                        picksOne -> {
+                            role = Role.RadioButton
+                            this.selected = selected
+                        }
+                        // A ticked row in a menu of actions — a sort order.
+                        selected -> {
+                            role = Role.RadioButton
+                            this.selected = true
+                        }
+                        else -> role = Role.Button
                     }
-                    if (selected) this.selected = true
                 }
                 // `fill`, so the row that lights up is the row the finger gets.
                 //
@@ -787,7 +815,18 @@ fun MenuItem(
     }
 }
 
-/** Separates groups of related items. */
+/**
+ * Separates groups of related items.
+ *
+ * Drawn in the menu's own content colour, faintly, rather than in a line token,
+ * because a menu is a raised panel and every line token is chosen for a lower
+ * ground. `outlineSubtle`, which this was, is the faintest rule for a dense list
+ * on `surface`: on the panel it measured 1.15:1 in light and, in dark, 1.06:1
+ * and *darker* than the panel, which is a rule nobody can find. A wash of the
+ * content colour stands off whatever it is drawn on — a submenu's level, a nav
+ * menu, a theme's own panel colour — by as much as a list's divider stands off
+ * a list. At high contrast it is the tier's `outline`, near ink, as before.
+ */
 @Composable
 fun MenuDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
@@ -795,9 +834,15 @@ fun MenuDivider(modifier: Modifier = Modifier) {
             horizontal = Theme.spacing.xs,
             vertical = Theme.spacing.xxs,
         ),
-        colour = Theme.colours.outlineSubtle,
+        colour = if (highContrast()) Theme.colours.outlineSubtle else LocalContentColour.current.copy(alpha = DividerAlpha),
     )
 }
+
+/**
+ * How much of the content colour a divider is: 1.28:1 off the panel in light and
+ * 1.39:1 in dark, which is `outline` on its own ground in each.
+ */
+private const val DividerAlpha: Float = 0.12f
 
 /**
  * Labels a group of items.

@@ -40,10 +40,15 @@ import io.kontour.ui.theme.Theme
  * **Collects rather than emits,** as a list row's regions do: where the figure
  * and the caption go, and how large, is the component's to decide — under a
  * needle's hub, in the middle of a dial, at either end of a bar.
+ *
+ * The builder is composable, so a figure is formatted where it is written —
+ * `+Theme.formats.decimal(speed, 0)` — and the components that take it are
+ * `inline` so that this is safe, for the reason argued on
+ * [io.kontour.ui.components.list.ListGroupScope].
  */
 @LayoutScopeMarker
 @Stable
-class ReadoutScope internal constructor() {
+class ReadoutScope @PublishedApi internal constructor() {
 
     internal var value: (@Composable ContentScope.() -> Unit)? = null
         private set
@@ -79,10 +84,6 @@ class ReadoutScope internal constructor() {
 
     internal val isEmpty: Boolean get() = value == null && label == null
 }
-
-/** Runs [content] and hands back what it claimed. */
-internal fun readoutSlots(content: ReadoutScope.() -> Unit): ReadoutScope =
-    ReadoutScope().apply(content)
 
 /**
  * A dial's readout, the figure in [figure] over its caption, both centred.

@@ -237,7 +237,7 @@ public final class io/kontour/ui/components/action/ButtonGroupScope {
 }
 
 public final class io/kontour/ui/components/action/ButtonKt {
-	public static final fun Button (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;ZLjava/lang/String;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/action/ButtonColours;Lio/kontour/ui/components/action/ButtonMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Button (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;ZLjava/lang/String;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/action/ButtonColours;Lio/kontour/ui/components/action/ButtonMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/action/ButtonMetrics {
@@ -341,11 +341,11 @@ public final class io/kontour/ui/components/action/IconButtonKt {
 }
 
 public final class io/kontour/ui/components/action/SplitButtonKt {
-	public static final fun SplitButton (Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SplitButton (Lkotlin/jvm/functions/Function0;ZLkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/components/action/ButtonVariant;Lio/kontour/ui/components/action/ButtonSize;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/foundation/shape/CornerBasedShape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/action/TextButtonKt {
-	public static final fun TextButton-hYmLsZ8 (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZJLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TextButton-NpZTi58 (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;JLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun TextIconButton-1YH7lEI (Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Landroidx/compose/ui/Modifier;ZJLandroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 }
 
@@ -482,12 +482,14 @@ public final class io/kontour/ui/components/datetime/DatePickerDefaults {
 }
 
 public final class io/kontour/ui/components/datetime/DatePickerKt {
+	public static final fun DateField (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lio/kontour/ui/locale/DateStyle;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 	public static final fun DatePicker (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
 	public static final fun DateRangePicker (Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberCalendarNavigationState (Lkotlinx/datetime/LocalDate;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/components/datetime/CalendarNavigationState;
 }
 
 public final class io/kontour/ui/components/datetime/DateTimePickerKt {
+	public static final fun DateTimeField (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 	public static final fun DateTimePicker (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;ILio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
 }
 
@@ -811,6 +813,10 @@ public final class io/kontour/ui/components/display/DialColours {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/kontour/ui/components/display/DropZoneKt {
+	public static final fun DropZone (Lio/kontour/ui/dragdrop/DropTargetState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/components/display/GaugeDefaults {
 	public static final field $stable I
 	public static final field ContentBackgroundAlpha F
@@ -833,7 +839,8 @@ public final class io/kontour/ui/components/display/GaugeIndicator : java/lang/E
 }
 
 public final class io/kontour/ui/components/display/GaugeKt {
-	public static final fun Gauge-QaJT1o8 (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FFFFILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Gauge-QaJT1o8 (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FFFFILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun GaugeLayout-A95nAYo (Lio/kontour/ui/components/display/ReadoutScope;FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FFFFILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/GaugeTickPlacement : java/lang/Enum {
@@ -899,11 +906,13 @@ public final class io/kontour/ui/components/display/KeyValueListDefaults {
 }
 
 public final class io/kontour/ui/components/display/KeyValueListKt {
-	public static final fun KeyValueList-DzVHIIc (Landroidx/compose/ui/Modifier;FZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun KeyValueList-DzVHIIc (Landroidx/compose/ui/Modifier;FZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun KeyValueRows-6a0pyJM (Lio/kontour/ui/components/display/KeyValueScope;Landroidx/compose/ui/Modifier;FZLandroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/components/display/KeyValueScope {
 	public static final field $stable I
+	public fun <init> ()V
 	public final fun item (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun item (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function3;)V
 	public final fun item (Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function3;)V
@@ -930,7 +939,8 @@ public final class io/kontour/ui/components/display/MeterDefaults {
 }
 
 public final class io/kontour/ui/components/display/MeterKt {
-	public static final fun Meter-udZQu8E (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FLio/kontour/ui/components/display/MeterOrientation;FILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;Lio/kontour/ui/components/display/MeterContentPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Meter-udZQu8E (FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FLio/kontour/ui/components/display/MeterOrientation;FILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;Lio/kontour/ui/components/display/MeterContentPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun MeterLayout-7u10w2w (Lio/kontour/ui/components/display/ReadoutScope;FLandroidx/compose/ui/Modifier;Lkotlin/ranges/ClosedFloatingPointRange;FLio/kontour/ui/components/display/MeterOrientation;FILio/kontour/ui/components/display/DialColours;Lio/kontour/ui/components/display/GaugeIndicator;FZIILkotlin/jvm/functions/Function1;Lio/kontour/ui/components/display/GaugeTickPlacement;Lio/kontour/ui/components/display/MeterContentPlacement;ZZLjava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/MeterOrientation : java/lang/Enum {
@@ -978,6 +988,7 @@ public final class io/kontour/ui/components/display/ProgressKt {
 
 public final class io/kontour/ui/components/display/ReadoutScope {
 	public static final field $stable I
+	public fun <init> ()V
 	public final fun label (Ljava/lang/String;)V
 	public final fun label (Lkotlin/jvm/functions/Function3;)V
 	public final fun unaryPlus (Landroidx/compose/ui/text/AnnotatedString;)V
@@ -1024,11 +1035,13 @@ public final class io/kontour/ui/components/display/SpinnerKt {
 }
 
 public final class io/kontour/ui/components/display/StatKt {
-	public static final fun Stat (Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Stat (Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun StatLayout (Lio/kontour/ui/components/display/StatScope;Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment$Horizontal;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/components/display/StatScope {
 	public static final field $stable I
+	public fun <init> ()V
 	public final fun announcement (Ljava/lang/String;)V
 	public final fun label (Lkotlin/jvm/functions/Function3;)V
 	public final fun supporting (Ljava/lang/String;)V
@@ -1063,6 +1076,8 @@ public final class io/kontour/ui/components/display/StateScope {
 public final class io/kontour/ui/components/display/StatesKt {
 	public static final fun EmptyState (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ErrorState (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun LoadingState (Landroidx/compose/ui/Modifier;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun StateSwitcher (Ljava/lang/Object;Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TagKt {
@@ -1235,7 +1250,8 @@ public final class io/kontour/ui/components/list/IndexedItems {
 }
 
 public final class io/kontour/ui/components/list/ListDslKt {
-	public static final fun ListGroup-uFdPcIQ (Landroidx/compose/ui/Modifier;FLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ListGroup-uFdPcIQ (Landroidx/compose/ui/Modifier;FLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ListGroupRows-TDGSqEk (Lio/kontour/ui/components/list/ListGroupScope;Landroidx/compose/ui/Modifier;FLandroidx/compose/runtime/Composer;I)V
 	public static final fun listGroup (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
 	public static synthetic fun listGroup$default (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun listSection-wuNwYSA (Landroidx/compose/foundation/lazy/LazyListScope;Ljava/util/List;Lkotlin/jvm/functions/Function1;Ljava/lang/Object;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;FLkotlin/jvm/functions/Function4;)V
@@ -1244,6 +1260,7 @@ public final class io/kontour/ui/components/list/ListDslKt {
 
 public final class io/kontour/ui/components/list/ListGroupScope {
 	public static final field $stable I
+	public fun <init> ()V
 	public final fun item (Lkotlin/jvm/functions/Function3;)V
 	public final fun item-nCNpSLQ (Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;)V
 	public static synthetic fun item-nCNpSLQ$default (Lio/kontour/ui/components/list/ListGroupScope;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;ZILkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
@@ -1340,10 +1357,12 @@ public final class io/kontour/ui/components/list/ScrollbarDefaults {
 	public final fun getHoveredThickness (Landroidx/compose/runtime/Composer;I)F
 	public final fun getMinThumbLength-D9Ej5fM ()F
 	public final fun getThickness (Landroidx/compose/runtime/Composer;I)F
+	public final fun getTouchThickness (Landroidx/compose/runtime/Composer;I)F
 }
 
 public final class io/kontour/ui/components/list/ScrollbarKt {
 	public static final fun Scrollbar-2FlEJow (Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/gestures/Orientation;JFFFFZLandroidx/compose/runtime/Composer;II)V
+	public static final fun scrollbar-2FlEJow (Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/foundation/gestures/Orientation;JFFFFZLandroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class io/kontour/ui/components/list/SwipeAction {
@@ -1401,8 +1420,8 @@ public final class io/kontour/ui/components/selection/CheckboxDefaults {
 }
 
 public final class io/kontour/ui/components/selection/CheckboxKt {
-	public static final fun Checkbox (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TriStateCheckbox (Landroidx/compose/ui/state/ToggleableState;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Checkbox (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TriStateCheckbox (Landroidx/compose/ui/state/ToggleableState;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/selection/ChipKt {
@@ -1482,11 +1501,12 @@ public final class io/kontour/ui/components/selection/KnobDefaults {
 }
 
 public final class io/kontour/ui/components/selection/KnobKt {
-	public static final fun Knob-2vtoNFM (FLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/ranges/ClosedFloatingPointRange;IFFFLio/kontour/ui/components/display/DialColours;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Knob-2vtoNFM (FLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/ranges/ClosedFloatingPointRange;IFFFLio/kontour/ui/components/display/DialColours;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun KnobLayout-GARSYdk (Lio/kontour/ui/components/display/ReadoutScope;FLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/ranges/ClosedFloatingPointRange;IFFFLio/kontour/ui/components/display/DialColours;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/selection/RadioButtonKt {
-	public static final fun RadioButton (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButton (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 	public static final fun RadioGroup (Ljava/util/List;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 }
 
@@ -1527,10 +1547,12 @@ public final class io/kontour/ui/components/selection/RatingKt {
 public final class io/kontour/ui/components/selection/SegmentedControlDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/components/selection/SegmentedControlDefaults;
+	public final fun getLabelPadding (Landroidx/compose/runtime/Composer;I)F
 	public final fun getTrackPadding (Landroidx/compose/runtime/Composer;I)F
 }
 
 public final class io/kontour/ui/components/selection/SegmentedControlKt {
+	public static final fun SegmentedControl (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SegmentedControl (Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/runtime/Composer;II)V
 }
 
@@ -1597,7 +1619,7 @@ public final class io/kontour/ui/components/selection/StepperKt {
 }
 
 public final class io/kontour/ui/components/selection/SwitchKt {
-	public static final fun Switch (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLandroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Switch (ZLkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/table/SortDirection : java/lang/Enum {
@@ -1714,6 +1736,16 @@ public final class io/kontour/ui/components/table/TableState$Companion {
 	public final fun getSaver ()Landroidx/compose/runtime/saveable/Saver;
 }
 
+public final class io/kontour/ui/components/text/FileFieldDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/components/text/FileFieldDefaults;
+	public final fun sizeLabel (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function1;
+}
+
+public final class io/kontour/ui/components/text/FileFieldKt {
+	public static final fun FileField (Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/files/FileTypes;ZLkotlin/jvm/functions/Function1;ZLio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+}
+
 public final class io/kontour/ui/components/text/ImeChain {
 	public static final field $stable I
 	public final fun focusFirst ()V
@@ -1769,8 +1801,8 @@ public final class io/kontour/ui/components/text/SelectDefaults {
 
 public final class io/kontour/ui/components/text/SelectKt {
 	public static final fun Combobox (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
-	public static final fun MultiSelect (Ljava/util/Set;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
-	public static final fun Select (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+	public static final fun MultiSelect (Ljava/util/Set;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun Select (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
 	public static final fun rememberSelectState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/text/SelectState;
 }
 
@@ -1786,6 +1818,7 @@ public final class io/kontour/ui/components/text/SpecialFieldsKt {
 	public static final fun NumberField-HZbsfxo (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZLjava/lang/Integer;Landroidx/compose/ui/graphics/vector/ImageVector;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 	public static final fun PasswordField-d5Odp94 (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;ZZILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 	public static final fun PhoneField-DwkzBkE (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/PhoneFormat;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+	public static final fun SecretField-3NEfIlc (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;ZILio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/components/text/ImeChainStep;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/text/TextAreaDefaults {
@@ -1844,8 +1877,8 @@ public final class io/kontour/ui/components/text/TextFieldDefaults {
 }
 
 public final class io/kontour/ui/components/text/TextFieldKt {
-	public static final fun TextArea (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/text/input/TextFieldLineLimits$MultiLine;Lio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/text/input/InputTransformation;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
-	public static final fun TextField-F-bre_o (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function2;Lio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;IILandroidx/compose/foundation/text/input/KeyboardActionHandler;Lio/kontour/ui/components/text/ImeChainStep;Landroidx/compose/foundation/text/input/InputTransformation;Landroidx/compose/foundation/text/input/OutputTransformation;Landroidx/compose/foundation/text/input/TextFieldLineLimits;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun TextArea (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/text/input/TextFieldLineLimits$MultiLine;ZLio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/foundation/text/input/InputTransformation;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+	public static final fun TextField-oUT_vLM (Landroidx/compose/foundation/text/input/TextFieldState;Landroidx/compose/ui/Modifier;ZZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function2;ZLio/kontour/ui/components/text/TextFieldVariant;Landroidx/compose/ui/graphics/Shape;IILandroidx/compose/foundation/text/input/KeyboardActionHandler;Lio/kontour/ui/components/text/ImeChainStep;Landroidx/compose/foundation/text/input/InputTransformation;Landroidx/compose/foundation/text/input/OutputTransformation;Landroidx/compose/foundation/text/input/TextFieldLineLimits;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;IIII)V
 }
 
 public final class io/kontour/ui/components/text/TextFieldMetrics {
@@ -1892,6 +1925,169 @@ public final class io/kontour/ui/components/text/TransformationsKt {
 
 public final class io/kontour/ui/components/text/WheelSelectKt {
 	public static final fun WheelSelect (Ljava/lang/Object;Ljava/util/List;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;IZZLio/kontour/ui/components/text/TextFieldVariant;Lio/kontour/ui/components/text/TextFieldColours;Lio/kontour/ui/components/text/TextFieldMetrics;Lio/kontour/ui/components/text/SelectState;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
+}
+
+public final class io/kontour/ui/dragdrop/DragAndDropDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/dragdrop/DragAndDropDefaults;
+	public final fun getPreviewShape (Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/graphics/Shape;
+}
+
+public final class io/kontour/ui/dragdrop/DragAndDropKt {
+	public static final fun dragSource (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DragType;Ljava/lang/Object;Ljava/lang/String;ZLio/kontour/ui/dragdrop/DragStart;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun dropTarget (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;Z)Landroidx/compose/ui/Modifier;
+	public static synthetic fun dropTarget$default (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropTargetState;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
+	public static final fun rememberDropTargetState (Lio/kontour/ui/dragdrop/DragType;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/dragdrop/DropTargetState;
+	public static final fun rememberDropTargetState (Ljava/lang/String;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/dragdrop/DropTargetState;
+}
+
+public final class io/kontour/ui/dragdrop/DragAutoScrollKt {
+	public static final fun dragAutoScroll (Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/foundation/gestures/Orientation;Z)Landroidx/compose/ui/Modifier;
+	public static synthetic fun dragAutoScroll$default (Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/foundation/gestures/Orientation;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
+}
+
+public abstract interface class io/kontour/ui/dragdrop/DragItemScope {
+	public abstract fun dragHandle (Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+	public abstract fun isDragging ()Z
+}
+
+public final class io/kontour/ui/dragdrop/DragStart : java/lang/Enum {
+	public static final field Auto Lio/kontour/ui/dragdrop/DragStart;
+	public static final field Immediate Lio/kontour/ui/dragdrop/DragStart;
+	public static final field LongPress Lio/kontour/ui/dragdrop/DragStart;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/dragdrop/DragStart;
+	public static fun values ()[Lio/kontour/ui/dragdrop/DragStart;
+}
+
+public final class io/kontour/ui/dragdrop/DragType {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getName ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/dragdrop/DropEvent {
+	public static final field $stable I
+	public final fun getFromIndex ()Ljava/lang/Integer;
+	public final fun getFromList ()Lio/kontour/ui/dragdrop/DropListState;
+	public final fun getIndex ()I
+	public final fun getPayload ()Ljava/lang/Object;
+}
+
+public final class io/kontour/ui/dragdrop/DropListKt {
+	public static final fun dragItems (Landroidx/compose/foundation/lazy/LazyListScope;Lio/kontour/ui/dragdrop/DropListState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function5;)V
+	public static synthetic fun dragItems$default (Landroidx/compose/foundation/lazy/LazyListScope;Lio/kontour/ui/dragdrop/DropListState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function5;ILjava/lang/Object;)V
+	public static final fun dropList (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropListState;Z)Landroidx/compose/ui/Modifier;
+	public static synthetic fun dropList$default (Landroidx/compose/ui/Modifier;Lio/kontour/ui/dragdrop/DropListState;ZILjava/lang/Object;)Landroidx/compose/ui/Modifier;
+	public static final fun rememberDropListState (Landroidx/compose/foundation/lazy/LazyListState;Lio/kontour/ui/dragdrop/DragType;Ljava/util/List;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/dragdrop/ExternalDrops;Landroidx/compose/runtime/Composer;III)Lio/kontour/ui/dragdrop/DropListState;
+}
+
+public final class io/kontour/ui/dragdrop/DropListState {
+	public static final field $stable I
+	public final fun getDropIndex ()Ljava/lang/Integer;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getListState ()Landroidx/compose/foundation/lazy/LazyListState;
+	public final fun getStatus ()Lio/kontour/ui/dragdrop/DropStatus;
+}
+
+public final class io/kontour/ui/dragdrop/DropStatus : java/lang/Enum {
+	public static final field Available Lio/kontour/ui/dragdrop/DropStatus;
+	public static final field Idle Lio/kontour/ui/dragdrop/DropStatus;
+	public static final field Over Lio/kontour/ui/dragdrop/DropStatus;
+	public static final field Refused Lio/kontour/ui/dragdrop/DropStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/dragdrop/DropStatus;
+	public static fun values ()[Lio/kontour/ui/dragdrop/DropStatus;
+}
+
+public final class io/kontour/ui/dragdrop/DropTargetState {
+	public static final field $stable I
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getStatus ()Lio/kontour/ui/dragdrop/DropStatus;
+	public final fun isOver ()Z
+}
+
+public final class io/kontour/ui/dragdrop/DroppedData {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Ljava/util/List;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getFiles ()Ljava/util/List;
+	public final fun getHasText ()Z
+	public final fun readText (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDragInfo {
+	public static final field $stable I
+	public fun <init> (ZZLjava/util/List;)V
+	public synthetic fun <init> (ZZLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getHasFiles ()Z
+	public final fun getHasText ()Z
+	public final fun getMimeTypes ()Ljava/util/List;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDrops {
+	public static final field $stable I
+	public static final field Companion Lio/kontour/ui/dragdrop/ExternalDrops$Companion;
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAccepts ()Lkotlin/jvm/functions/Function1;
+	public final fun getOnDrop ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/kontour/ui/dragdrop/ExternalDrops$Companion {
+	public final fun files (Lio/kontour/ui/files/FileTypes;Lkotlin/jvm/functions/Function2;)Lio/kontour/ui/dragdrop/ExternalDrops;
+	public static synthetic fun files$default (Lio/kontour/ui/dragdrop/ExternalDrops$Companion;Lio/kontour/ui/files/FileTypes;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/kontour/ui/dragdrop/ExternalDrops;
+}
+
+public abstract interface class io/kontour/ui/files/FileChooser {
+	public abstract fun choose (Lio/kontour/ui/files/FileTypes;ZLkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/kontour/ui/files/FilePicker {
+	public static final field $stable I
+	public final fun launch (Lio/kontour/ui/files/FileTypes;Z)V
+	public static synthetic fun launch$default (Lio/kontour/ui/files/FilePicker;Lio/kontour/ui/files/FileTypes;ZILjava/lang/Object;)V
+}
+
+public final class io/kontour/ui/files/FilePickerKt {
+	public static final fun getLocalFileChooser ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun rememberFilePicker (Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/files/FilePicker;
+}
+
+public final class io/kontour/ui/files/FilePicker_jvmKt {
+	public static final fun rememberPlatformFileChooser (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/files/FileChooser;
+}
+
+public final class io/kontour/ui/files/FileTypes {
+	public static final field $stable I
+	public static final field Companion Lio/kontour/ui/files/FileTypes$Companion;
+	public final fun accepts (Lio/kontour/ui/files/PickedFile;)Z
+	public final fun accepts (Ljava/lang/String;Ljava/lang/String;)Z
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/files/FileTypes$Companion {
+	public final fun getAny ()Lio/kontour/ui/files/FileTypes;
+	public final fun of ([Ljava/lang/String;)Lio/kontour/ui/files/FileTypes;
+}
+
+public abstract class io/kontour/ui/files/PickedFile {
+	public static final field $stable I
+	public fun <init> ()V
+	public abstract fun getMimeType ()Ljava/lang/String;
+	public abstract fun getName ()Ljava/lang/String;
+	public abstract fun getSize ()Ljava/lang/Long;
+	public abstract fun readBytes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun readText (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/files/PickedFileKt {
+	public static final fun PickedFile (Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/kontour/ui/files/PickedFile;
 }
 
 public final class io/kontour/ui/foundation/ColourSpacesKt {
@@ -2170,6 +2366,7 @@ public final class io/kontour/ui/foundation/SurfaceKt {
 public final class io/kontour/ui/foundation/SystemIcons {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/foundation/SystemIcons;
+	public final fun getAttach ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getCheck ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronBack (Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getChevronDown ()Landroidx/compose/ui/graphics/vector/ImageVector;
@@ -2477,6 +2674,7 @@ public final class io/kontour/ui/locale/ListStyle : java/lang/Enum {
 
 public abstract interface class io/kontour/ui/locale/LocaleFormats {
 	public static final field Companion Lio/kontour/ui/locale/LocaleFormats$Companion;
+	public fun currency (DLjava/lang/String;)Ljava/lang/String;
 	public abstract fun date (Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;)Ljava/lang/String;
 	public static synthetic fun date$default (Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;ILjava/lang/Object;)Ljava/lang/String;
 	public abstract fun dateTime (Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalTime;)Ljava/lang/String;
@@ -2520,6 +2718,7 @@ public final class io/kontour/ui/locale/LocaleFormats$Companion {
 }
 
 public final class io/kontour/ui/locale/LocaleFormats$DefaultImpls {
+	public static fun currency (Lio/kontour/ui/locale/LocaleFormats;DLjava/lang/String;)Ljava/lang/String;
 	public static synthetic fun date$default (Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/locale/DateStyle;ILjava/lang/Object;)Ljava/lang/String;
 	public static synthetic fun decimal$default (Lio/kontour/ui/locale/LocaleFormats;DIILjava/lang/Object;)Ljava/lang/String;
 	public static fun integer (Lio/kontour/ui/locale/LocaleFormats;I)Ljava/lang/String;
@@ -2866,7 +3065,7 @@ public final class io/kontour/ui/nav/NavBarItemWidth : java/lang/Enum {
 }
 
 public final class io/kontour/ui/nav/NavBarKt {
-	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavBar (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavBarStyle;ZLio/kontour/ui/nav/NavColours;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;ZLandroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public abstract interface class io/kontour/ui/nav/NavBarMarker {
@@ -3016,6 +3215,10 @@ public final class io/kontour/ui/nav/NavScope$ComposeDefaultImpls {
 	public static final fun section$default (Ljava/lang/String;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/nav/NavScope;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/nav/NavScopeKt {
+	public static final fun more (Lio/kontour/ui/nav/NavScope;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/nav/NavSearchDefaults {
 	public static final field $stable I
 	public static final field INSTANCE Lio/kontour/ui/nav/NavSearchDefaults;
@@ -3037,7 +3240,7 @@ public final class io/kontour/ui/nav/NavSearchState {
 }
 
 public final class io/kontour/ui/nav/NavigationSuiteScaffoldKt {
-	public static final fun NavigationSuiteScaffold-iYTjmak (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Ljava/lang/Boolean;ZFJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun NavigationSuiteScaffold-8r1ps0M (Lkotlin/jvm/functions/Function3;Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/NavigationSuiteState;Lio/kontour/ui/nav/NavigationSuiteType;Lio/kontour/ui/nav/NavBarStyle;Landroidx/compose/ui/graphics/Shape;Lio/kontour/ui/nav/NavBarItemWidth;Lio/kontour/ui/nav/NavBarMarker;Lio/kontour/ui/nav/NavBarMarkerDrag;Ljava/lang/Boolean;ZFZJLio/kontour/ui/nav/NavColours;Ljava/lang/Integer;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;IIII)V
 	public static final fun navigationSuitePadding (Landroidx/compose/runtime/Composer;I)Landroidx/compose/foundation/layout/PaddingValues;
 	public static final fun navigationSuiteTypeFor (Lio/kontour/ui/adaptive/WindowWidthClass;)Lio/kontour/ui/nav/NavigationSuiteType;
 	public static final fun rememberNavigationSuiteState (ZLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/NavigationSuiteState;
@@ -3124,6 +3327,7 @@ public final class io/kontour/ui/nav/TopBarDefaults {
 }
 
 public final class io/kontour/ui/nav/TopBarKt {
+	public static final fun HeroImages (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun TopBar-TJ38B2A (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;JJZZFFLio/kontour/ui/nav/TopBarCollapseState;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun collapseProgress (FF)F
 	public static final fun collapseProgress-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)F
@@ -3242,10 +3446,17 @@ public final class io/kontour/ui/overlay/ConfirmHostState {
 	public final fun dismiss ()V
 }
 
+public final class io/kontour/ui/overlay/DialogActionsScope {
+	public static final field $stable I
+	public final fun cancel (Ljava/lang/String;ZLandroidx/compose/runtime/Composer;II)V
+	public final fun confirm (Ljava/lang/String;ZZZZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public final fun neutral (Ljava/lang/String;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/overlay/DialogKt {
 	public static final fun AlertDialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/String;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function0;ZZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 	public static final fun ConfirmHost (Lio/kontour/ui/overlay/ConfirmHostState;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Dialog (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Ljava/lang/Object;ZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberConfirmHostState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/overlay/ConfirmHostState;
 }
 
@@ -3749,8 +3960,8 @@ public final class io/kontour/ui/theme/ColourSchemeKt {
 
 public final class io/kontour/ui/theme/ComponentDefaults {
 	public static final field $stable I
-	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
 	public final fun component10-D9Ej5fM ()F
 	public final fun component11-D9Ej5fM ()F
@@ -3803,12 +4014,13 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun component54-D9Ej5fM ()F
 	public final fun component55-D9Ej5fM ()F
 	public final fun component56-D9Ej5fM ()F
+	public final fun component57-D9Ej5fM ()F
 	public final fun component6-D9Ej5fM ()F
 	public final fun component7-D9Ej5fM ()F
 	public final fun component8-D9Ej5fM ()F
 	public final fun component9-D9Ej5fM ()F
-	public final fun copy-wFBHaoM (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
-	public static synthetic fun copy-wFBHaoM$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
+	public final fun copy-VdG4Oio (ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)Lio/kontour/ui/theme/ComponentDefaults;
+	public static synthetic fun copy-VdG4Oio$default (Lio/kontour/ui/theme/ComponentDefaults;ZFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFIILjava/lang/Object;)Lio/kontour/ui/theme/ComponentDefaults;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBackdropBlurRadius-D9Ej5fM ()F
 	public final fun getBackdropInset-D9Ej5fM ()F
@@ -3848,6 +4060,7 @@ public final class io/kontour/ui/theme/ComponentDefaults {
 	public final fun getPressScaleSmall ()F
 	public final fun getScrollbarHoveredThickness-D9Ej5fM ()F
 	public final fun getScrollbarThickness-D9Ej5fM ()F
+	public final fun getScrollbarTouchThickness-D9Ej5fM ()F
 	public final fun getSegmentedTrackPadding-D9Ej5fM ()F
 	public final fun getSheetFloatingInset-D9Ej5fM ()F
 	public final fun getSheetMaxWidth-D9Ej5fM ()F
@@ -4341,11 +4554,31 @@ public final class io/kontour/ui/theme/Strings {
 	public static final field $stable I
 	public static final field Companion Lio/kontour/ui/theme/Strings$Companion;
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Ljava/lang/String;
+	public final fun component100 ()Lkotlin/jvm/functions/Function1;
+	public final fun component101 ()Lkotlin/jvm/functions/Function2;
+	public final fun component102 ()Lkotlin/jvm/functions/Function2;
+	public final fun component103 ()Lkotlin/jvm/functions/Function1;
+	public final fun component104 ()Lkotlin/jvm/functions/Function1;
+	public final fun component105 ()Ljava/lang/String;
+	public final fun component106 ()Ljava/lang/String;
+	public final fun component107 ()Ljava/lang/String;
+	public final fun component108 ()Lkotlin/jvm/functions/Function1;
+	public final fun component109 ()Lkotlin/jvm/functions/Function1;
 	public final fun component11 ()Ljava/lang/String;
+	public final fun component110 ()Lkotlin/jvm/functions/Function2;
+	public final fun component111 ()Ljava/lang/String;
+	public final fun component112 ()Ljava/lang/String;
+	public final fun component113 ()Ljava/lang/String;
+	public final fun component114 ()Lkotlin/jvm/functions/Function1;
+	public final fun component115 ()Ljava/lang/String;
+	public final fun component116 ()Ljava/lang/String;
+	public final fun component117 ()Ljava/lang/String;
+	public final fun component118 ()Ljava/lang/String;
+	public final fun component119 ()Ljava/lang/String;
 	public final fun component12 ()Ljava/lang/String;
 	public final fun component13 ()Ljava/lang/String;
 	public final fun component14 ()Ljava/lang/String;
@@ -4437,8 +4670,13 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun component92 ()Ljava/lang/String;
 	public final fun component93 ()Ljava/lang/String;
 	public final fun component94 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/kontour/ui/theme/Strings;
-	public static synthetic fun copy$default (Lio/kontour/ui/theme/Strings;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILjava/lang/Object;)Lio/kontour/ui/theme/Strings;
+	public final fun component95 ()Ljava/lang/String;
+	public final fun component96 ()Ljava/lang/String;
+	public final fun component97 ()Ljava/lang/String;
+	public final fun component98 ()Ljava/lang/String;
+	public final fun component99 ()Lkotlin/jvm/functions/Function1;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/kontour/ui/theme/Strings;
+	public static synthetic fun copy$default (Lio/kontour/ui/theme/Strings;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIILjava/lang/Object;)Lio/kontour/ui/theme/Strings;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getActivityLess ()Ljava/lang/String;
 	public final fun getActivityMore ()Ljava/lang/String;
@@ -4446,6 +4684,8 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getBack ()Ljava/lang/String;
 	public final fun getCancel ()Ljava/lang/String;
 	public final fun getCappedCount ()Lkotlin/jvm/functions/Function1;
+	public final fun getChooseFile ()Ljava/lang/String;
+	public final fun getChooseFiles ()Ljava/lang/String;
 	public final fun getChooseMonthAndYear ()Ljava/lang/String;
 	public final fun getClearSearch ()Ljava/lang/String;
 	public final fun getClose ()Ljava/lang/String;
@@ -4471,26 +4711,43 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getDecrease ()Ljava/lang/String;
 	public final fun getDismiss ()Ljava/lang/String;
 	public final fun getDone ()Ljava/lang/String;
+	public final fun getDragCancelled ()Lkotlin/jvm/functions/Function1;
+	public final fun getDragDropped ()Lkotlin/jvm/functions/Function2;
+	public final fun getDragPickedUp ()Lkotlin/jvm/functions/Function1;
+	public final fun getDragPosition ()Lkotlin/jvm/functions/Function2;
+	public final fun getDragRefused ()Lkotlin/jvm/functions/Function1;
+	public final fun getDropFileHere ()Ljava/lang/String;
+	public final fun getDropFilesHere ()Ljava/lang/String;
 	public final fun getEditValue ()Ljava/lang/String;
 	public final fun getExpandNavigation ()Ljava/lang/String;
 	public final fun getExpandSheet ()Ljava/lang/String;
 	public final fun getExpanded ()Ljava/lang/String;
+	public final fun getFileBytes ()Lkotlin/jvm/functions/Function1;
+	public final fun getFileCount ()Lkotlin/jvm/functions/Function1;
+	public final fun getFileSize ()Lkotlin/jvm/functions/Function2;
+	public final fun getGigabytes ()Ljava/lang/String;
 	public final fun getGoToPage ()Ljava/lang/String;
 	public final fun getGoToPageConfirm ()Ljava/lang/String;
 	public final fun getGotIt ()Ljava/lang/String;
+	public final fun getHide ()Ljava/lang/String;
 	public final fun getHidePassword ()Ljava/lang/String;
 	public final fun getHour ()Ljava/lang/String;
+	public final fun getImages ()Ljava/lang/String;
 	public final fun getInProgress ()Ljava/lang/String;
 	public final fun getIncrease ()Ljava/lang/String;
 	public final fun getItemOfCount ()Lkotlin/jvm/functions/Function2;
+	public final fun getKilobytes ()Ljava/lang/String;
 	public final fun getLoadMoreFailed ()Ljava/lang/String;
 	public final fun getLoading ()Ljava/lang/String;
 	public final fun getLoadingMore ()Ljava/lang/String;
+	public final fun getMegabytes ()Ljava/lang/String;
 	public final fun getMinute ()Ljava/lang/String;
 	public final fun getMonth ()Ljava/lang/String;
+	public final fun getMore ()Ljava/lang/String;
 	public final fun getMoreCount ()Lkotlin/jvm/functions/Function1;
 	public final fun getMoreThan ()Lkotlin/jvm/functions/Function1;
 	public final fun getMoveDown ()Ljava/lang/String;
+	public final fun getMoveTo ()Lkotlin/jvm/functions/Function1;
 	public final fun getMoveUp ()Ljava/lang/String;
 	public final fun getNavigation ()Ljava/lang/String;
 	public final fun getNew ()Ljava/lang/String;
@@ -4499,6 +4756,7 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getNextMonth ()Ljava/lang/String;
 	public final fun getNextPage ()Ljava/lang/String;
 	public final fun getNextSection ()Ljava/lang/String;
+	public final fun getNoFileChosen ()Ljava/lang/String;
 	public final fun getNoMatches ()Ljava/lang/String;
 	public final fun getNoMatchingCommands ()Ljava/lang/String;
 	public final fun getOtherSection ()Ljava/lang/String;
@@ -4507,6 +4765,7 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getPageOfCount ()Lkotlin/jvm/functions/Function2;
 	public final fun getPaste ()Ljava/lang/String;
 	public final fun getPeopleCount ()Lkotlin/jvm/functions/Function1;
+	public final fun getPickUp ()Ljava/lang/String;
 	public final fun getPrevious ()Ljava/lang/String;
 	public final fun getPreviousMonth ()Ljava/lang/String;
 	public final fun getPreviousPage ()Ljava/lang/String;
@@ -4516,6 +4775,7 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getRangeStart ()Ljava/lang/String;
 	public final fun getRefreshing ()Ljava/lang/String;
 	public final fun getReleaseToRefresh ()Ljava/lang/String;
+	public final fun getRemoveFile ()Lkotlin/jvm/functions/Function1;
 	public final fun getResizePanes ()Ljava/lang/String;
 	public final fun getRetry ()Ljava/lang/String;
 	public final fun getReturnToToday ()Ljava/lang/String;
@@ -4523,9 +4783,12 @@ public final class io/kontour/ui/theme/Strings {
 	public final fun getSectionIndex ()Ljava/lang/String;
 	public final fun getSelect ()Ljava/lang/String;
 	public final fun getSelectAll ()Ljava/lang/String;
+	public final fun getSelectOther ()Ljava/lang/String;
+	public final fun getSelectOtherHint ()Ljava/lang/String;
 	public final fun getSelectRow ()Ljava/lang/String;
 	public final fun getSelectedCount ()Lkotlin/jvm/functions/Function1;
 	public final fun getSentences ()Lkotlin/jvm/functions/Function1;
+	public final fun getShow ()Ljava/lang/String;
 	public final fun getShowPassword ()Ljava/lang/String;
 	public final fun getSortedAscending ()Ljava/lang/String;
 	public final fun getSortedDescending ()Ljava/lang/String;

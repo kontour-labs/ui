@@ -20,6 +20,7 @@ import io.kontour.icons.tabler.outline.ChevronLeft
 import io.kontour.icons.tabler.outline.ChevronRight
 import io.kontour.icons.tabler.outline.ChevronUp
 import io.kontour.icons.tabler.outline.Minus
+import io.kontour.icons.tabler.outline.Paperclip
 import io.kontour.icons.tabler.outline.Plus
 import io.kontour.icons.tabler.outline.Star
 import io.kontour.icons.tabler.outline.X
@@ -81,6 +82,9 @@ object SystemIcons {
 
     /** Dismiss. */
     val Close: ImageVector get() = Tabler.Outline.X
+
+    /** Marks a field that is filled from a picker, not by typing: a file field's. */
+    val Attach: ImageVector get() = Tabler.Outline.Paperclip
 
     /**
      * One per `Tone`, for a `Callout` that has no caller to ask.

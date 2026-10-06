@@ -34,7 +34,7 @@ reduced motion.
 ## Numbers, dates and times
 
 `Theme.formats` is a [`LocaleFormats`](components/locale-formats.md): integers
-grouped the reader's way, decimals and percentages, month and weekday names,
+grouped the reader's way, decimals, percentages and money, month and weekday names,
 dates in four lengths, times on the reader's clock, relative times, lists and
 plurals. Every component that puts a number or a date on screen reads it —
 pagination, badges, ratings, steppers, counters, calendars, time pickers — so a

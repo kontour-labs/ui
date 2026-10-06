@@ -97,7 +97,19 @@ private fun english(american: Boolean) = LocaleData(
     dateTimePattern = "{1}, {0}",
     lists = englishLists(serialComma = american),
     relative = EnglishRelative,
+    currency = englishCurrency(american),
 )
+
+/**
+ * The built-in English's money: the dollar of where it is written as `$` — the
+ * American one, or the Australian one the library's pictures were taken in —
+ * and every other currency as its code, `EUR 3.20`, as Australian English
+ * writes them. A platform's English replaces this with its own reading.
+ */
+private fun englishCurrency(american: Boolean): (String) -> CurrencyFormat? {
+    val home = if (american) "USD" else "AUD"
+    return { code -> if (code == home) CurrencyFormat("$", "", isoFractionDigits(code)) else null }
+}
 
 private val BritishEnglish = english(american = false)
 private val AmericanEnglish = english(american = true)

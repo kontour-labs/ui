@@ -51,6 +51,7 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /**
  * A button whose whole label is an icon.
@@ -483,7 +484,9 @@ private fun IconButtonSurface(
         // A control's strong border, so the slash thickens with the tier as
         // the border beside it does.
         val strikeWidth = Theme.sizing.borderWidthStrong
-        CompositionLocalProvider(LocalContentColour provides contentColour) {
+        // Named by its description, not its content, wherever it sits: a badge
+        // on it describes itself even when the button is in a list row.
+        CompositionLocalProvider(LocalContentColour provides contentColour, LocalNamedByContent provides false) {
             LoadingSwap(loading = loading, spinnerSize = metrics.iconSize) {
                 if (crossFadeIcon) {
                     AnimatedContent(

@@ -11,6 +11,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.intl.Locale
+import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.PhoneDefault
+import io.kontour.ui.adaptive.rememberWindowSizeClassFromWindow
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.LocalTextStyle
 import io.kontour.ui.foundation.textSelectionColours
@@ -34,6 +37,7 @@ import io.kontour.ui.motion.catchRestedFlicks
 import io.kontour.ui.platform.platformLosesRestedFlicks
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
+import io.kontour.ui.platform.InstallKeyboardPrimer
 import io.kontour.ui.platform.platformReportAppearance
 import io.kontour.ui.platform.platformSystemDark
 
@@ -188,6 +192,12 @@ fun deviceInDarkTheme(): Boolean = platformSystemDark()
  * **nested** theme inherits them from the one around it rather than asking the
  * platform again. A screen that forces dark with `KontourTheme(darkTheme = true)`
  * keeps the in-app "Reduce motion" the reader turned on above it.
+ *
+ * It also provides
+ * [LocalWindowSizeClass][io.kontour.ui.adaptive.LocalWindowSizeClass], read
+ * from the window, where nothing outside it has: a rail and two panes on a wide
+ * window without a `WindowSizeClassProvider`. A provider around it, or a class
+ * provided outright, is kept as it is.
  *
  * @param darkTheme Whether to use the dark scheme. Follows the system by default.
  * @param contrast Which contrast tier to render at. Follows the enclosing theme,
@@ -360,6 +370,18 @@ fun KontourTheme(
     // subtree and has no business repainting the window.
     if (!alreadyTracking) platformReportAppearance(colours.isDark)
 
+    // A browser on an iPhone opens the keyboard only for an input focused on the
+    // tap itself, which Compose's text input never is: see `opensKeyboard`. Once
+    // per window, so on the outermost theme alone; nothing off the web.
+    if (!alreadyTracking) InstallKeyboardPrimer()
+
+    // The window's size class wherever nothing has said one: see
+    // `LocalWindowSizeClass`. Only over the untouched default, so a provider
+    // outside the theme, a class provided outright and a nested theme inside
+    // a measured region all keep theirs.
+    val outerWindow = LocalWindowSizeClass.current
+    val windowClass = if (outerWindow === PhoneDefault) rememberWindowSizeClassFromWindow() ?: outerWindow else outerWindow
+
     CompositionLocalProvider(
         // **The target, not the frame.** This is a static local, so providing it
         // invalidates everything below — which is right for a theme change and
@@ -389,6 +411,7 @@ fun KontourTheme(
         // limit. A floor per component is a floor per component, and a hand does
         // not feel components.
         LocalFeedbackFloor provides feedbackFloor,
+        LocalWindowSizeClass provides windowClass,
     ) {
         // Only where the app has chosen a locale written the other way from the
         // device's: the platform already lays its own locale out, and an app

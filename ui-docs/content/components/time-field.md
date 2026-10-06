@@ -7,9 +7,23 @@ The tappable field that opens a `TimePicker`. It is a field, like
 ```kotlin
 var departAt by remember { mutableStateOf(LocalTime(8, 15)) }
 
+var picking by remember { mutableStateOf(false) }
+
 // A read-only field that opens a picker — `onClick`, not `onValueChange`.
 // Typing a time into a text field is how you get 25:61.
-TimeField(value = departAt, onClick = { start() }, label = "Leave at")
+TimeField(value = departAt, onClick = { picking = true }, label = "Leave at")
+
+// The wheels set the time as they turn, so the sheet needs no Done: its
+// close button, a drag down or a tap outside puts it away.
+ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
+    SheetHeader { +"Leave at" }
+    TimePicker(
+        value = departAt,
+        onValueChange = { departAt = it },
+        minuteStep = 5,
+        modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
+    )
+}
 ```
 
 ---

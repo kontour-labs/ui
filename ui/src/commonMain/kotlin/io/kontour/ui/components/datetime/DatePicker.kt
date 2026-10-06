@@ -4,6 +4,7 @@ import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.locale.DateOrder
+import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.DateTimeConventions
 import androidx.compose.animation.AnimatedContent
@@ -76,6 +77,7 @@ import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.Icon
+import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.focusRing
 import io.kontour.ui.input.pointerCursor
@@ -352,8 +354,6 @@ fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationS
  *     onValueChange = viewModel::setDepartureDate,
  *     today = today,
  *     isDateSelectable = { it >= today },
- *     previousIcon = Tabler.Outline.ChevronLeft,
- *     nextIcon = Tabler.Outline.ChevronRight,
  * )
  * ```
  *
@@ -385,16 +385,26 @@ fun DatePicker(
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
-    previousIcon: ImageVector? = null,
-    nextIcon: ImageVector? = null,
+    /**
+     * The glyphs on the buttons either side of the month, back and on.
+     *
+     * **There by default**, as the chevrons the library draws for itself, back
+     * and forward in the reading direction, so they swap ends in a
+     * right-to-left layout and still point the way they go. They were the
+     * caller's to supply, and a picker given none had no buttons: it paged by a
+     * swipe nobody could see, and on a desktop with a mouse not at all. A
+     * month grid with no way to the next month is the kind of picker
+     * `SystemIcons` exists to prevent — *"there's no left/right buttons"*, of
+     * one in a dialog.
+     * Pass an app's own to match its set, or null to leave a button out.
+     */
+    previousIcon: ImageVector? = SystemIcons.ChevronBack,
+    nextIcon: ImageVector? = SystemIcons.ChevronForward,
     /**
      * The glyph on the button that brings the calendar back to [today]'s month.
      *
      * **There by default**, as a small calendar the library draws itself — reported
      * as wanted in every calendar, and asked for as an icon rather than the word.
-     * The paging arrows are the caller's because they belong to the app's icon
-     * set; this is one glyph, drawn here, so that the way back needs nothing
-     * supplied.
      * Pass an app's own to match its set, or null to leave the button out.
      *
      * Shown only while the calendar is somewhere else, and only when [today] is
@@ -405,13 +415,12 @@ fun DatePicker(
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.
      *
-     * The same bargain the paging icons make, and for two reasons rather than
-     * one. A glyph beside a title is the app's icon set's to supply, so a
-     * component that draws one has picked for you; and on a touch screen there is no hover to discover a
-     * control with, so a title that is also a button and does not say so is a
-     * title nobody presses.
+     * The glyph is what says the title is a button: on a touch screen there is
+     * no hover to discover a control with, so a title that is also a button and
+     * does not say so is a title nobody presses.
      *
-     * **Null leaves the whole chooser out**, not only the glyph. A popover needs
+     * **Off by default, unlike the paging arrows**, because null leaves the whole
+     * chooser out, not only the glyph. A popover needs
      * an `OverlayHost` and throws without one, and a calendar is an inline
      * component that turns up in tests, previews and pages that have no host at
      * all — so the affordance a caller has not asked for must not be the reason
@@ -492,21 +501,21 @@ fun DateRangePicker(
     isDateSelectable: (LocalDate) -> Boolean = { true },
     /** Draws a dot under a day, as a [DatePicker]'s does. */
     markerFor: ((LocalDate) -> Color?)? = null,
-    previousIcon: ImageVector? = null,
-    nextIcon: ImageVector? = null,
+    /** See [DatePicker]. */
+    previousIcon: ImageVector? = SystemIcons.ChevronBack,
+    nextIcon: ImageVector? = SystemIcons.ChevronForward,
     /** See [DatePicker]. */
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     /**
      * Turns the month and year into a button that opens two wheels, drawn with
      * this glyph beside it.
      *
-     * The same bargain the paging icons make, and for two reasons rather than
-     * one. A glyph beside a title is the app's icon set's to supply, so a
-     * component that draws one has picked for you; and on a touch screen there is no hover to discover a
-     * control with, so a title that is also a button and does not say so is a
-     * title nobody presses.
+     * The glyph is what says the title is a button: on a touch screen there is
+     * no hover to discover a control with, so a title that is also a button and
+     * does not say so is a title nobody presses.
      *
-     * **Null leaves the whole chooser out**, not only the glyph. A popover needs
+     * **Off by default, unlike the paging arrows**, because null leaves the whole
+     * chooser out, not only the glyph. A popover needs
      * an `OverlayHost` and throws without one, and a calendar is an inline
      * component that turns up in tests, previews and pages that have no host at
      * all — so the affordance a caller has not asked for must not be the reason
@@ -1349,3 +1358,55 @@ private class MonthPager(start: LocalDate) {
 }
 
 private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
+
+/**
+ * The chosen date, shown as a tappable field.
+ *
+ * ```
+ * var date by remember { mutableStateOf<LocalDate?>(null) }
+ * var picking by remember { mutableStateOf(false) }
+ *
+ * DateField(value = date, onClick = { picking = true }, label = "Post date")
+ *
+ * Dialog(
+ *     visible = picking,
+ *     onDismissRequest = { picking = false },
+ *     actions = { cancel() },
+ * ) {
+ *     DatePicker(value = date, onValueChange = { date = it; picking = false })
+ * }
+ * ```
+ *
+ * The thing you put on a form, as [TimeField] is for a time: tapping it is
+ * expected to open a [DatePicker] in a dialog or a sheet. Kept apart from the
+ * picker so the picker never has to know how it is being presented, and so the
+ * form is one tap target rather than a text field with a calendar button beside
+ * it that both open the same thing.
+ *
+ * @param value The date chosen, or `null` for none yet, when [placeholder]
+ *   is shown, as a [DatePicker] takes one.
+ * @param style How the date is written: `DateStyle.Medium`, "14 Mar 2026" in
+ *   English, by default; `Full` adds the weekday.
+ */
+@Composable
+fun DateField(
+    value: LocalDate?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    label: String? = null,
+    placeholder: String = Theme.strings.select,
+    style: DateStyle = DateStyle.Medium,
+    formats: LocaleFormats = Theme.formats,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    PickerField(
+        text = value?.let { formats.date(it, style) },
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        label = label,
+        interactionSource = interactionSource,
+        placeholder = placeholder,
+    )
+}

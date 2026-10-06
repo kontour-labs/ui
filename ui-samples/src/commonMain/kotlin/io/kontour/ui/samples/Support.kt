@@ -1,7 +1,9 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.list.ListItem
@@ -56,6 +58,12 @@ internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay",
 internal fun refresh() = Unit
 internal fun openStop(name: String) = Unit
 internal fun remove(name: String) = Unit
+internal fun rename(name: String) = Unit
+
+/** The account a destructive sample is about. */
+internal val account = Account(email = "sam@example.com")
+internal class Account(val email: String)
+internal fun deleteAccount() = Unit
 internal fun pin(name: String) = Unit
 
 /** Rows, where a sample needs a list to be about something other than the list. */
@@ -76,6 +84,10 @@ internal fun Hero(modifier: Modifier = Modifier) = Unit
 /** A photograph of a place, where a sample needs a picture. */
 @Composable
 internal fun StopPhoto(modifier: Modifier = Modifier) = Unit
+
+/** One of a place's photographs, by name, where a sample needs several. */
+@Composable
+internal fun StopPhoto(name: String, modifier: Modifier = Modifier) = Unit
 
 /** The two things a rider reports about a stop, where a menu needs entries. */
 internal fun report() = Unit
@@ -120,3 +132,27 @@ internal val services = listOf(
 )
 
 internal fun openService(service: Service) = Unit
+
+/** A story with a cover picture, as the remote-image recipe shows one. */
+internal class Story(val coverUrl: String, val coverDescription: String)
+
+internal val story = Story("https://example.com/covers/perth-at-night.jpg", "Perth's skyline across the river at night")
+
+/**
+ * Coil 3's `SubcomposeAsyncImage`, standing in for it: its name, and the
+ * parameters the remote-image recipe on the aspect-ratio box's page passes, in
+ * Coil's shapes — a `loading` and an `error` each given the request's state —
+ * drawing nothing. The library takes no image loader, so the samples cannot
+ * either; in an app the call resolves to Coil's.
+ */
+@Composable
+internal fun SubcomposeAsyncImage(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    loading: @Composable (state: Any) -> Unit = {},
+    error: @Composable (state: Any) -> Unit = {},
+    contentScale: ContentScale = ContentScale.Fit,
+) {
+    Box(modifier)
+}

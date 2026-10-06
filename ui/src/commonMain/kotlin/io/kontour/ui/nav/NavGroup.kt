@@ -38,6 +38,7 @@ internal class NavMenuScope(
         badge: (@Composable () -> Unit)?,
         label: NavLabelScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.item(selected, onClick, key, icon, modifier, enabled, selectedIcon, contentDescription, interactionSource, badge, label) }
         val text = navLabel(label)
         MenuItem(
             onClick = {
@@ -58,6 +59,7 @@ internal class NavMenuScope(
 
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        emitter().let { if (it !== this) return it.section(title, modifier, content) }
         MenuSectionHeader(modifier) { +title }
         content()
     }
@@ -75,6 +77,7 @@ internal class NavMenuScope(
         badge: (@Composable () -> Unit)?,
         content: @Composable NavScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.group(expanded, onExpandedChange, key, icon, header, modifier, enabled, interactionSource, badge, content) }
         val text = navLabel(header)
         val close = dismiss
         SubMenu(
@@ -86,12 +89,13 @@ internal class NavMenuScope(
             enabled = enabled,
             interactionSource = interactionSource,
         ) {
-            NavMenuScope(this, close).content()
+            NavMenuScope(this, close).emit(content)
         }
     }
 
     @Composable
     override fun divider(modifier: Modifier) {
+        emitter().let { if (it !== this) return it.divider(modifier) }
         MenuDivider(modifier)
     }
 }
@@ -117,11 +121,13 @@ internal class NavProbeScope(private val selection: NavGroupSelection) : NavScop
         badge: (@Composable () -> Unit)?,
         label: NavLabelScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.item(selected, onClick, key, icon, modifier, enabled, selectedIcon, contentDescription, interactionSource, badge, label) }
         selection.Report(key, selected)
     }
 
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        emitter().let { if (it !== this) return it.section(title, modifier, content) }
         content()
     }
 
@@ -138,11 +144,14 @@ internal class NavProbeScope(private val selection: NavGroupSelection) : NavScop
         badge: (@Composable () -> Unit)?,
         content: @Composable NavScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.group(expanded, onExpandedChange, key, icon, header, modifier, enabled, interactionSource, badge, content) }
         content()
     }
 
     @Composable
-    override fun divider(modifier: Modifier) = Unit
+    override fun divider(modifier: Modifier) {
+        emitter().let { if (it !== this) return it.divider(modifier) }
+    }
 }
 
 /** Remembers a group's selection and, while its destinations are hidden, probes them. */
@@ -152,6 +161,6 @@ internal fun rememberGroupSelection(
     content: @Composable NavScope.() -> Unit,
 ): NavGroupSelection {
     val selection = remember { NavGroupSelection() }
-    if (hidden) NavProbeScope(selection).content()
+    if (hidden) NavProbeScope(selection).emit(content)
     return selection
 }

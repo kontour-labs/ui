@@ -2,12 +2,15 @@
 
 <!--sample:SegmentedControlBasics-->
 ```kotlin
-var selected by remember { mutableStateOf(0) }
+var mode by remember { mutableStateOf(TransitMode.Bus) }
 
+// Values, as `Select` and `RadioGroup` take; `optionLabel` names each one.
+// An overload takes a list of strings and the chosen one's index.
 SegmentedControl(
-    options = listOf("Bus", "Train", "Ferry"),
-    selectedIndex = selected,
-    onSelectedIndexChange = { selected = it },
+    value = mode,
+    options = TransitMode.entries,
+    onValueChange = { mode = it },
+    optionLabel = { it.label },
 )
 ```
 
@@ -16,10 +19,13 @@ long labels, use a [`RadioGroup`](radio-group.md) or a
 [`Select`](select.md); segments get too narrow to read and too
 narrow to hit.
 
-It takes `List<String>` rather than a slot on purpose — a segment that could
-hold arbitrary content is a segment that can be made too wide to fit beside
-three others, and the cap at four short labels is the component's whole
-premise.
+It takes values and an `optionLabel`, as [`Select`](select.md) and
+[`RadioGroup`](radio-group.md) do, so a filter over an enum hands back the enum
+rather than an index to map. An overload takes `options: List<String>` and
+`selectedIndex`. Either way a segment is words rather than a slot, on purpose —
+a segment that could hold arbitrary content is a segment that can be made too
+wide to fit beside three others, and the cap at four short labels is the
+component's whole premise.
 
 ### When the labels do not fit
 
@@ -28,10 +34,16 @@ control is *expected* to run out of room. **When one does, the options stop
 sharing a row and stack into full-width rows instead** — one per option, every
 label drawn whole.
 
+A segment keeps `SegmentedControlDefaults.LabelPadding`, 4dp, either side of its
+label, and a label fits only with that room round it, so two neighbours on a row
+are at least 8dp apart. Before, a label could fill its share to the last dp and
+meet the next one: at 130% text "Standard" sat 6dp from "Keyboard", and at phone
+width with longer labels they ran together.
+
 Note "short" is relative to the *control's* width, not to the label. Four
 segments in 244dp is 58dp each — the track is the control less 6dp of padding a
-side, which an earlier version of this page forgot — and "Keyboard" exceeds that
-at the default type scale, so a control that narrow stacks. A reader who has
+side, which an earlier version of this page forgot — and "Keyboard" with its
+padding exceeds that at the default type scale, so a control that narrow stacks. A reader who has
 turned text size up makes every segment tighter without making the control wider,
 which is why this is a text-size question as much as a layout one: at 200% both
 `Standard` and `Keyboard` are about twice their segment's width.
@@ -124,6 +136,9 @@ angle.
 
 A `selectableGroup()` of `Role.RadioButton` segments, so it announces "2 of 3"
 and "selected" — which is what it is, and what a row of buttons would not be.
+
+In a browser under Compose 1.12 this is announced as a button, with no state —
+see [In the browser](../accessibility.md#in-the-browser).
 
 That is the difference from [`ButtonGroup`](button-group.md), whose items are
 actions, and from [`TabBar`](tab-bar.md), whose items are `Role.Tab` and change

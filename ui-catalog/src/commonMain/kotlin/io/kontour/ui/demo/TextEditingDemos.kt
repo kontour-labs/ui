@@ -1,5 +1,11 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.files.PickedFile
+import io.kontour.ui.files.FileTypes
+import io.kontour.ui.files.FileChooser
+import io.kontour.ui.files.LocalFileChooser
+import io.kontour.ui.files.rememberPlatformFileChooser
+import io.kontour.ui.components.text.FileField
 import io.kontour.ui.components.text.PhoneFormat
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.layout.Arrangement
@@ -7,7 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +38,7 @@ import io.kontour.ui.components.text.NumberField
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
+import io.kontour.ui.components.text.SecretField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
@@ -87,19 +96,95 @@ internal val SearchFieldDemo = ComponentDemo(slug = "search-field") {
     )
 }
 
-internal val TextAreaDemo = ComponentDemo(slug = "text-area") {
-    val state = rememberTextFieldState(
-        "The 960 was 12 minutes late and the app still showed it as on time.",
-    )
+/**
+ * The mono face, and a keyboard that leaves what is typed alone. It swaps the
+ * prose for a snippet, since the difference is the columns lining up and the
+ * 0 that is not an O.
+ */
+private val areaCode = Knob.Flag("Code")
+
+internal val TextAreaDemo = ComponentDemo(slug = "text-area", knobs = listOf(areaCode)) {
+    val code = this[areaCode]
+    val state = remember(code) {
+        TextFieldState(
+            if (code) {
+                "route  = 960\nfrom   = \"Curtin Central\"\nto     = \"Perth Busport\"\nretry  = 0"
+            } else {
+                "The 960 was 12 minutes late and the app still showed it as on time."
+            },
+        )
+    }
     TextArea(
         state = state,
-        label = "What went wrong?",
+        label = if (code) "Feed override" else "What went wrong?",
         // Clear the text to see it: at the top, where the first line goes.
-        placeholder = "Which service, where, and when",
+        placeholder = if (code) "key = value" else "Which service, where, and when",
         lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 6),
+        code = code,
         modifier = Modifier.fillMaxWidth(),
     )
 }
+
+private val fileMultiple = Knob.Flag("Several files")
+
+/** Images only: what the picker offers, and what a pick is checked against. */
+private val fileImages = Knob.Flag("Images only")
+
+/** Starts filled, so the filled field can be seen without a picker. */
+private val fileSamples = Knob.Flag("Start with files")
+private val fileEnabled = Knob.Flag("Enabled", initial = true)
+
+/** Files dragged in from outside the app land in it, where the platform allows. */
+private val fileDrops = Knob.Flag("Takes drops", initial = true)
+
+/**
+ * The platform's own picker: a file dialog on a desktop, the document picker on
+ * a phone, the page's file input in a browser. "Start with files" fills it with
+ * made-up files, which are never read.
+ */
+internal val FileFieldDemo = ComponentDemo(
+    slug = "file-field",
+    knobs = listOf(fileMultiple, fileImages, fileSamples, fileEnabled, fileDrops),
+) {
+    val multiple = this[fileMultiple]
+    val samples = this[fileSamples]
+    var files by remember(multiple, samples) {
+        mutableStateOf(
+            when {
+                !samples -> emptyList()
+                multiple -> listOf(sampleFile("platform-2.jpg", 2_400_000), sampleFile("concourse.png", 812_000))
+                else -> listOf(sampleFile("timetable-960.pdf", 184_000))
+            },
+        )
+    }
+    // The platform's own picker, saying so when it comes back with nothing —
+    // as it does at once where there is no screen to show it on.
+    val platform = rememberPlatformFileChooser()
+    val chooser = remember(platform) {
+        FileChooser { types, several, onResult ->
+            platform.choose(types, several) { picked ->
+                if (picked.isEmpty()) echo("Nothing chosen")
+                onResult(picked)
+            }
+        }
+    }
+    CompositionLocalProvider(LocalFileChooser provides chooser) {
+        FileField(
+            files = files,
+            onFilesChange = { files = it },
+            label = if (multiple) "Photos" else "Timetable",
+            supporting = if (this@ComponentDemo[fileImages]) "JPEG, PNG or HEIC" else "A PDF or a spreadsheet export",
+            types = if (this@ComponentDemo[fileImages]) FileTypes.of("image/*") else FileTypes.Any,
+            multiple = multiple,
+            enabled = this@ComponentDemo[fileEnabled],
+            acceptsDrops = this@ComponentDemo[fileDrops],
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** A file for the demo to hold: a name and a size, and nothing in it. */
+private fun sampleFile(name: String, size: Long) = PickedFile(name, size, null) { ByteArray(0) }
 
 /** A decimal point, for a walking speed rather than a passenger count. */
 private val numberDecimal = Knob.Flag("Decimals")
@@ -130,6 +215,15 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
             state = rememberTextFieldState("hunter2"),
             label = if (this@ComponentDemo[passwordIsNew]) "Choose a password" else "Password",
             newPassword = this@ComponentDemo[passwordIsNew],
+            revealLastTyped = this@ComponentDemo[passwordRevealLast],
+            revealIcon = Tabler.Outline.Eye,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        // Masked as a password is, and not one: no autofill, no "save
+        // password", an ASCII keyboard and the mono face.
+        SecretField(
+            state = rememberTextFieldState("kt_live_51Hx7Qp"),
+            label = "API key",
             revealLastTyped = this@ComponentDemo[passwordRevealLast],
             revealIcon = Tabler.Outline.Eye,
             modifier = Modifier.fillMaxWidth(),
@@ -188,8 +282,12 @@ private enum class Mode(val label: String) {
  */
 private val MenuRoom = 300.dp
 
-internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant)) {
+/** An "Other" at the end of the menu, with a box in the field to type the answer in. */
+private val offerOther = Knob.Flag("Offer Other")
+
+internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant, offerOther)) {
     var departure by remember { mutableStateOf(Departure.DepartAt) }
+    var other by remember { mutableStateOf<String?>(null) }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         Select(
             value = departure,
@@ -199,6 +297,8 @@ internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVar
             optionLabel = { it.label },
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
+            otherText = other,
+            onOtherTextChange = if (this@ComponentDemo[offerOther]) ({ other = it }) else null,
         )
     }
 }
@@ -231,8 +331,9 @@ internal val WheelSelectDemo = ComponentDemo(
     }
 }
 
-internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = listOf(fieldVariant)) {
+internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = listOf(fieldVariant, offerOther)) {
     var modes by remember { mutableStateOf(setOf(Mode.Bus, Mode.Train)) }
+    var other by remember { mutableStateOf<String?>(null) }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         MultiSelect(
             value = modes,
@@ -250,6 +351,8 @@ internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = list
             },
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
+            otherText = other,
+            onOtherTextChange = if (this@ComponentDemo[offerOther]) ({ other = it }) else null,
         )
     }
 }
@@ -305,6 +408,7 @@ internal val textEditingDemos = listOf(
     SearchFieldDemo,
     TextAreaDemo,
     SpecialisedFieldsDemo,
+    FileFieldDemo,
     SelectDemo,
     WheelSelectDemo,
     MultiSelectDemo,

@@ -64,7 +64,9 @@ class NavBarSurfaceTest {
     /** The capsule's left and right, at the destinations' height, from the pixels. */
     private fun capsule(image: BufferedImage, y: Float): Pair<Float, Float> {
         val row = y.toInt()
-        fun isBar(x: Int) = ((image.getRGB(x, row) shr 8) and 0xFF) > 200
+        // Anything with green in it is the bar: the page is pure red, and the
+        // capsule's rim, its own ink faintly over white, is part of the capsule.
+        fun isBar(x: Int) = ((image.getRGB(x, row) shr 8) and 0xFF) > 100
         val left = (0 until image.width).first { isBar(it) }
         val right = (image.width - 1 downTo 0).first { isBar(it) }
         return left.toFloat() to right.toFloat()
@@ -81,7 +83,8 @@ class NavBarSurfaceTest {
                 Box(Modifier.fillMaxSize().background(Page), contentAlignment = Alignment.BottomCenter) {
                     // Natural circles: the spacing this measures is theirs. Equal
                     // cells touch, and their ends are `NavBarShapeTest`'s.
-                    NavBar(itemWidth = NavBarItemWidth.Natural, marker = NavBarDefaults.glyphMarker()) { four() }
+                    // No fade: this finds the capsule by the page round it, which the fade would cover.
+                    NavBar(itemWidth = NavBarItemWidth.Natural, marker = NavBarDefaults.glyphMarker(), fadeUnder = false) { four() }
                 }
             }
         }.use { it.frames(6) }
@@ -125,7 +128,8 @@ class NavBarSurfaceTest {
         var pageTaps = 0
         Scene(width = 800, height = 400, density = Density) {
             Box(Modifier.fillMaxSize().background(Page).clickable { pageTaps++ }, contentAlignment = Alignment.BottomCenter) {
-                NavBar { four() }
+                // No fade: this finds the capsule by the page round it, which the fade would cover.
+                NavBar(fadeUnder = false) { four() }
             }
         }.use { scene ->
             scene.frames(4)

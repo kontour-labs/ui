@@ -69,7 +69,6 @@ import io.kontour.ui.components.display.ScaleColours
 import io.kontour.ui.components.display.dialArcs
 import io.kontour.ui.components.display.dialFill
 import io.kontour.ui.components.display.dialTicks
-import io.kontour.ui.components.display.readoutSlots
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.focusRing
@@ -81,6 +80,7 @@ import io.kontour.ui.interaction.rememberDragTexture
 import io.kontour.ui.interaction.rememberEndStopLatch
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.lines
+import io.kontour.ui.platform.opensKeyboard
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -173,9 +173,9 @@ import kotlin.math.roundToInt
  *   [ReadoutScope].
  */
 @Composable
-fun Knob(
+inline fun Knob(
     value: Float,
-    onValueChange: (Float) -> Unit,
+    noinline onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
@@ -185,13 +185,57 @@ fun Knob(
     thickness: Dp = KnobDefaults.Thickness,
     colours: DialColours = KnobDefaults.colours(),
     contentDescription: String? = null,
-    stateDescription: ((Float) -> String)? = null,
-    onValueChangeFinished: (() -> Unit)? = null,
+    noinline stateDescription: ((Float) -> String)? = null,
+    noinline onValueChangeFinished: (() -> Unit)? = null,
     editable: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
-    content: ReadoutScope.() -> Unit = {},
+    content: @Composable ReadoutScope.() -> Unit = {},
 ) {
-    val readout = readoutSlots(content)
+    // Inline, as `KeyValueList` is and for its reason: the builder runs in the
+    // caller's restart scope, so a figure read from the theme in it is read
+    // where it is written, and a state it reads recomposes what draws it. See
+    // `ListGroupScope`.
+    KnobLayout(
+        readout = ReadoutScope().apply { content() },
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
+        size = size,
+        sweepAngle = sweepAngle,
+        thickness = thickness,
+        colours = colours,
+        contentDescription = contentDescription,
+        stateDescription = stateDescription,
+        onValueChangeFinished = onValueChangeFinished,
+        editable = editable,
+        interactionSource = interactionSource,
+    )
+}
+
+/** [Knob], with its readout collected: all its state is here, under one call. */
+@PublishedApi
+@Composable
+internal fun KnobLayout(
+    readout: ReadoutScope,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    size: Dp,
+    sweepAngle: Float,
+    thickness: Dp,
+    colours: DialColours,
+    contentDescription: String?,
+    stateDescription: ((Float) -> String)?,
+    onValueChangeFinished: (() -> Unit)?,
+    editable: Boolean,
+    interactionSource: MutableInteractionSource?,
+) {
     require(valueRange.start <= valueRange.endInclusive) {
         "Knob was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }
@@ -430,6 +474,9 @@ fun Knob(
                     },
                     onEnd = { if (spin?.isActive != true) finish() },
                 )
+                // The tap below opens a field focused from an effect, which iOS
+                // WebKit gives no keyboard; this opens it on the tap.
+                .opensKeyboard(enabled = canEdit && !editing)
                 // A tap on the face, which the drag above leaves alone: it claims on
                 // movement, and a tap never moves far enough to be one.
                 .pointerInput(canEdit, radius) {

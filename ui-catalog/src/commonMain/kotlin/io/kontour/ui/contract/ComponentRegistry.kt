@@ -1,5 +1,9 @@
 package io.kontour.ui.contract
 
+import androidx.compose.runtime.CompositionLocalProvider
+import io.kontour.ui.files.LocalFileChooser
+import io.kontour.ui.files.FileChooser
+import io.kontour.ui.components.text.FileField
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -11,6 +15,8 @@ import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.EmptyState
+import io.kontour.ui.components.display.ErrorState
+import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.selection.ColourSwatchPicker
@@ -31,6 +37,9 @@ import io.kontour.ui.components.display.TimelineListStyle
 import io.kontour.ui.components.display.GaugeIndicator
 import io.kontour.ui.components.display.Gauge
 import io.kontour.ui.components.display.Meter
+import io.kontour.ui.components.display.DropZone
+import io.kontour.ui.dragdrop.ExternalDrops
+import io.kontour.ui.dragdrop.rememberDropTargetState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.FileUpload
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.CurrentLocation
 import io.kontour.icons.tabler.outline.GripVertical
@@ -93,6 +103,8 @@ import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
+import io.kontour.ui.components.datetime.DateField
+import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.TimeField
 import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
@@ -163,7 +175,6 @@ import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.foundation.Redacted
 import io.kontour.ui.foundation.Surface
-import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.motion.marquee
 import io.kontour.ui.nav.NavBar
@@ -267,18 +278,6 @@ class ComponentSpec(
     val activatedByClick: Boolean = true,
     val control: ControlLocator? = null,
     val accessibleName: String? = null,
-    /**
-     * True for a control that cannot name itself and is designed not to.
-     *
-     * A bare `Checkbox` has no text of its own — it is meant to sit in a
-     * `SelectionRow`, or beside a label whose click target it shares, and take
-     * its name from there. Material's does the same.
-     *
-     * An opt-out rather than an opt-in, so a component that *loses* its name —
-     * which is now possible, since slots let a caller build a row with no label
-     * in it — fails rather than passing quietly.
-     */
-    val namedByContext: Boolean = false,
     /**
      * False for a specimen that exists only to be **drawn**.
      *
@@ -566,7 +565,9 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "Checkbox",
             role = Role.Checkbox,
-            namedByContext = true,
+            // On its own, so named by its own description: a select-all box
+            // over a table. In a `SelectionRow` the row's label names it.
+            accessibleName = "Notify on delay",
             states = listOf(
                 RenderState("checked") { modifier ->
                     Checkbox(checked = true, onCheckedChange = {}, modifier = modifier)
@@ -578,6 +579,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onCheckedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Notify on delay",
             )
         }
     )
@@ -586,7 +588,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "RadioButton",
             role = Role.RadioButton,
-            namedByContext = true,
+            accessibleName = "Fastest",
             states = listOf(
                 RenderState("selected") { modifier ->
                     RadioButton(selected = true, onClick = {}, modifier = modifier)
@@ -598,6 +600,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Fastest",
             )
         }
     )
@@ -606,7 +609,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec(
             name = "Switch",
             role = Role.Switch,
-            namedByContext = true,
+            accessibleName = "Live vehicles",
             states = listOf(
                 RenderState("checked") { modifier ->
                     Switch(checked = true, onCheckedChange = {}, modifier = modifier)
@@ -624,6 +627,7 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 onCheckedChange = { onClick() },
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Live vehicles",
             )
         }
     )
@@ -707,12 +711,13 @@ val componentRegistry: List<ComponentSpec> = buildList {
     )
 
     add(
-        ComponentSpec("TriStateCheckbox", Role.Checkbox, namedByContext = true) { modifier, enabled, onClick ->
+        ComponentSpec("TriStateCheckbox", Role.Checkbox, accessibleName = "Everything in this area") { modifier, enabled, onClick ->
             TriStateCheckbox(
                 state = ToggleableState.Indeterminate,
                 onClick = onClick,
                 modifier = modifier,
                 enabled = enabled,
+                contentDescription = "Everything in this area",
             )
         }
     )
@@ -1407,6 +1412,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             activatedByClick = false,
             control = ControlLocator.TextInput,
+            // No label to show: the placeholder says what it searches.
+            accessibleName = "Search stops",
         ) { modifier, enabled, _ ->
             SearchField(
                 state = rememberTextFieldState(),
@@ -1433,6 +1440,29 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
                 label = "When",
             )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "FileField",
+            role = Role.Button,
+            expectsMinimumTarget = false,
+            control = ControlLocator.Clickable,
+            accessibleName = "Timetable",
+        ) { modifier, enabled, onClick ->
+            // A press asks the picker; this one answers with nothing, so the
+            // contract sees the press arrive without a platform dialog opening.
+            val chooser = remember(onClick) { FileChooser { _, _, answer -> onClick(); answer(emptyList()) } }
+            CompositionLocalProvider(LocalFileChooser provides chooser) {
+                FileField(
+                    files = emptyList(),
+                    onFilesChange = {},
+                    modifier = modifier,
+                    enabled = enabled,
+                    label = "Timetable",
+                )
+            }
         }
     )
 
@@ -2158,8 +2188,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value = SpecimenDate,
                 onValueChange = {},
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
         }
@@ -2185,8 +2213,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 end = LocalDate(2026, 6, 24),
                 onRangeChange = { _, _ -> },
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
         }
@@ -2217,8 +2243,6 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 value = LocalDateTime(SpecimenDate, SpecimenTime),
                 onValueChange = {},
                 today = SpecimenToday,
-                previousIcon = SystemIcons.ChevronLeft,
-                nextIcon = SystemIcons.ChevronRight,
                 minuteStep = 5,
                 modifier = modifier.widthIn(max = SpecimenGridWidth),
             )
@@ -2259,6 +2283,42 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 modifier = modifier,
                 enabled = enabled,
                 label = "Departure",
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateField",
+            role = Role.Button,
+            // As `TimeField`: the label is a sibling above the tappable surface,
+            // so the role, name and disabled state are found on the surface.
+            control = ControlLocator.Clickable,
+            accessibleName = "Post date",
+        ) { modifier, enabled, onClick ->
+            DateField(
+                value = SpecimenDate,
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Post date",
+            )
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DateTimeField",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            accessibleName = "Publish at",
+        ) { modifier, enabled, onClick ->
+            DateTimeField(
+                value = LocalDateTime(SpecimenDate, SpecimenTime),
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                label = "Publish at",
             )
         }
     )
@@ -2396,6 +2456,27 @@ val componentRegistry: List<ComponentSpec> = buildList {
             // to pass `bodySmall` by hand and any one of them could have not.
             Callout(modifier.widthIn(max = SpecimenProseWidth)) {
                 +"Melbourne, Sydney and Canberra do not currently support journey planning."
+            }
+        }
+    )
+
+    add(
+        ComponentSpec(
+            name = "DropZone",
+            role = null,
+            underContract = false,
+            renderHeight = 200,
+            minWidth = 240,
+        ) { modifier, enabled, _ ->
+            // At rest, which is how a page shows one nearly all the time. Its
+            // other looks need something carried over it, and a still render
+            // has nothing carried: `DropZoneTest` and `DropZoneDragTest` read
+            // them from the pixels instead.
+            val upload = rememberDropTargetState(label = "Attachments", external = ExternalDrops.files { _, _ -> })
+            DropZone(upload, modifier.widthIn(max = SpecimenProseWidth), enabled = enabled) {
+                leading { +Tabler.Outline.FileUpload }
+                +"Drop timetables here"
+                message { +"PDF or CSV, up to 10 MB" }
             }
         }
     )
@@ -2694,6 +2775,21 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 +"No favourites yet"
                 message { +"Star a stop and it will appear here." }
             }
+        }
+    )
+
+    add(
+        ComponentSpec("ErrorState", role = null, underContract = false, renderHeight = 230) { modifier, _, _ ->
+            ErrorState(modifier.width(SpecimenProseWidth), onRetry = {}) {
+                +"Couldn't load your favourites"
+                message { +"Check your connection and try again." }
+            }
+        }
+    )
+
+    add(
+        ComponentSpec("LoadingState", role = null, underContract = false, renderHeight = 160) { modifier, _, _ ->
+            LoadingState(modifier.width(SpecimenProseWidth)) { +"Loading your favourites" }
         }
     )
 

@@ -874,12 +874,13 @@ along with its wording.
 system guarantees, and it was the known price of moving to slots.
 
 `ComponentContractTest.everyControlAnnouncesSomething` is what pays for it: every
-component in the registry that declares a role must announce a non-empty name.
-The four bare selection controls — `Checkbox`, `RadioButton`, `Switch`,
-`TriStateCheckbox` — opt out through `namedByContext`, because they genuinely
-cannot name themselves and are designed to be labelled by the row they sit in.
-An opt-out rather than an opt-in, so a component that *loses* its name fails
-rather than passing quietly.
+component in the registry that declares a role must announce a non-empty name,
+with no opt-out, so a component that *loses* its name fails rather than passing
+quietly. The four bare selection controls — `Checkbox`, `RadioButton`, `Switch`,
+`TriStateCheckbox` — used to be excused through a `namedByContext` flag, because
+they could not name themselves and were designed to be labelled by the row they
+sit in. Since 0.4.2 each takes a `contentDescription` for the one that stands
+alone, the registry renders them with one, and the flag is gone.
 
 That is a stronger guarantee than the string parameter gave, because it tests the
 rendered semantics rather than the signature.

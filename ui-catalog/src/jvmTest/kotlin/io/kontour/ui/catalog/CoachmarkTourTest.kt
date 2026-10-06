@@ -110,6 +110,61 @@ class CoachmarkTourTest {
         }
     }
 
+    /**
+     * From one step to the next the page is dimmed once, never twice.
+     *
+     * Reported: *"in a coachmark tour, the background gets twice as dim when
+     * animating between two coachmarks, then goes back to normal. I think it's
+     * because two overlays are showing up at the same time"*. They were: each
+     * step was an overlay with a dim of its own, and the next one sprang in
+     * while the last was still fading out. Watched frame by frame, at full
+     * motion, at a corner neither step lights and neither bubble covers.
+     */
+    @Test
+    fun aStepChangeDimsThePageOnce() {
+        var tour: CoachmarkTour? = null
+        var second = Rect.Zero
+
+        Scene(width = Width, height = Height, density = Density.toFloat()) {
+            val walk = rememberCoachmarkTour(First, Second)
+            tour = walk
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
+                    Target(Modifier.align(Alignment.TopStart).coachmarkStep(walk, First, "Plan a trip", "Start here."))
+                    Target(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .reportBounds { second = it }
+                            .coachmarkStep(walk, Second, "Saved trips", "They live here."),
+                    )
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val corner = { image: BufferedImage -> luminance(image.getRGB(Width - 10, 10)) }
+            val undimmed = corner(scene.frame())
+
+            requireNotNull(tour).start()
+            val dimmed = corner(scene.frames(40))
+            assertTrue(undimmed - dimmed > 40, "the tour did not dim the page: $undimmed then $dimmed")
+
+            requireNotNull(tour).next()
+            val between = (1..40).map { corner(scene.frame()) }
+            val darkest = between.min()
+            assertTrue(
+                dimmed - darkest <= 3,
+                "between the steps the corner went to $darkest, against $dimmed under one step's dim " +
+                    "(and $undimmed undimmed): two dims at once. Frame by frame: $between",
+            )
+
+            val settled = scene.frames(20)
+            assertTrue(
+                luminance(settled.at(second)) > dimmed + 40,
+                "the second step's control should be lit once the spotlight has arrived there",
+            )
+        }
+    }
+
     @Test
     fun itWalksForwardsAndBackAndKnowsWhereItIs() {
         var tour: CoachmarkTour? = null
@@ -163,6 +218,13 @@ class CoachmarkTourTest {
             val b = pixel and 0xFF
             return (r + g + b) / 3
         }
+    }
+
+    private fun luminance(pixel: Int): Int {
+        val r = (pixel shr 16) and 0xFF
+        val g = (pixel shr 8) and 0xFF
+        val b = pixel and 0xFF
+        return (r + g + b) / 3
     }
 
     /** The pixel at the middle of a reported rectangle. */

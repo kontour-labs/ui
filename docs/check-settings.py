@@ -347,6 +347,8 @@ MOVEMENT_ALLOWED = {
     "Transitions.kt:chevronTurn": "a chevron turning half a circle in its own box, as state",
     "NavDestination.kt:NavDestination": "the selected icon's emphasis, a few percent in its own box",
     "TopBar.kt:LargeBar": "the collapse follows the scroll the reader is making",
+    "TopBar.kt:HeroDots": "`CarouselState.animateScrollToPage` jumps under reduced motion, "
+    "from the flag `rememberCarouselState` reads",
     "Scrollbar.kt:Scrollbar": "the thumb follows the scroll the reader is making",
     "BottomSheet.kt:BottomSheet": "places the sheet at the offset its state holds; the "
     "animations that move that offset are what this rule checks",
@@ -430,6 +432,7 @@ LITERAL_FILES_ALLOWED = {
 }
 LITERAL_ALLOWED = {
     "digit$index": "a test tag, not text",
+    "kontour.dropGap.$id": "a lazy list's key for the gap a drop list opens, not text",
 }
 MAX_LITERAL_PHRASES = 0
 
@@ -501,11 +504,13 @@ def literal_phrases() -> list[str]:
 CASE_CHANGE = re.compile(r"\.(?:uppercase|lowercase)\(\)")
 CASE_ALLOWED = {
     "ColourSpaces.kt": "hex digits, which are not language",
+    "CurrencyCode.kt": "an ISO 4217 currency code, which the standard says is three ASCII letters",
     "InlineMarkdown.kt": "a URL scheme, which RFC 3986 says is ASCII",
     "DeviceCorner.kt": "a device model name, matched against a table",
     "DeviceCurves.kt": "a manufacturer and codename, matched against a table",
     "LocaleTag.kt": "a BCP 47 tag's subtags, which the standard says are case-insensitive ASCII",
     "PluralRules.kt": "a language subtag, looked up in CLDR's table",
+    "PickedFile.kt": "media types and file extensions, matched case-insensitively as RFC 6838 says",
 }
 MAX_CASE_CHANGES = 0
 

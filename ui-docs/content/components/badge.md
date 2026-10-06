@@ -24,14 +24,17 @@ against the glyph rather than the touch target, because a 48dp circle around a
 
 ## Accessibility
 
-A badge has **no description by default**, and that is the right default: the
-count is usually already announced by whatever it is attached to, and a badge
-that announced itself would double it.
+A badge says what it means as a sentence — "New" for a dot, "3 new" for a
+count — rather than as the number: "12" beside "Alerts" is heard as two
+unconnected things. Pass `contentDescription` for something more specific, "12
+unread alerts".
 
-Where it is the only source — a dot on an icon button with nothing else saying
-there is anything new — pass `contentDescription`. Write it as a sentence, "12
-unread alerts", not as the number: "12" beside "Alerts" is heard as two
-unconnected things.
+**Inside a row it is part of the row's text.** In a `ListItem`, a clickable
+`Card`, a `SelectionRow` or a button's label, a badge says itself as text, read
+in its place among the rest, rather than as a description — which on a merged
+row is read instead of the row's text, so a chat row with a badge was announced
+as "3 unread" and nothing else. On an icon button it describes itself, as
+before, since the button is named by its description.
 
 Counts above `max` render as "9+" visually. Give the real number in the
 description where it matters.

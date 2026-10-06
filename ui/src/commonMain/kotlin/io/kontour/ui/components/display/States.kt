@@ -1,5 +1,8 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -21,6 +25,8 @@ import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.motion.Transitions
+import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.theme.Theme
 
 /**
@@ -106,18 +112,131 @@ fun ErrorState(
     )
 }
 
+/**
+ * What to show where content will be, while it is on its way.
+ *
+ * ```
+ * LoadingState { +"Loading departures" }
+ * ```
+ *
+ * The third of the states a screen of fetched content passes through, drawn as
+ * the other two are — the same block, the same place, a spinner where their
+ * icon is — so moving from one to another with [StateSwitcher] changes what it
+ * says rather than where it stands.
+ *
+ * A title is optional. Without one the spinner is announced as [loadingLabel];
+ * with one, the title is what is read, and should say what is loading.
+ *
+ * Polite, as an empty state is: something on its way is not something the user
+ * needs to stop for.
+ *
+ * **For a region with nothing to show yet** — a list before its first page, a
+ * screen before its data. Where the shape of what is coming is known, a
+ * [Skeleton] of it says more and moves less when it arrives; where something
+ * small is busy inside content that is already there — a button, a row — a
+ * [Spinner] on its own is the size of the thing that is waiting.
+ */
 @Composable
-private fun StateBlock(
+fun LoadingState(
+    modifier: Modifier = Modifier,
+    loadingLabel: String = Theme.strings.loading,
+    content: StateScope.() -> Unit = {},
+) {
+    val slots = stateSlots {
+        content()
+        // The spinner is the component's, as an error's retry is: a loading
+        // state is the spinner, and a caller's own `leading` replaces it.
+        if (leading == null) {
+            val unnamed = title == null
+            leading {
+                Spinner(size = StateIconSize, contentDescription = if (unnamed) loadingLabel else null)
+            }
+        }
+    }
+    StateBlock(
+        modifier = modifier,
+        slots = slots,
+        iconTint = Theme.colours.contentSubtle,
+        assertive = false,
+    )
+}
+
+/**
+ * One of several states in one place — loading, empty, failed, the content
+ * itself — and a transition between them when [target] changes.
+ *
+ * ```
+ * StateSwitcher(target = status) { status ->
+ *     when (status) {
+ *         Status.Loading -> LoadingState { +"Loading stops" }
+ *         Status.Failed -> ErrorState(onRetry = ::reload) { +"Couldn't load stops" }
+ *         Status.Empty -> EmptyState { +"No stops nearby" }
+ *         Status.Ready -> StopList(stops)
+ *     }
+ * }
+ * ```
+ *
+ * A `when` on its own swaps one for the other in a frame, and a loading state
+ * that a fast network replaces after 80ms flashes. Here the one leaving fades
+ * and the one arriving fades in through it, the way content replaces content
+ * with no relationship between them ([io.kontour.ui.motion.Transitions.fadeThrough]),
+ * and the space they take changes size smoothly rather than in a step. Under
+ * reduced motion it is a cross-fade, and the size is the new one at once.
+ *
+ * The state leaving is cleared from the semantics while it goes, so a screen
+ * reader hears the new one and not both.
+ *
+ * @param target Which state to show. Anything with `equals` — an enum, a sealed
+ *   class; a change of it is a change of state.
+ * @param contentAlignment Where a smaller state sits in the space of a larger
+ *   one while the size changes.
+ * @param content Draws a state, given it: called with the state arriving and,
+ *   while it goes, the one leaving, so it should draw from what it is given
+ *   rather than from [target].
+ */
+@Composable
+fun <T> StateSwitcher(
+    target: T,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopCenter,
+    content: @Composable (T) -> Unit,
+) {
+    val motion = Theme.motion
+    val through = Transitions.fadeThrough()
+    AnimatedContent(
+        targetState = target,
+        modifier = modifier,
+        transitionSpec = { through.using(SizeTransform(clip = false) { _, _ -> motion.sizeSpec() }) },
+        contentAlignment = contentAlignment,
+        label = "stateSwitcher",
+    ) { state ->
+        val leaving = transition.targetState == EnterExitState.PostExit
+        Box(if (leaving) Modifier.clearAndSetSemantics {} else Modifier) { content(state) }
+    }
+}
+
+/**
+ * A state's icon, title, message and action, centred.
+ *
+ * @param announced Whether it is a live region. A [DropZone] lays its words out
+ *   the same way and is not news when it appears.
+ * @param messageColour The message's colour: muted, unless the ground under it
+ *   is a tone's.
+ */
+@Composable
+internal fun StateBlock(
     modifier: Modifier,
     slots: StateScope,
     iconTint: Color,
     assertive: Boolean,
+    announced: Boolean = true,
+    messageColour: Color = Theme.colours.contentMuted,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                liveRegion = if (assertive) LiveRegionMode.Assertive else LiveRegionMode.Polite
+                if (announced) liveRegion = if (assertive) LiveRegionMode.Assertive else LiveRegionMode.Polite
             }
             .padding(Theme.spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -140,7 +259,7 @@ private fun StateBlock(
         slots.message?.let { message ->
             // Long lines are hard to read centred; cap the measure.
             Box(Modifier.widthIn(max = 320.dp)) {
-                ProvideContentColour(Theme.colours.contentMuted) {
+                ProvideContentColour(messageColour) {
                     ProvideTextStyle(
                         Theme.typography.bodyMedium.copy(textAlign = TextAlign.Center)
                     ) {

@@ -124,9 +124,30 @@ where, and the component composes the regions in the order the layout wants.
 **twice** — small and fading in, large and sliding out — at two type scales. A
 slot that emitted where it was written could only ever be in one of them.
 
-A collecting builder is not composable, so you cannot call a composable or read
-`Theme` in the builder itself — only inside the slots it hands you. This is the
-same shape as Compose's own `LazyListScope`.
+Most collecting builders are not composable, so you cannot call a composable or
+read `Theme` in the builder itself — only inside the slots it hands you. This is
+the same shape as Compose's own `LazyListScope`.
+
+`ListGroup`, `KeyValueList`, `Stat` and the readouts of `Gauge`, `Meter` and
+`Knob` are the exceptions, because what goes in them is mostly formatted
+values: their builders are composable, so
+`item("Updated", Theme.formats.date(updated))` and
+`value(Theme.formats.currency(total, "AUD"))` read the theme where they are
+written. All are `inline`, as `Column` is, which is what makes that safe — the
+builder is part of the caller's composition rather than a group of its own, so
+a value it reads never goes stale. `listGroup` in a `LazyColumn` runs where the
+list's builder does, which is not composable.
+
+A **formatter** is not a builder. `valueLabel` and `stateDescription` on a
+slider, `optionLabel` on a select, `tickLabel` on a gauge: each is a plain
+`(T) -> String`, called with a value whenever one needs words — some of them
+while drawing, where nothing composable can run. Read the theme once, outside,
+and the lambda captures it:
+
+```kotlin
+val formats = Theme.formats
+Slider(value, onValueChange, valueLabel = { formats.percent(it.toDouble()) })
+```
 
 **A bare `+` fills the component's primary text** — the region a one-line call
 means. A row's label, a banner's message, a state screen's title, a stat's label,
@@ -222,6 +243,7 @@ component still works inside it, unchanged:
 | `MenuScope` | `ColumnScope` | `DropdownMenu`, `AnchoredDropdownMenu`, `SubMenu` |
 | `NavScope` | — | `NavBar` (as `NavBarScope`), `NavRail`, `ModalNavRail`, `NavigationSuiteScaffold` |
 | `ListGroupScope` | — | `ListGroup`, `LazyListScope.listGroup` |
+| `DialogActionsScope` | — | `Dialog`'s `actions` |
 
 ```kotlin
 DropdownMenu(visible = open, onDismissRequest = { open = false }) {

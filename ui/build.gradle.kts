@@ -222,6 +222,9 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.compose.uiTooling)
+            // The document picker behind `rememberFilePicker`: an activity's
+            // result registry, reached through `LocalActivityResultRegistryOwner`.
+            implementation(libs.androidx.activity.compose)
         }
 
         webMain.dependencies {

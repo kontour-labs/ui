@@ -83,7 +83,7 @@ class ReorderHoldTest {
      *
      * ### This was written to catch a defect that turned out not to exist
      *
-     * `ReorderHoldSlop` is 24dp and a `LazyColumn` claims at
+     * `PickUpHoldSlop` is 24dp and a `LazyColumn` claims at
      * `viewConfiguration.touchSlop`, which is smaller — so on paper there is a
      * band where the scroller has already taken the gesture and the hold, which
      * never checks `isConsumed`, runs to completion anyway: the row lifts, fires
@@ -107,7 +107,7 @@ class ReorderHoldTest {
      *
      * The pairing, not the boundary. Wherever the boundary sits, a gesture that
      * ends in a scroll must not have announced a pick-up first. Lower
-     * `ReorderHoldSlop` under the scroller's slop and this opens the band it was
+     * `PickUpHoldSlop` under the scroller's slop and this opens the band it was
      * written to find.
      */
     @Test
@@ -211,11 +211,11 @@ class ReorderHoldTest {
         /** Ten dp at this scene's density: a fingertip settling. */
         const val Wander = 20f
 
-        /** Past `ReorderHoldSlop`'s 24dp: a gesture, not a settle. */
+        /** Past `PickUpHoldSlop`'s 24dp: a gesture, not a settle. */
         const val TooFar = 56f
 
         /**
-         * Either side of `ReorderHoldSlop`, in steps small enough to land inside
+         * Either side of `PickUpHoldSlop`, in steps small enough to land inside
          * any band that opens up between the two thresholds.
          *
          * 48px is the budget exactly and 56 is past it, so the pair brackets the

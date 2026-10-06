@@ -15,6 +15,113 @@ from the version the app is on.
 
 ---
 
+## 0.4.1 to 0.4.2
+
+From 0.4.1 to 0.4.2, released on 4 October 2026. A lambda literal compiles as
+it did everywhere; a builder held in a variable, and a few arguments passed by
+position, need a change. Several things look or behave differently enough to
+check, and tests that find controls by role or by text should be run.
+
+### Before you start
+
+- **Move all three modules at once**: `kontour = "0.4.2"`.
+- **Rebuild anything compiled against 0.4.1.** `ListGroup`, `KeyValueList`,
+  `Stat`, `Gauge`, `Meter` and `Knob` are `inline` now, and `Dialog`, `NavBar`,
+  `NavigationSuiteScaffold`, the four selection controls, `ComponentDefaults`
+  and `Strings` gained parameters, so a library of your own built against 0.4.1
+  fails when it calls one, until it is rebuilt.
+
+### Builders are composable
+
+The builders of `ListGroup`, `KeyValueList`, `Stat` and the readouts of
+`Gauge`, `Meter` and `Knob` are `@Composable` now, so the theme's formats and
+strings are read where a row or a figure is written. A lambda literal compiles
+as before. A builder kept in a variable, or a function passed for one, has to be
+composable too:
+
+```diff
+- val rows: ListGroupScope.() -> Unit = { item("Help") }
++ val rows: @Composable ListGroupScope.() -> Unit = { item("Help") }
+  ListGroup(content = rows)
+
+- fun KeyValueScope.fare(trip: Trip) = item("Fare", trip.fare)
++ @Composable fun KeyValueScope.fare(trip: Trip) = item("Fare", trip.fare)
+```
+
+What was worked out above the builder can move into it:
+
+```diff
+- val updated = Theme.formats.date(trip.updated)
+- KeyValueList { item("Updated", updated) }
++ KeyValueList { item("Updated", Theme.formats.date(trip.updated)) }
+```
+
+### Parameters added partway through a list
+
+**A call that names its arguments is unaffected.** One that passes a later
+argument by position stops compiling at it, with a type mismatch; name it and it
+compiles again. No call compiles to something different: each new parameter's
+type differs from the argument that was in its place.
+
+| Function | New parameters | A positional argument that now fails |
+|---|---|---|
+| `Checkbox`, `TriStateCheckbox`, `Switch`, `RadioButton` | `contentDescription`, after `enabled` | `interactionSource` |
+| `Button`, `TextButton`, `SplitButton` | `contentDescription`, after `enabled` | `variant` (`colour` on `TextButton`), and those after it |
+| `TextField` | `code`, after `trailing` | `variant`, and those after it |
+| `TextArea` | `code`, after `lineLimits` | `variant`, and those after it |
+| `NavBar` | `fadeUnder`, before `windowInsets` | `windowInsets`, and those after it |
+| `NavigationSuiteScaffold` | `barFadeUnder`, after `railExpandedWidth` | `containerColour`, and those after it |
+
+`Dialog`'s `actions` comes after `title`, before the content, which a call
+passes as a trailing lambda; `ComponentDefaults`' `scrollbarTouchThickness` is
+the last field, after every one before it.
+
+### Check: a wide window without a `WindowSizeClassProvider`
+
+`KontourTheme` reads the window size class from the window when nothing outside
+it provides one. An app that left the provider out had a phone's layout
+everywhere; on a tablet or a desktop window it now gets a rail and two panes. A
+provider, or a class provided outright, is kept as it is.
+
+### Check: a floating `NavBar`
+
+It sits lower over iOS's home indicator and Android's gesture handle, and the
+page fades out under it. A screen that measured its own room above the bar
+should use the scaffold's padding, which comes down with it; `fadeUnder = false`
+keeps the page as it was, and rims the capsule instead.
+
+### Check: tests that find a select's options, or a search field
+
+A `Select`'s and a `Combobox`'s options are radio buttons now, chosen or not, and
+a `MultiSelect`'s say whether they are ticked. A test that found them as buttons
+should find them by text, or as radio buttons. A `SearchField` is named by its
+placeholder, and the placeholder is no longer a node of its own while it is that
+name: find the field by its content description, or by `hasSetTextAction()`.
+
+### Check: a fitted `Table` column
+
+A column with neither `width` nor `weight` is measured against rows spread
+through the data, not only the first fifty, and again when `items` is a new
+list. It can come out wider than it was. One that must be a fixed width should
+be given `width`.
+
+### Check: a scrollbar under touch
+
+A `Scrollbar` shows, thinner, while the content moves under a finger, and fades
+after it stops, where it drew nothing before. While it is drawn, a finger on its
+thumb drags it, and a press there is no longer the row's under it.
+`alwaysVisible = false` was always the default and still is; it is touch that
+changed.
+
+### Check: a date picker given no arrows
+
+A `DatePicker`, `DateRangePicker` or `DateTimePicker` called without
+`previousIcon` and `nextIcon` has the library's chevrons either side of its
+month, where it had no buttons. One that is meant to page only by a swipe
+should pass `null` for both.
+
+---
+
 ## 0.3 to 0.4
 
 From 0.3.0 to 0.4.0, released on 3 October 2026. One parameter is replaced,

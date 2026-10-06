@@ -51,6 +51,7 @@ import io.kontour.ui.interaction.LocalRowEnabled
 import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /** What a [ListItem] takes by default. */
 object ListItemDefaults {
@@ -274,7 +275,13 @@ internal fun ListItemImpl(
     // Published so a control in a slot can show the row's press — a `Switch` in
     // a trailing slot has no callback of its own and would otherwise never see
     // the tap that the row just handled.
-    CompositionLocalProvider(LocalRowInteractionSource provides interactions, LocalRowEnabled provides enabled) {
+    // And the row is one node, named by what it says: an avatar in its leading
+    // slot stays quiet rather than becoming that name. See `LocalNamedByContent`.
+    CompositionLocalProvider(
+        LocalRowInteractionSource provides interactions,
+        LocalRowEnabled provides enabled,
+        LocalNamedByContent provides true,
+    ) {
         // A row with an `onClick` is a control, and its text is chrome; one
         // without is content — a stop's address, a fare — and stays selectable
         // inside a `SelectableText`.
@@ -393,6 +400,9 @@ internal fun ListItemImpl(
  *   should not read as different mechanisms.
  * @param action Holds *controls* rather than the section's own text, which is
  *   why it is a plain `RowScope` and the three above are content slots.
+ * @param spacing The gap between the children, and under the heading. The
+ *   default is the hairline that makes a group of rows one object. Form fields
+ *   are not rows: give them `Theme.spacing.md`, or they stack edge to edge.
  */
 @Composable
 fun ListSection(

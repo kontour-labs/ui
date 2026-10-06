@@ -39,6 +39,29 @@ A third, free-standing circles with nothing behind them, is gone: a circle
 casting its own shadow over a photograph read as a sticker rather than as
 navigation, and every other surface in the library has a ground.
 
+### Where a floating bar sits, and what is under it
+
+**Just clear of the system's handle.** A floating bar over iOS's home indicator,
+or Android's gesture handle, keeps clear of the handle itself rather than of the
+whole strip the system keeps for it: its capsule's foot is about 28dp up from
+the window's foot, 14dp above where the handle ends. Padded by the whole strip
+it stood 42dp up on an iPhone, over nothing but the indicator. Android's three
+buttons take taps, and the bar stays clear of all of them, as a docked bar stays
+clear of all of any of them.
+
+**The page fades out under it.** A floating bar is `surface`, and so are the rows
+of a list, so over a list the bar was a shadow apart from what it sat on. With
+`fadeUnder`, on by default, the page's colour runs solid from the bar's middle to
+the window's foot and thins out a little above the capsule, so what scrolls
+under the bar fades away rather than running behind it, and its shadow,
+a little deeper than the theme's `high`, is all that parts it from the page. The
+colour is the one the bar sits on — `LocalContainerColour`, which a `Surface` and
+a `NavigationSuiteScaffold` set — so a page painted with `Modifier.background` in
+anything but `background` should say so the same way. `fadeUnder = false` leaves
+the page as it is, and gives the capsule a rim instead: a hairline of its own
+ink, to part it from rows running behind it. At high contrast nothing fades, and
+the bar has its edge.
+
 `showLabels` is off by default. A word under every icon is a row of words, and the
 few destinations of a bar are ones its user already knows. A hidden label is still
 announced.
@@ -197,15 +220,62 @@ seeing each one as the finger passes is the point. Asked for as an option:
 *"when you drag the navbar selection indicator, it can switch tabs as you're
 dragging"*.
 
-Only sideways, and only from a destination: a slot — a search — keeps its own
-gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
+**A group is somewhere to drag it, too.** Let go of the marker over a
+[group](#a-group-in-a-bar) and its menu opens, inviting a pick, and the group
+keeps the marker for as long as the menu is open. Pick from it and the marker
+stays, the group now carrying where you are; close it without a pick and the
+marker goes back to where it was. Asked for: *"when you drag the selection
+indicator onto an option that's a dropdown, the dropdown expands, inviting the
+user to pick an option"*. Only on the lift, under either rule: a menu that
+opened under a finger on its way past would be a menu in the way of the next
+destination, so a drag across a group to the one beyond opens nothing and, while
+choosing as it goes, skips the group.
+
+Only sideways, and only from a destination or a group: a slot — a search — keeps
+its own gestures. `NavBarMarkerDrag.Off` turns it off. A rail's marker cannot be
 dragged at all: a rail scrolls, and a drag along it could not be told from a
 scroll.
 
 ### A group in a bar
 
 A `group` is a circle that opens a menu of its destinations above the bar. While
-the selected destination is inside it, the group's circle carries the marker.
+the selected destination is inside it, the group's circle carries the marker,
+and the marker can be dragged to it to open it.
+
+### More than a bar has room for
+
+<!--sample:NavBarMore-->
+```kotlin
+var here by remember { mutableStateOf("home") }
+
+// The destinations with no room of their own go in `more`, at the end: a
+// circle of three dots that opens a menu of them. In a rail there is room,
+// and they are drawn in line with the rest.
+NavBar {
+    item(here == "home", { here = "home" }, key = "home", icon = Tabler.Outline.Home) { +"Home" }
+    item(here == "map", { here = "map" }, key = "map", icon = Tabler.Outline.Map) { +"Map" }
+    item(here == "plan", { here = "plan" }, key = "plan", icon = Tabler.Outline.Calendar) { +"Plan" }
+    more {
+        item(here == "alerts", { here = "alerts" }, key = "alerts", icon = Tabler.Outline.Bell) { +"Alerts" }
+        item(here == "saved", { here = "saved" }, key = "saved", icon = Tabler.Outline.Star) { +"Saved" }
+        item(here == "me", { here = "me" }, key = "me", icon = Tabler.Outline.User) { +"Me" }
+    }
+}
+```
+
+**`more { }` is the end of a bar with too many destinations**: a circle of the
+library's three dots, named `Theme.strings.more`, that opens a menu of what is
+written inside it. A group with nothing left to decide — no icon, no name and no
+key to choose — asked for as *"an easy api to add a '…' menu to the end with one
+of those dropdown options. this is useful for lots of nav items"*. A bar has
+room for about five destinations; an app with eight puts the first four in the
+bar and the rest in `more`.
+
+It is a [`NavScope`](nav-scope.md) call rather than a bar's, so the same block
+reads right in a `NavigationSuiteScaffold`: in a rail, which has room, the
+destinations inside it are drawn in line with the rest, as if `more` were not
+there. Like any group it carries the marker while the current destination is
+inside it. One per surface.
 
 ---
 
@@ -213,15 +283,22 @@ the selected destination is inside it, the group's circle carries the marker.
 
 Destinations are `Role.Tab` inside a `selectableGroup()`. A slot is outside the
 count, so a search is not announced as "3 of 5" among four destinations. A group
-is a `Role.Button` that opens a menu.
+is a `Role.Button` that opens a menu, and `more` is one named "More" — the
+theme's word, so a translation reaches it.
 
 Dragging the marker is a shortcut for a finger and adds nothing to the tree:
 each destination is still its own tab, chosen by a screen reader's activation,
-a switch or a key exactly as before.
+a switch or a key exactly as before, and a group still opens by its own
+activation.
 
-At high contrast the bar takes an edge. The travelling marker takes an accent outline, `selectionEdge()`,
-because a tint alone is too faint at that tier, and the focus ring is drawn
-thicker.
+At high contrast the bar takes an edge, in place of its rim or its deeper
+shadow, and the page does not fade out under it: a fade is a gradient of
+nearly-the-same colour, which is what that tier exists to remove. The travelling
+marker takes an accent outline, `selectionEdge()`, because a tint alone is too
+faint at that tier, and the focus ring is drawn thicker.
+
+The fade under a floating bar is drawn, not laid out: nothing under it becomes
+unreachable, and a screen reader still finds the rows it covers.
 
 Under reduced motion the marker does not travel: it fades out and fades up on
 the new destination, and it does not lean toward a finger dragging it or a

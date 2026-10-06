@@ -41,6 +41,10 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlin.jvm.JvmInline
 import kotlin.math.absoluteValue
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.text
+import io.kontour.ui.a11y.NamedByContent
+import io.kontour.ui.a11y.LocalNamedByContent
 
 /**
  * How big an avatar is drawn.
@@ -132,8 +136,18 @@ value class AvatarSize(val diameter: Dp) {
  * it. The avatar's announcement carries every decoration's description after the
  * name — "Aaron. Online. 3 new" — since a dot is drawn, not said.
  *
+ * **Inside a row, the row does the naming.** In a clickable `Card`, a
+ * `ListItem`, a `SelectionRow` or a button's label, an avatar says no name of
+ * its own: the row merges into one node, and a description there is read in
+ * place of the row's text, so a chat row was announced as its person and
+ * nothing else. The name is nearly always the row's title anyway. Its
+ * decorations are still read, as text, among the rest of the row.
+ *
  * @param name Used for the initials and, by default, the announcement. Pass
  *   `null` for a genuinely anonymous avatar.
+ * @param contentDescription What to announce instead of [name]. Inside a row it
+ *   is the one thing an avatar says — and it becomes the row's name, so give it
+ *   only where the picture is the point.
  * @param border A ring round the avatar, drawn on its own circle over the
  *   picture's edge and under its decorations: a colour to set it off from the
  *   page, an accent for "this one is you", a gradient for a story. None by
@@ -155,7 +169,9 @@ fun Avatar(
     decorations: (AvatarDecorationScope.() -> Unit)? = null,
 ) {
     val placed = decorations?.let { AvatarDecorationScope().apply(it).items }.orEmpty()
-    val base = contentDescription ?: name
+    // Inside a row named by its own text, the name would be the row's whole name.
+    val inRow = LocalNamedByContent.current && contentDescription == null
+    val base = if (inRow) null else contentDescription ?: name
     val strings = Theme.strings
     val formats = Theme.formats
     // A count with no words of its own says what a badge would.
@@ -169,12 +185,15 @@ fun Avatar(
         }
     }
     val announcement = if (said.isEmpty()) base else strings.sentences(listOfNotNull(base) + said)
+    // In a row, what the decorations say is part of what the row says: text,
+    // read where it sits, rather than a description read in the row's place.
+    val announced = if (inRow) modifier.saidAsText(announcement) else modifier.announced(announcement)
     if (placed.isEmpty()) {
-        AvatarBody(modifier.announced(announcement), name, image, fallbackIcon, size, border)
+        AvatarBody(announced, name, image, fallbackIcon, size, border)
         return
     }
     Layout(
-        modifier = modifier.announced(announcement),
+        modifier = announced,
         content = {
             AvatarBody(Modifier, name, image, fallbackIcon, size, border)
             placed.forEach { decoration -> key(decoration) { Decoration(decoration, size) } }
@@ -200,6 +219,9 @@ fun Avatar(
 
 private fun Modifier.announced(announcement: String?): Modifier =
     semantics { if (announcement != null) this.contentDescription = announcement }
+
+private fun Modifier.saidAsText(announcement: String?): Modifier =
+    if (announcement == null) this else semantics { text = AnnotatedString(announcement) }
 
 /** The avatar itself: its picture, initials or glyph, in its circle. */
 @Composable
@@ -455,7 +477,9 @@ fun AvatarGroup(
                 ?: if (names.size == 1) names.first() else strings.peopleCount(formats.quantity(names.size))
         },
         content = {
-            shown.forEach { name ->
+            // The group says who is there; each avatar saying its name as well
+            // read as "4 people, Ada, Grace, …".
+            NamedByContent { shown.forEach { name ->
                 Avatar(
                     name = name,
                     // The ring that separates one overlapping avatar from the
@@ -470,7 +494,7 @@ fun AvatarGroup(
                     size = size,
                     contentDescription = null,
                 )
-            }
+            } }
             if (overflow > 0) {
                 val circle = Theme.shapes.pill
                 Box(

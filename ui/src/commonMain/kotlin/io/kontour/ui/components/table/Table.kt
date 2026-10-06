@@ -431,14 +431,16 @@ fun <T> Table(
             hairline = hairline,
         )
 
-        // A fitted column is as wide as the widest of its title and its first
-        // rows' cells, measured with the cells themselves so padding and type
-        // are exactly what the rows will draw. Remembered, and only ever widened,
-        // so a column does not jump as rows scroll in or the items are re-sorted.
+        // A fitted column is as wide as the widest of its title and a sample of
+        // its cells spread through the rows (see `tableFitSample`), measured
+        // with the cells themselves so padding and type are exactly what the
+        // rows will draw. Remembered for these items, so scrolling never moves
+        // a column; measured again for new ones, and widened only, so new data
+        // can widen a column once and nothing narrows one under the reader.
         fun fittedWidth(column: TableColumn<T>): Int {
-            val known = fitted.width(column.key, items.isNotEmpty())
+            val known = fitted.width(column.key, items)
             if (known != null) return known
-            val sample = items.take(TableFitSample)
+            val sample = tableFitSample(items.size).map { items[it] }
             // Measured, never placed — and never read out: without their
             // semantics cleared these copies were a second, invisible header
             // and row for a screen reader to find.
@@ -447,7 +449,7 @@ fun <T> Table(
                 sample.forEach { item -> BodyCellContent(env, column, item, Unread) }
                 if (column.footer != null) FooterCellContent(env, column, Unread)
             }.maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
-            return fitted.remember(column.key, measured, items.isNotEmpty())
+            return fitted.remember(column.key, measured, items)
         }
 
         fun titleWidth(column: TableColumn<T>): Int =
@@ -516,9 +518,13 @@ internal class TableColumn<T>(
 /**
  * The widths fitted columns have been given, by column key, for as long as the
  * type size and density are the same.
+ *
+ * Each remembers the list it was measured against, by identity: the same list
+ * scrolled is the same width, and a new list — a page in, a refresh, a sort —
+ * is measured again and kept at the wider of the two.
  */
 private class FittedWidths {
-    private class Fit(val width: Int, val withItems: Boolean)
+    private class Fit(val width: Int, val items: List<*>)
 
     private val widths = HashMap<Any, Fit>()
     private var density = 0f
@@ -532,13 +538,13 @@ private class FittedWidths {
         }
     }
 
-    /** The width known for [key], unless it was measured with no rows and now there are some. */
-    fun width(key: Any, withItems: Boolean): Int? =
-        widths[key]?.takeIf { it.withItems || !withItems }?.width
+    /** The width known for [key], if it was measured against these very [items]. */
+    fun width(key: Any, items: List<*>): Int? =
+        widths[key]?.takeIf { it.items === items }?.width
 
-    fun remember(key: Any, measured: Int, withItems: Boolean): Int {
+    fun remember(key: Any, measured: Int, items: List<*>): Int {
         val width = maxOf(measured, widths[key]?.width ?: 0)
-        widths[key] = Fit(width, withItems)
+        widths[key] = Fit(width, items)
         return width
     }
 }
@@ -555,7 +561,27 @@ private val EmptyColumns = resolveTableColumns(emptyList(), 0, 0, 1f)
 /** How much of the table pinned columns may cover before the last of them scrolls too. */
 private const val TablePinCap: Float = 0.5f
 
-/** How many rows a fitted column is measured against. */
+/**
+ * Which rows a fitted column is measured against: all of them up to fifty, and
+ * past that the first twenty, the last ten and twenty spread evenly between.
+ *
+ * The first fifty alone, which it was, fitted a column to what is on screen when
+ * the table opens and to nothing after it: a date column cut "30 Sep 2026" short
+ * as it scrolled. The same fifty measurements, spread, see the end of a list —
+ * where a page loaded in, or the newest row, lands — and the middle of it.
+ */
+internal fun tableFitSample(size: Int): List<Int> {
+    if (size <= TableFitSample) return List(size) { it }
+    val between = TableFitSample - TableFitHead - TableFitTail
+    val from = TableFitHead
+    val until = size - TableFitTail
+    val spread = List(between) { i -> from + ((i + 0.5f) * (until - from) / between).toInt() }
+    return ((0 until TableFitHead) + spread + (until until size)).distinct()
+}
+
+/** How many rows a fitted column is measured against, and how they are spread. */
 private const val TableFitSample: Int = 50
+private const val TableFitHead: Int = 20
+private const val TableFitTail: Int = 10
 
 private val TableMinColumnWidth: Dp = 48.dp

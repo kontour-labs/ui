@@ -3,6 +3,7 @@ package io.kontour.ui.sheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -130,6 +131,49 @@ class SheetPinnedTest {
     }
 
     /**
+     * Collapsed to a part pinned to the **top**, an edge sheet still clears the
+     * safe area under it: the part sits above the home indicator, with the
+     * sheet's inset between them as there is round a part pinned to the bottom.
+     *
+     * Reported: *"the "edge" bottom sheet style now doesn't clear the safe area
+     * when it's collapsed with a "pinned" item"*. The pinned detent was the
+     * handle and the parts, and only a part pinned to the bottom carried the
+     * safe area in its own height; with the part at the top, the sheet came to
+     * rest a home indicator short, the part's foot behind it.
+     */
+    @Test
+    fun collapsedToATopPartTheSheetClearsTheSafeArea() {
+        runComposeUiTest {
+            mainClock.autoAdvance = false
+            setContent { Harness(SheetDetent.pinned(), pin = SheetPin.Top, insets = WindowInsets(bottom = SafeArea)) {} }
+            settle()
+            val window = onRoot().getBoundsInRoot()
+            val bar = onNodeWithTag(Bar).getBoundsInRoot()
+            assertTrue(
+                window.bottom - bar.bottom >= SafeArea,
+                "the part pinned to the top ends ${window.bottom - bar.bottom} above the window's foot, " +
+                    "inside the $SafeArea of safe area under it",
+            )
+        }
+    }
+
+    /** And a part pinned to the bottom, as it always did: the control for the arm above. */
+    @Test
+    fun collapsedToABottomPartTheSheetClearsTheSafeArea() {
+        runComposeUiTest {
+            mainClock.autoAdvance = false
+            setContent { Harness(SheetDetent.pinned(), pin = SheetPin.Bottom, insets = WindowInsets(bottom = SafeArea)) {} }
+            settle()
+            val window = onRoot().getBoundsInRoot()
+            val bar = onNodeWithTag(Bar).getBoundsInRoot()
+            assertTrue(
+                window.bottom - bar.bottom >= SafeArea,
+                "the part pinned to the bottom ends ${window.bottom - bar.bottom} above the window's foot",
+            )
+        }
+    }
+
+    /**
      * The control: with nothing pinned, `SheetDetent.pinned` keeps its fallback.
      * Without it the first arm could pass on a detent that happened to resolve to
      * the handle and the bar for some other reason.
@@ -161,6 +205,7 @@ class SheetPinnedTest {
     private fun Harness(
         target: SheetDetent,
         pin: SheetPin? = SheetPin.Bottom,
+        insets: WindowInsets = WindowInsets(0, 0, 0, 0),
         onState: (SheetState) -> Unit,
     ) {
         KontourTheme(reduceMotion = true) {
@@ -172,7 +217,7 @@ class SheetPinnedTest {
                     )
                     onState(state)
                     LaunchedEffect(target) { state.animateTo(target) }
-                    BottomSheet(state = state, presentation = SheetPresentation.Edge) { padding: PaddingValues ->
+                    BottomSheet(state = state, presentation = SheetPresentation.Edge, windowInsets = insets) { padding: PaddingValues ->
                         if (pin != null) {
                             pinned(to = pin) {
                                 Box(Modifier.fillMaxWidth().height(BarHeight).testTag(Bar).background(Color.Blue))
@@ -195,6 +240,9 @@ class SheetPinnedTest {
         const val Rows = 30
         const val SettleFrames = 90
         val BarHeight = 56.dp
+
+        /** An iPhone's home indicator strip. */
+        val SafeArea = 34.dp
 
         /** `BottomSheetDefaults.ContentPadding` in the default theme. */
         val Inset = 16.dp

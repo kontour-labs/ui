@@ -25,12 +25,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Clock
+import io.kontour.icons.tabler.outline.PhotoOff
 import io.kontour.icons.tabler.outline.Star
+import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.adaptive.AspectRatioBox
 import io.kontour.ui.adaptive.ListDetailPaneScaffold
 import io.kontour.ui.adaptive.PaneFocus
@@ -43,6 +47,7 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.display.Card
 import io.kontour.ui.components.display.Kbd
 import io.kontour.ui.components.display.KbdIcons
+import io.kontour.ui.components.display.Skeleton
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.rememberImeChain
 import io.kontour.ui.foundation.HorizontalDivider
@@ -272,6 +277,37 @@ fun AspectRatioBoxBasics() {
             .background(Theme.colours.surfaceSunken),
     ) {
         Screen()
+    }
+}
+
+@Composable
+fun RemoteImageBasics() {
+    // Coil 3: implementation("io.coil-kt.coil3:coil-compose:<version>"), and a
+    // network module — coil-network-ktor3 with a Ktor engine per platform.
+    AspectRatioBox(
+        ratio = 16f / 9f,
+        modifier = Modifier.fillMaxWidth().clip(Theme.shapes.medium),
+    ) {
+        SubcomposeAsyncImage(
+            model = story.coverUrl,
+            contentDescription = story.coverDescription,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            // The box holds the space; these fill it while there is nothing yet.
+            loading = { Skeleton(Modifier.fillMaxSize(), shape = RectangleShape) },
+            error = {
+                // The well a missing picture leaves, with an edge at high
+                // contrast as every sunken ground takes one.
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColour = Theme.colours.surfaceSunken,
+                    border = contrastEdge(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Tabler.Outline.PhotoOff, contentDescription = null, tint = Theme.colours.contentSubtle)
+                }
+            },
+        )
     }
 }
 

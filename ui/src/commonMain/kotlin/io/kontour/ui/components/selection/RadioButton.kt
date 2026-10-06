@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -45,6 +46,10 @@ private val RadioSize = 20.dp
  * so the two halves of the change happen together under the finger.
  *
  * @param onClick Pass `null` when a parent row owns the click.
+ * @param contentDescription What the option is, for a screen reader, when nothing
+ *   beside it says so. Leave it `null` inside a [SelectionRow] or a
+ *   [RadioGroup]'s rows, which name the option by its label; a description
+ *   here would be read as well.
  */
 @Composable
 fun RadioButton(
@@ -52,6 +57,7 @@ fun RadioButton(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val tap = rememberTapFeedback()
@@ -149,6 +155,9 @@ fun RadioButton(
                     }
                 }
             )
+            // Named when it stands alone. Inside a row the row's label is the
+            // name, and the default `null` adds nothing to it.
+            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
             .size(RadioSize)
     ) {
         val strokeWidth = stroke.toPx()

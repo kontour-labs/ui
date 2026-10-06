@@ -105,9 +105,13 @@ Items are collected by a builder rather than composed as children, which is why
 the menu can own the roles and the keyboard traversal instead of each caller
 rebuilding them.
 
+A divider is the menu's own text colour at a low alpha rather than a line
+token, so it stands off the raised panel by as much as a list's divider stands
+off a list, in light and dark, and on a theme's own panel colour.
+
 At [high contrast](../accessibility.md#what-high-actually-changes) the panel's
-border and the dividers go from the faint `outlineSubtle` to the near-ink
-`outline`, and both thicken with the tier, as does the focus ring. Where a long
+border goes from the faint `outlineSubtle`, and the dividers from that wash, to
+the near-ink `outline`, and both thicken with the tier, as does the focus ring. Where a long
 menu shows a scrollbar, it stays at full ink rather than fading when idle.
 
 At high contrast the action row's cells take the tier's edge, filled or not, as a

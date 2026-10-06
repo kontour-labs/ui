@@ -116,7 +116,7 @@ import kotlin.math.max
  *   See [ReadoutScope].
  */
 @Composable
-fun Gauge(
+inline fun Gauge(
     value: Float,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
@@ -131,15 +131,69 @@ fun Gauge(
     needleMatchesFill: Boolean = false,
     majorTicks: Int = 0,
     minorTicks: Int = 0,
-    tickLabel: ((Float) -> String)? = null,
+    noinline tickLabel: ((Float) -> String)? = null,
     tickPlacement: GaugeTickPlacement = GaugeTickPlacement.Inside,
     showContentBackground: Boolean = false,
     animateValue: Boolean = true,
     contentDescription: String? = null,
-    stateDescription: ((Float) -> String)? = null,
-    content: ReadoutScope.() -> Unit = {},
+    noinline stateDescription: ((Float) -> String)? = null,
+    content: @Composable ReadoutScope.() -> Unit = {},
 ) {
-    val readout = readoutSlots(content)
+    // Inline, as `KeyValueList` is and for its reason: the builder runs in the
+    // caller's restart scope, so a figure read from the theme in it is read
+    // where it is written, and a state it reads recomposes what draws it. See
+    // `ListGroupScope`.
+    GaugeLayout(
+        readout = ReadoutScope().apply { content() },
+        value = value,
+        modifier = modifier,
+        valueRange = valueRange,
+        origin = origin,
+        size = size,
+        sweepAngle = sweepAngle,
+        thickness = thickness,
+        cap = cap,
+        colours = colours,
+        indicator = indicator,
+        needleLength = needleLength,
+        needleMatchesFill = needleMatchesFill,
+        majorTicks = majorTicks,
+        minorTicks = minorTicks,
+        tickLabel = tickLabel,
+        tickPlacement = tickPlacement,
+        showContentBackground = showContentBackground,
+        animateValue = animateValue,
+        contentDescription = contentDescription,
+        stateDescription = stateDescription,
+    )
+}
+
+/** [Gauge], with its readout collected. */
+@PublishedApi
+@Composable
+internal fun GaugeLayout(
+    readout: ReadoutScope,
+    value: Float,
+    modifier: Modifier,
+    valueRange: ClosedFloatingPointRange<Float>,
+    origin: Float,
+    size: Dp,
+    sweepAngle: Float,
+    thickness: Dp,
+    cap: StrokeCap,
+    colours: DialColours,
+    indicator: GaugeIndicator,
+    needleLength: Float,
+    needleMatchesFill: Boolean,
+    majorTicks: Int,
+    minorTicks: Int,
+    tickLabel: ((Float) -> String)?,
+    tickPlacement: GaugeTickPlacement,
+    showContentBackground: Boolean,
+    animateValue: Boolean,
+    contentDescription: String?,
+    stateDescription: ((Float) -> String)?,
+) {
     require(valueRange.start <= valueRange.endInclusive) {
         "Gauge was given an inverted valueRange (${valueRange.start}..${valueRange.endInclusive})."
     }

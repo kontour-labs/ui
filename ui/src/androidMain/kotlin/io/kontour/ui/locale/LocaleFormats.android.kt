@@ -103,6 +103,19 @@ internal actual fun readPlatformLocale(locale: Locale): PlatformReading {
     return PlatformReading(conventions, symbols) { icuData(uLocale, tag, symbols, generator) }
 }
 
+/** ICU's currency format for [code], with the currency's own places; `null` for a code it does not know. */
+internal actual fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat? {
+    val uLocale = ULocale.forLanguageTag(locale.toLanguageTag())
+    val currency = runCatching { android.icu.util.Currency.getInstance(code) }.getOrNull() ?: return null
+    val format = NumberFormat.getCurrencyInstance(uLocale) as? DecimalFormat ?: return null
+    format.currency = currency
+    return CurrencyFormat(
+        prefix = format.positivePrefix,
+        suffix = format.positiveSuffix,
+        fractionDigits = currency.defaultFractionDigits.takeIf { it >= 0 } ?: isoFractionDigits(code),
+    )
+}
+
 private fun icuData(uLocale: ULocale, tag: LocaleTag, symbols: NumberSymbols, generator: DateTimePatternGenerator): LocaleData {
     val names = DateFormatSymbols.getInstance(uLocale)
     fun months(context: Int, width: Int) = names.getMonths(context, width).take(12)

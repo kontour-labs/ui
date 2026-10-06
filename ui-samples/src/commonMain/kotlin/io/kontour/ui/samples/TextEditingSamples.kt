@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
+import io.kontour.icons.tabler.outline.Eye
 import io.kontour.icons.tabler.outline.MapPin
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.EmailField
@@ -20,6 +21,7 @@ import io.kontour.ui.components.text.NumberField
 import io.kontour.ui.components.text.PasswordField
 import io.kontour.ui.components.text.PhoneField
 import io.kontour.ui.components.text.SearchField
+import io.kontour.ui.components.text.SecretField
 import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
@@ -85,6 +87,26 @@ fun TextAreaBasics() {
 }
 
 @Composable
+fun CodeTextArea() {
+    val config = rememberTextFieldState("route = 960\nretry = 0")
+    val stop = rememberTextFieldState()
+
+    // The mono face, so columns line up and a 0 is not an O, and a keyboard
+    // that neither corrects nor capitalises: either would change what was meant.
+    TextArea(state = config, label = "Feed override", code = true)
+    TextField(state = stop, label = "Stop code", placeholder = "per-10352", code = true)
+}
+
+@Composable
+fun SecretFieldBasics() {
+    val apiKey = rememberTextFieldState()
+
+    // Masked and revealed as a password is, and not one to the platform: no
+    // autofill hint, so nothing offers to save it as the reader's login.
+    SecretField(state = apiKey, label = "API key", revealIcon = Tabler.Outline.Eye)
+}
+
+@Composable
 fun SearchFieldBasics() {
     val query = rememberTextFieldState()
 
@@ -109,6 +131,24 @@ fun SelectBasics() {
         options = modes,
         onValueChange = { mode = it },
         label = "Mode",
+    )
+}
+
+@Composable
+fun SelectWithOther() {
+    val reasons = remember { listOf("Running late", "Cancelled", "Too full") }
+    var reason by remember { mutableStateOf<String?>(null) }
+    var otherReason by remember { mutableStateOf<String?>(null) }
+
+    // "Other" ends the menu; picked, a box opens in the field to type in.
+    // The answer is `otherReason ?: reason`.
+    Select(
+        value = reason,
+        options = reasons,
+        onValueChange = { reason = it },
+        label = "Reason",
+        otherText = otherReason,
+        onOtherTextChange = { otherReason = it },
     )
 }
 

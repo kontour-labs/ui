@@ -30,6 +30,41 @@ of a row, or in a sentence, where the box was more frame than field. Focus and
 an error bring its edge back. The same goes for every select: `MultiSelect`,
 `Combobox` and `WheelSelect` take the same `variant`.
 
+**An answer of their own.** Give it `onOtherTextChange` and the menu ends with
+"Other". Picked, a box opens inside the field's outline, under the value, and takes
+the keyboard; what is typed comes back through `onOtherTextChange`, and
+`otherText` holds it. Picking one of the options instead closes the box and calls
+`onOtherTextChange(null)`, so the answer is always `otherText ?: value` and
+neither callback clears the other's state.
+
+<!--sample:SelectWithOther-->
+```kotlin
+val reasons = remember { listOf("Running late", "Cancelled", "Too full") }
+var reason by remember { mutableStateOf<String?>(null) }
+var otherReason by remember { mutableStateOf<String?>(null) }
+
+// "Other" ends the menu; picked, a box opens in the field to type in.
+// The answer is `otherReason ?: reason`.
+Select(
+    value = reason,
+    options = reasons,
+    onValueChange = { reason = it },
+    label = "Reason",
+    otherText = otherReason,
+    onOtherTextChange = { otherReason = it },
+)
+```
+
+The box is a filled [`TextField`](text-field.md), a field's height, set into the
+outline by the same 8dp at either side and below, with corners concentric with
+the outline's; inside a `Filled` select its well is the page's colour, so it
+still stands out. It is part of the field rather than a field under it, so the
+question and its answer read as one; it is still a text box of its own to a screen reader,
+named for both — "Reason, Other" — and not part of the dropdown's node. The word
+is `Theme.strings.selectOther`, or `otherLabel`, and the hint in the empty box
+`selectOtherHint`. `MultiSelect` takes the same three parameters, with "Other"
+ticked alongside the options.
+
 **Reach for a [`RadioGroup`](radio-group.md) above a `Select`** when
 there are three or four options and room to show them. A select hides its
 options behind a tap, a cost worth paying only when showing them would crowd the
@@ -42,9 +77,14 @@ screen.
 Looks like a [`TextField`](text-field.md) and carries the same label-as-name,
 `error` and disabled semantics from the same scaffold.
 
-The menu reports **`Role.RadioButton` per item**, not a list of buttons: "one of
-these is on" is what a select actually conveys, and a menu of buttons all
-announcing "button" tells a screen reader user nothing about which is in force.
+The menu reports **every option as a radio button, chosen or not**, in one
+group: "one of these is on" is what a select actually conveys, and a group lets a
+screen reader say which of how many an option is. A menu of buttons all
+announcing "button" tells a screen reader user nothing about which is in force,
+or that the others are choices at all.
+
+In a browser under Compose 1.12 each option is announced as a button, with no
+state — see [In the browser](../accessibility.md#in-the-browser).
 
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.

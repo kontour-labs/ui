@@ -120,9 +120,12 @@ ALSO = re.compile(r"^\*Also on this page:\s*(.+?)\*$", re.MULTILINE)
 # are visibility, receiver and name. Shared by `public_composables` — which is
 # the definition of "a component" — and by `unswept_enums`, so both agree about
 # what counts.
+#
+# `inline` is allowed for, as `Column` is inline: `ListGroup` and `KeyValueList`
+# became so their builders could be composable, and the count read them as gone.
 COMPOSABLE_HEADER = re.compile(
     r"@Composable[^\n]*\n(?:@[^\n]*\n)*"
-    r"((?:internal |private |public )?)fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
+    r"((?:internal |private |public )?)(?:inline )?fun (?:<[^>]*> )?(?:(\w+)\.)?(\w+)\s*\("
 )
 
 # `internal val ToolbarDemo = ComponentDemo(`, and the family list that has to
@@ -365,6 +368,7 @@ def public_modifiers() -> dict[str, Path]:
 # each in the adaptive index, and nobody could see one without writing it.
 MODIFIERS_IN_GUIDES = {
     "Modifier.concentric": "tokens.md",
+    "Modifier.dragSource": "drag-and-drop.md",
     "Modifier.contentSwipeBack": "navigation3.md",
     "Modifier.focusRing": "accessibility.md",
     "Modifier.pageEffects": "navigation3.md",
@@ -379,7 +383,7 @@ KDOC_PARAM = re.compile(r"^\s*\*\s*@(?:param|property)\s+\w+", re.MULTILINE)
 
 # `fun`, `class` or a primary constructor, with its indent and any receiver.
 DOCUMENTED_HEADER = re.compile(
-    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual)\s+)*"
+    r"^([ \t]*)(?:(?:public|internal|private|abstract|open|sealed|data|value|inner|expect|actual|inline)\s+)*"
     r"(?:fun|class)\s+(?:<[^>]*>\s*)?(?:([A-Za-z_][\w.]*)\.)?([A-Za-z_]\w*)"
 )
 
@@ -770,25 +774,28 @@ HAPTIC_POLICY_ROW = re.compile(r"^\|\s*A \*\*[^|]+\|([^|]*)\|", re.M)
 # A component that fires, either directly or through the shared ticker.
 PERFORMS = re.compile(
     r"\bperform\(|\brememberDetentTicker\(|\brememberTapFeedback\(|\brememberToggleFeedback\(|\brememberHoldFeedback\("
-    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\("
+    r"|\brememberDragTexture\(|\brememberEndStopLatch\(|\brememberLongPressFeedback\(|\brememberLandingFeedback\("
 )
 
-# Two files whose component is not their filename. Written out rather than
+# Files whose component is not their filename. Written out rather than
 # guessed: `Reorderable.kt` holds `ReorderableItem`, and the warning lives in
-# `Dialog.kt` but belongs to `AlertDialog`.
+# `Dialog.kt` and belongs to both `AlertDialog` and a `Dialog`'s destructive
+# confirm.
 HAPTIC_FILE_NAMES = {
     "Reorderable": "ReorderableItem",
-    "Dialog": "AlertDialog",
+    "Dialog": ("AlertDialog", "Dialog"),
     "IconButton": "IconToggleButton",
     "NavRail": "NavScope",
     "Select": "MultiSelect",
     "TableRows": "Table",
     "Pressable": "Modifier.pressable",
+    "DragHost": "Modifier.dragSource",
 }
 
-# The mechanism rather than a component: one defines the dispatcher, the other
-# is the shared detent ticker every snapping component calls.
-HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt"}
+# The mechanism rather than a component: one defines the dispatcher, one is the
+# shared detent ticker every snapping component calls, and one is the pick-up
+# every carried thing — a reordered row, a dragged card — lands through.
+HAPTIC_MECHANISM = {"Feedback.kt", "Detents.kt", "PickUp.kt"}
 
 
 MAX_PLATFORM_HAPTICS = 0
@@ -863,7 +870,8 @@ def haptics_policy_drift() -> list[str]:
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         if PERFORMS.search(text):
             stem = path.stem
-            firing.add(HAPTIC_FILE_NAMES.get(stem, stem))
+            names = HAPTIC_FILE_NAMES.get(stem, stem)
+            firing.update((names,) if isinstance(names, str) else names)
 
     problems = []
     for name in sorted(policy - firing):

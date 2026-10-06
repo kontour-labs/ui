@@ -247,10 +247,12 @@ page of your own, outside `NavDisplay`.
 
 **From the very edge, back wins; from anywhere else, the control does.** The
 edge swipe decides as early as a swipe row does, and before it, so a swipe that
-starts in the 20dp band at the leading edge goes back even when it starts on a
+starts in the 24dp band at the leading edge goes back even when it starts on a
 row with actions on both sides — the row is left where it was. A control that
 takes the press itself keeps it, edge or not: a slider pressed at its very start
-still slides. Away from the edge a swipe row owns both directions, including the
+still slides. A list still moving from a throw takes the press too, to stop, and
+that is not a control's: a sideways swipe over a moving list goes back, from the
+edge and from the content alike, and one up or down is still the list's. Away from the edge a swipe row owns both directions, including the
 side it has no actions on, where it gives under the finger and comes back rather
 than letting the page go. The catalog's Back page has a two-sided row, a
 one-sided row, a slider and a carousel on its second page to try this on.

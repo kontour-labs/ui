@@ -22,6 +22,30 @@ TextArea(
 )
 ```
 
+### Code
+
+`code = true` is for a snippet, a config file or a public key pasted in. The
+text and the placeholder are set in the theme's mono face at the area's own
+size, so columns line up and a 0 is not an O. The keyboard is asked for no
+autocorrect and no capitalisation, since a corrected `val` or a capitalised key
+is a different one. [`TextField`](text-field.md) takes the same flag.
+
+<!--sample:CodeTextArea-->
+```kotlin
+val config = rememberTextFieldState("route = 960\nretry = 0")
+val stop = rememberTextFieldState()
+
+// The mono face, so columns line up and a 0 is not an O, and a keyboard
+// that neither corrects nor capitalises: either would change what was meant.
+TextArea(state = config, label = "Feed override", code = true)
+TextField(state = stop, label = "Stop code", placeholder = "per-10352", code = true)
+```
+
+The face is [`Theme.typography.mono`](../theming.md)'s, which is JetBrains Mono
+unless the theme says otherwise. Nothing else changes: the label, the frame and
+the messages stay in the body face, and the area still wraps. A line of code
+that must not wrap belongs in a horizontally scrolling block, not a field.
+
 ---
 
 ## Accessibility

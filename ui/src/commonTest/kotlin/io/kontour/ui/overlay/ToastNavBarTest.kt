@@ -9,6 +9,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -80,6 +84,55 @@ class ToastNavBarTest {
         mainClock.autoAdvance = false
         val bottom = toastBottom()
         assertTrue(bottom <= barTop(), "the toast's foot at ${bottom}px is over the docked bar, whose top is at ${barTop()}px")
+    }
+
+    /** The card itself: the node that announces the toast, not its words. */
+    private fun ComposeUiTest.card(): Rect {
+        toasts.show("Saved to favourites")
+        mainClock.advanceTimeBy(600)
+        waitForIdle()
+        return onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion)).fetchSemanticsNodes().first().boundsInRoot
+    }
+
+    /**
+     * Close above the bar: 8dp of page between them, as off the window's own
+     * edge. It was 28 — `sm` above the bar and the card's own 16dp ring above
+     * that — reported as *"the clearance above the nav bar is a bit too
+     * large"*.
+     */
+    @Test
+    fun aToastStandsCloseAboveTheBar() = runComposeUiTest {
+        // Docked, so the bar's bounds are its surface: a floating bar's are the
+        // capsule and the margin round it.
+        page(style = NavBarStyle.Docked)
+        mainClock.autoAdvance = false
+        val gap = with(density) { (barTop() - card().bottom).toDp() }
+        assertTrue(gap in 6.dp..10.dp, "the toast stands $gap above the bar")
+    }
+
+    /** And close to the window's foot, with no bar, and its top, shown there. */
+    @Test
+    fun aToastStandsCloseToTheWindowsEdge() = runComposeUiTest {
+        var position by mutableStateOf(ToastPosition.Bottom)
+        var height = 0f
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                OverlayHost(Modifier.fillMaxSize().onPlaced { height = it.size.height.toFloat() }) {
+                    ToastHost(toasts, position = position)
+                }
+            }
+        }
+        waitForIdle()
+        mainClock.autoAdvance = false
+        val foot = with(density) { (height - card().bottom).toDp() }
+        assertTrue(foot in 6.dp..10.dp, "a bottom toast stands $foot off the window's foot")
+
+        toasts.clear()
+        runOnUiThread { position = ToastPosition.Top }
+        mainClock.advanceTimeBy(800)
+        waitForIdle()
+        val head = with(density) { card().top.toDp() }
+        assertTrue(head in 6.dp..10.dp, "a top toast stands $head off the window's top")
     }
 
     @Test

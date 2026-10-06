@@ -66,6 +66,13 @@ internal class PlatformReading(
 /** The platform's reading of [locale]. May be slow — it is called once per locale. */
 internal expect fun readPlatformLocale(locale: Locale): PlatformReading
 
+/**
+ * How the platform writes an amount of [code] in [locale], or `null` where it
+ * does not know the currency. May be slow: it is called once per currency a
+ * locale is asked for.
+ */
+internal expect fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat?
+
 /** [LocaleFormats.of], built from the platform and cached by tag. */
 internal fun localeFormatsFor(locale: Locale): LocaleFormats = LocaleFormatsCache.get(locale)
 
@@ -92,7 +99,10 @@ private object LocaleFormatsCache {
                 ?.let { if (it.symbols == symbols) it else it.copyWith(symbols) }
                 ?: englishData(writesAmericanEnglish(tag.region), symbols)
         }
-        return PatternLocaleFormats(locale, data, conventions)
+        // Money is the platform's in English too: the built-in English knows
+        // one dollar, and an American reader's euro is `€`, not `EUR`.
+        val withMoney = if (reading == null) data else data.withCurrency { code -> readPlatformCurrency(locale, code) }
+        return PatternLocaleFormats(locale, withMoney, conventions)
     }
 }
 

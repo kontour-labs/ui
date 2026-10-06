@@ -28,6 +28,364 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+## 0.4.2 — 4 October 2026
+
+Feedback from building an app on 0.4.1. A loading state and a way to move
+between states, a scrollbar that shows under touch and goes on any scroller, a
+row of buttons for a form dialog, date fields, money in the theme's formats,
+builders that read the theme where they are written, and a "More" for a bar with
+more destinations than room. Fixes for overlays left up when their caller went,
+a select's options and a search field as a screen reader meets them, a table
+column fitted to more than its first rows, swipe back over a moving list,
+`LoadMore` in a plain column, helpers in a navigation group and a POSIX browser
+locale. The docs gain recipes for images from the network and for a question
+that needs more than an answer.
+
+A lambda literal compiles everywhere as it did, but a builder held in a variable
+and a few arguments passed by position need a change, and anything built
+against 0.4.1 has to be recompiled — see **Breaking**, and
+[Migrating](migrating.md#041-to-042) for the code before and after. Four things
+look different without any change: an app with no `WindowSizeClassProvider` now
+gets a rail and two panes on a wide window rather than a phone's layout, a
+floating `NavBar` sits lower over a home indicator, with the page fading out
+under it (`fadeUnder = false` keeps the page as it was), a date picker given
+no icons has arrows either side of its month, and a bottom sheet's top corners
+on a round phone stop at 40dp.
+
+### Breaking
+
+- **[`ListGroup`](components/list-item.md), [`KeyValueList`](components/key-value-list.md),
+  [`Stat`](components/stat.md) and the readouts of [`Gauge`](components/gauge.md),
+  [`Meter`](components/meter.md) and [`Knob`](components/knob.md) take
+  composable builders**, so `Theme.formats`, `Theme.strings` and a string
+  resource are read where a row or a figure is written —
+  `item("Departs", supporting = Theme.formats.time(departure))`,
+  `value(Theme.formats.currency(total, "AUD"))` — rather than hoisted above it.
+  All six are `inline`, as `Column` is, so the builder runs in the caller's
+  composition and a state it reads recomposes what draws it. **A lambda literal
+  compiles as before; a builder held in a variable of the old, non-composable
+  type, or a plain function passed for one, no longer does** — mark it
+  `@Composable`. `listGroup` in a `LazyColumn` is unchanged.
+- **A selection control's `interactionSource`, or a button's or a text field's
+  `variant`, passed by position no longer compiles.** `Checkbox`,
+  `TriStateCheckbox`, `Switch`, `RadioButton`, `Button`, `TextButton` and
+  `SplitButton` take a `contentDescription` after `enabled`; `TextField` and
+  `TextArea` take `code` before `variant`; `NavBar` takes `fadeUnder` before
+  `windowInsets`, and `NavigationSuiteScaffold` `barFadeUnder` after
+  `railExpandedWidth`. Each is a different type from what was in its place, so a
+  call that passed those arguments by position fails to compile rather than
+  meaning something else. Name the argument.
+- **Recompile rather than swap the jar.** The six builders above are `inline`
+  now, and `Dialog`, `NavBar`, `NavigationSuiteScaffold`, the selection
+  controls, the buttons, the text fields, `ComponentDefaults`, `LocaleFormats`
+  and `Strings` gained members,
+  so a library built against 0.4.1 fails when it calls one until it is rebuilt.
+
+### Changed
+
+- **A [bottom sheet](components/bottom-sheet.md)'s top corners stop at 40dp** on
+  a round display. They followed the display's corners all the way — an iPhone's
+  55pt, a newer Pixel's 51dp — at any height, and at half height that curve sat
+  close to the header's text: *"on iphones and newer pixels, it starts to look
+  like the rounded corners get a bit close to the text in the sheet header"*. A
+  display rounder than the theme's 34dp still rounds them, to 40dp at most; at
+  full height the display's own corner covers them either way. A theme whose
+  sheet corner is rounder than 40dp keeps it.
+- **A [`PageIndicator`](components/page-indicator.md#dragged-along-page-by-page)'s
+  scrub pill fades in as it grows** and is its colour from half its thickness
+  on, and fades as it shrinks back. The line through the dots it starts as was
+  drawn at full colour, a hard thin bar for a frame or two. The fade rides the
+  same spring as the size.
+- **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
+  moves**, thinner, and fades 600ms after it stops, where it used to draw
+  nothing at all. While it is drawn a finger on its thumb takes hold of it and
+  drags the content, as a mouse does — *"if the scrollbar is visible (even on
+  mobile), then dragging it should do what you expect"*. Only the thumb: the
+  rest of the strip at a list's edge is the list's, which it was not under an
+  `alwaysVisible` bar. With a keyboard it is drawn at rest, as with a mouse and
+  as the docs always said.
+- **Without a `WindowSizeClassProvider`, the [window size class](components/window-size-class.md)
+  is the window's**, read by `KontourTheme`, where it used to be a phone. Apps
+  that leave the provider out — the root setup has none — now get a rail and two
+  panes on a tablet or a desktop window rather than the bottom bar. A provider
+  still measures a region, and wins inside it; a class provided outright is
+  kept.
+- **A floating [`NavBar`](components/nav-bar.md#where-a-floating-bar-sits-and-what-is-under-it)
+  sits just clear of iOS's home indicator and Android's gesture handle**, about
+  28dp up from the window's foot, rather than above the whole strip the system
+  keeps for them: 14dp lower on an iPhone, 4dp lower over a gesture handle.
+  Android's three buttons, and a docked bar, keep the whole inset, as does a
+  `windowInsets` taller than the handle's, which is kept as given. There is no
+  switch for this: it is where the bar belongs. The scaffold's padding comes
+  down with it.
+- **The page fades out under a floating bar**, which stands off it on a shadow
+  a little deeper than the theme's `high`. Over the rows of a list, which are
+  `surface` as the bar is, it was a shadow apart from them. `fadeUnder = false`
+  (`barFadeUnder` on `NavigationSuiteScaffold`) leaves the page as it is and
+  gives the capsule a rim, a hairline of its own ink, instead. The fade is the
+  colour the bar sits on, `LocalContainerColour`.
+- **An [`AlertDialog`](components/alert-dialog.md)'s buttons stay on screen
+  under a long message**, which scrolls, rather than scrolling away below it.
+  A dialog's content fades at the edge it scrolls under while there is more
+  past it.
+- **A [`DatePicker`](components/date-picker.md#the-header-is-the-way-out-of-paging),
+  `DateRangePicker` and `DateTimePicker` have their paging arrows by default**:
+  the library's chevrons, back and on in the reading direction. Given no icons
+  they had no buttons either side of the month, and paged only by a swipe —
+  *"there's no left/right buttons"*, of one in a dialog. `previousIcon = null`
+  and `nextIcon = null` leave them out.
+- **A [toast](components/toast.md) stands 8dp off its edge**, the window's top
+  or foot inside its insets, and 8dp above a navigation bar, where it stood 16dp
+  off the window and 28dp above the bar: *"the clearance between the toast and
+  the top/bottom of the page (or the clearance above the nav bar) is a bit too
+  large"*.
+
+### Added
+
+- **Several pictures behind a `Hero` [`TopBar`](components/top-bar.md)**:
+  *"with the hero header, can we make an option for a carousel of images. try
+  to use our existing carousel and page indicators"*. Give `image` a
+  `HeroImages(state) { page -> … }` and the picture is a
+  [`Carousel`](components/carousel.md), one page at a time, swiped anywhere
+  that is not a button, with its [`PageIndicator`](components/page-indicator.md)
+  at the bottom end of the bar, over the fade, on the last line of the title
+  block, which stops short of it.
+  The dots go up with the title as the bar collapses and are gone a third of
+  the way in. Decorative like a single hero picture, so hidden from screen
+  readers, dots and all; outside a hero bar it is a carousel announced as
+  `Theme.strings.images`, with its dots at the foot.
+- **"Other" on a [`Select`](components/select.md) and a
+  [`MultiSelect`](components/multi-select.md)**, for an answer none of the
+  options give: *"when this option is selected, a text box expands within the
+  dropdown's outline, allowing the user to enter a custom value"*. Pass
+  `onOtherTextChange` and the menu ends with "Other"; picked, a filled text
+  field opens inside the outline, under the value, inset for concentric
+  corners, and takes the keyboard. `otherText` holds what is
+  typed, and picking an option instead clears it, so the answer is
+  `otherText ?: value`. The words are `Theme.strings.selectOther` and
+  `selectOtherHint`, or `otherLabel`. Nothing changes for a select not given it.
+- **[Drag and drop](drag-and-drop.md) across the app**, so a card moves
+  between a board's columns, which `ReorderableItem` could not do.
+  `Modifier.dragSource` carries a typed payload, `Modifier.dropTarget` with
+  `rememberDropTargetState` takes it, and `rememberDropListState`,
+  `Modifier.dropList` and `dragItems` make a lazy list both. Each drop is one
+  `onDrop`, with the index it lands at and where it came from, and nothing in
+  your lists moves before then. The list opens a gap where the card would land,
+  and scrolls as the card nears either end; anything else that scrolls takes
+  `Modifier.dragAutoScroll`. The nearest `OverlayHost` draws the carried card
+  above everything, so it can leave a sheet. Every move also works without a
+  pointer: *Move to Done*, *Move up* and *Move down* for a screen reader, Space,
+  Enter and the arrows for a keyboard, and each step is said aloud through
+  `Theme.strings`.
+
+- **[`FileField`](components/file-field.md)**, and **`rememberFilePicker`**
+  under it, which opens each platform's own picker: Android's document picker, iOS's,
+  a desktop file dialog and a browser's file input. Each file is a chip with its
+  name and size, in one row that scrolls sideways so the field keeps its height;
+  a single file clears with the button where the attach glyph was. `FileTypes` says what to
+  offer (`image/png`, a whole family, `.pdf`), and what comes back is checked
+  against it again. What is picked arrives as `PickedFile`s, read on demand.
+  `LocalFileChooser` swaps the picker for a test's or an app's own. Files
+  dragged in from outside the app can be dropped on the field too. Before, it
+  took a button and a text area. On Android, `:ui` now depends on
+  `androidx.activity:activity-compose` for the picker's result registry.
+
+- **Drops from outside the app**: files from the desktop, the Files app or
+  another window, and text. A drop target or a drop list takes an
+  `ExternalDrops` — `ExternalDrops.files(types)` for files of some types — and
+  hears each drop once, as `PickedFile`s read on demand and, on a list, the
+  position it was let go at where the platform says (a desktop and Android; a
+  browser and iOS do not). A list shows a line where it would land. On Android
+  the drop's read permission is asked for through the activity, and lasts as
+  long as the activity does.
+
+- **[`DropZone`](components/drop-zone.md)**, a drop target that shows where a
+  drag stands with it — a dashed place at rest, the accent while something it
+  would take is carried, the accent's ground over it, the danger colour's when
+  it would turn the thing away — laid out as an `EmptyState`, with room for a
+  picker beside the drop. `rememberDropTargetState(label, external)` makes a
+  target that takes only drags from outside the app, for an upload area.
+
+- **[`Button`](components/button.md), [`TextButton`](components/text-button.md)
+  and [`SplitButton`](components/split-button.md) take a `contentDescription`**,
+  read in place of the label where the label alone does not say enough — "Save"
+  on screen, "Save this trip to Perth" read aloud. It took a `semantics`
+  modifier of your own. An [`ExtendedFloatingActionButton`](components/fab.md)'s
+  description is now its name open as well as collapsed, as its documentation
+  said; open, the label was.
+
+- **[`SecretField`](components/specialised-fields.md#a-key-is-not-a-password)**
+  for an API key, a token or a recovery code: masked, revealed and showing the
+  character just typed as `PasswordField` does, and not a password to the
+  platform — no autofill hint, an ASCII keyboard, the mono face — so nothing
+  offers to save a key as the reader's login. On iOS the keyboard may learn from
+  it, as it does from any field that is not secure entry; the page says what
+  each platform still does. Its toggle reads `Theme.strings.show` and `hide`.
+
+- **[`TextArea`](components/text-area.md#code) and
+  [`TextField`](components/text-field.md) take `code = true`** for a snippet, a
+  config file or an identifier: the text and placeholder in the theme's mono
+  face, at the field's own size, and a keyboard asked for no autocorrect and no
+  capitalisation. The fields take no text style, so there was no asking for one.
+
+- **`Theme.formats.currency(amount, code)`** writes an amount of money as the
+  reader writes it — `€3.20`, `3,20 €`, `￥320` — with the currency's own places,
+  from the platform's CLDR. See [`LocaleFormats`](components/locale-formats.md#money).
+
+- **[`LoadingState`](components/empty-state.md#loading-and-the-move-between-them)**,
+  the third of the states beside `EmptyState` and `ErrorState`, drawn as they
+  are with a spinner where their icon is.
+- **[`StateSwitcher`](components/empty-state.md#loading-and-the-move-between-them)**
+  puts loading, empty, failed and the content in one place and moves between
+  them when its `target` changes: the state leaving fades through the one
+  arriving, and the space they take changes size smoothly. Under reduced motion
+  it cross-fades and takes the new size at once.
+
+- **`contentDescription` on [`Checkbox`](components/checkbox.md),
+  [`TriStateCheckbox`](components/tri-state-checkbox.md),
+  [`Switch`](components/switch.md) and [`RadioButton`](components/radio-button.md)**,
+  for one that stands alone with no row to name it — a select-all box over a
+  table. It came out as an unnamed control. In a `SelectionRow` the row's label
+  is still the name; leave it `null` there.
+
+- **[`DateField`](components/date-field.md) and `DateTimeField`**, the tappable
+  field a form shows for a `DatePicker` and a `DateTimePicker`, as `TimeField`
+  is for a `TimePicker`. A `DateField` with no date yet shows its placeholder.
+
+- **[`SegmentedControl`](components/segmented-control.md) takes values**:
+  `value`, `options`, `onValueChange` and `optionLabel`, as `Select` and
+  `RadioGroup` do, so nothing maps an index back to an option. The overload
+  taking strings and an index stays.
+
+- **[`Modifier.scrollbar(state)`](components/scrollbar.md)** puts a scrollbar
+  on the scroller itself — a `Column` before its `verticalScroll`, a
+  `LazyColumn`, a grid, a `LazyRow` with `Orientation.Horizontal` — with nothing
+  to wrap it in and nothing to align. `Scrollbar` is the same bar as a component
+  of its own.
+
+- **[`Dialog`](components/dialog.md) takes `actions`**, the row of buttons an
+  `AlertDialog` draws: `actions = { cancel(); confirm("Save", enabled = valid) { … } }`.
+  The row sits under the content rather than in it, so a form taller than the
+  window scrolls and its Save stays on screen. The builder is composable, so a
+  label can come from `Theme.strings` or a string resource where it is written.
+  It is also how to ask a question that needs more than an answer — type the
+  account's email to delete it, give a reason — with a field above a confirm
+  that waits for it; [the alert dialog's page](components/alert-dialog.md#a-question-that-needs-more-than-an-answer)
+  has the recipe. A destructive `confirm` warns once as the dialog arrives, as
+  a destructive `AlertDialog` does, and anything else written in the row — a
+  button of your own — is drawn too, leading it. An `AlertDialog` keeps its
+  fixed shape.
+
+- **A [`NavBar`](components/nav-bar.md#dragging-the-marker)'s marker can be
+  dragged to a group.** Let go over one and its menu opens, and the group keeps
+  the marker while it is open; closed without a pick, the marker goes back to
+  where it was. A drag across a group to the destination beyond opens nothing.
+
+- **[`more { }`](components/nav-bar.md#more-than-a-bar-has-room-for)** on any
+  `NavScope`: the destinations a bar has no room for, behind a circle of three
+  dots at its end, named `Theme.strings.more`, that opens a menu of them. A
+  group with no icon, name or key to choose. A rail has room, and draws them in
+  line, so one block reads right in a `NavigationSuiteScaffold`.
+
+### Fixed
+
+- **[`SegmentedControl`](components/segmented-control.md#when-the-labels-do-not-fit)'s
+  labels keep apart at phone width.** A segment keeps
+  `SegmentedControlDefaults.LabelPadding`, 4dp, either side of its label, and the
+  control stacks its options rather than let two labels closer than 8dp. A label
+  could fill its share to the last dp, and "Standard" met "Keyboard" with nothing
+  between them. A control that fitted with a few dp to spare now stacks: the
+  gallery's settings at 130% text, for one.
+- **`PasswordField(newPassword = true)` tells autofill it is a new password.**
+  Its hint was on the field's frame, which no autofill service reads; the input
+  said `Password`, from the password keyboard, so a password manager offered a
+  saved password where it should have offered to make one. The specialised
+  fields' hints are now on the input itself.
+- **On an iPhone or iPad, the keyboard opens on the tap that focuses a text
+  field in the browser.** WebKit opens it only for an input focused during the
+  tap, and Compose focuses its own a frame later — later still for a combobox,
+  the nav bar's search and a knob's typed value, which focus from an effect.
+  `KontourTheme` installs a primer that holds the keyboard open for them. See
+  [installing](installing.md#per-platform); untested on a device here.
+- **An [`Avatar`](components/avatar.md) or a [`Badge`](components/badge.md)
+  inside a row no longer names it.** A clickable `Card`, a `ListItem`, a
+  `SelectionRow` and a button each merge into one node, and a description in it
+  is read instead of the row's text — so a chat row was announced as its person,
+  or as "3 unread", and nothing else. Inside one, an avatar says no name and a
+  badge says itself as text, read with the rest of the row; an `AvatarGroup` is
+  "3 people" rather than "3 people, Ada, Grace, Katherine". An avatar given a
+  `contentDescription` still says it.
+- **An edge [bottom sheet](components/bottom-sheet.md#pinned--a-part-that-stays-at-an-edge-with-the-content-passing-behind)
+  collapsed to a part pinned to its top clears the safe area.** The pinned
+  detent counted the safe area only under a part pinned to the bottom, so with
+  the part at the top the sheet came to rest with its foot behind the home
+  indicator: *"the "edge" bottom sheet style now doesn't clear the safe area
+  when it's collapsed with a "pinned" item"*. Not new in this release — the
+  arithmetic is 0.3.0's.
+- **A [coachmark tour](components/coachmark.md#coachmarktour) dims the page
+  once, from one step to the next.** Each step had a dim of its own, and the
+  next arrived while the last was leaving, so the page went twice as dark
+  between steps and came back. The dim stays, and the hole and the bubble
+  travel to the next control.
+- **A menu's dividers can be seen on the menu.** They were `outlineSubtle`, the
+  faintest rule, chosen for a list on `surface`; on a menu's raised panel that
+  was 1.15:1 in light and, in dark, 1.06:1 and darker than the panel. A
+  [`MenuDivider`](components/dropdown-menu.md), and every menu's `divider()`, is
+  the menu's text colour at 12% now — 1.28:1 and 1.39:1, what a list's divider
+  stands off a list — and the tier's `outline` at high contrast, as before.
+- **A [`Table`](components/table.md)'s fitted column is measured against rows
+  spread through the data** — the first twenty, the last ten and twenty between —
+  rather than the first fifty alone, and again, widening only, when `items` is a
+  new list. A wider date past the first rows was cut off as it scrolled into
+  view, and data loaded later never refitted the column.
+- **A [`SearchField`](components/search-field.md) is named by its placeholder**,
+  and "Search" without one, as are the fields in `NavSearch` and the command
+  palette. It had no name at all — a screen reader announced an edit box — and
+  nothing from outside could give it one.
+- **A [`Select`](components/select.md)'s and a
+  [`Combobox`](components/combobox.md)'s options are each a radio button, chosen
+  or not, in one group.** Only the chosen one was; the rest announced as
+  buttons, so nothing said they were choices. A
+  [`MultiSelect`](components/multi-select.md)'s checkboxes now say whether they
+  are ticked. A menu of actions is unchanged.
+- **A `Dialog`, `AlertDialog` or `CommandPalette` that leaves composition while
+  it is up goes with it**, as a popover, a menu and a sheet already did. It
+  stayed on screen when its caller went — a screen navigated away from, an `if`
+  round it turning false — with nothing left to close it. A dialog whose `key`
+  changed while it was up was shown twice. The toast stack's host is the same.
+- **A scrollbar on a grid, a staggered grid or a pager is drawn.** It read only
+  `ScrollState`s and lazy lists, and drew nothing for anything else; it reads
+  the position every scroller in foundation reports now.
+- **A browser reporting a POSIX locale no longer blanks the page.** Headless
+  Chromium's `navigator.language` is `en-US@posix`, and Compose's `Locale(tag)`
+  on the web is `new Intl.Locale(tag)`, which throws on it, through the first
+  composition. The browser's languages are cleaned — the `@` modifier and the
+  charset dropped, `_` made `-` — and the first `Intl` accepts is used, with
+  `en-AU`, the library's own default, when none is. Compose's own
+  `Locale.current` reads the same list through the same constructor if anything
+  inside Compose asks for it; that half is Compose's.
+- **[`LoadMore`](components/load-more.md) asks for the next page when it is on
+  screen, not when it is composed.** At the foot of a plain scrolling `Column`,
+  which composes everything at once, it chained through every page to the end
+  before anyone scrolled. It now waits until some of it is in the window; a
+  lazy list's prefetch no longer asks early either.
+- **A destination written through a helper draws where the helper is called.**
+  A helper written in a navigation block — `fun stop(id: String) = item(…)` —
+  closes over that block's scope, and called inside a `group { }` it drew as
+  the outer scope's: over a shut group in a rail, unindented in an open one,
+  as a circle of its own in a bar, and opening the bar's menu claimed its key
+  twice and threw. Every destination call now draws through the scope composing
+  the place it is called from. `NavScope` already carried a DSL marker; that
+  refuses an implicit outer receiver, but cannot see a captured one.
+- **On iOS, swiping back works over a list that is still moving.** A list moving
+  from a throw takes the press that lands on it, to stop, and the swipe back
+  read that as a control taking the press and left it alone — from the very
+  edge as well, and for seconds after a throw, which keeps moving long after it
+  stops looking like it. A press that catches a list moving up or down no longer
+  counts: a sideways swipe goes back, and one up or down is still the list's.
+
+---
+
 ## 0.4.1 — 4 October 2026
 
 A `Hero` bar a mouse wheel could not open again, a segmented control's thumb

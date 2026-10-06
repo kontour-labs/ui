@@ -73,6 +73,24 @@ internal actual fun readPlatformLocale(locale: Locale): PlatformReading {
     return PlatformReading(conventions, symbols) { intlData(tag, parsed, symbols) }
 }
 
+/**
+ * `Intl`'s currency format for [code]: what comes before the number and after
+ * it in an amount of one, and the places `Intl` gives the currency. `null` where
+ * `Intl` refuses the code.
+ */
+internal actual fun readPlatformCurrency(locale: Locale, code: String): CurrencyFormat? {
+    val tag = locale.toLanguageTag()
+    val money = parts(intlNumberParts(tag, """{"style":"currency","currency":"$code"}""", 1.0))
+    val first = money.indexOfFirst { it.first == "integer" }
+    val last = money.indexOfLast { it.first == "integer" || it.first == "fraction" }
+    if (first < 0 || last < 0) return null
+    return CurrencyFormat(
+        prefix = money.take(first).joinToString("") { it.second },
+        suffix = money.drop(last + 1).joinToString("") { it.second },
+        fractionDigits = money.firstOrNull { it.first == "fraction" }?.second?.length ?: 0,
+    )
+}
+
 private fun intlData(tag: String, parsed: LocaleTag, symbols: NumberSymbols): LocaleData {
     fun names(month: Boolean, style: String, standalone: Boolean): List<String> =
         intlNames(tag, month, style, standalone).split(Separator)
@@ -156,7 +174,37 @@ private fun glueOf(parts: List<Pair<String, String>>): String {
     }
 }
 
-private fun browserLanguage(): String = js("(typeof navigator!=='undefined'&&navigator.language)||'en-AU'")
+/**
+ * The first of the browser's languages that `Intl` takes, as it writes it.
+ *
+ * Read with care because Compose's `Locale(tag)` is `new Intl.Locale(tag)` with
+ * nothing round it, and a tag it rejects throws through the first composition:
+ * headless Chromium reports `en-US@posix`, and the page came up blank. Each of
+ * `navigator.languages`, then `navigator.language`, is cleaned
+ * ([LocaleTag.cleanPlatformTag]) and offered to `Intl.getCanonicalLocales`, and
+ * the first it accepts is the one; with none, the library's own default.
+ */
+private fun browserLanguage(): String =
+    LocaleTag.firstUsableTag(browserLanguageList().split(Separator), fallback = "en-AU") { intlCanonical(it) }
+
+private fun browserLanguageList(): String = js(
+    """(function(){try{
+        if(typeof navigator==='undefined')return '';
+        var all=(navigator.languages&&navigator.languages.length)?Array.prototype.slice.call(navigator.languages):[];
+        if(navigator.language)all.push(navigator.language);
+        return all.join('\u0002');
+    }catch(e){return '';}})()"""
+)
+
+/** `tag` as `Intl` writes it, or empty where `Intl` rejects it. */
+private fun intlCanonical(tag: String): String = js(
+    """(function(){try{
+        var c=Intl.getCanonicalLocales(tag);
+        if(!c.length)return '';
+        new Intl.Locale(c[0]);
+        return c[0];
+    }catch(e){return '';}})()"""
+)
 
 private fun normalizeNfd(text: String): String = js("text.normalize('NFD')")
 

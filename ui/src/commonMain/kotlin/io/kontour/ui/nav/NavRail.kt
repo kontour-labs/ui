@@ -432,7 +432,7 @@ private fun RailItems(
                     // screen and a half.
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                 ) {
-                    scope.content()
+                    scope.emit(content)
                 }
             }
         }
@@ -474,6 +474,7 @@ private class RailScope(
         badge: (@Composable () -> Unit)?,
         label: NavLabelScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.item(selected, onClick, key, icon, modifier, enabled, selectedIcon, contentDescription, interactionSource, badge, label) }
         val text = navLabel(label)
         ClaimNavKey(keys, key)
         val after = afterClick
@@ -506,6 +507,7 @@ private class RailScope(
 
     @Composable
     override fun section(title: String, modifier: Modifier, content: @Composable NavScope.() -> Unit) {
+        emitter().let { if (it !== this) return it.section(title, modifier, content) }
         // One height whether it is a title or the hairline standing in for one,
         // so the icons below do not move as the rail grows. And both, while it
         // grows: the title fades in over the hairline as the labels do, rather
@@ -558,6 +560,7 @@ private class RailScope(
         badge: (@Composable () -> Unit)?,
         content: @Composable NavScope.() -> Unit,
     ) {
+        emitter().let { if (it !== this) return it.group(expanded, onExpandedChange, key, icon, header, modifier, enabled, interactionSource, badge, content) }
         val text = navLabel(header)
         ClaimNavKey(keys, key)
         // With room for labels, a disclosure; without, a menu beside the rail.
@@ -645,7 +648,7 @@ private class RailScope(
                             .padding(top = Theme.spacing.xxs),
                         verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     ) {
-                        deeper.content()
+                        deeper.emit(content)
                     }
                 }
             }
@@ -658,13 +661,14 @@ private class RailScope(
                 onDismissRequest = { menuOpen = false },
                 side = OverlaySide.End,
             ) {
-                NavMenuScope(this, dismiss = { menuOpen = false }).content()
+                NavMenuScope(this, dismiss = { menuOpen = false }).emit(content)
             }
         }
     }
 
     @Composable
     override fun divider(modifier: Modifier) {
+        emitter().let { if (it !== this) return it.divider(modifier) }
         HorizontalDivider(
             modifier
                 .nested()

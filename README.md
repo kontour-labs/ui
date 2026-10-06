@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and web from one source set.
-<!--counts-->155 public components across 125 pages<!--/counts-->, every one with
+<!--counts-->163 public components across 128 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -53,9 +53,9 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 }
 
 // build.gradle.kts
-implementation("io.kontour:ui:0.4.1")
+implementation("io.kontour:ui:0.4.2")
 // Optional: Navigation 3 scene strategies over the pane scaffolds
-implementation("io.kontour:ui-nav3:0.4.1")
+implementation("io.kontour:ui-nav3:0.4.2")
 ```
 
 `io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can

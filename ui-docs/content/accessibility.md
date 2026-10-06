@@ -268,7 +268,7 @@ tracks the last used input instead:
 | Mouse cursor | n/a | shown | n/a | n/a |
 | Focus ring | hidden | hidden | **shown** | hidden |
 | Tooltips | long-press | hover | on focus | long-press |
-| Scrollbars | not drawn | persistent | persistent | not drawn |
+| Scrollbars | while scrolling | persistent | persistent | while scrolling |
 
 Only *traversal* keys (Tab, arrows, Page Up/Down, Home/End) switch the modality
 to `Keyboard`. Typing into a text field does not — the user is already looking
@@ -358,6 +358,29 @@ Every interactive component declares:
 Decorative elements are marked so, rather than left for a screen reader to
 describe. Reading order is set with `isTraversalGroup` and `traversalIndex`
 where visual order and composition order disagree.
+
+### In the browser
+
+The roles above reach Android's and iOS's accessibility trees as written. **In a
+browser, under Compose 1.12, they do not**: Compose's web layer maps a `Role` to
+its ARIA role and then overrides it with `button` on any node that can be
+clicked, so every clickable node is named `button` whatever its `Role`; and it
+writes no `aria-selected` or `aria-checked`. So a [`TabBar`](components/tab-bar.md)'s tabs, a
+[`SegmentedControl`](components/segmented-control.md)'s segments, a
+[`RadioGroup`](components/radio-group.md)'s options, a
+[`Select`](components/select.md)'s menu, a [`Checkbox`](components/checkbox.md),
+a [`Switch`](components/switch.md) and a
+[`SelectionRow`](components/selection-row.md) are all announced as buttons
+there, with nothing to say which is chosen or on. The library passes the role
+and the state as it does on every other platform; Compose 1.13, in alpha at the
+time of writing, maps them — the role from 1.13.0-alpha01, which falls back to
+`button` only for a clickable node with no role of its own, and the checked and
+selected states after it, which Compose's main branch already writes as
+`aria-checked` and `aria-selected`.
+
+**Names do reach the browser**: a label, a `contentDescription`, a field's name.
+So a test of a web build should find a control by its name rather than by its
+role until the browser is on Compose 1.13.
 
 ---
 

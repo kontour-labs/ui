@@ -85,6 +85,29 @@ interface LocaleFormats {
     fun percent(fraction: Double, fractionDigits: Int = 0): String
 
     /**
+     * An amount of money in [currency], an ISO 4217 code, as this locale writes
+     * it: `3.2` in `"EUR"` is `€3.20` to an American reader, `3,20 €` to a German
+     * one, and `320` yen is `￥320` in Japan — the currency's own places after the
+     * separator, the reader's digits and grouping, and a minus where the locale
+     * puts one.
+     *
+     * ```kotlin
+     * Text(Theme.formats.currency(fare.cents / 100.0, "AUD"))
+     * ```
+     *
+     * **Keep money exact until it is shown.** Add it up in minor units as a
+     * `Long`, or in a decimal type, and make a `Double` of it only here: a
+     * `Double` cannot hold `0.10` exactly, and a total of them drifts. Written
+     * once, rounded to the currency's places, it is right.
+     *
+     * A code the platform does not know is written as the code before the
+     * number, `XYZ 3.20`, rather than thrown over. Only the code says which
+     * currency: the locale does not, and a fare in euros is in euros wherever it
+     * is read.
+     */
+    fun currency(amount: Double, currency: String): String = "$currency\u00A0" + decimal(amount, 2)
+
+    /**
      * Reads a number a reader typed, in this locale's digits and separators or in
      * Western ones — a German reader typing `4,5` and one pasting `4.5` both mean
      * four and a half. `null` if it is not a number.
