@@ -223,7 +223,7 @@ fun Scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
-    contentPadding: PaddingValues = NoContentPadding,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val pointer = scrollbarTakesAPointer()
     val interactions = remember { MutableInteractionSource() }
@@ -438,7 +438,7 @@ fun Modifier.scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
-    contentPadding: PaddingValues = NoContentPadding,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ): Modifier {
     val pointer = scrollbarTakesAPointer()
     val grip = remember { ScrollbarGrip() }
@@ -595,9 +595,6 @@ private class ScrollbarGrip {
     var hovered by mutableStateOf(false)
     var dragging by mutableStateOf(false)
 }
-
-/** A scroller with nothing over it: the track runs its whole length. */
-private val NoContentPadding = PaddingValues(0.dp)
 
 /**
  * What a track keeps clear of, in pixels: [lead] before it and [trail] after it
