@@ -9,6 +9,8 @@ import kotlinx.datetime.LocalDate
  * @property end Minutes after midnight its part ends, [MinutesPerDay] at the latest.
  * @property lane Which of [lanes] side-by-side places it takes in its cluster
  *   of overlapping events, 0 at the start edge.
+ * @property span How many lanes it is wide, from [lane] on: more than one where
+ *   the lanes beside it are free for all of its length.
  * @property clippedStart Whether it began on an earlier day: its top edge is
  *   not its start, so it has no corner there and no handle to move it by.
  * @property clippedEnd The same at the bottom, for one that runs past midnight.
@@ -21,6 +23,7 @@ internal class TimedPlacement(
     val lanes: Int,
     val clippedStart: Boolean,
     val clippedEnd: Boolean,
+    val span: Int = 1,
 )
 
 /**
@@ -72,6 +75,16 @@ internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinu
         val lanes = laneEnds.size
         for ((segment, lane) in cluster) {
             val event = segment.event
+            // On across the next lanes for as long as nothing in them meets it.
+            var span = 1
+            while (lane + span < lanes) {
+                val next = lane + span
+                val blocked = cluster.any { (other, otherLane) ->
+                    otherLane == next && other.start < segment.visualEnd && segment.start < other.visualEnd
+                }
+                if (blocked) break
+                span++
+            }
             placed += TimedPlacement(
                 event = event,
                 start = segment.start,
@@ -80,6 +93,7 @@ internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinu
                 lanes = lanes,
                 clippedStart = event.start.epochMinute < dayStart,
                 clippedEnd = event.end.epochMinute > dayEnd,
+                span = span,
             )
         }
         cluster = ArrayList()

@@ -23,6 +23,27 @@ class CalendarLayoutTest {
 
     private fun timed(from: LocalDateTime, to: LocalDateTime) = CalendarEvent(id = next++, title = "Event $next", start = from, end = to)
 
+    // --- Hour labels ---
+
+    @Test
+    fun aTwelveHourClocksHoursAreLabelledWithoutTheirMinutes() {
+        val twelve = io.kontour.ui.locale.LocaleFormats.english(
+            io.kontour.ui.locale.DateTimeConventions(hourCycle = io.kontour.ui.locale.HourCycle.H12),
+        )
+        // The fixture writes its minutes: what is taken out was there.
+        assertEquals("9:00 am", twelve.time(kotlinx.datetime.LocalTime(9, 0)))
+        assertEquals("9 am", twelve.hourLabel(9))
+        assertEquals("12 pm", twelve.hourLabel(12))
+    }
+
+    @Test
+    fun aTwentyFourHourClocksHoursAreLabelledAsTheClockWritesThem() {
+        val twentyFour = io.kontour.ui.locale.LocaleFormats.english(
+            io.kontour.ui.locale.DateTimeConventions(hourCycle = io.kontour.ui.locale.HourCycle.H23),
+        )
+        assertEquals(twentyFour.time(kotlinx.datetime.LocalTime(14, 0)), twentyFour.hourLabel(14))
+    }
+
     // --- Timed lanes ---
 
     @Test
@@ -47,6 +68,47 @@ class CalendarLayoutTest {
         val placed = layoutTimedDay(day, listOf(timed(at(9), at(11)), timed(at(10), at(12)), timed(at(11, 30), at(13))), minMinutes = 15)
         assertEquals(listOf(0, 1, 0), placed.map { it.lane })
         assertEquals(setOf(2), placed.map { it.lanes }.toSet())
+    }
+
+    @Test
+    fun anEventRunsOnAcrossLanesThatAreFreeForAllOfIt() {
+        // 9–11 beside 9–9:30 then 10–11: three lanes are not needed, and the
+        // 10 o'clock, starting after the half-hour ends, takes the second lane.
+        // Then 9–12 with two short ones in turn beside it, and a late one after
+        // the first short one: the late one may run across into the free lane.
+        val long = timed(at(9), at(12))
+        val first = timed(at(9), at(9, 30))
+        val second = timed(at(9), at(10))
+        val late = timed(at(10, 30), at(11))
+        val placed = layoutTimedDay(day, listOf(long, first, second, late), minMinutes = 15).associateBy { it.event }
+        // The fixture needs three lanes at nine.
+        assertEquals(3, placed.getValue(long).lanes)
+        assertEquals(listOf(0, 1, 2), listOf(long, second, first).map { placed.getValue(it).lane })
+        // The late one takes the first free lane after nine-thirty and runs on
+        // over the lane the hour-long one had finished with.
+        assertEquals(1, placed.getValue(late).lane)
+        assertEquals(2, placed.getValue(late).span)
+        // Those that something meets in every lane after theirs stay one wide.
+        assertEquals(listOf(1, 1, 1), listOf(long, second, first).map { placed.getValue(it).span })
+    }
+
+    @Test
+    fun aSpanStopsAtALaneSomethingMeetsItIn() {
+        // 9–11, 9–10 and 9–9:30 fill three lanes; 10–10:30 takes the second
+        // as the hour-long one leaves it, and 10:15–11 the third. The half-hour
+        // at ten would run into the third lane but for the one at quarter past.
+        val ten = timed(at(10), at(10, 30))
+        val quarterPast = timed(at(10, 15), at(11))
+        val placed = layoutTimedDay(
+            day,
+            listOf(timed(at(9), at(11)), timed(at(9), at(10)), timed(at(9), at(9, 30)), ten, quarterPast),
+            minMinutes = 15,
+        ).associateBy { it.event }
+        assertEquals(1 to 2, placed.getValue(ten).lane to placed.getValue(quarterPast).lane)
+        assertEquals(1, placed.getValue(ten).span, "the one at quarter past meets it in the third lane")
+        // Without the one at quarter past, it runs on: the canary for the fixture.
+        val alone = layoutTimedDay(day, listOf(timed(at(9), at(11)), timed(at(9), at(10)), timed(at(9), at(9, 30)), ten), minMinutes = 15)
+        assertEquals(2, alone.single { it.event == ten }.span)
     }
 
     @Test

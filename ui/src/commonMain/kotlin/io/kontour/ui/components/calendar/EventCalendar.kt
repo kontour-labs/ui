@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
@@ -41,6 +42,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import kotlin.math.floor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -414,7 +420,9 @@ internal fun viewName(view: CalendarView): String {
 internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, timeRange: (String, String) -> String): String {
     val dates = state.visibleDates
     return when (state.view) {
-        CalendarView.Day -> formats.date(state.date, DateStyle.Full)
+        // Long rather than full: the weekday is under it, over the day's hours,
+        // and the full date did not fit a phone's header beside its arrows.
+        CalendarView.Day -> formats.date(state.date, DateStyle.Long)
         CalendarView.Week -> {
             val first = formats.monthAndYear(dates.start)
             val last = formats.monthAndYear(dates.endInclusive)
@@ -516,15 +524,27 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
     val strings = Theme.strings
     val type = Theme.typography
     when (presentation) {
-        EventPresentation.Block -> Column(Modifier.padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs)) {
-            Text(event.title, style = type.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(
-                strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)),
-                style = type.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            event.location?.let { Text(it, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        EventPresentation.Block -> {
+            // The title as many lines as the block is tall, up to two, so a
+            // half-hour block does not cut its second line through the middle.
+            val vertical = Theme.spacing.xxs
+            val titleLine = with(LocalDensity.current) { type.labelMedium.lineHeight.toDp() }
+            val height = LocalBlockHeight.current
+            val titleLines = if (height != null && titleLine > 0.dp) {
+                floor((height - vertical * 2) / titleLine).toInt().coerceIn(1, BlockTitleLines)
+            } else {
+                BlockTitleLines
+            }
+            WholeLines(vertical = vertical, inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
+                Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
+                Text(
+                    strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)),
+                    style = type.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                event.location?.let { Text(it, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
         }
         EventPresentation.Bar -> Text(
             event.title,
@@ -541,6 +561,52 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
             Text(formats.time(event.start.time), style = type.labelSmall, colour = Theme.colours.contentMuted, maxLines = 1)
             Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** At most this many lines of a block's title. */
+private const val BlockTitleLines = 2
+
+/** Below this a block's text is inset by less. */
+private val NarrowBlockWidth = 56.dp
+
+/**
+ * How tall the block being drawn is, for its default content to fit its title
+ * to: known to the day's column as it composes its events, so the content
+ * need not wait for layout to find out.
+ */
+internal val LocalBlockHeight = compositionLocalOf<Dp?> { null }
+
+/**
+ * Lines one under another, as many as fit whole: the first always, the rest
+ * only where all of each is inside the height — never one cut in half. Inset
+ * by [inset] either side, or by [narrowInset] in a block narrower than
+ * [NarrowBlockWidth]: a week's narrow column keeps its few letters for the
+ * title, not for the margin.
+ */
+@Composable
+private fun WholeLines(vertical: Dp, inset: Dp, narrowInset: Dp, content: @Composable () -> Unit) {
+    Layout(content) { measurables, constraints ->
+        val side = (if (constraints.maxWidth < NarrowBlockWidth.roundToPx()) narrowInset else inset).roundToPx()
+        val top = vertical.roundToPx()
+        val room = (constraints.maxHeight - top * 2).coerceAtLeast(0)
+        val lineConstraints = Constraints(maxWidth = (constraints.maxWidth - side * 2).coerceAtLeast(0))
+        var used = 0
+        val shown = ArrayList<Placeable>(measurables.size)
+        for ((i, measurable) in measurables.withIndex()) {
+            val line = measurable.measure(lineConstraints)
+            if (i > 0 && used + line.height > room) break
+            shown += line
+            used += line.height
+        }
+        val width = constraints.constrainWidth((shown.maxOfOrNull { it.width } ?: 0) + side * 2)
+        layout(width, constraints.constrainHeight(used + top * 2)) {
+            var y = top
+            for (line in shown) {
+                line.placeRelative(side, y)
+                y += line.height
+            }
         }
     }
 }

@@ -58,9 +58,12 @@ initialView)`.
 
 | View | What it draws |
 |---|---|
-| `Day`, `Week` | The hours, an hour `hourHeight` tall, one scroll shared by the week so a time is level across it. All-day events and anything a day or longer sit in a strip above the hours. Overlapping events share a day's column side by side, and the shortest event is still drawn tall enough for its title, nudging the next one aside rather than overlapping it. A line marks the time now, on today. The hours open scrolled to `initialScrollTime`, eight in the morning by default. |
-| `Month` | A box for every day of every week the month touches, including the days from the months either side, which are quieter. All-day and several-day events are bars across their days; others are a line with their time. A box holds as many as fit and a "+N" for the rest, which opens that day's list. |
+| `Day`, `Week` | The hours, an hour `hourHeight` tall, one scroll shared by the week so a time is level across it. All-day events and anything a day or longer sit in a strip above the hours. Overlapping events share a day's column side by side, and run on across the lanes beside them wherever those are free; the shortest event is still drawn tall enough for its title, nudging the next one aside rather than overlapping it. Each event is a box in its tone, edged as a banner is. A line marks the time now, on today. The hours sit in a rounded box with their labels beside it — `9 am` on a twelve-hour clock, the clock's own `09:00` on a twenty-four-hour one — and open scrolled to `initialScrollTime`, eight in the morning by default. |
+| `Month` | In a rounded box, a box for every day of every week the month touches, including the days from the months either side, which are quieter. All-day and several-day events are bars across their days; others are a line with their time. A box holds as many as fit and a "+N" for the rest, which opens that day's list. |
 | `Year` | Twelve small months, as many to a row as fit, with each busy day marked in the tone of its first event. |
+
+Today's date is ringed the way the date picker rings it, in every view, so a
+calendar and a picker on the same screen agree about what today looks like.
 
 **Moving about.** The header steps back and on, goes to today and switches
 the view. A sideways swipe steps too, the same way the date picker pages its

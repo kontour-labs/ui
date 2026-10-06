@@ -170,7 +170,11 @@ passed by position need naming — see **Breaking**, and
   `onEventMove` and `onEventResize`. From the keyboard, the grid is one stop
   with a cursor the arrows move — a day in a month, a slot of time in a day
   or a week — paging past the period's ends; Enter opens the day or the
-  time, and Tab goes on to the events of the cursor's day.
+  time, and Tab goes on to the events of the cursor's day. It is drawn in
+  the library's own way: today ringed as the date picker rings it, the month
+  and the hours in rounded boxes, each timed event a box in its tone edged
+  as a banner is, running on across free lanes beside it, and the hours
+  labelled `9 am` rather than `9:00 am`.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

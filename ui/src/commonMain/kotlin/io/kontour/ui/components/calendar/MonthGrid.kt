@@ -1,6 +1,9 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -38,7 +40,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
 import io.kontour.ui.locale.DateStyle
@@ -63,10 +64,16 @@ internal fun MonthView(scope: CalendarScope) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Column(Modifier.fillMaxWidth()) {
         WeekdayRow(scope)
+        val frame = Theme.shapes.container
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
+                // In a box, cornered as the library's containers are and edged
+                // with the grid's own line: the days' lines meet an edge rather
+                // than stopping in the open.
+                .clip(frame)
+                .border(Theme.sizing.borderWidth, gridLine(), frame)
                 // Round the pages rather than on one: a page paged away does
                 // not take the keyboard's focus with it.
                 .calendarCursor(scope, description = scope.dayDescription(scope.state.date)) { key -> scope.monthKey(key, rtl) },
@@ -254,7 +261,7 @@ private fun DayBox(
     val strings = Theme.strings
     val colours = Theme.colours
     val line = Theme.sizing.borderWidth
-    val lineColour = if (highContrast()) colours.outlineStrong else colours.outline
+    val lineColour = gridLine()
     val isToday = date == scope.today
     val dayClick = scope.onDateClick
     val described = formats.list(
@@ -288,30 +295,32 @@ private fun DayBox(
             )
             .semantics { contentDescription = described },
     ) {
-        // The date: its day, opened by pressing its number.
-        Box(Modifier.padding(Theme.spacing.xxs).heightIn(min = dateLabel - Theme.spacing.xxs * 2), contentAlignment = Alignment.CenterStart) {
+        // The date: its day, opened by pressing its number — today's ringed,
+        // as the date picker rings it.
+        val number = dateLabel - Theme.spacing.xxs * 2
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .padding(Theme.spacing.xxs)
+                .sizeIn(minWidth = number, minHeight = number)
+                .todayRing(isToday)
+                .focusProperties { canFocus = false }
+                .pressable(
+                    onClick = { scope.state.show(date, CalendarView.Day) },
+                    shape = Theme.shapes.capsule,
+                    enabled = scope.enabled,
+                    minimumTouchTarget = false,
+                )
+                .padding(horizontal = Theme.spacing.xxs),
+        ) {
             Text(
                 formats.integer(date.day),
                 style = Theme.typography.labelMedium,
-                colour = when {
-                    isToday -> colours.accent.onSolid
-                    inMonth -> colours.content
-                    else -> quietInk()
-                },
+                colour = if (inMonth) colours.content else quietInk(),
                 maxLines = 1,
                 // A date is never broken over two lines: "28" as "2" was the
                 // narrow box's first try.
                 softWrap = false,
-                modifier = Modifier
-                    .then(if (isToday) Modifier.background(colours.accent.solid, Theme.shapes.capsule) else Modifier)
-                    .focusProperties { canFocus = false }
-                    .pressable(
-                        onClick = { scope.state.show(date, CalendarView.Day) },
-                        shape = Theme.shapes.capsule,
-                        enabled = scope.enabled,
-                        minimumTouchTarget = false,
-                    )
-                    .padding(horizontal = Theme.spacing.xxs),
             )
         }
         if (more > 0) {

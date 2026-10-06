@@ -8,7 +8,6 @@ import io.kontour.ui.interaction.PickUpAxis
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +31,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import io.kontour.ui.locale.LocaleFormats
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -51,7 +62,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
 import io.kontour.ui.locale.DateStyle
@@ -81,6 +91,9 @@ internal fun TimeView(scope: CalendarScope) {
     val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
     val hourPx = with(LocalDensity.current) { scope.hourHeight.toPx() }
     val hours = remember { PlacedAt() }
+    // Opened with the first hour's label whole, not cut through by the top
+    // edge it is centred on.
+    val labelInset = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toPx() / 2f + Theme.spacing.xxs.toPx() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val step = scope.edit.stepMinutes
     // Before the keyboard has put it anywhere: the first whole slot in view.
@@ -88,6 +101,7 @@ internal fun TimeView(scope: CalendarScope) {
         val perMinute = hourPx / MinutesPerHour
         if (perMinute <= 0f) 0 else (ceil(state.timeScroll.value / perMinute / step).toInt() * step)
     }
+    val frame = Theme.shapes.container
     val cursor = scope.slotDescription(state.date, state.cursorMinute?.let { scope.cursorMinute { it } })
 
     Column(Modifier.fillMaxWidth().then(swipe)) {
@@ -104,6 +118,7 @@ internal fun TimeView(scope: CalendarScope) {
                 viewport
                     .fillMaxWidth()
                     .onGloballyPositioned { hours.coordinates = it }
+                    .hoursFrame(gutter, frame, gridLine(), Theme.sizing.borderWidth)
                     // On the viewport rather than the hours inside it: focused,
                     // the hours would ask to have all of themselves brought into
                     // view. The cursor brings itself.
@@ -149,7 +164,7 @@ internal fun TimeView(scope: CalendarScope) {
             state.timeScroll.scrollTo(restored)
             state.restoredScroll = null
         } else if (!state.scrolledToStart) {
-            state.timeScroll.scrollTo((state.initialScrollTime.minuteOfDay * hourPx / MinutesPerHour).roundToInt())
+            state.timeScroll.scrollTo((state.initialScrollTime.minuteOfDay * hourPx / MinutesPerHour - labelInset).roundToInt().coerceAtLeast(0))
         }
         state.scrolledToStart = true
     }
@@ -222,6 +237,30 @@ private fun EditScroll(scope: CalendarScope, hours: PlacedAt, days: Int) {
     }
 }
 
+/**
+ * The days' hours in a box, as the month's days are: cornered as the library's
+ * containers are and edged with the grid's line, the gutter outside it. Clips
+ * what scrolls under its corners.
+ */
+private fun Modifier.hoursFrame(gutter: Dp, shape: Shape, colour: Color, line: Dp): Modifier =
+    drawWithCache {
+        val stroke = line.toPx()
+        val gutterPx = gutter.toPx()
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val boxLeft = if (rtl) 0f else gutterPx
+        val box = Size((size.width - gutterPx).coerceAtLeast(0f), size.height)
+        val edge = shape.createOutline(Size((box.width - stroke).coerceAtLeast(0f), (box.height - stroke).coerceAtLeast(0f)), layoutDirection, this)
+        val clip = Path().apply {
+            addOutline(shape.createOutline(box, layoutDirection, this@drawWithCache))
+            translate(Offset(boxLeft, 0f))
+            addRect(Rect(if (rtl) box.width else 0f, 0f, if (rtl) size.width else gutterPx, size.height))
+        }
+        onDrawWithContent {
+            clipPath(clip) { this@onDrawWithContent.drawContent() }
+            translate(boxLeft + stroke / 2f, stroke / 2f) { drawOutline(edge, colour, style = Stroke(stroke)) }
+        }
+    }
+
 /** How near the top or bottom of the hours an edit starts them scrolling. */
 private val EdgeZone = 48.dp
 
@@ -235,6 +274,24 @@ private const val HoursPerDay = 24
 private const val MinutesPerHour = 60
 private const val UnboundedHours = 8
 
+/**
+ * An hour as the gutter labels it: on a twelve-hour clock without its
+ * minutes — `9 am` — which say nothing on the hour and made the gutter the
+ * widest thing in a phone's week; on a twenty-four-hour clock as the clock
+ * writes it, since `14` alone is not a time.
+ *
+ * The minutes are taken out of the locale's own time, so the day period stays
+ * where the language puts it — `午前9` — and a time written some other way is
+ * left whole.
+ */
+internal fun LocaleFormats.hourLabel(hour: Int): String {
+    val full = time(LocalTime(hour, 0))
+    if (!conventions.hourCycle.usesDayPeriod) return full
+    val zero = digits(0)
+    val minutes = timeLayout.separator + zero + zero
+    return if (minutes in full) full.replace(minutes, "") else full
+}
+
 /** As wide as the widest hour label and a margin either side. */
 @Composable
 private fun gutterWidth(scope: CalendarScope): Dp {
@@ -242,10 +299,11 @@ private fun gutterWidth(scope: CalendarScope): Dp {
     val style = Theme.typography.labelSmall
     val density = LocalDensity.current
     val margin = Theme.spacing.xs
-    return remember(scope.formats, style, density, measurer) {
-        val widest = (0 until HoursPerDay).maxOf { hour ->
-            measurer.measure(scope.formats.time(LocalTime(hour, 0)), style).size.width
-        }
+    return remember(scope.formats, scope.strings, style, density, measurer) {
+        // The hours' labels and the all-day strip's, which shares the gutter:
+        // short hours made it narrower than "All day".
+        val labels = (0 until HoursPerDay).map { scope.formats.hourLabel(it) } + scope.strings.allDay
+        val widest = labels.maxOf { measurer.measure(it, style).size.width }
         with(density) { widest.toDp() } + margin * 2
     }
 }
@@ -255,6 +313,8 @@ private fun gutterWidth(scope: CalendarScope): Dp {
 private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
     val start = scope.state.periods.startOf(period, scope.state.view)
     val colours = Theme.colours
+    // A circle round the number, as tall as the number and a little more.
+    val dayNumber = with(LocalDensity.current) { Theme.typography.titleSmall.lineHeight.toDp() } + Theme.spacing.xs
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val narrow = maxWidth / days < WeekdayHeadingWidth
         Row(Modifier.fillMaxWidth()) {
@@ -275,15 +335,11 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
                         maxLines = 1,
                         modifier = Modifier.clearAndSetSemantics { },
                     )
-                    Text(
-                        scope.formats.integer(date.day),
-                        style = Theme.typography.titleSmall,
-                        colour = if (isToday) colours.accent.onSolid else colours.content,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        softWrap = false,
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .then(if (isToday) Modifier.background(colours.accent.solid, Theme.shapes.capsule) else Modifier)
+                            .sizeIn(minWidth = dayNumber, minHeight = dayNumber)
+                            .todayRing(isToday)
                             .pressable(
                                 onClick = { scope.state.show(date, CalendarView.Day) },
                                 shape = Theme.shapes.capsule,
@@ -291,8 +347,18 @@ private fun DayHeadings(scope: CalendarScope, period: Int, days: Int) {
                                 minimumTouchTarget = false,
                             )
                             .semantics { contentDescription = scope.formats.date(date, DateStyle.Full) }
-                            .padding(horizontal = Theme.spacing.xs),
-                    )
+                            .padding(horizontal = Theme.spacing.xxs),
+                    ) {
+                        Text(
+                            scope.formats.integer(date.day),
+                            style = Theme.typography.titleSmall,
+                            colour = colours.content,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.clearAndSetSemantics { },
+                        )
+                    }
                 }
             }
         }
@@ -409,7 +475,7 @@ private fun HourGutter(scope: CalendarScope, width: Dp) {
         content = {
             for (h in 1 until HoursPerDay) {
                 Text(
-                    scope.formats.time(LocalTime(h, 0)),
+                    scope.formats.hourLabel(h),
                     style = Theme.typography.labelSmall,
                     colour = quietInk(),
                     maxLines = 1,
@@ -453,7 +519,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val colours = Theme.colours
     val line = Theme.sizing.borderWidth
     val nowLine = Theme.sizing.borderWidthStrong
-    val lineColour = if (highContrast()) colours.outlineStrong else colours.outline
+    val lineColour = gridLine()
     val nowColour = colours.accent.solid
     val hourPx = with(density) { scope.hourHeight.toPx() }
     val minChipPx = with(density) { (Theme.typography.labelMedium.lineHeight.toDp() + Theme.spacing.xxs * 2).toPx() }
@@ -472,6 +538,11 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val ringWidth = Theme.sizing.focusRingWidth
     val cursorShown = scope.cursorShown
     val state = scope.state
+
+    // How tall each is drawn, as the layout below draws it.
+    val blockHeight = { p: TimedPlacement ->
+        with(density) { (maxOf(minChipPx, (p.end - p.start) * hourPx / MinutesPerHour) - gapPx).coerceAtLeast(0f).toDp() }
+    }
 
     // Where an edit in hand would put it, if any of that is on this day.
     val ghost = run {
@@ -506,11 +577,12 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                         clippedStart = placement.clippedStart,
                         clippedEnd = placement.clippedEnd,
                         focusableOn = date..date,
+                        blockHeight = blockHeight(placement),
                     )
                 }
             }
             if (ghost != null) {
-                EventChip(event = ghost.event, presentation = EventPresentation.Block, scope = scope, ghost = true)
+                EventChip(event = ghost.event, presentation = EventPresentation.Block, scope = scope, ghost = true, blockHeight = blockHeight(ghost))
             }
         },
         modifier = modifier
@@ -590,7 +662,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         val placeables = measurables.mapIndexed { i, measurable ->
             val p = all[i]
             val lane = width.toFloat() / p.lanes
-            val w = (lane - gapPx).roundToInt().coerceAtLeast(0)
+            val w = (lane * p.span - gapPx).roundToInt().coerceAtLeast(0)
             val h = (maxOf(minChipPx, (p.end - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(w, h))
         }

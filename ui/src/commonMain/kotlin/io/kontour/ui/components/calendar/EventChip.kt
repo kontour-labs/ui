@@ -19,10 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -70,6 +70,8 @@ import io.kontour.ui.theme.toneColours
  * @param byDays Whether a move carries it by whole days — a bar, or a line in a
  *   month — rather than through the hours.
  * @param ghost Where an edit would put it: drawn lifted, and not a control.
+ * @param blockHeight How tall a block is drawn, where the column knows as it
+ *   composes: for the default content to fit its title to.
  * @param focusableOn The days the keyboard reaches it on, by Tab from the grid
  *   it is in: only while the grid's cursor is on one of them. Null, always.
  */
@@ -84,10 +86,12 @@ internal fun EventChip(
     clippedEnd: Boolean = false,
     ghost: Boolean = false,
     focusableOn: ClosedRange<LocalDate>? = null,
+    blockHeight: Dp? = null,
 ) {
     val colours = toneColours(event.tone)
-    val shape = Theme.shapes.control
-    val stripe = Theme.sizing.borderWidthStrong
+    // A block is a box of time, cornered like the library's other small boxes;
+    // a bar and a line are labels across days, and capsules as chips are.
+    val shape = if (presentation == EventPresentation.Block) Theme.shapes.extraSmall else Theme.shapes.control
     val (fill, ink) = when (presentation) {
         EventPresentation.Block -> colours.container to colours.onContainer
         EventPresentation.Bar -> colours.solid to colours.onSolid
@@ -96,6 +100,8 @@ internal fun EventChip(
     val edge = when {
         ghost -> BorderStroke(Theme.sizing.borderWidthStrong, colours.solid)
         presentation == EventPresentation.Line -> null
+        // A block as a banner is: its tone's ground and its tone's hairline.
+        presentation == EventPresentation.Block -> BorderStroke(Theme.sizing.borderWidth, colours.border)
         else -> contrastEdge(colours.border)
     }
     val edit = scope.edit
@@ -109,22 +115,14 @@ internal fun EventChip(
             .clip(shape)
             .background(fill)
             .then(if (edge != null) Modifier.border(edge, shape) else Modifier)
-            .then(
-                // A block's tone at its start edge, so a column of pale blocks
-                // in different tones still tells them apart at a glance.
-                if (presentation == EventPresentation.Block) {
-                    Modifier.drawBehind {
-                        val width = stripe.toPx()
-                        val x = if (layoutDirection == LayoutDirection.Rtl) size.width - width else 0f
-                        drawRect(colours.solid, topLeft = Offset(x, 0f), size = Size(width, size.height))
-                    }
-                } else {
-                    Modifier
-                },
-            )
             .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, focusableOn)),
+        // A block's text from its top, as time runs; a bar's and a line's level
+        // in its row, as a chip's label is.
+        contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
     ) {
-        ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+        CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
+            ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+        }
         if (!ghost && presentation == EventPresentation.Block && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
             if (!clippedStart) ResizeHandle(event, scope, atStart = true)
             if (!clippedEnd) ResizeHandle(event, scope, atStart = false)
@@ -372,3 +370,20 @@ internal fun eventDescription(event: CalendarEvent, formats: LocaleFormats, stri
 @Composable
 @ReadOnlyComposable
 internal fun quietInk(): Color = if (highContrast()) Theme.colours.content else Theme.colours.contentMuted
+
+/**
+ * Today's date as the date picker marks it: a hairline circle round the
+ * number, so the calendar and the picker beside it agree about what today
+ * looks like.
+ */
+@Composable
+internal fun Modifier.todayRing(isToday: Boolean): Modifier =
+    if (isToday) border(Theme.sizing.borderWidth, Theme.colours.outlineStrong, Theme.shapes.capsule) else this
+
+/**
+ * The line round the calendar's grid, and between its days: the stronger
+ * outline at high contrast.
+ */
+@Composable
+@ReadOnlyComposable
+internal fun gridLine(): Color = if (highContrast()) Theme.colours.outlineStrong else Theme.colours.outline
