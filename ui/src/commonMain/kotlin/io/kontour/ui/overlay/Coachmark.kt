@@ -62,6 +62,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Motion
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.theme.toneColours
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.geometry.lerp as lerpRect
 import androidx.compose.ui.graphics.lerp as lerpColour
@@ -998,17 +999,8 @@ internal class SolidTones(private val tones: Map<Tone, SolidTone>) {
  */
 @Composable
 @ReadOnlyComposable
-internal fun solidTone(tone: Tone): SolidTone {
-    val colours = Theme.colours
-    return when (tone) {
-        Tone.Neutral -> SolidTone(colours.surfaceInverse, colours.onSurfaceInverse)
-        Tone.Info -> SolidTone(colours.info.solid, colours.info.onSolid)
-        Tone.Accent -> SolidTone(colours.accent.solid, colours.accent.onSolid)
-        Tone.Success -> SolidTone(colours.success.solid, colours.success.onSolid)
-        Tone.Warning -> SolidTone(colours.warning.solid, colours.warning.onSolid)
-        Tone.Danger -> SolidTone(colours.danger.solid, colours.danger.onSolid)
-    }
-}
+internal fun solidTone(tone: Tone): SolidTone =
+    toneColours(tone).let { SolidTone(it.solid, it.onSolid) }
 
 @Composable
 @ReadOnlyComposable

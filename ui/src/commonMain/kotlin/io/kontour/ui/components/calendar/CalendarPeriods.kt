@@ -1,0 +1,81 @@
+package io.kontour.ui.components.calendar
+
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+
+/** What an [EventCalendar] shows at once. */
+enum class CalendarView {
+    /** One day's hours. */
+    Day,
+
+    /** Seven days' hours side by side, from the reader's first day of the week. */
+    Week,
+
+    /** A month of day boxes, a week to a row, with its events in them. */
+    Month,
+
+    /** Twelve small months, the busy days marked. */
+    Year,
+}
+
+/**
+ * Each view's periods counted by a plain index, so one pager pages them all:
+ * a day's index is its epoch day, a week's the weeks since the first one that
+ * starts on [firstDayOfWeek] after 1970-01-01, a month's `year × 12 + month`,
+ * a year's itself.
+ */
+internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek) {
+
+    /** The epoch day of the first day after 1970-01-01, itself included, that starts a week. */
+    private val weekZero: Long = (firstDayOfWeek.isoDayNumber - Thursday).mod(DaysPerWeek).toLong()
+
+    /** The index of the [view] period [date] is in. */
+    fun indexOf(date: LocalDate, view: CalendarView): Int = when (view) {
+        CalendarView.Day -> date.toEpochDays().toInt()
+        CalendarView.Week -> (date.toEpochDays() - weekZero).floorDiv(DaysPerWeek.toLong()).toInt()
+        CalendarView.Month -> date.year * MonthsPerYear + date.month.ordinal
+        CalendarView.Year -> date.year
+    }
+
+    /** The first day of the [view] period at [index]. */
+    fun startOf(index: Int, view: CalendarView): LocalDate = when (view) {
+        CalendarView.Day -> LocalDate.fromEpochDays(index.toLong())
+        CalendarView.Week -> LocalDate.fromEpochDays(weekZero + index.toLong() * DaysPerWeek)
+        CalendarView.Month -> LocalDate(index.floorDiv(MonthsPerYear), index.mod(MonthsPerYear) + 1, 1)
+        CalendarView.Year -> LocalDate(index, 1, 1)
+    }
+
+    /** The first day of the week [date] is in. */
+    fun weekStart(date: LocalDate): LocalDate = startOf(indexOf(date, CalendarView.Week), CalendarView.Week)
+
+    /**
+     * Every date the [view] period at [index] shows: a month's whole weeks,
+     * the days from the months either side included, since they are drawn.
+     */
+    fun visibleDates(index: Int, view: CalendarView): ClosedRange<LocalDate> {
+        val start = startOf(index, view)
+        return when (view) {
+            CalendarView.Day -> start..start
+            CalendarView.Week -> start..start.plus(DaysPerWeek - 1, DateTimeUnit.DAY)
+            CalendarView.Month -> {
+                val last = start.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
+                weekStart(start)..weekStart(last).plus(DaysPerWeek - 1, DateTimeUnit.DAY)
+            }
+            CalendarView.Year -> start..LocalDate(start.year, 12, 31)
+        }
+    }
+
+    /** How many weeks the month at [index] spans, four to six. */
+    fun weeksIn(index: Int): Int {
+        val dates = visibleDates(index, CalendarView.Month)
+        return ((dates.endInclusive.toEpochDays() - dates.start.toEpochDays() + 1) / DaysPerWeek).toInt()
+    }
+}
+
+internal const val DaysPerWeek: Int = 7
+private const val MonthsPerYear = 12
+private const val Thursday = 4

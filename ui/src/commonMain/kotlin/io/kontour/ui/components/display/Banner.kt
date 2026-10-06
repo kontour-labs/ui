@@ -54,6 +54,7 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.StatusColours
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.Tone
+import io.kontour.ui.theme.toneColours
 import kotlin.math.roundToInt
 
 
@@ -97,7 +98,7 @@ fun Banner(
     content: BannerScope.() -> Unit,
 ) {
     val slots = bannerSlots(content)
-    val colours = bannerColoursFor(tone)
+    val colours = toneColours(tone)
     val shape = Theme.shapes.container
 
     Row(
@@ -270,7 +271,7 @@ fun Callout(
     icon: ImageVector? = CalloutDefaults.icon(tone),
     content: @Composable ContentScope.() -> Unit,
 ) {
-    val colours = bannerColoursFor(tone)
+    val colours = toneColours(tone)
     val shape = Theme.shapes.container
 
     Row(
@@ -318,7 +319,7 @@ object CalloutDefaults {
  *
  * Not a `when` on a colour: the tone is the vocabulary and the icon is one of
  * the things it decides, alongside the ground and the border in
- * [bannerColoursFor].
+ * [toneColours].
  */
 private fun toneIcon(tone: Tone): ImageVector = when (tone) {
     Tone.Neutral -> SystemIcons.Info
@@ -335,29 +336,6 @@ private fun toneIcon(tone: Tone): ImageVector = when (tone) {
     Tone.Accent -> SystemIcons.Info
 }
 
-@Composable
-private fun bannerColoursFor(tone: Tone): StatusColours = when (tone) {
-    // A banner that is only information about the screen, in the surface's own
-    // tones: the ground a sunken panel has, the hairline every card has, and the
-    // ordinary text colour on it.
-    Tone.Neutral -> Theme.colours.let {
-        StatusColours(
-            solid = it.surfaceInverse,
-            onSolid = it.onSurfaceInverse,
-            container = it.surfaceSunken,
-            onContainer = it.content,
-            border = it.outline,
-        )
-    }
-    Tone.Info -> Theme.colours.info
-    Tone.Success -> Theme.colours.success
-    Tone.Warning -> Theme.colours.warning
-    Tone.Danger -> Theme.colours.danger
-    // Reachable at all only because `accent` is a `StatusColours` now. As four
-    // loose fields it had no `border`, so a banner could not have been built
-    // out of it without inventing one here.
-    Tone.Accent -> Theme.colours.accent
-}
 
 /**
  * The text of a banner, with its action beside it or under it.

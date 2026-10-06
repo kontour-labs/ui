@@ -10,8 +10,6 @@ import io.kontour.ui.locale.DateTimeConventions
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,7 +31,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -91,12 +88,9 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
@@ -1223,163 +1217,57 @@ private fun CalendarFrame(
 }
 
 /**
- * Where a calendar's months are: a strip of them, and a position along it.
+ * Where a calendar's months are: a [PeriodPager] over month indices, read and
+ * driven in months.
  *
- * Slot 0 is [origin] and each slot on is a month on, so the position is how many
- * months from the origin the view is, to a fraction. A far jump — to today from
- * a year away — does not travel through every month between: the month it is
- * going to stands in at the slot beside the view, a [bridge], and the pager moves
- * one page. When a move lands the strip is counted from where it landed.
- *
- * Plain state rather than an `Animatable`, so a finger can take it over from a
- * gesture callback without waiting on an animation's lock.
+ * Slot 0 is [origin] and each slot on is a month on. A far jump — to today
+ * from a year away — does not travel through every month between; see
+ * [PeriodPager], which the event calendar pages its weeks, days and years with.
  */
 @Stable
 private class MonthPager(start: LocalDate) {
-    var origin by mutableStateOf(start)
-        private set
-    private var shift by mutableFloatStateOf(0f)
-    private var bridge by mutableStateOf<LocalDate?>(null)
-    private var bridgeSlot by mutableIntStateOf(0)
+    private val periods = PeriodPager(monthIndex(start))
 
-    /** Whether a finger has it, and how far along it was when it did. */
-    var held by mutableStateOf(false)
-        private set
-    var heldFrom by mutableFloatStateOf(0f)
-        private set
-    private var pulled by mutableFloatStateOf(0f)
-
-    /** The slot a swipe counts from: where the view was, or where it was going. */
-    var startSlot = 0
-        private set
-
-    /** Whether the finger found it at rest, rather than moving. */
-    var fromRest = true
-        private set
+    val origin: LocalDate get() = monthOf(periods.origin)
+    val held: Boolean get() = periods.held
+    val heldFrom: Float get() = periods.heldFrom
+    val startSlot: Int get() = periods.startSlot
+    val fromRest: Boolean get() = periods.fromRest
+    val position: Float get() = periods.position
 
     /** The month the running move is going to, or last went to. */
-    var headedFor: LocalDate? = start
-    private var headedSlot = 0
-    private var speed = 0f
-    private var job: Job? = null
-
-    /** How far along the strip the view is, in months from [origin]. */
-    val position: Float get() = if (held) heldFrom + pulled else shift
+    var headedFor: LocalDate?
+        get() = periods.headedFor?.let(::monthOf)
+        set(value) {
+            periods.headedFor = value?.let(::monthIndex)
+        }
 
     /** The months any of which is in view: one at rest, two while moving. */
-    val inView: List<LocalDate> by derivedStateOf(structuralEqualityPolicy()) {
-        val at = position
-        val low = floor(at).toInt()
-        val high = ceil(at).toInt()
-        if (low == high) listOf(monthAt(low)) else listOf(monthAt(low), monthAt(high))
-    }
+    val inView: List<LocalDate> by derivedStateOf(structuralEqualityPolicy()) { periods.inView.map(::monthOf) }
 
-    /** The month at [slot]: past a bridge, counted on from the month it stands for. */
-    fun monthAt(slot: Int): LocalDate {
-        val far = bridge
-        return if (far != null && slot != 0 && (slot > 0) == (bridgeSlot > 0)) {
-            far.plus(slot - bridgeSlot, DateTimeUnit.MONTH)
-        } else {
-            origin.plus(slot, DateTimeUnit.MONTH)
-        }
-    }
-
-    /** The slot [month] is at, or null where a bridge stands in its place. */
-    fun slotOf(month: LocalDate): Int? {
-        val far = bridge
-        if (far != null) {
-            val beyond = bridgeSlot + (monthIndex(month) - monthIndex(far))
-            if (beyond != 0 && (beyond > 0) == (bridgeSlot > 0)) return beyond
-        }
-        val here = monthIndex(month) - monthIndex(origin)
-        return if (far != null && here != 0 && (here > 0) == (bridgeSlot > 0)) null else here
-    }
+    fun monthAt(slot: Int): LocalDate = monthOf(periods.periodAt(slot))
 
     /** Pages from the middle of the view to [month]: positive towards later months. */
-    fun placeOf(month: LocalDate): Float = slotOf(month)?.minus(position) ?: Float.NaN
+    fun placeOf(month: LocalDate): Float = periods.placeOf(monthIndex(month))
 
-    fun take() {
-        fromRest = job?.isActive != true
-        job?.cancel()
-        job = null
-        heldFrom = shift
-        pulled = 0f
-        startSlot = if (fromRest) shift.roundToInt() else headedSlot
-        held = true
-    }
+    fun take() = periods.take()
 
-    fun pull(pages: Float) {
-        pulled += pages
-    }
+    fun pull(pages: Float) = periods.pull(pages)
 
-    fun letGo() {
-        shift = position
-        held = false
-        pulled = 0f
-    }
+    fun letGo() = periods.letGo()
 
-    /**
-     * Goes to [month] from wherever the pager is, at [velocity] pages a second
-     * towards later months, or at the speed of the move it takes over.
-     */
-    fun moveTo(
-        month: LocalDate,
-        scope: CoroutineScope,
-        stiffness: Float,
-        cut: Boolean,
-        velocity: Float = speed,
-    ) {
-        job?.cancel()
-        job = null
-        headedFor = month
-        if (cut) {
-            land(month)
-            return
+    fun moveTo(month: LocalDate, scope: CoroutineScope, stiffness: Float, cut: Boolean, velocity: Float? = null) {
+        if (velocity == null) {
+            periods.moveTo(monthIndex(month), scope, stiffness, cut)
+        } else {
+            periods.moveTo(monthIndex(month), scope, stiffness, cut, velocity)
         }
-        var slot = slotOf(month)
-        if (slot == null || abs(slot - shift) > 1.5f) {
-            // Too far to travel: counted from the month most in view, with the
-            // one it is going to standing beside it.
-            rebase()
-            bridge = month
-            bridgeSlot = if (monthIndex(month) > monthIndex(origin)) 1 else -1
-            slot = bridgeSlot
-        }
-        headedSlot = slot
-        job = scope.launch {
-            animate(
-                initialValue = shift,
-                targetValue = slot.toFloat(),
-                initialVelocity = velocity,
-                // Critically damped: an overshoot would show the month beyond,
-                // which is not where it is going.
-                animationSpec = spring(dampingRatio = 1f, stiffness = stiffness),
-            ) { value, moving ->
-                shift = value
-                speed = moving
-            }
-            land(month)
-        }
-    }
-
-    /** Arrived at [month]: the strip is counted from it, all in one write. */
-    private fun land(month: LocalDate) {
-        origin = month
-        shift = 0f
-        bridge = null
-        headedSlot = 0
-        speed = 0f
-    }
-
-    /** Counts the strip from the month most in view, without moving it. */
-    private fun rebase() {
-        val nearest = shift.roundToInt()
-        val month = monthAt(nearest)
-        origin = month
-        shift -= nearest
-        bridge = null
     }
 }
+
+/** The first of the month [index] counts — see [monthIndex]. */
+private fun monthOf(index: Int): LocalDate =
+    LocalDate(index.floorDiv(12), index.mod(12) + 1, 1)
 
 private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
 
