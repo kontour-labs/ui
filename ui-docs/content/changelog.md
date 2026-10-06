@@ -167,7 +167,10 @@ passed by position need naming — see **Breaking**, and
   months do, and a day's number opens the day. Events can be drawn out,
   carried and stretched — by finger, mouse, keyboard or a screen reader's
   actions — in steps of `snap`, reported through `onCreateRequest`,
-  `onEventMove` and `onEventResize`.
+  `onEventMove` and `onEventResize`. From the keyboard, the grid is one stop
+  with a cursor the arrows move — a day in a month, a slot of time in a day
+  or a week — paging past the period's ends; Enter opens the day or the
+  time, and Tab goes on to the events of the cursor's day.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

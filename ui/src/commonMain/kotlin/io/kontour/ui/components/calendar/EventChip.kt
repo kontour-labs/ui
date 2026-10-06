@@ -3,6 +3,8 @@ package io.kontour.ui.components.calendar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import kotlinx.datetime.LocalDate
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -68,6 +70,8 @@ import io.kontour.ui.theme.toneColours
  * @param byDays Whether a move carries it by whole days — a bar, or a line in a
  *   month — rather than through the hours.
  * @param ghost Where an edit would put it: drawn lifted, and not a control.
+ * @param focusableOn The days the keyboard reaches it on, by Tab from the grid
+ *   it is in: only while the grid's cursor is on one of them. Null, always.
  */
 @Composable
 internal fun EventChip(
@@ -79,6 +83,7 @@ internal fun EventChip(
     clippedStart: Boolean = false,
     clippedEnd: Boolean = false,
     ghost: Boolean = false,
+    focusableOn: ClosedRange<LocalDate>? = null,
 ) {
     val colours = toneColours(event.tone)
     val shape = Theme.shapes.control
@@ -117,7 +122,7 @@ internal fun EventChip(
                     Modifier
                 },
             )
-            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays)),
+            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, focusableOn)),
     ) {
         ProvideContentColour(ink) { scope.eventContent(event, presentation) }
         if (!ghost && presentation == EventPresentation.Block && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
@@ -135,7 +140,7 @@ private const val CarriedAlpha = 0.4f
  * a screen reader's actions — and what it is called.
  */
 @Composable
-private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, byDays: Boolean): Modifier {
+private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, byDays: Boolean, focusableOn: ClosedRange<LocalDate>?): Modifier {
     val description = eventDescription(event, scope.formats, scope.strings)
     val click = scope.onEventClick
     val movable = scope.movable(event)
@@ -171,6 +176,17 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             placed.coordinates = coordinates
             if (movable) edit.draggables[placed] = coordinates
         }
+        .then(
+            if (focusableOn != null) {
+                // Read when focus moves, not in composition: the cursor's day,
+                // or the event being carried from the keyboard.
+                Modifier.focusProperties {
+                    canFocus = scope.state.date in focusableOn || (edit.live && edit.event?.id == current.id)
+                }
+            } else {
+                Modifier
+            },
+        )
         .then(
             if (click != null) {
                 Modifier.pressable(onClick = { click(event) }, shape = Theme.shapes.control, enabled = scope.enabled, minimumTouchTarget = false)

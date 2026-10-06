@@ -21,6 +21,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
@@ -56,9 +60,17 @@ import kotlinx.datetime.plus
 @Composable
 internal fun MonthView(scope: CalendarScope) {
     val pager = scope.pager
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Column(Modifier.fillMaxWidth()) {
         WeekdayRow(scope)
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                // Round the pages rather than on one: a page paged away does
+                // not take the keyboard's focus with it.
+                .calendarCursor(scope, description = scope.dayDescription(scope.state.date)) { key -> scope.monthKey(key, rtl) },
+        ) {
             // Bounded, the weeks share the height; in a scrolling page, each
             // week is as tall as a date and three events.
             val bounded = constraints.hasBoundedHeight
@@ -144,7 +156,24 @@ private fun MonthWeek(
     val weekEvents = remember(events, weekStart) {
         events.filter { it.overlaps(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY)) }
     }
-    BoxWithConstraints(modifier) {
+    val state = scope.state
+    val cursorShown = scope.cursorShown
+    val ringColour = Theme.colours.focusRing
+    val ringWidth = Theme.sizing.focusRingWidth
+    BoxWithConstraints(
+        modifier.drawWithContent {
+            drawContent()
+            // The keyboard's day, over its events, so they do not hide it. Only
+            // in its own month: a page sliding away shows it among its spare days.
+            val date = state.date
+            if (!cursorShown || date.month != firstOfMonth.month || date.year != firstOfMonth.year) return@drawWithContent
+            val column = (date.toEpochDays() - weekStart.toEpochDays()).toInt()
+            if (column !in 0 until DaysPerWeek) return@drawWithContent
+            val width = size.width / DaysPerWeek
+            val left = if (layoutDirection == LayoutDirection.Rtl) size.width - width * (column + 1) else width * column
+            drawCursorRing(Rect(left, 0f, left + width, size.height), ringColour, ringWidth.toPx())
+        },
+    ) {
         val cell = maxWidth / DaysPerWeek
         val room = (maxHeight - dateLabel).coerceAtLeast(0.dp)
         val maxRows = if (item > 0.dp) floor(room / item).toInt().coerceAtLeast(0) else 0
@@ -182,6 +211,7 @@ private fun MonthWeek(
                 event = placed.event,
                 presentation = if (placed.bar) EventPresentation.Bar else EventPresentation.Line,
                 scope = scope,
+                focusableOn = dayInWeek(weekStart, placed.from)..dayInWeek(weekStart, placed.to),
                 modifier = Modifier
                     .padding(start = cell * placed.from + gap, top = dateLabel + item * placement.row + gap / 2)
                     .width(cell * span - gap * 2)
@@ -245,7 +275,8 @@ private fun DayBox(
             }
             .then(
                 if (dayClick != null) {
-                    Modifier.pressable(
+                    // The keyboard's way to a day is the grid's cursor, not a stop per day.
+                    Modifier.focusProperties { canFocus = false }.pressable(
                         onClick = { dayClick(date) },
                         shape = RectangleShape,
                         enabled = scope.enabled,
@@ -273,6 +304,7 @@ private fun DayBox(
                 softWrap = false,
                 modifier = Modifier
                     .then(if (isToday) Modifier.background(colours.accent.solid, Theme.shapes.capsule) else Modifier)
+                    .focusProperties { canFocus = false }
                     .pressable(
                         onClick = { scope.state.show(date, CalendarView.Day) },
                         shape = Theme.shapes.capsule,
@@ -291,6 +323,8 @@ private fun DayBox(
                     maxLines = 1,
                     overflow = TextOverflow.Clip,
                     modifier = Modifier
+                        // Reached by Tab with the day's events: from the cursor, on its day.
+                        .focusProperties { canFocus = scope.state.date == date }
                         .pressable(
                             // The day's list where there is a host to show it in;
                             // the day itself where there is not.

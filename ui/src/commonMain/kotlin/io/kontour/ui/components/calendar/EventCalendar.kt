@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberLandingFeedback
 import io.kontour.ui.input.LocalInputModality
+import io.kontour.ui.input.rememberFocusRingVisible
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import io.kontour.ui.locale.ListStyle
 import io.kontour.ui.theme.Strings
 import kotlin.time.Duration.Companion.minutes
@@ -109,6 +111,13 @@ import kotlinx.datetime.toLocalDateTime
  * month and in a week's heading, opens that day; a month's name in the year
  * opens that month, and a day in it its day.
  *
+ * From the keyboard the grid is one stop, with a cursor the arrows move: a day
+ * in a month, a slot of [snap] in a day or a week. Its day is the state's
+ * [EventCalendarState.date], so it pages past the period's ends. Enter opens
+ * the day — [onDateClick], or its day view — or presses the time —
+ * [onTimeClick], or else [onCreateRequest] for an hour. Tab goes on to the
+ * events of the cursor's day.
+ *
  * @param state What it shows: see [rememberEventCalendarState].
  * @param events Everything to show, in any order. Each is drawn in the days it
  *   covers; ones the current view does not show cost nothing to have here.
@@ -176,6 +185,8 @@ fun EventCalendar(
     edit.stepMinutes = snapMinutes.toInt()
     val announcer = remember { Announcer() }
     val modality = LocalInputModality.current
+    val cursorInteractions = remember { MutableInteractionSource() }
+    val cursorShown = rememberFocusRingVisible(cursorInteractions)
     val scope = CalendarScope(
         state = state,
         events = events,
@@ -195,6 +206,8 @@ fun EventCalendar(
         announcer = announcer,
         touch = modality.needsLargeTargets,
         strings = Theme.strings,
+        cursorInteractions = cursorInteractions,
+        cursorShown = cursorShown,
     )
     // Turned off — disabled — mid-edit, the edit is put back.
     if (!enabled && edit.live) SideEffect { edit.cancel() }
@@ -242,6 +255,10 @@ internal class CalendarScope(
     /** Whether the pointer is a finger: an edit then starts with a long press, and a quick swipe still pages. */
     val touch: Boolean,
     val strings: Strings,
+    /** The focus of the grid the keyboard's cursor moves through. */
+    val cursorInteractions: MutableInteractionSource,
+    /** Whether that grid has the keyboard's focus, and so its cursor is drawn. */
+    val cursorShown: Boolean,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable

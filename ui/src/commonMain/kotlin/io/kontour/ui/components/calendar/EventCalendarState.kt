@@ -55,6 +55,12 @@ class EventCalendarState internal constructor(
     /** The hours' scroll, shared by the day and week views so a switch between them keeps the time in view. */
     internal val timeScroll = ScrollState(0)
 
+    /**
+     * The keyboard cursor's minute of the day in the day and week views; its
+     * day is [date]. Null until the hours first take focus.
+     */
+    internal var cursorMinute: Int? by mutableStateOf(null)
+
     /** Whether the hours have been scrolled to [initialScrollTime] yet. */
     internal var scrolledToStart = false
 

@@ -131,7 +131,7 @@ day") and its place, as a list in the reader's own way of writing one. Short
 events are drawn smaller than the 48dp target a control usually gets — a
 quarter-hour at the default hour height is 12dp, and growing it would cover
 the next event — so a screen reader reaches each event as a node and a
-keyboard by Tab, rather than relying on the box's size.
+keyboard by Tab from its day, rather than relying on the box's size.
 
 A month's box is read as its date and how many events it has. Its "+N" is
 read as "3 more events". The header's title is read out whenever the period
@@ -143,6 +143,25 @@ language, and every word comes from the theme's strings.
 At high contrast the grid's lines take the stronger outline, an event's tinted
 box takes the tier's edge so it reads as a box rather than a wash, and muted
 text is drawn at full ink.
+
+**The grid is one keyboard stop, with a cursor in it.** In a month the
+cursor is a day: the left and right arrows move it a day (mirrored for
+right-to-left reading), up and down a week, Home and End to the week's first
+and last day, and Page Up and Page Down a month. Enter or Space opens the day —
+`onDateClick`, or the day's view where there is none. In a day or a week the
+cursor is a slot of time `snap` long: up and down move it a step, Page Up and
+Page Down an hour, Home and End to the day's first and last slot, and left
+and right a day. Enter or Space presses the time — `onTimeClick`, or, where
+there is none, `onCreateRequest` for an hour from it. The cursor's day is the
+state's `date`, so moving it off either end of the period pages, and the
+header's title follows; the hours scroll to keep the slot in view. Each move
+is read out to a screen reader.
+
+Tab from the grid goes on to the cursor's day's events, and no others, then
+out of the calendar: a month is otherwise every date and every event in it
+before the next thing on the page. The day boxes and their numbers are still
+pressed by a pointer and reached by a screen reader, but are not stops of
+their own; the "+N" of the cursor's day is.
 
 **Every edit can be made without a pointer.** A focused event is picked up
 with Space. The up and down arrows then move it a step at a time, left and

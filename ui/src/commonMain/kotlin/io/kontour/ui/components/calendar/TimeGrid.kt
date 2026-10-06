@@ -32,6 +32,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.CollectionInfo
+import io.kontour.ui.motion.scrollSpec
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -76,6 +81,14 @@ internal fun TimeView(scope: CalendarScope) {
     val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
     val hourPx = with(LocalDensity.current) { scope.hourHeight.toPx() }
     val hours = remember { PlacedAt() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val step = scope.edit.stepMinutes
+    // Before the keyboard has put it anywhere: the first whole slot in view.
+    val firstInView = {
+        val perMinute = hourPx / MinutesPerHour
+        if (perMinute <= 0f) 0 else (ceil(state.timeScroll.value / perMinute / step).toInt() * step)
+    }
+    val cursor = scope.slotDescription(state.date, state.cursorMinute?.let { scope.cursorMinute { it } })
 
     Column(Modifier.fillMaxWidth().then(swipe)) {
         Row(Modifier.fillMaxWidth()) {
@@ -91,6 +104,15 @@ internal fun TimeView(scope: CalendarScope) {
                 viewport
                     .fillMaxWidth()
                     .onGloballyPositioned { hours.coordinates = it }
+                    // On the viewport rather than the hours inside it: focused,
+                    // the hours would ask to have all of themselves brought into
+                    // view. The cursor brings itself.
+                    .calendarCursor(
+                        scope,
+                        description = cursor,
+                        collection = CollectionInfo(rowCount = MinutesPerDay / step, columnCount = days),
+                        onFocused = { if (state.cursorMinute == null) state.cursorMinute = scope.cursorMinute(firstInView) },
+                    ) { key -> scope.timeKey(key, rtl, firstInView) }
                     .verticalScroll(state.timeScroll, flingBehavior = ScrollDefaults.flingBehavior()),
             ) {
                 HourGutter(scope, gutter)
@@ -102,6 +124,22 @@ internal fun TimeView(scope: CalendarScope) {
     }
 
     EditScroll(scope, hours, days)
+
+    // The keyboard's slot brought into view as it moves.
+    val motion = Theme.motion
+    LaunchedEffect(state, state.cursorMinute, scope.cursorShown, hourPx, step) {
+        val minute = state.cursorMinute ?: return@LaunchedEffect
+        if (!scope.cursorShown) return@LaunchedEffect
+        val scroll = state.timeScroll
+        val perMinute = hourPx / MinutesPerHour
+        val top = (minute * perMinute).roundToInt()
+        val bottom = ((minute + step) * perMinute).roundToInt()
+        val viewport = scroll.viewportSize
+        when {
+            top < scroll.value -> scroll.animateScrollTo(top, motion.scrollSpec())
+            viewport > 0 && bottom > scroll.value + viewport -> scroll.animateScrollTo(bottom - viewport, motion.scrollSpec())
+        }
+    }
 
     // Opened at the start of a working day, once, or put back where it was.
     LaunchedEffect(state, hourPx) {
@@ -430,6 +468,10 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val press = remember { PressAt() }
     val creates = scope.enabled && scope.onCreateRequest != null
     val isTouch by rememberUpdatedState(scope.touch)
+    val ringColour = colours.focusRing
+    val ringWidth = Theme.sizing.focusRingWidth
+    val cursorShown = scope.cursorShown
+    val state = scope.state
 
     // Where an edit in hand would put it, if any of that is on this day.
     val ghost = run {
@@ -463,6 +505,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                         scope = scope,
                         clippedStart = placement.clippedStart,
                         clippedEnd = placement.clippedEnd,
+                        focusableOn = date..date,
                     )
                 }
             }
@@ -493,6 +536,15 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                     val dot = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
                     drawCircle(nowColour, radius = stroke * NowDotScale, center = Offset(dot, y))
                 }
+            }
+            .drawWithContent {
+                drawContent()
+                // The keyboard's slot, over the events, so one on it does not hide it.
+                if (!cursorShown || state.date != date) return@drawWithContent
+                val minute = state.cursorMinute ?: return@drawWithContent
+                val perMinute = hourPx / MinutesPerHour
+                val top = minute * perMinute
+                drawCursorRing(Rect(0f, top, size.width, top + edit.stepMinutes * perMinute), ringColour, ringWidth.toPx())
             }
             .then(
                 if (scope.onTimeClick != null && scope.enabled) {
