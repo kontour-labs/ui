@@ -368,4 +368,120 @@ class TopBarCollapseTest {
             assertTrue(settled == 0f || settled == 1f, "a ${pull}px pull left the bar part-way, at $settled")
         }
     }
+
+    /** A Large bar over a long list, wired to collapse with it. */
+    private fun collapsingScene(onState: (TopBarCollapseState) -> Unit): Scene =
+        Scene(width = Width * 2, height = 1200, density = Density) {
+            val collapse = rememberTopBarCollapseState().also(onState)
+            Column(Modifier.fillMaxSize().background(Color.White).topBarCollapse(collapse)) {
+                TopBar(style = TopBarStyle.Large, onBack = {}, collapseState = collapse, windowInsets = WindowInsets(0)) { +Title }
+                LazyColumn { items(60) { Text("Row $it", modifier = Modifier.fillMaxWidth().height(48.dp)) } }
+            }
+        }
+
+    /**
+     * Pulled open at the top of the list, the content comes down with the
+     * finger. Reported: *"it doesn't always feel like they follow the finger"*.
+     * A bar with no controls has little height to give back, less than the
+     * title's journey, and opening it was spread over that journey: the list
+     * came down at a fraction of the finger's pace.
+     */
+    @Test
+    fun openingTheContentComesDownWithTheFinger() {
+        var state: TopBarCollapseState? = null
+        var list: LazyListState? = null
+        var first = Rect.Zero
+        Scene(width = Width * 2, height = 1200, density = Density) {
+            val collapse = rememberTopBarCollapseState().also { state = it }
+            val listState = rememberLazyListState().also { list = it }
+            Column(Modifier.fillMaxSize().background(Color.White).topBarCollapse(collapse)) {
+                // No controls, and a subtitle: a little height to give back,
+                // less than the title's journey.
+                TopBar(style = TopBarStyle.Large, collapseState = collapse, windowInsets = WindowInsets(0)) {
+                    +Title
+                    supporting { +Subtitle }
+                }
+                LazyColumn(state = listState) {
+                    items(60) { row ->
+                        Text(
+                            "Row $row",
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                                .then(if (row == 0) Modifier.reportBounds { first = it } else Modifier),
+                        )
+                    }
+                }
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val from = Offset(Width.toFloat(), 900f)
+            // Collapsed, and let settle.
+            scene.drag(from, from - Offset(0f, 400f), steps = 40)
+            scene.frames(60)
+            assertEquals(1f, state!!.progress, "the bar did not collapse")
+            // Back down, slowly: the list to its top, then the bar open. Only
+            // the steps that opened the bar, with the list at its top, count.
+            val top = from - Offset(0f, 400f)
+            var y = 0f
+            var pulled = 0f
+            var cameDown = 0f
+            scene.press(top)
+            while (y < 800f && state!!.progress > 0f) {
+                val atTop = list!!.firstVisibleItemIndex == 0 && list!!.firstVisibleItemScrollOffset == 0
+                val was = state!!.progress
+                val rowWas = first.top
+                y += 2f
+                scene.move(top + Offset(0f, y))
+                scene.frame()
+                if (atTop && was < 1f && state!!.progress < was && state!!.progress > 0f) {
+                    pulled += 2f
+                    cameDown += first.top - rowWas
+                }
+            }
+            scene.release(top + Offset(0f, y))
+            assertTrue(pulled > 10f, "the bar never opened from a pull at the top of the list (pulled $pulled)")
+            assertTrue(
+                abs(cameDown - pulled) <= pulled * 0.1f + 2f,
+                "while the bar opened, the first row came down ${cameDown}px for ${pulled}px of pull — the content does not follow the finger",
+            )
+        }
+    }
+
+    /**
+     * Let go moving, the bar finishes the way the finger was going, not to the
+     * nearer end: opened a little from collapsed and let go still opening, it
+     * opens. Reported: *"other times they don't expand properly"* — the nearer
+     * end shut a bar the finger had been opening.
+     */
+    @Test
+    fun letGoMovingItFinishesTheWayTheFingerWent() {
+        var state: TopBarCollapseState? = null
+        collapsingScene { state = it }.use { scene ->
+            scene.frames(3)
+            val from = Offset(Width.toFloat(), 600f)
+            // Collapsed exactly, without scrolling the list: pulled until the
+            // bar has gone all the way, and held.
+            var y = 0f
+            scene.press(from)
+            while (state!!.progress < 1f && y < 400f) {
+                y += 4f
+                scene.move(from - Offset(0f, y))
+                scene.frame()
+            }
+            scene.frames(2)
+            assertEquals(1f, state!!.progress, "the bar would not collapse")
+            // Back down a little, quickly — a quarter of the way open, and
+            // still moving as the finger lifts.
+            var down = 0f
+            while (state!!.progress > 0.75f && down < 200f) {
+                down += 6f
+                scene.move(from - Offset(0f, y - down))
+                scene.frame()
+            }
+            val before = state!!.progress
+            scene.release(from - Offset(0f, y - down))
+            scene.frames(60)
+            assertTrue(before > 0.5f && before < 1f, "the bar was at $before when let go, past halfway open, so this measured nothing")
+            assertEquals(0f, state!!.progress, "let go opening at $before, the bar went back to ${state!!.progress} rather than open")
+        }
+    }
 }
