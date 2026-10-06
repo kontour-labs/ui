@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import io.kontour.ui.components.display.Carousel
 import io.kontour.ui.components.display.CarouselState
 import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.PageIndicatorDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -428,6 +429,7 @@ private fun HeroBar(
     // Where a `HeroImages` in the picture says it is, for the dots this bar
     // draws over the fade, above the title.
     val images = remember { HeroImageHost() }
+    val dotSize = PageIndicatorDefaults.DotSize
     val insetTop = with(LocalDensity.current) { windowInsets.getTop(this).toDp() }
     val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - progress() } }
     val solid = highContrast()
@@ -514,7 +516,7 @@ private fun HeroBar(
                 },
                 // Over the fade and under the title: the pictures' dots, when
                 // there are pictures to page between.
-                { images.carousel?.let { HeroDots(it, containerColour) } },
+                { images.carousel?.let { HeroDots(it) } },
             ),
             modifier = Modifier.fillMaxWidth().clipToBounds(),
         ) { (picturePart, fadePart, barPart, dotsPart), constraints ->
@@ -537,9 +539,15 @@ private fun HeroBar(
                     // Centred a little above the title, and carried up with it
                     // as the bar collapses: gone before the title nears the
                     // first line, where the dots would be in its way.
+                    //
+                    // Placed by the dots, not by the indicator's box: the box is
+                    // its touch target, 48dp tall on a phone round 8dp dots, so a
+                    // gap measured from its foot put them 36dp above the title
+                    // there and 24dp on a desktop.
                     val titleTop = windowInsets.getTop(this@Layout) + geometry.textTopOpen +
                         (geometry.textTopCollapsed - geometry.textTopOpen) * p
-                    val y = titleTop - HeroDotsGap.toPx() - dots.height
+                    val centre = titleTop - HeroDotsGap.toPx() - dotSize.toPx() / 2f
+                    val y = centre - dots.height / 2f
                     dots.placeWithLayer((bar.width - dots.width) / 2, y.roundToInt()) {
                         alpha = 1f - smoothstep(0f, HeroDotsGoneBy, progress().coerceIn(0f, 1f))
                     }
@@ -583,10 +591,9 @@ internal val LocalHeroImageHost = staticCompositionLocalOf<HeroImageHost?> { nul
  * ```
  *
  * A [Carousel] filling the picture, edge to edge and under the status bar, and
- * the carousel's [PageIndicator] over the fade just above the title — on the
- * bar's own colour rather than on the picture, so it reads whatever the
- * picture is. A finger swipes anywhere on the picture that is not a button;
- * a pointer clicks or drags along the dots. One picture shows no dots.
+ * the carousel's [PageIndicator] over the fade, 16dp above the title, on the
+ * picture as it is. A finger swipes anywhere on the picture that is not a
+ * button; a pointer clicks or drags along the dots. One picture shows no dots.
  *
  * Collapsing, the pictures do what a hero's picture does — rise at half the
  * bar's pace and fade over the second half — and the dots go up with the title
@@ -632,41 +639,34 @@ fun HeroImages(
         // pictures' foot.
         if (host == null) {
             Box(Modifier.align(Alignment.BottomCenter).padding(bottom = Theme.spacing.md)) {
-                HeroDots(state, Theme.colours.background)
+                HeroDots(state)
             }
         }
     }
 }
 
 /**
- * A hero carousel's dots, on a capsule of the bar's colour so they read over
- * the picture as well as over the fade — solid at high contrast. Hidden from
- * screen readers with the pictures; a pointer can click and drag along them.
+ * A hero carousel's dots, on the picture as they are: a capsule of the bar's
+ * colour behind them was tried and taken away, asked for as *"can we get rid
+ * of the square bubble altogether?"*. Hidden from screen readers with the
+ * pictures; a pointer can click and drag along them.
  */
 @Composable
-private fun HeroDots(state: CarouselState, backing: Color) {
+private fun HeroDots(state: CarouselState) {
     if (state.pageCount < 2) return
     val scope = rememberCoroutineScope()
-    val shape = Theme.shapes.capsule
-    val ground = if (highContrast()) backing else backing.copy(alpha = HeroDotsBacking)
-    Box(
-        Modifier
-            .clearAndSetSemantics {}
-            .background(ground, shape)
-            .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-    ) {
-        PageIndicator(state, onPageClick = { page -> scope.launch { state.animateScrollToPage(page) } })
-    }
+    PageIndicator(
+        state,
+        modifier = Modifier.clearAndSetSemantics {},
+        onPageClick = { page -> scope.launch { state.animateScrollToPage(page) } },
+    )
 }
 
-/** How far above a hero's title its carousel's dots sit. */
-private val HeroDotsGap = 12.dp
+/** How far above a hero's title its carousel's dots sit: from the foot of the dots to the top of the title's line. */
+private val HeroDotsGap = 16.dp
 
 /** How far into a hero bar's collapse its carousel's dots are gone: well before the title nears the first line. */
 private const val HeroDotsGoneBy = 0.35f
-
-/** How much of the bar's colour is under a hero carousel's dots. */
-private const val HeroDotsBacking = 0.72f
 
 /**
  * A disc of [colour] behind an icon button, at [alpha] — a [TopBarStyle.Hero]

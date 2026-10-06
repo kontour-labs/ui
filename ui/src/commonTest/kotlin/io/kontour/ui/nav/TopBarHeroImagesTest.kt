@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,11 +59,13 @@ class TopBarHeroImagesTest {
     private var active = Color.Unspecified
     private var inactive = Color.Unspecified
     private var progress by mutableFloatStateOf(0f)
+    private var count by mutableIntStateOf(3)
 
-    private fun ComposeUiTest.hero(count: Int = 3) = setContent {
+    private fun ComposeUiTest.hero(pictures: Int = 3) = setContent {
         KontourTheme(darkTheme = false, reduceMotion = false) {
             active = Theme.colours.primary
             inactive = Theme.colours.inactive
+            count = pictures
             pages = rememberCarouselState { count }
             Box(Modifier.width(360.dp)) {
                 TopBar(
@@ -93,16 +96,51 @@ class TopBarHeroImagesTest {
         assertTrue(close(image[image.width / 2, 8], Pictures[1]), "the bar should show the second picture: ${image[image.width / 2, 8]}")
     }
 
+    /**
+     * 16dp from the foot of the dots to the top of the title's line, wherever
+     * the platform's touch target makes the indicator's box: asked for as
+     * *"move the pager indicator down ever so slightly"*, from 24dp here and
+     * 36dp on a phone, where the gap was measured from the foot of a 48dp box.
+     */
     @Test
-    fun theDotsSitCentredJustAboveTheTitle() = runComposeUiTest {
+    fun theDotsSitCentred16dpAboveTheTitle() = runComposeUiTest {
         hero()
         val dots = assertNotNull(box(bar(), listOf(active, inactive)), "a hero with three pictures should show their dots")
         val title = onNodeWithText("Platform 9").fetchSemanticsNode().boundsInRoot
         val bar = onNodeWithTag("bar").fetchSemanticsNode().boundsInRoot
-        val gap = (title.top - bar.top) - dots.bottom
-        assertTrue(gap > 0f, "the dots should be above the title: dots $dots, title $title")
-        assertTrue(gap < 32f * density.density, "the dots should be just above the title, not ${gap / density.density}dp above it")
+        val gap = ((title.top - bar.top) - dots.bottom) / density.density
+        assertTrue(abs(gap - 16f) <= 1.5f, "the dots should be 16dp above the title: they are ${gap}dp above it")
         assertTrue(abs(dots.center.x - bar.width / 2f) <= 2f, "the dots should be centred: $dots in a bar ${bar.width} wide")
+    }
+
+    /**
+     * Nothing is drawn round the dots: the picture beside and above them is the
+     * picture, as it is with one picture and no dots. Asked for as *"can we get
+     * rid of the square bubble altogether?"*.
+     */
+    @Test
+    fun theDotsHaveNothingRoundThem() = runComposeUiTest {
+        hero()
+        val withDots = bar()
+        val dots = assertNotNull(box(withDots, listOf(active, inactive)))
+        val step = 6f * density.density
+        val around = listOf(
+            Offset(dots.left - step, dots.center.y),
+            Offset(dots.right + step, dots.center.y),
+            Offset(dots.center.x, dots.top - step),
+            Offset(dots.center.x, dots.bottom + step),
+        )
+        count = 1
+        waitForIdle()
+        val without = bar()
+        for (at in around) {
+            val a = withDots[at.x.toInt(), at.y.toInt()]
+            val b = without[at.x.toInt(), at.y.toInt()]
+            assertTrue(
+                abs(a.red - b.red) < 0.02f && abs(a.green - b.green) < 0.02f && abs(a.blue - b.blue) < 0.02f,
+                "beside the dots at $at the picture should show as it does without them: $a, against $b",
+            )
+        }
     }
 
     @Test
@@ -125,7 +163,7 @@ class TopBarHeroImagesTest {
 
     @Test
     fun onePictureHasNoDots() = runComposeUiTest {
-        hero(count = 1)
+        hero(pictures = 1)
         assertNull(box(bar(), listOf(active, inactive)), "one picture has nothing to page between")
     }
 
