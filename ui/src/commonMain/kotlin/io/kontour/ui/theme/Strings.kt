@@ -342,6 +342,10 @@ data class Strings(
     val dropFileHere: String = "Drop file here",
     /** And for a field that takes several. */
     val dropFilesHere: String = "Drop files here",
+    /** A select's last option, for an answer that is none of the others: picked, a box opens to type it in. */
+    val selectOther: String = "Other",
+    /** What that box says while it is empty. */
+    val selectOtherHint: String = "Please specify",
 ) {
     companion object {
         /**
@@ -491,6 +495,8 @@ data class Strings(
         removeFile = { name -> lookup.phrase("removeFile", null, name) ?: fallback.removeFile(name) },
         dropFileHere = lookup.text("dropFileHere") ?: fallback.dropFileHere,
         dropFilesHere = lookup.text("dropFilesHere") ?: fallback.dropFilesHere,
+        selectOther = lookup.text("selectOther") ?: fallback.selectOther,
+        selectOtherHint = lookup.text("selectOtherHint") ?: fallback.selectOtherHint,
         )
     }
 }
@@ -683,4 +689,6 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     removeFile = { a0 -> transform(removeFile(a0)) },
     dropFileHere = transform(dropFileHere),
     dropFilesHere = transform(dropFilesHere),
+    selectOther = transform(selectOther),
+    selectOtherHint = transform(selectOtherHint),
 )

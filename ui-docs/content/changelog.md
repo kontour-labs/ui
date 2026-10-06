@@ -142,6 +142,15 @@ on a round phone stop at 40dp.
 
 ### Added
 
+- **"Other" on a [`Select`](components/select.md) and a
+  [`MultiSelect`](components/multi-select.md)**, for an answer none of the
+  options give: *"when this option is selected, a text box expands within the
+  dropdown's outline, allowing the user to enter a custom value"*. Pass
+  `onOtherTextChange` and the menu ends with "Other"; picked, a box opens inside
+  the field, under its value, and takes the keyboard. `otherText` holds what is
+  typed, and picking an option instead clears it, so the answer is
+  `otherText ?: value`. The words are `Theme.strings.selectOther` and
+  `selectOtherHint`, or `otherLabel`. Nothing changes for a select not given it.
 - **[Drag and drop](drag-and-drop.md) across the app**, so a card moves
   between a board's columns, which `ReorderableItem` could not do.
   `Modifier.dragSource` carries a typed payload, `Modifier.dropTarget` with

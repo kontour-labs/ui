@@ -118,6 +118,18 @@ internal fun FieldScaffold(
      * already a control: `Select`'s whole frame opens a menu.
      */
     onFrameTap: (() -> Unit)? = null,
+    /**
+     * On the outline: the whole of what is drawn round, which with [below] is
+     * more than the frame. A select anchors its menu here, so the menu drops
+     * below everything in the outline rather than over part of it.
+     */
+    outlineModifier: Modifier = Modifier,
+    /**
+     * Something inside the outline under the frame's row — a select's box for
+     * an answer of its own. The frame's row keeps [frameModifier] and its taps;
+     * this is outside them, a control of its own. Null, the outline is the row.
+     */
+    below: (@Composable () -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val motion = Theme.motion
@@ -208,13 +220,14 @@ internal fun FieldScaffold(
             Spacer(Modifier.height(FieldStackGap))
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = metrics.minHeight)
-                .clip(shape)
-                .background(containerColour, shape)
-                .border(borderWidth, borderColour, shape)
+        // Drawn round the frame's row, or round the row and what is below it.
+        fun Modifier.outlined() = this
+            .clip(shape)
+            .background(containerColour, shape)
+            .border(borderWidth, borderColour, shape)
+        @Composable
+        fun FrameRow(modifier: Modifier) = Row(
+            modifier = modifier
                 .then(frameModifier)
                 .then(if (onFrameTap != null) Modifier.frameTap(onFrameTap) else Modifier)
                 // Each side is padded for what is actually on it. A glyph does
@@ -286,6 +299,20 @@ internal fun FieldScaffold(
             }
 
             trailing?.invoke()
+        }
+        if (below == null) {
+            FrameRow(
+                Modifier
+                    .fillMaxWidth()
+                    .then(outlineModifier)
+                    .defaultMinSize(minHeight = metrics.minHeight)
+                    .outlined(),
+            )
+        } else {
+            Column(Modifier.fillMaxWidth().then(outlineModifier).outlined()) {
+                FrameRow(Modifier.fillMaxWidth().defaultMinSize(minHeight = metrics.minHeight))
+                below()
+            }
         }
 
         /**

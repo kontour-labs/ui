@@ -135,6 +135,24 @@ fun SelectBasics() {
 }
 
 @Composable
+fun SelectWithOther() {
+    val reasons = remember { listOf("Running late", "Cancelled", "Too full") }
+    var reason by remember { mutableStateOf<String?>(null) }
+    var otherReason by remember { mutableStateOf<String?>(null) }
+
+    // "Other" ends the menu; picked, a box opens in the field to type in.
+    // The answer is `otherReason ?: reason`.
+    Select(
+        value = reason,
+        options = reasons,
+        onValueChange = { reason = it },
+        label = "Reason",
+        otherText = otherReason,
+        onOtherTextChange = { otherReason = it },
+    )
+}
+
+@Composable
 fun WheelSelectBasics() {
     var passengers by remember { mutableStateOf(2) }
 

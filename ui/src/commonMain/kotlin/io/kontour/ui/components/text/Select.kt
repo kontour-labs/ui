@@ -1,6 +1,22 @@
 package io.kontour.ui.components.text
 
 import io.kontour.ui.locale.ListStyle
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.dp
+import io.kontour.ui.a11y.highContrast
+import io.kontour.ui.theme.inset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -21,6 +37,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -33,6 +50,8 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import io.kontour.ui.motion.chevronTurn
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.foundation.Icon
 import io.kontour.ui.foundation.LocalContentColour
 import io.kontour.ui.foundation.SystemIcons
@@ -100,10 +119,41 @@ fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
  * tech each option is a radio button, chosen or not, in one group — "one of
  * these is on" is what is actually being conveyed.
  *
+ * ### An answer of their own
+ *
+ * Pass [onOtherTextChange] and the menu ends with [otherLabel] — "Other" — for
+ * an answer none of the options give. Picked, a box opens inside the field's
+ * outline, under the value, and takes the keyboard:
+ *
+ * ```kotlin
+ * Select(
+ *     value = reason,
+ *     options = Reason.entries,
+ *     onValueChange = { reason = it },
+ *     label = "Reason",
+ *     optionLabel = { it.label },
+ *     otherText = otherReason,
+ *     onOtherTextChange = { otherReason = it },
+ * )
+ * ```
+ *
+ * [otherText] not null **is** the choice, whatever [value] is: picking "Other"
+ * calls [onOtherTextChange] with what was typed before, or `""`; typing calls it
+ * with the text; and picking one of the options calls it with `null`, after
+ * [onValueChange]. So the answer is `otherText ?: value`, and neither callback
+ * has to clear the other's state.
+ *
  * @param optionLabel How to render each option. Needed in practice: the default
  *   `toString()` is right only for a `List<String>`.
  * @param optionIcon Draws an icon beside each option in the menu, and beside the
  *   value in the closed field.
+ * @param otherText What was typed for an answer of the user's own, `""` until
+ *   something is; `null` while one of the options is the answer, or none is.
+ * @param onOtherTextChange Called as "Other" is picked, as its box is typed in,
+ *   and with `null` as an option is picked instead. Null, the default, offers no
+ *   "Other".
+ * @param otherLabel The last option, and what the closed field says while it is
+ *   the choice.
  */
 @Composable
 fun <T> Select(
@@ -124,34 +174,60 @@ fun <T> Select(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
+    otherText: String? = null,
+    onOtherTextChange: ((String?) -> Unit)? = null,
+    otherLabel: String = Theme.strings.selectOther,
     interactionSource: MutableInteractionSource? = null,
 ) {
+    val other = otherText != null && onOtherTextChange != null
+    val otherBox = rememberOtherBox()
     SelectFrame(
-        valueLabel = value?.let(optionLabel),
+        valueLabel = if (other) otherLabel else value?.let(optionLabel),
         placeholder = placeholder,
         modifier = modifier,
         label = label,
         enabled = enabled,
         supporting = supporting,
         errorMessage = errorMessage,
-        leadingIcon = leadingIcon ?: value?.let { optionIcon?.invoke(it) },
+        leadingIcon = leadingIcon ?: value?.takeIf { !other }?.let { optionIcon?.invoke(it) },
         colours = colours,
         metrics = metrics,
         state = state,
         interactionSource = interactionSource,
         picksOne = true,
+        below = onOtherTextChange?.let { change ->
+            {
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, colours, metrics)
+            }
+        },
     ) { dismiss ->
         for (option in options) {
             MenuItem(
                 onClick = {
                     onValueChange(option)
+                    onOtherTextChange?.invoke(null)
                     dismiss()
                 },
                 enabled = optionEnabled(option),
-                selected = option == value,
+                selected = !other && option == value,
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
+        }
+        if (onOtherTextChange != null) {
+            MenuItem(
+                onClick = {
+                    onOtherTextChange(otherText ?: "")
+                    otherBox.focusOnShow()
+                    dismiss()
+                },
+                // Its box takes the keyboard from an effect after the tap,
+                // which iOS WebKit gives no keyboard; this opens it on the tap.
+                modifier = Modifier.opensKeyboard(enabled = enabled),
+                selected = other,
+            ) {
+                +otherLabel
             }
         }
     }
@@ -178,9 +254,21 @@ fun <T> Select(
  * thing that matters for a filter. A multi-select earns its place when the list
  * is long, or when a summary line reads better than a row of chips.
  *
+ * Pass [onOtherTextChange] for an "Other" at the end of the menu, as on a
+ * [Select]: ticked, it closes the menu and opens a box in the field's outline to
+ * type the rest in; ticked again, it is cleared, and [onOtherTextChange] is
+ * called with `null`. The options ticked alongside it stay ticked.
+ *
  * @param summary How to describe the selection in the closed field. The default
  *   lists up to three labels and then collapses to a count, because "Bus, Train,
- *   Ferry, Tram, Coa…" truncated mid-word says less than "5 selected".
+ *   Ferry, Tram, Coa…" truncated mid-word says less than "5 selected". An
+ *   "Other" that is ticked is added after it.
+ * @param otherText What was typed for an answer of the user's own, `""` until
+ *   something is; `null` while "Other" is not ticked.
+ * @param onOtherTextChange Called as "Other" is ticked, as its box is typed in,
+ *   and with `null` as it is unticked. Null, the default, offers no "Other".
+ * @param otherLabel The last option, and what the closed field adds while it is
+ *   ticked.
  */
 @Composable
 fun <T> MultiSelect(
@@ -202,12 +290,23 @@ fun <T> MultiSelect(
     colours: TextFieldColours = TextFieldDefaults.colours(variant),
     metrics: TextFieldMetrics = TextFieldDefaults.metrics(),
     state: SelectState = rememberSelectState(),
+    otherText: String? = null,
+    onOtherTextChange: ((String?) -> Unit)? = null,
+    otherLabel: String = Theme.strings.selectOther,
     interactionSource: MutableInteractionSource? = null,
 ) {
     // Checkboxes, so they toggle — as `FilterChip`, their alternative, does.
     val toggled = rememberToggleFeedback()
+    val other = otherText != null && onOtherTextChange != null
+    val otherBox = rememberOtherBox()
+    val formats = Theme.formats
+    val chosen = summary(value)
     SelectFrame(
-        valueLabel = summary(value).takeIf { it.isNotEmpty() },
+        valueLabel = when {
+            !other -> chosen.takeIf { it.isNotEmpty() }
+            chosen.isEmpty() -> otherLabel
+            else -> formats.list(listOf(chosen, otherLabel), ListStyle.Unit)
+        },
         placeholder = placeholder,
         modifier = modifier,
         label = label,
@@ -220,7 +319,12 @@ fun <T> MultiSelect(
         state = state,
         interactionSource = interactionSource,
         picksOne = false,
-    ) {
+        below = onOtherTextChange?.let { change ->
+            {
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, colours, metrics)
+            }
+        },
+    ) { dismiss ->
         for (option in options) {
             MenuItem(
                 onClick = {
@@ -239,6 +343,27 @@ fun <T> MultiSelect(
             ) {
                 +optionLabel(option)
                 optionIcon?.invoke(option)?.let { icon -> leading { +icon } }
+            }
+        }
+        if (onOtherTextChange != null) {
+            MenuItem(
+                onClick = {
+                    toggled(!other)
+                    if (other) {
+                        onOtherTextChange(null)
+                    } else {
+                        // Ticked, the next thing to do is type: the menu goes
+                        // and the box takes the keyboard.
+                        onOtherTextChange("")
+                        otherBox.focusOnShow()
+                        dismiss()
+                    }
+                },
+                modifier = Modifier.opensKeyboard(enabled = enabled && !other),
+                selected = other,
+                multiple = true,
+            ) {
+                +otherLabel
             }
         }
     }
@@ -398,6 +523,7 @@ private fun SelectFrame(
     picksOne: Boolean,
     onOpenChange: (Boolean) -> Unit = {},
     editor: (@Composable RowScope.(Modifier, FocusRequester) -> Unit)? = null,
+    below: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -442,8 +568,11 @@ private fun SelectFrame(
                 size = Theme.sizing.iconMedium,
             )
         },
+        // The menu drops below the whole outline: below an "Other" box too,
+        // rather than over what was typed in it.
+        outlineModifier = Modifier.anchorBounds { anchor = it },
+        below = below,
         frameModifier = Modifier
-            .anchorBounds { anchor = it }
             // A combobox's tap opens its editor and focuses it from an effect,
             // which iOS WebKit gives no keyboard; this opens it on the tap.
             .opensKeyboard(enabled = enabled && editor != null && !expanded)
@@ -535,3 +664,131 @@ object SelectDefaults {
         return { option, query -> formats.foldForSearch(optionLabel(option)).contains(formats.foldForSearch(query)) }
     }
 }
+
+/** An "Other" box's focus, asked for as "Other" is picked and given once the box is there. */
+@Stable
+internal class OtherBoxState {
+    val focus = FocusRequester()
+    var wantsFocus: Boolean by mutableStateOf(false)
+
+    fun focusOnShow() {
+        wantsFocus = true
+    }
+}
+
+@Composable
+private fun rememberOtherBox(): OtherBoxState = remember { OtherBoxState() }
+
+/**
+ * The box an answer of the user's own is typed in: inside the select's outline,
+ * under its value, opening as "Other" is picked and closing as an option is.
+ *
+ * A text box within the field rather than a field of its own under it, so the
+ * select and its "Other" read as one question with one answer. Inset from the
+ * outline on three sides, its corners concentric with the field's, and its text
+ * starting where the value's does.
+ */
+@Composable
+private fun OtherBox(
+    box: OtherBoxState,
+    text: String?,
+    onTextChange: (String) -> Unit,
+    label: String?,
+    otherLabel: String,
+    enabled: Boolean,
+    colours: TextFieldColours,
+    metrics: TextFieldMetrics,
+) {
+    val motion = Theme.motion
+    AnimatedVisibility(
+        visible = text != null,
+        // Under reduced motion it takes its room at once and fades, as a
+        // field's message does.
+        enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+        exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
+    ) {
+        // Kept while it closes, so the words do not vanish before the box does.
+        var shown by remember { mutableStateOf(text.orEmpty()) }
+        if (text != null) shown = text
+        val interactions = remember { MutableInteractionSource() }
+        val focused by interactions.collectIsFocusedAsState()
+        val inset = Theme.spacing.xs
+        val shape = Theme.shapes.field.inset(inset)
+        val strong = highContrast()
+        val edge by animateColorAsState(
+            targetValue = when {
+                !enabled -> colours.borderDisabled
+                focused -> colours.borderFocused
+                strong -> Theme.colours.outlineStrong
+                else -> Theme.colours.outline
+            },
+            animationSpec = motion.tweenFast(),
+            label = "otherBoxEdge",
+        )
+        val width = if (focused || strong) Theme.sizing.borderWidthStrong else Theme.sizing.borderWidth
+        val selection = remember(colours) {
+            TextSelectionColors(handleColor = colours.cursor, backgroundColor = colours.selectionBackground)
+        }
+        LaunchedEffect(box) {
+            // Collected rather than keyed on: clearing the flag would restart
+            // an effect keyed on it, and cancel the asking.
+            snapshotFlow { box.wantsFocus }.collect { wanted ->
+                if (!wanted) return@collect
+                box.wantsFocus = false
+                // The menu "Other" was picked in is still closing, and on the
+                // frame the box arrives it cannot take the focus yet: asked
+                // again each frame, for a few, until it has.
+                for (attempt in 0 until FocusTries) {
+                    if (runCatching { box.focus.requestFocus() }.getOrDefault(false)) break
+                    withFrameMillis { }
+                }
+            }
+        }
+        // Named as the question and the option it answers: "Reason, Other",
+        // joined as the reader's language joins a list.
+        val name = Theme.formats.list(listOfNotNull(label, otherLabel), ListStyle.Unit)
+        CompositionLocalProvider(LocalTextSelectionColors provides selection) {
+            BasicTextField(
+                value = shown,
+                onValueChange = onTextChange,
+                enabled = enabled,
+                singleLine = true,
+                textStyle = Theme.typography.bodyMedium.merge(color = if (enabled) colours.content else colours.contentDisabled),
+                cursorBrush = SolidColor(colours.cursor),
+                interactionSource = interactions,
+                modifier = Modifier
+                    .padding(start = inset, end = inset, bottom = inset)
+                    .fillMaxWidth()
+                    .focusRequester(box.focus)
+                    .semantics { contentDescription = name },
+                decorationBox = { input ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(shape)
+                            .border(width, edge, shape)
+                            .padding(
+                                horizontal = (metrics.horizontalPadding - inset).coerceAtLeast(0.dp),
+                                vertical = Theme.spacing.xs,
+                            ),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (shown.isEmpty()) {
+                            Text(
+                                text = Theme.strings.selectOtherHint,
+                                style = Theme.typography.bodyMedium,
+                                colour = colours.placeholder,
+                                maxLines = 1,
+                                modifier = Modifier.clearAndSetSemantics {},
+                            )
+                        }
+                        input()
+                    }
+                },
+            )
+        }
+    }
+}
+
+/** How many frames an "Other" box asks for the focus before it gives up. */
+private const val FocusTries = 10

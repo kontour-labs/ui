@@ -30,6 +30,38 @@ of a row, or in a sentence, where the box was more frame than field. Focus and
 an error bring its edge back. The same goes for every select: `MultiSelect`,
 `Combobox` and `WheelSelect` take the same `variant`.
 
+**An answer of their own.** Give it `onOtherTextChange` and the menu ends with
+"Other". Picked, a box opens inside the field's outline, under the value, and takes
+the keyboard; what is typed comes back through `onOtherTextChange`, and
+`otherText` holds it. Picking one of the options instead closes the box and calls
+`onOtherTextChange(null)`, so the answer is always `otherText ?: value` and
+neither callback clears the other's state.
+
+<!--sample:SelectWithOther-->
+```kotlin
+val reasons = remember { listOf("Running late", "Cancelled", "Too full") }
+var reason by remember { mutableStateOf<String?>(null) }
+var otherReason by remember { mutableStateOf<String?>(null) }
+
+// "Other" ends the menu; picked, a box opens in the field to type in.
+// The answer is `otherReason ?: reason`.
+Select(
+    value = reason,
+    options = reasons,
+    onValueChange = { reason = it },
+    label = "Reason",
+    otherText = otherReason,
+    onOtherTextChange = { otherReason = it },
+)
+```
+
+The box is part of the field rather than a field under it, so the question and
+its answer read as one; it is still a text box of its own to a screen reader,
+named for both — "Reason, Other" — and not part of the dropdown's node. The word
+is `Theme.strings.selectOther`, or `otherLabel`, and the hint in the empty box
+`selectOtherHint`. `MultiSelect` takes the same three parameters, with "Other"
+ticked alongside the options.
+
 **Reach for a [`RadioGroup`](radio-group.md) above a `Select`** when
 there are three or four options and room to show them. A select hides its
 options behind a tap, a cost worth paying only when showing them would crowd the

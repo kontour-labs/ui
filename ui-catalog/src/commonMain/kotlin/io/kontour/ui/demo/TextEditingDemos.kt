@@ -282,8 +282,12 @@ private enum class Mode(val label: String) {
  */
 private val MenuRoom = 300.dp
 
-internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant)) {
+/** An "Other" at the end of the menu, with a box in the field to type the answer in. */
+private val offerOther = Knob.Flag("Offer Other")
+
+internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant, offerOther)) {
     var departure by remember { mutableStateOf(Departure.DepartAt) }
+    var other by remember { mutableStateOf<String?>(null) }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         Select(
             value = departure,
@@ -293,6 +297,8 @@ internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVar
             optionLabel = { it.label },
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
+            otherText = other,
+            onOtherTextChange = if (this@ComponentDemo[offerOther]) ({ other = it }) else null,
         )
     }
 }
@@ -325,8 +331,9 @@ internal val WheelSelectDemo = ComponentDemo(
     }
 }
 
-internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = listOf(fieldVariant)) {
+internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = listOf(fieldVariant, offerOther)) {
     var modes by remember { mutableStateOf(setOf(Mode.Bus, Mode.Train)) }
+    var other by remember { mutableStateOf<String?>(null) }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         MultiSelect(
             value = modes,
@@ -344,6 +351,8 @@ internal val MultiSelectDemo = ComponentDemo(slug = "multi-select", knobs = list
             },
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
+            otherText = other,
+            onOtherTextChange = if (this@ComponentDemo[offerOther]) ({ other = it }) else null,
         )
     }
 }
