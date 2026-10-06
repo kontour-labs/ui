@@ -58,6 +58,25 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.platform.opensKeyboard
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
+import androidx.compose.ui.text.TextRange
+import io.kontour.ui.platform.BrowserFace
+import io.kontour.ui.platform.BrowserText
+import io.kontour.ui.platform.browserText
+import io.kontour.ui.platform.textTouchesGoToTheBrowser
+import io.kontour.ui.theme.jetBrainsMonoFontFamily
+import io.kontour.ui.theme.outfitFontFamily
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.mono
 
@@ -204,6 +223,11 @@ internal fun TextFieldImpl(
     inputSemantics: (SemanticsPropertyReceiver.() -> Unit)? = null,
     /** A requester for the input, for a field its owner focuses — a select's box for "Other". */
     focusRequester: FocusRequester? = null,
+    /**
+     * Whether [outputTransformation] is a password's dots and nothing else, which
+     * a browser can draw for itself: see [textTouchesGoToTheBrowser].
+     */
+    masked: Boolean = false,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Code in the theme's mono face, at the field's own size: the family and
@@ -220,10 +244,41 @@ internal fun TextFieldImpl(
     val ownRequester = remember { FocusRequester() }
     val requester = imeChain?.requester ?: focusRequester ?: ownRequester
 
-    val selectionColours = remember(colours) {
+    // **In a browser on a phone, the focused field's caret, selection and menu
+    // are the browser's own**: see `textTouchesGoToTheBrowser`. Not for a field
+    // whose text is drawn as something other than itself — a phone number
+    // grouped as it is typed — whose letters the browser cannot put where
+    // Compose's are.
+    val routed = textTouchesGoToTheBrowser && enabled && !readOnly && (outputTransformation == null || masked)
+    val scroll = rememberScrollState()
+    val browser = remember { BrowserText() }
+    val outfit = outfitFontFamily()
+    val jetBrainsMono = jetBrainsMonoFontFamily()
+    if (routed) {
+        browser.state = state
+        browser.inputTransformation = inputTransformation
+        browser.focused = focused
+        browser.singleLine = lineLimits == TextFieldLineLimits.SingleLine
+        browser.masked = masked
+        browser.style = textStyle
+        browser.face = when (textStyle.fontFamily) {
+            outfit -> BrowserFace.Outfit
+            jetBrainsMono -> BrowserFace.Mono
+            else -> null
+        }
+        browser.caret = colours.cursor
+        browser.selection = colours.selectionBackground
+        browser.scroll = scroll
+    } else {
+        browser.focused = false
+    }
+    // The browser draws them over a focused field, so Compose's would be a second
+    // caret and a second selection a hair away from the first.
+    val drawnByBrowser = routed && focused
+    val selectionColours = remember(colours, drawnByBrowser) {
         TextSelectionColors(
-            handleColor = colours.cursor,
-            backgroundColor = colours.selectionBackground,
+            handleColor = if (drawnByBrowser) Color.Transparent else colours.cursor,
+            backgroundColor = if (drawnByBrowser) Color.Transparent else colours.selectionBackground,
         )
     }
 
@@ -313,11 +368,15 @@ internal fun TextFieldImpl(
             CompositionLocalProvider(
                 LocalTextSelectionColors provides selectionColours,
                 LocalContentColour provides contentColour,
+                // Nor its toolbar: the browser's menu is the field's.
+                LocalTextToolbar provides if (routed) NoTextToolbar else LocalTextToolbar.current,
             ) {
                 BasicTextField(
                     state = state,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (routed) Modifier.tapPlacesCaret(state, browser, requester) else Modifier)
+                        .browserText(browser)
                         // The requester belongs on the input itself, not on the
                         // frame — focusing the frame would put the caret
                         // nowhere. Always present now rather than only with a
@@ -365,8 +424,14 @@ internal fun TextFieldImpl(
                     lineLimits = lineLimits,
                     inputTransformation = inputTransformation,
                     outputTransformation = outputTransformation,
-                    cursorBrush = SolidColor(colours.cursor),
+                    cursorBrush = SolidColor(if (drawnByBrowser) Color.Transparent else colours.cursor),
                     interactionSource = interactions,
+                    scrollState = scroll,
+                    onTextLayout = if (routed) {
+                        { result -> browser.layout = result() }
+                    } else {
+                        null
+                    },
                 )
             }
 
@@ -459,4 +524,54 @@ object TextAreaDefaults {
     /** Three lines to start with, growing to eight before it scrolls. */
     val LineLimits: TextFieldLineLimits.MultiLine =
         TextFieldLineLimits.MultiLine(minHeightInLines = 3, maxHeightInLines = 8)
+}
+
+/**
+ * A tap on a field the browser's input will take over, before it has: the caret
+ * goes where the finger was, and the field takes the focus, as foundation's own
+ * tap does — but without foundation's caret handle, which would be left under a
+ * caret the browser draws, a teardrop nobody can see that still takes touches.
+ *
+ * Only the lift, and only a tap's: a press that moves is left to the list the
+ * field is in, which scrolls.
+ */
+private fun Modifier.tapPlacesCaret(state: TextFieldState, browser: BrowserText, requester: FocusRequester): Modifier =
+    pointerInput(state, browser, requester) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (down.type != PointerType.Touch) return@awaitEachGesture
+            val slop = viewConfiguration.touchSlop
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                if (change.isConsumed || (change.position - down.position).getDistance() > slop) return@awaitEachGesture
+                if (!change.pressed) {
+                    change.consume()
+                    val layout = browser.layout
+                    val scrolled = browser.scroll?.value?.toFloat() ?: 0f
+                    val at = if (browser.singleLine) change.position + Offset(scrolled, 0f) else change.position + Offset(0f, scrolled)
+                    if (layout != null) {
+                        val offset = layout.getOffsetForPosition(at).coerceIn(0, state.text.length)
+                        state.edit { selection = TextRange(offset) }
+                    }
+                    requester.requestFocus()
+                    return@awaitEachGesture
+                }
+            }
+        }
+    }
+
+/** A text toolbar that shows nothing: a field whose menu is the browser's. */
+private object NoTextToolbar : TextToolbar {
+    override val status: TextToolbarStatus get() = TextToolbarStatus.Hidden
+
+    override fun hide() = Unit
+
+    override fun showMenu(
+        rect: Rect,
+        onCopyRequested: (() -> Unit)?,
+        onPasteRequested: (() -> Unit)?,
+        onCutRequested: (() -> Unit)?,
+        onSelectAllRequested: (() -> Unit)?,
+    ) = Unit
 }

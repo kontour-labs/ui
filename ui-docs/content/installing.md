@@ -168,12 +168,27 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   when Compose fixes it.
 
   On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
-  for an input focused during the tap itself; Compose focuses its own a frame
-  later. `KontourTheme` installs a primer for that: a tap on a text field, a
-  combobox, a nav bar's search or an editable knob focuses a hidden input
-  straight away, the keyboard opens for it, and Compose's input takes it over a
-  moment later. Nothing is added off iOS. A text field of your own on
-  `BasicTextField` does not get it.
+  for an input focused during the tap itself; Compose focuses its own while the
+  finger is still down, a frame after it lands, which WebKit does not count. So
+  as the finger lifts from a text field, a combobox, a nav bar's search or an
+  editable knob, `KontourTheme` focuses Compose's input again, during the tap,
+  and the keyboard opens for it. A field that focuses itself later — the box
+  under a select's "Other", a combobox's editor — has a hidden input focused
+  in its place for the moment between. Nothing is added off iOS.
+
+  On a phone or a tablet, in any browser, **a focused text field's selection,
+  its handles and its menu are the browser's own**: Copy, Paste, Look Up and
+  the rest, where the reader expects them. Compose's input is laid over the
+  field's text while it has the focus, in the same face at the same size, and
+  takes the touches on it; Compose still draws the text, and the browser draws
+  its caret and selection over it. A field whose text is drawn as something
+  else — a phone number grouped as it is typed — keeps Compose's selection and
+  menu, as the browser's letters would not be under Compose's. The faces are
+  the library's Outfit and JetBrains Mono; a theme in a face of its own has the
+  browser's sans-serif under it, close but not exact. A swipe that starts on a
+  focused field's text selects rather than scrolls the page.
+
+  Neither reaches a text field of your own on `BasicTextField`.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`

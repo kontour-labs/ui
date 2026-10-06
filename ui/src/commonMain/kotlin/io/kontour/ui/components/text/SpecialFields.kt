@@ -315,6 +315,7 @@ private fun MaskedField(
         // rendered in plaintext in both states and the toggle changed the icon
         // and nothing else.
         outputTransformation = if (revealed) null else mask,
+        masked = !revealed,
         imeAction = imeAction,
         imeChain = imeChain,
         colours = colours,

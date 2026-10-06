@@ -51,6 +51,16 @@ internal fun isIosWebKit(userAgent: String, platform: String, maxTouchPoints: In
 private val IosDevice = Regex("iPhone|iPad|iPod")
 
 /**
+ * Whether this browser is on a device whose text is selected by touch: a phone
+ * or a tablet that says so, or anything whose main pointer is a finger. iOS is
+ * [isIosWebKit]'s to say, as an iPad says it is a Mac.
+ */
+internal fun isTouchFirst(userAgent: String, coarsePointer: Boolean): Boolean =
+    TouchDevice.containsMatchIn(userAgent) || coarsePointer
+
+private val TouchDevice = Regex("Android|Mobi")
+
+/**
  * The marked regions, in CSS pixels from the top left of the page's Compose
  * surface, keyed by the element that marked each.
  */
@@ -94,6 +104,14 @@ internal class KeyboardPrimerHandover {
     fun onTouchStart(x: Float, y: Float) {
         startX = x
         startY = y
+    }
+
+    /** Whether a touch ending at ([x], [y]) is a tap, rather than a drag. Leaves the touch as it was. */
+    fun isTap(x: Float, y: Float): Boolean {
+        val dx = x - startX
+        val dy = y - startY
+        // NaN when no start was seen, which compares false: not a tap.
+        return dx * dx + dy * dy <= TapSlop * TapSlop
     }
 
     /**

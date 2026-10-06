@@ -122,12 +122,35 @@ internal actual fun InstallKeyboardPrimer() {
             val surface = (event.target as? Element)?.getBoundingClientRect() ?: return@handler
             val x = (touch.clientX - surface.left).toFloat()
             val y = (touch.clientY - surface.top).toFloat()
+            val inRegion = regions.contains(x, y)
+            // **Compose's own input, if it took the focus while the finger was
+            // down**, which for a tap of any ordinary length it has: a field
+            // asks for focus as it is pressed, and Compose focuses its input
+            // on the next frame, well before the finger lifts — so outside the
+            // touch, and WebKit keeps the keyboard down. Focused again here,
+            // during the touch, WebKit counts it as the reader's and opens the
+            // keyboard for it: the same thing a second tap on the field did,
+            // which is why a second tap always worked. 0.4.2 primed its own
+            // input here instead, which took the focus *from* Compose's, and
+            // Compose took it back a frame later, outside the touch again —
+            // *"the first tap doesn't open it, but a second tap does"*.
+            val compose = composeInput(event)
+            if (inRegion && compose != null && handover.isTap(touch.clientX.toFloat(), touch.clientY.toFloat())) {
+                handover.onTouchEnd(touch.clientX.toFloat(), touch.clientY.toFloat(), inRegion = false, editing = true, now = now())
+                // Off and on again, rather than `focus()` alone on an input
+                // that already has it, which a browser may take for nothing
+                // having happened: this is a focus arriving during a touch,
+                // which is the one thing WebKit opens the keyboard for.
+                compose.blur()
+                compose.focus()
+                return@handler
+            }
             val active = document.activeElement
-            val editing = active != primer && (active is HTMLInputElement || active is HTMLTextAreaElement)
+            val editing = compose != null || (active != primer && (active is HTMLInputElement || active is HTMLTextAreaElement))
             val prime = handover.onTouchEnd(
                 x = touch.clientX.toFloat(),
                 y = touch.clientY.toFloat(),
-                inRegion = regions.contains(x, y),
+                inRegion = inRegion,
                 editing = editing,
                 now = now(),
             )
@@ -158,11 +181,38 @@ internal actual fun InstallKeyboardPrimer() {
 }
 
 /**
- * The input the keyboard opens for.
+ * Compose's own input, if the touch [event] is on a Compose surface whose input
+ * has the focus: the element it types through, in the surface's shadow root.
+ */
+private fun composeInput(event: Event): HTMLElement? {
+    val root = composeShadowRoot(event) ?: return null
+    return focusedBackingField(root)
+}
+
+private fun composeShadowRoot(event: Event): JsAny? = js(
+    """{
+        var path = event.composedPath ? event.composedPath() : [];
+        for (var i = 0; i < path.length; i++) {
+            var node = path[i];
+            if (node && node.shadowRoot && node.shadowRoot.querySelector('.compose-backing-field, canvas')) return node.shadowRoot;
+        }
+        return null;
+    }"""
+)
+
+private fun focusedBackingField(root: JsAny): HTMLElement? = js(
+    "(root.activeElement && root.activeElement.classList.contains('compose-backing-field')) ? root.activeElement : null"
+)
+
+/**
+ * The input the keyboard opens for, where Compose has none focused yet: a field
+ * focused from an effect after the touch, or a tap shorter than a frame.
  *
- * At 16px, below which WebKit zooms the page to a focused input; invisible, out
- * of the accessibility tree and the tab order, and touched by nothing — it exists
- * to be focused for a few frames and handed on.
+ * At 16px, below which WebKit zooms the page to a focused input; out of the
+ * accessibility tree and the tab order, and touched by nothing — it exists to be
+ * focused for a few frames and handed on. **Not `opacity: 0`**, which it was:
+ * drawn in nothing rather than not drawn, as Compose draws its own input, so
+ * that nothing about it reads to the browser as an input the reader cannot see.
  */
 private fun primerInput(): HTMLInputElement {
     val input = document.createElement("input") as HTMLInputElement
@@ -177,8 +227,10 @@ private fun primerInput(): HTMLInputElement {
         height = "1px"
         padding = "0"
         border = "0"
-        opacity = "0"
         fontSize = "16px"
+        background = "transparent"
+        color = "transparent"
+        outline = "none"
         setProperty("caret-color", "transparent")
         setProperty("pointer-events", "none")
     }
