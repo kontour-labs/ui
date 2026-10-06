@@ -133,14 +133,28 @@ import sys
 #
 # `app` through `--update`'s rule by hand, and `total`, which is not one of its
 # groups, by the same rule over 0.3.0's total (6,710,138) plus `app`'s growth.
+#
+# Raised 2026-10-06 for 0.4.2, from CI's own measurement on `main` after #32
+# (7227c14), the first run to build the site since the release's work merged.
+# `app` is 3,367,130: +182,179 gzip on 0.4.0's 3,184,951, +5.7%. Kotlin, Compose
+# and Skia are 0.4.0's — the one new dependency, activity-compose, is Android's
+# alone — so `skiko`, `js`, `fonts` and `other` measured inside their ceilings
+# and `--update`'s rule leaves them where they were. What grew is the library
+# and the pages that show it: drag and drop (sources, targets, drop lists,
+# autoscroll, keyboard moves, drops from outside the app), FileField and the
+# web's file picker, DropZone, the Board app in the gallery, SecretField,
+# DateField, LoadingState and StateSwitcher, HeroImages, a select's "Other",
+# and the changelog and guides that describe them.
+#
+# `app` and `total` through `--update`'s rule by hand, over CI's figures.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_290_000,
+    "app": 3_470_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 7_180_000,
+    "total": 7_370_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
