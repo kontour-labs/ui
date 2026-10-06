@@ -2,20 +2,10 @@ package io.kontour.ui.components.text
 
 import io.kontour.ui.locale.ListStyle
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.dp
-import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.theme.inset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,11 +21,9 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -67,6 +55,13 @@ import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.interaction.rememberToggleFeedback
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 
 /**
  * Whether a [Select], [MultiSelect] or [Combobox] has its menu open.
@@ -197,7 +192,7 @@ fun <T> Select(
         picksOne = true,
         below = onOtherTextChange?.let { change ->
             {
-                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, colours, metrics)
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
             }
         },
     ) { dismiss ->
@@ -321,7 +316,7 @@ fun <T> MultiSelect(
         picksOne = false,
         below = onOtherTextChange?.let { change ->
             {
-                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, colours, metrics)
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
             }
         },
     ) { dismiss ->
@@ -696,7 +691,7 @@ private fun OtherBox(
     label: String?,
     otherLabel: String,
     enabled: Boolean,
-    colours: TextFieldColours,
+    variant: TextFieldVariant,
     metrics: TextFieldMetrics,
 ) {
     val motion = Theme.motion
@@ -707,27 +702,16 @@ private fun OtherBox(
         enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
         exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
     ) {
-        // Kept while it closes, so the words do not vanish before the box does.
-        var shown by remember { mutableStateOf(text.orEmpty()) }
-        if (text != null) shown = text
-        val interactions = remember { MutableInteractionSource() }
-        val focused by interactions.collectIsFocusedAsState()
-        val inset = Theme.spacing.xs
-        val shape = Theme.shapes.field.inset(inset)
-        val strong = highContrast()
-        val edge by animateColorAsState(
-            targetValue = when {
-                !enabled -> colours.borderDisabled
-                focused -> colours.borderFocused
-                strong -> Theme.colours.outlineStrong
-                else -> Theme.colours.outline
-            },
-            animationSpec = motion.tweenFast(),
-            label = "otherBoxEdge",
-        )
-        val width = if (focused || strong) Theme.sizing.borderWidthStrong else Theme.sizing.borderWidth
-        val selection = remember(colours) {
-            TextSelectionColors(handleColor = colours.cursor, backgroundColor = colours.selectionBackground)
+        // The words typed, kept while it closes so they do not vanish before
+        // the box does, and put back if the caller changes them.
+        val state = rememberTextFieldState(text.orEmpty())
+        val change by rememberUpdatedState(onTextChange)
+        LaunchedEffect(state) {
+            // The first value is the one just put in, which nobody typed.
+            snapshotFlow { state.text.toString() }.drop(1).collect { change(it) }
+        }
+        LaunchedEffect(text) {
+            if (text != null && text != state.text.toString()) state.setTextAndPlaceCursorAtEnd(text)
         }
         LaunchedEffect(box) {
             // Collected rather than keyed on: clearing the flag would restart
@@ -744,49 +728,51 @@ private fun OtherBox(
                 }
             }
         }
-        // Named as the question and the option it answers: "Reason, Other",
-        // joined as the reader's language joins a list.
-        val name = Theme.formats.list(listOfNotNull(label, otherLabel), ListStyle.Unit)
-        CompositionLocalProvider(LocalTextSelectionColors provides selection) {
-            BasicTextField(
-                value = shown,
-                onValueChange = onTextChange,
-                enabled = enabled,
-                singleLine = true,
-                textStyle = Theme.typography.bodyMedium.merge(color = if (enabled) colours.content else colours.contentDisabled),
-                cursorBrush = SolidColor(colours.cursor),
-                interactionSource = interactions,
-                modifier = Modifier
-                    .padding(start = inset, end = inset, bottom = inset)
-                    .fillMaxWidth()
-                    .focusRequester(box.focus)
-                    .semantics { contentDescription = name },
-                decorationBox = { input ->
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(shape)
-                            .border(width, edge, shape)
-                            .padding(
-                                horizontal = (metrics.horizontalPadding - inset).coerceAtLeast(0.dp),
-                                vertical = Theme.spacing.xs,
-                            ),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        if (shown.isEmpty()) {
-                            Text(
-                                text = Theme.strings.selectOtherHint,
-                                style = Theme.typography.bodyMedium,
-                                colour = colours.placeholder,
-                                maxLines = 1,
-                                modifier = Modifier.clearAndSetSemantics {},
-                            )
-                        }
-                        input()
-                    }
-                },
-            )
+        // **A filled text field, the field's own height, inside the outline.**
+        // Inset by the same space at the sides and the foot, with the field's
+        // corners less that space, so its corners are concentric with the
+        // outline's. Asked for as "use the style of our regular 'filled' text
+        // field. same height, just indented a bit horizontally to accomodate
+        // for proper concentric padding".
+        //
+        // Inside a filled select the well would be the select's own ground, so
+        // there it is the page's colour instead: a well in the other direction.
+        val inset = Theme.spacing.xs
+        val colours = if (variant == TextFieldVariant.Filled) {
+            TextFieldDefaults.colours(TextFieldVariant.Filled, container = Theme.colours.background)
+        } else {
+            TextFieldDefaults.colours(TextFieldVariant.Filled)
         }
+        TextFieldImpl(
+            state = state,
+            modifier = Modifier.padding(start = inset, end = inset, bottom = inset),
+            enabled = enabled,
+            readOnly = false,
+            label = null,
+            placeholder = Theme.strings.selectOtherHint,
+            supporting = null,
+            errorMessage = null,
+            leadingIcon = null,
+            leading = null,
+            trailingIcon = null,
+            trailing = null,
+            variant = TextFieldVariant.Filled,
+            shape = Theme.shapes.field.inset(inset),
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Done,
+            onKeyboardAction = null,
+            imeChain = null,
+            inputTransformation = null,
+            outputTransformation = null,
+            lineLimits = TextFieldLineLimits.SingleLine,
+            colours = colours,
+            metrics = metrics,
+            interactionSource = null,
+            // Named as the question and the option it answers: "Reason, Other",
+            // joined as the reader's language joins a list.
+            accessibleName = Theme.formats.list(listOfNotNull(label, otherLabel), ListStyle.Unit),
+            focusRequester = box.focus,
+        )
     }
 }
 

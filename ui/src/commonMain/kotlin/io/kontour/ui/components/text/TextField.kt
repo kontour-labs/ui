@@ -202,6 +202,8 @@ internal fun TextFieldImpl(
      * service never reads.
      */
     inputSemantics: (SemanticsPropertyReceiver.() -> Unit)? = null,
+    /** A requester for the input, for a field its owner focuses — a select's box for "Other". */
+    focusRequester: FocusRequester? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     // Code in the theme's mono face, at the field's own size: the family and
@@ -216,7 +218,7 @@ internal fun TextFieldImpl(
     // Without a chain there was none at all, which is why the frame had nothing
     // to focus and the field's padding did nothing.
     val ownRequester = remember { FocusRequester() }
-    val requester = imeChain?.requester ?: ownRequester
+    val requester = imeChain?.requester ?: focusRequester ?: ownRequester
 
     val selectionColours = remember(colours) {
         TextSelectionColors(

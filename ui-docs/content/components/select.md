@@ -55,8 +55,11 @@ Select(
 )
 ```
 
-The box is part of the field rather than a field under it, so the question and
-its answer read as one; it is still a text box of its own to a screen reader,
+The box is a filled [`TextField`](text-field.md), a field's height, set into the
+outline by the same 8dp at either side and below, with corners concentric with
+the outline's; inside a `Filled` select its well is the page's colour, so it
+still stands out. It is part of the field rather than a field under it, so the
+question and its answer read as one; it is still a text box of its own to a screen reader,
 named for both — "Reason, Other" — and not part of the dropdown's node. The word
 is `Theme.strings.selectOther`, or `otherLabel`, and the hint in the empty box
 `selectOtherHint`. `MultiSelect` takes the same three parameters, with "Other"

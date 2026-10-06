@@ -99,6 +99,50 @@ class SelectOtherTest {
         onNodeWithText("Other", useUnmergedTree = true).assertExists("the closed field should say Other")
     }
 
+    /**
+     * The box is the library's filled text field — the same height as one —
+     * set into the outline by the same space at either side and below, for
+     * corners concentric with the outline's.
+     *
+     * Asked for as *"please use the style of our regular 'filled' text field.
+     * same height, just indented a bit horizontally to accomodate for proper
+     * concentric padding"*. It was a hairline box of its own, 36dp tall.
+     */
+    @Test
+    fun theBoxIsAFilledFieldsHeightIndentedInsideTheOutline() = runComposeUiTest {
+        var inset = 0.dp
+        show {
+            inset = io.kontour.ui.theme.Theme.spacing.xs
+            androidx.compose.foundation.layout.Column {
+                ReasonSelect()
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(12.dp))
+                TextField(
+                    state = androidx.compose.foundation.text.input.rememberTextFieldState(),
+                    variant = TextFieldVariant.Filled,
+                    modifier = Modifier.width(320.dp).testTag("regular"),
+                )
+            }
+        }
+        open()
+        pick("Other")
+        val px = with(density) { inset.toPx() }
+        val field = onNodeWithTag("field").fetchSemanticsNode().boundsInRoot
+        val frame = onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.DropdownList)).fetchSemanticsNode().boundsInRoot
+        val regular = onNodeWithTag("regular").fetchSemanticsNode().boundsInRoot
+        val box = onNodeWithContentDescription("Reason, Other").fetchSemanticsNode().boundsInRoot
+        val regularInput = onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetText) and SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+            .fetchSemanticsNode().boundsInRoot
+        // Under the select's row: a filled field's height, then the inset.
+        val under = field.bottom - frame.bottom
+        assertTrue(
+            kotlin.math.abs(under - (regular.height + px)) <= 1f,
+            "under the value there should be a filled field's ${regular.height}px and ${px}px below it; there is ${under}px",
+        )
+        // Its text where a regular field's is, moved in by the inset.
+        val indent = (box.left - field.left) - (regularInput.left - regular.left)
+        assertTrue(kotlin.math.abs(indent - px) <= 1f, "the box's text should sit ${px}px further in than a regular field's; it is ${indent}px")
+    }
+
     @Test
     fun typingInTheBoxIsTheAnswer() = runComposeUiTest {
         show { ReasonSelect() }
@@ -163,6 +207,7 @@ class SelectOtherTest {
         assertEquals("", other)
         onNodeWithContentDescription("Reasons, Other").assertIsFocused()
         onNodeWithContentDescription("Reasons, Other").performTextInput("Hovercraft")
+        waitForIdle()
         assertEquals("Hovercraft", other)
         open()
         pick("Other")

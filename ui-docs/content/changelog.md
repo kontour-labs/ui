@@ -157,8 +157,9 @@ on a round phone stop at 40dp.
   [`MultiSelect`](components/multi-select.md)**, for an answer none of the
   options give: *"when this option is selected, a text box expands within the
   dropdown's outline, allowing the user to enter a custom value"*. Pass
-  `onOtherTextChange` and the menu ends with "Other"; picked, a box opens inside
-  the field, under its value, and takes the keyboard. `otherText` holds what is
+  `onOtherTextChange` and the menu ends with "Other"; picked, a filled text
+  field opens inside the outline, under the value, inset for concentric
+  corners, and takes the keyboard. `otherText` holds what is
   typed, and picking an option instead clears it, so the answer is
   `otherText ?: value`. The words are `Theme.strings.selectOther` and
   `selectOtherHint`, or `otherLabel`. Nothing changes for a select not given it.
