@@ -70,11 +70,11 @@ cannot use its own `GITHUB_TOKEN` at any permission level, where the token goes,
 and what each failure mode looks like.
 
 **One thing worth knowing before you start.** This publishes against Compose
-Multiplatform **1.12.0-rc01**, a release candidate, deliberately:
+Multiplatform **1.12.1**. 1.12 is the floor, deliberately:
 `ImageComposeScene.calculateContentSize()` lands there and the screenshot
-harness the whole test suite rests on uses it. A consumer on a stable 1.11 will
-hit binary incompatibility — pin to the same RC, or stay on a version published
-before the bump.
+harness the whole test suite rests on uses it. A consumer on 1.11 will hit
+binary incompatibility — move to 1.12.1, or stay on a version published before
+the bump.
 
 ## Why no Material
 

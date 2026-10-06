@@ -30,11 +30,10 @@ Each is published for **Android** (minSdk 29), **iOS** (`iosArm64` and
 
 ## Requirements
 
-- **Compose Multiplatform 1.12.0-rc01.** A release candidate, deliberately: the
-  screenshot harness the test suite rests on needs
-  `ImageComposeScene.calculateContentSize()`, which lands there. An app on a
-  stable 1.11 hits binary incompatibility; use the same release candidate or
-  newer.
+- **Compose Multiplatform 1.12.1** or newer. 1.12 is the floor, deliberately:
+  the screenshot harness the test suite rests on needs
+  `ImageComposeScene.calculateContentSize()`, which lands there. An app on 1.11
+  hits binary incompatibility.
 - **Kotlin 2.4.10** or newer, the version the libraries are built with.
 - **Android minSdk 29.**
 
@@ -329,7 +328,7 @@ Only reading from elsewhere needs an account credential.
 | Hundreds of failing requests for unrelated dependencies | The `content { includeGroup(…) }` filter is missing |
 | AndroidX artifacts will not resolve | `google()` is missing from the repositories |
 | Resolution succeeds but the classes are missing on one platform | A variant did not publish. Each module should have seven per version: the module itself, and one each for `-android`, `-iosarm64`, `-iossimulatorarm64`, `-js`, `-jvm`, `-wasm-js` |
-| `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.0-rc01 |
+| `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.1 |
 | "No KontourTheme found" or "No OverlayHost found" | The root wrappers under [Setting up `:ui`](#setting-up-ui) are missing, or the screen is composed outside them — a separate window, a dialog of the platform's own |
 
 ## Working without a token
