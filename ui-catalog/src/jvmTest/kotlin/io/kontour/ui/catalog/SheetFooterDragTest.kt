@@ -25,12 +25,12 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * A sheet with a pinned part moves with the finger, and no further.
+ * A sheet with a footer moves with the finger, and no further.
  *
  * Reported as *"when pinned is enabled, the sheet races ahead of my finger"*. A
  * floating sheet that morphs into an edge sheet hands its content the bottom
  * safe area as it morphs, and the pinned part sits above that safe area, so the
- * part's block grew as the sheet rose. `SheetDetent.pinned()` was sized from the
+ * part's block grew as the sheet rose. the collapsed detent was sized from the
  * block as it was *now*, so its anchor moved on every frame of a drag, and each
  * move of the anchors snapped the sheet to its target: dragged down from full
  * height it jumped ahead to Half and on, four times as far as the finger, and a
@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
  * inset, as a phone has. The edge sheet, whose safe area never changes, is the
  * control.
  */
-class SheetPinnedDragTest {
+class SheetFooterDragTest {
 
     private companion object {
         const val Density = 2f
@@ -57,8 +57,8 @@ class SheetPinnedDragTest {
         Box(Modifier.fillMaxSize().background(Color.White)) {
             OverlayHost(Modifier.fillMaxSize()) {
                 val state = rememberSheetState(
-                    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-                    initialDetent = SheetDetent.pinned(),
+                    detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.headerAndFooter(),
                 )
                 onState(state)
                 LaunchedEffect(start) { state.animateTo(start) }
@@ -67,8 +67,8 @@ class SheetPinnedDragTest {
                     state = state,
                     presentation = presentation,
                     windowInsets = WindowInsets(top = 47.dp, bottom = 34.dp),
+                    footer = { SearchField(query, placeholder = "Search stops") },
                 ) { padding: PaddingValues ->
-                    pinned { SearchField(query, placeholder = "Search stops") }
                     LazyColumn(contentPadding = padding) {
                         items(40) { ListItem(onClick = {}) { +"Stop $it" } }
                     }
