@@ -142,6 +142,17 @@ on a round phone stop at 40dp.
 
 ### Added
 
+- **Several pictures behind a `Hero` [`TopBar`](components/top-bar.md)**:
+  *"with the hero header, can we make an option for a carousel of images. try
+  to use our existing carousel and page indicators"*. Give `image` a
+  `HeroImages(state) { page -> … }` and the picture is a
+  [`Carousel`](components/carousel.md), one page at a time, swiped anywhere
+  that is not a button, with its [`PageIndicator`](components/page-indicator.md)
+  centred over the fade just above the title, on a capsule of the bar's colour.
+  The dots go up with the title as the bar collapses and are gone a third of
+  the way in. Decorative like a single hero picture, so hidden from screen
+  readers, dots and all; outside a hero bar it is a carousel announced as
+  `Theme.strings.images`, with its dots at the foot.
 - **"Other" on a [`Select`](components/select.md) and a
   [`MultiSelect`](components/multi-select.md)**, for an answer none of the
   options give: *"when this option is selected, a text box expands within the

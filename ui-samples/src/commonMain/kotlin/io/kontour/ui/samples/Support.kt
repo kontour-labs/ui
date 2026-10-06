@@ -85,6 +85,10 @@ internal fun Hero(modifier: Modifier = Modifier) = Unit
 @Composable
 internal fun StopPhoto(modifier: Modifier = Modifier) = Unit
 
+/** One of a place's photographs, by name, where a sample needs several. */
+@Composable
+internal fun StopPhoto(name: String, modifier: Modifier = Modifier) = Unit
+
 /** The two things a rider reports about a stop, where a menu needs entries. */
 internal fun report() = Unit
 internal fun suggest() = Unit

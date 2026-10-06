@@ -27,9 +27,11 @@ import io.kontour.icons.tabler.outline.User
 import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.display.Badge
+import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
+import io.kontour.ui.nav.HeroImages
 import io.kontour.ui.nav.ModalNavRail
 import io.kontour.ui.nav.NavBar
 import io.kontour.ui.nav.NavBarDefaults
@@ -92,6 +94,24 @@ fun TopBarHeroCollapsing() {
         LazyColumn {
             stopRows()
         }
+    }
+}
+
+@Composable
+fun TopBarHeroImages(photos: List<String>) {
+    val pictures = rememberCarouselState { photos.size }
+
+    // Several pictures, swiped between, with the carousel's dots over the
+    // fade just above the title.
+    TopBar(
+        style = TopBarStyle.Hero,
+        onBack = { back() },
+        image = {
+            HeroImages(pictures) { page -> StopPhoto(photos[page], Modifier.fillMaxSize()) }
+        },
+    ) {
+        +"Kings Park"
+        supporting { +"Fraser Avenue" }
     }
 }
 

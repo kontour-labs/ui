@@ -347,6 +347,8 @@ MOVEMENT_ALLOWED = {
     "Transitions.kt:chevronTurn": "a chevron turning half a circle in its own box, as state",
     "NavDestination.kt:NavDestination": "the selected icon's emphasis, a few percent in its own box",
     "TopBar.kt:LargeBar": "the collapse follows the scroll the reader is making",
+    "TopBar.kt:HeroDots": "`CarouselState.animateScrollToPage` jumps under reduced motion, "
+    "from the flag `rememberCarouselState` reads",
     "Scrollbar.kt:Scrollbar": "the thumb follows the scroll the reader is making",
     "BottomSheet.kt:BottomSheet": "places the sheet at the offset its state holds; the "
     "animations that move that offset are what this rule checks",

@@ -346,6 +346,8 @@ data class Strings(
     val selectOther: String = "Other",
     /** What that box says while it is empty. */
     val selectOtherHint: String = "Please specify",
+    /** What a `HeroImages`' set of images is called, where a screen reader is told of it at all. */
+    val images: String = "Images",
 ) {
     companion object {
         /**
@@ -497,6 +499,7 @@ data class Strings(
         dropFilesHere = lookup.text("dropFilesHere") ?: fallback.dropFilesHere,
         selectOther = lookup.text("selectOther") ?: fallback.selectOther,
         selectOtherHint = lookup.text("selectOtherHint") ?: fallback.selectOtherHint,
+        images = lookup.text("images") ?: fallback.images,
         )
     }
 }
@@ -691,4 +694,5 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     dropFilesHere = transform(dropFilesHere),
     selectOther = transform(selectOther),
     selectOtherHint = transform(selectOtherHint),
+    images = transform(images),
 )

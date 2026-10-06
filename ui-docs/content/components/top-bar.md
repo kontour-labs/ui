@@ -1,5 +1,7 @@
 # `TopBar`
 
+*Also on this page: `HeroImages`.*
+
 Title and actions. Four styles from `TopBarStyle`: `Small`, `Centred`, `Large`
 and `Hero`. `Centred` centres the title on the bar where it fits — the title alone
 decides, and a subtitle under it is fitted to the same width with an ellipsis —
@@ -111,6 +113,36 @@ dark photograph. The discs go as the bar collapses.
 `collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
 travels into the first line, the picture rises behind the bar at half the speed
 and fades out over the second half of the way.
+
+**Several pictures are a `HeroImages`**, swiped between:
+
+<!--sample:TopBarHeroImages-->
+```kotlin
+val pictures = rememberCarouselState { photos.size }
+
+// Several pictures, swiped between, with the carousel's dots over the
+// fade just above the title.
+TopBar(
+    style = TopBarStyle.Hero,
+    onBack = { back() },
+    image = {
+        HeroImages(pictures) { page -> StopPhoto(photos[page], Modifier.fillMaxSize()) }
+    },
+) {
+    +"Kings Park"
+    supporting { +"Fraser Avenue" }
+}
+```
+
+It is a [`Carousel`](carousel.md) filling the picture, one page at a time, and
+the carousel's [`PageIndicator`](page-indicator.md) centred over the fade just above
+the title, on a pill of the bar's colour so the dots read whatever the picture
+is. A finger swipes anywhere on the picture that is not a button, and a pointer
+clicks or drags along the dots. One picture shows no dots. As the bar collapses
+the dots go up with the title and are gone a third of the way in, before the
+title nears the first line. Like a single picture, it is decoration and hidden
+from screen readers, dots and all: a set of photos someone needs to page through
+is a `Carousel` in the page, where each page is announced.
 
 **Without an `image`** it is a `Large` bar that opens to the hero's height, so a
 page whose picture is sometimes missing keeps its shape. `expandedHeight` works

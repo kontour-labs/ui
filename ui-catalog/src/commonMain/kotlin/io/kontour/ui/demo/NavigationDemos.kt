@@ -45,6 +45,8 @@ import io.kontour.ui.components.action.FloatingActionButton
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.components.display.rememberCarouselState
+import io.kontour.ui.nav.HeroImages
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
@@ -453,6 +455,9 @@ private val topBarStyle = Knob.Choice("Style", TopBarStyle.entries.toList(), Top
 private val topBarBack = Knob.Flag("Back", initial = true)
 private val topBarFade = Knob.Flag("Fade under", initial = false)
 
+/** A hero's picture as several, swiped between, with their dots above the title. */
+private val topBarPictures = Knob.Flag("Several pictures", initial = false)
+
 /** How far a Large or Hero bar opens: the style's own, or a height asked for. */
 private val topBarOpen = Knob.Choice(
     "Open height",
@@ -463,12 +468,14 @@ private val topBarOpen = Knob.Choice(
 
 internal val TopBarDemo = ComponentDemo(
     slug = "top-bar",
-    knobs = listOf(topBarStyle, topBarBack, topBarOpen, topBarFade),
+    knobs = listOf(topBarStyle, topBarBack, topBarOpen, topBarFade, topBarPictures),
 ) {
     val style = this[topBarStyle]
     val back = this[topBarBack]
     val open = this[topBarOpen]
     val fade = this[topBarFade]
+    val several = this[topBarPictures]
+    val skies = rememberCarouselState { Skies.size }
     val tall = style == TopBarStyle.Hero || (style == TopBarStyle.Large && open != null)
     // Over a list that scrolls, which is the only way to see a Large bar
     // collapse: the bar takes the scroll until its title has gone up into
@@ -486,7 +493,13 @@ internal val TopBarDemo = ComponentDemo(
                     showDivider = style != TopBarStyle.Hero && !fade,
                     fadeUnder = fade,
                     actions = { OverflowMenu(::echo) },
-                    image = { DuskOverTheRiver() },
+                    image = {
+                        if (several) {
+                            HeroImages(skies) { page -> DuskOverTheRiver(Skies[page]) }
+                        } else {
+                            DuskOverTheRiver()
+                        }
+                    },
                     expandedHeight = open ?: Dp.Unspecified,
                     collapseState = collapse,
                     // Not at the top of the window: a card on a page. Left to the
@@ -514,16 +527,37 @@ internal val TopBarDemo = ComponentDemo(
     }
 }
 
+/** A sky to draw the river's city under: its gradient, top to foot, and its sun or moon. */
+private class Sky(val gradient: List<Color>, val light: Color, val lightAt: Offset)
+
+private val Dusk = Sky(
+    listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF6B3F69), Color(0xFF2B1F4A)),
+    Color(0xFFFFF1C1),
+    Offset(0.72f, 0.58f),
+)
+
+/** The hero's pictures with "Several pictures" on: dusk, a clear morning, and night. */
+private val Skies = listOf(
+    Dusk,
+    Sky(listOf(Color(0xFF8EC5FC), Color(0xFFB8D8F8), Color(0xFFE0C3FC), Color(0xFF7A6B9A)), Color(0xFFFFFDF0), Offset(0.28f, 0.34f)),
+    Sky(listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364), Color(0xFF16222A)), Color(0xFFE8ECF2), Offset(0.62f, 0.22f)),
+)
+
 /**
  * A dusk over the river, drawn: a sky pale at the top and deep at the foot, a
  * low sun, and a city's edge along the bottom — so the fade under a hero's
- * title has something busy to soften, the way a photograph would.
+ * title has something busy to soften, the way a photograph would. Or another
+ * [sky] over the same city.
  */
 @Composable
-private fun DuskOverTheRiver() {
+private fun DuskOverTheRiver(sky: Sky = Dusk) {
     Canvas(Modifier.fillMaxSize()) {
-        drawRect(Brush.verticalGradient(listOf(Color(0xFFF6D365), Color(0xFFFDA085), Color(0xFF6B3F69), Color(0xFF2B1F4A))))
-        drawCircle(Color(0xFFFFF1C1), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.72f, size.height * 0.58f))
+        drawRect(Brush.verticalGradient(sky.gradient))
+        drawCircle(
+            sky.light,
+            radius = size.minDimension * 0.09f,
+            center = Offset(size.width * sky.lightAt.x, size.height * sky.lightAt.y),
+        )
         // Towers of different heights and widths, bright windows on some.
         val ground = size.height
         var x = 0f
