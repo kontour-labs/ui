@@ -24,6 +24,8 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.DayAnnotation
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
@@ -63,6 +65,35 @@ fun DateRangePickerBasics() {
         end = end,
         onRangeChange = { from, to -> start = from; end = to },
         today = LocalDate(2026, 6, 12),
+    )
+}
+
+@Composable
+fun DatePickerAnnotated() {
+    var travelDate by remember { mutableStateOf<LocalDate?>(null) }
+    val fares = remember { mapOf(LocalDate(2026, 6, 15) to 42.0, LocalDate(2026, 6, 16) to 38.0) }
+    val holidays = remember { setOf(LocalDate(2026, 6, 8)) }
+    val formats = Theme.formats
+    val cheap = Theme.colours.success.solid
+    val holiday = Theme.colours.warning.container
+
+    DatePicker(
+        value = travelDate,
+        onValueChange = { travelDate = it },
+        today = LocalDate(2026, 6, 12),
+        // A public holiday in a colour of its own; the chosen day is drawn
+        // over it.
+        containerColourFor = { if (it in holidays) holiday else null },
+        // The fare under each day that has one, the cheapest in green, and
+        // said in words after the date.
+        annotationFor = { day ->
+            fares[day]?.let { fare ->
+                DayAnnotation(
+                    text = formats.currency(fare, "AUD"),
+                    colour = if (fare < 40.0) cheap else Color.Unspecified,
+                )
+            }
+        },
     )
 }
 

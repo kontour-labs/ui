@@ -384,7 +384,20 @@ fun DatePicker(
     enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
+    /** Draws a dot under a day: for "this day has departures", or a trip already booked. */
     markerFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A day's own colour: its circle filled with it, and its number in the ink
+     * that reads on it — a public holiday, a day sold out, how busy each day is.
+     * The chosen day is drawn over it. See [CalendarMonth].
+     */
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A few characters under a day's number — a fare, a count — and the colour
+     * they are in: see [DayAnnotation]. Given at all, every week is a line
+     * taller, in every month, so the picker does not change height as it pages.
+     */
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     /**
      * The glyphs on the buttons either side of the month, back and on.
      *
@@ -464,6 +477,8 @@ fun DatePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             formats = formats,
             firstDayOfWeek = firstDayOfWeek,
         )
@@ -501,6 +516,13 @@ fun DateRangePicker(
     isDateSelectable: (LocalDate) -> Boolean = { true },
     /** Draws a dot under a day, as a [DatePicker]'s does. */
     markerFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A day's own colour, as a [DatePicker]'s: the range is drawn over it, so a
+     * fortnight across a holiday still reads as one band.
+     */
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    /** A few characters under a day's number, as a [DatePicker]'s: see [DayAnnotation]. */
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     /** See [DatePicker]. */
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
@@ -595,6 +617,8 @@ fun DateRangePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             rangePositionOf = { date -> rangePosition(date, start, end) },
             // Dragged out in one gesture, in either direction, by the drag held
             // above — which every month in the pager draws from.

@@ -47,6 +47,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.foundation.SurfaceDefaults
+import io.kontour.ui.locale.ListStyle
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
@@ -77,6 +82,44 @@ import kotlinx.datetime.plus
 
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
+
+/**
+ * A few characters under a day's number in a calendar: a fare, a count, *Full*.
+ *
+ * ```kotlin
+ * DatePicker(
+ *     value = date,
+ *     onValueChange = { date = it },
+ *     annotationFor = { day -> fares[day]?.let { DayAnnotation(Theme.formats.currency(it, "AUD")) } },
+ * )
+ * ```
+ *
+ * Kept short: the line is a day's width, four or five characters at most, and
+ * anything longer is cut at the cell's edge. It is read out after the date —
+ * [contentDescription] instead, where the characters say less than words would,
+ * as `"$42"` might be "from 42 dollars".
+ *
+ * @param text What the line says.
+ * @param colour Its ink, for a cheap fare in green or a busy day in the
+ *   warning colour. Unspecified, the day's own muted ink. A chosen day draws it
+ *   in the ink of its fill, whatever this is, as it does its number.
+ * @param contentDescription What a screen reader says for it, after the date;
+ *   [text] when null.
+ */
+@Immutable
+class DayAnnotation(
+    val text: String,
+    val colour: Color = Color.Unspecified,
+    val contentDescription: String? = null,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is DayAnnotation && text == other.text && colour == other.colour &&
+            contentDescription == other.contentDescription
+
+    override fun hashCode(): Int = (text.hashCode() * 31 + colour.hashCode()) * 31 + contentDescription.hashCode()
+
+    override fun toString(): String = "DayAnnotation(text=$text, colour=$colour, contentDescription=$contentDescription)"
+}
 
 /** What [CalendarMonth] uses when it is not told otherwise. */
 object CalendarMonthDefaults {
@@ -133,6 +176,15 @@ object CalendarMonthDefaults {
  *   the user can see *why* a date is unavailable.
  * @param markerFor Draws a dot under a day. For "this day has departures", or a
  *   trip already booked.
+ * @param containerColourFor A day's own colour: its circle filled with it, and
+ *   its number in the ink that reads on it. For a public holiday, a day that is
+ *   sold out, a heat map of how busy each day is. A chosen day and a range are
+ *   drawn over it, and a day that cannot be chosen keeps it with its number
+ *   greyed. Null for a day drawn as usual.
+ * @param annotationFor A line of a few characters under a day's number — see
+ *   [DayAnnotation]. Given at all, every week is a line taller to make room,
+ *   in every month, so the calendar does not change height as it pages; null
+ *   for a day with nothing to say.
  * @param rangePositionOf Where a day sits in a selected range. Days in the
  *   middle get a square fill so the run reads as continuous; the ends get the
  *   rounded cap.
@@ -160,6 +212,8 @@ fun CalendarMonth(
     onDragSelect: ((from: LocalDate, to: LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
     markerFor: ((LocalDate) -> Color?)? = null,
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
     formats: LocaleFormats = Theme.formats,
     /**
@@ -262,8 +316,12 @@ fun CalendarMonth(
     BoxWithConstraints(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
         val cellSize = maxWidth / 7
         // A week no taller than a cell is wide, and no taller than
-        // `MaxRowHeight` however wide it is.
-        val rowHeight = minOf(cellSize, MaxRowHeight)
+        // `MaxRowHeight` however wide it is — and a line of the annotation's
+        // type taller than that where there are annotations, at the reader's
+        // type size, so the number does not move up to make room for one.
+        val annotationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() }
+        val annotated = annotationFor != null
+        val rowHeight = minOf(cellSize, MaxRowHeight) + if (annotated) annotationLine else 0.dp
         // Normal weight, which `labelSmall` is not. It was reported that the
         // initials need to be smaller than the dates, and by *size* they already
         // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
@@ -406,6 +464,9 @@ fun CalendarMonth(
                             enabled = selectable(date),
                             isToday = date == today,
                             marker = markerFor?.invoke(date),
+                            containerColour = containerColourFor?.invoke(date),
+                            annotation = annotationFor?.invoke(date),
+                            annotated = annotated,
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
                             formats = formats,
                             cellSize = cellSize,
@@ -485,6 +546,11 @@ private fun DayCell(
     enabled: Boolean,
     isToday: Boolean,
     marker: Color?,
+    /** The day's own fill, under a selection: see `containerColourFor`. */
+    containerColour: Color?,
+    annotation: DayAnnotation?,
+    /** The weeks have room for an annotation, whether this day has one or not. */
+    annotated: Boolean,
     rangePosition: RangePosition,
     formats: LocaleFormats,
     cellSize: Dp,
@@ -567,6 +633,9 @@ private fun DayCell(
     val containerTarget = when {
         filled -> colours.primary
         inRange -> colours.accent.container
+        // The day's own colour, under the selection: the selection is what
+        // the reader did, and is drawn over what the app says about the day.
+        containerColour != null && containerColour.isSpecified -> containerColour
         // `invisible()`, not `Color.Transparent`, which is black. This is where
         // a cell animates *from* when it joins a range, and a lerp moves the
         // channels as well as the alpha — so the tint used to arrive out of the
@@ -599,10 +668,13 @@ private fun DayCell(
         else -> containerTarget
     }
 
+    val ownFill = !filled && !inRange && containerColour != null && containerColour.isSpecified
     val labelTarget = when {
         !enabled -> colours.contentDisabled
         filled -> colours.onPrimary
         inRange -> colours.accent.onContainer
+        // The ink that reads on the day's own colour, as a surface's would.
+        ownFill -> SurfaceDefaults.contentColour(containerColour)
         else -> colours.content
     }
     val animatedLabel by animateColorAsState(
@@ -679,8 +751,12 @@ private fun DayCell(
     // the end being dragged. The cell is a little wider than its week is tall, and
     // a pill as wide as the cell was a lozenge. A range's caps and middle fill the
     // cell's width still, since the band is joined across it.
+    //
+    // With room for an annotation the week is taller than a cell is wide, and a
+    // circle as tall as it would be wider than the day: there the whole of the
+    // cell, a capsule standing up round the number and the line under it.
     val round = travelling || rangePosition == RangePosition.None || rangePosition == RangePosition.StartAndEnd
-    val fillSize = if (round) Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier.matchCellSize()
+    val fillSize = if (round && !annotated) Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier.matchCellSize()
 
     Box(
         modifier = modifier
@@ -781,7 +857,12 @@ private fun DayCell(
                 // `selectable` rather than `clickable`: a day in a calendar is
                 // one of a set of choices, and this is the modifier that says so
                 // and carries the state with the action.
-                .semantics { stateDescription = formats.date(date, DateStyle.Full) }
+                .semantics {
+                    val day = formats.date(date, DateStyle.Full)
+                    // The annotation after the date, as it is read on screen.
+                    val said = annotation?.let { it.contentDescription ?: it.text }
+                    stateDescription = if (said == null) day else formats.list(listOf(day, said), ListStyle.Unit)
+                }
                 .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = filled,
@@ -807,6 +888,23 @@ private fun DayCell(
                     style = dayStyle,
                     colour = label,
                 )
+                if (annotation != null) {
+                    Text(
+                        text = annotation.text,
+                        style = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
+                        // The day's own ink where it is chosen, in a range,
+                        // greyed or on its own colour: over a fill, an
+                        // annotation's colour of its own would not read.
+                        colour = when {
+                            !enabled || filled || inRange || ownFill -> label
+                            annotation.colour.isSpecified -> annotation.colour
+                            else -> colours.contentMuted
+                        },
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                    )
+                }
                 if (marker != null) {
                     Box(
                         Modifier

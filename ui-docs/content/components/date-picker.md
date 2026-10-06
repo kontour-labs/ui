@@ -118,6 +118,59 @@ desktop. One swipe is one month, however long its momentum runs; a vertical scro
 is left to the page around the calendar. Right to left, the months run the other
 way and so does the scroll.
 
+### What the app has to say about a day
+
+**A day can carry a colour and a few characters of its own**: a fare under each
+day, a public holiday in a colour of its own, how full each day is. Asked for as
+*"the ability to colour and annotate dates (with things like small numbers or
+text or stuff)"*.
+
+<!--sample:DatePickerAnnotated-->
+```kotlin
+var travelDate by remember { mutableStateOf<LocalDate?>(null) }
+val fares = remember { mapOf(LocalDate(2026, 6, 15) to 42.0, LocalDate(2026, 6, 16) to 38.0) }
+val holidays = remember { setOf(LocalDate(2026, 6, 8)) }
+val formats = Theme.formats
+val cheap = Theme.colours.success.solid
+val holiday = Theme.colours.warning.container
+
+DatePicker(
+    value = travelDate,
+    onValueChange = { travelDate = it },
+    today = LocalDate(2026, 6, 12),
+    // A public holiday in a colour of its own; the chosen day is drawn
+    // over it.
+    containerColourFor = { if (it in holidays) holiday else null },
+    // The fare under each day that has one, the cheapest in green, and
+    // said in words after the date.
+    annotationFor = { day ->
+        fares[day]?.let { fare ->
+            DayAnnotation(
+                text = formats.currency(fare, "AUD"),
+                colour = if (fare < 40.0) cheap else Color.Unspecified,
+            )
+        }
+    },
+)
+```
+
+`containerColourFor` fills a day's circle with a colour, and its number is drawn
+in the ink that reads on it. The chosen day, and a range's band and ends, are
+drawn over it, so a fortnight across a holiday still reads as one range; a day
+that cannot be chosen keeps its colour, with its number greyed.
+
+`annotationFor` puts a [`DayAnnotation`](calendar-month.md) under the number: its
+`text`, four or five characters at most, in its `colour` or the day's muted ink.
+On a chosen day or in a range it takes the fill's ink, like the number. It is
+read out after the date, as its `contentDescription` where the characters say
+less than words would — "$42" as "42 dollars". **Given at all, every week is a
+line taller**, in every month, so the picker does not change height as it pages
+between a month with fares and one without; the numbers stay where they were.
+
+Both take the date and return null for a day with nothing to say, as
+`markerFor`'s dot does. `DateRangePicker`, `DateTimePicker` and `CalendarMonth`
+take the same two.
+
 ### It needs its whole month
 
 **Every month is six weeks tall**, with blank weeks at the end of a shorter one.

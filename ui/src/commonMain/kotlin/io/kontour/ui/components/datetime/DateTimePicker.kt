@@ -80,8 +80,9 @@ import kotlinx.datetime.LocalDateTime
  *   a request or a toast belongs here rather than in [onValueChange], which a
  *   flick of the minutes calls a dozen times. Not called when [value] is set by
  *   the caller.
- * @see DatePicker for [today], [isDateSelectable], [markerFor], the icons and
- *   [firstDayOfWeek], which mean what they mean there.
+ * @see DatePicker for [today], [isDateSelectable], [markerFor],
+ *   [containerColourFor], [annotationFor], the icons and [firstDayOfWeek], which
+ *   mean what they mean there.
  */
 @Composable
 fun DateTimePicker(
@@ -93,6 +94,8 @@ fun DateTimePicker(
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
@@ -121,6 +124,8 @@ fun DateTimePicker(
             today = today,
             isDateSelectable = isDateSelectable,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             previousIcon = previousIcon,
             nextIcon = nextIcon,
             todayIcon = todayIcon,
