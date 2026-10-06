@@ -1834,18 +1834,22 @@ final class io.kontour.ui.components.list/ReorderableState { // io.kontour.ui.co
 }
 
 final class io.kontour.ui.components.list/SwipeAction { // io.kontour.ui.components.list/SwipeAction|null[0]
-    constructor <init>(kotlin/String, androidx.compose.ui.graphics.vector/ImageVector, kotlin/Function0<kotlin/Unit>, androidx.compose.ui.graphics/Color, kotlin/Boolean = ...) // io.kontour.ui.components.list/SwipeAction.<init>|<init>(kotlin.String;androidx.compose.ui.graphics.vector.ImageVector;kotlin.Function0<kotlin.Unit>;androidx.compose.ui.graphics.Color;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/String, androidx.compose.ui.graphics.vector/ImageVector, kotlin/Function0<kotlin/Unit>, androidx.compose.ui.graphics/Color, kotlin/Boolean = ..., kotlin/Boolean? = ..., kotlin/Boolean? = ...) // io.kontour.ui.components.list/SwipeAction.<init>|<init>(kotlin.String;androidx.compose.ui.graphics.vector.ImageVector;kotlin.Function0<kotlin.Unit>;androidx.compose.ui.graphics.Color;kotlin.Boolean;kotlin.Boolean?;kotlin.Boolean?){}[0]
 
     final val background // io.kontour.ui.components.list/SwipeAction.background|{}background[0]
         final fun <get-background>(): androidx.compose.ui.graphics/Color // io.kontour.ui.components.list/SwipeAction.background.<get-background>|<get-background>(){}[0]
     final val fullSwipe // io.kontour.ui.components.list/SwipeAction.fullSwipe|{}fullSwipe[0]
         final fun <get-fullSwipe>(): kotlin/Boolean // io.kontour.ui.components.list/SwipeAction.fullSwipe.<get-fullSwipe>|<get-fullSwipe>(){}[0]
+    final val fullSwipeConfirmation // io.kontour.ui.components.list/SwipeAction.fullSwipeConfirmation|{}fullSwipeConfirmation[0]
+        final fun <get-fullSwipeConfirmation>(): kotlin/Boolean? // io.kontour.ui.components.list/SwipeAction.fullSwipeConfirmation.<get-fullSwipeConfirmation>|<get-fullSwipeConfirmation>(){}[0]
     final val icon // io.kontour.ui.components.list/SwipeAction.icon|{}icon[0]
         final fun <get-icon>(): androidx.compose.ui.graphics.vector/ImageVector // io.kontour.ui.components.list/SwipeAction.icon.<get-icon>|<get-icon>(){}[0]
     final val label // io.kontour.ui.components.list/SwipeAction.label|{}label[0]
         final fun <get-label>(): kotlin/String // io.kontour.ui.components.list/SwipeAction.label.<get-label>|<get-label>(){}[0]
     final val onAction // io.kontour.ui.components.list/SwipeAction.onAction|{}onAction[0]
         final fun <get-onAction>(): kotlin/Function0<kotlin/Unit> // io.kontour.ui.components.list/SwipeAction.onAction.<get-onAction>|<get-onAction>(){}[0]
+    final val tapConfirmation // io.kontour.ui.components.list/SwipeAction.tapConfirmation|{}tapConfirmation[0]
+        final fun <get-tapConfirmation>(): kotlin/Boolean? // io.kontour.ui.components.list/SwipeAction.tapConfirmation.<get-tapConfirmation>|<get-tapConfirmation>(){}[0]
 }
 
 final class io.kontour.ui.components.list/SwipeActionsState { // io.kontour.ui.components.list/SwipeActionsState|null[0]

@@ -1379,13 +1379,15 @@ public final class io/kontour/ui/components/list/ScrollbarKt {
 
 public final class io/kontour/ui/components/list/SwipeAction {
 	public static final field $stable I
-	public synthetic fun <init> (Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;JZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;JZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;JZLjava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;JZLjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBackground-0d7_KjU ()J
 	public final fun getFullSwipe ()Z
+	public final fun getFullSwipeConfirmation ()Ljava/lang/Boolean;
 	public final fun getIcon ()Landroidx/compose/ui/graphics/vector/ImageVector;
 	public final fun getLabel ()Ljava/lang/String;
 	public final fun getOnAction ()Lkotlin/jvm/functions/Function0;
+	public final fun getTapConfirmation ()Ljava/lang/Boolean;
 }
 
 public final class io/kontour/ui/components/list/SwipeActionsDefaults {

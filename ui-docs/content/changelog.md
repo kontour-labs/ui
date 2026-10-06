@@ -116,6 +116,12 @@ passed by position need naming — see **Breaking**, and
 - **The JVM artifacts are Java 11 bytecode.** `:ui` and `:ui-nav3` were the
   toolchain's Java 25, and with the builders inline, an app using them had to
   compile for Java 25 too.
+- **A large or hero bar lands where a flick sends it**, on a screen only just
+  long enough to scroll as much as on any other: *"that bar just jumps around
+  when you try to scroll it"*. A list that can barely scroll spends none of a
+  fling, so the spring that finishes the bar was handed all of it, carried the
+  bar past open or past collapsed, and brought it back, with the content under
+  it going there and back too. The bar now stops at its end.
 
 ### Added
 
@@ -136,6 +142,12 @@ passed by position need naming — see **Breaking**, and
   the option in the app's own words; the example now shows it.
 - **`supporting` and `errorMessage` on a [`DateField`](components/date-field.md)**,
   `DateTimeField` and `TimeField`, as a text field has.
+- **A [swipe action](components/swipe-actions.md) can turn its own tick
+  off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
+  `SwipeAction`, which win over the row's. *"i'd like the ability to turn off
+  the swipe/tap confirmation per swipe action … right now, you can do it for a
+  full row, but you can't control it per action"*. Null, the default, leaves it
+  to the row.
 
 ---
 

@@ -1,6 +1,10 @@
 package io.kontour.ui.catalog
 
 import androidx.compose.foundation.background
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -60,6 +64,9 @@ class TopBarCollapseTest {
 
         /** Near-black: the title's own colour, not a half-faded one. */
         const val Ink = 0x60
+
+        /** The room a list keeps under its last row for a floating nav bar. */
+        val NavBarRoom = 80.dp
     }
 
     @Composable
@@ -482,6 +489,79 @@ class TopBarCollapseTest {
             scene.frames(60)
             assertTrue(before > 0.5f && before < 1f, "the bar was at $before when let go, past halfway open, so this measured nothing")
             assertEquals(0f, state!!.progress, "let go opening at $before, the bar went back to ${state!!.progress} rather than open")
+        }
+    }
+
+    /**
+     * On a screen only just long enough to scroll, a flick finishes the bar
+     * without carrying it past either end, and the content goes one way.
+     *
+     * Reported: *"when a screen is only just scrollable (e.g. it might not
+     * normally be scrollable but it has a nav bar that does force it to
+     * scroll) and it has a large top bar that collapses, that bar just jumps
+     * around when you try to scroll it"*. A list that can barely scroll spends
+     * none of a fling, so the bar's finishing spring was handed all of it, went
+     * past the end — the bar taller than open, or shorter than a small bar —
+     * and came back, and the content with it.
+     */
+    @Test
+    fun aFlickOnABarelyScrollableScreenLandsWithoutBouncing() {
+        for (speed in listOf(20f, 30f)) {
+            var state: TopBarCollapseState? = null
+            var first = Rect.Zero
+            Scene(width = Width * 2, height = 1200, density = Density) {
+                val collapse = rememberTopBarCollapseState().also { state = it }
+                Column(Modifier.fillMaxSize().background(Color.White).topBarCollapse(collapse)) {
+                    TopBar(style = TopBarStyle.Large, onBack = {}, collapseState = collapse, windowInsets = WindowInsets(0)) { +Title }
+                    BoxWithConstraints(Modifier.weight(1f)) {
+                        // Ten points longer than the screen, with a nav bar's
+                        // room under it: the content alone would fit.
+                        val tall = remember { maxHeight - NavBarRoom + 10.dp }
+                        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = NavBarRoom)) {
+                            item { Spacer(Modifier.fillMaxWidth().height(tall).reportBounds { first = it }) }
+                        }
+                    }
+                }
+            }.use { scene ->
+                scene.frames(3)
+                val from = Offset(Width.toFloat(), 1150f)
+                for (way in listOf(-1f, 1f)) {
+                    // A little of the way slowly, then thrown.
+                    val start = if (way < 0f) from else from - Offset(0f, 300f)
+                    scene.press(start)
+                    var y = 0f
+                    while (if (way < 0f) state!!.progress < 0.15f else state!!.progress > 0.85f) {
+                        y += 4f * way
+                        scene.move(start + Offset(0f, y))
+                        scene.frame()
+                        if (abs(y) > 400f) break
+                    }
+                    repeat(2) {
+                        y += speed * way
+                        scene.move(start + Offset(0f, y))
+                        scene.frame()
+                    }
+                    var lo = state!!.progress
+                    var hi = lo
+                    var top = first.top
+                    var backwards = 0f
+                    scene.release(start + Offset(0f, y))
+                    repeat(60) {
+                        scene.frame()
+                        lo = minOf(lo, state!!.progress)
+                        hi = maxOf(hi, state!!.progress)
+                        // The content moves the way the finger threw it, and
+                        // never back.
+                        val step = first.top - top
+                        if (step * way < 0f) backwards += abs(step)
+                        top = first.top
+                    }
+                    val end = if (way < 0f) 1f else 0f
+                    assertEquals(end, state!!.progress, "thrown ${if (way < 0f) "up" else "down"} at ${speed}px a frame, the bar ended at ${state!!.progress}")
+                    assertTrue(lo >= 0f && hi <= 1f, "thrown at ${speed}px a frame, the bar went past its ends: $lo to $hi")
+                    assertTrue(backwards <= 1f, "thrown at ${speed}px a frame, the content came back ${backwards}px — it bounced")
+                }
+            }
         }
     }
 }

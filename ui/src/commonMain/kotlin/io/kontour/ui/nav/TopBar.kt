@@ -1162,7 +1162,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
             }
             // Progress runs against the scroll: towards the start is opening.
             settling?.cancel()
-            animate(progress, target, -velocity / travel, animationSpec = settle) { value, _ -> progress = value }
+            animate(progress, target, -velocity / travel, animationSpec = settle) { value, _ -> progress = landed(value) }
             // What the list had no room for, spent opening the bar, is not
             // left over for an overscroll to stretch the page with as well.
             return if (target == 0f && available.y > 0f) Velocity(0f, available.y) else Velocity.Zero
@@ -1188,10 +1188,25 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         }
         settlingTo = target
         settling = scope.launch {
-            animate(progress, target, animationSpec = settle) { value, _ -> progress = value }
+            animate(progress, target, animationSpec = settle) { value, _ -> progress = landed(value) }
         }
         return true
     }
+
+    /**
+     * A finishing spring's value, held to the bar's two ends.
+     *
+     * Reported: on a screen only just long enough to scroll, *"that bar just
+     * jumps around when you try to scroll it"*. The finish is a spring, handed
+     * the fling's speed, and a spring sent at its end that fast goes past it
+     * and comes back: the bar opened taller than open, or collapsed shorter
+     * than a small bar, and the content under it went with it, there and back.
+     * A long list spends most of a fling scrolling and leaves the bar little;
+     * one that can barely scroll leaves it all of it. Past an end there is no
+     * bar to draw, so the overshoot is spent at the end, where the bar waits
+     * for the spring to come back to it.
+     */
+    private fun landed(value: Float): Float = value.coerceIn(0f, 1f)
 
     /**
      * Moves the collapse along by a scroll of [delta] pixels, and returns how

@@ -122,6 +122,23 @@ class SwipeAction(
      * Set false for an action that should always need the deliberate second tap.
      */
     val fullSwipe: Boolean = true,
+    /**
+     * Whether a full swipe on this action shows its tick before it runs: the
+     * row's `fullSwipeConfirmation` for this action alone. Null, the default,
+     * leaves it to the row.
+     *
+     * Asked for as *"the ability to turn off the swipe/tap confirmation per swipe
+     * action"*: a row whose delete is confirmed by a toast with an undo has no
+     * need of the tick on it, while its archive, beside it, still wants one.
+     */
+    val fullSwipeConfirmation: Boolean? = null,
+    /**
+     * Whether a tap on this action shows its tick before it runs: the row's
+     * `tapConfirmation` for this action alone. Null, the default, leaves it to
+     * the row. An action that opens something — a menu, a sheet, a screen — is
+     * the usual one to turn it off for, since what opens is answer enough.
+     */
+    val tapConfirmation: Boolean? = null,
 )
 
 /** Where a swiped row has settled. */
@@ -372,7 +389,7 @@ object SwipeActionsDefaults {
  *   it runs it: the action's icon turns into a tick, drawn, and the row holds at
  *   the far edge a moment longer to show it. Off runs the action the moment the
  *   row arrives, for a list where the next thing on screen is confirmation
- *   enough.
+ *   enough. An action's own [SwipeAction.fullSwipeConfirmation] overrides it.
  * @param shape The row's shape. In a group of rows, the row's grouped shape —
  *   `position.shape(…)`, square where it meets a neighbour — so the row clips
  *   as it is drawn.
@@ -384,7 +401,7 @@ object SwipeActionsDefaults {
  *   into the same tick, drawn, held a moment, and then the action runs and the
  *   row closes. On by default, as asked for from a phone — a tapped action used
  *   to run and fold away in the same instant, with nothing to say it had. Off
- *   runs it at once.
+ *   runs it at once. An action's own [SwipeAction.tapConfirmation] overrides it.
  * @param maxActionHeight The tallest an action grows on a row taller than it,
  *   where it sits centred on the row. Never less than its icon and label need,
  *   so it cannot be what drops a label at large type. `Dp.Infinity` lets the
@@ -469,6 +486,11 @@ fun SwipeActions(
         )
         state.deliverPending()
     }
+
+    // Read by the settle collector, which outlives a composition: the actions it
+    // runs, and whether each confirms, are this composition's, not the first's.
+    val currentFullStart by rememberUpdatedState(fullStart)
+    val currentFullEnd by rememberUpdatedState(fullEnd)
 
     val onFull by rememberUpdatedState { action: SwipeAction ->
         action.onAction()
@@ -560,8 +582,8 @@ fun SwipeActions(
     LaunchedEffect(state) {
         snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
             val action = when (settledAt) {
-                SwipeValue.StartCommitted -> fullStart
-                SwipeValue.EndCommitted -> fullEnd
+                SwipeValue.StartCommitted -> currentFullStart
+                SwipeValue.EndCommitted -> currentFullEnd
                 else -> null
             }
             if (action == null) {
@@ -569,7 +591,7 @@ fun SwipeActions(
                 return@collect
             }
             fullSwipe = true
-            if (confirm) {
+            if (action.fullSwipeConfirmation ?: confirm) {
                 // The drawing the release set off, finished; a row sent to the
                 // edge in code had no release, so its drawing starts here.
                 confirmDraw.job?.join()
@@ -660,6 +682,10 @@ fun SwipeActions(
         )
         val committed = target == SwipeValue.StartCommitted || target == SwipeValue.EndCommitted
         if (committed) fullSwipe = true
+        // Whether the action this release commits shows its tick: its own say,
+        // or the row's.
+        val confirms = committed &&
+            ((if (target == SwipeValue.StartCommitted) currentFullStart else currentFullEnd)?.fullSwipeConfirmation ?: confirm)
         committing = false
         pointOfNoReturn.reset()
         settling?.cancel()
@@ -677,13 +703,13 @@ fun SwipeActions(
             // And the hand gets the same news the eye does, as the tick
             // completes: the action is done. Only here, on a release — a row
             // sent to the edge in code has nobody holding it to feel anything.
-            if (committed && confirm) {
+            if (confirms) {
                 confirmDraw.job = launch {
                     drawConfirmation()
                     confirmed()
                 }
             }
-            if (committed && !confirm) releasedToCommit = true
+            if (committed && !confirms) releasedToCommit = true
             // A row let go where it already rests has nowhere to go, and a spring
             // started with the finger's speed from there overshoots and comes
             // back — the jump. From rest, it stays.
@@ -931,7 +957,7 @@ fun SwipeActions(
                 reduceMotion = motion.reduceMotion,
                 onClick = { action ->
                     if (tapped != null) return@SwipeActionButtons
-                    if (!tapConfirmation) {
+                    if (!(action.tapConfirmation ?: tapConfirmation)) {
                         action.onAction()
                         scope.launch { state.reset() }
                         return@SwipeActionButtons
