@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -128,7 +130,7 @@ fun RadioButton(
             .focusRing(interactions, Theme.shapes.pill)
             .then(
                 if (onClick != null) {
-                    Modifier.pointerCursor(enabled = enabled).selectable(
+                    Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Radio, selected).selectable(
                         selected = selected,
                         onClick = {
                             // Only on a change: pressing the option already
@@ -149,7 +151,7 @@ fun RadioButton(
                     // reads the row as a button with a name and no indication
                     // of whether it is the chosen one. `SelectionRow` publishes
                     // it too; the same value merged twice is harmless.
-                    Modifier.semantics {
+                    Modifier.webRole(WebRole.Radio, selected).semantics {
                         role = Role.RadioButton
                         this.selected = selected
                     }

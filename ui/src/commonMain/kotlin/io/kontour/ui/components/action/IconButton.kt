@@ -1,5 +1,7 @@
 package io.kontour.ui.components.action
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -276,12 +278,12 @@ fun IconToggleButton(
         // state, the same as [Checkbox] and [Switch]. A toggle wired to nothing
         // that also says nothing is a decoration.
         behaviour = if (onCheckedChange == null) {
-            Modifier.semantics {
+            Modifier.webRole(WebRole.Checkbox, checked).semantics {
                 role = Role.Checkbox
                 toggleableState = ToggleableState(checked)
             }
         } else {
-            Modifier.pointerCursor(enabled = enabled).toggleable(
+            Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Checkbox, checked).toggleable(
                 value = checked,
                 interactionSource = interactions,
                 indication = null,
@@ -353,7 +355,7 @@ internal fun RevealToggleButton(
             shape,
             ButtonDefaults.pressScale(ButtonVariant.Ghost, size, iconOnly = true),
         ),
-        behaviour = Modifier.pointerCursor(enabled = enabled).toggleable(
+        behaviour = Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Checkbox, revealed).toggleable(
             value = revealed,
             interactionSource = interactions,
             indication = null,

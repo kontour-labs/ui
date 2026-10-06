@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -184,7 +186,7 @@ internal fun NavDestination(
     val strings = Theme.strings
 
     val target = when (action) {
-        NavAction.Destination -> Modifier.pointerCursor(enabled = enabled).selectable(
+        NavAction.Destination -> Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Tab, selected).selectable(
             selected = selected,
             interactionSource = interactions,
             // Drawn on the marker's own shape instead, below.

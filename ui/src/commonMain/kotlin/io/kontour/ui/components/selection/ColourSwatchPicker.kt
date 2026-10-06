@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -169,6 +171,7 @@ private fun Swatch(
             .background(if (enabled) fill else fill.copy(alpha = 0.5f), shape)
             .border(width = ringWidth, color = ringColour, shape = shape)
             .pointerCursor(enabled = enabled)
+            .webRole(WebRole.Radio, selected)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

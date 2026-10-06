@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -909,6 +911,7 @@ private fun SegmentedOption(
             .focusRing(interactions, shape)
             .clip(shape)
             .pointerCursor(enabled = enabled)
+            .webRole(WebRole.Radio, selected)
             .selectable(
                 selected = selected,
                 onClick = onClick,

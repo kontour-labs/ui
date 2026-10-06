@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -200,7 +202,7 @@ fun TriStateCheckbox(
             .then(
                 if (onClick != null) {
                     val toggle = onClick
-                    Modifier.triStateToggleable(
+                    Modifier.webRole(WebRole.Checkbox, state).triStateToggleable(
                         state = state,
                         onClick = {
                             toggled(state != ToggleableState.On)
@@ -223,7 +225,7 @@ fun TriStateCheckbox(
                     // reader reads the row as a button with a name and no tick.
                     // `SelectionRow` publishes it too; the same value merged
                     // twice is harmless.
-                    Modifier.semantics {
+                    Modifier.webRole(WebRole.Checkbox, state).semantics {
                         role = Role.Checkbox
                         toggleableState = state
                     }

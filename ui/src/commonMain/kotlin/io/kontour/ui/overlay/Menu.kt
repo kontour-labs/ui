@@ -1,5 +1,7 @@
 package io.kontour.ui.overlay
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.ColumnScope
@@ -721,6 +723,13 @@ fun MenuItem(
         Row(
             modifier = modifier
                 .fillMaxWidth()
+                .then(
+                    when {
+                        multiple -> Modifier.webRole(WebRole.Checkbox, selected)
+                        picksOne || selected -> Modifier.webRole(WebRole.Radio, selected)
+                        else -> Modifier
+                    }
+                )
                 .semantics(mergeDescendants = true) {
                     when {
                         // Ticked or not, said either way: a checkbox with no

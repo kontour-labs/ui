@@ -1,5 +1,7 @@
 package io.kontour.ui.components.table
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -301,6 +303,7 @@ private fun <T> BodyRow(env: TableEnv<T>, index: Int, item: T) {
         }
         env.selection == TableSelection.Multiple && onRowClick == null -> Modifier
             .pointerCursor(enabled = env.enabled)
+            .webRole(WebRole.Checkbox, isSelected)
             .toggleable(
                 value = isSelected,
                 interactionSource = interactions,

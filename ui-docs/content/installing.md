@@ -163,9 +163,10 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   "Failed to execute 'put' on 'Cache'" while the bundled fonts load: that is
   Compose Resources' own font cache, which the library never touches. And under
   Compose 1.12 the browser's accessibility tree names every clickable node a
-  `button`, with no checked or selected state, whatever role the library passes;
-  [In the browser](accessibility.md#in-the-browser) has what that affects and
-  when Compose fixes it.
+  `button`, with no checked or selected state, whatever role it was given; the
+  library puts its own controls' roles back, and
+  [In the browser](accessibility.md#in-the-browser) has how and what it does
+  not reach.
 
   On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
   for an input focused during the tap itself; Compose focuses its own while the
