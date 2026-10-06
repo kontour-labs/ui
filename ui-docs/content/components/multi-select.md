@@ -19,7 +19,8 @@ MultiSelect(
 ```
 
 **"Other", ticked alongside the options.** As on a [`Select`](select.md),
-`onOtherTextChange` ends the menu with "Other". Ticking it closes the menu and
+`onOtherTextChange` ends the menu with "Other", or the words `otherLabel`
+gives it. Ticking it closes the menu and
 opens a box inside the field's outline to type the rest in, with the options
 already ticked left as they are; the closed field adds "Other" to its summary.
 Ticked again, it is cleared and `onOtherTextChange(null)` is called.

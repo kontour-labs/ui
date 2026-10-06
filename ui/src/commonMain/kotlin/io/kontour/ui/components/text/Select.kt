@@ -148,7 +148,9 @@ fun rememberSelectState(initialExpanded: Boolean = false): SelectState =
  *   and with `null` as an option is picked instead. Null, the default, offers no
  *   "Other".
  * @param otherLabel The last option, and what the closed field says while it is
- *   the choice.
+ *   the choice: "Other" by default, or the app's own words for it — *Something
+ *   else*, *Another reason*. The box is named by it too, after [label].
+ * @param otherPlaceholder What the box shows until something is typed in it.
  */
 @Composable
 fun <T> Select(
@@ -172,6 +174,7 @@ fun <T> Select(
     otherText: String? = null,
     onOtherTextChange: ((String?) -> Unit)? = null,
     otherLabel: String = Theme.strings.selectOther,
+    otherPlaceholder: String = Theme.strings.selectOtherHint,
     interactionSource: MutableInteractionSource? = null,
 ) {
     val other = otherText != null && onOtherTextChange != null
@@ -192,7 +195,7 @@ fun <T> Select(
         picksOne = true,
         below = onOtherTextChange?.let { change ->
             {
-                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
             }
         },
     ) { dismiss ->
@@ -263,7 +266,8 @@ fun <T> Select(
  * @param onOtherTextChange Called as "Other" is ticked, as its box is typed in,
  *   and with `null` as it is unticked. Null, the default, offers no "Other".
  * @param otherLabel The last option, and what the closed field adds while it is
- *   ticked.
+ *   ticked: "Other" by default, or the app's own words for it.
+ * @param otherPlaceholder What the box shows until something is typed in it.
  */
 @Composable
 fun <T> MultiSelect(
@@ -288,6 +292,7 @@ fun <T> MultiSelect(
     otherText: String? = null,
     onOtherTextChange: ((String?) -> Unit)? = null,
     otherLabel: String = Theme.strings.selectOther,
+    otherPlaceholder: String = Theme.strings.selectOtherHint,
     interactionSource: MutableInteractionSource? = null,
 ) {
     // Checkboxes, so they toggle — as `FilterChip`, their alternative, does.
@@ -316,7 +321,7 @@ fun <T> MultiSelect(
         picksOne = false,
         below = onOtherTextChange?.let { change ->
             {
-                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, enabled, variant, metrics)
+                OtherBox(otherBox, otherText, { change(it) }, label, otherLabel, otherPlaceholder, enabled, variant, metrics)
             }
         },
     ) { dismiss ->
@@ -690,6 +695,7 @@ private fun OtherBox(
     onTextChange: (String) -> Unit,
     label: String?,
     otherLabel: String,
+    placeholder: String,
     enabled: Boolean,
     variant: TextFieldVariant,
     metrics: TextFieldMetrics,
@@ -749,7 +755,7 @@ private fun OtherBox(
             enabled = enabled,
             readOnly = false,
             label = null,
-            placeholder = Theme.strings.selectOtherHint,
+            placeholder = placeholder,
             supporting = null,
             errorMessage = null,
             leadingIcon = null,

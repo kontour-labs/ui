@@ -31,7 +31,7 @@ an error bring its edge back. The same goes for every select: `MultiSelect`,
 `Combobox` and `WheelSelect` take the same `variant`.
 
 **An answer of their own.** Give it `onOtherTextChange` and the menu ends with
-"Other". Picked, a box opens inside the field's outline, under the value, and takes
+"Other", or `otherLabel`: the app's own words for it. Picked, a box opens inside the field's outline, under the value, and takes
 the keyboard; what is typed comes back through `onOtherTextChange`, and
 `otherText` holds it. Picking one of the options instead closes the box and calls
 `onOtherTextChange(null)`, so the answer is always `otherText ?: value` and
@@ -43,8 +43,8 @@ val reasons = remember { listOf("Running late", "Cancelled", "Too full") }
 var reason by remember { mutableStateOf<String?>(null) }
 var otherReason by remember { mutableStateOf<String?>(null) }
 
-// "Other" ends the menu; picked, a box opens in the field to type in.
-// The answer is `otherReason ?: reason`.
+// "Something else" ends the menu; picked, a box opens in the field to
+// type in. The answer is `otherReason ?: reason`.
 Select(
     value = reason,
     options = reasons,
@@ -52,6 +52,8 @@ Select(
     label = "Reason",
     otherText = otherReason,
     onOtherTextChange = { otherReason = it },
+    otherLabel = "Something else",
+    otherPlaceholder = "What happened?",
 )
 ```
 
@@ -61,9 +63,9 @@ the outline's; inside a `Filled` select its well is the page's colour, so it
 still stands out. It is part of the field rather than a field under it, so the
 question and its answer read as one; it is still a text box of its own to a screen reader,
 named for both — "Reason, Other" — and not part of the dropdown's node. The word
-is `Theme.strings.selectOther`, or `otherLabel`, and the hint in the empty box
-`selectOtherHint`. `MultiSelect` takes the same three parameters, with "Other"
-ticked alongside the options.
+is `Theme.strings.selectOther` unless `otherLabel` says another, and the hint in
+the empty box `selectOtherHint` unless `otherPlaceholder` does. `MultiSelect`
+takes the same parameters, with "Other" ticked alongside the options.
 
 **Reach for a [`RadioGroup`](radio-group.md) above a `Select`** when
 there are three or four options and room to show them. A select hides its
