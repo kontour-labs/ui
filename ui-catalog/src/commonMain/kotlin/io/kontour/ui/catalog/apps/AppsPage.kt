@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps
 
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,7 +38,7 @@ import io.kontour.ui.theme.Theme
 @Composable
 internal fun AppsPage(modifier: Modifier = Modifier) {
     val open = LocalOpenApp.current
-    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) {
+    Box(modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior())) {
         Column(
             Modifier.fillMaxWidth().padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),

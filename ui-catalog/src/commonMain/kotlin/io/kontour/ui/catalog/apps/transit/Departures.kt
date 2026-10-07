@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -145,7 +146,7 @@ internal fun DeparturesPage(
             ) {
                 LazyColumn(
                     state = list,
-                    modifier = Modifier.fillMaxSize().topBarCollapse(collapse).testTag("departures"),
+                    modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = navigationSuitePadding()).topBarCollapse(collapse).testTag("departures"),
                     contentPadding = transitPagePadding(),
                     // No arrangement: the departures are a `listSection`,
                     // which puts a list item's gap between its rows and its own

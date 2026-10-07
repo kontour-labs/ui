@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -151,13 +153,15 @@ internal val pages: List<Page> = listOf(
 /** A scroller for the two pages that are a plain column of content. */
 @Composable
 private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { content() }
+    Box(modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior())) { content() }
 }
 
 @Composable
 private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
+    val list = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        state = list,
+        modifier = modifier.fillMaxSize().scrollbar(list),
         contentPadding = PaddingValues(Theme.spacing.md),
         flingBehavior = ScrollDefaults.flingBehavior(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -493,7 +497,7 @@ internal fun SettingsSheetContent(
 ) {
     Column(
         Modifier
-            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+            .pageScroll(flingBehavior = ScrollDefaults.flingBehavior(), barPadding = PaddingValues(bottom = safeArea.calculateBottomPadding()))
             // **Inside the scroller, which is the whole point of being handed
             // it.** Outside it — which is what the sheet used to do for every
             // caller — the viewport stops above the gesture bar and the last

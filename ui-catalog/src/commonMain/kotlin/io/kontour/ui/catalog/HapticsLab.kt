@@ -87,7 +87,7 @@ internal fun HapticsLab(modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalHaptics provides (tracedRoute ?: LocalHaptics.current)) {
         val player = rememberHaptics()
         Column(
-            modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
+            modifier = modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             ThisDevice(player, route, { route = it }, rumbleRoute, { rumbleRoute = it })

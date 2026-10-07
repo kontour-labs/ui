@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.catalog.pageScroll
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.overlay.coachmarkStep
 import androidx.compose.foundation.layout.Arrangement
@@ -79,7 +81,7 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
             supporting { +"${tripsByDay.values.sum()} in the last year" }
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()).testTag("trips"),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()).testTag("trips"),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             ActivityCalendar(
@@ -179,7 +181,7 @@ internal fun TripPage(trip: Trip) {
             supporting { +formats.date(trip.date) }
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             Card(Modifier.fillMaxWidth()) {
@@ -239,7 +241,7 @@ private fun ReportSheet(visible: Boolean, onDismiss: () -> Unit, onSend: (String
     val more = rememberTextFieldState()
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(padding),
+            Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
             SheetHeader { +"Report a problem" }

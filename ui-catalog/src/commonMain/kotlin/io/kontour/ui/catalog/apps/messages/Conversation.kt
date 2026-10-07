@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.messages
 
+import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -191,7 +192,7 @@ private fun MessageList(chat: Chat, thread: List<Message>, typing: String?, modi
     }
 
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().scrollbar(listState),
         state = listState,
         reverseLayout = true,
         contentPadding = PaddingValues(horizontal = Theme.spacing.md, vertical = Theme.spacing.sm),

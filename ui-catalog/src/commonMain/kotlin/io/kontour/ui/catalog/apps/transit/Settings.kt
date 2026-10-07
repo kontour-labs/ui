@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,7 +67,7 @@ internal fun TransitSettingsPage() {
             +"Settings"
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()).testTag("settings"),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()).testTag("settings"),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
         ) {
             ListSection(

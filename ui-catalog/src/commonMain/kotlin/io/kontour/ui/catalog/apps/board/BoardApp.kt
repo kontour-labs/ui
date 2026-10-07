@@ -1,5 +1,8 @@
 package io.kontour.ui.catalog.apps.board
 
+import io.kontour.ui.components.list.ScrollbarDefaults
+import io.kontour.ui.components.list.scrollbar
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -122,6 +125,7 @@ private fun Lanes(board: BoardState, onOpen: (Task) -> Unit, modifier: Modifier)
         modifier = modifier
             .fillMaxWidth()
             .dragAutoScroll(scroll, Orientation.Horizontal)
+            .scrollbar(scroll, orientation = Orientation.Horizontal)
             .horizontalScroll(scroll)
             .padding(Theme.spacing.md)
             .testTag("board-lanes"),
@@ -187,7 +191,11 @@ private fun LaneColumn(
                 }
                 LazyColumn(
                     state = scroll,
-                    modifier = Modifier.fillMaxSize().dropList(cards),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // Inside the lane's rounded card, clear of its corners.
+                        .scrollbar(scroll, cornerInset = ScrollbarDefaults.cornerInset(Theme.shapes.container))
+                        .dropList(cards),
                     contentPadding = PaddingValues(Theme.spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 ) {
@@ -258,7 +266,7 @@ private fun TaskSheet(
     ModalBottomSheet(visible = visible && task != null, onDismissRequest = onDismiss, paneTitle = task?.title) { padding ->
         if (task == null) return@ModalBottomSheet
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(padding),
+            Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
             SheetHeader {

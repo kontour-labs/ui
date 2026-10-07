@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.components.list.scrollbar
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,7 +105,17 @@ internal fun StopsPage(onStop: (String) -> Unit) {
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 state = list,
-                modifier = Modifier.fillMaxSize().testTag("stops"),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Beside the index down the edge, not under it.
+                    .scrollbar(
+                        list,
+                        contentPadding = PaddingValues(
+                            end = suite.calculateEndPadding(direction) + IndexScrollerDefaults.Width,
+                            bottom = suite.calculateBottomPadding(),
+                        ),
+                    )
+                    .testTag("stops"),
                 contentPadding = PaddingValues(
                     start = suite.calculateStartPadding(direction) + Theme.spacing.md,
                     end = suite.calculateEndPadding(direction) + IndexScrollerDefaults.Width + Theme.spacing.xs,
@@ -188,7 +200,7 @@ internal fun StopPage(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> 
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .pageScroll()
                 .padding(transitPagePadding()),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
@@ -237,7 +249,7 @@ internal fun LinePage(line: Line, onStop: (String) -> Unit) {
             supporting { +"Every ${line.every} min" }
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             TransitHeading("Next train")

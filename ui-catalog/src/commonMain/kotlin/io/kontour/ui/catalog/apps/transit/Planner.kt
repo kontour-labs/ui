@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -96,7 +98,7 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
         // Inside a scroller, so a short phone reaches the clock under the
         // calendar; the parts are still the sheet's, named through its scope.
         val sheetParts = this
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(padding)) {
+        Column(Modifier.pageScroll(barPadding = PaddingValues()).padding(padding)) {
             sheetParts.part {
                 SheetHeader(modifier = Modifier.sheetPeekAnchor()) {
                     +"Plan a trip"

@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,7 +77,7 @@ internal fun TicketPage() {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .pageScroll(barPadding = PaddingValues())
                     .padding(Theme.spacing.md),
                 verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
                 horizontalAlignment = Alignment.CenterHorizontally,

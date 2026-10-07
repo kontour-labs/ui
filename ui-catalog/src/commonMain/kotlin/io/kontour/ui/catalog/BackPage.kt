@@ -88,7 +88,7 @@ internal fun BackPage(modifier: Modifier = Modifier) {
     }
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
+        modifier = modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior()).padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
         Card(Modifier.fillMaxWidth()) {

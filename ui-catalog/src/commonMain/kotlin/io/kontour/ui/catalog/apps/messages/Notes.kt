@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.messages
 
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -123,7 +124,7 @@ internal fun NotesPage(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(scroll)
+                    .pageScroll(scroll)
                     .padding(contentPadding.plusPage(bottom = NotesFootRoom)),
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
             ) {
@@ -296,7 +297,7 @@ internal fun NoteDetailPage(
                 // On a phone the page covers the navigation, so it had only
                 // a fixed margin, and nothing at all for the keyboard.
                 .windowInsetsPadding(WindowInsets.sheetEdges.union(WindowInsets(bottom = contentPadding.calculateBottomPadding())))
-                .verticalScroll(rememberScrollState())
+                .pageScroll(barPadding = PaddingValues())
                 .padding(
                     PaddingValues(
                         start = contentPadding.calculateStartPadding(direction),
@@ -364,7 +365,7 @@ private fun ColumnScope.NoteInfo(state: MessagesState, note: Note, onClose: () -
     Column(
         modifier = Modifier
             .weight(1f, fill = false)
-            .verticalScroll(rememberScrollState())
+            .pageScroll(barPadding = PaddingValues())
             .padding(start = Theme.spacing.md, end = Theme.spacing.md, bottom = Theme.spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
