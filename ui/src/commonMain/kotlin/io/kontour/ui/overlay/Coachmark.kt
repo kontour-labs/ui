@@ -241,6 +241,17 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
         index--
     }
 
+    /**
+     * On to the last step, past the rest: what the bubble's Skip does, where
+     * [rememberCoachmarkTour] was asked for one. The last step is the tour's
+     * own way out — Done — so a skipped tour still ends on it.
+     */
+    fun skip() {
+        if (!isRunning || !hasNext) return
+        heading = 1
+        index = order.lastIndex
+    }
+
     /** Ends the tour, whether it was walked through or skipped. */
     fun finish() {
         index = NotRunning
@@ -250,6 +261,12 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
 
     /** How the tour goes from one step to the next; see [rememberCoachmarkTour]. */
     internal var transition: CoachmarkTransition by mutableStateOf(CoachmarkTransition.Morph)
+
+    /** Whether a tap on the dim, Back or Escape ends it; see [rememberCoachmarkTour]. */
+    internal var dismissible: Boolean by mutableStateOf(false)
+
+    /** Whether its bubbles offer Skip; see [rememberCoachmarkTour]. */
+    internal var skippable: Boolean by mutableStateOf(false)
 
     /** The way the reader last went: 1 forwards, -1 back. Which way a missing step is passed over. */
     internal var heading: Int = 1
@@ -302,6 +319,12 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
  * rather than pointing at a rectangle that is not there.
  *
  * @param transition How it goes from one step to the next.
+ * @param dismissible Whether a tap on the dim round the step, Back or Escape
+ *   ends the tour. Not by default: a tour is something the reader asked for and
+ *   walks through — a stray tap beside the bubble lost the rest of it — and its
+ *   way out is the bubble's own, Done on the last step, or [skippable]'s Skip.
+ * @param skippable Whether each bubble but the last offers Skip, which goes
+ *   straight to the last step: see [CoachmarkTour.skip].
  * @param navigate Takes the reader to the screen a step is on, told each step's
  *   id as the tour reaches it — at the start, forwards and back. Null for a tour
  *   that stays on one screen. Called where this is, so remember the tour above
@@ -311,10 +334,16 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
 fun rememberCoachmarkTour(
     vararg steps: String,
     transition: CoachmarkTransition = CoachmarkTransition.Morph,
+    dismissible: Boolean = false,
+    skippable: Boolean = false,
     navigate: (suspend (step: String) -> Unit)? = null,
 ): CoachmarkTour {
     val tour = remember(steps.toList()) { CoachmarkTour(steps.toList()) }
-    SideEffect { tour.transition = transition }
+    SideEffect {
+        tour.transition = transition
+        tour.dismissible = dismissible
+        tour.skippable = skippable
+    }
     val goTo by rememberUpdatedState(navigate)
     LaunchedEffect(tour) {
         snapshotFlow { tour.current }.collectLatest { step ->
@@ -463,7 +492,12 @@ private fun TourStepEntry(tour: CoachmarkTour, id: String, step: TourStep, enabl
                     // rectangle and the whole point here is the part that is not
                     // covered.
                     scrim = ScrimStyle.None,
-                    dismissLabel = dismissLabel,
+                    // Not to be waved away, unless the app says it may be: Back,
+                    // Escape and a screen reader's dismiss go nowhere, and the
+                    // way out is the bubble's own — Done, or Skip.
+                    dismissOnOutside = tour.dismissible,
+                    dismissOnBack = tour.dismissible,
+                    dismissLabel = if (tour.dismissible) dismissLabel else null,
                     onDismiss = { tour.finish() },
                     // A tour is modal — it is the one coach mark the user cannot
                     // work around, because they asked for it.
@@ -532,7 +566,7 @@ private fun TourSpotlight(tour: CoachmarkTour) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        TourDim(scene, morph, colours, onDismissRequest = tour::finish)
+        TourDim(scene, morph, colours, onDismissRequest = { if (tour.dismissible) tour.finish() })
         scene.leaving?.let { TourMark(it, tour, scene, morph, leaving = true) }
         scene.showing?.let { TourMark(it, tour, scene, morph, leaving = false) }
     }
@@ -1046,6 +1080,14 @@ private fun CoachmarkBubble(
                     )
                 }
                 Box(Modifier.weight(1f))
+                // Past the rest, to the last step: beside Back, as quiet as it.
+                if (tour.skippable && hasNext) {
+                    Button(
+                        onClick = tour::skip,
+                        variant = ButtonVariant.Ghost,
+                        size = ButtonSize.Small,
+                    ) { +strings.skipTour }
+                }
                 if (hasPrevious) {
                     Button(
                         onClick = tour::previous,

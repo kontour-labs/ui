@@ -92,6 +92,14 @@ step has only "Got it", since there is nothing to go back to or to be done
 with. `tour.index`, `isRunning` and `isFinished` say where it is; `finish()`
 ends it early.
 
+**A tour is not dismissed by accident.** A tap on the dim, Back and Escape do
+nothing by default: the reader asked for the tour, and a stray tap beside the
+bubble used to lose the rest of it. Its way out is its own buttons. Pass
+`dismissible = true` for a tour that a tap outside, Back or Escape ends.
+`skippable = true` adds **Skip** to every bubble but the last, which goes
+straight to the last step (`tour.skip()`), so a skipped tour still ends on
+its Done.
+
 While a step shows, everything but the control is dimmed, and a hole is cut
 around the control, `CoachmarkDefaults.SpotlightPadding` past its edge with the
 theme's container corner. **Everything the dim covers is blocked, the lit control
@@ -200,7 +208,10 @@ unrelated ones, and its buttons carry real labels — "Got it", and in a tour
 so it follows the reader's language and plural rules.
 
 A tour's dim blocks every tap outside the bubble, so its own buttons are the only
-way on — Next, Back, or Done to finish.
+way on — Next, Back, Skip where there is one, or Done to finish. They are
+buttons a keyboard and a screen reader reach, so a tour that is not dismissible
+is never a trap. Its screen reader dismiss action, and Escape, are there only
+when the tour is `dismissible`.
 
 At high contrast a single tip is the enhanced scheme's inverse surface and ink,
 which already stand apart from the page, and its "Got it" is a ghost button that

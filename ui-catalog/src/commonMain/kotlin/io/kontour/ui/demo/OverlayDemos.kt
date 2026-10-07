@@ -430,9 +430,12 @@ private val coachmarkTone = Knob.Choice("Tone", Tone.entries.toList(), initial =
  * thing a coach mark must not do. "Show the tip" is the app deciding the moment
  * has come; the queue then shows it, and shows it again only after a reset.
  */
+private val coachmarkSkippable = Knob.Flag("Skip button", initial = true)
+private val coachmarkDismissible = Knob.Flag("Tap outside ends the tour", initial = false)
+
 internal val CoachmarkDemo = ComponentDemo(
     slug = "coachmark",
-    knobs = listOf(coachmarkSide, coachmarkTransition, coachmarkTone),
+    knobs = listOf(coachmarkSide, coachmarkTransition, coachmarkTone, coachmarkSkippable, coachmarkDismissible),
 ) {
     val side = this[coachmarkSide]
     val tone = this[coachmarkTone]
@@ -440,7 +443,12 @@ internal val CoachmarkDemo = ComponentDemo(
     Stage {
         // Inside the stage, so the queue watches the stage's own host.
         val queue = rememberOverlayQueue()
-        val tour = rememberCoachmarkTour("welcome", "plan", "saved", "alerts", transition = this@ComponentDemo[coachmarkTransition])
+        val tour = rememberCoachmarkTour(
+            "welcome", "plan", "saved", "alerts",
+            transition = this@ComponentDemo[coachmarkTransition],
+            dismissible = this@ComponentDemo[coachmarkDismissible],
+            skippable = this@ComponentDemo[coachmarkSkippable],
+        )
         // The first step points at nothing: a card in the middle, to say what
         // the tour is before it starts pointing at things.
         CoachmarkStep(
