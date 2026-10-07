@@ -846,10 +846,14 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
             val top = from * perMinute
             return Rect(columnLeft(day), top, columnLeft(day) + column, top + maxOf(minChipPx, (to - from) * perMinute))
         }
-        // The first day's box, leaning: all of it for a move, the edge in hand
-        // for a resize or a new event drawn out.
-        val firstTo = if (lastDayOf(nowStart, nowEnd) == nowStart.date && nowEnd.date == nowStart.date) nowEnd.time.minuteOfDay else MinutesPerDay
-        val snapped = box(firstDay, nowStart.time.minuteOfDay, maxOf(firstTo, nowStart.time.minuteOfDay))
+        // One day's box, leaning: the first day's, all of it, for a move; the
+        // edge in hand for a resize or a new event drawn out — the last day's,
+        // for an end dragged on an event that runs past midnight.
+        val lastDay = (lastDayOf(nowStart, nowEnd).toEpochDays() - pageStart.toEpochDays()).toInt()
+        val leanDay = if (edit.leanOn == 1) lastDay else firstDay
+        val leanFrom = if (leanDay == firstDay) nowStart.time.minuteOfDay else 0
+        val leanTo = if (leanDay == lastDay && nowEnd.date == lastDayOf(nowStart, nowEnd)) nowEnd.time.minuteOfDay else MinutesPerDay
+        val snapped = box(leanDay, leanFrom, maxOf(leanTo, leanFrom))
         val lean = edit.lean * pull
         val across = if (rtl) -lean.x else lean.x
         val target = when (edit.leanOn) {
@@ -858,20 +862,20 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
             else -> snapped.translate(across, lean.y)
         }
         val drawn = hop.drawnAt(nowStart to nowEnd, target, still)
-        // Every other day of it moved as the first is, for a move; an edge
+        // Every other day of it moved as that one is, for a move; an edge
         // dragged moves its own day alone.
         val moving = edit.leanOn == 0
         val dx = if (moving) drawn.left - snapped.left else 0f
         val dy = if (moving) drawn.top - snapped.top else 0f
         val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
             val (day, from, to) = pieces[i]
-            val rect = if (day == firstDay) drawn else box(day, from, to)
+            val rect = if (day == leanDay) drawn else box(day, from, to)
             measurable.measure(Constraints.fixed((column - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
         }
         layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
-                val rect = if (day == firstDay) drawn else box(day, from, to).translate(dx, dy)
+                val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)
                 placeable.place((rect.left + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
             }
         }

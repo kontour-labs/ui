@@ -42,3 +42,24 @@ internal fun floorTo(minutes: Long, step: Int): Long = minutes.floorDiv(step.toL
 /** [minutes] to the nearest [step], halves up. */
 internal fun roundTo(minutes: Long, step: Int): Long = floorTo(minutes + step / 2, step)
 
+/**
+ * Where an event's end can be dragged to, given [proposed]: within the day its
+ * last minute is on, from a [step] after its start — or after that day's
+ * midnight, for one that began the day before — to the day's own midnight.
+ * A resize changes how long an event is on its day; carrying it onto the next
+ * is a move.
+ */
+internal fun resizedEnd(start: Long, end: Long, proposed: Long, step: Int): Long {
+    val day = floorTo(if (end > start) end - 1 else start, MinutesPerDay)
+    val lower = maxOf(start, day) + step
+    val upper = maxOf(day + MinutesPerDay, lower)
+    return proposed.coerceIn(lower, upper)
+}
+
+/** Where its start can be dragged to: within the day it starts on, a [step] before its end at the latest. */
+internal fun resizedStart(start: Long, end: Long, proposed: Long, step: Int): Long {
+    val day = floorTo(start, MinutesPerDay)
+    val upper = minOf(end, day + MinutesPerDay) - step
+    val lower = minOf(day, upper)
+    return proposed.coerceIn(lower, upper)
+}

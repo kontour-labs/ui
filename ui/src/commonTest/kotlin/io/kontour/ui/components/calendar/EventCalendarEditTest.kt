@@ -179,6 +179,50 @@ class EventCalendarEditTest {
         assertEquals(LocalDateTime(2026, 10, 14, 10, 15), probe.resizes.single().third, "an event went shorter than one step")
     }
 
+    /**
+     * Its end dragged to the foot of the hours and on: it stops at midnight.
+     * It followed the pointer into the next day's column, and the event ran
+     * on over days.
+     */
+    @Test
+    fun anEndDraggedPastMidnightStopsThere() = runComposeUiTest {
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 17, 0), LocalDateTime(2026, 10, 14, 18, 0))
+        val probe = calendar(events = listOf(late))
+        val bounds = boundsOf(late, probe)
+        onRoot().performMouseInput {
+            moveTo(Offset(bounds.center.x, bounds.bottom - 3f * probe.density))
+            press()
+            // Down to the foot of the calendar, and across into Thursday,
+            // held there while the hours scroll on to their end.
+            val to = Offset(bounds.center.x + dayWidth(probe), 900f * probe.density - 2f)
+            val from = currentPosition
+            repeat(20) { moveTo(from + (to - from) * ((it + 1) / 20f)) }
+            repeat(30) {
+                advanceEventTime(100)
+                moveTo(to + Offset(0f, if (it % 2 == 0) -1f else 0f))
+            }
+            release()
+        }
+        waitForIdle()
+        val (_, start, end) = probe.resizes.singleOrNull() ?: error("no resize: moves ${probe.moves}, bounds $bounds")
+        assertEquals(late.start, start)
+        assertEquals(LocalDateTime(2026, 10, 15, 0, 0), end, "the end went past its day's midnight")
+    }
+
+    @Test
+    fun shiftAndAnArrowStopAtMidnight() = runComposeUiTest {
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 23, 0), LocalDateTime(2026, 10, 14, 23, 30))
+        val probe = calendar(events = listOf(late))
+        onNode(hasContentDescription(eventDescription(late, probe.formats, probe.strings))).requestFocus()
+        onRoot().performKeyInput {
+            pressKey(Key.Spacebar)
+            repeat(6) { withKeyDown(Key.ShiftLeft) { pressKey(Key.DirectionDown) } }
+            pressKey(Key.Enter)
+        }
+        waitForIdle()
+        assertEquals(LocalDateTime(2026, 10, 15, 0, 0), probe.resizes.single().third, "the keyboard ran the end past midnight")
+    }
+
     @Test
     fun aMouseDragOnEmptyTimeDrawsOutANewEvent() = runComposeUiTest {
         val probe = calendar()

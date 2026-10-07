@@ -438,16 +438,24 @@ internal class EventEdit(
                     propose(localDateTimeOfEpochMinute(start), localDateTimeOfEpochMinute(start + length))
                 }
             }
+            // An edge keeps to its own day: past midnight, or past the top of
+            // the hours, it stops there. It took the column the pointer was
+            // nearest, and an end dragged low ran the event on over days.
             EditKind.ResizeEnd -> if (event != null) {
-                val (_, minute) = timeAt(root, sameDayAs = this.end?.let { endDay(event.start, it) }) ?: timeAt(root) ?: return
-                val end = maxOf(roundTo(minute, stepMinutes), event.start.epochMinute + stepMinutes)
+                val day = endDay(event.start, event.end)
+                val (_, raw) = timeAt(root, sameDayAs = day) ?: return
+                val dayStart = day.atMidnight.epochMinute
+                val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
+                val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
                 leanOn = 1
                 lean = Offset(0f, ((minute - end) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(event.start, localDateTimeOfEpochMinute(end))
             }
             EditKind.ResizeStart -> if (event != null) {
-                val (_, minute) = timeAt(root, sameDayAs = event.start.date) ?: timeAt(root) ?: return
-                val start = minOf(roundTo(minute, stepMinutes), event.end.epochMinute - stepMinutes)
+                val (_, raw) = timeAt(root, sameDayAs = event.start.date) ?: return
+                val dayStart = event.start.date.atMidnight.epochMinute
+                val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
+                val start = resizedStart(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
                 leanOn = -1
                 lean = Offset(0f, ((minute - start) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(localDateTimeOfEpochMinute(start), event.end)
@@ -497,7 +505,8 @@ internal class EventEdit(
         val start = start ?: return
         val end = end ?: return
         if (resizeEnd) {
-            val next = maxOf(end.epochMinute + minutes, start.epochMinute + stepMinutes)
+            val from = event ?: return
+            val next = resizedEnd(from.start.epochMinute, from.end.epochMinute, end.epochMinute + minutes, stepMinutes)
             propose(start, localDateTimeOfEpochMinute(next))
         } else {
             propose(start.plusMinutes(minutes), end.plusMinutes(minutes))

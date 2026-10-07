@@ -365,7 +365,8 @@ private val GripHeight = 4.dp
  */
 internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: Boolean) {
     if (resize) {
-        val end = maxOf(event.end.epochMinute + minutes, event.start.epochMinute + edit.stepMinutes)
+        val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, event.end.epochMinute + minutes, edit.stepMinutes)
+        if (end == event.end.epochMinute) return
         val newEnd = localDateTimeOfEpochMinute(end)
         onEventResize?.invoke(event, event.start, newEnd)
         announce(event.title, event.start, newEnd)
