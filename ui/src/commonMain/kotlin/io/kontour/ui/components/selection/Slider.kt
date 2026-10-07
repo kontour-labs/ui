@@ -343,6 +343,20 @@ fun Slider(
     var dragFraction by remember { mutableFloatStateOf(Float.NaN) }
 
     /**
+     * How far past an end of the track the finger is, as a fraction of it:
+     * negative past the start, positive past the end, zero over the track.
+     *
+     * Remembered so the value waits for the finger to come back level with the
+     * thumb — asked for as *"if i drag past the edge of the slider and then drag
+     * back, the slider doesn't wait for my finger/mouse to come back in line
+     * with it, it just starts moving"*. The rubber band alone used to stand for
+     * this distance, and a band stops growing at its limit and is switched off
+     * under reduced motion, so a finger far past the end set the value moving
+     * the moment it turned round. Read only by the gesture, so not state.
+     */
+    val over = remember { FloatArray(1) }
+
+    /**
      * Whether the finger has actually *moved* since it went down.
      *
      * The value goes to wherever a press lands — that is what a slider is — but
@@ -587,6 +601,7 @@ fun Slider(
                         val along = (start.x - insetPx) / widthPx
                         val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
                         dragFraction = at.coerceIn(0f, 1f)
+                        over[0] = 0f
                         // Not carrying yet: the value is at the finger, and the
                         // thumb travels there. See [carrying].
                         carrying = false
@@ -601,13 +616,16 @@ fun Slider(
                         // Accumulate, then emit. Never the other way around: the
                         // emitted value is quantised and the caller may not take
                         // it at all, and either would lose the remainder.
-                        val from = if (dragFraction.isNaN()) fraction else dragFraction
-                        // A finger coming back closes the stretch it opened
-                        // before the value starts moving again, or one gesture
-                        // reads as two motions.
-                        val offered = signed - band.payBack(signed)
-                        val raw = from + offered / widthPx
+                        // From where the finger is, past the end or not: a
+                        // finger coming back covers the distance it went past
+                        // before the value moves again, or one gesture reads as
+                        // two motions — and the thumb moves off the end only
+                        // when the finger is level with it.
+                        val from = (if (dragFraction.isNaN()) fraction else dragFraction) + over[0]
+                        val raw = from + signed / widthPx
+                        val before = over[0]
                         dragFraction = raw.coerceIn(0f, 1f)
+                        over[0] = raw - dragFraction
                         // Emitted first and always. A press at the very end of
                         // the track has to answer before anything is pulled, or
                         // the last pixel of the slider stops reporting.
@@ -617,7 +635,7 @@ fun Slider(
                         // motion as well, where the band is switched off.
                         endStop.at(raw)
                         if (!motion.reduceMotion) {
-                            band.pull((raw - dragFraction) * widthPx, thumbSquashPx)
+                            band.follow(before * widthPx, over[0] * widthPx, thumbSquashPx)
                         }
                     },
                     onEnd = {
@@ -652,6 +670,7 @@ fun Slider(
                         // it springs the last of the way onto the detent rather
                         // than staying wherever the finger let go.
                         dragFraction = Float.NaN
+                        over[0] = 0f
                         carrying = false
                         currentFinished?.invoke()
                     },

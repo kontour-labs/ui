@@ -741,6 +741,7 @@ fun RangeSlider(
             held = true
             drag = from
             carrying = false
+            over = 0f
         }
         wall(thumb).arm()
         // One finger reads one label: the thumb taken up puts out the other's,
@@ -754,6 +755,7 @@ fun RangeSlider(
         hold(thumb).apply {
             held = false
             drag = Float.NaN
+            over = 0f
             carrying = false
         }
     }
@@ -994,8 +996,10 @@ fun RangeSlider(
                                     else -> gapFraction to 1f
                                 }
                                 val band = band(thumb)
-                                val offered = signed - band.payBack(signed)
-                                val raw = from + offered / widthPx
+                                // From where the finger is, past the end or not,
+                                // so a thumb at an end waits for the finger to
+                                // come back level with it before it moves.
+                                val raw = from + hold.over + signed / widthPx
                                 hold.drag = raw.coerceIn(reach.first, reach.second)
                                 // Measured against the **track**, not against
                                 // `reach`: running into the other thumb is a
@@ -1016,7 +1020,9 @@ fun RangeSlider(
                                     else -> 0f
                                 }
                                 wall(thumb).at(raw)
-                                if (past != 0f && !motion.reduceMotion) band.pull(past * widthPx, thumbSquashPx)
+                                val before = hold.over
+                                hold.over = past
+                                if (!motion.reduceMotion) band.follow(before * widthPx, past * widthPx, thumbSquashPx)
                                 moved += thumb
                             }
                             if (moved.isNotEmpty()) {
@@ -1424,6 +1430,14 @@ private class ThumbHold {
 
     /** The finger has moved it: see [Slider]'s `carrying` — a press moves the value, a drag moves the thumb. */
     var carrying by mutableStateOf(false)
+
+    /**
+     * How far past an end of the track the finger is, as a fraction of it — see
+     * [Slider]'s `over`. Only past the track's own ends: a thumb held short of
+     * them by the other thumb or a `minDistance` keeps no dead travel. Read only
+     * by the gesture, so not state.
+     */
+    var over: Float = 0f
 }
 
 /**

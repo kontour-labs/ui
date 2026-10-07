@@ -67,6 +67,12 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A slider waits for the finger to come back.** Dragged off the end of a
+  [`Slider`](components/slider.md) or a `RangeSlider` and back, the thumb
+  stays at the end until the finger or pointer is level with it again. It
+  used to move as soon as the finger turned round, however far past the end
+  it was, because only the stretch past the end was remembered and that
+  stops growing.
 - **A tour's `Fade` is a crossfade**, the next mark fading in while the last
   fades out rather than after it, under the one dim. In a `Morph` the mark
   keeps its own corner as it shrinks into a ball and grows out of one, where
