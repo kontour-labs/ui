@@ -89,6 +89,12 @@ Not the same as `draggable = false`, which stops the sheet moving at all and
 takes its handle with it. An undismissable sheet can still be dragged between its
 detents.
 
+**With only one size to be, it has no handle.** An undismissable sheet with the
+default detents — hidden and expanded — has nowhere a drag could take it: the
+handle would promise a move that only springs back. It is left out, and the
+content starts below the sheet's top padding instead. Given more than one size,
+a half and the full height, it keeps the handle, which moves it between them.
+
 ### `alignment` follows the window while the sheet is open
 
 On a window wider than a sheet's 480dp cap, `alignment` puts the sheet at the start,

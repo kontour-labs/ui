@@ -68,6 +68,10 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **An undismissable [modal sheet](components/modal-bottom-sheet.md) with one
+  size has no drag handle.** With `dismissible = false` and nothing to be dragged
+  between, a drag only stretched it and sprang it back. A sheet with more than one
+  size keeps its handle.
 - **A [page indicator](components/page-indicator.md)'s drag pill is `outline`
   in the light too**, as it was already in the dark: on a hero's light fade the
   well it was drawn in could hardly be seen. In a hero the dots are given room

@@ -98,6 +98,29 @@ class CoachmarkTourOptionsTest {
         button("Done").assertExists()
     }
 
+    /**
+     * Skip and Back stand as far apart as Back stands from Next: two ghost
+     * buttons side by side kept twice their invisible pad between their words,
+     * and Skip looked to have more room on its right than anything else.
+     */
+    @Test
+    fun skipBackAndNextAreEvenlySpaced() = runComposeUiTest {
+        tour(skippable = true)
+        button("Next").performClick()
+        waitForIdle()
+        fun text(label: String) = onAllNodes(hasText(label), useUnmergedTree = true).fetchSemanticsNodes()
+            .first { it.children.isEmpty() }.boundsInRoot
+        val skip = text("Skip")
+        val back = text("Back")
+        val next = button("Next").fetchSemanticsNode().boundsInRoot
+        val skipToBack = back.left - skip.right
+        val backToNext = next.left - back.right
+        assertTrue(
+            kotlin.math.abs(skipToBack - backToNext) <= 2f,
+            "Skip's word is ${skipToBack}px from Back's, and Back's ${backToNext}px from Next",
+        )
+    }
+
     @Test
     fun noSkipUnlessAskedFor() = runComposeUiTest {
         tour()

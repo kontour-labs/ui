@@ -864,8 +864,13 @@ fun BottomSheet(
                 windowInsets = if (floating && morph == null) NoInsets else insets,
                 containerColour = containerColour,
                 contentColour = contentColour,
-                // A handle on a sheet that cannot be dragged is a lie.
-                dragHandle = dragHandle.takeIf { draggable },
+                // A handle on a sheet that cannot be dragged is a lie — and so
+                // is one on a sheet that can be dragged only to spring back: an
+                // undismissable sheet with one size to be has nowhere to go.
+                // Undismissable with sizes to be dragged between, it keeps it.
+                dragHandle = dragHandle.takeIf {
+                    draggable && (dismissible || state.detents.count { it.id != SheetDetent.Hidden.id } > 1)
+                },
                 density = density,
                 fadeUnder = fadeUnder,
                 settleSpec = settleSpec,

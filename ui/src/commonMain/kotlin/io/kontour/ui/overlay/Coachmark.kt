@@ -1080,20 +1080,30 @@ private fun CoachmarkBubble(
                     )
                 }
                 Box(Modifier.weight(1f))
-                // Past the rest, to the last step: beside Back, as quiet as it.
-                if (tour.skippable && hasNext) {
-                    Button(
-                        onClick = tour::skip,
-                        variant = ButtonVariant.Ghost,
-                        size = ButtonSize.Small,
-                    ) { +strings.skipTour }
-                }
-                if (hasPrevious) {
-                    Button(
-                        onClick = tour::previous,
-                        variant = ButtonVariant.Ghost,
-                        size = ButtonSize.Small,
-                    ) { +strings.back }
+                // Skip, past the rest to the last step, and Back: as quiet as
+                // each other, and as far apart as Back is from the way on. Two
+                // ghost buttons side by side each keep their invisible pad,
+                // which put twice of it between their words — Skip looked to
+                // have more room on its right than anything else in the row.
+                val skips = tour.skippable && hasNext
+                if (skips || hasPrevious) {
+                    val pad = Theme.componentDefaults.buttonPaddingSmall
+                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs - pad)) {
+                        if (skips) {
+                            Button(
+                                onClick = tour::skip,
+                                variant = ButtonVariant.Ghost,
+                                size = ButtonSize.Small,
+                            ) { +strings.skipTour }
+                        }
+                        if (hasPrevious) {
+                            Button(
+                                onClick = tour::previous,
+                                variant = ButtonVariant.Ghost,
+                                size = ButtonSize.Small,
+                            ) { +strings.back }
+                        }
+                    }
                 }
                 // The way on, filled in the bubble's ink so it reads as the
                 // button it is beside Back: as two ghost buttons on the accent
