@@ -142,7 +142,10 @@ animates into being the only visible thing"*.
 the parts, and the safe area under them. That is the collapsed sheet that is
 only a search field, at whatever height the field turns out to be at the
 reader's font scale. Until they have been measured, and on a sheet with none, it
-uses its `fallback`.
+uses its `fallback`. As the sheet comes down to it from the next size up, the
+content behind the parts fades into the sheet's own colour, so collapsed there
+is nothing of a list showing round a pinned bar or through its fade. A sheet
+whose smallest size is a half or a peek keeps its content in view there.
 
 **The padding the content is handed** starts below a top part and ends above a
 bottom one, with 16dp to spare. A `LazyColumn` given it as `contentPadding`

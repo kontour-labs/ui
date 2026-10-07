@@ -1404,9 +1404,12 @@ private fun BoxScope.SheetSurface(
             Layout(
                 contents = listOf(
                     { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, room, padding, slots, content) },
-                    // Over the content as the sheet collapses to its collapsed
-                    // part, so what was round it fades out of the way.
-                    { if (slots.collapsed != null) CollapseVeil(state, containerColour) },
+                    // Over the content as the sheet collapses to its parts, so
+                    // what was round them fades out of the way: collapsed, the
+                    // sheet is its handle and its parts, and nothing that
+                    // scrolls behind a pinned bar shows round it or through
+                    // its fade.
+                    { if (slots.collapsed != null || slots.top != null || slots.bottom != null) CollapseVeil(state, containerColour) },
                     { slots.top?.let { HeaderBlock(it, containerColour, fadeUnder, sides, banded = dragHandle != null, room = room) } },
                     { slots.collapsed?.let { CollapsedBlock(it, sides) } },
                     { slots.bottom?.let { FooterBlock(it, containerColour, fadeUnder, sides, safeArea) } },
@@ -1522,16 +1525,17 @@ private class CutAbove(private val cut: Float) : Shape {
 }
 
 /**
- * The sheet's colour over its content, as strong as the sheet is collapsed —
- * see [SheetState.collapseFraction] — so the content round a collapsed part
- * fades out of the way as the part goes to the top. Drawn from the sheet's
+ * The sheet's colour over its content, as strong as the sheet is collapsed to
+ * its parts — see [SheetState.partsCollapseFraction] — so the content round a
+ * collapsed part fades out of the way as the part goes to the top, and none of
+ * what scrolls behind a pinned bar shows once the sheet is only its parts. Drawn from the sheet's
  * position in the draw pass: a drag recomposes nothing.
  */
 @Composable
 private fun CollapseVeil(state: SheetState, ground: Color) {
     Spacer(
         Modifier.drawBehind {
-            val f = state.collapseFraction()
+            val f = state.partsCollapseFraction()
             if (f > 0f) drawRect(ground, alpha = f)
         },
     )

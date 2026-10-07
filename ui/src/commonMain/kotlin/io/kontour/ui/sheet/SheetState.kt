@@ -297,6 +297,22 @@ class SheetState internal constructor(
     }
 
     /**
+     * [collapseFraction], where the sheet's smallest size is its parts' —
+     * [SheetDetent.parts] — and 0 where it is anything else. What veils the
+     * content round the pinned parts: collapsed to its parts, the sheet is
+     * those and nothing of what scrolls behind them; collapsed to a half, or a
+     * peek, it is still the content it shows.
+     */
+    internal fun partsCollapseFraction(): Float {
+        val lowest = detents
+            .filter { it.id != SheetDetent.Hidden.id }
+            .filter { !offsetOf(it).isNaN() }
+            .maxByOrNull { offsetOf(it) }
+            ?: return 0f
+        return if (lowest.id == SlotsDetentId) collapseFraction() else 0f
+    }
+
+    /**
      * Whether the sheet is at [detent]'s height or above it, or on its way there.
      *
      * Compared by *position* rather than by index in the detent list, because a

@@ -69,6 +69,11 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **Collapsed to its parts, a [bottom sheet](components/bottom-sheet.md) shows
+  nothing of its content round them.** The content fades into the sheet's
+  colour on the way down to `SheetDetent.parts()`, whatever the parts are
+  pinned to. A list scrolled behind a bottom-pinned search bar showed through
+  the bar's fade with the sheet collapsed.
 - **A slider waits for the finger to come back.** Dragged off the end of a
   [`Slider`](components/slider.md) or a `RangeSlider` and back, the thumb
   stays at the end until the finger or pointer is level with it again. It

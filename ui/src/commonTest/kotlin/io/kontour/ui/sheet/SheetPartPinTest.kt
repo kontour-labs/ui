@@ -32,6 +32,10 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.toPixelMap
+import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -111,6 +115,43 @@ class SheetPartPinTest {
         }
     }
 
+    @Test
+    fun collapsedToItsPartsNothingOfTheContentShowsRoundABottomPart() = nothingShowsRound(SheetPartPin.Bottom)
+
+    @Test
+    fun collapsedToItsPartsNothingOfTheContentShowsRoundATopPart() = nothingShowsRound(SheetPartPin.Top)
+
+    /**
+     * *"Make the content that goes behind the search bar … not show when it's
+     * collapsed"*: the rows, red, are in the sheet at half, and nowhere in it
+     * once it is only its handle and its pinned part.
+     */
+    private fun nothingShowsRound(pin: SheetPartPin) = runComposeUiTest {
+        lateinit var sheet: SheetState
+        var target by mutableStateOf(SheetDetent.Half)
+        mainClock.autoAdvance = false
+        setContent { Harness(target, pin, rows = Color.Red) { sheet = it } }
+        settle()
+        assertTrue(redInSheet(sheet) > 0, "the fixture: at half, the rows show")
+        target = SheetDetent.parts()
+        settle()
+        assertEquals(0, redInSheet(sheet), "collapsed to its ${pin.name.lowercase()} part, the content still showed")
+    }
+
+    /** How many pixels of the sheet, from its top to the window's foot, are the rows' red. */
+    private fun ComposeUiTest.redInSheet(sheet: SheetState): Int {
+        val image = onRoot().captureToImage().toPixelMap()
+        val top = (image.height - sheet.visibleHeight).toInt().coerceIn(0, image.height)
+        var red = 0
+        for (y in top until image.height) {
+            for (x in 0 until image.width) {
+                val c = image[x, y]
+                if (c.red > 0.8f && c.green < 0.3f && c.blue < 0.3f) red++
+            }
+        }
+        return red
+    }
+
     private fun ComposeUiTest.settle() {
         repeat(SettleFrames) { mainClock.advanceTimeByFrame() }
     }
@@ -120,7 +161,7 @@ class SheetPartPinTest {
     }
 
     @Composable
-    private fun Harness(target: SheetDetent, pin: SheetPartPin, onState: (SheetState) -> Unit) {
+    private fun Harness(target: SheetDetent, pin: SheetPartPin, rows: Color = Color.Unspecified, onState: (SheetState) -> Unit) {
         KontourTheme(reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -144,12 +185,16 @@ class SheetPartPinTest {
                             ) { Text("$count", modifier = Modifier.testTag(Count)) }
                         }
                         if (pin == SheetPartPin.Top) part(pin = SheetPartPin.Top) { part() }
+                        if (pin == SheetPartPin.Bottom) part(pin = SheetPartPin.Bottom) { part() }
                         LazyColumn(Modifier.testTag(List), contentPadding = padding) {
                             if (pin == SheetPartPin.Collapsed) {
                                 item(key = "part") { sheetParts.part(pin = SheetPartPin.Collapsed) { part() } }
                             }
                             items(Rows) { index ->
-                                Box(Modifier.fillMaxWidth().height(RowHeight).testTag(row(index)))
+                                Box(
+                                    Modifier.fillMaxWidth().height(RowHeight).testTag(row(index))
+                                        .then(if (rows.isSpecified) Modifier.background(rows) else Modifier),
+                                )
                             }
                         }
                     }
