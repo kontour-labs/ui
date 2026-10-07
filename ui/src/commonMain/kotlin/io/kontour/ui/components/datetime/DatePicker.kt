@@ -1307,17 +1307,14 @@ private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.or
  *
  * DateField(value = date, onClick = { picking = true }, label = "Post date")
  *
- * Dialog(
- *     visible = picking,
- *     onDismissRequest = { picking = false },
- *     actions = { cancel() },
- * ) {
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Post date") {
  *     DatePicker(value = date, onValueChange = { date = it; picking = false })
  * }
  * ```
  *
  * The thing you put on a form, as [TimeField] is for a time: tapping it is
- * expected to open a [DatePicker] in a dialog or a sheet. Kept apart from the
+ * expected to open a [DatePicker] in a [FieldPicker], a sheet on a phone and a
+ * dialog on anything wider, as the other fields' pickers open. Kept apart from the
  * picker so the picker never has to know how it is being presented, and so the
  * form is one tap target rather than a text field with a calendar button beside
  * it that both open the same thing.

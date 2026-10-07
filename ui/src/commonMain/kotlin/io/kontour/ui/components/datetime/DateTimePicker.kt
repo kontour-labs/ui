@@ -226,17 +226,13 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
  *
  * DateTimeField(value = departs, onClick = { picking = true }, label = "Departs")
  *
- * Dialog(
- *     visible = picking,
- *     onDismissRequest = { picking = false },
- *     actions = { confirm("Done") { picking = false } },
- * ) {
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Departs") {
  *     DateTimePicker(value = departs, onValueChange = { departs = it })
  * }
  * ```
  *
  * The thing you put on a form, as [TimeField] and [DateField] are: tapping it is
- * expected to open a [DateTimePicker] in a dialog or a sheet. Written as the
+ * expected to open a [DateTimePicker] in a [FieldPicker]. Written as the
  * locale writes a date and a time together.
  *
  * @param value The date and time chosen. Always one, as a [DateTimePicker]

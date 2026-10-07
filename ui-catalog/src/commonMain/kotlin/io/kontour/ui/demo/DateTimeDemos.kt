@@ -41,6 +41,7 @@ import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.FieldPicker
 import io.kontour.ui.components.datetime.DayAnnotation
 import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.DateRangePicker
@@ -53,10 +54,6 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
-import io.kontour.ui.overlay.Dialog
-import androidx.compose.foundation.layout.padding
-import io.kontour.ui.sheet.SheetHeader
-import io.kontour.ui.sheet.ModalBottomSheet
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -211,16 +208,10 @@ internal val TimeFieldDemo = ComponentDemo(slug = "time-field") {
         label = "Leave at",
         modifier = Modifier.fillMaxWidth(),
     )
-    // The wheels set the time as they turn, so the sheet needs no Done: its
-    // close button, a drag down or a tap outside puts it away.
-    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
-        SheetHeader { +"Leave at" }
-        TimePicker(
-            value = leaveAt,
-            onValueChange = { leaveAt = it },
-            minuteStep = 5,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
-        )
+    // A sheet on a phone, a dialog on anything wider: the same as the date
+    // field's. The wheels set the time as they turn, so there is no Cancel.
+    FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+        TimePicker(value = leaveAt, onValueChange = { leaveAt = it }, minuteStep = 5)
     }
 }
 
@@ -255,30 +246,23 @@ internal val DateFieldDemo = ComponentDemo(slug = "date-field", knobs = listOf(d
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    Dialog(
-        visible = pickingDate,
-        onDismissRequest = { pickingDate = false },
-        title = { +"Post date" },
-        actions = { cancel() },
-    ) {
+    // Both open the same way: a sheet on a phone, a dialog on anything wider.
+    FieldPicker(visible = pickingDate, onDismissRequest = { pickingDate = false }, title = "Post date") {
         DatePicker(
             value = date,
+            // A date is picked at one tap, so the picker goes with it.
             onValueChange = { date = it; pickingDate = false },
             today = Today,
             chooserIcon = Tabler.Outline.ChevronDown,
-            // In the middle of a dialog wider than the picker's 308dp.
-            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         )
     }
-    ModalBottomSheet(visible = pickingPublish, onDismissRequest = { pickingPublish = false }) { padding ->
-        SheetHeader { +"Publish at" }
+    FieldPicker(visible = pickingPublish, onDismissRequest = { pickingPublish = false }, title = "Publish at") {
         DateTimePicker(
             value = publishAt,
             onValueChange = { publishAt = it },
             today = Today,
             chooserIcon = Tabler.Outline.ChevronDown,
             minuteStep = 5,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
         )
     }
 }

@@ -13,18 +13,17 @@ var picking by remember { mutableStateOf(false) }
 // Typing a time into a text field is how you get 25:61.
 TimeField(value = departAt, onClick = { picking = true }, label = "Leave at")
 
-// The wheels set the time as they turn, so the sheet needs no Done: its
-// close button, a drag down or a tap outside puts it away.
-ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
-    SheetHeader { +"Leave at" }
-    TimePicker(
-        value = departAt,
-        onValueChange = { departAt = it },
-        minuteStep = 5,
-        modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
-    )
+// The wheels set the time as they turn, so there is no Cancel: the close,
+// Done, a tap outside or back puts it away. A sheet on a phone, a dialog
+// on anything wider.
+FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+    TimePicker(value = departAt, onValueChange = { departAt = it }, minuteStep = 5)
 }
 ```
+
+It opens its `TimePicker` in a [`FieldPicker`](date-field.md), as a
+[`DateField`](date-field.md) opens its date: a sheet on a phone, a dialog on
+anything wider.
 
 ---
 

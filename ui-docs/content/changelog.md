@@ -68,6 +68,11 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A date, time or date-and-time field's picker opens the same way for all
+  three**, through the new
+  [`FieldPicker`](components/date-field.md): a sheet on a phone, a dialog on
+  anything wider. The samples and the showcase opened a date in a dialog and a
+  time in a sheet. `FieldPicker(visible, onDismissRequest, title) { picker }`.
 - **An [event calendar](components/event-calendar.md)'s carry goes on following
   the pointer after it pages.** From the second week or month on, the carried
   event stayed where it was. A pointer held still at the edge is followed into

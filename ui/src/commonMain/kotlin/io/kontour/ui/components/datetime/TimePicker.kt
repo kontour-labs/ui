@@ -218,8 +218,16 @@ fun TimePicker(
 /**
  * The chosen time, shown as a tappable field.
  *
+ * ```
+ * TimeField(value = leaveAt, onClick = { picking = true }, label = "Leave at")
+ *
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+ *     TimePicker(value = leaveAt, onValueChange = { leaveAt = it })
+ * }
+ * ```
+ *
  * The thing you put on a form; tapping it is expected to open a [TimePicker] in
- * a sheet. Kept separate from the picker so the picker never has to know how it
+ * a [FieldPicker]. Kept separate from the picker so the picker never has to know how it
  * is being presented. [DateField] and [DateTimeField] are the same field for a
  * [DatePicker] and a [DateTimePicker].
  *

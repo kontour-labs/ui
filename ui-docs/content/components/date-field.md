@@ -1,6 +1,6 @@
 # `DateField`
 
-*Also on this page: `DateTimeField`.*
+*Also on this page: `DateTimeField`, `FieldPicker`.*
 
 The tappable field that opens a [`DatePicker`](date-picker.md), as
 [`TimeField`](time-field.md) is for a time — same frame, same label, the same
@@ -15,19 +15,14 @@ var picking by remember { mutableStateOf(false) }
 // not a text field with a calendar button beside it.
 DateField(value = date, onClick = { picking = true }, label = "Post date")
 
-Dialog(
-    visible = picking,
-    onDismissRequest = { picking = false },
-    title = { +"Post date" },
-    actions = { cancel() },
-) {
+// A sheet on a phone, a dialog on anything wider — as every field's picker opens.
+FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Post date") {
     DatePicker(
         value = date,
+        // A date is picked at one tap, so the picker goes with it.
         onValueChange = { date = it; picking = false },
         // Marks today, and gives the header its way back to it.
         today = remember { DatePickerDefaults.currentDate() },
-        // The picker stops at a phone's width; this centres it in a wider dialog.
-        modifier = Modifier.fillMaxWidth().wrapContentWidth(),
     )
 }
 ```
@@ -42,8 +37,16 @@ it is two controls that open the same thing, and the larger of them does
 nothing when pressed. The field is the button.
 
 **It does not open the picker itself.** `onClick` is where the caller opens a
-`DatePicker` in a [`Dialog`](dialog.md) or a sheet, so the picker never has to
-know how it is presented and the form decides what a press does.
+`DatePicker`, so the picker never has to know how it is presented and the form
+decides what a press does.
+
+**`FieldPicker` is where a field's picker opens**, for all three fields: a
+[modal sheet](modal-bottom-sheet.md) on a compact window, under 600dp wide, with
+the `title` in its header and a close button; a [dialog](dialog.md) on anything
+wider, with the `title` as its heading and Done. A form with a date and a time
+on it opens both the same way. The picker sets the value as it is used, so
+there is no Cancel; a date, picked at one tap, can close the picker itself, as
+above.
 
 **`value` is a `LocalDate?`**, as the picker's is: `null` is no date yet, and
 the field shows `placeholder` — `Theme.strings.select` by default — in the muted
