@@ -520,8 +520,14 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
         onDateClick = { echo(formats.date(it, DateStyle.Medium)) },
         onTimeClick = { echo("${formats.date(it.date, DateStyle.Medium)} ${formats.time(it.time)}") },
         onCreateRequest = { start, end ->
-            events = events + CalendarEvent(made++, "New event", start, end)
-            echo("New event at ${formats.time(start.time)}")
+            // From the month: whole days, midnight to midnight, kept as all-day.
+            val wholeDays = start.time == LocalTime(0, 0) && end.time == LocalTime(0, 0) && end.date > start.date
+            events = events + if (wholeDays) {
+                CalendarEvent(made++, "New event", startDate = start.date, endDate = end.date.minus(1, DateTimeUnit.DAY))
+            } else {
+                CalendarEvent(made++, "New event", start, end)
+            }
+            echo(if (wholeDays) "New event on ${formats.date(start.date, DateStyle.Medium)}" else "New event at ${formats.time(start.time)}")
         },
         onEventMove = { event, start, end ->
             replace(event, start, end)
@@ -530,6 +536,10 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
         onEventResize = { event, start, end ->
             replace(event, start, end)
             echo("${event.title} now ends ${formats.time(end.time)}")
+        },
+        onEventDelete = { event ->
+            events = events.filterNot { it.id == event.id }
+            echo("${event.title} deleted")
         },
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )

@@ -70,6 +70,8 @@ data class Strings(
     val gotIt: String = "Got it",
     /** Ends a tour of coach marks, on its last step: the way out after "Next". */
     val done: String = "Done",
+    /** Skips the rest of a tour of coach marks, to its last step. */
+    val skipTour: String = "Skip",
     val expandSheet: String = "Expand sheet",
     val collapseSheet: String = "Collapse sheet",
     /** A menu's dismiss affordance, for assistive technology. */
@@ -390,8 +392,14 @@ data class Strings(
     val makeLonger: String = "Make longer",
     /** And a step sooner. */
     val makeShorter: String = "Make shorter",
+    /** An event's menu item that gives its start and end handles to drag. */
+    val adjustTime: String = "Adjust time",
+    /** An event's menu item, and its action, that deletes it. */
+    val deleteEvent: String = "Delete",
     /** What a screen reader is told when an event has been moved or made longer: "Stand-up moved to Tuesday, 9:15 – 9:30". */
     val eventMoved: (event: String, time: String) -> String = { event, time -> "$event moved to $time" },
+    /** What a screen reader is told when an event has been deleted: "Stand-up deleted". */
+    val eventDeleted: (event: String) -> String = { event -> "$event deleted" },
 ) {
     companion object {
         /**
@@ -425,6 +433,7 @@ data class Strings(
         confirm = lookup.text("confirm") ?: fallback.confirm,
         gotIt = lookup.text("gotIt") ?: fallback.gotIt,
         done = lookup.text("done") ?: fallback.done,
+        skipTour = lookup.text("skipTour") ?: fallback.skipTour,
         expandSheet = lookup.text("expandSheet") ?: fallback.expandSheet,
         collapseSheet = lookup.text("collapseSheet") ?: fallback.collapseSheet,
         closeMenu = lookup.text("closeMenu") ?: fallback.closeMenu,
@@ -563,7 +572,10 @@ data class Strings(
         moveToNextDay = lookup.text("moveToNextDay") ?: fallback.moveToNextDay,
         makeLonger = lookup.text("makeLonger") ?: fallback.makeLonger,
         makeShorter = lookup.text("makeShorter") ?: fallback.makeShorter,
+        adjustTime = lookup.text("adjustTime") ?: fallback.adjustTime,
+        deleteEvent = lookup.text("deleteEvent") ?: fallback.deleteEvent,
         eventMoved = { event, time -> lookup.phrase("eventMoved", null, event, time) ?: fallback.eventMoved(event, time) },
+        eventDeleted = { event -> lookup.phrase("eventDeleted", null, event) ?: fallback.eventDeleted(event) },
         )
     }
 }
@@ -647,6 +659,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     confirm = transform(confirm),
     gotIt = transform(gotIt),
     done = transform(done),
+    skipTour = transform(skipTour),
     expandSheet = transform(expandSheet),
     collapseSheet = transform(collapseSheet),
     closeMenu = transform(closeMenu),
@@ -778,5 +791,8 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     moveToNextDay = transform(moveToNextDay),
     makeLonger = transform(makeLonger),
     makeShorter = transform(makeShorter),
+    adjustTime = transform(adjustTime),
+    deleteEvent = transform(deleteEvent),
     eventMoved = { a0, a1 -> transform(eventMoved(a0, a1)) },
+    eventDeleted = { a0 -> transform(eventDeleted(a0)) },
 )

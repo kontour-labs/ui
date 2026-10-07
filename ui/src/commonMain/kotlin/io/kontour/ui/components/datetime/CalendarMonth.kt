@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -324,18 +325,6 @@ fun CalendarMonth(
         val annotationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() }
         val annotated = annotationFor != null
         val rowHeight = minOf(cellSize, MaxRowHeight) + if (annotated) annotationLine else 0.dp
-        // Normal weight, which `labelSmall` is not. It was reported that the
-        // initials need to be smaller than the dates, and by *size* they already
-        // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
-        // `labelSmall` is SemiBold, and semibold at 12 carries about as much ink
-        // as normal at 15, so a row that is numerically subordinate read as
-        // competing with the numbers under it. The weight is the difference the
-        // eye was actually seeing.
-        //
-        // Overridden here rather than in the scale, because `labelSmall` is
-        // shared and its weight is right everywhere it is a *label*. This is a
-        // column heading.
-        val weekdayStyle = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
         val colours = Theme.colours
         // The dwell arrow's ring: a line and a half, thickening with the tier.
         val arrowStroke = Theme.sizing.lines(1.5f)
@@ -343,26 +332,7 @@ fun CalendarMonth(
     val capRingAlpha = if (highContrast()) 1f else CapRingAlpha
         val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
         Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth()) {
-            weekFormats.weekdayInitials().forEachIndexed { index, initial ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        // The initials repeat — S for Saturday and Sunday, T for
-                        // Tuesday and Thursday — so they are decorative here and
-                        // each day cell carries its own full announcement.
-                        .semantics { },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = initial,
-                        style = weekdayStyle,
-                        colour = Theme.colours.contentMuted,
-                        modifier = Modifier.padding(vertical = Theme.spacing.xxs),
-                    )
-                }
-            }
-        }
+        WeekdayInitials(weekFormats)
 
         val cells = leadingBlanks + daysInMonth
         // At least as many weeks as the picker round it asks for — six, so every
@@ -495,6 +465,75 @@ fun CalendarMonth(
         }
         }
         }
+    }
+}
+
+/** The weekday initials over a month's columns. */
+@Composable
+private fun WeekdayInitials(weekFormats: LocaleFormats) {
+    // Normal weight, which `labelSmall` is not. It was reported that the
+    // initials need to be smaller than the dates, and by *size* they already
+    // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
+    // `labelSmall` is SemiBold, and semibold at 12 carries about as much ink
+    // as normal at 15, so a row that is numerically subordinate read as
+    // competing with the numbers under it. The weight is the difference the
+    // eye was actually seeing.
+    //
+    // Overridden here rather than in the scale, because `labelSmall` is
+    // shared and its weight is right everywhere it is a *label*. This is a
+    // column heading.
+    val weekdayStyle = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
+    Row(Modifier.fillMaxWidth()) {
+        weekFormats.weekdayInitials().forEachIndexed { index, initial ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    // The initials repeat — S for Saturday and Sunday, T for
+                    // Tuesday and Thursday — so they are decorative here and
+                    // each day cell carries its own full announcement.
+                    .semantics { },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = initial,
+                    style = weekdayStyle,
+                    colour = Theme.colours.contentMuted,
+                    modifier = Modifier.padding(vertical = Theme.spacing.xxs),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A month as [CalendarMonth] lays it out — its weekday initials and the room
+ * its weeks take — without its days: for a year that fills its months in a
+ * frame at a time, so each takes its place at once and the days arrive in it.
+ * Exactly as tall as the month it stands for, so nothing moves when they do.
+ */
+@Composable
+internal fun CalendarMonthOutline(
+    month: LocalDate,
+    modifier: Modifier = Modifier,
+    formats: LocaleFormats = Theme.formats,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
+) {
+    val weekFormats = remember(formats, firstDayOfWeek) { formats.startingOn(firstDayOfWeek) }
+    val firstOfMonth = LocalDate(month.year, month.month, 1)
+    val daysInMonth = firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
+    val cells = weekFormats.conventions.columnOf(firstOfMonth.dayOfWeek) + daysInMonth
+    val rows = maxOf((cells + 6) / 7, LocalCalendarRows.current)
+    Column(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
+        WeekdayInitials(weekFormats)
+        // The weeks' height as the month's rows round it: each a seventh of the
+        // width, capped, rounded to the pixel one row at a time.
+        Box(
+            Modifier.fillMaxWidth().layout { measurable, constraints ->
+                val row = minOf(constraints.maxWidth.toDp() / 7, MaxRowHeight).roundToPx()
+                val placeable = measurable.measure(constraints.copy(minHeight = row * rows, maxHeight = row * rows))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
+        )
     }
 }
 

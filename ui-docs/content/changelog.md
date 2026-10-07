@@ -188,8 +188,14 @@ passed by position need naming — see **Breaking**, and
   months do, and a day's number opens the day. Events can be drawn out,
   carried and stretched — by finger, mouse, keyboard or a screen reader's
   actions — in steps of `snap`, reported through `onCreateRequest`,
-  `onEventMove` and `onEventResize`. Carried by whole days, an event is shown
-  landing as a bar its own length that springs from day to day. Going back to
+  `onEventMove` and `onEventResize`, and deleted through `onEventDelete`. A
+  finger held still opens a menu — **New event** on empty time, **Adjust
+  time** and **Delete** on an event — and moving on instead drags; a
+  right-click opens the same menus. What is carried is shown landing as a
+  lifted copy that leans toward the pointer and springs from step to step,
+  day to day and week to week, as a date range's end does, and a carry held
+  at either side of the days pages on into the next week or month. A
+  finger held beside a month's short event takes it. Going back to
   today pulses today's date, as the date picker's button does. From the keyboard, the grid is one stop
   with a cursor the arrows move — a day in a month, a slot of time in a day
   or a week — paging past the period's ends; Enter opens the day or the
@@ -197,7 +203,9 @@ passed by position need naming — see **Breaking**, and
   the library's own way: today ringed as the date picker rings it, the month
   and the hours in rounded boxes, each timed event a box in its tone edged
   as a banner is, running on across free lanes beside it, and the hours
-  labelled `9 am` rather than `9:00 am`.
+  labelled `9 am` rather than `9:00 am`. The year opens at the month it is
+  on, and fills its months in a frame apart so switching to it does not
+  stall.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
   `SwipeAction`, which win over the row's. *"i'd like the ability to turn off

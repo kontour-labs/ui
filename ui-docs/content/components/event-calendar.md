@@ -92,9 +92,10 @@ to keep the result, or leave them as they are to refuse it.
 
 | Callback | The edit |
 |---|---|
-| `onCreateRequest(start, end)` | A new event drawn out on empty time in the day or week view: held and dragged with a finger, dragged with a mouse. It starts on the step the pointer took hold of and runs to where it was let go, at least one step long. |
-| `onEventMove(event, start, end)` | An event carried somewhere else, keeping its length. In the hours it moves by time, and to another day by moving across; holding it past the first or last day pages the week and carries on there, and near the top or bottom of the hours they scroll. A bar, or a line in a month, moves by whole days and keeps its time. |
-| `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. With a mouse the edges are always there, with the resize cursor. On a touchscreen, hold the event and let go without moving to show its edges' handles. |
+| `onCreateRequest(start, end)` | A new event. Drawn out on empty time in the day or week view — dragged with a mouse, or held and dragged with a finger — from the step the pointer took hold of to where it was let go, at least one step long. Or chosen as **New event** from the menu a finger held still opens, or a right-click: an hour where it was held in the day or week view, or the whole day held in the month, midnight to midnight. |
+| `onEventMove(event, start, end)` | An event carried somewhere else, keeping its length. In the hours it moves by time, and to another day by moving across; near the top or bottom of the hours they scroll. A bar, or a line in a month, moves by whole days and keeps its time. Held at either side of the days, a carry pages on to the week or month there and goes on, so an event can be carried into next week or next month. |
+| `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. With a mouse the edges are always there, with the resize cursor. On a touchscreen, choose **Adjust time** from the event's menu to give its edges handles; a press anywhere else takes them away. |
+| `onEventDelete(event)` | **Delete**, from the event's menu, the Delete key on a focused event, or a screen reader's action. Take it out of `events` to delete it. |
 
 Every edit moves in steps of `snap`, a quarter-hour by default, and each step
 is felt as a tick. A step must be a whole number of minutes that divides a day.
@@ -103,6 +104,18 @@ scrolls the hours or pages the period. A held finger can wander a little
 without becoming a swipe, and a scroll that stops with the finger still down
 does not turn into a hold. With a mouse an edit starts as soon as the pointer
 moves, so swiping a mouse across an event moves the event instead of paging.
+
+**A held finger opens a menu.** On empty time it offers **New event**, and on
+an event **Adjust time** (in the day and week views) and **Delete**, whichever
+the callbacks you gave allow. Let go without moving and the menu stays to be
+chosen from; move instead and the menu closes, and the hold carries on as the
+drag it always was — a new event drawn out, or the event carried. A right-click
+opens the same menus for a mouse. A finger held just beside one of a month's
+events, which are too short to land on reliably, takes that event.
+
+While anything is carried, a lifted copy shows where it would land, and moves
+as a date range's end does: it leans a little toward the pointer between steps
+and springs from one step, one day and one week to the next.
 
 An event the app only shows, such as a holiday from a subscribed calendar,
 says so with `editable = false` and can't be moved or resized, though it can
@@ -136,6 +149,9 @@ events are drawn smaller than the 48dp target a control usually gets — a
 quarter-hour at the default hour height is 12dp, and growing it would cover
 the next event — so a screen reader reaches each event as a node and a
 keyboard by Tab from its day, rather than relying on the box's size.
+
+An event's actions include **Delete** when the calendar has `onEventDelete`,
+and the Delete key on a focused event does the same.
 
 A month's box is read as its date and how many events it has. Its "+N" is
 read as "3 more events". The header's title is read out whenever the period

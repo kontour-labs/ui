@@ -33,8 +33,10 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -165,6 +167,9 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             add(CustomAccessibilityAction(scope.strings.makeLonger) { scope.moveBy(current, step, resize = true); true })
             add(CustomAccessibilityAction(scope.strings.makeShorter) { scope.moveBy(current, -step, resize = true); true })
         }
+        if (scope.deletable(event)) {
+            add(CustomAccessibilityAction(scope.strings.deleteEvent) { scope.delete(current); true })
+        }
     }
 
     if (movable) {
@@ -181,7 +186,7 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             placed.coordinates = coordinates
             if (movable) {
                 edit.draggables[placed] = coordinates
-                edit.events[placed] = coordinates
+                edit.events[placed] = Grab(coordinates, current, byDays)
             }
         }
         .then(
@@ -198,7 +203,7 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
         .then(
             if (click != null) {
                 Modifier.pressable(onClick = { click(event) }, shape = Theme.shapes.control, enabled = scope.enabled, minimumTouchTarget = false)
-            } else if (movable || resizable) {
+            } else if (movable || resizable || scope.deletable(event)) {
                 // Not a button, but still somewhere the keyboard can pick it up from.
                 Modifier.focusable(enabled = scope.enabled)
             } else {
@@ -209,35 +214,24 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
         .then(
             if (movable) {
                 Modifier.notesPress(press).pointerInput(edit, event.id, byDays) {
-                    fun rootOf(change: PointerInputChange): Offset? =
-                        placed.coordinates?.takeIf { it.isAttached }?.localToRoot(change.position)
+                    var taking: PointerId? = null
                     detectPickUp(
                         axis = PickUpAxis.Free,
                         immediate = { !isTouch },
                         // A scroll of the hours, or a swipe of the pages, is not a hold.
                         givesWay = true,
+                        onPointer = { taking = it },
                         onPickUp = { at ->
-                            val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(press.position ?: at) ?: return@detectPickUp
-                            if (byDays) edit.beginMoveByDays(current, root) else edit.beginMove(current, root)
-                            if (isTouch) edit.pickedUp()
+                            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@detectPickUp
+                            val root = coordinates.localToRoot(press.position ?: at)
+                            scope.takeUp(current, root, byDays, top = coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch)
+                            // A mouse is already on its way: the proposal follows it from here.
+                            if (!isTouch) edit.move(coordinates.localToRoot(at))
                         },
-                        onCarry = { change, _ ->
-                            change.consume()
-                            rootOf(change)?.let(edit::move)
-                        },
-                        onPutDown = {
-                            val held = edit.event?.id == current.id
-                            val moved = edit.start != current.start || edit.end != current.end
-                            if (held && !moved) {
-                                // Held and let go where it was: on a touchscreen,
-                                // its edges get their handles.
-                                edit.cancel()
-                                if (isTouch) edit.active = if (edit.active == current.id) null else current.id
-                            } else {
-                                scope.putDown()
-                            }
-                        },
-                        onCancel = { edit.cancel() },
+                        // The calendar follows the carry from here: see `carriesEdits`.
+                        onCarry = { _, _ -> },
+                        onPutDown = {},
+                        onCancel = {},
                     )
                 }
             } else {
@@ -245,11 +239,24 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             },
         )
         .then(
-            if (movable || resizable) {
+            if (scope.hasMenu(event, inHours = !byDays)) {
+                Modifier.secondaryClick { at ->
+                    placed.coordinates?.takeIf { it.isAttached }?.let { scope.openMenu(it.localToRoot(at), current, inHours = !byDays) }
+                }
+            } else {
+                Modifier
+            },
+        )
+        .then(
+            if (movable || resizable || scope.deletable(event)) {
                 Modifier.onKeyEvent { key ->
                     if (key.type != KeyEventType.KeyDown) return@onKeyEvent false
                     val holding = edit.live && edit.event?.id == current.id
                     when {
+                        !holding && (key.key == Key.Delete || key.key == Key.Backspace) && scope.deletable(current) -> {
+                            scope.delete(current)
+                            true
+                        }
                         !holding && movable && key.key == Key.Spacebar -> {
                             edit.beginKeyboard(current)
                             scope.announcer.say(scope.strings.dragPickedUp(current.title))
@@ -295,8 +302,8 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
 
 /**
  * One of a block's edges, to drag its start or its end by: always there for a
- * mouse, with its cursor, and on a touchscreen once the event has been held
- * and let go.
+ * mouse, with its cursor, and on a touchscreen once "Adjust time" is chosen
+ * from the event's menu, until a press anywhere else.
  */
 @Composable
 private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, atStart: Boolean) {
@@ -319,23 +326,24 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
                 edit.draggables[placed] = coordinates
-                edit.events[placed] = coordinates
+                edit.events[placed] = Grab(coordinates, current, byDays = false, edge = true)
             }
             .pointerCursor(Cursor.ResizeRow)
             .pointerInput(edit, event.id, atStart) {
+                var taking: PointerId? = null
                 detectPickUp(
                     axis = PickUpAxis.Vertical,
                     immediate = { true },
+                    onPointer = { taking = it },
                     onPickUp = { at ->
                         val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
                         edit.beginResize(current, atStart, root)
+                        taking?.let { edit.take(it, root, hold = false) }
                     },
-                    onCarry = { change, _ ->
-                        change.consume()
-                        placed.coordinates?.takeIf { it.isAttached }?.localToRoot(change.position)?.let(edit::move)
-                    },
-                    onPutDown = { scope.putDown() },
-                    onCancel = { edit.cancel() },
+                    // The calendar follows the drag from here: see `carriesEdits`.
+                    onCarry = { _, _ -> },
+                    onPutDown = {},
+                    onCancel = {},
                 )
             }
             .clearAndSetSemantics { },
@@ -421,3 +429,33 @@ internal fun Modifier.todayRing(isToday: Boolean): Modifier {
 @Composable
 @ReadOnlyComposable
 internal fun gridLine(): Color = if (highContrast()) Theme.colours.outlineStrong else Theme.colours.outline
+
+/**
+ * Takes [event] up at [root] — by whole days, or through the hours — for
+ * [pointer] to carry, and on a touchscreen, where a finger held still took it,
+ * felt and given its menu.
+ */
+internal fun CalendarScope.takeUp(event: CalendarEvent, root: Offset, byDays: Boolean, top: Float?, pointer: PointerId?, hold: Boolean) {
+    if (byDays) edit.beginMoveByDays(event, root, top) else edit.beginMove(event, root)
+    if (!edit.live) return
+    pointer?.let { edit.take(it, root, hold) }
+    if (hold) {
+        edit.pickedUp()
+        openMenu(root, event, inHours = !byDays)
+    }
+}
+
+/** A secondary click — a mouse's right button — at a point in this node. */
+internal fun Modifier.secondaryClick(onClick: (Offset) -> Unit): Modifier = pointerInput(onClick) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent()
+            if (event.type != PointerEventType.Press || !event.buttons.isSecondaryPressed) continue
+            val change = event.changes.firstOrNull() ?: continue
+            // Taken already by something inside: an event's own menu, over its day's.
+            if (change.isConsumed) continue
+            change.consume()
+            onClick(change.position)
+        }
+    }
+}

@@ -1,6 +1,14 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.LocalOverlayHostOrNull
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -139,18 +147,27 @@ import kotlinx.datetime.toLocalDateTime
  *   its events — to make an event there, say. Null: the boxes are not buttons.
  * @param onTimeClick An empty time pressed in the day or week view, to the
  *   quarter-hour before it. Null: empty time is not a button.
- * @param onCreateRequest A new event drawn out on empty time in the day or
- *   week view — held and dragged on a touchscreen, dragged with a mouse — from
- *   its start to its end, on whole [snap]s. The calendar shows it while it is
- *   drawn and adds nothing: add the event to [events] to keep it. Null: empty
- *   time cannot be drawn on.
+ * @param onCreateRequest A new event, from its start to its end, on whole
+ *   [snap]s: drawn out on empty time in the day or week view — held and
+ *   dragged on a touchscreen, dragged with a mouse — or chosen as "New event"
+ *   from the menu a finger held still on empty time opens, or a secondary
+ *   click, for an hour there. In the month, the menu's new event is the day
+ *   held, midnight to midnight, or the days drawn out from it. The calendar
+ *   shows it while it is drawn and adds nothing: add the event to [events] to
+ *   keep it. Null: empty time cannot be drawn on.
  * @param onEventMove An event carried to another time or day — held and
  *   dragged, dragged with a mouse, picked up with Space and moved with the
  *   arrows, or moved by a screen reader's actions — with where it would start
- *   and end. Its length is kept. Null, or an event not [CalendarEvent.editable]:
- *   it stays where it is.
+ *   and end. Its length is kept. Held at either side of the days, a carry pages
+ *   on to the week or month there and goes on. Null, or an event not
+ *   [CalendarEvent.editable]: it stays where it is.
  * @param onEventResize An event's start or end dragged — by its edge, or with
- *   Shift and the arrows — with its new times, never shorter than [snap].
+ *   Shift and the arrows — with its new times, never shorter than [snap]. With
+ *   a mouse the edges are always there to drag; on a touchscreen, once "Adjust
+ *   time" is chosen from the event's menu, until a press anywhere else.
+ * @param onEventDelete An event deleted: from the menu a finger held on it
+ *   opens, or a secondary click; with Delete from the keyboard; or by a screen
+ *   reader's action. The calendar removes nothing — take it out of [events].
  * @param snap The step every edit moves in: a quarter-hour by default. A whole
  *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
@@ -176,6 +193,7 @@ fun EventCalendar(
     onCreateRequest: ((start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventMove: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventResize: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
+    onEventDelete: ((event: CalendarEvent) -> Unit)? = null,
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     formats: LocaleFormats = Theme.formats,
@@ -213,12 +231,16 @@ fun EventCalendar(
         onCreateRequest = onCreateRequest,
         onEventMove = onEventMove,
         onEventResize = onEventResize,
+        onEventDelete = onEventDelete,
         announcer = announcer,
         touch = modality.needsLargeTargets,
         strings = Theme.strings,
         cursorInteractions = cursorInteractions,
         cursorShown = cursorShown,
+        menus = LocalOverlayHostOrNull.current != null,
     )
+    // The days a pointer's day can be: the ones on show, not a page sliding away.
+    SideEffect { edit.visible = state.visibleDates }
     // Turned off — disabled — mid-edit, the edit is put back.
     if (!enabled && edit.live) SideEffect { edit.cancel() }
     // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
@@ -233,7 +255,7 @@ fun EventCalendar(
         }
     }
     CompositionLocalProvider(LocalTodayFlash provides { todayFlash.value() }) {
-        BoxWithConstraints(modifier) {
+        BoxWithConstraints(modifier.carriesEdits(scope)) {
             // Given no width — in a row that scrolls sideways, say — a phone's.
             // Clipped, so a calendar squeezed narrower than its header's buttons
             // keeps its ink inside its box.
@@ -249,6 +271,7 @@ fun EventCalendar(
             // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
             // Over the calendar rather than in its column, so it takes no room.
             Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcer.message })
+            if (scope.menus) EditMenus(scope)
         }
     }
 }
@@ -274,6 +297,7 @@ internal class CalendarScope(
     val onCreateRequest: ((LocalDateTime, LocalDateTime) -> Unit)?,
     val onEventMove: ((CalendarEvent, LocalDateTime, LocalDateTime) -> Unit)?,
     val onEventResize: ((CalendarEvent, LocalDateTime, LocalDateTime) -> Unit)?,
+    val onEventDelete: ((CalendarEvent) -> Unit)?,
     val announcer: Announcer,
     /** Whether the pointer is a finger: an edit then starts with a long press, and a quick swipe still pages. */
     val touch: Boolean,
@@ -282,6 +306,8 @@ internal class CalendarScope(
     val cursorInteractions: MutableInteractionSource,
     /** Whether that grid has the keyboard's focus, and so its cursor is drawn. */
     val cursorShown: Boolean,
+    /** Whether there is an overlay host to open menus in. */
+    val menus: Boolean,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -289,8 +315,62 @@ internal class CalendarScope(
     /** Whether [event]'s edges can be dragged. */
     fun resizable(event: CalendarEvent): Boolean = enabled && onEventResize != null && event.editable
 
+    /** Whether [event] can be deleted. */
+    fun deletable(event: CalendarEvent): Boolean = enabled && onEventDelete != null && event.editable
+
+    /** Whether the menu for [event] — null, for empty time — would have anything in it. */
+    fun hasMenu(event: CalendarEvent?, inHours: Boolean): Boolean = when {
+        !menus || !enabled -> false
+        event == null -> onCreateRequest != null
+        else -> deletable(event) || (inHours && touch && resizable(event) && !event.allDay)
+    }
+
+    /** Opens the menu for [event], or for the new event in hand, at [root] — if it has anything in it. */
+    fun openMenu(root: Offset, event: CalendarEvent?, inHours: Boolean) {
+        if (!hasMenu(event, inHours)) return
+        edit.menu = EditMenu(root, event, inHours).apply {
+            start = edit.start
+            end = edit.end
+        }
+    }
+
+    /** Makes the new event [menu] was opened for, and reads out where. */
+    fun create(menu: EditMenu) {
+        val start = menu.start ?: return
+        val end = menu.end ?: return
+        if (edit.kind == EditKind.Create) edit.cancel()
+        onCreateRequest?.invoke(start, end)
+        announce(strings.newEvent, start, end)
+    }
+
+    /**
+     * The carrying pointer let go. A finger held still and let go where it was
+     * has its menu to choose from: the event goes back, the new event waits
+     * under the menu. Anything else is put down.
+     */
+    fun letGo() {
+        val stayed = edit.byHold && !edit.travelled
+        edit.release()
+        when {
+            !stayed -> {
+                edit.menu = null
+                putDown()
+            }
+            // A new event's menu says what to do with it; one with no menu to say makes it.
+            edit.kind == EditKind.Create -> if (edit.menu == null) putDown()
+            else -> edit.cancel()
+        }
+    }
+
+    /** Deletes [event], and reads out that it has gone. */
+    fun delete(event: CalendarEvent) {
+        onEventDelete?.invoke(event)
+        announcer.say(strings.eventDeleted(event.title))
+    }
+
     /** Puts the edit in hand down, and reports and reads out what it did. */
     fun putDown() {
+        edit.menu = null
         val done = edit.finish() ?: return
         val event = done.event
         when {
@@ -664,12 +744,10 @@ internal class CalendarPager(
                 val coordinates = placed.coordinates
                 !edit.live && (isTouch || coordinates == null || !coordinates.isAttached || !edit.draggableAt(coordinates.localToRoot(at)))
             },
-            // On a touchscreen, on something a finger can hold: the wander of a
-            // held finger is not taken for a swipe — only a real one, past the slop.
-            patientAt = { at ->
-                val coordinates = placed.coordinates
-                isTouch && coordinates != null && coordinates.isAttached && edit.draggableAt(coordinates.localToRoot(at))
-            },
+            // On a touchscreen, anywhere: a finger can hold an event, or empty
+            // time, or a day, for its menu, and the wander of a held finger is
+            // not taken for a swipe — only a real one, past the slop.
+            patientAt = { isTouch },
             onStart = { periods.take() },
             onDelta = { delta ->
                 val width = pageWidth.toFloat()
@@ -775,3 +853,94 @@ internal class PlacedAt {
 
 /** Where a page that has no place is put: well off the side, not drawn. */
 private const val OffStage = 4
+
+/**
+ * The calendar's own hold on a carry: whichever node took the pointer up — an
+ * event, its edge, a day's empty time — the pointer is followed from here,
+ * above the pages, until it lets go. A period paged in while it is carried is
+ * a new page, and the one the carry started on goes, with the node that took
+ * hold in it: followed from there, the carry went with it.
+ *
+ * Seen first, before anything under it: what it follows is the carry's, so a
+ * scroll or a pager under it never sees the pointer move. And a press away from
+ * the event whose handles are showing takes the handles away.
+ */
+@Composable
+private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    val current by rememberUpdatedState(scope)
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(edit) {
+        val slop = io.kontour.ui.interaction.PickUpHoldSlop.toPx()
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: continue
+                if (event.type == PointerEventType.Press && edit.active != null) {
+                    val pressed = event.changes.firstOrNull { it.pressed && !it.previousPressed }
+                    if (pressed != null && !edit.onActive(coordinates.localToRoot(pressed.position))) edit.active = null
+                }
+                val id = edit.pointer ?: continue
+                val change = event.changes.firstOrNull { it.id == id }
+                if (change == null) {
+                    edit.release()
+                    edit.cancel()
+                    continue
+                }
+                if (!change.pressed) {
+                    change.consume()
+                    current.letGo()
+                    continue
+                }
+                if (change.positionChanged()) {
+                    change.consume()
+                    edit.carry(coordinates.localToRoot(change.position), slop)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The menu a hold or a secondary click opened: for empty time, a new event
+ * where the edit in hand proposes it; for an event, its edges to adjust — in
+ * the hours, on a touchscreen, where they are otherwise hidden — and its
+ * deletion.
+ */
+@Composable
+private fun EditMenus(scope: CalendarScope) {
+    val edit = scope.edit
+    val menu = edit.menu
+    // Kept for the exit: the menu fades out from where it was.
+    var last by remember { mutableStateOf<EditMenu?>(null) }
+    if (menu != null) last = menu
+    val shown = menu ?: last ?: return
+    val strings = scope.strings
+    AnchoredDropdownMenu(
+        visible = menu != null,
+        anchor = Rect(shown.at, shown.at),
+        onDismissRequest = {
+            edit.menu = null
+            // A new event no one chose to make.
+            if (edit.kind == EditKind.Create && edit.pointer == null) edit.cancel()
+        },
+    ) {
+        val event = shown.event
+        if (event == null) {
+            item(strings.newEvent, onClick = { scope.create(shown) })
+        } else {
+            if (shown.inHours && scope.touch && scope.resizable(event) && !event.allDay) {
+                item(strings.adjustTime, onClick = {
+                    edit.menu = null
+                    edit.active = event.id
+                })
+            }
+            if (scope.deletable(event)) {
+                item(strings.deleteEvent, destructive = true, onClick = {
+                    edit.menu = null
+                    scope.delete(event)
+                })
+            }
+        }
+    }
+}

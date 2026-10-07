@@ -59,6 +59,7 @@ PHRASES: dict[str, str | dict[str, str]] = {
     "eventCount": {"one": "%1$s event", "other": "%1$s events"},
     "moreEvents": {"one": "%1$s more event", "other": "%1$s more events"},
     "eventMoved": "%1$s moved to %2$s",
+    "eventDeleted": "%1$s deleted",
     "sentenceSeparator": ". ",
     "colourFormatName_Hex": "Hex",
     "colourFormatName_Rgb": "RGB",

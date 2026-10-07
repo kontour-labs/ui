@@ -9,6 +9,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChange
@@ -76,6 +77,9 @@ internal val PickUpHoldSlop: Dp = 24.dp
  *   stopped with a finger still down, drew out a new event from under it.
  *   Off for a reorderable row, whose settling fingertip may nudge its list a
  *   little and should still pick the row up.
+ * @param onPointer Which pointer took hold, just before [onPickUp]: for a
+ *   carry that something above this node follows — an event calendar's, which
+ *   goes on into a period paged in after the node holding it has left.
  * @param onPickUp Where, in this node, the thing was taken hold of.
  * @param onCarry Each movement while carried. Vertical carries only report the
  *   vertical part of the first one.
@@ -87,6 +91,7 @@ internal suspend fun PointerInputScope.detectPickUp(
     immediate: () -> Boolean,
     accepts: (Offset) -> Boolean = { true },
     givesWay: Boolean = false,
+    onPointer: (PointerId) -> Unit = {},
     onPickUp: (Offset) -> Unit,
     onCarry: (PointerInputChange, Offset) -> Unit,
     onPutDown: () -> Unit,
@@ -121,6 +126,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                     overSlop = over
                 }
             } ?: return@awaitEachGesture
+            onPointer(down.id)
             onPickUp(moved.position)
             // Delivered as `detectDragGestures` delivers it: the part of the
             // first movement past the slop is movement, not the price of
@@ -149,6 +155,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                 }
             }
             if (gaveUp != null) return@awaitEachGesture
+            onPointer(down.id)
             onPickUp(down.position)
         }
 

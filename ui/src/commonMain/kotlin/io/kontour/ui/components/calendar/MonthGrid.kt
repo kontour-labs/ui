@@ -1,12 +1,24 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberUpdatedState
+import io.kontour.ui.components.selection.SliderDefaults
+import io.kontour.ui.interaction.PickUpAxis
+import io.kontour.ui.interaction.detectPickUp
+import io.kontour.ui.theme.Tone
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.layout.layout
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
@@ -94,6 +106,7 @@ internal fun MonthView(scope: CalendarScope) {
             }
         }
     }
+    EditDwell(scope)
 }
 
 /** The weekday names over the month's columns: abbreviated, or a letter where they do not fit. */
@@ -141,17 +154,22 @@ private fun MonthPage(scope: CalendarScope, month: Int, rowHeight: Dp?) {
     val weeks = periods.weeksIn(month)
     val firstOfMonth = periods.startOf(month, CalendarView.Month)
     val events = remember(scope.events, dates) { scope.eventsBetween(dates.start, dates.endInclusive) }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .then(if (rowHeight == null) Modifier.fillMaxHeight() else Modifier)
-            .semantics { collectionInfo = CollectionInfo(rowCount = weeks, columnCount = DaysPerWeek) },
-    ) {
-        for (week in 0 until weeks) {
-            val weekStart = dates.start.plus(week * DaysPerWeek, DateTimeUnit.DAY)
-            val rowModifier = if (rowHeight == null) Modifier.weight(1f) else Modifier.height(rowHeight)
-            MonthWeek(scope, weekStart, firstOfMonth, events, rowModifier.fillMaxWidth())
+    val gap = Theme.spacing.xxs / 2
+    Box(Modifier.fillMaxWidth().then(if (rowHeight == null) Modifier.fillMaxHeight() else Modifier)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (rowHeight == null) Modifier.fillMaxHeight() else Modifier)
+                .semantics { collectionInfo = CollectionInfo(rowCount = weeks, columnCount = DaysPerWeek) },
+        ) {
+            for (week in 0 until weeks) {
+                val weekStart = dates.start.plus(week * DaysPerWeek, DateTimeUnit.DAY)
+                val rowModifier = if (rowHeight == null) Modifier.weight(1f) else Modifier.height(rowHeight)
+                MonthWeek(scope, weekStart, firstOfMonth, events, rowModifier.fillMaxWidth())
+            }
         }
+        // Where a carried event would land, over all the weeks: from one to the next is travel down.
+        DaysGhostLayer(scope, dates.start, weeks, DaysPerWeek, slot = dateLabelHeight() + gap / 2, item = itemHeight(), gap = gap)
     }
 }
 
@@ -173,8 +191,67 @@ private fun MonthWeek(
     val cursorShown = scope.cursorShown
     val ringColour = Theme.colours.focusRing
     val ringWidth = Theme.sizing.focusRingWidth
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    val isTouch by rememberUpdatedState(scope.touch)
+    val creates = scope.enabled && scope.onCreateRequest != null
+    val holds = creates || (scope.enabled && scope.onEventMove != null)
+    val nearReach = with(LocalDensity.current) { NearReach.toPx() }
     BoxWithConstraints(
-        modifier.drawWithContent {
+        modifier
+            .onGloballyPositioned { placed.coordinates = it }
+            .then(
+                if (holds) {
+                    // A finger held in a day: the event it is beside — a month's
+                    // line is under half a fingertip tall — or else a new event.
+                    Modifier.pointerInput(edit, weekStart) {
+                        var taking: PointerId? = null
+                        detectPickUp(
+                            axis = PickUpAxis.Free,
+                            immediate = { false },
+                            givesWay = true,
+                            accepts = { at ->
+                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at)
+                                isTouch && (root == null || !edit.eventAt(root))
+                            },
+                            onPointer = { taking = it },
+                            onPickUp = { at ->
+                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
+                                val near = edit.eventNear(root, nearReach)
+                                if (near != null && scope.movable(near.event)) {
+                                    scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true)
+                                    return@detectPickUp
+                                }
+                                if (!creates || !scope.hasMenu(null, inHours = false)) return@detectPickUp
+                                edit.beginCreateDays(root)
+                                if (!edit.live) return@detectPickUp
+                                taking?.let { edit.take(it, root, hold = true) }
+                                edit.pickedUp()
+                                scope.openMenu(root, null, inHours = false)
+                            },
+                            // The calendar follows the carry from here: see `carriesEdits`.
+                            onCarry = { _, _ -> },
+                            onPutDown = {},
+                            onCancel = {},
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
+            .then(
+                if (creates && scope.hasMenu(null, inHours = false)) {
+                    Modifier.secondaryClick { at ->
+                        val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
+                        if (edit.live) return@secondaryClick
+                        edit.beginCreateDays(root)
+                        scope.openMenu(root, null, inHours = false)
+                    }
+                } else {
+                    Modifier
+                },
+            )
+            .drawWithContent {
             drawContent()
             // The keyboard's day, over its events, so they do not hide it. Only
             // in its own month: a page sliding away shows it among its spare days.
@@ -231,10 +308,6 @@ private fun MonthWeek(
                     .height(item - gap),
             )
         }
-        // Where a carried event would land, in the row it was in.
-        val carried = scope.edit.event?.id
-        val ghostRow = pack.placed.firstOrNull { it.item.event.id == carried }?.row ?: 0
-        DaysGhost(scope, weekStart, DaysPerWeek, cell, top = dateLabel + item * ghostRow + gap / 2, height = item - gap, gap = gap)
     }
 }
 
@@ -374,47 +447,137 @@ private fun DayBox(
 }
 
 /**
- * Where an event carried by whole days would land, in one row of days: a
- * lifted copy as long as the event, the part of it in [rowStart]'s row, its
- * ends springing from day to day as the carry passes each — the detents a
- * date range's end moves by — where the days it would land on used to be
- * outlined one by one. A cut under reduced motion.
+ * Where an event carried by whole days would land — or the new day, or days,
+ * being drawn out — over [weeks] rows of [days] from [rowStart]: a lifted copy
+ * as long as the event, a piece in each week it is in, leaning toward the
+ * pointer by the detent's pull and springing from day to day and from week to
+ * week, as a date range's end travels between its days. One for the page, so a
+ * week on is travel down rather than a copy gone from one row and another come
+ * in the next. A cut under reduced motion.
+ *
+ * @param slot How far down its row a new event's copy is: under the date.
+ * @param item How tall a row's line of events is.
  */
 @Composable
-internal fun DaysGhost(scope: CalendarScope, rowStart: LocalDate, days: Int, cell: Dp, top: Dp, height: Dp, gap: Dp) {
+internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: Int, days: Int, slot: Dp, item: Dp, gap: Dp) {
     val edit = scope.edit
     val event = edit.event
     val start = edit.start
     val end = edit.end
-    if (!edit.live || !edit.byDays || event == null || start == null || end == null) return
+    if (!edit.live || !edit.byDays || start == null || end == null) return
     val last = if (end > start) end.plusMinutes(-1).date else start.date
-    val rowEnd = rowStart.plus(days - 1, DateTimeUnit.DAY)
-    if (last < rowStart || start.date > rowEnd) return
-    val from = (maxOf(start.date, rowStart).toEpochDays() - rowStart.toEpochDays()).toFloat()
-    val to = (minOf(last, rowEnd).toEpochDays() - rowStart.toEpochDays() + 1).toFloat()
+    val pageEnd = rowStart.plus(weeks * days - 1, DateTimeUnit.DAY)
+    if (last < rowStart || start.date > pageEnd) return
     val motion = Theme.motion
-    val spec: AnimationSpec<Float> = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
-    val left = animateFloatAsState(from, spec, label = "ghostStart")
-    val right = animateFloatAsState(to, spec, label = "ghostEnd")
-    val shown = remember(event, start, end) { CalendarEvent(DaysGhostId, event.title, start, end, tone = event.tone) }
-    EventChip(
-        event = shown,
-        presentation = EventPresentation.Bar,
-        scope = scope,
-        ghost = true,
-        // Placed from the springs in layout, so a carry recomposes nothing as it moves.
-        modifier = Modifier.layout { measurable, constraints ->
-            val cellPx = cell.toPx()
-            val gapPx = gap.toPx()
-            val x = left.value * cellPx + gapPx
-            val width = ((right.value - left.value) * cellPx - gapPx * 2).roundToInt().coerceAtLeast(0)
-            val placeable = measurable.measure(Constraints.fixed(width, height.roundToPx()))
-            layout(constraints.maxWidth, top.roundToPx() + placeable.height) {
-                placeable.placeRelative(x.roundToInt(), top.roundToPx())
+    val pull = if (motion.reduceMotion) 0f else SliderDefaults.DetentPull
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val shown = remember(event, start, end) {
+        CalendarEvent(DaysGhostId, event?.title ?: scope.strings.newEvent, start, end, tone = event?.tone ?: Tone.Accent)
+    }
+    // A piece for each week it is in: its row, and its first and last day's columns.
+    val pieces = remember(start, last, rowStart, weeks, days) {
+        buildList {
+            for (row in 0 until weeks) {
+                val first = rowStart.plus(row * days, DateTimeUnit.DAY)
+                val lastInRow = first.plus(days - 1, DateTimeUnit.DAY)
+                if (last < first || start.date > lastInRow) continue
+                val from = (maxOf(start.date, first).toEpochDays() - first.toEpochDays()).toInt()
+                val to = (minOf(last, lastInRow).toEpochDays() - first.toEpochDays()).toInt()
+                add(Triple(row, from, to))
             }
-        },
-    )
+        }
+    }
+    val placed = remember { PlacedAt() }
+    val size = remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
+    val slotPx = with(density) { slot.toPx() }
+    val itemPx = with(density) { item.toPx() }
+    val gapPx = with(density) { gap.toPx() }
+
+    // How far down its row the copy is: the line the event was on, or under the date.
+    fun slotY(rowHeight: Float): Float {
+        val top = edit.grabTop
+        val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
+        if (event == null || top == null || page == null || rowHeight <= 0f) return slotPx
+        val within = (top - page).mod(rowHeight)
+        return within.coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
+    }
+
+    // The first day's place as the proposal puts it — reading order, mirrored in
+    // placing — leaning toward the pointer.
+    fun target(): Offset? {
+        val (w, h) = size.value
+        if (w <= 0 || h <= 0) return null
+        val cell = w.toFloat() / days
+        val rowHeight = h.toFloat() / weeks
+        val index = (start.date.toEpochDays() - rowStart.toEpochDays()).toInt()
+        val row = index.floorDiv(days)
+        val column = index.mod(days)
+        val lean = edit.lean * pull
+        return Offset(column * cell + if (rtl) -lean.x else lean.x, row * rowHeight + slotY(rowHeight) + lean.y)
+    }
+
+    // The proposal of this composition, not of the one the effect started in.
+    val aiming = rememberUpdatedState { target() }
+    val spring = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    LaunchedEffect(spring, pull) {
+        var aimed: Offset? = null
+        snapshotFlow { aiming.value() }.collectLatest { aim ->
+            if (aim == null) return@collectLatest
+            val before = aimed
+            aimed = aim
+            val (w, h) = size.value
+            val cell = w.toFloat() / days
+            val rowHeight = h.toFloat() / weeks
+            when {
+                before == null || motion.reduceMotion -> spring.snapTo(aim)
+                else -> {
+                    // A jump of more than a day across — round the end of a week
+                    // to the start of the next — comes in from beside where it
+                    // lands, a day's width away toward where it was, rather than
+                    // flying across the month. As the range picker's end does.
+                    val across = (before.x - aim.x) / cell
+                    val down = (before.y - aim.y) / rowHeight
+                    if (kotlin.math.abs(across) > RebaseCells) {
+                        val length = kotlin.math.hypot(across, down)
+                        spring.snapTo(Offset(aim.x + across / length * cell, aim.y + down / length * rowHeight))
+                    }
+                    spring.animateTo(aim, motion.springOrTween(motion.springSnappy))
+                }
+            }
+        }
+    }
+
+    Layout(
+        content = { repeat(pieces.size) { EventChip(event = shown, presentation = EventPresentation.Bar, scope = scope, ghost = true) } },
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { placed.coordinates = it }
+            .onSizeChanged { size.value = it },
+    ) { measurables, constraints ->
+        val w = constraints.maxWidth
+        val h = constraints.maxHeight
+        val cell = w.toFloat() / days
+        val rowHeight = if (weeks > 0) h.toFloat() / weeks else 0f
+        val aim = target()
+        val delta = if (aim == null) Offset.Zero else spring.value - aim
+        val y = slotY(rowHeight)
+        val placeables = measurables.mapIndexed { i, measurable ->
+            val (_, from, to) = pieces[i]
+            val width = ((to - from + 1) * cell - gapPx * 2).roundToInt().coerceAtLeast(0)
+            measurable.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
+        }
+        layout(w, h) {
+            placeables.forEachIndexed { i, placeable ->
+                val (row, from, _) = pieces[i]
+                placeable.placeRelative((from * cell + gapPx + delta.x).roundToInt(), (row * rowHeight + y + delta.y).roundToInt())
+            }
+        }
+    }
 }
+
+/** More than this many days across in one step, and the copy comes in from beside where it lands. */
+private const val RebaseCells = 1.5f
 
 /** The id of the copy a carry by days draws: nothing an app's events could be. */
 private object DaysGhostId

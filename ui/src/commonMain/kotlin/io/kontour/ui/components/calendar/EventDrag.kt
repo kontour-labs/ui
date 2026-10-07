@@ -3,6 +3,7 @@ package io.kontour.ui.components.calendar
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Stable
@@ -76,14 +77,58 @@ internal class EventEdit(
     /** Whether one is in hand. */
     val live: Boolean get() = kind != null
 
-    /** The event, on touch, whose edges have handles: one held and let go without moving. */
+    /**
+     * The event, on touch, whose edges have handles: the one its menu's
+     * "Adjust time" was chosen on. Until a press anywhere else.
+     */
     var active: Any? by mutableStateOf(null)
+
+    /** The menu a hold or a secondary click opened, while it is open. */
+    var menu: EditMenu? by mutableStateOf(null)
+
+    /**
+     * The pointer carrying the edit: followed from above the pages by the
+     * calendar's own tracker — see `Modifier.carriesEdits` — so the carry
+     * goes on into a period paged in, after the page it started on, and the
+     * node that took hold in it, have gone.
+     */
+    var pointer: PointerId? by mutableStateOf(null)
+        private set
+
+    /** Whether it was taken up by a finger held still, rather than dragged up by a mouse. */
+    var byHold: Boolean = false
+        private set
+
+    /** Whether the pointer has gone further than a held finger wanders since the pick-up. */
+    var travelled: Boolean = false
+        private set
+
+    private var takenAt: Offset = Offset.Zero
+
+    /**
+     * How far the pointer is from where the proposal puts what it holds, in
+     * pixels, at most half a step either way: what the ghost leans by, pulled,
+     * as a range picker's end leans toward the finger between its days.
+     */
+    var lean: Offset by mutableStateOf(Offset.Zero)
+        private set
+
+    /** Which part of the ghost [lean] moves: -1 its top, 1 its bottom, 0 all of it. */
+    var leanOn: Int = 0
+        private set
+
+    /** The dates the calendar shows: a pointer's day is one of these, not one of a page sliding away. */
+    var visible: ClosedRange<LocalDate>? = null
+
+    /** The top, in the root, of the bar taken up by days: which line of its row the ghost keeps to. */
+    var grabTop: Float? = null
+        private set
 
     /** The minutes a step is: the calendar's `snap`. */
     var stepMinutes: Int = DefaultStepMinutes
 
     /** The pointer's last place, in the root, for the scroll near the edges to carry on from. */
-    var lastPointer: Offset? = null
+    var lastPointer: Offset? by mutableStateOf(null)
 
     /** Where the pointer was in the event when it was taken hold of, in minutes from its start. */
     private var grab: Long = 0
@@ -114,10 +159,65 @@ internal class EventEdit(
      * under them steps aside for, since on a touchscreen both wait out the same
      * long press.
      */
-    val events = HashMap<Any, LayoutCoordinates>()
+    val events = HashMap<Any, Grab>()
 
     /** Whether a press at [root] lands on an event that can be taken hold of. */
-    fun eventAt(root: Offset): Boolean = events.values.any { it.isAttached && it.boundsInRoot().contains(root) }
+    fun eventAt(root: Offset): Boolean = events.values.any { it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
+
+    /**
+     * The event nearest [root] within [reach] of it, if any: for a finger held
+     * beside a month's line of an event rather than on it — the line is under
+     * half a fingertip tall.
+     */
+    fun eventNear(root: Offset, reach: Float): Grab? {
+        var best: Grab? = null
+        var bestDistance = Float.MAX_VALUE
+        for (grab in events.values) {
+            if (grab.edge || !grab.coordinates.isAttached) continue
+            val bounds = grab.coordinates.boundsInRoot()
+            val dx = maxOf(bounds.left - root.x, 0f, root.x - bounds.right)
+            val dy = maxOf(bounds.top - root.y, 0f, root.y - bounds.bottom)
+            val distance = dx + dy
+            if (distance <= reach && distance < bestDistance) {
+                bestDistance = distance
+                best = grab
+            }
+        }
+        return best
+    }
+
+    /** Whether [root] is on the event whose handles are showing, or on one of them. */
+    fun onActive(root: Offset): Boolean {
+        val id = active ?: return false
+        return events.values.any { it.event.id == id && it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
+    }
+
+    /** The pointer [id] carries the edit from here on, from [root]: held still first, or dragged. */
+    fun take(id: PointerId, root: Offset, hold: Boolean) {
+        pointer = id
+        byHold = hold
+        travelled = !hold
+        takenAt = root
+    }
+
+    /**
+     * The carrying pointer moved to [root]. A held finger's wander, within
+     * [slop] of where it took hold, moves nothing: what it holds lifts in place,
+     * and its menu stays, until the finger sets off.
+     */
+    fun carry(root: Offset, slop: Float) {
+        if (!travelled) {
+            if ((root - takenAt).getDistance() < slop) return
+            travelled = true
+            menu = null
+        }
+        move(root)
+    }
+
+    /** The carrying pointer let go, or went away: the tracker no longer follows it. */
+    fun release() {
+        pointer = null
+    }
 
     /**
      * The day and wall-clock minute under [root] in the hours: the column it is
@@ -142,8 +242,10 @@ internal class EventEdit(
     private fun nearest(of: Map<LocalDate, LayoutCoordinates>, root: Offset): Pair<LocalDate, LayoutCoordinates>? {
         var best: Pair<LocalDate, LayoutCoordinates>? = null
         var bestDistance = Float.MAX_VALUE
+        val shown = visible
         for ((date, coordinates) in of) {
             if (!coordinates.isAttached) continue
+            if (shown != null && date !in shown) continue
             val bounds = Rect(coordinates.localToRoot(Offset.Zero), Size(coordinates.size.width.toFloat(), coordinates.size.height.toFloat()))
             if (bounds.width <= 0f) continue
             val dx = when {
@@ -168,16 +270,26 @@ internal class EventEdit(
 
     /** Takes [event] up to move, held at [root] in the hours. */
     fun beginMove(event: CalendarEvent, root: Offset) {
-        val (_, minute) = timeAt(root) ?: return
+        val (date, minute) = timeAt(root) ?: return
         grab = minute - event.start.epochMinute
+        grabX = columns[date]?.takeIf { it.isAttached }?.let { root.x - it.localToRoot(Offset.Zero).x } ?: 0f
         begin(EditKind.Move, event, event.start, event.end, byDays = false)
         lastPointer = root
     }
 
+    /** Where across its day's column the pointer took hold, for the ghost's lean. */
+    private var grabX = 0f
+
+    /** Where in its day's box the pointer took hold, for the ghost's lean. */
+    private var grabInDay = Offset.Zero
+
     /** Takes [event] up to move by whole days, held at [root] over [day]. */
-    fun beginMoveByDays(event: CalendarEvent, root: Offset) {
-        grabDay = dayAt(root) ?: return
-        overDay = grabDay
+    fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null) {
+        val day = dayAt(root) ?: return
+        grabDay = day
+        overDay = day
+        grabInDay = days[day]?.takeIf { it.isAttached }?.let { root - it.localToRoot(Offset.Zero) } ?: Offset.Zero
+        grabTop = top
         begin(EditKind.Move, event, event.start, event.end, byDays = true)
         lastPointer = root
     }
@@ -195,10 +307,17 @@ internal class EventEdit(
         val near = dayAt(root) ?: return overDay
         val current = overDay
         if (current == null || near == current) return near.also { overDay = it }
+        // A day paged away, or gone: nothing to hold on to.
+        val shown = visible
+        val was = days[current]?.takeIf { it.isAttached && (shown == null || current in shown) } ?: return near.also { overDay = it }
         val box = days[near]?.takeIf { it.isAttached } ?: return near.also { overDay = it }
         val bounds = box.boundsInRoot()
-        val insetX = bounds.width * DayHysteresis
-        val insetY = bounds.height * DayHysteresis
+        val from = was.boundsInRoot()
+        // Into the next day only along the way it is next: across for a day
+        // either side, down for a week on — a finger moving along a week is
+        // not held back by where in its row it happens to be.
+        val insetX = if (bounds.left != from.left) bounds.width * DayHysteresis else 0f
+        val insetY = if (bounds.top != from.top) bounds.height * DayHysteresis else 0f
         val core = Rect(bounds.left + insetX, bounds.top + insetY, bounds.right - insetX, bounds.bottom - insetY)
         // Off every day — past the first or last, waiting for a dwell — the nearest is the one.
         val onAny = days.values.any { it.isAttached && it.boundsInRoot().contains(root) }
@@ -216,19 +335,36 @@ internal class EventEdit(
         lastPointer = root
     }
 
-    /** Starts drawing out a new event from the step under [root], on [day]. */
-    fun beginCreate(day: LocalDate, root: Offset) {
+    /**
+     * Starts drawing out a new event from the step under [root], on [day]: an
+     * hour of it, or [length] minutes, until the pointer moves and draws it.
+     */
+    fun beginCreate(day: LocalDate, root: Offset, length: Int = stepMinutes) {
         val (_, minute) = timeAt(root, sameDayAs = day) ?: return
         val dayStart = day.atMidnight.epochMinute
         anchor = floorTo(minute, stepMinutes).coerceIn(dayStart, dayStart + MinutesPerDay - stepMinutes)
         createDay = day
-        begin(EditKind.Create, null, localDateTimeOfEpochMinute(anchor), localDateTimeOfEpochMinute(anchor + stepMinutes), byDays = false)
+        val end = minOf(anchor + maxOf(length, stepMinutes), dayStart + MinutesPerDay)
+        begin(EditKind.Create, null, localDateTimeOfEpochMinute(anchor), localDateTimeOfEpochMinute(end), byDays = false)
+        lastPointer = root
+    }
+
+    /** Starts drawing out a new day, or days, from the day under [root]. */
+    fun beginCreateDays(root: Offset) {
+        val day = dayAt(root) ?: return
+        grabDay = day
+        overDay = day
+        grabTop = null
+        begin(EditKind.Create, null, day.atMidnight, day.atMidnight.plusMinutes(MinutesPerDay.toLong()), byDays = true)
         lastPointer = root
     }
 
     private var createDay: LocalDate? = null
 
     private fun begin(kind: EditKind, event: CalendarEvent?, start: LocalDateTime, end: LocalDateTime, byDays: Boolean) {
+        lean = Offset.Zero
+        // Another event taken up, or a new one begun: the handles go.
+        if (event?.id != active) active = null
         this.kind = kind
         this.event = event
         this.start = start
@@ -243,31 +379,53 @@ internal class EventEdit(
         lastPointer = root
         val kind = kind ?: return
         val event = event
+        val perMinute = pixelsPerMinute
+        val halfStep = stepMinutes * perMinute / 2f
         when (kind) {
             EditKind.Move -> if (event != null) {
                 if (byDays) {
                     val from = grabDay ?: return
                     val to = settledDayAt(root) ?: return
                     val days = to.toEpochDays() - from.toEpochDays()
+                    leanOn = 0
+                    lean = dayLean(to, root)
                     propose(event.start.plusMinutes(days * MinutesPerDay), event.end.plusMinutes(days * MinutesPerDay))
                 } else {
-                    val (_, minute) = timeAt(root) ?: return
+                    val (date, minute) = timeAt(root) ?: return
                     val length = event.end.epochMinute - event.start.epochMinute
-                    val start = roundTo(minute - grab, stepMinutes)
+                    val raw = minute - grab
+                    val start = roundTo(raw, stepMinutes)
+                    val column = columns[date]?.takeIf { it.isAttached }
+                    val across = if (column == null) 0f else {
+                        val half = column.size.width / 2f
+                        (root.x - column.localToRoot(Offset.Zero).x - grabX).coerceIn(-half, half)
+                    }
+                    leanOn = 0
+                    lean = Offset(across, ((raw - start) * perMinute).coerceIn(-halfStep, halfStep))
                     propose(localDateTimeOfEpochMinute(start), localDateTimeOfEpochMinute(start + length))
                 }
             }
             EditKind.ResizeEnd -> if (event != null) {
                 val (_, minute) = timeAt(root, sameDayAs = this.end?.let { endDay(event.start, it) }) ?: timeAt(root) ?: return
                 val end = maxOf(roundTo(minute, stepMinutes), event.start.epochMinute + stepMinutes)
+                leanOn = 1
+                lean = Offset(0f, ((minute - end) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(event.start, localDateTimeOfEpochMinute(end))
             }
             EditKind.ResizeStart -> if (event != null) {
                 val (_, minute) = timeAt(root, sameDayAs = event.start.date) ?: timeAt(root) ?: return
                 val start = minOf(roundTo(minute, stepMinutes), event.end.epochMinute - stepMinutes)
+                leanOn = -1
+                lean = Offset(0f, ((minute - start) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(localDateTimeOfEpochMinute(start), event.end)
             }
-            EditKind.Create -> {
+            EditKind.Create -> if (byDays) {
+                val from = grabDay ?: return
+                val to = settledDayAt(root) ?: return
+                val first = minOf(from, to)
+                val last = maxOf(from, to)
+                propose(first.atMidnight, last.atMidnight.plusMinutes(MinutesPerDay.toLong()))
+            } else {
                 val day = createDay ?: return
                 val (_, minute) = timeAt(root, sameDayAs = day) ?: return
                 val dayStart = day.atMidnight.epochMinute
@@ -277,9 +435,24 @@ internal class EventEdit(
                 } else {
                     floorTo(head, stepMinutes) to anchor + stepMinutes
                 }
+                val edge = if (head >= anchor) to else from
+                leanOn = if (head >= anchor) 1 else -1
+                lean = Offset(0f, ((head - edge) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(localDateTimeOfEpochMinute(from), localDateTimeOfEpochMinute(minOf(to, dayStart + MinutesPerDay)))
             }
         }
+    }
+
+    /** How far [root] is from where it took hold of its day, in [day]'s box: at most half the box either way. */
+    private fun dayLean(day: LocalDate, root: Offset): Offset {
+        val box = days[day]?.takeIf { it.isAttached } ?: return Offset.Zero
+        val origin = box.localToRoot(Offset.Zero)
+        val halfX = box.size.width / 2f
+        val halfY = box.size.height / 2f
+        return Offset(
+            (root.x - origin.x - grabInDay.x).coerceIn(-halfX, halfX),
+            (root.y - origin.y - grabInDay.y).coerceIn(-halfY, halfY),
+        )
     }
 
     /** The day an event's last minute is on — for an edge dragged across midnight. */
@@ -338,6 +511,11 @@ internal class EventEdit(
         overDay = null
         createDay = null
         lastPointer = null
+        pointer = null
+        byHold = false
+        travelled = false
+        grabTop = null
+        lean = Offset.Zero
         steps.reset()
     }
 
@@ -353,6 +531,34 @@ internal class EventEdit(
         /** How far into the next day a carry by days goes before it is over it: a share of the day. */
         const val DayHysteresis = 0.15f
     }
+}
+
+/**
+ * Something a pointer can take hold of: an event, or one of its edges.
+ *
+ * @property byDays Whether it is carried by whole days.
+ * @property edge Whether it is an edge's handle rather than the event.
+ */
+internal class Grab(var coordinates: LayoutCoordinates, var event: CalendarEvent, val byDays: Boolean, val edge: Boolean = false)
+
+/**
+ * A menu opened on the calendar: by a finger held on an event, or on empty
+ * time, or by a secondary click.
+ *
+ * @property at Where it hangs from, in the root.
+ * @property event The event it is for; null for one on empty time, whose
+ *   "New event" makes what the edit in hand proposed as it opened.
+ * @property inHours Whether the event is in the day's hours, where its times
+ *   can be adjusted by its edges.
+ */
+internal class EditMenu(val at: Offset, val event: CalendarEvent?, val inHours: Boolean) {
+    /**
+     * For a new event, where it would be made: taken as the menu opens, since
+     * an item chosen closes the menu — and so lets go of the edit — before it
+     * runs.
+     */
+    var start: LocalDateTime? = null
+    var end: LocalDateTime? = null
 }
 
 /** Where the last press on a node went down, in the node: read when it is picked up. Not state. */

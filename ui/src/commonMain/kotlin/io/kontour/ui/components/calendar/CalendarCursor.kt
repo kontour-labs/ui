@@ -201,4 +201,4 @@ internal fun DrawScope.drawCursorRing(rect: Rect, colour: Color, width: Float) {
 private const val MinutesPerHour = 60
 
 /** How long a new event made from the keyboard is: an hour, or to the end of the day. */
-private const val NewEventMinutes = 60
+internal const val NewEventMinutes = 60
