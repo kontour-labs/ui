@@ -392,6 +392,27 @@ class EventCalendarMenuTest {
         assertEquals(kotlinx.datetime.Month.NOVEMBER, start.date.month, "the bar did not go on into November: $start")
     }
 
+    /** A bar held, "Adjust time", and its end dragged by a finger: a day longer. */
+    @Test
+    fun adjustTimeGivesABarsEndsHandlesThatGoByDays() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        val bar = boundsOf(trip, probe)
+        val cell = 900f * probe.density / DaysPerWeek
+        hold(Offset(bar.left + cell / 2f, bar.center.y))
+        menuItem(probe.strings.adjustTime).performClick()
+        waitForIdle()
+        val end = Offset(bar.right - 4f * probe.density, bar.center.y)
+        onRoot().performTouchInput {
+            down(end)
+            repeat(10) { moveBy(Offset(cell / 10f, 0f)) }
+            up()
+        }
+        waitForIdle()
+        val (_, start, newEnd) = probe.resizes.singleOrNull() ?: error("the bar's handle did not resize it: moves ${probe.moves}")
+        assertEquals(trip.start, start)
+        assertEquals(trip.end.plusMinutes(MinutesPerDay.toLong()), newEnd)
+    }
+
     @Test
     fun aFingerHeldJustBesideAMonthsLineTakesIt() = runComposeUiTest {
         val probe = calendar(view = CalendarView.Month)

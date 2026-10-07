@@ -63,3 +63,9 @@ internal fun resizedStart(start: Long, end: Long, proposed: Long, step: Int): Lo
     val lower = minOf(day, upper)
     return proposed.coerceIn(lower, upper)
 }
+
+/**
+ * A bar's end moved [by] minutes — a whole day, from the keyboard or a screen
+ * reader — and no shorter than a [step] after its start.
+ */
+internal fun barEnd(start: Long, end: Long, by: Long, step: Int): Long = maxOf(end + by, start + step)

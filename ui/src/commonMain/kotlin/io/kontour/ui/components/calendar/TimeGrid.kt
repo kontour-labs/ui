@@ -473,6 +473,8 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                         event = placed.event,
                         presentation = EventPresentation.Bar,
                         scope = scope,
+                        clippedStart = placed.continuesBefore,
+                        clippedEnd = placed.continuesAfter,
                         modifier = Modifier
                             .padding(start = cell * placed.from + gap, top = item * placement.row + gap / 2)
                             .width(cell * (placed.to - placed.from + 1) - gap * 2)
@@ -707,7 +709,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                                     val near = edit.eventNear(root, nearReach)
                                     if (near != null && scope.movable(near.event)) {
                                         val top = near.coordinates.localToRoot(Offset.Zero).y
-                                        scope.takeUp(near.event, root, near.byDays, top, taking, hold = true)
+                                        scope.takeUp(near.event, root, near.byDays, top, taking, hold = true, edges = near.edges)
                                         return@detectPickUp
                                     }
                                     if (!creates) return@detectPickUp
@@ -717,7 +719,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                                     if (!edit.live) return@detectPickUp
                                     taking?.let { edit.take(it, root, hold = true) }
                                     edit.pickedUp()
-                                    scope.openMenu(root, null, inHours = true)
+                                    scope.openMenu(root, null, edges = true)
                                 } else {
                                     edit.beginCreate(date, root)
                                     if (!edit.live) return@detectPickUp
@@ -736,12 +738,12 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 },
             )
             .then(
-                if (creates && scope.hasMenu(null, inHours = true)) {
+                if (creates && scope.hasMenu(null, edges = true)) {
                     Modifier.secondaryClick { at ->
                         val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
                         if (edit.live) return@secondaryClick
                         edit.beginCreate(date, root, length = NewEventMinutes)
-                        scope.openMenu(root, null, inHours = true)
+                        scope.openMenu(root, null, edges = true)
                     }
                 } else {
                     Modifier

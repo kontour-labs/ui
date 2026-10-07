@@ -319,16 +319,16 @@ internal class CalendarScope(
     fun deletable(event: CalendarEvent): Boolean = enabled && onEventDelete != null && event.editable
 
     /** Whether the menu for [event] — null, for empty time — would have anything in it. */
-    fun hasMenu(event: CalendarEvent?, inHours: Boolean): Boolean = when {
+    fun hasMenu(event: CalendarEvent?, edges: Boolean): Boolean = when {
         !menus || !enabled -> false
         event == null -> onCreateRequest != null
-        else -> deletable(event) || (inHours && touch && resizable(event) && !event.allDay)
+        else -> deletable(event) || (edges && touch && resizable(event))
     }
 
     /** Opens the menu for [event], or for the new event in hand, at [root] — if it has anything in it. */
-    fun openMenu(root: Offset, event: CalendarEvent?, inHours: Boolean) {
-        if (!hasMenu(event, inHours)) return
-        edit.menu = EditMenu(root, event, inHours).apply {
+    fun openMenu(root: Offset, event: CalendarEvent?, edges: Boolean) {
+        if (!hasMenu(event, edges)) return
+        edit.menu = EditMenu(root, event, edges).apply {
             start = edit.start
             end = edit.end
         }
@@ -903,9 +903,9 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
 
 /**
  * The menu a hold or a secondary click opened: for empty time, a new event
- * where the edit in hand proposes it; for an event, its edges to adjust — in
- * the hours, on a touchscreen, where they are otherwise hidden — and its
- * deletion.
+ * where the edit in hand proposes it; for an event, its edges to adjust — a
+ * block's in the hours, a bar's across its days, on a touchscreen, where they
+ * are otherwise hidden — and its deletion.
  */
 @Composable
 private fun EditMenus(scope: CalendarScope) {
@@ -929,7 +929,7 @@ private fun EditMenus(scope: CalendarScope) {
         if (event == null) {
             item(strings.newEvent, onClick = { scope.create(shown) })
         } else {
-            if (shown.inHours && scope.touch && scope.resizable(event) && !event.allDay) {
+            if (shown.edges && scope.touch && scope.resizable(event)) {
                 item(strings.adjustTime, onClick = {
                     edit.menu = null
                     edit.active = event.id

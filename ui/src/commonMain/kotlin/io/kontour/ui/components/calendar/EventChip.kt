@@ -10,6 +10,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -121,7 +122,7 @@ internal fun EventChip(
             .clip(shape)
             .background(fill)
             .then(if (edge != null) Modifier.border(edge, shape) else Modifier)
-            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, focusableOn)),
+            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn)),
         // A block's text from its top, as time runs; a bar's and a line's level
         // in its row, as a chip's label is.
         contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
@@ -129,9 +130,14 @@ internal fun EventChip(
         CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
             ProvideContentColour(ink) { scope.eventContent(event, presentation) }
         }
-        if (!ghost && presentation == EventPresentation.Block && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
-            if (!clippedStart) ResizeHandle(event, scope, atStart = true)
-            if (!clippedEnd) ResizeHandle(event, scope, atStart = false)
+        // A block's edges, in its hours; a bar's ends, by whole days. Not on
+        // an end cut off by the edge of the week or the page: it is not the
+        // event's end there.
+        val edges = presentation != EventPresentation.Line
+        if (!ghost && edges && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
+            val bar = presentation == EventPresentation.Bar
+            if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar)
+            if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar)
         }
     }
 }
@@ -144,7 +150,16 @@ private const val CarriedAlpha = 0.4f
  * a screen reader's actions — and what it is called.
  */
 @Composable
-private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, byDays: Boolean, focusableOn: ClosedRange<LocalDate>?): Modifier {
+private fun Modifier.eventControl(
+    event: CalendarEvent,
+    scope: CalendarScope,
+    byDays: Boolean,
+    presentation: EventPresentation,
+    focusableOn: ClosedRange<LocalDate>?,
+): Modifier {
+    // Whether it has edges to adjust, and whether they go by whole days.
+    val edges = presentation != EventPresentation.Line
+    val bar = presentation == EventPresentation.Bar
     val description = eventDescription(event, scope.formats, scope.strings)
     val click = scope.onEventClick
     val movable = scope.movable(event)
@@ -163,9 +178,11 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             add(CustomAccessibilityAction(scope.strings.moveToPreviousDay) { scope.moveBy(current, -MinutesPerDay.toLong(), resize = false); true })
             add(CustomAccessibilityAction(scope.strings.moveToNextDay) { scope.moveBy(current, MinutesPerDay.toLong(), resize = false); true })
         }
-        if (resizable && !event.allDay) {
-            add(CustomAccessibilityAction(scope.strings.makeLonger) { scope.moveBy(current, step, resize = true); true })
-            add(CustomAccessibilityAction(scope.strings.makeShorter) { scope.moveBy(current, -step, resize = true); true })
+        // A bar longer or shorter by a day; anything else by a step.
+        val resizeStep = if (bar) MinutesPerDay.toLong() else step
+        if (resizable && (bar || !event.allDay)) {
+            add(CustomAccessibilityAction(scope.strings.makeLonger) { scope.moveBy(current, resizeStep, resize = true, days = bar); true })
+            add(CustomAccessibilityAction(scope.strings.makeShorter) { scope.moveBy(current, -resizeStep, resize = true, days = bar); true })
         }
         if (scope.deletable(event)) {
             add(CustomAccessibilityAction(scope.strings.deleteEvent) { scope.delete(current); true })
@@ -186,7 +203,7 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             placed.coordinates = coordinates
             if (movable) {
                 edit.draggables[placed] = coordinates
-                edit.events[placed] = Grab(coordinates, current, byDays)
+                edit.events[placed] = Grab(coordinates, current, byDays, edges = edges)
             }
         }
         .then(
@@ -224,7 +241,7 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
                         onPickUp = { at ->
                             val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@detectPickUp
                             val root = coordinates.localToRoot(press.position ?: at)
-                            scope.takeUp(current, root, byDays, top = coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch)
+                            scope.takeUp(current, root, byDays, top = coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch, edges = edges)
                             // A mouse is already on its way: the proposal follows it from here.
                             if (!isTouch) edit.move(coordinates.localToRoot(at))
                         },
@@ -239,9 +256,9 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
             },
         )
         .then(
-            if (scope.hasMenu(event, inHours = !byDays)) {
+            if (scope.hasMenu(event, edges = edges)) {
                 Modifier.secondaryClick { at ->
-                    placed.coordinates?.takeIf { it.isAttached }?.let { scope.openMenu(it.localToRoot(at), current, inHours = !byDays) }
+                    placed.coordinates?.takeIf { it.isAttached }?.let { scope.openMenu(it.localToRoot(at), current, edges = edges) }
                 }
             } else {
                 Modifier
@@ -275,7 +292,12 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
                         key.key == Key.DirectionUp || key.key == Key.DirectionDown -> {
                             val by = if (key.key == Key.DirectionUp) -step else step
                             if (key.isShiftPressed) {
-                                if (resizable) edit.nudge(by, resizeEnd = true)
+                                // A bar's end by a day; a block's by a step, within its day.
+                                if (resizable && bar) {
+                                    edit.nudge(if (by > 0) MinutesPerDay.toLong() else -MinutesPerDay.toLong(), resizeEnd = true, byDaysEnd = true)
+                                } else if (resizable) {
+                                    edit.nudge(by, resizeEnd = true)
+                                }
                             } else if (movable) {
                                 edit.nudge(by)
                             }
@@ -284,7 +306,12 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
                         key.key == Key.DirectionLeft || key.key == Key.DirectionRight -> {
                             // The day before is on the left, unless the reading runs the other way.
                             val later = (key.key == Key.DirectionRight) != rtl
-                            if (movable) edit.nudge(if (later) MinutesPerDay.toLong() else -MinutesPerDay.toLong())
+                            val day = if (later) MinutesPerDay.toLong() else -MinutesPerDay.toLong()
+                            if (key.isShiftPressed) {
+                                if (resizable && bar) edit.nudge(day, resizeEnd = true, byDaysEnd = true)
+                            } else if (movable) {
+                                edit.nudge(day)
+                            }
                             true
                         }
                         else -> false
@@ -301,12 +328,13 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
 }
 
 /**
- * One of a block's edges, to drag its start or its end by: always there for a
- * mouse, with its cursor, and on a touchscreen once "Adjust time" is chosen
- * from the event's menu, until a press anywhere else.
+ * One of a block's edges, to drag its start or its end by — or a [bar]'s ends,
+ * across its days, a whole day at a time: always there for a mouse, with its
+ * cursor, and on a touchscreen once "Adjust time" is chosen from the event's
+ * menu, until a press anywhere else.
  */
 @Composable
-private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, atStart: Boolean) {
+private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, atStart: Boolean, bar: Boolean) {
     val edit = scope.edit
     val placed = remember { PlacedAt() }
     val current by rememberUpdatedState(event)
@@ -320,24 +348,30 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
     }
     Box(
         Modifier
-            .align(if (atStart) Alignment.TopCenter else Alignment.BottomCenter)
-            .fillMaxWidth()
-            .height(HandleHeight)
+            .then(
+                if (bar) {
+                    Modifier.align(if (atStart) Alignment.CenterStart else Alignment.CenterEnd).fillMaxHeight().width(HandleHeight)
+                } else {
+                    Modifier.align(if (atStart) Alignment.TopCenter else Alignment.BottomCenter).fillMaxWidth().height(HandleHeight)
+                },
+            )
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
                 edit.draggables[placed] = coordinates
-                edit.events[placed] = Grab(coordinates, current, byDays = false, edge = true)
+                edit.events[placed] = Grab(coordinates, current, byDays = bar, edge = true)
             }
-            .pointerCursor(Cursor.ResizeRow)
-            .pointerInput(edit, event.id, atStart) {
+            .pointerCursor(if (bar) Cursor.ResizeColumn else Cursor.ResizeRow)
+            .pointerInput(edit, event.id, atStart, bar) {
                 var taking: PointerId? = null
                 detectPickUp(
-                    axis = PickUpAxis.Vertical,
+                    axis = if (bar) PickUpAxis.Free else PickUpAxis.Vertical,
                     immediate = { true },
                     onPointer = { taking = it },
                     onPickUp = { at ->
-                        val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
-                        edit.beginResize(current, atStart, root)
+                        val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@detectPickUp
+                        val root = coordinates.localToRoot(at)
+                        edit.beginResize(current, atStart, root, byDays = bar, top = coordinates.localToRoot(Offset.Zero).y)
+                        if (!edit.live) return@detectPickUp
                         taking?.let { edit.take(it, root, hold = false) }
                     },
                     // The calendar follows the drag from here: see `carriesEdits`.
@@ -350,7 +384,10 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
         contentAlignment = Alignment.Center,
     ) {
         if (active) {
-            Box(Modifier.width(GripWidth).height(GripHeight).background(grip, Theme.shapes.capsule))
+            val size = if (bar) Modifier.width(GripHeight).height(BarGripHeight) else Modifier.width(GripWidth).height(GripHeight)
+            // On a bar, its own colour is the ground: the grip in the ink on it.
+            val colour = if (bar) toneColours(event.tone).onSolid else grip
+            Box(size.background(colour, Theme.shapes.capsule))
         }
     }
 }
@@ -358,14 +395,19 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
 private val HandleHeight = 10.dp
 private val GripWidth = 24.dp
 private val GripHeight = 4.dp
+private val BarGripHeight = 12.dp
 
 /**
  * Moves [event] by [minutes] — or only its end, when [resize] — as a screen
  * reader's action does it: straight to the callback, and read out.
  */
-internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: Boolean) {
+internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: Boolean, days: Boolean = false) {
     if (resize) {
-        val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, event.end.epochMinute + minutes, edit.stepMinutes)
+        val end = if (days) {
+            barEnd(event.start.epochMinute, event.end.epochMinute, minutes, if (event.allDay) MinutesPerDay else edit.stepMinutes)
+        } else {
+            resizedEnd(event.start.epochMinute, event.end.epochMinute, event.end.epochMinute + minutes, edit.stepMinutes)
+        }
         if (end == event.end.epochMinute) return
         val newEnd = localDateTimeOfEpochMinute(end)
         onEventResize?.invoke(event, event.start, newEnd)
@@ -436,13 +478,13 @@ internal fun gridLine(): Color = if (highContrast()) Theme.colours.outlineStrong
  * [pointer] to carry, and on a touchscreen, where a finger held still took it,
  * felt and given its menu.
  */
-internal fun CalendarScope.takeUp(event: CalendarEvent, root: Offset, byDays: Boolean, top: Float?, pointer: PointerId?, hold: Boolean) {
+internal fun CalendarScope.takeUp(event: CalendarEvent, root: Offset, byDays: Boolean, top: Float?, pointer: PointerId?, hold: Boolean, edges: Boolean = !byDays) {
     if (byDays) edit.beginMoveByDays(event, root, top) else edit.beginMove(event, root)
     if (!edit.live) return
     pointer?.let { edit.take(it, root, hold) }
     if (hold) {
         edit.pickedUp()
-        openMenu(root, event, inHours = !byDays)
+        openMenu(root, event, edges = edges)
     }
 }
 

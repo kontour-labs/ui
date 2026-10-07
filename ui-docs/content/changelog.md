@@ -68,6 +68,17 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **An [event calendar](components/event-calendar.md)'s carry goes on following
+  the pointer after it pages.** From the second week or month on, the carried
+  event stayed where it was. A pointer held still at the edge is followed into
+  the period paged in.
+- **A resized event in an event calendar keeps to its own day.** Its end dragged
+  past midnight stops at midnight, where it used to run on over the following
+  days. The keyboard and a screen reader's actions stop there too.
+- **A bar in an event calendar can be made longer or shorter by its ends**, a
+  day at a time: a handle at each end with a mouse, and on a touchscreen after
+  **Adjust time** from its menu. Shift with an arrow and a screen reader's make
+  longer and make shorter change it by a day.
 - **A [scrollbar](components/scrollbar.md) keeps its length on a lazy list of
   uneven rows.** A lazy list's length was the average row on screen times the
   number of rows, so the thumb grew over short rows and shrank over tall ones.

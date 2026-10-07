@@ -94,7 +94,7 @@ to keep the result, or leave them as they are to refuse it.
 |---|---|
 | `onCreateRequest(start, end)` | A new event. Drawn out on empty time in the day or week view — dragged with a mouse, or held and dragged with a finger — from the step the pointer took hold of to where it was let go, at least one step long. Or chosen as **New event** from the menu a finger held still opens, or a right-click: an hour where it was held in the day or week view, or the whole day held in the month, midnight to midnight. |
 | `onEventMove(event, start, end)` | An event carried somewhere else, keeping its length. In the hours it moves by time, and to another day by moving across; near the top or bottom of the hours they scroll. A bar, or a line in a month, moves by whole days and keeps its time. Held at either side of the days, a carry pages on to the week or month there and goes on, so an event can be carried into next week or next month. |
-| `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. With a mouse the edges are always there, with the resize cursor. On a touchscreen, choose **Adjust time** from the event's menu to give its edges handles; a press anywhere else takes them away. |
+| `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. In the hours an edge keeps to its own day: an end stops at midnight and a start at the day's first minute, so a resize never runs an event on into the next day. An event that crosses midnight has its start on its first day's piece and its end on its last. A bar, all day or a day or longer, has its ends at its sides, and they move a whole day at a time, never shorter than its first day. An end cut off by the edge of the week or the month has no handle there. With a mouse the edges are always there, with the resize cursor. On a touchscreen, choose **Adjust time** from the event's menu to give its edges handles; a press anywhere else takes them away. |
 | `onEventDelete(event)` | **Delete**, from the event's menu, the Delete key on a focused event, or a screen reader's action. Take it out of `events` to delete it. |
 
 Every edit moves in steps of `snap`, a quarter-hour by default, and each step
@@ -106,7 +106,7 @@ does not turn into a hold. With a mouse an edit starts as soon as the pointer
 moves, so swiping a mouse across an event moves the event instead of paging.
 
 **A held finger opens a menu.** On empty time it offers **New event**, and on
-an event **Adjust time** (in the day and week views) and **Delete**, whichever
+an event **Adjust time** (on a block or a bar, not a month's line) and **Delete**, whichever
 the callbacks you gave allow. Let go without moving and the menu stays to be
 chosen from; move instead and the menu closes, and the hold carries on as the
 drag it always was — a new event drawn out, or the event carried. A right-click
@@ -189,9 +189,11 @@ their own; the "+N" of the cursor's day is.
 **Every edit can be made without a pointer.** A focused event is picked up
 with Space. The up and down arrows then move it a step at a time, left and
 right move it a day (mirrored for right-to-left reading), Shift with up or down
-changes its end, Enter or Space puts it down, and Escape puts it back. A screen
+changes its end within its day, Enter or Space puts it down, and Escape puts it
+back. On a bar, Shift with any arrow changes its end by a day. A screen
 reader is offered the same edits as actions on the event: move earlier, move
-later, move to the day before or after, make longer and make shorter, each for
+later, move to the day before or after, make longer and make shorter (by a day,
+on a bar), each for
 the edits the app takes. After each edit, a screen reader is told where the
 event now is.
 

@@ -215,15 +215,15 @@ private fun MonthWeek(
                                 val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
                                 val near = edit.eventNear(root, nearReach)
                                 if (near != null && scope.movable(near.event)) {
-                                    scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true)
+                                    scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true, edges = near.edges)
                                     return@detectPickUp
                                 }
-                                if (!creates || !scope.hasMenu(null, inHours = false)) return@detectPickUp
+                                if (!creates || !scope.hasMenu(null, edges = false)) return@detectPickUp
                                 edit.beginCreateDays(root)
                                 if (!edit.live) return@detectPickUp
                                 taking?.let { edit.take(it, root, hold = true) }
                                 edit.pickedUp()
-                                scope.openMenu(root, null, inHours = false)
+                                scope.openMenu(root, null, edges = false)
                             },
                             // The calendar follows the carry from here: see `carriesEdits`.
                             onCarry = { _, _ -> },
@@ -236,12 +236,12 @@ private fun MonthWeek(
                 },
             )
             .then(
-                if (creates && scope.hasMenu(null, inHours = false)) {
+                if (creates && scope.hasMenu(null, edges = false)) {
                     Modifier.secondaryClick { at ->
                         val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
                         if (edit.live) return@secondaryClick
                         edit.beginCreateDays(root)
-                        scope.openMenu(root, null, inHours = false)
+                        scope.openMenu(root, null, edges = false)
                     }
                 } else {
                     Modifier
@@ -297,6 +297,8 @@ private fun MonthWeek(
                 event = placed.event,
                 presentation = if (placed.bar) EventPresentation.Bar else EventPresentation.Line,
                 scope = scope,
+                clippedStart = placed.continuesBefore,
+                clippedEnd = placed.continuesAfter,
                 focusableOn = dayInWeek(weekStart, placed.from)..dayInWeek(weekStart, placed.to),
                 modifier = Modifier
                     .padding(start = cell * placed.from + gap, top = dateLabel + item * placement.row + gap / 2)
@@ -432,6 +434,9 @@ private fun DayBox(
                                 event = event,
                                 presentation = if (event.allDay) EventPresentation.Bar else EventPresentation.Line,
                                 scope = scope,
+                                // A list of the day's events, not its days: nothing to drag an end across.
+                                clippedStart = true,
+                                clippedEnd = true,
                                 modifier = Modifier.fillMaxWidth().height(itemHeight),
                             )
                         }
@@ -502,6 +507,39 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
                 slotPx
             } else {
                 (top - page).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
+            }
+        }
+        // An end dragged: the bar where it is, but for that end, which
+        // stretches toward the pointer and hops a day at a time.
+        val kind = edit.kind
+        if (kind == EditKind.ResizeStart || kind == EditKind.ResizeEnd) {
+            val pieces = dayPieces(nowStart, nowEnd, rowStart, weeks, days)
+            val atEnd = kind == EditKind.ResizeEnd
+            val edgeDay = if (atEnd) lastDayOf(nowStart, nowEnd) else nowStart.date
+            val edgeIndex = (edgeDay.toEpochDays() - rowStart.toEpochDays()).toInt()
+            // The piece with the end in it, if this page shows it.
+            val moving = if (atEnd) pieces.lastIndex else 0
+            val onPage = pieces.isNotEmpty() && edgeIndex in 0 until weeks * days
+            fun rectOf(piece: Triple<Int, Int, Int>) = Rect(
+                piece.second * cell + gapPx,
+                piece.first * rowHeight + y,
+                (piece.third + 1) * cell - gapPx,
+                piece.first * rowHeight + y + itemPx - gapPx,
+            )
+            val stretched = if (!onPage) null else {
+                val snapped = rectOf(pieces[moving])
+                val lean = (edit.lean * pull).let { if (rtl) -it.x else it.x }
+                val target = if (atEnd) snapped.copy(right = snapped.right + lean) else snapped.copy(left = snapped.left + lean)
+                // Into another week, it is there: a hop across the month would not be an end stretching.
+                hop.drawnAt(nowStart to nowEnd, target, still) { last, aim -> if (last.top != aim.top) Rect.Zero else null }
+            }
+            val rects = pieces.mapIndexed { i, piece -> if (i == moving && stretched != null) stretched else rectOf(piece) }
+            val placeables = measurables.take(rects.size).mapIndexed { i, measurable ->
+                val rect = rects[i]
+                measurable.measure(Constraints.fixed(rect.width.roundToInt().coerceAtLeast(0), rect.height.roundToInt().coerceAtLeast(0)))
+            }
+            return@Layout layout(w, h) {
+                placeables.forEachIndexed { i, placeable -> placeable.placeRelative(rects[i].left.roundToInt(), rects[i].top.roundToInt()) }
             }
         }
         // The first day's box, in reading order — mirrored in placing — and

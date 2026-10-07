@@ -362,9 +362,20 @@ internal class EventEdit(
         begin(EditKind.Move, event, event.start, event.end, byDays = false)
     }
 
-    /** Takes hold of one of [event]'s edges. */
-    fun beginResize(event: CalendarEvent, atStart: Boolean, root: Offset) {
-        begin(if (atStart) EditKind.ResizeStart else EditKind.ResizeEnd, event, event.start, event.end, byDays = false)
+    /**
+     * Takes hold of one of [event]'s edges: in the hours, or — [byDays] — a
+     * bar's end, moved a whole day at a time, its row's top at [top].
+     */
+    fun beginResize(event: CalendarEvent, atStart: Boolean, root: Offset, byDays: Boolean = false, top: Float? = null) {
+        if (byDays) {
+            val day = if (atStart) event.start.date else endDay(event.start, event.end)
+            val box = days.of(day) ?: return
+            grabDay = day
+            overDay = day
+            grabInDay = root - box.localToRoot(Offset.Zero)
+            grabTop = top
+        }
+        begin(if (atStart) EditKind.ResizeStart else EditKind.ResizeEnd, event, event.start, event.end, byDays = byDays)
         lastPointer = root
     }
 
@@ -441,7 +452,17 @@ internal class EventEdit(
             // An edge keeps to its own day: past midnight, or past the top of
             // the hours, it stops there. It took the column the pointer was
             // nearest, and an end dragged low ran the event on over days.
-            EditKind.ResizeEnd -> if (event != null) {
+            // A bar's ends, by whole days: its last day no earlier than its
+            // first, its first no later than its last.
+            EditKind.ResizeEnd -> if (event != null && byDays) {
+                val to = settledDayAt(root) ?: return
+                val last = maxOf(to, event.start.date)
+                val shift = last.toEpochDays() - endDay(event.start, event.end).toEpochDays()
+                val end = maxOf(event.end.epochMinute + shift * MinutesPerDay, event.start.epochMinute + stepMinutes)
+                leanOn = 1
+                lean = Offset(dayLean(last, root).x, 0f)
+                propose(event.start, localDateTimeOfEpochMinute(end))
+            } else if (event != null) {
                 val day = endDay(event.start, event.end)
                 val (_, raw) = timeAt(root, sameDayAs = day) ?: return
                 val dayStart = day.atMidnight.epochMinute
@@ -451,7 +472,15 @@ internal class EventEdit(
                 lean = Offset(0f, ((minute - end) * perMinute).coerceIn(-halfStep, halfStep))
                 propose(event.start, localDateTimeOfEpochMinute(end))
             }
-            EditKind.ResizeStart -> if (event != null) {
+            EditKind.ResizeStart -> if (event != null && byDays) {
+                val to = settledDayAt(root) ?: return
+                val first = minOf(to, endDay(event.start, event.end))
+                val shift = first.toEpochDays() - event.start.date.toEpochDays()
+                val start = minOf(event.start.epochMinute + shift * MinutesPerDay, event.end.epochMinute - stepMinutes)
+                leanOn = -1
+                lean = Offset(dayLean(first, root).x, 0f)
+                propose(localDateTimeOfEpochMinute(start), event.end)
+            } else if (event != null) {
                 val (_, raw) = timeAt(root, sameDayAs = event.start.date) ?: return
                 val dayStart = event.start.date.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
@@ -500,13 +529,20 @@ internal class EventEdit(
     private fun endDay(start: LocalDateTime, end: LocalDateTime): LocalDate =
         if (end > start) end.plusMinutes(-1).date else start.date
 
-    /** Moves the proposal by keys: [minutes] either way, or only its end when [resizeEnd]. */
-    fun nudge(minutes: Long, resizeEnd: Boolean = false) {
+    /**
+     * Moves the proposal by keys: [minutes] either way, or only its end when
+     * [resizeEnd] — within its day, or for a bar, [byDaysEnd], a day at a time.
+     */
+    fun nudge(minutes: Long, resizeEnd: Boolean = false, byDaysEnd: Boolean = false) {
         val start = start ?: return
         val end = end ?: return
         if (resizeEnd) {
             val from = event ?: return
-            val next = resizedEnd(from.start.epochMinute, from.end.epochMinute, end.epochMinute + minutes, stepMinutes)
+            val next = if (byDaysEnd) {
+                barEnd(start.epochMinute, end.epochMinute, minutes, if (from.allDay) MinutesPerDay else stepMinutes)
+            } else {
+                resizedEnd(from.start.epochMinute, from.end.epochMinute, end.epochMinute + minutes, stepMinutes)
+            }
             propose(start, localDateTimeOfEpochMinute(next))
         } else {
             propose(start.plusMinutes(minutes), end.plusMinutes(minutes))
@@ -583,8 +619,16 @@ internal data class DayPlace(val date: LocalDate, val coordinates: LayoutCoordin
  *
  * @property byDays Whether it is carried by whole days.
  * @property edge Whether it is an edge's handle rather than the event.
+ * @property edges Whether the event, as drawn, has edges to adjust: a block or
+ *   a bar, not a month's line.
  */
-internal class Grab(var coordinates: LayoutCoordinates, var event: CalendarEvent, val byDays: Boolean, val edge: Boolean = false)
+internal class Grab(
+    var coordinates: LayoutCoordinates,
+    var event: CalendarEvent,
+    val byDays: Boolean,
+    val edge: Boolean = false,
+    val edges: Boolean = !byDays,
+)
 
 /**
  * A menu opened on the calendar: by a finger held on an event, or on empty
@@ -593,10 +637,10 @@ internal class Grab(var coordinates: LayoutCoordinates, var event: CalendarEvent
  * @property at Where it hangs from, in the root.
  * @property event The event it is for; null for one on empty time, whose
  *   "New event" makes what the edit in hand proposed as it opened.
- * @property inHours Whether the event is in the day's hours, where its times
- *   can be adjusted by its edges.
+ * @property edges Whether the event, as drawn, has edges to adjust — a block in
+ *   the hours, a bar across days — rather than a month's line.
  */
-internal class EditMenu(val at: Offset, val event: CalendarEvent?, val inHours: Boolean) {
+internal class EditMenu(val at: Offset, val event: CalendarEvent?, val edges: Boolean) {
     /**
      * For a new event, where it would be made: taken as the menu opens, since
      * an item chosen closes the menu — and so lets go of the edit — before it

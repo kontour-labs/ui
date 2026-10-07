@@ -68,6 +68,7 @@ class EventCalendarEditTest {
         modality: InputModality = InputModality.Mouse,
         events: List<CalendarEvent> = listOf(review, holiday, trip),
         inScrollingPage: Boolean = false,
+        initialDate: LocalDate = wednesday,
     ): Probe {
         val probe = Probe()
         setContent {
@@ -81,7 +82,7 @@ class EventCalendarEditTest {
                         probe.density = LocalDensity.current.density
                         EventCalendar(
                             state = rememberEventCalendarState(
-                                initialDate = wednesday,
+                                initialDate = initialDate,
                                 initialView = view,
                                 initialScrollTime = kotlinx.datetime.LocalTime(8, 0),
                                 firstDayOfWeek = DayOfWeek.MONDAY,
@@ -454,6 +455,85 @@ class EventCalendarEditTest {
         waitForIdle()
         val (_, start, _) = probe.moves.singleOrNull() ?: error("the held bar was not carried")
         assertEquals(trip.start.plusMinutes(MinutesPerDay.toLong()), start)
+    }
+
+    /**
+     * Drags one of the trip bar's ends, by its handle just inside it, [days]
+     * across — later for a positive count — and lets go.
+     */
+    private fun ComposeUiTest.dragTripEnd(probe: Probe, atStart: Boolean, days: Float, view: CalendarView = CalendarView.Month) {
+        val bar = boundsOf(trip, probe)
+        val inset = 4f * probe.density
+        val from = Offset(if (atStart) bar.left + inset else bar.right - inset, bar.center.y)
+        val width = if (view == CalendarView.Month) {
+            900f * probe.density / DaysPerWeek
+        } else {
+            fun heading(date: LocalDate) = onNode(hasContentDescription(probe.formats.date(date, DateStyle.Full)) and hasClickAction())
+                .fetchSemanticsNode().boundsInRoot.center.x
+            heading(LocalDate(2026, 10, 21)) - heading(LocalDate(2026, 10, 20))
+        }
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveBy(Offset(width * days / 10f, 0f)) }
+            release()
+        }
+        waitForIdle()
+    }
+
+    /** Asked for as time adjustment for events over several days: a bar's ends move by whole days. */
+    @Test
+    fun aMonthsBarsEndDraggedADayOnIsADayLonger() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        dragTripEnd(probe, atStart = false, days = 1f)
+        val (event, start, end) = probe.resizes.singleOrNull() ?: error("the bar's end did not resize it: moves ${probe.moves}")
+        assertEquals(trip.id, event.id)
+        assertEquals(trip.start, start, "the end dragged moved the start")
+        assertEquals(trip.end.plusMinutes(MinutesPerDay.toLong()), end)
+        assertTrue(probe.moves.isEmpty(), "dragging the end moved the bar")
+    }
+
+    @Test
+    fun aMonthsBarsStartDraggedADayBackIsADayLonger() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        dragTripEnd(probe, atStart = true, days = -1f)
+        val (_, start, end) = probe.resizes.singleOrNull() ?: error("the bar's start did not resize it: moves ${probe.moves}")
+        assertEquals(trip.start.plusMinutes(-MinutesPerDay.toLong()), start)
+        assertEquals(trip.end, end)
+    }
+
+    @Test
+    fun aBarIsADayLongAtTheLeast() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        dragTripEnd(probe, atStart = false, days = -3f)
+        val (_, start, end) = probe.resizes.singleOrNull() ?: error("the bar's end did not resize it")
+        assertEquals(trip.start, start)
+        assertEquals(trip.start.plusMinutes(MinutesPerDay.toLong()), end, "the bar went shorter than its first day")
+    }
+
+    @Test
+    fun aWeeksAllDayBarsEndDragsByDaysToo() = runComposeUiTest {
+        // The week the trip is in, from the Monday after.
+        val probe = calendar(events = listOf(trip), initialDate = LocalDate(2026, 10, 19))
+        dragTripEnd(probe, atStart = false, days = 2f, view = CalendarView.Week)
+        val (_, _, end) = probe.resizes.singleOrNull() ?: error("the all-day bar's end did not resize it")
+        assertEquals(trip.end.plusMinutes(2L * MinutesPerDay), end)
+    }
+
+    @Test
+    fun shiftAndAnArrowMakeABarADayLonger() = runComposeUiTest {
+        // On the trip's first day, where the keyboard reaches it.
+        val probe = calendar(view = CalendarView.Month, initialDate = LocalDate(2026, 10, 20))
+        onNode(hasContentDescription(eventDescription(trip, probe.formats, probe.strings))).requestFocus()
+        onRoot().performKeyInput {
+            pressKey(Key.Spacebar)
+            withKeyDown(Key.ShiftLeft) { pressKey(Key.DirectionRight) }
+            pressKey(Key.Enter)
+        }
+        waitForIdle()
+        val (_, start, end) = probe.resizes.single()
+        assertEquals(trip.start, start)
+        assertEquals(trip.end.plusMinutes(MinutesPerDay.toLong()), end)
     }
 
     /** Carries the trip's bar from the middle of its first day to [share] of the way into the next, and lets go. */
