@@ -2250,7 +2250,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "TimePicker",
             role = null,
             underContract = false,
-            renderHeight = 240,
+            // The wheels' 240, and the Now button under them.
+            renderHeight = 280,
         ) { modifier, _, _ ->
             TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
         }
@@ -2261,8 +2262,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // A date picker's 380 and a time picker's 240, and the gap between.
-            renderHeight = 640,
+            // A date picker's 380 and a time picker's 280, and the gap between.
+            renderHeight = 680,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,
         ) { modifier, _, _ ->
