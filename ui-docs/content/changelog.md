@@ -77,6 +77,9 @@ passed by position need naming — see **Breaking**, and
   the pointer after it pages.** From the second week or month on, the carried
   event stayed where it was. A pointer held still at the edge is followed into
   the period paged in.
+- **An event carried to the side of an [event calendar](components/event-calendar.md)
+  shows the date range picker's arrow** in the day at that side, its ring
+  filling over the hold that pages on to the next week or month.
 - **A carried event in an event calendar stays on its day.** Carried to the top
   or the foot of the hours, it stops at midnight, where it used to spill into
   the day before or after. The arrow keys and a screen reader's move earlier

@@ -13,6 +13,8 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.MouseButton
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onRoot
@@ -281,6 +283,41 @@ class EventCalendarMenuTest {
         // At whatever time the pointer was level with: the next week has an all-day
         // row this one has not, and the hours are lower by it.
         assertEquals(60L, end.epochMinute - start.epochMinute, "the carry changed the event's length")
+    }
+
+    /**
+     * Held at the side of the days, a carry shows the date range picker's
+     * arrow there, its ring filling over the dwell that pages on: what is
+     * drawn beside the pointer changes as the hold goes on.
+     */
+    @Test
+    fun aCarryHeldAtTheEdgeShowsTheArrowFilling() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Mouse)
+        val from = boundsOf(review, probe).center
+        val edge = 900f * probe.density - 6f
+        val to = Offset(edge, from.y)
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (to.x - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(200)
+        val early = onRoot().captureToImage().toPixelMap()
+        mainClock.advanceTimeBy(350)
+        val later = onRoot().captureToImage().toPixelMap()
+        // The last day's column, a little either side of the pointer's height.
+        val reach = 40f * probe.density
+        var changed = 0
+        for (x in (to.x - 60f * probe.density).toInt() until minOf(later.width, (to.x + 4f).toInt())) {
+            for (y in (to.y - reach).toInt()..(to.y + reach).toInt()) {
+                if (y !in 0 until later.height) continue
+                if (early[x, y] != later[x, y]) changed++
+            }
+        }
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        assertTrue(changed > 20, "nothing beside the pointer filled as the carry was held at the edge ($changed pixels changed)")
     }
 
     /**

@@ -272,6 +272,8 @@ fun EventCalendar(
             // Over the calendar rather than in its column, so it takes no room.
             Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcer.message })
             if (scope.menus) EditMenus(scope)
+            // The range picker's arrows at either side, while an event is carried.
+            EditArrows(scope)
         }
     }
 }

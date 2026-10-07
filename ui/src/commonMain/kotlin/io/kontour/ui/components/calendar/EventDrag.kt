@@ -14,6 +14,8 @@ import kotlin.math.exp
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -137,6 +139,14 @@ internal class EventEdit(
 
     /** The minutes a step is: the calendar's `snap`. */
     var stepMinutes: Int = DefaultStepMinutes
+
+    /**
+     * Which side of the days a carry is held at, on the screen — -1 the left,
+     * 1 the right, 0 neither — and how far through its dwell it is, 0 to 1:
+     * for the arrow there to show and fill, as a range picker's does.
+     */
+    var dwellSide: Int by mutableIntStateOf(0)
+    var dwellProgress: Float by mutableFloatStateOf(0f)
 
     /** The pointer's last place, in the root, for the scroll near the edges to carry on from. */
     var lastPointer: Offset? by mutableStateOf(null)

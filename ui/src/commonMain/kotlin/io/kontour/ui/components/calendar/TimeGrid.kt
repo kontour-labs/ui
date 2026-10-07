@@ -249,7 +249,7 @@ internal fun EditDwell(scope: CalendarScope) {
         snapshotFlow {
             landed
             val pointer = edit.lastPointer
-            if (edit.kind != EditKind.Move || edit.pointer == null || pointer == null) return@snapshotFlow 0
+            if (edit.kind != EditKind.Move || edit.pointer == null || pointer == null) return@snapshotFlow NotHeld
             val shown = state.visibleDates
             val places = if (edit.byDays) edit.days else edit.columns
             var left = Float.MAX_VALUE
@@ -262,15 +262,20 @@ internal fun EditDwell(scope: CalendarScope) {
                 right = maxOf(right, x + coordinates.size.width)
                 if (date == shown.start) firstLeft = x
             }
-            if (left > right) return@snapshotFlow 0
+            if (left > right) return@snapshotFlow NotHeld
             // The first day on the right: the reading runs the other way.
             val rtl = firstLeft != null && firstLeft > (left + right) / 2f
-            when {
-                pointer.x < left + zone -> if (rtl) 1 else -1
-                pointer.x > right - zone -> if (rtl) -1 else 1
+            // The side on the screen, -1 left and 1 right; paged by the reading's.
+            val side = when {
+                pointer.x < left + zone -> -1
+                pointer.x > right - zone -> 1
                 else -> 0
             }
-        }.collectLatest { out ->
+            // The side on the screen, and the way it pages.
+            side to if (rtl) -side else side
+        }.collectLatest { (side, out) ->
+            edit.dwellSide = side
+            edit.dwellProgress = 0f
             if (out == 0) return@collectLatest
             while (true) {
                 var held = 0L
@@ -279,7 +284,9 @@ internal fun EditDwell(scope: CalendarScope) {
                     val now = withFrameNanos { it }
                     held += now - last
                     last = now
+                    edit.dwellProgress = (held.toFloat() / DwellNanos).coerceAtMost(1f)
                 }
+                edit.dwellProgress = 0f
                 // Paged, and the carry aimed again once the new period has
                 // come in — not cancelled by the pager's slide, which moves
                 // the days this reads and so the side it says the pointer is
@@ -301,6 +308,9 @@ internal fun EditDwell(scope: CalendarScope) {
         }
     }
 }
+
+/** No carry held at either side. */
+private val NotHeld = 0 to 0
 
 /** The longest a carry waits for a page to come in before it finds its day anyway. */
 private const val PageLandNanos = 1_000_000_000L
