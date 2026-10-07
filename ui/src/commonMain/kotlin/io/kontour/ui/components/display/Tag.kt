@@ -27,6 +27,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.a11y.contentColourFor
@@ -277,11 +280,17 @@ fun Badge(
  * The offset has to come from the badge's own measured size, and a modifier
  * cannot read that.
  *
- * The second thing it fixes is clipping. The old version drew the badge outside
- * its own bounds, so any ancestor with a `clip` — a rounded nav item, a
- * `Surface` — took a bite out of it, and the fix at each call site was to
- * remember to add padding. This reports a size that *includes* the overhang, so
- * there is nothing outside the bounds to clip.
+ * ### Exactly the size of what it badges
+ *
+ * It reports [content]'s size, and its baselines, and the badge hangs outside
+ * them. It used to report a size that included the overhang — half the badge,
+ * on the top and the trailing side only — with the content pushed to the
+ * bottom-start of that, so nothing was outside the bounds for a clipping parent
+ * to cut. But a row centres what it is given: a badged button in a top bar's
+ * actions sat lower than the buttons beside it, by half a badge, and further
+ * from its neighbour. Now a badged thing lines up with unbadged ones, as a nav
+ * bar's destinations already did. A parent that clips needs half a badge of
+ * room round the corner — a top bar's 40dp buttons in a 64dp row have it.
  */
 @Composable
 fun BadgedBox(
@@ -304,9 +313,17 @@ fun BadgedBox(
         val outX = (mark.width * BadgeDefaults.Overhang).roundToInt()
         val outY = (mark.height * BadgeDefaults.Overhang).roundToInt()
 
-        layout(body.width + outX, body.height + outY) {
-            body.placeRelative(0, outY)
-            mark.placeRelative(body.width + outX - mark.width, 0)
+        // The content's size and baselines, so it lines up as it would unbadged.
+        val lines = buildMap<AlignmentLine, Int> {
+            for (line in listOf(FirstBaseline, LastBaseline)) {
+                val at = body[line]
+                if (at != AlignmentLine.Unspecified) put(line, at)
+            }
+        }
+        layout(body.width, body.height, lines) {
+            body.placeRelative(0, 0)
+            // Its centre on the corner, overhanging by half of itself.
+            mark.placeRelative(body.width + outX - mark.width, -outY)
         }
     }
 }

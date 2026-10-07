@@ -68,6 +68,12 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A badged button lines up with the buttons beside it.** A
+  [`BadgedBox`](components/badge.md) is now exactly the size of what it badges,
+  with its baselines, and the badge hangs over the corner outside it. It used to
+  grow by half the badge on the top and trailing side, so a badged button in a
+  top bar's actions sat half a badge lower than its neighbours, with uneven gaps
+  either side.
 - **A [time picker](components/time-picker.md) and a
   [date-and-time picker](components/date-time-picker.md) have a Now button**
   under their wheels, so the time and date-time fields' pickers do too. It

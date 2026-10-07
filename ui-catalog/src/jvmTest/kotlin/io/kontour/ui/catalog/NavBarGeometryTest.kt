@@ -301,10 +301,11 @@ class NavBarGeometryTest {
     /**
      * A badge does not move the glyph it annotates.
      *
-     * `BadgedBox` reports a size that *includes* the badge's overhang and places
-     * its content off-centre inside it — correct for a toolbar icon, and the whole
-     * of this bug for a destination, because centring an asymmetrically padded
-     * node centres the **padding**. With an 18dp badge the icon landed 4.5dp
+     * `BadgedBox` reported a size that *included* the badge's overhang and placed
+     * its content off-centre inside it — the whole of this bug for a
+     * destination, because centring an asymmetrically padded node centres the
+     * **padding**, and later found to be the same bug for a toolbar icon, so
+     * `BadgedBox` now keeps its content's size. With an 18dp badge the icon landed 4.5dp
      * towards the leading side and 4.5dp below the centre of the very circle drawn
      * to mark it, so the one badged destination sat visibly out of step with the
      * two beside it.
