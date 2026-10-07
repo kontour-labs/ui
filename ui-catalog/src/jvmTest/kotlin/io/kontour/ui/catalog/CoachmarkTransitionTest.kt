@@ -163,6 +163,54 @@ class CoachmarkTransitionTest {
         }
     }
 
+    /**
+     * The ball sets off from where the last mark shrank to, and is nowhere else
+     * first — asked for as *"it sort of jitters around as the ball is moving"*.
+     * It was drawn for two frames as already arrived and growing at the far end
+     * of the screen, then jumped back to set off.
+     */
+    @Test
+    fun theBallIsNotAtTheNextStepBeforeItHasTravelledThere() {
+        var tour: CoachmarkTour? = null
+        var accent = Color.Unspecified
+        var two = Rect.Zero
+        Scene(width = Width, height = Height, density = 2f, frameNanos = 8_000_000L) {
+            tour = rememberCoachmarkTour(First, Second, transition = CoachmarkTransition.Morph)
+            accent = Theme.colours.accent.solid
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
+                    Target(Modifier.align(Alignment.TopStart).coachmarkStep(tour!!, First, "One", "The first."))
+                    Target(Modifier.align(Alignment.BottomEnd).reportBounds { two = it }.coachmarkStep(tour!!, Second, "Two", "The second."))
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            tour!!.start()
+            scene.frames(60)
+            tour!!.next()
+            // Through the shrink and the first frames of the trip: the ball is near
+            // the first step, a whole screen from the second.
+            val near = two.inflate(TargetSize * 4f)
+            val frames = List(30) { scene.frame() }
+            val early = frames.take(24).maxOf { it.count(accent, within = near) }
+            assertEquals(0, early, "the mark's colour was drawn by the next step before the ball had travelled there")
+            // The canary: it does get there.
+            assertTrue(List(60) { scene.frame() }.last().count(accent, within = near) > 400, "the ball never arrived at the next step")
+        }
+    }
+
+    /** Pixels within a hair of [colour] inside [within]. */
+    private fun BufferedImage.count(colour: Color, within: Rect): Int {
+        val want = colour.toArgb()
+        var n = 0
+        val left = within.left.toInt().coerceAtLeast(0)
+        val right = within.right.toInt().coerceAtMost(width)
+        val top = within.top.toInt().coerceAtLeast(0)
+        val bottom = within.bottom.toInt().coerceAtMost(height)
+        for (y in top until bottom) for (x in left until right) if (near(getRGB(x, y), want)) n++
+        return n
+    }
+
     /** The brightest pixel's luminance, away from [except]. */
     private fun BufferedImage.brightest(except: List<Rect>): Int {
         var best = 0

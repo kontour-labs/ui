@@ -584,11 +584,21 @@ private suspend fun TourScene.walkTo(
 
     val first = !started && leaving == null && parked == null
     started = true
+    val from = leaving
+    if (!first && morph && from != null) {
+        // **The trip set up before the next step is shown.** Shown first, the
+        // ball was drawn for two frames as already arrived and growing out of
+        // its next mark — at the far end of the screen — and then jumped back
+        // to set off: a flash at the destination, read as the ball jittering.
+        zipFrom = parked ?: tipOf(from) ?: ballAt
+        zipFromColour = if (parked != null) ballColour else colours.of(from.tone)
+        parked = null
+        zip.snapTo(0f)
+    }
     arrival.snapTo(if (first) 1f else 0f)
     showing = step
     if (first) return
 
-    val from = leaving
     if (!morph) {
         // **One spec for both**, so at every frame what has gone of one has
         // come of the other: two different curves left both holes half dark in
@@ -604,13 +614,10 @@ private suspend fun TourScene.walkTo(
         return
     }
     if (from != null) {
-        // Placed before it can be gone to: the bubble's first layout, unseen.
+        // Placed before it can be gone to: the bubble's first layout, unseen,
+        // with the ball waiting where it set off from.
         withFrameNanos { }
         withFrameNanos { }
-        zipFrom = parked ?: tipOf(from) ?: ballAt
-        zipFromColour = if (parked != null) ballColour else colours.of(from.tone)
-        parked = null
-        zip.snapTo(0f)
         leaving = null
         zip.animateTo(1f, motion.springOrTween(motion.springSnappy))
     } else {
@@ -813,7 +820,8 @@ private fun DrawScope.drawBall(scene: TourScene, radius: Float, look: BallLook, 
         }
         coming != null && scene.zip.value < 1f -> {
             val from = scene.zipFrom ?: return
-            val to = tipOf(coming) ?: return
+            // Not laid out yet: waiting where it set off from.
+            val to = tipOf(coming) ?: from
             val t = scene.zip.value
             val at = Offset(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t)
             val tone = colours.of(coming.tone)
