@@ -22,6 +22,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import io.kontour.ui.interaction.DetentTicker
+import io.kontour.ui.interaction.HoldFeedback
 import io.kontour.ui.interaction.LandingFeedback
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -61,7 +62,18 @@ internal class EventEdit(
     val steps: DetentTicker,
     val landing: LandingFeedback,
     val pickedUp: () -> Unit,
+    /** The rumble while a carry is held at the side, as a range picker's dwell has. */
+    val hold: HoldFeedback? = null,
+    /** A threshold felt once a page, as a range picker's dwell turning its month. */
+    val pages: DetentTicker? = null,
 ) {
+    private var paged = 0
+
+    /** A period paged in under the carry: felt once, as a threshold. */
+    fun pageTurned() {
+        pages?.at(++paged)
+    }
+
     /** What the edit is, while there is one. */
     var kind: EditKind? by mutableStateOf(null)
         private set
@@ -426,6 +438,9 @@ internal class EventEdit(
         this.byDays = byDays
         steps.reset()
         steps.at(stepIndex(start))
+        paged = 0
+        pages?.reset()
+        pages?.at(paged)
     }
 
     /** The pointer is now at [root]: the proposal follows it, a step at a time. */

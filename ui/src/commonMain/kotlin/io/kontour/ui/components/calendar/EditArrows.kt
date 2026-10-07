@@ -9,31 +9,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.components.datetime.arrowRing
 import io.kontour.ui.components.datetime.drawEdgeArrow
-import io.kontour.ui.components.datetime.ringPresence
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.lines
-import kotlin.math.abs
 
 /**
  * The date range picker's arrows, at either side of the days while an event
  * is carried: asked for as *the little left/right arrows that show up when you
  * get close to the start/end of the month as you're dragging*.
  *
- * The same ring and chevron, drawn by the same code: in the day at the edge,
- * against its outer side, fading in as the pointer comes within a couple of
- * days of that side, and filling over the dwell that pages on — see
- * `EditDwell` — so holding a carry at the side says what it is about to do.
- * A little above the pointer rather than level with it, where the event being
- * carried is and a finger would cover it, and on a disc of the surface's
- * colour, since unlike a date picker's day it can be over an event. Over the
- * whole calendar and read in the draw pass, so a carry recomposes nothing for
- * it.
+ * The same ring and chevron, drawn by the same code, filling over the dwell
+ * that pages on — see `EditDwell`, which also gives it the picker's rumble —
+ * so holding a carry at the side says what it is about to do.
+ *
+ * - **Level with the pointer**, always, against the days' outer edge: not in
+ *   the edge day's middle, which in a day view is the middle of the screen.
+ * - **Near the edge only**: fading in from [FadeFrom] of it to whole at the
+ *   [DwellZone] where the dwell starts, the same distance in every view. By
+ *   the day's width it came in from two and a half days away, which a day
+ *   view's one wide day put anywhere on the screen.
+ * - **One size**: a week's or a month's, whatever is carried. Sized by the day
+ *   it was in, an all-day bar's 24dp row made it tiny.
+ *
+ * On a disc of the surface's colour, since unlike a date picker's day it can be
+ * over the event being carried. Over the whole calendar and read in the draw
+ * pass, so a carry recomposes nothing for it.
  */
 @Composable
 internal fun BoxScope.EditArrows(scope: CalendarScope) {
@@ -57,31 +60,37 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
                 val origin = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero) ?: return@drawBehind
                 val shownDates = edit.shown() ?: return@drawBehind
                 val places = if (edit.byDays) edit.days else edit.columns
-                val boxes = places.values.mapNotNull { (date, coordinates) ->
-                    if (date !in shownDates || !coordinates.isAttached || coordinates.size.width <= 0) null else coordinates.rootBox()
+                var left = Float.MAX_VALUE
+                var right = -Float.MAX_VALUE
+                for ((date, coordinates) in places.values) {
+                    if (date !in shownDates || !coordinates.isAttached || coordinates.size.width <= 0) continue
+                    val x = coordinates.localToRoot(Offset.Zero).x
+                    left = minOf(left, x)
+                    right = maxOf(right, x + coordinates.size.width)
                 }
-                if (boxes.isEmpty()) return@drawBehind
-                val left = boxes.minOf { it.left }
-                val right = boxes.maxOf { it.right }
-                for (side in intArrayOf(-1, 1)) {
-                    val edge = if (side < 0) left else right
-                    // The edge day in the pointer's row: the one at that side nearest it up and down.
-                    val box = boxes
-                        .filter { abs((if (side < 0) it.left else it.right) - edge) < 1f }
-                        .minByOrNull { if (pointer.y < it.top) it.top - pointer.y else if (pointer.y > it.bottom) pointer.y - it.bottom else 0f }
-                        ?: continue
-                    val half = minOf(box.width, box.height, MaxCell.toPx()) / 2f
+                if (left > right) return@drawBehind
+                val half = ArrowHalfCell.toPx()
+                val (out, radius) = arrowRing(half)
+                val pad = radius * DiscShare
+                val arrows = arrowPlaces(
+                    left = left,
+                    right = right,
+                    pointer = pointer,
+                    dwellSide = edit.dwellSide,
+                    inset = pad + EdgeInset.toPx(),
+                    fadeFrom = FadeFrom.toPx(),
+                    full = DwellZone.toPx(),
+                )
+                for (place in arrows) {
+                    val side = place.side
                     val held = edit.dwellSide == side
-                    val near = if (held) 1f else ringPresence(abs(pointer.x - box.center.x) / box.width)
-                    val alpha = near * shown
+                    val alpha = place.presence * shown
                     if (alpha <= 0f) continue
-                    val (out, radius) = arrowRing(half)
-                    val pad = radius * DiscShare
-                    val y = (pointer.y - Lift.toPx()).coerceIn(box.top + pad, (box.bottom - pad).coerceAtLeast(box.top + pad))
-                    val centre = Offset(box.center.x + (if (side < 0) -out else out), y) - origin
+                    val centre = place.centre - origin
                     drawCircle(disc, radius = pad, center = centre, alpha = alpha)
                     drawEdgeArrow(
-                        day = Offset(box.center.x, y) - origin,
+                        // `drawEdgeArrow` puts the ring `out` from a day's middle toward its side.
+                        day = Offset(centre.x - side * out, centre.y),
                         halfCell = half,
                         pointsLeft = side < 0,
                         progress = if (held) edit.dwellProgress else 0f,
@@ -96,16 +105,41 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
     )
 }
 
-private fun LayoutCoordinates.rootBox(): Rect {
-    val at = localToRoot(Offset.Zero)
-    return Rect(at.x, at.y, at.x + size.width, at.y + size.height)
-}
+/** One side's arrow: which side, -1 the left; where its ring's centre is, in the root; and how much of it shows. */
+internal class ArrowPlace(val side: Int, val centre: Offset, val presence: Float)
 
-/** How far above the pointer the arrow is: clear of a fingertip, and of the event under it. */
-private val Lift = 36.dp
+/**
+ * Where the arrows go for days from [left] to [right] and a pointer at
+ * [pointer], all in the root: against each outer edge, [inset] in, level with
+ * the pointer; showing from [fadeFrom] of that edge, whole by [full] of it, and
+ * whole on the side [dwellSide] is held at.
+ */
+internal fun arrowPlaces(
+    left: Float,
+    right: Float,
+    pointer: Offset,
+    dwellSide: Int,
+    inset: Float,
+    fadeFrom: Float,
+    full: Float,
+): List<ArrowPlace> = listOf(-1, 1).map { side ->
+    // How far in from that side the pointer is: past it is as near as can be.
+    val distance = if (side < 0) pointer.x - left else right - pointer.x
+    val presence = if (dwellSide == side) 1f else ((fadeFrom - distance) / (fadeFrom - full)).coerceIn(0f, 1f)
+    ArrowPlace(side, Offset(if (side < 0) left + inset else right - inset, pointer.y), presence)
+}
 
 /** The disc behind the ring, against the ring's radius. */
 private const val DiscShare = 1.6f
 
-/** As big as a range picker's day at most: a day in the hours is a column, as tall as the day. */
-private val MaxCell = 48.dp
+/** Half the day the ring is sized by: a week's or a month's, whatever is carried. */
+private val ArrowHalfCell = 24.dp
+
+/** How far from the days' side the arrow starts to show; it is whole at the [DwellZone]. */
+private val FadeFrom = 72.dp
+
+/** Where the dwell starts, as `EditDwell` has it. */
+private val DwellZone = 24.dp
+
+/** The gap between the disc and the days' outer edge. */
+private val EdgeInset = 2.dp

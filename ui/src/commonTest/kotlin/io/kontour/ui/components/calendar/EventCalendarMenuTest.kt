@@ -27,6 +27,10 @@ import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.input.InputModality
+import io.kontour.ui.interaction.SustainedFeedback
+import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.FeedbackIntent
+import io.kontour.ui.interaction.FeedbackDispatcher
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.LocaleFormats
@@ -71,11 +75,12 @@ class EventCalendarMenuTest {
         view: CalendarView = CalendarView.Week,
         modality: InputModality = InputModality.Touch,
         reduceMotion: Boolean = true,
+        feedback: FeedbackDispatcher? = null,
     ): Probe {
         val probe = Probe()
         setContent {
             KontourTheme(reduceMotion = reduceMotion) {
-                CompositionLocalProvider(LocalInputModality provides modality) {
+                CompositionLocalProvider(LocalInputModality provides modality, LocalFeedback provides (feedback ?: LocalFeedback.current)) {
                     OverlayHost(Modifier.size(900.dp, 900.dp)) {
                         probe.formats = Theme.formats
                         probe.strings = Theme.strings
@@ -283,6 +288,53 @@ class EventCalendarMenuTest {
         // At whatever time the pointer was level with: the next week has an all-day
         // row this one has not, and the hours are lower by it.
         assertEquals(60L, end.epochMinute - start.epochMinute, "the carry changed the event's length")
+    }
+
+    /**
+     * Held at the side of the days, a carry is felt as a range picker's dwell
+     * is: a rumble that builds while it is held, let go of as the page turns,
+     * and the page felt once, as a threshold.
+     */
+    @Test
+    fun aCarryHeldAtTheEdgeRumblesThenFeelsThePageTurn() = runComposeUiTest {
+        val story = mutableListOf<String>()
+        val feedback = object : FeedbackDispatcher {
+            override fun perform(intent: FeedbackIntent) {
+                story += intent.name
+            }
+
+            override fun sustain(intent: FeedbackIntent): SustainedFeedback {
+                story += "held ${intent.name}"
+                return object : SustainedFeedback {
+                    override fun update(progress: Float) = Unit
+                    override fun stop() {
+                        story += "let go"
+                    }
+                }
+            }
+        }
+        val probe = calendar(modality = InputModality.Mouse, feedback = feedback)
+        val from = boundsOf(review, probe).center
+        val edge = 900f * probe.density - 6f
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        story.clear()
+        // Past one dwell, short of a second.
+        mainClock.advanceTimeBy(1_000)
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        val held = story.indexOf("held Hold")
+        val letGo = story.indexOf("let go")
+        val paged = story.indexOf(FeedbackIntent.DragThreshold.name)
+        assertTrue(held >= 0, "no rumble while the carry was held at the edge: $story")
+        assertTrue(letGo > held, "the rumble was not let go of: $story")
+        assertTrue(paged > letGo, "the page turn was not felt after the rumble: $story")
+        assertEquals(1, story.count { it == FeedbackIntent.DragThreshold.name }, "the page was felt more than once: $story")
     }
 
     /**

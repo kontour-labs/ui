@@ -18,6 +18,7 @@ import io.kontour.ui.components.datetime.rememberTodayFlash
 import io.kontour.ui.components.datetime.LocalTodayFlash
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberLandingFeedback
+import io.kontour.ui.interaction.rememberHoldFeedback
 import io.kontour.ui.input.LocalInputModality
 import io.kontour.ui.input.rememberFocusRingVisible
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -485,7 +486,11 @@ internal fun rememberEventEdit(): EventEdit {
     val steps = rememberDetentTicker(FeedbackIntent.Snap)
     val landing = rememberLandingFeedback()
     val pickedUp = rememberLongPressFeedback()
-    return remember(steps, landing) { EventEdit(steps, landing, pickedUp) }
+    // The range picker's own dwell: a rumble while held at the side, and a
+    // threshold as the page turns.
+    val hold = rememberHoldFeedback()
+    val pages = rememberDetentTicker(FeedbackIntent.DragThreshold)
+    return remember(steps, landing, pickedUp, hold, pages) { EventEdit(steps, landing, pickedUp, hold, pages) }
 }
 
 private fun systemNow(): LocalDateTime =

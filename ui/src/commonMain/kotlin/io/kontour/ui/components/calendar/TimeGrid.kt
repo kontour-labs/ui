@@ -280,11 +280,19 @@ internal fun EditDwell(scope: CalendarScope) {
             while (true) {
                 var held = 0L
                 var last = withFrameNanos { it }
-                while (held < DwellNanos) {
-                    val now = withFrameNanos { it }
-                    held += now - last
-                    last = now
-                    edit.dwellProgress = (held.toFloat() / DwellNanos).coerceAtMost(1f)
+                // The range picker's rumble, building over the hold; stopped
+                // before the page turns, and as soon as the hold is let go.
+                edit.hold?.start()
+                try {
+                    while (held < DwellNanos) {
+                        val now = withFrameNanos { it }
+                        held += now - last
+                        last = now
+                        edit.dwellProgress = (held.toFloat() / DwellNanos).coerceAtMost(1f)
+                        edit.hold?.update(edit.dwellProgress)
+                    }
+                } finally {
+                    edit.hold?.stop()
                 }
                 edit.dwellProgress = 0f
                 // Paged, and the carry aimed again once the new period has
@@ -294,6 +302,8 @@ internal fun EditDwell(scope: CalendarScope) {
                 // until the pointer moved, and a still finger never did.
                 withContext(NonCancellable) {
                     state.step(out)
+                    // The page turning is the one thing felt: a threshold.
+                    edit.pageTurned()
                     // The new period's days, laid out and come to rest, before
                     // the carry finds its day in them.
                     withFrameNanos { }
@@ -301,6 +311,8 @@ internal fun EditDwell(scope: CalendarScope) {
                     withTimeoutOrNull(PageLandNanos / 1_000_000) {
                         snapshotFlow { scope.pager.periods.inView.size }.first { it <= 1 }
                     }
+                    // Aimed again without a step's detent: the page was the change.
+                    edit.steps.reset()
                     edit.lastPointer?.let(edit::move)
                     landed++
                 }
