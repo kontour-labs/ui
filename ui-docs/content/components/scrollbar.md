@@ -34,6 +34,19 @@ It reads any scroller foundation ships — `ScrollState`, lazy lists, grids and
 staggered grids, pagers — from the position they report; a grid's used to draw
 nothing at all.
 
+**A lazy list's length is from every row it has measured**, not only the rows on
+screen. A lazy list knows the size of what it has laid out and nothing else, so
+the rows not yet seen are taken at the average of all those that have been. The
+estimate improves as the list is scrolled, and once every row has been seen it
+is the list's true length. Over a list of short headers and tall cards the thumb
+keeps its length, where it used to grow over the headers and shrink over the
+cards. While a finger or the mouse holds the thumb, its length and the rate it
+scrolls at are kept as they were at the press.
+
+A list with an [`IndexScroller`](index-scroller.md) down its edge has no
+scrollbar: the index is its position control, and the bar draws nothing while
+the index is there.
+
 **How it shows follows the input, not the platform.**
 
 | | Touch, stylus | Mouse, keyboard |

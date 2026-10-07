@@ -1,6 +1,5 @@
 package io.kontour.ui.catalog.apps.transit
 
-import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,14 +106,8 @@ internal fun StopsPage(onStop: (String) -> Unit) {
                 state = list,
                 modifier = Modifier
                     .fillMaxSize()
-                    // Beside the index down the edge, not under it.
-                    .scrollbar(
-                        list,
-                        contentPadding = PaddingValues(
-                            end = suite.calculateEndPadding(direction) + IndexScrollerDefaults.Width,
-                            bottom = suite.calculateBottomPadding(),
-                        ),
-                    )
+                    // No scrollbar: the index down the edge is how this list is
+                    // moved through.
                     .testTag("stops"),
                 contentPadding = PaddingValues(
                     start = suite.calculateStartPadding(direction) + Theme.spacing.md,

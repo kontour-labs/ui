@@ -68,6 +68,14 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A [scrollbar](components/scrollbar.md) keeps its length on a lazy list of
+  uneven rows.** A lazy list's length was the average row on screen times the
+  number of rows, so the thumb grew over short rows and shrank over tall ones.
+  It is now from every row the list has measured, and is held still while the
+  thumb is.
+- **A list with an [index](components/index-scroller.md) has no scrollbar.** The
+  index is its position control, so a scrollbar given the same list draws
+  nothing while the index is there.
 - **An undismissable [modal sheet](components/modal-bottom-sheet.md) with one
   size has no drag handle.** With `dismissible = false` and nothing to be dragged
   between, a drag only stretched it and sprang it back. A sheet with more than one

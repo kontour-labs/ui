@@ -55,6 +55,10 @@ the end edge in `IndexScrollerDefaults.Width`. Put it over the list with
 `Modifier.align(Alignment.CenterEnd)` in a `Box`, and pad the list's end by that
 width, as above, so no row's end runs under the letters. Add `fillMaxHeight()`
 to the rail to spread the letters over the whole height.
+
+**The rail is the list's scrollbar.** While it is there, a
+[scrollbar](scrollbar.md) given the same list draws nothing, so no second
+control fights it for the same edge. Nothing needs taking off.
 The bubble is an overlay, so an app needs an `OverlayHost`, as it does for a
 tooltip; the rail itself draws without one until it is touched.
 

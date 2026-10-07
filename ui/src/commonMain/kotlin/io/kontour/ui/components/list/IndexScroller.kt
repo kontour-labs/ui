@@ -4,6 +4,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
@@ -179,6 +180,12 @@ fun IndexScroller(
     colours: IndexScrollerColours = IndexScrollerDefaults.colours(),
     interactionSource: MutableInteractionSource? = null,
 ) {
+    // The rail is this list's position control while it is here; a scrollbar
+    // given the same list stands aside.
+    DisposableEffect(state) {
+        IndexedLists += state
+        onDispose { IndexedLists -= state }
+    }
     val labels = remember(alphabet) { alphabet.labels + alphabet.other }
     val landing = remember(labels, sections) { landingSections(labels, sections) }
     val filled = remember(labels, sections) {
