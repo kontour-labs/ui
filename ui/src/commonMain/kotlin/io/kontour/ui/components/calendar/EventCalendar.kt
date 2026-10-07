@@ -240,7 +240,7 @@ fun EventCalendar(
         menus = LocalOverlayHostOrNull.current != null,
     )
     // The days a pointer's day can be: the ones on show, not a page sliding away.
-    SideEffect { edit.visible = state.visibleDates }
+    SideEffect { edit.shown = { state.visibleDates } }
     // Turned off — disabled — mid-edit, the edit is put back.
     if (!enabled && edit.live) SideEffect { edit.cancel() }
     // Today pointed at whenever it is gone back to: the header's button, or the app's own call.

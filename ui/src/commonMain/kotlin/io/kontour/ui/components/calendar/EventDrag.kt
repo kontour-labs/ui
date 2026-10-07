@@ -121,8 +121,15 @@ internal class EventEdit(
     var leanOn: Int = 0
         private set
 
-    /** The dates the calendar shows: a pointer's day is one of these, not one of a page sliding away. */
-    var visible: ClosedRange<LocalDate>? = null
+    /**
+     * The dates the calendar shows, read when asked: a pointer's day is one of
+     * these, not one of a page sliding away. A function rather than a copy:
+     * one kept from composition went stale at the first page a carry turned,
+     * and the carry, finding none of its days, stopped following the finger.
+     */
+    var shown: () -> ClosedRange<LocalDate>? = { null }
+
+    private val visible: ClosedRange<LocalDate>? get() = shown()
 
     /** The top, in the root, of the bar taken up by days: which line of its row the ghost keeps to. */
     var grabTop: Float? = null
@@ -143,11 +150,33 @@ internal class EventEdit(
     /** For a move by days: the day the pointer took hold of. */
     private var grabDay: LocalDate? = null
 
-    /** Each day's column of hours, by date: where in the root its midnight is and how wide it is. */
-    val columns = HashMap<LocalDate, LayoutCoordinates>()
+    /**
+     * Each day's column of hours: where in the root its midnight is and how
+     * wide it is. By the column rather than by its date: two pages side by side
+     * can both show a day — a month's spare days — and the one going away,
+     * keyed by date, took the one coming in with it.
+     */
+    val columns = HashMap<Any, DayPlace>()
 
-    /** Each day's box in a month, or its place in a week's all-day row, by date. */
-    val days = HashMap<LocalDate, LayoutCoordinates>()
+    /** Each day's box in a month, or its place in a week's all-day row, by the box, as [columns]. */
+    val days = HashMap<Any, DayPlace>()
+
+    /** [date]'s column on show, or its box: of two, the one nearer the pointer. */
+    private fun HashMap<Any, DayPlace>.of(date: LocalDate): LayoutCoordinates? {
+        val near = lastPointer
+        var best: LayoutCoordinates? = null
+        var bestDistance = Float.MAX_VALUE
+        for (place in values) {
+            if (place.date != date || !place.coordinates.isAttached) continue
+            val c = place.coordinates
+            val distance = if (near == null) 0f else kotlin.math.abs(c.localToRoot(Offset.Zero).x + c.size.width / 2f - near.x)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                best = c
+            }
+        }
+        return best
+    }
 
     /** How many pixels a minute is in the hours. */
     var pixelsPerMinute: Float = 1f
@@ -230,7 +259,7 @@ internal class EventEdit(
      */
     fun timeAt(root: Offset, sameDayAs: LocalDate? = null): Pair<LocalDate, Long>? {
         val column = if (sameDayAs != null) {
-            columns[sameDayAs]?.takeIf { it.isAttached }?.let { sameDayAs to it }
+            columns.of(sameDayAs)?.let { sameDayAs to it }
         } else {
             nearest(columns, root)
         } ?: return null
@@ -243,11 +272,11 @@ internal class EventEdit(
     /** The day under [root] in a month or an all-day row, or the nearest. */
     fun dayAt(root: Offset): LocalDate? = nearest(days, root)?.first
 
-    private fun nearest(of: Map<LocalDate, LayoutCoordinates>, root: Offset): Pair<LocalDate, LayoutCoordinates>? {
+    private fun nearest(of: Map<Any, DayPlace>, root: Offset): Pair<LocalDate, LayoutCoordinates>? {
         var best: Pair<LocalDate, LayoutCoordinates>? = null
         var bestDistance = Float.MAX_VALUE
         val shown = visible
-        for ((date, coordinates) in of) {
+        for ((date, coordinates) in of.values) {
             if (!coordinates.isAttached) continue
             if (shown != null && date !in shown) continue
             val bounds = Rect(coordinates.localToRoot(Offset.Zero), Size(coordinates.size.width.toFloat(), coordinates.size.height.toFloat()))
@@ -276,7 +305,7 @@ internal class EventEdit(
     fun beginMove(event: CalendarEvent, root: Offset) {
         val (date, minute) = timeAt(root) ?: return
         grab = minute - event.start.epochMinute
-        grabX = columns[date]?.takeIf { it.isAttached }?.let { root.x - it.localToRoot(Offset.Zero).x } ?: 0f
+        grabX = columns.of(date)?.let { root.x - it.localToRoot(Offset.Zero).x } ?: 0f
         begin(EditKind.Move, event, event.start, event.end, byDays = false)
         lastPointer = root
     }
@@ -292,7 +321,7 @@ internal class EventEdit(
         val day = dayAt(root) ?: return
         grabDay = day
         overDay = day
-        grabInDay = days[day]?.takeIf { it.isAttached }?.let { root - it.localToRoot(Offset.Zero) } ?: Offset.Zero
+        grabInDay = days.of(day)?.let { root - it.localToRoot(Offset.Zero) } ?: Offset.Zero
         grabTop = top
         begin(EditKind.Move, event, event.start, event.end, byDays = true)
         lastPointer = root
@@ -313,8 +342,8 @@ internal class EventEdit(
         if (current == null || near == current) return near.also { overDay = it }
         // A day paged away, or gone: nothing to hold on to.
         val shown = visible
-        val was = days[current]?.takeIf { it.isAttached && (shown == null || current in shown) } ?: return near.also { overDay = it }
-        val box = days[near]?.takeIf { it.isAttached } ?: return near.also { overDay = it }
+        val was = days.of(current)?.takeIf { shown == null || current in shown } ?: return near.also { overDay = it }
+        val box = days.of(near) ?: return near.also { overDay = it }
         val bounds = box.boundsInRoot()
         val from = was.boundsInRoot()
         // Into the next day only along the way it is next: across for a day
@@ -324,7 +353,7 @@ internal class EventEdit(
         val insetY = if (bounds.top != from.top) bounds.height * DayHysteresis else 0f
         val core = Rect(bounds.left + insetX, bounds.top + insetY, bounds.right - insetX, bounds.bottom - insetY)
         // Off every day — past the first or last, waiting for a dwell — the nearest is the one.
-        val onAny = days.values.any { it.isAttached && it.boundsInRoot().contains(root) }
+        val onAny = days.values.any { it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
         return if (!onAny || core.contains(root)) near.also { overDay = it } else current
     }
 
@@ -399,7 +428,7 @@ internal class EventEdit(
                     val length = event.end.epochMinute - event.start.epochMinute
                     val raw = minute - grab
                     val start = roundTo(raw, stepMinutes)
-                    val column = columns[date]?.takeIf { it.isAttached }
+                    val column = columns.of(date)
                     val across = if (column == null) 0f else {
                         val half = column.size.width / 2f
                         (root.x - column.localToRoot(Offset.Zero).x - grabX).coerceIn(-half, half)
@@ -449,7 +478,7 @@ internal class EventEdit(
 
     /** How far [root] is from where it took hold of its day, in [day]'s box: at most half the box either way. */
     private fun dayLean(day: LocalDate, root: Offset): Offset {
-        val box = days[day]?.takeIf { it.isAttached } ?: return Offset.Zero
+        val box = days.of(day) ?: return Offset.Zero
         val origin = box.localToRoot(Offset.Zero)
         val halfX = box.size.width / 2f
         val halfY = box.size.height / 2f
@@ -536,6 +565,9 @@ internal class EventEdit(
         const val DayHysteresis = 0.15f
     }
 }
+
+/** A day's column of hours or its box, and the date it is. */
+internal data class DayPlace(val date: LocalDate, val coordinates: LayoutCoordinates)
 
 /**
  * Something a pointer can take hold of: an event, or one of its edges.

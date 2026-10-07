@@ -26,6 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -74,6 +76,9 @@ import io.kontour.ui.theme.Tone
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -236,8 +241,13 @@ internal fun EditDwell(scope: CalendarScope) {
     val state = scope.state
     val zone = with(LocalDensity.current) { DwellZone.toPx() }
     LaunchedEffect(edit) {
+        // Bumped once a page has come in and the carry been aimed again: the
+        // days' places are not state, and the side was last read as the page
+        // changed, before the new days were laid out — none of them, so no side.
+        var landed by mutableIntStateOf(0)
         // Which side the pointer is held at, if either: frames are counted only then.
         snapshotFlow {
+            landed
             val pointer = edit.lastPointer
             if (edit.kind != EditKind.Move || edit.pointer == null || pointer == null) return@snapshotFlow 0
             val shown = state.visibleDates
@@ -245,7 +255,7 @@ internal fun EditDwell(scope: CalendarScope) {
             var left = Float.MAX_VALUE
             var right = -Float.MAX_VALUE
             var firstLeft: Float? = null
-            for ((date, coordinates) in places) {
+            for ((date, coordinates) in places.values) {
                 if (date !in shown || !coordinates.isAttached) continue
                 val x = coordinates.localToRoot(Offset.Zero).x
                 left = minOf(left, x)
@@ -270,15 +280,30 @@ internal fun EditDwell(scope: CalendarScope) {
                     held += now - last
                     last = now
                 }
-                state.step(out)
-                // The new period's days, laid out, before the carry finds its day in them.
-                withFrameNanos { }
-                withFrameNanos { }
-                edit.lastPointer?.let(edit::move)
+                // Paged, and the carry aimed again once the new period has
+                // come in — not cancelled by the pager's slide, which moves
+                // the days this reads and so the side it says the pointer is
+                // at: cancelled, the carry stayed on the old period's day
+                // until the pointer moved, and a still finger never did.
+                withContext(NonCancellable) {
+                    state.step(out)
+                    // The new period's days, laid out and come to rest, before
+                    // the carry finds its day in them.
+                    withFrameNanos { }
+                    withFrameNanos { }
+                    withTimeoutOrNull(PageLandNanos / 1_000_000) {
+                        snapshotFlow { scope.pager.periods.inView.size }.first { it <= 1 }
+                    }
+                    edit.lastPointer?.let(edit::move)
+                    landed++
+                }
             }
         }
     }
 }
+
+/** The longest a carry waits for a page to come in before it finds its day anyway. */
+private const val PageLandNanos = 1_000_000_000L
 
 /** How near either side of the days a carry is held to page on. */
 private val DwellZone = 24.dp
@@ -491,13 +516,13 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
     val edit = scope.edit
     val placed = remember { PlacedAt() }
     DisposableEffect(edit, date) {
-        onDispose { if (edit.days[date] === placed.coordinates) edit.days.remove(date) }
+        onDispose { edit.days.remove(placed) }
     }
     Box(
         modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.days[date] = coordinates
+                edit.days[placed] = DayPlace(date, coordinates)
             },
     )
 }
@@ -588,7 +613,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
 
     DisposableEffect(edit, date) {
         onDispose {
-            if (edit.columns[date] === placed.coordinates) edit.columns.remove(date)
+            edit.columns.remove(placed)
             edit.draggables.remove(placed)
         }
     }
@@ -612,7 +637,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         modifier = modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.columns[date] = coordinates
+                edit.columns[placed] = DayPlace(date, coordinates)
                 edit.pixelsPerMinute = hourPx / MinutesPerHour
                 if (creates) edit.draggables[placed] = coordinates else edit.draggables.remove(placed)
             }

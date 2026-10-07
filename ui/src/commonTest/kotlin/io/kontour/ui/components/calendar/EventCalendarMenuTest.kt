@@ -68,10 +68,11 @@ class EventCalendarMenuTest {
     private fun ComposeUiTest.calendar(
         view: CalendarView = CalendarView.Week,
         modality: InputModality = InputModality.Touch,
+        reduceMotion: Boolean = true,
     ): Probe {
         val probe = Probe()
         setContent {
-            KontourTheme(reduceMotion = true) {
+            KontourTheme(reduceMotion = reduceMotion) {
                 CompositionLocalProvider(LocalInputModality provides modality) {
                     OverlayHost(Modifier.size(900.dp, 900.dp)) {
                         probe.formats = Theme.formats
@@ -280,6 +281,90 @@ class EventCalendarMenuTest {
         // At whatever time the pointer was level with: the next week has an all-day
         // row this one has not, and the hours are lower by it.
         assertEquals(60L, end.epochMinute - start.epochMinute, "the carry changed the event's length")
+    }
+
+    /**
+     * Paged twice, the carry still follows: the days it looked for its own in
+     * were the first page's, kept from when the calendar last composed, and at
+     * the second page none of them were on show — the event stopped following
+     * the finger.
+     */
+    @Test
+    fun aCarryHeldLongEnoughToPageTwiceGoesOnFollowing() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Mouse)
+        val from = boundsOf(review, probe).center
+        val edge = 900f * probe.density - 6f
+        val width = dayWidth(probe)
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_700)
+        val twoOn = probe.formats.date(LocalDate(2026, 10, 26), DateStyle.Full)
+        onNode(hasContentDescription(twoOn) and hasClickAction()).assertExists("holding at the edge did not page on twice")
+        onRoot().performMouseInput {
+            val at = currentPosition
+            repeat(10) { moveTo(Offset(at.x - width * 4.5f * (it + 1) / 10f, at.y)) }
+            release()
+        }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go when the week paged")
+        assertEquals(LocalDate(2026, 10, 28), start.date, "the carry stopped following the pointer after the second page")
+    }
+
+    /**
+     * With the pager's slide: a pointer held still at the edge carries the
+     * event into the week paged in, without having to move to be followed.
+     */
+    @Test
+    fun withMotionAStillPointerIsFollowedIntoTheWeekPagedIn() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Mouse, reduceMotion = false)
+        val from = boundsOf(review, probe).center
+        val edge = 900f * probe.density - 6f
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_250)
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go when the week paged")
+        assertTrue(
+            start.date >= LocalDate(2026, 10, 19) && start.date <= LocalDate(2026, 10, 25),
+            "a still pointer was left on the week before: $start",
+        )
+    }
+
+    /** As [aMonthsBarCarriedToTheEdgeGoesOnIntoTheNextMonth], with the slide: two months show the same spare days while it runs. */
+    @Test
+    fun withMotionAMonthsBarGoesOnIntoTheNextMonth() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month, modality = InputModality.Mouse, reduceMotion = false)
+        val bar = boundsOf(trip, probe)
+        val cell = 900f * probe.density / DaysPerWeek
+        val from = Offset(bar.left + cell / 2f, bar.center.y)
+        val edge = 900f * probe.density - 6f
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_250)
+        onRoot().performMouseInput {
+            val at = currentPosition
+            repeat(10) { moveTo(Offset(at.x - cell * 3f * (it + 1) / 10f, at.y)) }
+            release()
+        }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go when the month paged")
+        assertEquals(kotlinx.datetime.Month.NOVEMBER, start.date.month, "the bar did not go on into November: $start")
     }
 
     @Test
