@@ -49,6 +49,11 @@ import io.kontour.icons.tabler.outline.Stack2
 import io.kontour.icons.tabler.outline.Swipe
 import io.kontour.icons.tabler.outline.Typography
 import io.kontour.icons.tabler.outline.Windmill
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
+import io.kontour.ui.adaptive.edges
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
@@ -333,10 +338,18 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                         pageState = pageState,
                                     )
                                 } else {
+                                    // Clear of the status bar and the home
+                                    // indicator, and the far side's cutout: a rail
+                                    // hands its content no padding and clears only
+                                    // its own column, and a gallery page has no
+                                    // bar of its own to clear them, as the
+                                    // mini-apps' pages do. On an iPad held upright
+                                    // the pages ran under the status bar.
                                     Box(
                                         Modifier
                                             .fillMaxSize()
                                             .padding(contentPadding)
+                                            .windowInsetsPadding(WindowInsets.edges.only(WindowInsetsSides.Vertical + WindowInsetsSides.End))
                                     ) {
                                         CatalogDestination(
                                             selected = selected,
@@ -364,6 +377,7 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                         FrameReadout(
                             Modifier
                                 .align(Alignment.TopEnd)
+                                .windowInsetsPadding(WindowInsets.edges.only(WindowInsetsSides.Top + WindowInsetsSides.End))
                                 .padding(Theme.spacing.sm)
                         )
                     }

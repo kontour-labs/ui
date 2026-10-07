@@ -26,6 +26,7 @@ import io.kontour.ui.catalog.apps.AppsPage
 import io.kontour.ui.catalog.apps.LocalOpenApp
 import io.kontour.ui.catalog.apps.MiniApp
 import io.kontour.ui.theme.KontourTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -248,6 +249,39 @@ class AppsTest {
             onAllNodesWithText("Topped up $20", substring = true).fetchSemanticsNodes().isNotEmpty(),
             "no toast after topping up",
         )
+    }
+
+    /**
+     * On an iPad held upright the navigation is a collapsed rail, and what is
+     * in it fits it: the way out and the planner as icons on the destinations'
+     * line, not a header and a labelled button squeezed to its width — reported
+     * as *"in the nav rail, you try to cram text and buttons in there that just
+     * don't fit"*. Grown, the rail has them whole.
+     */
+    @Test
+    fun onAnUprightTabletTheRailHoldsOnlyWhatFitsIt() = runDesktopComposeUiTest(width = 800, height = 1100) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        val rail = onNodeWithTag("tab-Departures", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        // The rail's edge: past its icons, short of the page.
+        val edge = 88f
+        for (label in listOf("Leave Transit", "Plan a trip")) {
+            val node = onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+            assertTrue(node.right <= edge + 0.5f, "$label is wider than the rail: it ends at ${node.right}, the rail at $edge")
+            assertTrue(abs(node.center.x - rail.center.x) <= 4f, "$label is not on the destinations' line: ${node.center.x} against ${rail.center.x}")
+        }
+        // No words in the collapsed rail beside the way out.
+        assertTrue(
+            onAllNodesWithText("Transit").fetchSemanticsNodes().none { it.boundsInRoot.left < edge },
+            "the app's name is crammed into the collapsed rail",
+        )
+        // Grown, the header and the planner are whole.
+        onNodeWithContentDescription("Expand navigation", substring = true, ignoreCase = true).performClick()
+        waitForIdle()
+        onNodeWithText("Plan a trip").assertExists()
+        assertTrue(onAllNodesWithText("Transit").fetchSemanticsNodes().any { it.boundsInRoot.left < 280f })
     }
 
     @Test
