@@ -1,6 +1,6 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.lazy.rememberLazyListState
+import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -163,7 +163,7 @@ private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
 
 @Composable
 private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
-    val list = rememberLazyListState()
+    val list = rememberScrollbarListState()
     LazyColumn(
         state = list,
         modifier = modifier.fillMaxSize().scrollbar(list),

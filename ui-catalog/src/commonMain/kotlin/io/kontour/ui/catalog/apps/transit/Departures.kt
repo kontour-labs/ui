@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,7 +86,7 @@ internal fun DeparturesPage(
     var showing by remember { mutableStateOf(setOf(Mode.Train, Mode.Bus)) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var menu by remember { mutableStateOf(false) }
-    val list = rememberLazyListState()
+    val list = rememberScrollbarListState()
     val collapse = rememberTopBarCollapseState(list)
     val tour = LocalTransitTour.current ?: rememberCoachmarkTour("ticket", "filters", "plan", skippable = true)
 

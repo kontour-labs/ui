@@ -34,7 +34,25 @@ It reads any scroller foundation ships — `ScrollState`, lazy lists, grids and
 staggered grids, pagers — from the position they report; a grid's used to draw
 nothing at all.
 
-**A lazy list's length is from every row it has measured**, not only the rows on
+**For a lazy list, make its state with `rememberScrollbarListState()`** and the
+bar is exact:
+
+```kotlin
+val list = rememberScrollbarListState()
+LazyColumn(Modifier.scrollbar(list), state = list) { … }
+```
+
+A lazy list knows the height of the rows it has laid out and nothing else, so a
+bar on a plain `rememberLazyListState()` list can only estimate the rest. Made
+with this, the list measures every row it has not shown yet — composed and
+measured off screen with its own constraints, a few each frame in a slice of
+the time between frames, and thrown away again — and the thumb is the list's
+true length within the first few frames, reaching the end of its track exactly
+as the list reaches its end. It costs every row composed once, up to
+`MeasuredRowsCap` rows. A page of cards of very different heights is what it is
+for; a long list of even rows is estimated closely enough without it.
+
+**Otherwise a lazy list's length is from every row it has measured**, not only the rows on
 screen. A lazy list knows the size of what it has laid out and nothing else, so
 the rows not yet seen are taken at the average of all those that have been. The
 estimate improves as the list is scrolled, and once every row has been seen it

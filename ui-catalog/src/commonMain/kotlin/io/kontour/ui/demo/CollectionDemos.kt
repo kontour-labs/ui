@@ -39,6 +39,7 @@ import io.kontour.icons.tabler.outline.Pin
 import io.kontour.icons.tabler.outline.Star
 import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.display.Tag
+import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Tone
@@ -489,7 +490,7 @@ internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar", knobs = listOf(sc
     val box = Modifier.fillMaxWidth().height(160.dp)
     when (this[scrollbarOn]) {
         "Lazy list" -> {
-            val list = rememberLazyListState()
+            val list = rememberScrollbarListState()
             LazyColumn(box.scrollbar(list, alwaysVisible = true), state = list, flingBehavior = ScrollDefaults.flingBehavior()) {
                 items(40) { Text("Departure ${it + 1}", style = Theme.typography.bodyMedium) }
             }
@@ -501,7 +502,7 @@ internal val ScrollbarDemo = ComponentDemo(slug = "scrollbar", knobs = listOf(sc
             }
         }
         "Row" -> {
-            val row = rememberLazyListState()
+            val row = rememberScrollbarListState()
             LazyRow(
                 Modifier.fillMaxWidth().height(64.dp).scrollbar(row, Orientation.Horizontal, alwaysVisible = true),
                 state = row,

@@ -218,16 +218,22 @@ class ScrollbarSourceTest {
     fun aLengthThatChangesWhileNothingMovesLeavesTheThumbWhereItIs() {
         val content = Content(value = 300, max = 600)
         val source = ScrollbarSource(content)
-        assertEquals(0.5f, source.geometry().position, 0.0001f)
+        source.geometry()
+        // Scrolled a little, so the thumb is the scroll's rather than the first estimate's.
+        content.value = 330
+        val at = source.geometry().position
+        assertEquals(0.55f, at, 0.0001f)
         // Found to be twice as long, standing still: the thumb stays.
         content.max = 1200
-        assertEquals(0.5f, source.geometry().position, 0.0001f)
+        assertEquals(at, source.geometry().position, 0.0001f)
     }
 
     @Test
     fun itReachesTheEndsWithTheContentWhateverTheLengthSaid() {
         val content = Content(value = 300, max = 600)
         val source = ScrollbarSource(content)
+        source.geometry()
+        content.value = 330
         source.geometry()
         content.max = 1200
         source.geometry()

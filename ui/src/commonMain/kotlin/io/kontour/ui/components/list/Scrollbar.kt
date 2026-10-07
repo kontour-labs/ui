@@ -50,6 +50,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.SideEffect
@@ -1128,6 +1129,15 @@ internal class ScrollbarSource(private val state: ScrollableState) {
     private var position = 0f
     private var started = false
 
+    /**
+     * Whether the content has moved since the bar first saw it. Until it has,
+     * the thumb is where and as long as the estimate says, however that
+     * changes — rows measured ahead landing as a list opens are the estimate
+     * coming right, not something to ease toward.
+     */
+    var moved = false
+        private set
+
     /** What the content's own position was last seen as, to tell how far it has moved since. */
     private var lastValue = 0f
     private var lastKeys: Map<Any, Int> = emptyMap()
@@ -1151,18 +1161,20 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 
     /** Moves the drawn position by however far the content has moved since it was last looked at. */
     private fun follow(estimate: ScrollbarGeometry) {
-        val moved = moved(estimate)
+        val travelled = moved(estimate)
         val by = when {
-            moved == null -> null
-            driven > 0f -> (moved - driven).coerceAtLeast(0f)
-            driven < 0f -> (moved - driven).coerceAtMost(0f)
-            else -> moved
+            travelled == null -> null
+            driven > 0f -> (travelled - driven).coerceAtLeast(0f)
+            driven < 0f -> (travelled - driven).coerceAtMost(0f)
+            else -> travelled
         }
         driven = 0f
+        if (by != null && by != 0f && started) moved = true
         when {
-            // Nothing to go on — the first look, or a jump with nothing in view
-            // both before and after it: where the estimate says.
-            !started || by == null -> position = estimate.position
+            // Nothing to go on — the first look, a jump with nothing in view
+            // both before and after it, or a list that has not moved yet:
+            // where the estimate says.
+            !started || by == null || !moved -> position = estimate.position
             by > 0f -> {
                 val ahead = ((1f - estimate.position) * estimate.scrollable).coerceAtLeast(0f)
                 position = if (ahead + by <= 0f) 1f else 1f - (1f - position) * ahead / (ahead + by)
@@ -1217,6 +1229,8 @@ internal class ScrollbarSource(private val state: ScrollableState) {
      */
     fun dragBy(along: Float, travel: Float) {
         if (travel <= 0f || along == 0f) return
+        // The thumb is the pointer's now, not the estimate's.
+        moved = true
         val was = position
         position = (position + along / travel).coerceIn(0f, 1f)
         val scrollable = if (held) frozenScrollable else estimate().scrollable
@@ -1252,7 +1266,8 @@ private fun rememberShownFraction(source: ScrollbarSource): State<Float> {
     LaunchedEffect(source, motion) {
         snapshotFlow { if (source.held) null else source.estimate().fraction }.collectLatest { target ->
             if (target == null) return@collectLatest
-            val first = shown.value.isNaN()
+            // Not moved yet: the estimate coming right as rows are measured, taken as it is.
+            val first = shown.value.isNaN() || !source.moved
             // Nothing to scroll, or nothing yet: there is no thumb to ease.
             if (first || target >= 1f || target <= 0f || shown.value >= 1f) {
                 shown.snapTo(target)
@@ -1279,35 +1294,29 @@ private fun rememberShownFraction(source: ScrollbarSource): State<Float> {
  * and once every row has been seen it is the list's true length.
  */
 internal class LazyListExtent(private val state: LazyListState) {
-    private var sizes = IntArray(0)
-    private var keys = arrayOfNulls<Any>(0)
-    private var knownSum = 0L
-    private var knownCount = 0
+    private val own = RowSizes()
 
     fun geometry(): ScrollbarGeometry? {
         val info = state.layoutInfo
         // A list laid out from its end is left to foundation, which knows which
         // way round it is.
         if (info.reverseLayout) return null
+        // Measured ahead, where the list was made to be — see
+        // `rememberScrollbarListState` — or only as far as it has been seen.
+        val rows = MeasuredLists[state] ?: own
+        // Read, so a row measured ahead redraws the bar.
+        rows.version
         val total = info.totalItemsCount
         val visible = info.visibleItemsInfo
         if (total == 0 || visible.isEmpty()) return ScrollbarGeometry(1f, 0f)
-        if (total != sizes.size) resize(total)
-        for (item in visible) record(item.index, item.size, item.key)
-        val average = if (knownCount == 0) 0f else knownSum.toFloat() / knownCount
+        if (total != rows.count) rows.resize(total)
+        for (item in visible) rows.record(item.index, item.size, item.key)
+        val average = rows.average()
         val spacing = info.mainAxisItemSpacing.toFloat()
         val padding = (info.beforeContentPadding + info.afterContentPadding).toFloat()
-        val content = knownSum + (total - knownCount) * average + spacing * (total - 1) + padding
+        val content = rows.knownSum + (total - rows.knownCount) * average + spacing * (total - 1) + padding
         val first = visible.first()
-        var before = 0L
-        var beforeKnown = 0
-        for (i in 0 until first.index) {
-            val size = sizes[i]
-            if (size > 0) {
-                before += size
-                beforeKnown++
-            }
-        }
+        val (before, beforeKnown) = rows.sumBefore(first.index)
         val scrolled = before + (first.index - beforeKnown) * average + spacing * first.index - first.offset
         return scrollbarGeometry(
             viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat(),
@@ -1315,9 +1324,48 @@ internal class LazyListExtent(private val state: LazyListState) {
             scrolled = scrolled,
         )
     }
+}
+
+/**
+ * Each row's height, as far as it is known, by index: from the rows the list has
+ * laid out, and — for a list made with `rememberScrollbarListState` — from the
+ * rows measured ahead of being shown.
+ */
+@Stable
+internal class RowSizes {
+    private var sizes = IntArray(0)
+    private var keys = arrayOfNulls<Any>(0)
+    var knownSum = 0L
+        private set
+    var knownCount = 0
+        private set
+
+    /** Bumped when a row measured ahead lands, outside layout and drawing, for the bar to redraw. */
+    var version by mutableIntStateOf(0)
+        private set
+
+    val count: Int get() = sizes.size
+
+    fun known(index: Int): Boolean = index in sizes.indices && sizes[index] > 0
+
+    fun average(): Float = if (knownCount == 0) 0f else knownSum.toFloat() / knownCount
+
+    /** The heights known before [index], and how many rows they are. */
+    fun sumBefore(index: Int): Pair<Long, Int> {
+        var before = 0L
+        var known = 0
+        for (i in 0 until minOf(index, sizes.size)) {
+            val size = sizes[i]
+            if (size > 0) {
+                before += size
+                known++
+            }
+        }
+        return before to known
+    }
 
     /** Rows added or taken away: what is known is kept where it was, and the rest is unknown. */
-    private fun resize(total: Int) {
+    fun resize(total: Int) {
         val nextSizes = IntArray(total)
         val nextKeys = arrayOfNulls<Any>(total)
         knownSum = 0L
@@ -1334,10 +1382,15 @@ internal class LazyListExtent(private val state: LazyListState) {
         keys = nextKeys
     }
 
-    private fun record(index: Int, size: Int, key: Any) {
+    /**
+     * Row [index] is [size] tall. [key] is null for a row measured ahead, whose
+     * key is not reported; [notify] only from outside layout and drawing, where
+     * writing state would ask for another pass of the one it is in.
+     */
+    fun record(index: Int, size: Int, key: Any?, notify: Boolean = false) {
         if (index !in sizes.indices || size <= 0) return
         val was = sizes[index]
-        if (was == size && keys[index] == key) return
+        if (was == size && (key == null || keys[index] == key)) return
         if (was > 0) {
             knownSum -= was
         } else {
@@ -1345,6 +1398,7 @@ internal class LazyListExtent(private val state: LazyListState) {
         }
         knownSum += size
         sizes[index] = size
-        keys[index] = key
+        if (key != null) keys[index] = key
+        if (notify) version++
     }
 }

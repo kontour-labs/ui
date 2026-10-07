@@ -212,6 +212,12 @@ passed by position need naming — see **Breaking**, and
 
 ### Added
 
+- **`rememberScrollbarListState()`**: a lazy list state whose list measures
+  every row ahead of showing it, so a [scrollbar](components/scrollbar.md) on it
+  is exactly the list's length from the first few frames and reaches the end of
+  its track exactly with the list. On a plain `rememberLazyListState()` the bar
+  still estimates the rows it has not seen. The showcase's lists use it.
+
 - **A [hero bar](components/top-bar.md#hero-a-large-bar-over-a-picture) that
   follows its list.** `rememberTopBarCollapseState(list)` — or `(scrollState)`
   — makes a collapse read from the list's own scroll, for a bar drawn over the

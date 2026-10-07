@@ -1,6 +1,6 @@
 package io.kontour.ui.catalog
 
-import androidx.compose.foundation.lazy.rememberLazyListState
+import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -265,7 +265,7 @@ private fun Workload(recording: Boolean, onFlipTheme: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 variant = ButtonVariant.Secondary,
             ) { +"Open sheet" }
-            val workload = rememberLazyListState()
+            val workload = rememberScrollbarListState()
             LazyColumn(
                 Modifier.fillMaxWidth().weight(1f).scrollbar(workload),
                 state = workload,

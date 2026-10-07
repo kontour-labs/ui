@@ -1,6 +1,6 @@
 package io.kontour.ui.catalog.apps.messages
 
-import androidx.compose.foundation.lazy.rememberLazyListState
+import io.kontour.ui.components.list.rememberScrollbarListState
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +126,7 @@ internal fun ChatsPage(
             supporting { +if (unread == 0) "All caught up" else "$unread unread" }
         }
 
-        val list = rememberLazyListState()
+        val list = rememberScrollbarListState()
         LazyColumn(
             state = list,
             modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = contentPadding),

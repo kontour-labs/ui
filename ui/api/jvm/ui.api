@@ -1466,6 +1466,11 @@ public final class io/kontour/ui/components/list/ScrollbarKt {
 	public static final fun scrollbar-OtITO4E (Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/gestures/ScrollableState;Landroidx/compose/foundation/gestures/Orientation;JFFFFZLandroidx/compose/foundation/layout/PaddingValues;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
+public final class io/kontour/ui/components/list/ScrollbarListStateKt {
+	public static final field MeasuredRowsCap I
+	public static final fun rememberScrollbarListState (IILandroidx/compose/runtime/Composer;II)Landroidx/compose/foundation/lazy/LazyListState;
+}
+
 public final class io/kontour/ui/components/list/SwipeAction {
 	public static final field $stable I
 	public synthetic fun <init> (Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function0;JZLjava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
