@@ -438,7 +438,9 @@ internal class EventEdit(
                     val (date, minute) = timeAt(root) ?: return
                     val length = event.end.epochMinute - event.start.epochMinute
                     val raw = minute - grab
-                    val start = roundTo(raw, stepMinutes)
+                    // On the day it is over: carried to the top or the foot of
+                    // the hours, it stops there rather than spilling over.
+                    val start = movedStart(roundTo(raw, stepMinutes), length, date.atMidnight.epochMinute, onOneDay(event.start, event.end), stepMinutes)
                     val column = columns.of(date)
                     val across = if (column == null) 0f else {
                         val half = column.size.width / 2f
@@ -544,6 +546,12 @@ internal class EventEdit(
                 resizedEnd(from.start.epochMinute, from.end.epochMinute, end.epochMinute + minutes, stepMinutes)
             }
             propose(start, localDateTimeOfEpochMinute(next))
+        } else if (kotlin.math.abs(minutes) < MinutesPerDay) {
+            // Up or down a step: within its day, as a carry is.
+            val from = event ?: return
+            val length = end.epochMinute - start.epochMinute
+            val next = movedStart(start.epochMinute + minutes, length, start.date.atMidnight.epochMinute, onOneDay(from.start, from.end), stepMinutes)
+            propose(localDateTimeOfEpochMinute(next), localDateTimeOfEpochMinute(next + length))
         } else {
             propose(start.plusMinutes(minutes), end.plusMinutes(minutes))
         }

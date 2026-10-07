@@ -69,3 +69,20 @@ internal fun resizedStart(start: Long, end: Long, proposed: Long, step: Int): Lo
  * reader — and no shorter than a [step] after its start.
  */
 internal fun barEnd(start: Long, end: Long, by: Long, step: Int): Long = maxOf(end + by, start + step)
+
+/**
+ * Where a carried event can start, given [proposed], on the day whose midnight
+ * is [day]: one that fits in a day keeps all of it on that day, from its
+ * midnight to the next; one that already runs past midnight, or is longer
+ * than a day, keeps its start on it. Carried to the foot of the hours, an
+ * event stopped at nothing and spilled into the next day.
+ */
+internal fun movedStart(proposed: Long, length: Long, day: Long, oneDay: Boolean, step: Int): Long {
+    val latest = if (oneDay && length <= MinutesPerDay) day + MinutesPerDay - length else day + MinutesPerDay - step
+    return proposed.coerceIn(day, maxOf(day, latest))
+}
+
+/** Whether an event from [start] to [end] is all on one day. */
+internal fun onOneDay(start: LocalDateTime, end: LocalDateTime): Boolean =
+    (if (end > start) end.plusMinutes(-1).date else start.date) == start.date
+

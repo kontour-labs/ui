@@ -413,8 +413,16 @@ internal fun CalendarScope.moveBy(event: CalendarEvent, minutes: Long, resize: B
         onEventResize?.invoke(event, event.start, newEnd)
         announce(event.title, event.start, newEnd)
     } else {
-        val start = event.start.plusMinutes(minutes)
-        val end = event.end.plusMinutes(minutes)
+        val length = event.end.epochMinute - event.start.epochMinute
+        // Earlier or later by a step keeps to its day; a day either way is a day.
+        val from = if (kotlin.math.abs(minutes) < MinutesPerDay) {
+            movedStart(event.start.epochMinute + minutes, length, event.start.date.atMidnight.epochMinute, onOneDay(event.start, event.end), edit.stepMinutes)
+        } else {
+            event.start.epochMinute + minutes
+        }
+        if (from == event.start.epochMinute) return
+        val start = localDateTimeOfEpochMinute(from)
+        val end = localDateTimeOfEpochMinute(from + length)
         onEventMove?.invoke(event, start, end)
         announce(event.title, start, end)
     }

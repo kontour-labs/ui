@@ -77,6 +77,10 @@ passed by position need naming — see **Breaking**, and
   the pointer after it pages.** From the second week or month on, the carried
   event stayed where it was. A pointer held still at the edge is followed into
   the period paged in.
+- **A carried event in an event calendar stays on its day.** Carried to the top
+  or the foot of the hours, it stops at midnight, where it used to spill into
+  the day before or after. The arrow keys and a screen reader's move earlier
+  and later stop there too.
 - **A resized event in an event calendar keeps to its own day.** Its end dragged
   past midnight stops at midnight, where it used to run on over the following
   days. The keyboard and a screen reader's actions stop there too.

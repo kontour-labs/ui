@@ -210,6 +210,72 @@ class EventCalendarEditTest {
         assertEquals(LocalDateTime(2026, 10, 15, 0, 0), end, "the end went past its day's midnight")
     }
 
+    /**
+     * Carried to the foot of the hours and held there while they scroll to
+     * their end: it stops at midnight, on its own day. It spilled into the next.
+     */
+    @Test
+    fun aCarryToTheFootOfTheHoursStaysOnItsDay() = runComposeUiTest {
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 17, 0), LocalDateTime(2026, 10, 14, 18, 0))
+        val probe = calendar(events = listOf(late))
+        val bounds = boundsOf(late, probe)
+        onRoot().performMouseInput {
+            moveTo(bounds.center)
+            press()
+            val to = Offset(bounds.center.x, 900f * probe.density - 2f)
+            val from = currentPosition
+            repeat(20) { moveTo(from + (to - from) * ((it + 1) / 20f)) }
+            repeat(30) {
+                advanceEventTime(100)
+                moveTo(to + Offset(0f, if (it % 2 == 0) -1f else 0f))
+            }
+            release()
+        }
+        waitForIdle()
+        val (_, start, end) = probe.moves.singleOrNull() ?: error("the carry was not put down")
+        assertEquals(LocalDateTime(2026, 10, 14, 23, 0), start, "the carry spilled past its day")
+        assertEquals(LocalDateTime(2026, 10, 15, 0, 0), end)
+    }
+
+    @Test
+    fun aCarryToTheTopOfTheHoursStopsAtMidnight() = runComposeUiTest {
+        val early = CalendarEvent(4, "Early run", LocalDateTime(2026, 10, 14, 9, 0), LocalDateTime(2026, 10, 14, 10, 0))
+        val probe = calendar(events = listOf(early))
+        val bounds = boundsOf(early, probe)
+        onRoot().performMouseInput {
+            moveTo(bounds.center)
+            press()
+            // Up past the top of the hours, into the headings, held while the hours scroll to their start.
+            val to = Offset(bounds.center.x, 2f)
+            val from = currentPosition
+            repeat(20) { moveTo(from + (to - from) * ((it + 1) / 20f)) }
+            repeat(30) {
+                advanceEventTime(100)
+                moveTo(to + Offset(0f, if (it % 2 == 0) 1f else 0f))
+            }
+            release()
+        }
+        waitForIdle()
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry was not put down")
+        assertEquals(LocalDateTime(2026, 10, 14, 0, 0), start, "the carry spilled into the day before")
+    }
+
+    @Test
+    fun arrowsMoveAnEventNoFurtherThanItsDay() = runComposeUiTest {
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 23, 0), LocalDateTime(2026, 10, 14, 23, 30))
+        val probe = calendar(events = listOf(late))
+        onNode(hasContentDescription(eventDescription(late, probe.formats, probe.strings))).requestFocus()
+        onRoot().performKeyInput {
+            pressKey(Key.Spacebar)
+            repeat(6) { pressKey(Key.DirectionDown) }
+            pressKey(Key.Enter)
+        }
+        waitForIdle()
+        val (_, start, end) = probe.moves.single()
+        assertEquals(LocalDateTime(2026, 10, 14, 23, 30), start)
+        assertEquals(LocalDateTime(2026, 10, 15, 0, 0), end, "the keyboard moved it past midnight")
+    }
+
     @Test
     fun shiftAndAnArrowStopAtMidnight() = runComposeUiTest {
         val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 23, 0), LocalDateTime(2026, 10, 14, 23, 30))
