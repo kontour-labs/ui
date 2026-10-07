@@ -42,6 +42,52 @@ class SliderOverdragTest {
     @Test
     fun aRangeSlidersEndThumbWaitsForTheFingerToComeBack() = overdrag(PointerType.Touch, range = true)
 
+    /**
+     * With a `minDistance`, a thumb pushed to an end stops that much short of it
+     * — *"that slider fix didn't work for range sliders that have a minimum
+     * distance between each other"*. Measured from the track's end, the wait
+     * ended that much early; it is measured from the thumb.
+     */
+    @Test
+    fun aRangeSlidersThumbHeldShortOfTheEndWaitsForTheFingerToComeBack() {
+        var range by mutableStateOf(0.2f..0.6f)
+        var bounds = Rect.Zero
+        Scene(width = 800, height = 200) {
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                RangeSlider(
+                    value = range,
+                    onValueChange = { range = it },
+                    minDistance = 0.2f,
+                    modifier = Modifier.align(Alignment.Center).width(140.dp).reportBounds { bounds = it },
+                )
+            }
+        }.use { scene ->
+            scene.frames(3)
+            val grab = bounds.alongX(0.2f)
+            val farPast = Offset(bounds.right + bounds.width, grab.y)
+            scene.press(grab)
+            scene.frame()
+            stepTo(scene, grab, farPast, PointerType.Touch)
+            // The fixture: the start thumb has pushed the end one to the end and
+            // stopped the minimum distance short of it.
+            assertEquals(0.8f, range.start, 0.01f, "the start thumb is not held short of the end")
+            val stillPast = Offset(bounds.right + bounds.width * 0.3f, grab.y)
+            stepTo(scene, farPast, stillPast, PointerType.Touch)
+            assertEquals(0.8f, range.start, 0.01f, "coming back but still past the end, it moved")
+            // Over the track, but not yet back to the thumb.
+            val between = bounds.alongX(0.9f)
+            stepTo(scene, stillPast, between, PointerType.Touch)
+            assertEquals(0.8f, range.start, 0.01f, "the finger at 90% is not back to the thumb at 80%, and it moved")
+            val backIn = bounds.alongX(0.7f)
+            stepTo(scene, between, backIn, PointerType.Touch)
+            // 70% of the slider's bounds, which are wider than its track by the
+            // thumb: about two thirds of the track.
+            assertTrue(range.start in 0.6f..0.75f, "back to 70%, the start thumb is at ${range.start}")
+            scene.release(backIn)
+            scene.frames(2)
+        }
+    }
+
     private fun overdrag(pointer: PointerType, range: Boolean) {
         var value by mutableStateOf(0.5f)
         var upper by mutableStateOf(0.6f)
