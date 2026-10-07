@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -77,17 +78,127 @@ class CoachmarkTransitionTest {
 
     /**
      * In a morph the mark becomes a ball between the steps — a little of its
-     * colour, never none — and in a fade it is gone between them, never small.
+     * colour, never none.
      */
     @Test
-    fun aMorphGoesByBallAndAFadeGoesByNothing() {
+    fun aMorphGoesByBall() {
         val morph = inkBetweenSteps(CoachmarkTransition.Morph)
-        val fade = inkBetweenSteps(CoachmarkTransition.Fade)
         val bubble = morph.first()
-        // A ball of 10dp radius at density 2: about 1250 pixels.
+        // A ball of 12dp radius at density 2, inside its ring: about 1250 pixels.
         assertTrue(morph.min() > 400, "in a morph the mark's colour left the screen between steps (fewest $morph)")
         assertTrue(morph.min() < bubble / 4, "in a morph the mark never got smaller than ${morph.min()} of its $bubble — no ball")
-        assertTrue(fade.min() < 200, "in a fade the mark never left before the next came: fewest ${fade.min()} of $bubble")
+    }
+
+    /**
+     * A fade is a crossfade — asked for as *"with the fade transition, it should
+     * be more of a crossfade. right now, one has to fade all the way out before
+     * the next one fades in"*: there is a moment both marks are on the page,
+     * each part of the way, and none when neither is.
+     */
+    @Test
+    fun aFadeCrossesTheTwoMarks() {
+        var tour: CoachmarkTour? = null
+        var accent = Color.Unspecified
+        Scene(width = Width, height = Height, density = 2f) {
+            tour = rememberCoachmarkTour(First, Second, transition = CoachmarkTransition.Fade)
+            accent = Theme.colours.accent.solid
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
+                    Target(Modifier.align(Alignment.TopStart).coachmarkStep(tour!!, First, "Plan a trip", "Start here."))
+                    Target(Modifier.align(Alignment.BottomEnd).coachmarkStep(tour!!, Second, "Saved trips", "They live here."))
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            tour!!.start()
+            val firstShown = scene.frames(40)
+            val first = assertNotNull(firstShown.boundsOf(accent), "the first mark was not drawn")
+            val dim = firstShown.getRGB(Width / 2, Height / 2)
+            tour!!.next()
+            val frames = List(40) { scene.frame() }
+            val second = assertNotNull(frames.last().boundsOf(accent), "the second mark was not drawn")
+            // The fixture: two marks that do not overlap, so each is measured on its own.
+            assertTrue(!first.overlaps(second), "the two marks overlap: $first and $second")
+            val presence = frames.map { it.presence(first, accent, dim) to it.presence(second, accent, dim) }
+            val crossed = presence.any { (going, coming) -> going > 0.2f && coming > 0.2f }
+            assertTrue(crossed, "no frame had both marks on the page: ${presence.map { (a, b) -> "%.2f/%.2f".format(a, b) }}")
+            val gap = presence.drop(1).dropLast(1).minOf { (going, coming) -> maxOf(going, coming) }
+            assertTrue(gap > 0.3f, "at one point neither mark was on the page (the stronger was ${"%.2f".format(gap)})")
+        }
+    }
+
+    /**
+     * A ball on its way can be seen on the dim, in a dark tone too — asked for as
+     * *"the dot isn't very visible during the transition, especially with a darker
+     * colour over the dimmed background"*: it clears the dim round itself, so
+     * somewhere away from both controls the page shows through while it travels.
+     */
+    @Test
+    fun aDarkBallCarriesALightRoundItAcrossTheDim() {
+        var tour: CoachmarkTour? = null
+        var one = Rect.Zero
+        var two = Rect.Zero
+        Scene(width = Width, height = Height, density = 2f) {
+            tour = rememberCoachmarkTour(First, Second, transition = CoachmarkTransition.Morph)
+            OverlayHost(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().background(Theme.colours.background)) {
+                    Target(Modifier.align(Alignment.TopStart).reportBounds { one = it }.coachmarkStep(tour!!, First, "One", "The first.", tone = Tone.Neutral))
+                    Target(Modifier.align(Alignment.BottomEnd).reportBounds { two = it }.coachmarkStep(tour!!, Second, "Two", "The second.", tone = Tone.Neutral))
+                }
+            }
+        }.use { scene ->
+            val page = luminance(scene.frames(4).getRGB(Width / 2, Height / 2))
+            tour!!.start()
+            val dim = luminance(scene.frames(40).getRGB(Width / 2, Height / 2))
+            // The fixture: the page is light and the dim makes it clearly darker.
+            assertTrue(page - dim > 40, "the dim did not darken the page: $page against $dim")
+            tour!!.next()
+            // The frames where neither control is lit: the ball between them.
+            val between = List(40) { scene.frame() }.filter { frame ->
+                luminance(frame.at(one)) < dim + 15 && luminance(frame.at(two)) < dim + 15
+            }
+            assertTrue(between.isNotEmpty(), "no frame had both controls dimmed: the walk was never between them")
+            val brightest = between.maxOf { frame -> frame.brightest(except = listOf(one, two)) }
+            assertTrue(brightest - dim > 40, "nothing on the dimmed page was lit while the ball travelled: brightest $brightest, dim $dim")
+        }
+    }
+
+    /** The brightest pixel's luminance, away from [except]. */
+    private fun BufferedImage.brightest(except: List<Rect>): Int {
+        var best = 0
+        for (y in 0 until height step 2) for (x in 0 until width step 2) {
+            if (except.any { it.inflate(40f).contains(androidx.compose.ui.geometry.Offset(x.toFloat(), y.toFloat())) }) continue
+            best = maxOf(best, luminance(getRGB(x, y)))
+        }
+        return best
+    }
+
+    /**
+     * How much of [colour] is in [bounds], 0 to 1: how far, on average, its
+     * pixels have come from the dimmed page ([ground]) toward the mark's fill.
+     */
+    private fun BufferedImage.presence(bounds: Rect, colour: Color, ground: Int): Float {
+        val want = colour.toArgb()
+        fun channel(p: Int, shift: Int) = ((p shr shift) and 0xFF).toFloat()
+        var total = 0f
+        var n = 0
+        val inset = 6
+        for (y in (bounds.top.toInt() + inset) until (bounds.bottom.toInt() - inset) step 2) {
+            for (x in (bounds.left.toInt() + inset) until (bounds.right.toInt() - inset) step 2) {
+                val p = getRGB(x, y)
+                var along = 0f
+                var span = 0f
+                for (shift in intArrayOf(16, 8, 0)) {
+                    val from = channel(ground, shift)
+                    val to = channel(want, shift)
+                    along += (channel(p, shift) - from) * (to - from)
+                    span += (to - from) * (to - from)
+                }
+                total += if (span > 0f) (along / span).coerceIn(0f, 1f) else 0f
+                n++
+            }
+        }
+        return if (n == 0) 0f else total / n
     }
 
     /** A step in a tone of its own is drawn in it. */

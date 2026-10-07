@@ -115,8 +115,8 @@ expanding back into a new mark"*:
 
 | `CoachmarkTransition` | The mark | The hole |
 |---|---|---|
-| `Morph`, the default | shrinks into a ball at the side it points from; the ball zips to the next step, taking its colour on the way, and grows into the next mark | closes behind the one, opens round the other |
-| `Fade` | fades out where it is, then the next fades in where it will be | its control goes dark with it, and the next one's lights |
+| `Morph`, the default | shrinks into a ball at the side it points from, keeping its own corner until it is round; the ball zips to the next step, taking its colour on the way and carrying a small clearing in the dim with it so it reads in any tone, and grows into the next mark | closes behind the one, opens round the other |
+| `Fade` | crossfades: fades out where it is while the next fades in where it will be | its control goes dark as the next one's lights |
 
 Next pressed twice turns the mark round from wherever it has got to rather
 than cutting it. Under reduced motion every tour fades.
@@ -209,8 +209,8 @@ its own ink, in whichever tone it is in, and its position is drawn at full
 strength rather than faded.
 
 Under reduced motion a coach mark and a tour's bubble fade in where they will sit
-rather than scaling into place, and from one step to the next the mark fades
-out and the next fades in, whichever transition the tour asked for: a ball
+rather than scaling into place, and from one step to the next the marks
+crossfade, whichever transition the tour asked for: a ball
 travelling across the screen is the movement the preference asks to be spared.
 
 The mark on its way out is taken out of the accessibility tree and takes no

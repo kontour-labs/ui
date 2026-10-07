@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +31,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -99,8 +109,9 @@ object CoachmarkDefaults {
  */
 enum class CoachmarkTransition {
     /**
-     * The mark showing fades out where it is, its control going dark with it,
-     * and the next one fades in at its own.
+     * A crossfade: the mark showing fades out where it is, its control going
+     * dark with it, while the next one fades in at its own — the two on the
+     * page together for the length of it, under the one dim.
      */
     Fade,
 
@@ -485,13 +496,13 @@ private class TourScene {
     /** How far the ball is between [zipFrom] and [showing]: 1 there. Morph only. */
     val zip = Animatable(1f)
 
-    /** Where the ball set off from, and in what colour. Not state: read in draw. */
+    /** Where the ball set off from, and in what colours. Not state: read in draw. */
     var zipFrom: Offset? = null
-    var zipFromColour: Color = Color.Unspecified
+    var zipFromColour: SolidTone = SolidTone(Color.Unspecified, Color.Unspecified)
 
-    /** Where the ball was last drawn, and in what colour, for a walk that turns it round mid-trip. */
+    /** Where the ball was last drawn, and in what colours, for a walk that turns it round mid-trip. */
     var ballAt: Offset? = null
-    var ballColour: Color = Color.Unspecified
+    var ballColour: SolidTone = SolidTone(Color.Unspecified, Color.Unspecified)
 
     /** Where a ball turned round mid-trip waits, rather than at the step it was going to. */
     var parked: Offset? = null
@@ -556,11 +567,17 @@ private suspend fun TourScene.walkTo(
         showing = null
         out.snapTo(1f - arrival.value)
     }
-    if (leaving != null && out.value < 1f) out.animateTo(1f, motion.tweenExit())
-    if (!morph) leaving = null
+    // A morph sends the mark out before it sets off. A fade keeps it where it
+    // is until the next one is there to cross with: one fading out while the
+    // other fades in, rather than nothing on the page between them.
+    if (morph && leaving != null && out.value < 1f) out.animateTo(1f, motion.tweenExit())
 
     val step = awaitStep(tour, id)
     if (step == null) {
+        if (!morph && leaving != null) {
+            out.animateTo(1f, motion.tweenExit())
+            leaving = null
+        }
         tour.passOver(id)
         return
     }
@@ -572,12 +589,26 @@ private suspend fun TourScene.walkTo(
     if (first) return
 
     val from = leaving
-    if (morph && from != null) {
+    if (!morph) {
+        // **One spec for both**, so at every frame what has gone of one has
+        // come of the other: two different curves left both holes half dark in
+        // the middle, the dim showing through where neither was. A step whose
+        // anchor has gone — another screen — has nowhere to fade from, and goes.
+        val spec = motion.tweenDefault<Float>()
+        coroutineScope {
+            launch { if (from != null && from.isReady) out.animateTo(1f, spec) else out.snapTo(1f) }
+            arrival.animateTo(1f, spec)
+        }
+        leaving = null
+        zip.snapTo(1f)
+        return
+    }
+    if (from != null) {
         // Placed before it can be gone to: the bubble's first layout, unseen.
         withFrameNanos { }
         withFrameNanos { }
         zipFrom = parked ?: tipOf(from) ?: ballAt
-        zipFromColour = if (parked != null) ballColour else colours.of(from.tone).container
+        zipFromColour = if (parked != null) ballColour else colours.of(from.tone)
         parked = null
         zip.snapTo(0f)
         leaving = null
@@ -586,7 +617,7 @@ private suspend fun TourScene.walkTo(
         leaving = null
         zip.snapTo(1f)
     }
-    arrival.animateTo(1f, if (morph) motion.springOrTween(motion.springSnappy) else motion.tweenDefault())
+    arrival.animateTo(1f, motion.springOrTween(motion.springSnappy))
 }
 
 /**
@@ -625,11 +656,20 @@ private fun TourDim(
     val fraction = LocalOverlayProgress.current
     val density = LocalDensity.current
     val ball = with(density) { BallRadius.toPx() }
+    val ballLook = BallLook(
+        shape = Theme.shapes.container,
+        // The library's strong line, so the ring thickens at high contrast with the rest.
+        ring = with(density) { Theme.sizing.borderWidthStrong.toPx() },
+        halo = with(density) { BallHalo.toPx() },
+    )
     val paths = remember { DimPaths() }
 
     Box(
         Modifier
             .fillMaxSize()
+            // A layer of its own in a morph, so the ball can clear the dim round
+            // itself: what it erases is this layer's, never the page's.
+            .then(if (morph) Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else Modifier)
             // Everything, including the lit control. A tap on the control being
             // explained is the likeliest accident here, and letting it through
             // would run an action the user was only being shown.
@@ -657,7 +697,7 @@ private fun TourDim(
                     coming = comingHole?.let { (rect, step) -> HoleDraw(rect.scaledBy(comingOpen), step, comingShown) },
                 )
 
-                if (morph) drawBall(scene, ball, colours, strength / scrim.alpha.coerceAtLeast(0.001f))
+                if (morph) drawBall(scene, ball, ballLook, colours, strength / scrim.alpha.coerceAtLeast(0.001f))
             }
     )
 }
@@ -739,46 +779,97 @@ private fun DrawScope.holeOf(step: TourStep, origin: Offset): Pair<Rect, TourSte
     return step.hole?.let { it to step }
 }
 
+/** How the ball is drawn, read from the theme in composition. */
+private class BallLook(val shape: Shape, val ring: Float, val halo: Float)
+
 /**
  * The ball, in a morph: the leaving mark shrinking into it, its trip, and the
  * next mark growing out of it. Drawn under the marks, which fade over it at the
  * two ends where it is the mark's own shape.
+ *
+ * **In the bubble's own shape** at every size, so the corner a mark shrinks
+ * with is the corner it had: it was a 10dp round rect under a 22dp squircle,
+ * and the corner visibly jumped as one handed over to the other, both ways.
+ * The shape's corner clamps to half the short side, so it turns into a circle
+ * as the ball gets small, continuously.
+ *
+ * **Seen against the dim**, which a dark tone's ball was not: as it becomes a
+ * ball it clears a soft circle of the dim round itself — the page shows
+ * through there, a spotlight it carries with it — and takes a ring in its
+ * tone's ink. Both grow in as it shrinks and go as it grows back into a mark.
  */
-private fun DrawScope.drawBall(scene: TourScene, radius: Float, colours: SolidTones, fade: Float) {
+private fun DrawScope.drawBall(scene: TourScene, radius: Float, look: BallLook, colours: SolidTones, fade: Float) {
     val going = scene.leaving
     val coming = scene.showing
-    val (rect, colour) = when {
+    // How much of a ball it is: 0 the whole mark, 1 a ball.
+    val (rect, colour, ballness) = when {
         going != null && coming == null -> {
-            val tone = colours.of(going.tone).container
+            val tone = colours.of(going.tone)
             val bubble = going.bubble ?: return
             val at = scene.parked ?: tipOf(going) ?: return
             val t = eased(scene.out.value)
-            if (scene.parked != null) ballRect(at, radius) to scene.ballColour
-            else lerpRect(bubble, ballRect(at, radius), t) to tone
+            if (scene.parked != null) Triple(ballRect(at, radius), scene.ballColour, 1f)
+            else Triple(lerpRect(bubble, ballRect(at, radius), t), tone, t)
         }
         coming != null && scene.zip.value < 1f -> {
             val from = scene.zipFrom ?: return
             val to = tipOf(coming) ?: return
             val t = scene.zip.value
             val at = Offset(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t)
-            ballRect(at, radius) to lerpColour(scene.zipFromColour, colours.of(coming.tone).container, t.coerceIn(0f, 1f))
+            val tone = colours.of(coming.tone)
+            val mixed = SolidTone(
+                lerpColour(scene.zipFromColour.container, tone.container, t.coerceIn(0f, 1f)),
+                lerpColour(scene.zipFromColour.content, tone.content, t.coerceIn(0f, 1f)),
+            )
+            Triple(ballRect(at, radius), mixed, 1f)
         }
         coming != null && scene.arrival.value < 1f -> {
             val to = tipOf(coming) ?: return
             val bubble = coming.bubble ?: return
-            lerpRect(ballRect(to, radius), bubble, eased(scene.arrival.value)) to colours.of(coming.tone).container
+            val t = eased(scene.arrival.value)
+            Triple(lerpRect(ballRect(to, radius), bubble, t), colours.of(coming.tone), 1f - t)
         }
         else -> return
     }
     scene.ballAt = rect.center
     scene.ballColour = colour
-    val corner = minOf(radius, rect.width / 2f, rect.height / 2f).coerceAtLeast(0f)
-    drawRoundRect(
-        color = colour.copy(alpha = colour.alpha * fade.coerceIn(0f, 1f)),
-        topLeft = rect.topLeft,
-        size = rect.size,
-        cornerRadius = CornerRadius(corner),
-    )
+    val alpha = fade.coerceIn(0f, 1f)
+    // Squared, so the light and the ring come in as it gets small rather than
+    // round a mark still most of its size.
+    val clear = ballness * ballness
+    if (clear > 0f) {
+        // The dim cleared round it, softly: solid to just past the ball, gone a halo further.
+        val inner = maxOf(rect.width, rect.height) / 2f
+        val outer = inner + look.halo
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f to Color.Black,
+                (inner / outer) to Color.Black,
+                1f to Color.Transparent,
+                center = rect.center,
+                radius = outer,
+            ),
+            radius = outer,
+            center = rect.center,
+            alpha = clear * alpha,
+            blendMode = BlendMode.DstOut,
+        )
+    }
+    val outline = look.shape.createOutline(rect.size, layoutDirection, this)
+    translate(rect.left, rect.top) {
+        drawOutline(outline, colour.container.copy(alpha = colour.container.alpha * alpha))
+        if (clear > 0f) {
+            val ring = look.ring
+            translate(ring / 2f, ring / 2f) {
+                val inset = look.shape.createOutline(
+                    Size((rect.width - ring).coerceAtLeast(0f), (rect.height - ring).coerceAtLeast(0f)),
+                    layoutDirection,
+                    this,
+                )
+                drawOutline(inset, colour.content, alpha = clear * alpha, style = Stroke(ring))
+            }
+        }
+    }
 }
 
 /**
@@ -1009,7 +1100,10 @@ private fun solidTones(): SolidTones = SolidTones(Tone.entries.associateWith { s
 private val BubbleMaxWidth: Dp = 320.dp
 
 /** The ball a morph shrinks a mark into: about a fingertip's dot. */
-private val BallRadius: Dp = 10.dp
+private val BallRadius: Dp = 12.dp
+
+/** How far past the ball the dim is cleared, fading to nothing. */
+private val BallHalo: Dp = 14.dp
 
 /**
  * The share of a morph's shrink the mark's words take to fade, and of its

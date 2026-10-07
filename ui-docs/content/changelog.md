@@ -67,6 +67,12 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A tour's `Fade` is a crossfade**, the next mark fading in while the last
+  fades out rather than after it, under the one dim. In a `Morph` the mark
+  keeps its own corner as it shrinks into a ball and grows out of one, where
+  the corner used to jump, and the ball clears a little of the dim round
+  itself and takes a ring in its tone's ink, so a dark tone's ball can be
+  seen on its way.
 - **A dot or an annotation under a day no longer moves its number**, in
   every calendar: [`CalendarMonth`](components/calendar-month.md), the date
   and range pickers and the event calendar's year. A day with a `markerFor`
