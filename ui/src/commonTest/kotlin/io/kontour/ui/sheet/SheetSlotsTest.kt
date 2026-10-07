@@ -61,7 +61,7 @@ class SheetSlotsTest {
         runComposeUiTest {
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.headerAndFooter()) { sheet = it } }
+            setContent { Harness(SheetDetent.parts()) { sheet = it } }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
@@ -85,7 +85,7 @@ class SheetSlotsTest {
     @Test
     fun atEveryDetentTheFooterIsOnTheBottomOfWhatTheSheetShows() {
         runComposeUiTest {
-            var target by mutableStateOf(SheetDetent.headerAndFooter())
+            var target by mutableStateOf(SheetDetent.parts())
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
             setContent { Harness(target) { sheet = it } }
@@ -149,7 +149,7 @@ class SheetSlotsTest {
     fun collapsedToAHeaderTheSheetClearsTheSafeArea() {
         runComposeUiTest {
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.headerAndFooter(), slot = Slot.Header, insets = WindowInsets(bottom = SafeArea)) {} }
+            setContent { Harness(SheetDetent.parts(), slot = Slot.Header, insets = WindowInsets(bottom = SafeArea)) {} }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
@@ -166,7 +166,7 @@ class SheetSlotsTest {
     fun collapsedToAFooterTheSheetClearsTheSafeArea() {
         runComposeUiTest {
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.headerAndFooter(), slot = Slot.Footer, insets = WindowInsets(bottom = SafeArea)) {} }
+            setContent { Harness(SheetDetent.parts(), slot = Slot.Footer, insets = WindowInsets(bottom = SafeArea)) {} }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
@@ -178,7 +178,7 @@ class SheetSlotsTest {
     }
 
     /**
-     * The control: with neither, `SheetDetent.headerAndFooter` keeps its fallback.
+     * The control: with neither, `SheetDetent.parts` keeps its fallback.
      * Without it the first arm could pass on a detent that happened to resolve to
      * the handle and the bar for some other reason.
      */
@@ -187,7 +187,7 @@ class SheetSlotsTest {
         runComposeUiTest {
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.headerAndFooter(Fallback), slot = null) { sheet = it } }
+            setContent { Harness(SheetDetent.parts(Fallback), slot = null) { sheet = it } }
             settle()
             val shown = with(density) { sheet.visibleHeight.toDp() }
             assertTrue(
@@ -216,8 +216,8 @@ class SheetSlotsTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     val state = rememberSheetState(
-                        detents = listOf(SheetDetent.headerAndFooter(Fallback), SheetDetent.Half, SheetDetent.Expanded),
-                        initialDetent = SheetDetent.headerAndFooter(Fallback),
+                        detents = listOf(SheetDetent.parts(Fallback), SheetDetent.Half, SheetDetent.Expanded),
+                        initialDetent = SheetDetent.parts(Fallback),
                     )
                     onState(state)
                     LaunchedEffect(target) { state.animateTo(target) }
@@ -228,9 +228,9 @@ class SheetSlotsTest {
                         state = state,
                         presentation = SheetPresentation.Edge,
                         windowInsets = insets,
-                        header = bar.takeIf { slot == Slot.Header },
-                        footer = bar.takeIf { slot == Slot.Footer },
                     ) { padding: PaddingValues ->
+                        if (slot == Slot.Header) part(pin = SheetPartPin.Top, content = bar)
+                        if (slot == Slot.Footer) part(pin = SheetPartPin.Bottom, content = bar)
                         LazyColumn(Modifier.testTag(List), contentPadding = padding) {
                             items(Rows) { index ->
                                 Box(Modifier.fillMaxWidth().height(RowHeight).testTag(row(index)))

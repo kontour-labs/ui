@@ -275,6 +275,28 @@ class SheetState internal constructor(
     }
 
     /**
+     * How collapsed the sheet is, 0 to 1: 0 at its second-lowest resting size
+     * and above, 1 at its lowest, and between in proportion to where it is —
+     * a finger, a spring or a stretch alike. What carries a
+     * [SheetPartPin.Collapsed] part to the top and fades the rest of the
+     * content. 0 for a sheet with fewer than two sizes to be between, or before
+     * there are anchors.
+     */
+    internal fun collapseFraction(): Float {
+        val offsets = detents
+            .filter { it.id != SheetDetent.Hidden.id }
+            .map(::offsetOf)
+            .filter { !it.isNaN() }
+            .distinct()
+            .sorted()
+        if (offsets.size < 2) return 0f
+        val lowest = offsets[offsets.size - 1]
+        val next = offsets[offsets.size - 2]
+        if (lowest <= next) return 0f
+        return ((offset - next) / (lowest - next)).coerceIn(0f, 1f)
+    }
+
+    /**
      * Whether the sheet is at [detent]'s height or above it, or on its way there.
      *
      * Compared by *position* rather than by index in the detent list, because a
@@ -627,7 +649,7 @@ class SheetState internal constructor(
      * How tall the sheet is when it shows its header and its footer and nothing
      * else: the drag handle, the header, the footer, and the safe area under them
      * all — under the header too when there is no footer. What
-     * [SheetDetent.headerAndFooter] resolves to; `0` while the sheet has neither,
+     * [SheetDetent.parts] resolves to; `0` while the sheet has neither,
      * which leaves the detent its fallback.
      *
      * Measured by the sheet's own layout rather than from positions in the root,

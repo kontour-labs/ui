@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog.apps.transit
 
+import io.kontour.ui.sheet.SheetPartPin
 import androidx.compose.foundation.layout.PaddingValues
 import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -87,14 +88,15 @@ internal fun PlannerSheet(visible: Boolean, onDismiss: () -> Unit) {
         visible = visible,
         onDismissRequest = onDismiss,
         state = sheet,
-        footer = {
+    ) { padding ->
+        // At the foot of the sheet whatever size it is, as a navigation bar is.
+        part(pin = SheetPartPin.Bottom) {
             Button(
                 onClick = { finding = true },
                 loading = finding,
                 modifier = Modifier.fillMaxWidth().testTag("find-routes"),
             ) { +"Find routes" }
-        },
-    ) { padding ->
+        }
         // Inside a scroller, so a short phone reaches the clock under the
         // calendar; the parts are still the sheet's, named through its scope.
         val sheetParts = this

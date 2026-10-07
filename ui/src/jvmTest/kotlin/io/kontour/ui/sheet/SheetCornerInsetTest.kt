@@ -125,7 +125,7 @@ class SheetCornerInsetTest {
     }
 
     /**
-     * In the sheet's `header`, a [SheetHeader] moves in from the corners as it
+     * In a part pinned to the sheet's top, a [SheetHeader] moves in from the corners as it
      * does in the content: the slot hands it the corners' room and the band, as
      * the content's column does.
      */
@@ -140,14 +140,14 @@ class SheetCornerInsetTest {
                         Box(Modifier.fillMaxSize().background(Color.White)) {
                             OverlayHost(Modifier.fillMaxSize()) {
                                 val state = rememberSheetState(
-                                    detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half, SheetDetent.Expanded),
+                                    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
                                     initialDetent = SheetDetent.Half,
                                 )
                                 BottomSheet(
                                     state = state,
                                     presentation = SheetPresentation.Edge,
-                                    header = { SheetHeader { +Title } },
                                 ) {
+                                    part(pin = SheetPartPin.Top) { SheetHeader { +Title } }
                                     Box(Modifier.fillMaxWidth().height(400.dp).testTag(Body))
                                 }
                             }

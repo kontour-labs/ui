@@ -1,5 +1,7 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.layout.ColumnScope
+import io.kontour.ui.sheet.SheetPartPin
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.text.SearchField
@@ -153,30 +155,34 @@ private val sheetControlsAlignment =
     Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
 
 /**
- * A search field in the sheet's footer, over a list that scrolls behind it —
- * and collapsed, the sheet is only the field.
+ * A search field pinned to the sheet, over a list of stops — and collapsed,
+ * the sheet is only the field. `Bottom` keeps it at the foot as a navigation
+ * bar is, `Top` under the handle as a maps app has it, and `Collapsed` at the
+ * head of the list, carried to the top as the sheet collapses. `None` is the
+ * stop's header and departure board instead.
  *
- * The sheet's detents change with it, to `SheetDetent.headerAndFooter()` in
- * place of the peek, so the knob starts the sheet over rather than bending the
- * one already open.
+ * The sheet's detents change with it, to `SheetDetent.parts()` in place of the
+ * peek, so the knob starts the sheet over rather than bending the one already
+ * open.
  */
-private val sheetFooterSearch = Knob.Flag("Search in the footer")
+private val sheetSearchBar = Knob.Choice("Search bar", SheetPartPin.entries.toList(), SheetPartPin.None)
 
 /**
- * No fade under the footer, so the list shows round the field. Does nothing
- * without the field.
+ * No fade under the field, so the list shows round it. Does nothing without
+ * the field, or with it in the list.
  */
 private val sheetNoFade = Knob.Flag("No fade under it")
 
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetFooterSearch, sheetNoFade),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetSearchBar, sheetNoFade),
 ) {
     val presentation = this[sheetPresentation]
-    val footerSearch = this[sheetFooterSearch]
-    // Where it rests collapsed: the header, or the field in the footer.
-    val collapsed = if (footerSearch) SheetDetent.headerAndFooter() else SheetDetent.peek(140.dp)
-    val sheet = key(footerSearch) {
+    val searchBar = this[sheetSearchBar]
+    val search = searchBar != SheetPartPin.None
+    // Where it rests collapsed: the header, or the search field.
+    val collapsed = if (search) SheetDetent.parts() else SheetDetent.peek(140.dp)
+    val sheet = key(searchBar) {
         rememberSheetState(
             detents = listOf(
                 SheetDetent.Hidden,
@@ -207,25 +213,35 @@ internal val BottomSheetDemo = ComponentDemo(
                     variant = ButtonVariant.Secondary,
                 )
             },
-            // At the foot of the sheet, over the list, which fades out under it;
-            // it moves with the sheet, and settles at the foot of the size the
-            // sheet comes to rest at.
-            footer = if (footerSearch) {
-                { SearchField(query, placeholder = "Search stops") }
-            } else {
-                null
-            },
             fadeUnder = !this@ComponentDemo[sheetNoFade],
         ) { padding ->
-            if (footerSearch) {
-                // The padding grows by the field's height, so the last stop
-                // scrolls out from behind it; the sides are the sheet's inset,
-                // the same as the field's.
+            if (search) {
+                val field: @Composable ColumnScope.() -> Unit = {
+                    SearchField(
+                        query,
+                        placeholder = "Search stops",
+                        // In from the sheet's sides, as the stops are; the foot's own inset is the sheet's.
+                        modifier = if (searchBar == SheetPartPin.Bottom) {
+                            Modifier
+                        } else {
+                            Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding, vertical = Theme.spacing.xs)
+                        },
+                    )
+                }
+                // At the foot or the top, the field is the sheet's and the list
+                // scrolls under it, its padding grown by the field's height.
+                if (searchBar != SheetPartPin.Collapsed) part(pin = searchBar, content = field)
+                val sheetParts = this
                 LazyColumn(
                     modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
                     contentPadding = padding,
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
+                    // At the head of the list, where it scrolls away with the
+                    // stops, and comes back to the top as the sheet collapses.
+                    if (searchBar == SheetPartPin.Collapsed) {
+                        item(key = "search") { sheetParts.part(pin = SheetPartPin.Collapsed, content = field) }
+                    }
                     itemsIndexed(PinnedStops) { index, stop ->
                         ListItem(onClick = { echo(stop) }, position = GroupPosition.of(index, PinnedStops.size)) { +stop }
                     }

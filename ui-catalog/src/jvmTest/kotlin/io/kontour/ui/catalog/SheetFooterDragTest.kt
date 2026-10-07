@@ -1,5 +1,6 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.sheet.SheetPartPin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,7 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * A sheet with a footer moves with the finger, and no further.
+ * A sheet with a part pinned to its bottom moves with the finger, and no further.
  *
  * Reported as *"when pinned is enabled, the sheet races ahead of my finger"*. A
  * floating sheet that morphs into an edge sheet hands its content the bottom
@@ -57,8 +58,8 @@ class SheetFooterDragTest {
         Box(Modifier.fillMaxSize().background(Color.White)) {
             OverlayHost(Modifier.fillMaxSize()) {
                 val state = rememberSheetState(
-                    detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half, SheetDetent.Expanded),
-                    initialDetent = SheetDetent.headerAndFooter(),
+                    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+                    initialDetent = SheetDetent.parts(),
                 )
                 onState(state)
                 LaunchedEffect(start) { state.animateTo(start) }
@@ -67,8 +68,8 @@ class SheetFooterDragTest {
                     state = state,
                     presentation = presentation,
                     windowInsets = WindowInsets(top = 47.dp, bottom = 34.dp),
-                    footer = { SearchField(query, placeholder = "Search stops") },
                 ) { padding: PaddingValues ->
+                    part(pin = SheetPartPin.Bottom) { SearchField(query, placeholder = "Search stops") }
                     LazyColumn(contentPadding = padding) {
                         items(40) { ListItem(onClick = {}) { +"Stop $it" } }
                     }

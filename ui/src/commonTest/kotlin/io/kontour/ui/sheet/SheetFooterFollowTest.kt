@@ -33,13 +33,14 @@ import io.kontour.ui.countPhases
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
+import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A sheet's footer rests on the bottom of what the sheet shows, in every
- * presentation, above the inset; a drag carries it with the sheet, and once
- * the sheet lands it settles at the new foot.
+ * A part pinned to a sheet's bottom rests on the bottom of what the sheet
+ * shows, in every presentation, above the inset — and stays there through a
+ * drag, as a navigation bar stays at the foot of a screen.
  *
  * `SheetSlotsTest` asks the first of these of an edge sheet with no insets.
  * These are the cases it leaves out:
@@ -50,8 +51,8 @@ import kotlin.test.assertTrue
  *   at the bottom of its travel and the second at the top.
  * - **Above the inset** — the gesture bar, or the keyboard — and the content is
  *   told how much it now has to keep clear of.
- * - **A drag** carries the footer with the sheet, and does nothing else to it;
- *   let go, it settles at the foot of the size the sheet came to rest at.
+ * - **A drag** leaves it where it is, at the foot, while the content appears
+ *   above it.
  *
  * The window is 360 by 800 at a density of 1, so every number is a pixel and a
  * dp at once. The part is 56dp, with the sheet's inset, [Inset], round it.
@@ -157,15 +158,16 @@ class SheetFooterFollowTest {
     }
 
     /**
-     * A drag carries the footer with the sheet, and does nothing else to it: no
-     * composition, and measured and drawn at most now and then over a drag of
-     * forty frames — the budget `SheetFramePressureTest` holds the sheet's content
-     * to. Asked for as a footer that *"moves with the sheet"*: it used to stay on
-     * the window's bottom while the sheet's top edge climbed, which did not read
-     * as part of the sheet.
+     * A drag leaves the bottom part at the foot of the window, and does nothing
+     * else to it: no composition, and measured and drawn at most now and then
+     * over a drag of eighty frames — the budget `SheetFramePressureTest` holds
+     * the sheet's content to. Asked for as *"a search bar that's basically locked
+     * at the bottom of a sheet, basically acting like a nav bar. content should
+     * show up as the sheet expands"*: it used to be carried up with the sheet's
+     * top edge, with the content showing below it.
      */
     @Test
-    fun aDragCarriesTheFooterWithTheSheetWithoutComposingOrMeasuringIt() {
+    fun aDragLeavesTheBottomPartAtTheFootWithoutComposingOrMeasuringIt() {
         var frames = 0
         var compositions = 0
         val counts = PhaseCounts()
@@ -186,7 +188,7 @@ class SheetFooterFollowTest {
             counts.reset()
             val composedBefore = compositions
             val sheetBefore = sheet.offset
-            val partBefore = partBounds().top.value
+            val foot = WindowHeight - Inset.value
 
             // By hand, from the handle's band, upwards, from Half towards
             // Expanded; held at the end.
@@ -194,37 +196,45 @@ class SheetFooterFollowTest {
             val y = sheet.offset + 8f
             onNodeWithTag(WindowTag).performTouchInput { down(Offset(x, y)) }
             var at = y
+            val bottoms = mutableListOf<Float>()
             repeat(DraggedFrames) {
                 at -= 5f
                 onNodeWithTag(WindowTag).performTouchInput { moveTo(Offset(x, at)) }
                 mainClock.advanceTimeByFrame()
+                bottoms += partBounds().bottom.value
                 frames++
             }
             val moved = sheetBefore - sheet.offset
+            // And back down past where it started, towards collapsed.
+            repeat(DraggedFrames) {
+                at += 8f
+                onNodeWithTag(WindowTag).performTouchInput { moveTo(Offset(x, at)) }
+                mainClock.advanceTimeByFrame()
+                bottoms += partBounds().bottom.value
+                frames++
+            }
             compositions -= composedBefore
-            val carried = partBefore - partBounds().top.value
 
             assertTrue(moved > 40f, "the sheet moved ${moved}px, so this measured a sheet standing still")
-            assertEquals(
-                moved, carried, 1.5f,
-                "the sheet moved up ${moved}px under the finger and its footer $carried: " +
-                    "the footer is staying on the window's bottom rather than moving with the sheet",
+            val wandered = bottoms.maxOf { abs(it - foot) }
+            assertTrue(
+                wandered <= 1f,
+                "the bottom part left the foot of the window by ${wandered}px during the drag: it is being " +
+                    "carried with the sheet rather than staying where a navigation bar would",
             )
-            assertEquals(0, compositions, "the footer was recomposed $compositions times by a drag")
+            assertEquals(0, compositions, "the bottom part was recomposed $compositions times by a drag")
             assertTrue(
                 counts.measures <= frames / 8 && counts.draws <= frames / 8,
-                "the footer was measured ${counts.measures} and drawn ${counts.draws} times " +
-                    "over $frames frames of dragging; a footer that is only being moved should cost neither",
+                "the bottom part was measured ${counts.measures} and drawn ${counts.draws} times " +
+                    "over $frames frames of dragging; a part that only stays put should cost neither",
             )
 
-            // Let go, and settled: at the foot of whatever size it landed at.
+            // Let go, and settled: still at the foot.
             onNodeWithTag(WindowTag).performTouchInput { up() }
             settle()
-            val shownBottom = WindowHeight
             assertEquals(
-                shownBottom - Inset.value, partBounds().bottom.value, Tolerance,
-                "landed, the footer ended at ${partBounds().bottom.value}, not at the foot of the size " +
-                    "the sheet came to rest at, ${shownBottom - Inset.value}",
+                foot, partBounds().bottom.value, Tolerance,
+                "landed, the bottom part ended at ${partBounds().bottom.value}, not at the foot, $foot",
             )
         }
     }
@@ -289,8 +299,9 @@ class SheetFooterFollowTest {
                     presentation = presentation,
                     edgeMorph = edgeMorph,
                     windowInsets = windowInsets,
-                    footer = if (showPart) {
-                        {
+                ) { padding ->
+                    if (showPart) {
+                        part(pin = SheetPartPin.Bottom) {
                             SideEffect(onPartComposed)
                             Box(
                                 Modifier
@@ -301,10 +312,7 @@ class SheetFooterFollowTest {
                                     .background(Color(0xFF3355AA))
                             )
                         }
-                    } else {
-                        null
-                    },
-                ) { padding ->
+                    }
                     LazyColumn(
                         modifier = Modifier.reportBottom(padding, onPadding),
                         contentPadding = padding,
@@ -340,7 +348,7 @@ class SheetFooterFollowTest {
         /** `BottomSheetDefaults.ContentPadding` in the default theme. */
         val Inset = 16.dp
 
-        /** The handle's band and the footer, which is what collapsed to the footer is. */
-        val Collapsed = SheetDetent.headerAndFooter()
+        /** The handle's band and the bottom part, which is what collapsed to it is. */
+        val Collapsed = SheetDetent.parts()
     }
 }

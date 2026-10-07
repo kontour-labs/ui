@@ -29,28 +29,30 @@ On `main`, and in the next release: 0.4.3.
 Mobile web, mostly: the keyboard on the first tap of a text field on an iPhone,
 a focused field's selection and menu that are the browser's own, and tabs,
 checkboxes and switches named as themselves to a screen reader in a browser. A
-sheet's top and foot become slots of the sheet, with a footer that moves with it.
+sheet's pinned content becomes a `part` with a `pin`: at its foot as a navigation
+bar, on its top, or the head of its list that is all that is left collapsed.
 Days in a date picker can carry a colour and a few characters, a scrollbar keeps
 clear of bars over its list, a large top bar follows the finger, and a page
 slides under a navigation rail. On Compose Multiplatform 1.12.1, with Java 11
 bytecode on the JVM.
 
-A sheet's `pinned { }` is now its `header` and `footer`, and a few arguments
+A sheet's `pinned { }` is now a pinned `part`, and a few arguments
 passed by position need naming — see **Breaking**, and
 [Migrating](migrating.md#042-to-043).
 
 ### Breaking
 
-- **A [bottom sheet](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind)'s
-  `pinned { }` is its `header` and `footer`.** Asked for: *"refine the 'pinned'
-  logic … it just doesn't feel intuitive, and it doesn't feel like it fits in
-  with [the rest] of the library"*. They are slots of `BottomSheet` and
-  `ModalBottomSheet` now, as a `Scaffold`'s bars are, rather than a call that
-  could be written anywhere in the content and was drawn somewhere else.
-  `pinned(to = SheetPin.Top)` is `header = { … }`, laid out as the content is,
-  so a `SheetHeader` in it insets itself; `pinned { }` is `footer = { … }`.
-  `SheetPin` is gone, and `SheetDetent.pinned()` is
-  `SheetDetent.headerAndFooter()`. What changed on screen is under **Changed**.
+- **A [bottom sheet](components/bottom-sheet.md#partpin----what-stays-put-while-the-sheet-moves)'s
+  `pinned { }` is a `part` with a `pin`.** Asked for as a rethink around three
+  uses: *"a search bar that's basically locked at the bottom of a sheet,
+  basically acting like a nav bar"*, *"an apple maps-style search bar that's
+  glued to the top of the header, that other content scrolls under"*, and a
+  search bar at the top of a list that, *"when the sheet collapses, … smoothly
+  animates into being the only visible thing"*. `part(pin = SheetPartPin.Bottom)`
+  is `pinned { }`, `SheetPartPin.Top` is `pinned(to = SheetPin.Top)`, and
+  `SheetPartPin.Collapsed` is new. `SheetPin` is gone, and
+  `SheetDetent.pinned()` is `SheetDetent.parts()`. What changed on screen is
+  under **Changed**.
 - **Recompile against Compose Multiplatform 1.12.1.** The library moved from
   1.12.0-rc01 to the stable release.
 - **A few arguments passed by position no longer compile**, where a parameter
@@ -108,18 +110,18 @@ passed by position need naming — see **Breaking**, and
   1.12's web layer names any clickable node a button and writes no state; the
   library's own controls put theirs back. See
   [In the browser](accessibility.md#in-the-browser).
-- **A sheet's footer moves with the sheet**, at the foot of the size it was
-  resting at, and slides to the foot of the new size once the sheet has come to
-  rest. It rode the bottom of the window through every frame of a drag. A sheet
-  moved in code takes it along at its foot, as before.
-- **Content fades out under a sheet's header and footer**, as a page does under
-  a `TopBar`, where a pinned part stood on a solid band of the sheet's colour,
-  with 16dp of it above a part that had risen. `fadeUnder = false` lets the
-  content show round them, as `containerColour = Color.Transparent` did.
-- **A part in a sheet's header has no inset of its own.** A part pinned to the
-  top was padded by 16dp at the sides and below; the header is laid out as the
-  content is, so a `SheetHeader` there looks as it does in the content, and
-  anything else is as wide as the sheet.
+- **A part pinned to a sheet's bottom is a navigation bar to it**: at the foot
+  of what the sheet shows through every frame of a drag, with the content
+  appearing above it as the sheet grows.
+- **Content fades out under a sheet's pinned parts** — under a bottom part as
+  under a floating navigation bar, under a top part as under a `TopBar` —
+  where a pinned part stood on a solid band of the sheet's colour.
+  `fadeUnder = false` lets the content show round them, as
+  `containerColour = Color.Transparent` did.
+- **A part pinned to a sheet's top has no inset of its own.** It was padded by
+  16dp at the sides and below; it is laid out as the content is now, so a
+  `SheetHeader` there looks as it does in the content, and anything else is as
+  wide as the sheet.
 - **A page sliding towards a [`NavRail`](components/nav-rail.md) goes under
   it.** *"the old screen goes above the nav rail briefly and then cuts out of
   existence. it should go behind the nav rail/drawer"*. The rail draws over
@@ -491,7 +493,7 @@ on a round phone stop at 40dp.
   badge says itself as text, read with the rest of the row; an `AvatarGroup` is
   "3 people" rather than "3 people, Ada, Grace, Katherine". An avatar given a
   `contentDescription` still says it.
-- **An edge [bottom sheet](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind)
+- **An edge [bottom sheet](components/bottom-sheet.md#partpin----what-stays-put-while-the-sheet-moves)
   collapsed to a part pinned to its top clears the safe area.** The pinned
   detent counted the safe area only under a part pinned to the bottom, so with
   the part at the top the sheet came to rest with its foot behind the home
@@ -1002,7 +1004,7 @@ See [`SelectionRow`](components/selection-row.md#a-row-that-opens-a-choice).
   `containerColour = Color.Transparent` the content goes under it and shows
   round it. `SheetDetent.pinned()` is the size that shows the pinned parts and
   nothing else: a sheet that collapses to its search field. See
-  [`BottomSheet`](components/bottom-sheet.md#header-and-footer--the-sheets-top-and-foot-with-the-content-passing-behind).
+  [`BottomSheet`](components/bottom-sheet.md#partpin----what-stays-put-while-the-sheet-moves).
 - `SelectionRow(onClick)`, and `position` on both `SelectionRow` overloads, so
   a group can mix toggles, rows that open a choice, and plain rows.
 - [`NavBar`](components/nav-bar.md): `shape`; `itemWidth`

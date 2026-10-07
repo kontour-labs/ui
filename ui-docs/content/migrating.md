@@ -17,10 +17,10 @@ from the version the app is on.
 
 ## 0.4.2 to 0.4.3
 
-From 0.4.2 to 0.4.3. A sheet's `pinned { }` moves to the sheet's `header` and
-`footer`, the library is on Compose Multiplatform 1.12.1, and a few arguments
-passed by position need naming. A sheet's footer, a top bar's collapse and a
-`StateSwitcher` behave differently enough to check.
+From 0.4.2 to 0.4.3. A sheet's `pinned { }` becomes a `part` with a `pin`, the
+library is on Compose Multiplatform 1.12.1, and a few arguments passed by
+position need naming. A top bar's collapse and a `StateSwitcher` behave
+differently enough to check.
 
 ### Before you start
 
@@ -28,35 +28,35 @@ passed by position need naming. A sheet's footer, a top bar's collapse and a
 - **Move Compose Multiplatform to 1.12.1**, from 1.12.0-rc01, and rebuild
   anything compiled against 0.4.2.
 
-### A sheet's `pinned` is its `header` and `footer`
+### A sheet's `pinned` is a pinned `part`
 
 ```diff
-- BottomSheet(sheet) { padding ->
+  BottomSheet(sheet) { padding ->
 -     pinned { SearchField(query, placeholder = "Search stops") }
--     LazyColumn(contentPadding = padding) { stopRows() }
-- }
-+ BottomSheet(
-+     sheet,
-+     footer = { SearchField(query, placeholder = "Search stops") },
-+ ) { padding ->
-+     LazyColumn(contentPadding = padding) { stopRows() }
-+ }
++     part(pin = SheetPartPin.Bottom) { SearchField(query, placeholder = "Search stops") }
+      LazyColumn(contentPadding = padding) { stopRows() }
+  }
 ```
 
-`pinned(to = SheetPin.Top) { … }` is `header = { … }`. The header has no inset
-of its own, as the content has none: a `SheetHeader` there insets itself; a part
-of your own that relied on the 16dp at its sides and below takes
-`Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding)` and a bottom
-padding itself.
+`pinned(to = SheetPin.Top) { … }` is `part(pin = SheetPartPin.Top) { … }`. A
+top part has no inset of its own, as the content has none: a `SheetHeader`
+there insets itself; a part of your own that relied on the 16dp at its sides
+and below takes `Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding)`
+and a bottom padding itself. A bottom part keeps the inset.
 
 ```diff
 - rememberSheetState(detents = listOf(SheetDetent.pinned(), SheetDetent.Half))
-+ rememberSheetState(detents = listOf(SheetDetent.headerAndFooter(), SheetDetent.Half))
++ rememberSheetState(detents = listOf(SheetDetent.parts(), SheetDetent.Half))
 ```
 
 `pinned(containerColour = Color.Transparent)`, which let the content show round
 the part, is `fadeUnder = false` on the sheet. Another colour for the part's
 ground is the part's own: a `Surface` round it.
+
+A bottom part is at the foot of what the sheet shows on every frame, a drag
+included, as the 0.4.2 part was. The content now fades out under it the way it
+does under a floating navigation bar, rather than stopping at a band of the
+sheet's colour.
 
 ### Arguments passed by position
 
@@ -69,13 +69,6 @@ The same for `DateField`'s `style` and `formats` after `placeholder`,
 `TimeField`'s and `DateTimeField`'s `formats` after `label`, a sheet's
 `dragHandle` after `draggable`, and a select's `interactionSource` after
 `otherLabel`. Each fails to compile rather than meaning something else.
-
-### Check: a sheet's footer
-
-It moves with the sheet under a drag and settles at the foot of the size the
-sheet lands at, where it stayed on the window's bottom. Content fades out under
-it rather than stopping at a band of the sheet's colour. A test that held a
-footer still while dragging the sheet now sees it move.
 
 ### Check: a large or hero top bar
 

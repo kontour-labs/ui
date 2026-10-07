@@ -91,19 +91,20 @@ class SheetDetent(
         }
 
         /**
-         * Showing the sheet's `header` and `footer` and nothing else: the drag
-         * handle, the header, the footer, and the safe area under them.
+         * Showing the sheet's pinned parts and nothing else: the drag handle,
+         * the parts pinned to the top, the bottom and for when it is collapsed
+         * — see [SheetPartPin] — and the safe area under them.
          *
-         * The collapsed size of a sheet that is a search field until it is pulled
-         * up. Put the field in the sheet's `footer` and this in the detent list,
-         * and collapsed the sheet is exactly the field, at whatever height the
-         * field turns out to be — at every font scale, which a fixed height
-         * cannot follow.
+         * The collapsed size of a sheet that is a search field until it is
+         * pulled up. Pin the field and put this in the detent list, and
+         * collapsed the sheet is exactly the field, at whatever height the field
+         * turns out to be — at every font scale, which a fixed height cannot
+         * follow.
          *
          * Falls back to [fallback] until they have been measured, and if the
-         * sheet has neither.
+         * sheet has none.
          */
-        fun headerAndFooter(fallback: Dp = 96.dp): SheetDetent = SheetDetent(SlotsDetentId) { container, _ ->
+        fun parts(fallback: Dp = 96.dp): SheetDetent = SheetDetent(SlotsDetentId) { container, _ ->
             // Replaced by the measured height once there is one, as `peek`'s is.
             minOf(fallback.toPx(), container)
         }
@@ -128,7 +129,7 @@ class SheetDetent(
  */
 internal const val PeekDetentId: String = "peek"
 
-/** The id [SheetState] looks for when substituting the measured height of the header and the footer. */
-internal const val SlotsDetentId: String = "headerAndFooter"
+/** The id [SheetState] looks for when substituting the measured height of the pinned parts. */
+internal const val SlotsDetentId: String = "parts"
 
 

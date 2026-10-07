@@ -3801,8 +3801,8 @@ public final class io/kontour/ui/sheet/BottomSheetDefaults {
 }
 
 public final class io/kontour/ui/sheet/BottomSheetKt {
-	public static final fun BottomSheet-YL572_w (Lio/kontour/ui/sheet/SheetState;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJZLjava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
-	public static final fun ModalBottomSheet-YO99zf4 (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetState;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJLio/kontour/ui/overlay/ScrimStyle;ZLjava/lang/String;Ljava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;IIII)V
+	public static final fun BottomSheet-4tXdUAQ (Lio/kontour/ui/sheet/SheetState;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJZLjava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
+	public static final fun ModalBottomSheet-0P6OaRw (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetState;Lio/kontour/ui/sheet/SheetPresentation;Lio/kontour/ui/sheet/SheetEdgeMorph;Lio/kontour/ui/overlay/OverlayAlignment;Landroidx/compose/ui/graphics/Shape;Landroidx/compose/ui/graphics/Shape;JJLio/kontour/ui/overlay/ScrimStyle;ZLjava/lang/String;Ljava/lang/String;ZZLkotlin/jvm/functions/Function2;Landroidx/compose/foundation/layout/WindowInsets;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/sheet/DragHandleDefaults {
@@ -3812,11 +3812,11 @@ public final class io/kontour/ui/sheet/DragHandleDefaults {
 }
 
 public abstract interface class io/kontour/ui/sheet/SheetContentScope : androidx/compose/foundation/layout/ColumnScope {
-	public abstract fun part (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun part (Lio/kontour/ui/sheet/SheetDetent;Lio/kontour/ui/sheet/SheetPartPin;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class io/kontour/ui/sheet/SheetContentScope$ComposeDefaultImpls {
-	public static final fun part$default (Lio/kontour/ui/sheet/SheetDetent;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
+	public static final fun part$default (Lio/kontour/ui/sheet/SheetDetent;Lio/kontour/ui/sheet/SheetPartPin;Lkotlin/jvm/functions/Function3;Lio/kontour/ui/sheet/SheetContentScope;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/sheet/SheetDetent {
@@ -3836,9 +3836,9 @@ public final class io/kontour/ui/sheet/SheetDetent$Companion {
 	public final fun getFull ()Lio/kontour/ui/sheet/SheetDetent;
 	public final fun getHalf ()Lio/kontour/ui/sheet/SheetDetent;
 	public final fun getHidden ()Lio/kontour/ui/sheet/SheetDetent;
-	public final fun headerAndFooter-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
-	public static synthetic fun headerAndFooter-0680j_4$default (Lio/kontour/ui/sheet/SheetDetent$Companion;FILjava/lang/Object;)Lio/kontour/ui/sheet/SheetDetent;
 	public final fun height-3ABfNKs (Ljava/lang/String;F)Lio/kontour/ui/sheet/SheetDetent;
+	public final fun parts-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
+	public static synthetic fun parts-0680j_4$default (Lio/kontour/ui/sheet/SheetDetent$Companion;FILjava/lang/Object;)Lio/kontour/ui/sheet/SheetDetent;
 	public final fun peek-0680j_4 (F)Lio/kontour/ui/sheet/SheetDetent;
 }
 
@@ -3872,6 +3872,16 @@ public final class io/kontour/ui/sheet/SheetHeaderStyle : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetHeaderStyle;
 	public static fun values ()[Lio/kontour/ui/sheet/SheetHeaderStyle;
+}
+
+public final class io/kontour/ui/sheet/SheetPartPin : java/lang/Enum {
+	public static final field Bottom Lio/kontour/ui/sheet/SheetPartPin;
+	public static final field Collapsed Lio/kontour/ui/sheet/SheetPartPin;
+	public static final field None Lio/kontour/ui/sheet/SheetPartPin;
+	public static final field Top Lio/kontour/ui/sheet/SheetPartPin;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/sheet/SheetPartPin;
+	public static fun values ()[Lio/kontour/ui/sheet/SheetPartPin;
 }
 
 public final class io/kontour/ui/sheet/SheetPresentation : java/lang/Enum {
