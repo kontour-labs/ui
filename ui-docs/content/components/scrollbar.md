@@ -40,8 +40,16 @@ the rows not yet seen are taken at the average of all those that have been. The
 estimate improves as the list is scrolled, and once every row has been seen it
 is the list's true length. Over a list of short headers and tall cards the thumb
 keeps its length, where it used to grow over the headers and shrink over the
-cards. While a finger or the mouse holds the thumb, its length and the rate it
-scrolls at are kept as they were at the press.
+cards.
+
+**The thumb never jumps.** It moves only as the content moves, and by the share
+of the way left that the content covered, so it reaches the end of its track
+exactly as the content reaches its end, and the top as the content reaches its
+top, however wrong the estimate of the length in between was. When the estimate
+changes, as rows not seen before come into view, its length eases to the new
+one over a moment rather than stepping to it. While a finger or the mouse holds
+the thumb, it stays under the pointer, its length holds still, and taking it to
+the end of its track takes the content to its very end.
 
 A list with an [`IndexScroller`](index-scroller.md) down its edge has no
 scrollbar: the index is its position control, and the bar draws nothing while
