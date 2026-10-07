@@ -33,6 +33,18 @@ import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.plus
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlin.time.Clock
+import androidx.compose.runtime.remember
+
+/** What a [DateTimePicker] takes by default. */
+object DateTimePickerDefaults {
+    /** The date and time now on the system's clock, in its zone: what a picker's Now turns to. */
+    fun currentDateTime(): LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+}
 
 /**
  * Picks a date and a time of day: a [DatePicker] and a [TimePicker], side by
@@ -74,6 +86,10 @@ import kotlinx.datetime.LocalDateTime
  * @param onValueChange Every change: a day tapped, or each row a wheel passes,
  *   as the time picker's own does.
  * @param minuteStep Coarsens the minute wheel; see [TimePicker].
+ * @param now The date and time now, for the **Now** button under the wheels:
+ *   pressed, the wheels scroll to the time — rounded to [minuteStep] — and the
+ *   day becomes today, the calendar paging to it. The system clock's by
+ *   default; null for no button.
  * @param navigation Which month is on show; it opens on [value]'s.
  * @param onValueChangeFinished Called once a change has settled: when a day is
  *   tapped, and when a wheel comes to rest after the reader turned it. A save,
@@ -101,6 +117,7 @@ fun DateTimePicker(
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
+    now: (() -> LocalDateTime)? = DateTimePickerDefaults::currentDateTime,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(value.date),
     formats: LocaleFormats = Theme.formats,
     firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
@@ -109,14 +126,21 @@ fun DateTimePicker(
     // Each half changes its own part of whatever the value is by then, not of
     // the value it was composed with: a day tapped while the minutes are still
     // settling keeps the minute they settle on.
-    val latest by rememberUpdatedState(value)
-    val change by rememberUpdatedState(onValueChange)
+    val working = remember { Working(value) }
+    working.compose(value)
+    val report by rememberUpdatedState(onValueChange)
+    val change: (LocalDateTime) -> Unit = { next ->
+        if (next != working.value) {
+            working.value = next
+            report(next)
+        }
+    }
     val finished by rememberUpdatedState(onValueChangeFinished)
     val date = @Composable { dateModifier: Modifier ->
         DatePicker(
             value = value.date,
             onValueChange = { date ->
-                change(LocalDateTime(date, latest.time))
+                change(LocalDateTime(date, working.value.time))
                 // A tap is the whole of a day's change: settled as it lands.
                 finished?.invoke()
             },
@@ -136,15 +160,27 @@ fun DateTimePicker(
             modifier = dateModifier,
         )
     }
+    // Now read once a press, for the wheels' time and the calendar's day alike.
+    val pressedAt = remember { arrayOfNulls<LocalDate>(1) }
     val time = @Composable { timeModifier: Modifier ->
-        TimePicker(
+        TimeWheels(
             value = value.time,
-            onValueChange = { time -> change(LocalDateTime(latest.date, time)) },
+            onValueChange = { time -> change(LocalDateTime(working.value.date, time)) },
+            modifier = timeModifier,
             enabled = enabled,
             minuteStep = minuteStep,
+            now = now?.let { read -> { read().also { pressedAt[0] = it.date }.time } },
             formats = formats,
             onValueChangeFinished = onValueChangeFinished,
-            modifier = timeModifier,
+            // The day goes with the time: today, or tomorrow when the time
+            // rounded past midnight, and the calendar pages there.
+            onNow = { tomorrow ->
+                val day = pressedAt[0]?.let { if (tomorrow) it.plus(1, DateTimeUnit.DAY) else it }
+                if (day != null && day != working.value.date) {
+                    change(LocalDateTime(day, working.value.time))
+                    navigation.jumpTo(day)
+                }
+            },
         )
     }
 

@@ -232,6 +232,8 @@ data class Strings(
     val nextMonth: String = "Next month",
     /** Moves a calendar back to the month with today in it. */
     val returnToToday: String = "Return to today",
+    /** A time picker's button that turns its wheels to the time now. */
+    val now: String = "Now",
     /** The click label on a calendar's title, which opens the month-and-year wheels. */
     val chooseMonthAndYear: String = "Choose month and year",
 
@@ -507,6 +509,7 @@ data class Strings(
         previousMonth = lookup.text("previousMonth") ?: fallback.previousMonth,
         nextMonth = lookup.text("nextMonth") ?: fallback.nextMonth,
         returnToToday = lookup.text("returnToToday") ?: fallback.returnToToday,
+        now = lookup.text("now") ?: fallback.now,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -730,6 +733,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     previousMonth = transform(previousMonth),
     nextMonth = transform(nextMonth),
     returnToToday = transform(returnToToday),
+    now = transform(now),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),

@@ -23,7 +23,7 @@ FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "
 
 It opens its `TimePicker` in a [`FieldPicker`](date-field.md), as a
 [`DateField`](date-field.md) opens its date: a sheet on a phone, a dialog on
-anything wider.
+anything wider. The picker's **Now** scrolls its wheels to the time now.
 
 ---
 

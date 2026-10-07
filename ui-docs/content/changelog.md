@@ -68,6 +68,13 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A [time picker](components/time-picker.md) and a
+  [date-and-time picker](components/date-time-picker.md) have a Now button**
+  under their wheels, so the time and date-time fields' pickers do too. It
+  scrolls the wheels through to the time now, rounded to `minuteStep`, rather
+  than jumping there; the date-and-time picker's takes today's date with it.
+  `now = null` hides it. New `TimePickerDefaults` and `DateTimePickerDefaults`
+  give the system clock's time.
 - **A date, time or date-and-time field's picker opens the same way for all
   three**, through the new
   [`FieldPicker`](components/date-field.md): a sheet on a phone, a dialog on
