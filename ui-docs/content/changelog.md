@@ -69,6 +69,10 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A [page indicator](components/page-indicator.md)'s drag pill is `outline`
+  in the light too**, as it was already in the dark: on a hero's light fade the
+  well it was drawn in could hardly be seen. In a hero the dots are given room
+  for the pill, which was cut off on an iPad.
 - **A [coach mark tour](components/coachmark.md#coachmarktour) is not
   dismissed by a tap on the dim, Back or Escape** unless
   `rememberCoachmarkTour(dismissible = true)`. Its way out is its own buttons.

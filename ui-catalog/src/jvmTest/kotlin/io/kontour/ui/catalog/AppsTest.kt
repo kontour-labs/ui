@@ -215,6 +215,34 @@ class AppsTest {
         assertTrue(spinner.top >= subtitle, "the spinner was under the hero: its top ${spinner.top}, the hero's subtitle ends at $subtitle")
     }
 
+    /**
+     * The tour's first step — the welcome card in the middle of the screen —
+     * has its Skip, whole, beside the way on, on the narrowest of phones as
+     * well: *"please also have the coachmark tour skip button on the first
+     * one"*.
+     */
+    @Test
+    fun theTourOffersSkipOnItsFirstStep() {
+        for (width in listOf(400, 320)) {
+            runDesktopComposeUiTest(width = width, height = 760) {
+                setContent {
+                    KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+                }
+                waitForIdle()
+                onNodeWithContentDescription("More").performClick()
+                waitForIdle()
+                onNodeWithText("Show me around").performClick()
+                waitForIdle()
+                val skip = onAllNodesWithText("Skip").fetchSemanticsNodes()
+                assertEquals(1, skip.size, "no Skip on the tour's first step at ${width}dp")
+                val next = onAllNodesWithText("Next").fetchSemanticsNodes().single().boundsInRoot
+                val skipBox = skip.single().boundsInRoot
+                assertTrue(skipBox.width > 20f && skipBox.right <= next.left, "Skip is squeezed or under Next at ${width}dp: $skipBox, $next")
+                assertTrue(next.right <= width.toFloat(), "Next runs off a ${width}dp screen: $next")
+            }
+        }
+    }
+
     @Test
     fun theLeaveButtonLeaves() = runDesktopComposeUiTest(width = 400, height = 860) {
         var left = false

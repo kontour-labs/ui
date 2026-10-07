@@ -690,10 +690,21 @@ private fun HeroDots(state: CarouselState) {
     val scope = rememberCoroutineScope()
     PageIndicator(
         state,
-        modifier = Modifier.clearAndSetSemantics {},
+        modifier = Modifier
+            // Room round the dots for the pill a drag along them brings up,
+            // inside the layer the bar places them in: drawn past the
+            // indicator's own box, the pill was cut off where a renderer
+            // clips a layer to its bounds — reported from an iPad, *"that
+            // popup bubble gets cut off"*. Even all round, so the dots' centre,
+            // which the bar places them by, does not move.
+            .padding(HeroDotsPillRoom)
+            .clearAndSetSemantics {},
         onPageClick = { page -> scope.launch { state.animateScrollToPage(page) } },
     )
 }
+
+/** Round a hero's dots, the pill's own pad past them and a little more. */
+private val HeroDotsPillRoom = 12.dp
 
 /** The room between the end of a hero's last line of text and its carousel's dots. */
 private val HeroDotsGap = 16.dp

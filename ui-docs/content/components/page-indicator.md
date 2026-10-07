@@ -44,10 +44,14 @@ the dots sit in, and is left for that. Each page passed under the finger is a
 says nothing, as any page reached in code does.
 
 The pill is in the theme's `pill` shape: a squircle, round at its ends round the
-round dots inside them, however a theme caps its capsules. In the light it is
-`surfaceSunken`, the well a segmented control's track and a filled text field
-are. In the dark it is `outline`, the track a slider's thumb runs on: the well
-is too near a dark page to see. At high contrast it is the well with an edge.
+round dots inside them, however a theme caps its capsules. It is `outline`, the
+track a slider's thumb runs on, in either scheme: the well a segmented
+control's track is, which it was, is too near the page to see — in the dark,
+and in the light over a hero's fade. At high contrast it is the well with an
+edge, since `outline` there is darker than the dots.
+
+In a [hero bar](top-bar.md#hero-a-large-bar-over-a-picture) the dots are given
+room for the pill all round, so it is drawn whole wherever the bar is drawn.
 Under reduced motion it fades in at its size rather than growing.
 
 ### Vertical
