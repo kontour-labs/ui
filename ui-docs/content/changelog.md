@@ -43,12 +43,11 @@ passed by position need naming — see **Breaking**, and
 ### Breaking
 
 - **A [bottom sheet](components/bottom-sheet.md#partpin----what-stays-put-while-the-sheet-moves)'s
-  `pinned { }` is a `part` with a `pin`.** Asked for as a rethink around three
-  uses: *"a search bar that's basically locked at the bottom of a sheet,
-  basically acting like a nav bar"*, *"an apple maps-style search bar that's
-  glued to the top of the header, that other content scrolls under"*, and a
-  search bar at the top of a list that, *"when the sheet collapses, … smoothly
-  animates into being the only visible thing"*. `part(pin = SheetPartPin.Bottom)`
+  `pinned { }` is a `part` with a `pin`.** Rethought around three uses: a
+  search bar locked at the bottom of a sheet like a navigation bar, a search
+  bar on top of the sheet that the content scrolls under, and a search bar at
+  the head of a list that becomes the only thing showing as the sheet
+  collapses. `part(pin = SheetPartPin.Bottom)`
   is `pinned { }`, `SheetPartPin.Top` is `pinned(to = SheetPin.Top)`, and
   `SheetPartPin.Collapsed` is new. `SheetPin` is gone, and
   `SheetDetent.pinned()` is `SheetDetent.parts()`. What changed on screen is
@@ -102,16 +101,14 @@ passed by position need naming — see **Breaking**, and
   number now sits where it would with nothing under it, and in a month with
   `annotationFor` every day's number sits at one height.
 - **On an iPhone or iPad, the first tap on a text field opens the keyboard.**
-  0.4.2's fix did not: *"the first tap doesn't open it, but a second tap
-  does"*. Driven in a browser with an iPhone's agent, Compose focuses its input
+  0.4.2's fix did not, and it took a second tap. Driven in a browser with an iPhone's agent, Compose focuses its input
   while the finger is still down, a frame after it lands, which WebKit does not
   count as the reader's; 0.4.2's primer then took the focus from it as the
   finger lifted, and Compose took it back a frame later, outside the touch
   again. The primer now focuses Compose's own input again as the finger lifts,
   which is the focus WebKit opens the keyboard for. Untested on a device here.
 - **On a phone or a tablet, in any browser, a focused text field's selection,
-  handles and menu are the browser's own**: *"it shows the compose one instead,
-  it needs to show just the native one"*. Compose's input is laid over the
+  handles and menu are the browser's own**, not Compose's. Compose's input is laid over the
   field's text while it has the focus, in the same face at the same size, and
   takes the touches on it; Compose's own caret, selection, handles and toolbar
   stand aside for the field. Paste, Cut and drops from the browser's menu reach
@@ -119,8 +116,8 @@ passed by position need naming — see **Breaking**, and
   grouped as it is typed — keeps Compose's. See
   [installing](installing.md#per-platform).
 - **In a browser, tabs, checkboxes, switches and radio buttons are named as
-  themselves**, with their checked or selected state: *"toggleable rows show up
-  as buttons in the browser's accessibility tree, and so do tabs"*. Compose
+  themselves**, with their checked or selected state, where they were all
+  buttons in the browser's accessibility tree. Compose
   1.12's web layer names any clickable node a button and writes no state; the
   library's own controls put theirs back. See
   [In the browser](accessibility.md#in-the-browser).
@@ -137,25 +134,22 @@ passed by position need naming — see **Breaking**, and
   `SheetHeader` there looks as it does in the content, and anything else is as
   wide as the sheet.
 - **A page sliding towards a [`NavRail`](components/nav-rail.md) goes under
-  it.** *"the old screen goes above the nav rail briefly and then cuts out of
-  existence. it should go behind the nav rail/drawer"*. The rail draws over
+  it.** It went over the rail briefly and was then cut off. The rail draws over
   what is beside it now, in a `NavigationSuiteScaffold` or anywhere else.
-- **A large or hero [`TopBar`](components/top-bar.md) follows the finger.**
-  *"sometimes they half collapse and stop, other times they don't expand
-  properly"*. Pulled open at the top of a list, it opens over its own height,
+- **A large or hero [`TopBar`](components/top-bar.md) follows the finger**,
+  where it sometimes stopped half collapsed or didn't open fully. Pulled open at the top of a list, it opens over its own height,
   so the list comes down with the finger, where a bar with less height than
   its title's journey opened slower than the pull. Let go part-way, it finishes
   the way the finger was going rather than to the nearer end, and a fling that
   carries the list back to its top opens it.
 - **[`StateSwitcher`](components/empty-state.md) lays each state out as a
-  column**: *"When a page's content had several sections, they drew on top of
-  each other."* A state that wants a box writes one.
+  column**, where a state with several sections drew them on top of each
+  other. A state that wants a box writes one.
 - **The JVM artifacts are Java 11 bytecode.** `:ui` and `:ui-nav3` were the
   toolchain's Java 25, and with the builders inline, an app using them had to
   compile for Java 25 too.
 - **A large or hero bar lands where a flick sends it**, on a screen only just
-  long enough to scroll as much as on any other: *"that bar just jumps around
-  when you try to scroll it"*. A list that can barely scroll spends none of a
+  long enough to scroll as much as on any other, where it jumped about. A list that can barely scroll spends none of a
   fling, so the spring that finishes the bar was handed all of it, carried the
   bar past open or past collapsed, and brought it back, with the content under
   it going there and back too. The bar now stops at its end.
@@ -175,24 +169,20 @@ passed by position need naming — see **Breaking**, and
   longer sometimes rubber-bands instead of collapsing on an iPad or iPhone.
 - **A day's own colour and a few characters under its number**, in a
   [`DatePicker`](components/date-picker.md#what-the-app-has-to-say-about-a-day),
-  `DateRangePicker`, `DateTimePicker` and `CalendarMonth`: *"the ability to
-  colour and annotate dates (with things like small numbers or text or stuff)"*.
-  `containerColourFor` fills a day, under the selection and the range;
+  `DateRangePicker`, `DateTimePicker` and `CalendarMonth`. `containerColourFor` fills a day, under the selection and the range;
   `annotationFor` gives a `DayAnnotation`, its text, colour and what a screen
   reader says after the date. Given annotations, every week is a line taller.
 - **A [scrollbar](components/scrollbar.md) keeps clear of bars over its
   scroller**: `contentPadding` on `Modifier.scrollbar` and `Scrollbar`, usually
   the padding the list's own content keeps clear of, so the track stops short
-  of a top bar or a floating tab or nav bar. *"we need to make sure the
-  scrollbar modifier can keep the bar clear of floating tabs or top bars"*.
+  of a top bar or a floating tab or nav bar.
 - **`otherPlaceholder` on a [`Select`](components/select.md) and a
   `MultiSelect`**, for the hint in the "Other" box. `otherLabel` already named
   the option in the app's own words; the example now shows it.
 - **`supporting` and `errorMessage` on a [`DateField`](components/date-field.md)**,
   `DateTimeField` and `TimeField`, as a text field has.
 - **Coach mark tours across the app, a step that points at nothing, a way
-  between steps, and any colour** — [coach marks](components/coachmark.md):
-  *"better guided tours that takes the user across the app"*.
+  between steps, and any colour** — [coach marks](components/coachmark.md).
   `rememberCoachmarkTour` takes a `navigate`, told each step as the tour reaches
   it, to take the reader to the screen it is on; the dim stays up while the
   screen changes, and a step whose control never turns up is passed over.
@@ -203,9 +193,8 @@ passed by position need naming — see **Breaking**, and
   throughout. `tone` on `Modifier.coachmarkStep`, `CoachmarkStep` and
   `Modifier.coachmark` draws a mark in any `Tone`, not only the accent.
 - **An [`EventCalendar`](components/event-calendar.md)**: events in a day's or
-  a week's hours, a month of day boxes, or a year of small months — *"a proper
-  calendar component … not like a date picker, but more of a calendar that has
-  boxes for each day of the month, designed to show events"*. `CalendarEvent`
+  a week's hours, a month of day boxes, or a year of small months: a calendar
+  of events rather than a date picker. `CalendarEvent`
   is wall-clock and half-open; the app keeps the events and the calendar
   reports presses on an event, a day and an empty time. The header steps,
   goes to today and switches the view, a swipe pages as the date picker's
@@ -233,9 +222,7 @@ passed by position need naming — see **Breaking**, and
   stall.
 - **A [swipe action](components/swipe-actions.md) can turn its own tick
   off, or on**: `fullSwipeConfirmation` and `tapConfirmation` on a
-  `SwipeAction`, which win over the row's. *"i'd like the ability to turn off
-  the swipe/tap confirmation per swipe action … right now, you can do it for a
-  full row, but you can't control it per action"*. Null, the default, leaves it
+  `SwipeAction`, which win over the row's, where only a whole row could. Null, the default, leaves it
   to the row.
 
 ---
@@ -298,8 +285,7 @@ on a round phone stop at 40dp.
 - **A [bottom sheet](components/bottom-sheet.md)'s top corners stop at 40dp** on
   a round display. They followed the display's corners all the way — an iPhone's
   55pt, a newer Pixel's 51dp — at any height, and at half height that curve sat
-  close to the header's text: *"on iphones and newer pixels, it starts to look
-  like the rounded corners get a bit close to the text in the sheet header"*. A
+  close to the header's text. A
   display rounder than the theme's 34dp still rounds them, to 40dp at most; at
   full height the display's own corner covers them either way. A theme whose
   sheet corner is rounder than 40dp keeps it.
@@ -311,8 +297,7 @@ on a round phone stop at 40dp.
 - **Under touch, a [scrollbar](components/scrollbar.md) shows while the content
   moves**, thinner, and fades 600ms after it stops, where it used to draw
   nothing at all. While it is drawn a finger on its thumb takes hold of it and
-  drags the content, as a mouse does — *"if the scrollbar is visible (even on
-  mobile), then dragging it should do what you expect"*. Only the thumb: the
+  drags the content, as a mouse does. Only the thumb: the
   rest of the strip at a list's edge is the list's, which it was not under an
   `alwaysVisible` bar. With a keyboard it is drawn at rest, as with a mouse and
   as the docs always said.
@@ -343,20 +328,17 @@ on a round phone stop at 40dp.
 - **A [`DatePicker`](components/date-picker.md#the-header-is-the-way-out-of-paging),
   `DateRangePicker` and `DateTimePicker` have their paging arrows by default**:
   the library's chevrons, back and on in the reading direction. Given no icons
-  they had no buttons either side of the month, and paged only by a swipe —
-  *"there's no left/right buttons"*, of one in a dialog. `previousIcon = null`
+  they had no buttons either side of the month, and paged only by a swipe,
+  which in a dialog left no visible way to change month. `previousIcon = null`
   and `nextIcon = null` leave them out.
 - **A [toast](components/toast.md) stands 8dp off its edge**, the window's top
   or foot inside its insets, and 8dp above a navigation bar, where it stood 16dp
-  off the window and 28dp above the bar: *"the clearance between the toast and
-  the top/bottom of the page (or the clearance above the nav bar) is a bit too
-  large"*.
+  off the window and 28dp above the bar.
 
 ### Added
 
-- **Several pictures behind a `Hero` [`TopBar`](components/top-bar.md)**:
-  *"with the hero header, can we make an option for a carousel of images. try
-  to use our existing carousel and page indicators"*. Give `image` a
+- **Several pictures behind a `Hero` [`TopBar`](components/top-bar.md)**, from
+  the library's own carousel and page indicator. Give `image` a
   `HeroImages(state) { page -> … }` and the picture is a
   [`Carousel`](components/carousel.md), one page at a time, swiped anywhere
   that is not a button, with its [`PageIndicator`](components/page-indicator.md)
@@ -368,8 +350,7 @@ on a round phone stop at 40dp.
   `Theme.strings.images`, with its dots at the foot.
 - **"Other" on a [`Select`](components/select.md) and a
   [`MultiSelect`](components/multi-select.md)**, for an answer none of the
-  options give: *"when this option is selected, a text box expands within the
-  dropdown's outline, allowing the user to enter a custom value"*. Pass
+  options give. Pass
   `onOtherTextChange` and the menu ends with "Other"; picked, a filled text
   field opens inside the outline, under the value, inset for concentric
   corners, and takes the keyboard. `otherText` holds what is
@@ -531,8 +512,7 @@ on a round phone stop at 40dp.
   collapsed to a part pinned to its top clears the safe area.** The pinned
   detent counted the safe area only under a part pinned to the bottom, so with
   the part at the top the sheet came to rest with its foot behind the home
-  indicator: *"the "edge" bottom sheet style now doesn't clear the safe area
-  when it's collapsed with a "pinned" item"*. Not new in this release — the
+  indicator. Not new in this release — the
   arithmetic is 0.3.0's.
 - **A [coachmark tour](components/coachmark.md#coachmarktour) dims the page
   once, from one step to the next.** Each step had a dim of its own, and the
