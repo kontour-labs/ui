@@ -172,6 +172,11 @@ internal enum class DragClaim {
  * @param accepts Whether a gesture starting here belongs to this node at all.
  *   See [ownedDrag]; a horizontal owner rarely needs it, because the thing it is
  *   racing usually scrolls the other way.
+ * @param patientAt Whether a [DragClaim.Direction] starting here waits for the
+ *   whole touch slop rather than [DirectionDecisionShare] of it. For a press on
+ *   something a finger can hold to pick up: a held finger wanders a few pixels
+ *   on a phone, and taking that wander for a swipe took the gesture from the
+ *   hold under it — an event calendar's events could not be carried on Android.
  */
 @Composable
 internal fun Modifier.horizontalDragOwning(
@@ -180,6 +185,7 @@ internal fun Modifier.horizontalDragOwning(
     scope: CoroutineScope,
     claimsOn: DragClaim = DragClaim.Press,
     accepts: (Offset) -> Boolean = { true },
+    patientAt: (Offset) -> Boolean = { false },
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
@@ -195,6 +201,7 @@ internal fun Modifier.horizontalDragOwning(
         enabled, interactionSource, scope, claimsOn, accepts, onStart, onEnd,
         onRelease = { velocity -> currentRelease(velocity.x) },
         along = Axis.Horizontal,
+        patientAt = patientAt,
     ) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
     }
@@ -402,8 +409,10 @@ private fun Modifier.ownedDrag(
     onEnd: () -> Unit,
     onRelease: (Offset) -> Unit = {},
     along: Axis = Axis.Both,
+    patientAt: (Offset) -> Boolean = { false },
     onDelta: (Offset) -> Unit,
 ): Modifier {
+    val currentPatient by rememberUpdatedState(patientAt)
     val currentStart by rememberUpdatedState(onStart)
     val currentDelta by rememberUpdatedState(onDelta)
     val currentEnd by rememberUpdatedState(onEnd)
@@ -458,7 +467,7 @@ private fun Modifier.ownedDrag(
             val velocity = VelocityTracker()
             // What a `Direction` claim has seen while it was still deciding.
             var gathered = Offset.Zero
-            val decideAt = viewConfiguration.touchSlop * DirectionDecisionShare
+            val decideAt = viewConfiguration.touchSlop * if (currentPatient(down.position)) 1f else DirectionDecisionShare
             try {
                 while (true) {
                     val event = awaitPointerEvent()

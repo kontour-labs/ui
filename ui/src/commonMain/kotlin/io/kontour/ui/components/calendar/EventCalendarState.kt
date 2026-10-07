@@ -108,10 +108,21 @@ class EventCalendarState internal constructor(
         }
     }
 
-    /** Shows today, in the same view. Nothing while the calendar has not been told today. */
+    /**
+     * Shows today, in the same view, and points at it — today's date pulses
+     * twice, as the date picker's does. Nothing while the calendar has not been
+     * told today.
+     */
     fun showToday() {
-        today?.let { date = it }
+        val today = today ?: return
+        val paged = periods.indexOf(today, view) != period
+        date = today
+        todayRequest = TodayRequest((todayRequest?.serial ?: 0) + 1, paged)
     }
+
+    /** The latest [showToday], for the calendar to flash today for. */
+    internal var todayRequest: TodayRequest? by mutableStateOf(null)
+        private set
 
     internal companion object {
         /** The date as an epoch day, the view, and the hours' scroll. */
@@ -166,3 +177,6 @@ private fun lengthOfMonth(first: LocalDate): Int {
     val next = if (first.month.ordinal == 11) LocalDate(first.year + 1, 1, 1) else LocalDate(first.year, first.month.ordinal + 2, 1)
     return (next.toEpochDays() - LocalDate(first.year, first.month, 1).toEpochDays()).toInt()
 }
+
+/** One [EventCalendarState.showToday]: which, and whether it had to page to get there. */
+internal class TodayRequest(val serial: Int, val paged: Boolean)

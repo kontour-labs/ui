@@ -1,10 +1,13 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
+import io.kontour.ui.components.datetime.rememberTodayFlash
+import io.kontour.ui.components.datetime.LocalTodayFlash
 import io.kontour.ui.interaction.rememberLongPressFeedback
 import io.kontour.ui.interaction.rememberLandingFeedback
 import io.kontour.ui.input.LocalInputModality
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -217,22 +221,35 @@ fun EventCalendar(
     )
     // Turned off — disabled — mid-edit, the edit is put back.
     if (!enabled && edit.live) SideEffect { edit.cancel() }
-    BoxWithConstraints(modifier) {
-        // Given no width — in a row that scrolls sideways, say — a phone's.
-        // Clipped, so a calendar squeezed narrower than its header's buttons
-        // keeps its ink inside its box.
-        val width = if (constraints.hasBoundedWidth) Modifier.fillMaxWidth() else Modifier.width(UnboundedWidth)
-        Column(width.clipToBounds()) {
-            header?.invoke(state)
-            when (state.view) {
-                CalendarView.Month -> MonthView(scope)
-                CalendarView.Day, CalendarView.Week -> TimeView(scope)
-                CalendarView.Year -> YearView(scope)
-            }
+    // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
+    val todayFlash = rememberTodayFlash()
+    val motion = Theme.motion
+    LaunchedEffect(state) {
+        var seen = state.todayRequest?.serial
+        snapshotFlow { state.todayRequest }.collect { request ->
+            if (request == null || request.serial == seen) return@collect
+            seen = request.serial
+            todayFlash.flash(after = if (request.paged) motion.default.milliseconds else Duration.ZERO)
         }
-        // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
-        // Over the calendar rather than in its column, so it takes no room.
-        Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcer.message })
+    }
+    CompositionLocalProvider(LocalTodayFlash provides { todayFlash.value() }) {
+        BoxWithConstraints(modifier) {
+            // Given no width — in a row that scrolls sideways, say — a phone's.
+            // Clipped, so a calendar squeezed narrower than its header's buttons
+            // keeps its ink inside its box.
+            val width = if (constraints.hasBoundedWidth) Modifier.fillMaxWidth() else Modifier.width(UnboundedWidth)
+            Column(width.clipToBounds()) {
+                header?.invoke(state)
+                when (state.view) {
+                    CalendarView.Month -> MonthView(scope)
+                    CalendarView.Day, CalendarView.Week -> TimeView(scope)
+                    CalendarView.Year -> YearView(scope)
+                }
+            }
+            // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
+            // Over the calendar rather than in its column, so it takes no room.
+            Box(Modifier.size(1.dp).semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcer.message })
+        }
     }
 }
 
@@ -641,9 +658,17 @@ internal class CalendarPager(
             interactionSource = null,
             scope = scope,
             claimsOn = DragClaim.Direction,
+            // Never while an edit is in hand: a finger carrying an event across
+            // the days is not a swipe, however sideways it goes.
             accepts = { at ->
                 val coordinates = placed.coordinates
-                isTouch || coordinates == null || !coordinates.isAttached || !edit.draggableAt(coordinates.localToRoot(at))
+                !edit.live && (isTouch || coordinates == null || !coordinates.isAttached || !edit.draggableAt(coordinates.localToRoot(at)))
+            },
+            // On a touchscreen, on something a finger can hold: the wander of a
+            // held finger is not taken for a swipe — only a real one, past the slop.
+            patientAt = { at ->
+                val coordinates = placed.coordinates
+                isTouch && coordinates != null && coordinates.isAttached && edit.draggableAt(coordinates.localToRoot(at))
             },
             onStart = { periods.take() },
             onDelta = { delta ->

@@ -43,6 +43,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -533,7 +535,7 @@ private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year 
 internal val LocalCalendarRows = staticCompositionLocalOf { 0 }
 
 /** How strong today's flash is at its brightest: enough to find the day, not to read as a selection. */
-private const val TodayFlashAlpha: Float = 0.45f
+internal const val TodayFlashAlpha: Float = 0.45f
 
 /** The arrow's ring on a cap, faint against the cap's ink until the dwell fills it. */
 private const val CapRingAlpha: Float = 0.4f
@@ -879,45 +881,81 @@ private fun DayCell(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = formats.digits(date.day.toLong()),
-                    style = dayStyle,
-                    colour = label,
-                )
-                if (annotation != null) {
+            // The number where it would be with nothing under it — centred, or
+            // in an annotated month at the one place every day's number sits —
+            // and a dot or an annotation under it in room of their own. They
+            // used to share a centred column with it, so a day with a dot had
+            // its number nudged up, and a row of them read as a ragged line.
+            val annotationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.roundToPx() }
+            val markerGap = with(LocalDensity.current) { MarkerGap.roundToPx() }
+            Layout(
+                modifier = Modifier.matchParentSize(),
+                content = {
                     Text(
-                        text = annotation.text,
-                        style = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
-                        // The day's own ink where it is chosen, in a range,
-                        // greyed or on its own colour: over a fill, an
-                        // annotation's colour of its own would not read.
-                        colour = when {
-                            !enabled || filled || inRange || ownFill -> label
-                            annotation.colour.isSpecified -> annotation.colour
-                            else -> colours.contentMuted
-                        },
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Clip,
+                        text = formats.digits(date.day.toLong()),
+                        style = dayStyle,
+                        colour = label,
+                        modifier = Modifier.layoutId(DayPart.Number),
                     )
-                }
-                if (marker != null) {
-                    Box(
-                        Modifier
-                            .padding(top = 2.dp)
-                            .markerSize()
-                            .clip(Theme.shapes.pill)
-                            .background(if (filled) colours.onPrimary else marker)
-                    )
+                    if (annotation != null) {
+                        Text(
+                            text = annotation.text,
+                            style = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
+                            // The day's own ink where it is chosen, in a range,
+                            // greyed or on its own colour: over a fill, an
+                            // annotation's colour of its own would not read.
+                            colour = when {
+                                !enabled || filled || inRange || ownFill -> label
+                                annotation.colour.isSpecified -> annotation.colour
+                                else -> colours.contentMuted
+                            },
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier.layoutId(DayPart.Annotation),
+                        )
+                    }
+                    if (marker != null) {
+                        Box(
+                            Modifier
+                                .layoutId(DayPart.Marker)
+                                .markerSize()
+                                .clip(Theme.shapes.pill)
+                                .background(if (filled) colours.onPrimary else marker)
+                        )
+                    }
+                },
+            ) { measurables, constraints ->
+                val loose = constraints.copy(minWidth = 0, minHeight = 0)
+                val number = measurables.first { it.layoutId == DayPart.Number }.measure(loose)
+                val note = measurables.firstOrNull { it.layoutId == DayPart.Annotation }?.measure(loose)
+                val dot = measurables.firstOrNull { it.layoutId == DayPart.Marker }?.measure(loose)
+                val width = constraints.maxWidth
+                val height = constraints.maxHeight
+                // Centred on its own, whatever is under it; in an annotated month,
+                // centred with a line under it, whether this day has one or not.
+                val block = number.height + if (annotated) annotationLine else 0
+                val numberY = ((height - block) / 2).coerceAtLeast(0)
+                val underNumber = numberY + number.height
+                layout(width, height) {
+                    number.placeRelative((width - number.width) / 2, numberY)
+                    note?.placeRelative((width - note.width) / 2, underNumber)
+                    dot?.let {
+                        val below = if (note != null) underNumber + annotationLine else underNumber
+                        val y = (below + markerGap).coerceAtMost(height - it.height)
+                        it.placeRelative((width - it.width) / 2, y)
+                    }
                 }
             }
         }
     }
 }
+
+/** The pieces of a day, as its layout tells them apart. */
+private enum class DayPart { Number, Annotation, Marker }
+
+/** Between the number, or its annotation, and the dot under it. */
+private val MarkerGap = 2.dp
 
 /**
  * The whole of the cell's padded box — **not** a square derived from its width.

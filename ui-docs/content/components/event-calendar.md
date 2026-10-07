@@ -99,9 +99,10 @@ to keep the result, or leave them as they are to refuse it.
 Every edit moves in steps of `snap`, a quarter-hour by default, and each step
 is felt as a tick. A step must be a whole number of minutes that divides a day.
 On a touchscreen an edit starts with a long press, so a quick swipe still
-scrolls the hours or pages the period. With a mouse an edit starts as soon as
-the pointer moves, so swiping a mouse across an event moves the event instead
-of paging.
+scrolls the hours or pages the period. A held finger can wander a little
+without becoming a swipe, and a scroll that stops with the finger still down
+does not turn into a hold. With a mouse an edit starts as soon as the pointer
+moves, so swiping a mouse across an event moves the event instead of paging.
 
 An event the app only shows, such as a holiday from a subscribed calendar,
 says so with `editable = false` and can't be moved or resized, though it can
@@ -177,7 +178,11 @@ event now is.
 
 While an event is carried, the copy left behind is faded and the place it
 would land is drawn as a lifted copy in its own tone with a stronger edge. In
-a month, the days it would land on are edged.
+a month and in the all-day strip, that copy is a bar the event's length whose
+ends spring from day to day as the carry passes each one, a tick for each
+day, as a date range's end does. A carry changes day only once the pointer is
+well into the next one, so a finger resting on the line between two days
+does not flick the event back and forth.
 
 Under reduced motion the swipe and the header's arrows change the period in
 place, without sliding.

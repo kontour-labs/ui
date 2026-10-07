@@ -67,6 +67,12 @@ passed by position need naming — see **Breaking**, and
 
 ### Changed
 
+- **A dot or an annotation under a day no longer moves its number**, in
+  every calendar: [`CalendarMonth`](components/calendar-month.md), the date
+  and range pickers and the event calendar's year. A day with a `markerFor`
+  dot had its number nudged up out of line with the rest of its week; the
+  number now sits where it would with nothing under it, and in a month with
+  `annotationFor` every day's number sits at one height.
 - **On an iPhone or iPad, the first tap on a text field opens the keyboard.**
   0.4.2's fix did not: *"the first tap doesn't open it, but a second tap
   does"*. Driven in a browser with an iPhone's agent, Compose focuses its input
@@ -167,7 +173,9 @@ passed by position need naming — see **Breaking**, and
   months do, and a day's number opens the day. Events can be drawn out,
   carried and stretched — by finger, mouse, keyboard or a screen reader's
   actions — in steps of `snap`, reported through `onCreateRequest`,
-  `onEventMove` and `onEventResize`. From the keyboard, the grid is one stop
+  `onEventMove` and `onEventResize`. Carried by whole days, an event is shown
+  landing as a bar its own length that springs from day to day. Going back to
+  today pulses today's date, as the date picker's button does. From the keyboard, the grid is one stop
   with a cursor the arrows move — a day in a month, a slot of time in a day
   or a week — paging past the period's ends; Enter opens the day or the
   time, and Tab goes on to the events of the cursor's day. It is drawn in

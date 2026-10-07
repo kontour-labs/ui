@@ -1,6 +1,8 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -65,12 +67,15 @@ class EventCalendarEditTest {
         view: CalendarView = CalendarView.Week,
         modality: InputModality = InputModality.Mouse,
         events: List<CalendarEvent> = listOf(review, holiday, trip),
+        inScrollingPage: Boolean = false,
     ): Probe {
         val probe = Probe()
         setContent {
             KontourTheme(reduceMotion = true) {
                 CompositionLocalProvider(LocalInputModality provides modality) {
-                    OverlayHost(Modifier.size(900.dp, 900.dp)) {
+                    // As the demo has it: a calendar of its own height in a page that scrolls.
+                    val page = if (inScrollingPage) Modifier.verticalScroll(rememberScrollState()) else Modifier
+                    OverlayHost(Modifier.size(900.dp, 900.dp).then(page)) {
                         probe.formats = Theme.formats
                         probe.strings = Theme.strings
                         probe.density = LocalDensity.current.density
@@ -222,6 +227,71 @@ class EventCalendarEditTest {
     }
 
     @Test
+    fun aFingerHeldOnAnEventCarriesItToAnotherDayAndTime() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Touch, inScrollingPage = true)
+        val from = boundsOf(review, probe).center
+        val by = Offset(dayWidth(probe), hour(probe))
+        onRoot().performTouchInput {
+            down(from)
+            // A real finger is never still: a few pixels of wander while it holds.
+            repeat(8) { i ->
+                advanceEventTime(60)
+                moveTo(from + Offset(if (i % 2 == 0) 3f else -2f, if (i % 3 == 0) 2f else -1f))
+            }
+            advanceEventTime(200)
+            repeat(12) { moveBy(by / 12f) }
+            up()
+        }
+        waitForIdle()
+        val (event, start, end) = probe.moves.singleOrNull() ?: error("the held event was not carried: no move reported")
+        assertEquals(review.id, event.id)
+        assertEquals(LocalDateTime(2026, 10, 15, 11, 0) to LocalDateTime(2026, 10, 15, 12, 0), start to end)
+    }
+
+    @Test
+    fun aQuickSwipeOverEmptyTimeStillPages() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Touch)
+        val review = boundsOf(review, probe)
+        val tuesday = Offset(review.center.x - dayWidth(probe), review.top + hour(probe) * 2f)
+        onRoot().performTouchInput {
+            down(tuesday)
+            repeat(6) {
+                advanceEventTime(16)
+                moveBy(Offset(-dayWidth(probe) * 0.6f, 0f))
+            }
+            up()
+        }
+        waitForIdle()
+        val nextMonday = probe.formats.date(LocalDate(2026, 10, 19), DateStyle.Full)
+        onNode(hasContentDescription(nextMonday) and hasClickAction()).assertExists("a sideways swipe did not page to the next week")
+        assertTrue(probe.creates.isEmpty() && probe.moves.isEmpty())
+    }
+
+    @Test
+    fun aFingerThatScrollsTheHoursThenStopsDrawsNothing() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Touch)
+        val review = boundsOf(review, probe)
+        val monday = Offset(review.center.x - dayWidth(probe) * 2f, review.top + hour(probe) * 2f)
+        onRoot().performTouchInput {
+            down(monday)
+            // Slowly, as a reader reading: the hours move with the finger.
+            repeat(20) {
+                advanceEventTime(40)
+                moveBy(Offset(0f, -hour(probe) / 10f))
+            }
+            // And stops, still down, for longer than a long press.
+            advanceEventTime(900)
+            moveBy(Offset(0f, 1f))
+            advanceEventTime(100)
+            up()
+        }
+        waitForIdle()
+        assertTrue(probe.creates.isEmpty(), "stopping a scroll drew out an event: ${probe.creates}")
+        // The canary: the hours really did scroll under the finger.
+        assertTrue(boundsOf(this@EventCalendarEditTest.review, probe).top < review.top - hour(probe), "the hours did not scroll, so this measured nothing")
+    }
+
+    @Test
     fun theKeyboardPicksUpMovesAndPutsDown() = runComposeUiTest {
         val probe = calendar()
         onNode(hasContentDescription(eventDescription(review, probe.formats, probe.strings))).requestFocus()
@@ -296,10 +366,19 @@ class EventCalendarEditTest {
         assertTrue(probe.moves.isEmpty())
     }
 
+    /**
+     * The middle of the trip bar's first day: the bar is two days long, so its
+     * own centre is on the line between them, where a carry has no day yet.
+     */
+    private fun ComposeUiTest.tripFirstDay(probe: Probe): Offset {
+        val bar = boundsOf(trip, probe)
+        return Offset(bar.left + 900f * probe.density / DaysPerWeek / 2f, bar.center.y)
+    }
+
     @Test
     fun aMonthsBarCarriedOverADayMovesByThatDay() = runComposeUiTest {
         val probe = calendar(view = CalendarView.Month)
-        val from = boundsOf(trip, probe).center
+        val from = tripFirstDay(probe)
         val width = 900f * probe.density / DaysPerWeek
         onRoot().performMouseInput {
             moveTo(from)
@@ -311,5 +390,55 @@ class EventCalendarEditTest {
         val (_, start, end) = probe.moves.single()
         assertEquals(trip.start.plusMinutes(MinutesPerDay.toLong()), start)
         assertEquals(trip.end.plusMinutes(MinutesPerDay.toLong()), end)
+    }
+
+    @Test
+    fun aFingerHeldOnAMonthsBarCarriesItByADay() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month, modality = InputModality.Touch, inScrollingPage = true)
+        val from = tripFirstDay(probe)
+        val width = 900f * probe.density / DaysPerWeek
+        onRoot().performTouchInput {
+            down(from)
+            repeat(8) { i ->
+                advanceEventTime(60)
+                moveTo(from + Offset(if (i % 2 == 0) 3f else -2f, 1f))
+            }
+            advanceEventTime(200)
+            repeat(8) { moveBy(Offset(width / 8f, 0f)) }
+            up()
+        }
+        waitForIdle()
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the held bar was not carried")
+        assertEquals(trip.start.plusMinutes(MinutesPerDay.toLong()), start)
+    }
+
+    /** Carries the trip's bar from the middle of its first day to [share] of the way into the next, and lets go. */
+    private fun ComposeUiTest.carryTrip(probe: Probe, share: Float) {
+        val from = tripFirstDay(probe)
+        val width = 900f * probe.density / DaysPerWeek
+        // From the middle of its day: half a day to the line, then [share] past it.
+        val to = from.x + width * (0.5f + share)
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (to - from.x) * (it + 1) / 10f, from.y)) }
+            release()
+        }
+        waitForIdle()
+    }
+
+    @Test
+    fun aBarJustOverTheLineIntoTheNextDayStaysWhereItWas() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        carryTrip(probe, share = 0.05f)
+        assertTrue(probe.moves.isEmpty(), "5% into the next day moved it: ${probe.moves}")
+    }
+
+    @Test
+    fun aBarWellIntoTheNextDayMovesThere() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        carryTrip(probe, share = 0.3f)
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("30% into the next day did not move it")
+        assertEquals(trip.start.plusMinutes(MinutesPerDay.toLong()), start)
     }
 }

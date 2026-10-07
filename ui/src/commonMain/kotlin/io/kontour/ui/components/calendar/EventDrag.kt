@@ -106,17 +106,18 @@ internal class EventEdit(
     /** Whatever takes a mouse drag on the calendar: a pager declines a press on any of these. */
     val draggables = HashMap<Any, LayoutCoordinates>()
 
-    /** Whether an edit by days would put its event on [date]. */
-    fun landsOn(date: LocalDate): Boolean {
-        val start = start ?: return false
-        val end = end ?: return false
-        if (!live || !byDays) return false
-        val last = if (end > start) end.plusMinutes(-1).date else start.date
-        return date >= start.date && date <= last
-    }
-
     /** Whether a press at [root] lands on something a mouse drags. */
     fun draggableAt(root: Offset): Boolean = draggables.values.any { it.isAttached && it.boundsInRoot().contains(root) }
+
+    /**
+     * The events, and their edges, that can be taken hold of: what empty time
+     * under them steps aside for, since on a touchscreen both wait out the same
+     * long press.
+     */
+    val events = HashMap<Any, LayoutCoordinates>()
+
+    /** Whether a press at [root] lands on an event that can be taken hold of. */
+    fun eventAt(root: Offset): Boolean = events.values.any { it.isAttached && it.boundsInRoot().contains(root) }
 
     /**
      * The day and wall-clock minute under [root] in the hours: the column it is
@@ -176,8 +177,32 @@ internal class EventEdit(
     /** Takes [event] up to move by whole days, held at [root] over [day]. */
     fun beginMoveByDays(event: CalendarEvent, root: Offset) {
         grabDay = dayAt(root) ?: return
+        overDay = grabDay
         begin(EditKind.Move, event, event.start, event.end, byDays = true)
         lastPointer = root
+    }
+
+    /** The day a carry by days is over now: the one it last settled on. */
+    private var overDay: LocalDate? = null
+
+    /**
+     * The day under [root] for a carry by days, settled: it changes only once
+     * the pointer is well into the next day — past [DayHysteresis] of it from
+     * the edge it came in by — so a finger resting on the line between two days
+     * does not flick the event back and forth between them.
+     */
+    private fun settledDayAt(root: Offset): LocalDate? {
+        val near = dayAt(root) ?: return overDay
+        val current = overDay
+        if (current == null || near == current) return near.also { overDay = it }
+        val box = days[near]?.takeIf { it.isAttached } ?: return near.also { overDay = it }
+        val bounds = box.boundsInRoot()
+        val insetX = bounds.width * DayHysteresis
+        val insetY = bounds.height * DayHysteresis
+        val core = Rect(bounds.left + insetX, bounds.top + insetY, bounds.right - insetX, bounds.bottom - insetY)
+        // Off every day — past the first or last, waiting for a dwell — the nearest is the one.
+        val onAny = days.values.any { it.isAttached && it.boundsInRoot().contains(root) }
+        return if (!onAny || core.contains(root)) near.also { overDay = it } else current
     }
 
     /** Takes [event] up from the keyboard: moved by keys rather than by a pointer. */
@@ -222,7 +247,7 @@ internal class EventEdit(
             EditKind.Move -> if (event != null) {
                 if (byDays) {
                     val from = grabDay ?: return
-                    val to = dayAt(root) ?: return
+                    val to = settledDayAt(root) ?: return
                     val days = to.toEpochDays() - from.toEpochDays()
                     propose(event.start.plusMinutes(days * MinutesPerDay), event.end.plusMinutes(days * MinutesPerDay))
                 } else {
@@ -281,7 +306,9 @@ internal class EventEdit(
         steps.at(stepIndex(if (kind == EditKind.ResizeEnd) end else start))
     }
 
-    private fun stepIndex(at: LocalDateTime): Int = (at.epochMinute / stepMinutes).toInt()
+    /** A detent a step of the snap — or, carried by days, a day: one tick a day, not a day's worth. */
+    private fun stepIndex(at: LocalDateTime): Int =
+        if (byDays) (at.epochMinute / MinutesPerDay).toInt() else (at.epochMinute / stepMinutes).toInt()
 
     /** Puts it down: what changed, for the calendar to report — null where it landed where it was. */
     fun finish(): Finished? {
@@ -308,6 +335,7 @@ internal class EventEdit(
         end = null
         byDays = false
         grabDay = null
+        overDay = null
         createDay = null
         lastPointer = null
         steps.reset()
@@ -321,6 +349,9 @@ internal class EventEdit(
 
         /** Across counts this many times up and down, finding a pointer's day. */
         const val Across = 8f
+
+        /** How far into the next day a carry by days goes before it is over it: a share of the day. */
+        const val DayHysteresis = 0.15f
     }
 }
 

@@ -1,7 +1,6 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.scrollBy
 import io.kontour.ui.interaction.detectPickUp
 import io.kontour.ui.interaction.PickUpAxis
@@ -299,11 +298,10 @@ private fun gutterWidth(scope: CalendarScope): Dp {
     val style = Theme.typography.labelSmall
     val density = LocalDensity.current
     val margin = Theme.spacing.xs
-    return remember(scope.formats, scope.strings, style, density, measurer) {
-        // The hours' labels and the all-day strip's, which shares the gutter:
-        // short hours made it narrower than "All day".
-        val labels = (0 until HoursPerDay).map { scope.formats.hourLabel(it) } + scope.strings.allDay
-        val widest = labels.maxOf { measurer.measure(it, style).size.width }
+    return remember(scope.formats, style, density, measurer) {
+        val widest = (0 until HoursPerDay).maxOf { hour ->
+            measurer.measure(scope.formats.hourLabel(hour), style).size.width
+        }
         with(density) { widest.toDp() } + margin * 2
     }
 }
@@ -378,15 +376,9 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     if (!any) return
     val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
     Row(Modifier.fillMaxWidth()) {
-        Box(Modifier.width(gutter).padding(top = Theme.spacing.xxs), contentAlignment = Alignment.TopEnd) {
-            Text(
-                Theme.strings.allDay,
-                style = Theme.typography.labelSmall,
-                colour = quietInk(),
-                maxLines = 1,
-                modifier = Modifier.padding(horizontal = Theme.spacing.xs).clearAndSetSemantics { },
-            )
-        }
+        // No label beside it: the bars say what they are, and "All day" was
+        // the widest thing in the gutter, cut to "All" on a phone.
+        Spacer(Modifier.width(gutter))
         PeriodStrip(scope.pager, Modifier.weight(1f)) { period ->
             val from = state.periods.startOf(period, state.view)
             val to = from.plus(days - 1, DateTimeUnit.DAY)
@@ -415,6 +407,9 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                             .height(item - gap),
                     )
                 }
+                val carried = scope.edit.event?.id
+                val ghostRow = pack.placed.firstOrNull { it.item.event.id == carried }?.row ?: 0
+                DaysGhost(scope, from, days, cell, top = item * ghostRow + gap / 2, height = item - gap, gap = gap)
                 for (column in 0 until days) {
                     val more = pack.more[column]
                     if (more == 0) continue
@@ -443,8 +438,8 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
 }
 
 /**
- * A day's place for an edit by days to find, edged while a carried bar would
- * land on it.
+ * A day's place for an edit by days to find. Where it would land is drawn by
+ * [DaysGhost], over the days, rather than by each day here.
  */
 @Composable
 internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier) {
@@ -458,8 +453,7 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
                 edit.days[date] = coordinates
-            }
-            .then(if (edit.landsOn(date)) Modifier.border(Theme.sizing.borderWidthStrong, Theme.colours.accent.solid) else Modifier),
+            },
     )
 }
 
@@ -637,6 +631,13 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                         detectPickUp(
                             axis = PickUpAxis.Free,
                             immediate = { !isTouch },
+                            // A scroll of the hours, or a swipe of the pages, is not a hold.
+                            givesWay = true,
+                            // Empty time only: a press on an event is the event's.
+                            accepts = { at ->
+                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at)
+                                root == null || !edit.eventAt(root)
+                            },
                             onPickUp = { at ->
                                 val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(press.position ?: at) ?: return@detectPickUp
                                 edit.beginCreate(date, root)

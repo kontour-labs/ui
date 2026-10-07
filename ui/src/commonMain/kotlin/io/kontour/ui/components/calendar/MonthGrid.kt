@@ -1,6 +1,12 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.background
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
@@ -225,6 +231,10 @@ private fun MonthWeek(
                     .height(item - gap),
             )
         }
+        // Where a carried event would land, in the row it was in.
+        val carried = scope.edit.event?.id
+        val ghostRow = pack.placed.firstOrNull { it.item.event.id == carried }?.row ?: 0
+        DaysGhost(scope, weekStart, DaysPerWeek, cell, top = dateLabel + item * ghostRow + gap / 2, height = item - gap, gap = gap)
     }
 }
 
@@ -362,3 +372,49 @@ private fun DayBox(
         }
     }
 }
+
+/**
+ * Where an event carried by whole days would land, in one row of days: a
+ * lifted copy as long as the event, the part of it in [rowStart]'s row, its
+ * ends springing from day to day as the carry passes each — the detents a
+ * date range's end moves by — where the days it would land on used to be
+ * outlined one by one. A cut under reduced motion.
+ */
+@Composable
+internal fun DaysGhost(scope: CalendarScope, rowStart: LocalDate, days: Int, cell: Dp, top: Dp, height: Dp, gap: Dp) {
+    val edit = scope.edit
+    val event = edit.event
+    val start = edit.start
+    val end = edit.end
+    if (!edit.live || !edit.byDays || event == null || start == null || end == null) return
+    val last = if (end > start) end.plusMinutes(-1).date else start.date
+    val rowEnd = rowStart.plus(days - 1, DateTimeUnit.DAY)
+    if (last < rowStart || start.date > rowEnd) return
+    val from = (maxOf(start.date, rowStart).toEpochDays() - rowStart.toEpochDays()).toFloat()
+    val to = (minOf(last, rowEnd).toEpochDays() - rowStart.toEpochDays() + 1).toFloat()
+    val motion = Theme.motion
+    val spec: AnimationSpec<Float> = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
+    val left = animateFloatAsState(from, spec, label = "ghostStart")
+    val right = animateFloatAsState(to, spec, label = "ghostEnd")
+    val shown = remember(event, start, end) { CalendarEvent(DaysGhostId, event.title, start, end, tone = event.tone) }
+    EventChip(
+        event = shown,
+        presentation = EventPresentation.Bar,
+        scope = scope,
+        ghost = true,
+        // Placed from the springs in layout, so a carry recomposes nothing as it moves.
+        modifier = Modifier.layout { measurable, constraints ->
+            val cellPx = cell.toPx()
+            val gapPx = gap.toPx()
+            val x = left.value * cellPx + gapPx
+            val width = ((right.value - left.value) * cellPx - gapPx * 2).roundToInt().coerceAtLeast(0)
+            val placeable = measurable.measure(Constraints.fixed(width, height.roundToPx()))
+            layout(constraints.maxWidth, top.roundToPx() + placeable.height) {
+                placeable.placeRelative(x.roundToInt(), top.roundToPx())
+            }
+        },
+    )
+}
+
+/** The id of the copy a carry by days draws: nothing an app's events could be. */
+private object DaysGhostId

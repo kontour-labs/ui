@@ -1,5 +1,7 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -42,6 +44,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.datetime.TodayFlashAlpha
+import io.kontour.ui.components.datetime.LocalTodayFlash
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.foundation.ProvideContentColour
@@ -165,14 +169,20 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
 
     if (movable) {
         DisposableEffect(edit, event.id) {
-            onDispose { edit.draggables.remove(placed) }
+            onDispose {
+                edit.draggables.remove(placed)
+                edit.events.remove(placed)
+            }
         }
     }
 
     return this
         .onGloballyPositioned { coordinates ->
             placed.coordinates = coordinates
-            if (movable) edit.draggables[placed] = coordinates
+            if (movable) {
+                edit.draggables[placed] = coordinates
+                edit.events[placed] = coordinates
+            }
         }
         .then(
             if (focusableOn != null) {
@@ -204,6 +214,8 @@ private fun Modifier.eventControl(event: CalendarEvent, scope: CalendarScope, by
                     detectPickUp(
                         axis = PickUpAxis.Free,
                         immediate = { !isTouch },
+                        // A scroll of the hours, or a swipe of the pages, is not a hold.
+                        givesWay = true,
                         onPickUp = { at ->
                             val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(press.position ?: at) ?: return@detectPickUp
                             if (byDays) edit.beginMoveByDays(current, root) else edit.beginMove(current, root)
@@ -293,7 +305,12 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
     val current by rememberUpdatedState(event)
     val active = scope.touch && edit.active == event.id
     val grip = toneColours(event.tone).solid
-    DisposableEffect(edit) { onDispose { edit.draggables.remove(placed) } }
+    DisposableEffect(edit) {
+        onDispose {
+            edit.draggables.remove(placed)
+            edit.events.remove(placed)
+        }
+    }
     Box(
         Modifier
             .align(if (atStart) Alignment.TopCenter else Alignment.BottomCenter)
@@ -302,6 +319,7 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
                 edit.draggables[placed] = coordinates
+                edit.events[placed] = coordinates
             }
             .pointerCursor(Cursor.ResizeRow)
             .pointerInput(edit, event.id, atStart) {
@@ -377,8 +395,24 @@ internal fun quietInk(): Color = if (highContrast()) Theme.colours.content else 
  * looks like.
  */
 @Composable
-internal fun Modifier.todayRing(isToday: Boolean): Modifier =
-    if (isToday) border(Theme.sizing.borderWidth, Theme.colours.outlineStrong, Theme.shapes.capsule) else this
+internal fun Modifier.todayRing(isToday: Boolean): Modifier {
+    if (!isToday) return this
+    // And the date picker's pulse inside it when today is gone back to: drawn
+    // from the flash in the draw pass, so a pulse is a redraw of one circle.
+    val flash = LocalTodayFlash.current
+    val colour = Theme.colours.accent.solid
+    val shape = Theme.shapes.capsule
+    return border(Theme.sizing.borderWidth, Theme.colours.outlineStrong, shape).then(
+        if (flash == null) {
+            Modifier
+        } else {
+            Modifier.drawBehind {
+                val amount = flash()
+                if (amount > 0f) drawOutline(shape.createOutline(size, layoutDirection, this), colour, alpha = amount * TodayFlashAlpha)
+            }
+        },
+    )
+}
 
 /**
  * The line round the calendar's grid, and between its days: the stronger

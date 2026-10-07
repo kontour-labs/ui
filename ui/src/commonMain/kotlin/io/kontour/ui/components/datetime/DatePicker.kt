@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -287,6 +289,40 @@ private const val TodayFlashOutMillis: Int = 170
 
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2
+
+/**
+ * Today pointed at: a colour from the theme pulsed in and out of today's
+ * circle twice, by whatever calendar has a way back to today — the date
+ * picker's button, the event calendar's. Read through [LocalTodayFlash] in a
+ * cell's draw pass, so a flash redraws one cell and recomposes nothing.
+ */
+@Stable
+internal class TodayFlash(private val scope: CoroutineScope) {
+    private val amount = Animatable(0f)
+
+    /** How far today is flashed, 0 to 1. */
+    fun value(): Float = amount.value
+
+    /** Pulses today, [after] a wait — the time a page takes to slide in. */
+    fun flash(after: Duration = Duration.ZERO) {
+        scope.launch {
+            if (after.isPositive()) delay(after)
+            amount.snapTo(0f)
+            // Twice: once to catch the eye, once to hold it there.
+            repeat(TodayFlashPulses) {
+                amount.animateTo(1f, tween(TodayFlashInMillis))
+                amount.animateTo(0f, tween(TodayFlashOutMillis))
+            }
+        }
+    }
+}
+
+/** A [TodayFlash] for this composition. */
+@Composable
+internal fun rememberTodayFlash(): TodayFlash {
+    val scope = rememberCoroutineScope()
+    return remember(scope) { TodayFlash(scope) }
+}
 
 /** How far a swipe has to go to page, as a share of the calendar's width. */
 internal const val SwipeCommitShare: Float = 1f / 3f
@@ -1006,8 +1042,7 @@ private fun CalendarFrame(
      * "where is today" on a month where the day is easy to miss. Read by the
      * today cell in its draw pass; see `LocalTodayFlash`.
      */
-    val todayFlash = remember { Animatable(0f) }
-    val flashScope = rememberCoroutineScope()
+    val todayFlash = rememberTodayFlash()
 
     /**
      * The month the wheels open on, and then stop hearing about.
@@ -1084,16 +1119,8 @@ private fun CalendarFrame(
                                     it.year != today.year || it.month != today.month
                                 }
                                 navigation.jumpTo(today)
-                                flashScope.launch {
-                                    // Once the month has slid in, if it had to.
-                                    if (paging) delay(motion.default.toLong())
-                                    todayFlash.snapTo(0f)
-                                    // Twice: once to catch the eye, once to hold it there.
-                                    repeat(TodayFlashPulses) {
-                                        todayFlash.animateTo(1f, tween(TodayFlashInMillis))
-                                        todayFlash.animateTo(0f, tween(TodayFlashOutMillis))
-                                    }
-                                }
+                                // Once the month has slid in, if it had to.
+                                todayFlash.flash(after = if (paging) motion.default.milliseconds else Duration.ZERO)
                             },
                             size = ButtonSize.Small,
                         )
@@ -1170,7 +1197,7 @@ private fun CalendarFrame(
         ) {
         CompositionLocalProvider(
             LocalCalendarDrag provides drag,
-            LocalTodayFlash provides { todayFlash.value },
+            LocalTodayFlash provides { todayFlash.value() },
             // Every month six weeks tall, so paging never changes the height.
             LocalCalendarRows provides CalendarWeeks,
         ) {
