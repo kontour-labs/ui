@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -201,6 +202,12 @@ fun rememberPullToRefreshState(
  * }
  * ```
  *
+ * **Under a bar drawn over the list** — a hero following its list, see
+ * [io.kontour.ui.nav.rememberTopBarCollapseState] — the list's first row
+ * starts below the bar, and so does the gap a pull opens: give
+ * [indicatorPadding] the same top the list's content has, and the indicator
+ * comes in there rather than under the bar.
+ *
  * **Not a substitute for a visible refresh control.** It is invisible, has no
  * keyboard or pointer equivalent, and is unreachable for anyone who cannot make
  * a sustained drag. On a screen where reloading matters, put a refresh action in
@@ -214,6 +221,9 @@ fun rememberPullToRefreshState(
  *
  * Announces its state as a polite live region while refreshing, because a
  * spinner sliding in is not something a screen reader user can see.
+ *
+ * @param indicatorPadding Where the indicator's space starts, for content
+ *   that starts below something drawn over it.
  */
 @Composable
 fun PullToRefresh(
@@ -225,6 +235,7 @@ fun PullToRefresh(
     refreshingLabel: String = Theme.strings.refreshing,
     pullLabel: String = Theme.strings.pullToRefresh,
     releaseLabel: String = Theme.strings.releaseToRefresh,
+    indicatorPadding: PaddingValues = PaddingValues(),
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -406,6 +417,9 @@ fun PullToRefresh(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
+                    // Where the gap opens: the top of the list's content,
+                    // under a bar drawn over it.
+                    .padding(indicatorPadding)
                     // Centred in the gap it is revealed in rather than riding
                     // the content's top edge: at rest there is no gap and no
                     // indicator, and at full pull it sits in the middle of the

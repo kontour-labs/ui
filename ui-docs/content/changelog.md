@@ -165,6 +165,10 @@ passed by position need naming — see **Breaking**, and
   thing that scrolls, so the two never share a drag. On an iPhone a hero laid
   out above its list sometimes rubber-banded at the start of a drag instead
   of collapsing. A collapse left part-way also stays where the list is.
+- **`PullToRefresh(indicatorPadding = …)`** puts the indicator below a bar
+  drawn over the list, in the gap a pull opens, for a hero that follows its
+  list. Transit's departures are wired this way now, and the hero there no
+  longer sometimes rubber-bands instead of collapsing on an iPad or iPhone.
 - **A day's own colour and a few characters under its number**, in a
   [`DatePicker`](components/date-picker.md#what-the-app-has-to-say-about-a-day),
   `DateRangePicker`, `DateTimePicker` and `CalendarMonth`: *"the ability to

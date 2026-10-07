@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -143,7 +144,8 @@ class AppsTest {
 
         mainClock.autoAdvance = false
         onNodeWithTag("departures").performTouchInput {
-            down(Offset(centerX, list.height * 0.3f))
+            // On the rows: the list runs under the hero, which takes a press on itself.
+            down(Offset(centerX, list.height * 0.6f))
             repeat(12) { moveBy(Offset(0f, 20f)); }
         }
         mainClock.advanceTimeBy(100)
@@ -154,6 +156,62 @@ class AppsTest {
 
         assertEquals(title, pulledTitle, 0.5f, "the bar came down with the pull")
         assertTrue(pulledRow > firstRow + 20f, "the list did not come down: ${pulledRow - firstRow}px")
+    }
+
+    /**
+     * The departures' hero collapses as the list goes up, from the first move
+     * of the finger, with the list moving exactly as far as the finger does.
+     *
+     * Reported from an iPad: *"sometimes it shops, sometimes it doesn't"* — the
+     * hero, laid out above its list, shared each drag with it, and the start of
+     * one sometimes went to the system's stretch instead. Drawn over the list
+     * and following its scroll, there is nothing to share.
+     */
+    @Test
+    fun theHeroCollapsesFromTheFirstMoveAndTheListMovesWithTheFinger() = runDesktopComposeUiTest(width = 400, height = 860) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        fun top(text: String) = onAllNodesWithText(text).fetchSemanticsNodes().first().boundsInRoot.top
+        val title = top("Perth Underground")
+        val row = top("Trains")
+        val list = onNodeWithTag("departures").fetchSemanticsNode().boundsInRoot
+        mainClock.autoAdvance = false
+        onNodeWithTag("departures").performTouchInput {
+            down(Offset(centerX, list.height * 0.6f))
+            // Past the slop, then three moves more.
+            repeat(6) { moveBy(Offset(0f, -10f)) }
+        }
+        mainClock.advanceTimeByFrame()
+        val movedRow = row - top("Trains")
+        val movedTitle = title - top("Perth Underground")
+        onNodeWithTag("departures").performTouchInput { up() }
+        mainClock.autoAdvance = true
+        assertTrue(movedTitle > 4f, "the hero did not start collapsing with the drag: ${movedTitle}px")
+        assertTrue(movedRow > 20f, "the list did not move with the finger: ${movedRow}px")
+    }
+
+    /** Pulled at the top, the spinner comes in below the hero, in the gap the list leaves, not under the bar. */
+    @Test
+    fun aPullsSpinnerIsBelowTheHero() = runDesktopComposeUiTest(width = 400, height = 860) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        val subtitle = onAllNodesWithText("Next departures").fetchSemanticsNodes().first().boundsInRoot.bottom
+        val list = onNodeWithTag("departures").fetchSemanticsNode().boundsInRoot
+        mainClock.autoAdvance = false
+        onNodeWithTag("departures").performTouchInput {
+            down(Offset(centerX, list.height * 0.6f))
+            repeat(12) { moveBy(Offset(0f, 20f)) }
+        }
+        mainClock.advanceTimeBy(100)
+        val spinner = onAllNodes(hasContentDescription("Pull to refresh") or hasContentDescription("Release to refresh"))
+            .fetchSemanticsNodes().first().boundsInRoot
+        onNodeWithTag("departures").performTouchInput { up() }
+        mainClock.autoAdvance = true
+        assertTrue(spinner.top >= subtitle, "the spinner was under the hero: its top ${spinner.top}, the hero's subtitle ends at $subtitle")
     }
 
     @Test

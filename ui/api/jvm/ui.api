@@ -1402,7 +1402,7 @@ public final class io/kontour/ui/components/list/PullToRefreshDefaults {
 
 public final class io/kontour/ui/components/list/PullToRefreshKt {
 	public static final fun LoadMore (Lio/kontour/ui/components/list/LoadMoreStatus;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function0;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)V
-	public static final fun PullToRefresh (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/list/PullToRefreshState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun PullToRefresh (ZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLio/kontour/ui/components/list/PullToRefreshState;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/foundation/layout/PaddingValues;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberPullToRefreshState-kHDZbjc (FLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/list/PullToRefreshState;
 }
 

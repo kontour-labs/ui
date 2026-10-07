@@ -3,6 +3,11 @@ package io.kontour.ui.catalog.apps.transit
 import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,7 +52,6 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
-import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
@@ -82,9 +86,9 @@ internal fun DeparturesPage(
     var showing by remember { mutableStateOf(setOf(Mode.Train, Mode.Bus)) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var menu by remember { mutableStateOf(false) }
-    val collapse = rememberTopBarCollapseState()
     val list = rememberLazyListState()
-    val tour = LocalTransitTour.current ?: rememberCoachmarkTour("ticket", "filters", "plan")
+    val collapse = rememberTopBarCollapseState(list)
+    val tour = LocalTransitTour.current ?: rememberCoachmarkTour("ticket", "filters", "plan", skippable = true)
 
     LaunchedEffect(refreshing) {
         if (!refreshing) return@LaunchedEffect
@@ -97,110 +101,108 @@ internal fun DeparturesPage(
     val visible = shown.filter { it.mode in showing }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            TopBar(
-                style = TopBarStyle.Hero,
-                image = { SkylineArt(Modifier.fillMaxSize()) },
-                navigation = rootNavigation(),
-                actions = {
-                    IconButton(
-                        icon = Tabler.Outline.Ticket,
-                        contentDescription = "My ticket",
-                        onClick = onTicket,
-                        modifier = Modifier.coachmarkStep(
-                            tour,
-                            id = "ticket",
-                            title = "Your ticket",
-                            message = "Your balance, and how close today is to the fare cap.",
-                        ),
-                    )
-                    Box {
-                        IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { menu = true })
-                        DropdownMenu(visible = menu, onDismissRequest = { menu = false }) {
-                            item("Refresh", leadingIcon = Tabler.Outline.Refresh, onClick = {
-                                menu = false
-                                refreshing = true
-                            })
-                            item("Show me around", leadingIcon = Tabler.Outline.Sparkles, onClick = {
-                                menu = false
-                                tour.start()
-                            })
-                        }
-                    }
-                },
-                collapseState = collapse,
+        // The list under the bar, which is drawn over it and follows its
+        // scroll: the list is the only thing that scrolls, so the two never
+        // share a drag out between them — on an iPhone, sharing one, the start
+        // of a drag sometimes went to the system's stretch instead of the bar.
+        PullToRefresh(
+            refreshing = refreshing,
+            onRefresh = { refreshing = true },
+            modifier = Modifier.fillMaxSize(),
+            // The spinner in the gap a pull opens, below the bar, not under it.
+            indicatorPadding = PaddingValues(top = collapse.openHeight),
+        ) {
+            LazyColumn(
+                state = list,
+                modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = navigationSuitePadding().plusTop(collapse.openHeight)).testTag("departures"),
+                // Starting below the bar drawn over it.
+                contentPadding = transitPagePadding().plusTop(collapse.openHeight),
+                // No arrangement: the departures are a `listSection`,
+                // which puts a list item's gap between its rows and its own
+                // space above them, and an arrangement would add to both.
             ) {
-                +"Perth Underground"
-                supporting { +"Next departures" }
-            }
-            // The refresh under the bar, round the list alone: it is the
-            // list a pull brings down, with the spinner in the gap it
-            // leaves below the bar. The bar's collapse goes on the list,
-            // inside the refresh, so a pull down opens the bar before it
-            // starts a refresh, and pushing the spinner away comes before
-            // folding the bar.
-            PullToRefresh(
-                refreshing = refreshing,
-                onRefresh = { refreshing = true },
-                modifier = Modifier.weight(1f),
-            ) {
-                LazyColumn(
-                    state = list,
-                    modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = navigationSuitePadding()).topBarCollapse(collapse).testTag("departures"),
-                    contentPadding = transitPagePadding(),
-                    // No arrangement: the departures are a `listSection`,
-                    // which puts a list item's gap between its rows and its own
-                    // space above them, and an arrangement would add to both.
-                ) {
-                    item(key = "filters") {
-                        ChipGroup(
-                            Modifier
-                                .coachmarkStep(
-                                    tour,
-                                    id = "filters",
-                                    title = "Trains, buses or both",
-                                    message = "The counts are what is leaving in the next half hour.",
-                                ),
-                        ) {
-                            for (mode in Mode.entries) {
-                                FilterChip(
-                                    selected = mode in showing,
-                                    onSelectedChange = { on -> showing = if (on) showing + mode else showing - mode },
-                                    selectedIcon = Tabler.Outline.Check,
-                                ) {
-                                    +mode.label
-                                    tag { +"${shown.count { it.mode == mode }}" }
-                                }
+                item(key = "filters") {
+                    ChipGroup(
+                        Modifier
+                            .coachmarkStep(
+                                tour,
+                                id = "filters",
+                                title = "Trains, buses or both",
+                                message = "The counts are what is leaving in the next half hour.",
+                            ),
+                    ) {
+                        for (mode in Mode.entries) {
+                            FilterChip(
+                                selected = mode in showing,
+                                onSelectedChange = { on -> showing = if (on) showing + mode else showing - mode },
+                                selectedIcon = Tabler.Outline.Check,
+                            ) {
+                                +mode.label
+                                tag { +"${shown.count { it.mode == mode }}" }
                             }
                         }
                     }
-                    if (visible.isEmpty()) {
-                        item(key = "none") {
-                            Text(
-                                "Nothing is leaving. Choose trains or buses above.",
-                                style = Theme.typography.bodyMedium,
-                                colour = Theme.colours.contentMuted,
-                                modifier = Modifier.padding(top = Theme.spacing.md),
-                            )
-                        }
-                    }
-                    listSection(visible, key = { it.id }) { departure, position ->
-                        DepartureRow(
-                            departure = departure,
-                            position = position,
-                            favourite = departure.route in favourites,
-                            onClick = { onStop(stopFor(departure)) },
-                            onFavourite = {
-                                favourites = favourites + departure.route
-                                toast("${departure.route} added to favourites")
-                            },
-                            onRemind = { toast("We'll remind you 2 minutes before the ${departure.route} leaves") },
+                }
+                if (visible.isEmpty()) {
+                    item(key = "none") {
+                        Text(
+                            "Nothing is leaving. Choose trains or buses above.",
+                            style = Theme.typography.bodyMedium,
+                            colour = Theme.colours.contentMuted,
+                            modifier = Modifier.padding(top = Theme.spacing.md),
                         )
                     }
                 }
+                listSection(visible, key = { it.id }) { departure, position ->
+                    DepartureRow(
+                        departure = departure,
+                        position = position,
+                        favourite = departure.route in favourites,
+                        onClick = { onStop(stopFor(departure)) },
+                        onFavourite = {
+                            favourites = favourites + departure.route
+                            toast("${departure.route} added to favourites")
+                        },
+                        onRemind = { toast("We'll remind you 2 minutes before the ${departure.route} leaves") },
+                    )
+                }
             }
         }
-
+        TopBar(
+            style = TopBarStyle.Hero,
+            image = { SkylineArt(Modifier.fillMaxSize()) },
+            navigation = rootNavigation(),
+            actions = {
+                IconButton(
+                    icon = Tabler.Outline.Ticket,
+                    contentDescription = "My ticket",
+                    onClick = onTicket,
+                    modifier = Modifier.coachmarkStep(
+                        tour,
+                        id = "ticket",
+                        title = "Your ticket",
+                        message = "Your balance, and how close today is to the fare cap.",
+                    ),
+                )
+                Box {
+                    IconButton(icon = Tabler.Outline.Dots, contentDescription = "More", onClick = { menu = true })
+                    DropdownMenu(visible = menu, onDismissRequest = { menu = false }) {
+                        item("Refresh", leadingIcon = Tabler.Outline.Refresh, onClick = {
+                            menu = false
+                            refreshing = true
+                        })
+                        item("Show me around", leadingIcon = Tabler.Outline.Sparkles, onClick = {
+                            menu = false
+                            tour.start()
+                        })
+                    }
+                }
+            },
+            collapseState = collapse,
+        ) {
+            +"Perth Underground"
+            supporting { +"Next departures" }
+        }
         if (showPlanButton) {
             ExtendedFloatingActionButton(
                 icon = Tabler.Outline.Route,
@@ -268,3 +270,15 @@ private fun stopFor(departure: Departure): String =
     stops.firstOrNull { it.name == departure.towards }?.name ?: "Perth Underground"
 
 private const val RefreshMillis = 1_200L
+
+/** These paddings, [top] further down. */
+@Composable
+private fun PaddingValues.plusTop(top: Dp): PaddingValues {
+    val direction = LocalLayoutDirection.current
+    return PaddingValues(
+        start = calculateStartPadding(direction),
+        top = calculateTopPadding() + top,
+        end = calculateEndPadding(direction),
+        bottom = calculateBottomPadding(),
+    )
+}
