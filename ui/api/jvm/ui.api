@@ -3402,6 +3402,7 @@ public final class io/kontour/ui/nav/TabBarScope {
 public final class io/kontour/ui/nav/TopBarCollapseState {
 	public static final field $stable I
 	public final fun getNestedScrollConnection ()Landroidx/compose/ui/input/nestedscroll/NestedScrollConnection;
+	public final fun getOpenHeight-D9Ej5fM ()F
 	public final fun getProgress ()F
 }
 
@@ -3419,6 +3420,8 @@ public final class io/kontour/ui/nav/TopBarKt {
 	public static final fun collapseProgress (FF)F
 	public static final fun collapseProgress-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)F
 	public static final fun rememberTopBarCollapseState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/nav/TopBarCollapseState;
+	public static final fun rememberTopBarCollapseState-rAjV9yQ (Landroidx/compose/foundation/ScrollState;FLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/TopBarCollapseState;
+	public static final fun rememberTopBarCollapseState-rAjV9yQ (Landroidx/compose/foundation/lazy/LazyListState;FLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/nav/TopBarCollapseState;
 	public static final fun topBarCollapse (Landroidx/compose/ui/Modifier;Lio/kontour/ui/nav/TopBarCollapseState;)Landroidx/compose/ui/Modifier;
 }
 

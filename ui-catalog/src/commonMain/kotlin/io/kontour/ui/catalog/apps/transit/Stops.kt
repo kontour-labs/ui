@@ -173,10 +173,23 @@ internal fun StopsPage(onStop: (String) -> Unit) {
 internal fun StopPage(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> Unit) {
     val toast = rememberAppToast()
     var favourite by remember { mutableStateOf(false) }
-    val collapse = rememberTopBarCollapseState()
+    // Drawn over the page and following its scroll: the page is the only
+    // thing that scrolls, so the bar and it never share out a drag.
+    val scroll = rememberScrollState()
+    val collapse = rememberTopBarCollapseState(scroll)
     val seed = remember(stop) { stop.name.sumOf { it.code } }
 
-    Column(Modifier.fillMaxSize().topBarCollapse(collapse)) {
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .pageScroll(scroll)
+                .padding(top = collapse.openHeight)
+                .padding(transitPagePadding()),
+            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+        ) {
+            StopDetails(stop, onLine, onTicket)
+        }
         TopBar(
             style = TopBarStyle.Hero,
             onBack = pageBack(),
@@ -197,35 +210,32 @@ internal fun StopPage(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> 
             +stop.name
             supporting { +"Zone ${stop.zone}" }
         }
-        Column(
-            Modifier
-                .fillMaxSize()
-                .pageScroll()
-                .padding(transitPagePadding()),
-            verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
-        ) {
-            TransitHeading("Lines")
-            ChipGroup {
-                for (line in stop.lines) {
-                    Chip(onClick = { onLine(line.name) }) { +line.name }
-                }
-            }
-            TransitHeading("At this stop")
-            KeyValueList {
-                item("Zone", "${stop.zone}")
-                item("Lines", "${stop.lines.size}")
-                item("Every", "${stop.lines.minOf { it.every }} min at peak")
-                if (stop.accessible) {
-                    item("Step-free", announcement = "yes") { +Tabler.Outline.Check }
-                } else {
-                    item("Step-free", "No — ramps at the Wellington Street end")
-                }
-            }
-            Button(onClick = onTicket, variant = ButtonVariant.Secondary, modifier = Modifier.fillMaxWidth()) {
-                +Tabler.Outline.Ticket
-                +"Show my ticket"
-            }
+    }
+}
+
+/** What there is to know about a stop, under its bar. */
+@Composable
+private fun StopDetails(stop: StopInfo, onLine: (String) -> Unit, onTicket: () -> Unit) {
+    TransitHeading("Lines")
+    ChipGroup {
+        for (line in stop.lines) {
+            Chip(onClick = { onLine(line.name) }) { +line.name }
         }
+    }
+    TransitHeading("At this stop")
+    KeyValueList {
+        item("Zone", "${stop.zone}")
+        item("Lines", "${stop.lines.size}")
+        item("Every", "${stop.lines.minOf { it.every }} min at peak")
+        if (stop.accessible) {
+            item("Step-free", announcement = "yes") { +Tabler.Outline.Check }
+        } else {
+            item("Step-free", "No — ramps at the Wellington Street end")
+        }
+    }
+    Button(onClick = onTicket, variant = ButtonVariant.Secondary, modifier = Modifier.fillMaxWidth()) {
+        +Tabler.Outline.Ticket
+        +"Show my ticket"
     }
 }
 

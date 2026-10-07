@@ -1,6 +1,9 @@
 package io.kontour.ui.samples
 
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,11 +80,17 @@ fun TopBarCollapsing() {
 
 @Composable
 fun TopBarHeroCollapsing() {
-    val collapse = rememberTopBarCollapseState()
+    val list = rememberLazyListState()
+    val collapse = rememberTopBarCollapseState(list)
 
-    Column(Modifier.topBarCollapse(collapse)) {
+    Box {
+        // Under the bar, starting where the open bar ends: the list is the
+        // only thing that scrolls, and the bar follows it.
+        LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) {
+            stopRows()
+        }
         // The picture runs under the status bar and fades into the bar's colour
-        // under the title, and the bar collapses as a Large one does.
+        // under the title, and the bar collapses as the rows go up under it.
         TopBar(
             style = TopBarStyle.Hero,
             onBack = { back() },
@@ -90,9 +99,6 @@ fun TopBarHeroCollapsing() {
         ) {
             +"Kings Park"
             supporting { +"Fraser Avenue" }
-        }
-        LazyColumn {
-            stopRows()
         }
     }
 }

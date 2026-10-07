@@ -158,6 +158,13 @@ passed by position need naming — see **Breaking**, and
 
 ### Added
 
+- **A [hero bar](components/top-bar.md#hero-a-large-bar-over-a-picture) that
+  follows its list.** `rememberTopBarCollapseState(list)` — or `(scrollState)`
+  — makes a collapse read from the list's own scroll, for a bar drawn over the
+  list, which pads its top by the state's new `openHeight`. The list is the only
+  thing that scrolls, so the two never share a drag. On an iPhone a hero laid
+  out above its list sometimes rubber-banded at the start of a drag instead
+  of collapsing. A collapse left part-way also stays where the list is.
 - **A day's own colour and a few characters under its number**, in a
   [`DatePicker`](components/date-picker.md#what-the-app-has-to-say-about-a-day),
   `DateRangePicker`, `DateTimePicker` and `CalendarMonth`: *"the ability to
