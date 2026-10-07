@@ -10,6 +10,10 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.math.exp
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -578,3 +582,81 @@ internal fun Modifier.notesPress(at: PressAt): Modifier = pointerInput(at) {
     }
 }
 
+
+/**
+ * A ghost's hop from one step to the next: where it was drawn to where the
+ * proposal now puts it, short and with no overshoot, so it neither trails the
+ * pointer within a step nor runs back past where it was.
+ *
+ * Decided in layout, in the pass that first sees the new step, from the place
+ * the ghost was last drawn: a hop decided in an effect a frame later drew the
+ * new place first and then jumped back to start from the old. Driven by
+ * [frame], which [run] ticks only while a hop is under way.
+ */
+@Stable
+internal class GhostHop {
+    /** The frame time the hop is read at: state, so a hop lays the ghost out each frame. */
+    var frame by mutableLongStateOf(0L)
+        private set
+
+    /** Whether a hop is under way. */
+    var hopping by mutableStateOf(false)
+        private set
+
+    private var key: Any? = null
+    private var from = Rect.Zero
+    private var start = NotStarted
+    private var last: Rect? = null
+
+    /**
+     * Where to draw a ghost whose proposal is [key], at [target]: there, or on
+     * its way there from the last place it was drawn. [rebase], given that
+     * place and the target, can say where to come in from instead, as a delta
+     * from the target — a week's wrap, from beside rather than across the row.
+     */
+    fun drawnAt(key: Any, target: Rect, still: Boolean, rebase: (last: Rect, target: Rect) -> Rect? = { _, _ -> null }): Rect {
+        if (key != this.key) {
+            val prior = last
+            if (this.key != null && prior != null && !still) {
+                from = rebase(prior, target) ?: Rect(prior.left - target.left, prior.top - target.top, prior.right - target.right, prior.bottom - target.bottom)
+                start = NotStarted
+                if (!hopping) hopping = true
+            } else {
+                from = Rect.Zero
+            }
+            this.key = key
+        }
+        val f = if (!hopping || still) 0f else if (start == NotStarted) 1f else settle((frame - start) / NanosPerSecond)
+        val drawn = Rect(target.left + from.left * f, target.top + from.top * f, target.right + from.right * f, target.bottom + from.bottom * f)
+        last = drawn
+        return drawn
+    }
+
+    /** Ticks [frame] for as long as a hop is under way, and nothing between hops. */
+    suspend fun run() {
+        snapshotFlow { hopping }.collect { on ->
+            if (!on) return@collect
+            while (true) {
+                val now = withFrameNanos { it }
+                if (start == NotStarted) start = now
+                frame = now
+                if (now - start >= HopNanos) {
+                    hopping = false
+                    break
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val NotStarted = Long.MIN_VALUE
+        const val NanosPerSecond = 1_000_000_000f
+
+        /** About a tenth of a second to land, a critically damped spring's. */
+        const val Omega = 60f
+        const val HopNanos = 150_000_000L
+
+        /** What is left of a hop [seconds] in: critically damped, from all of it to none, never past. */
+        fun settle(seconds: Float): Float = ((1f + Omega * seconds) * exp(-Omega * seconds)).coerceIn(0f, 1f)
+    }
+}

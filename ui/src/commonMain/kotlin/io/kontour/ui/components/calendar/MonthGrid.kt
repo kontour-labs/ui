@@ -1,12 +1,8 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.background
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberUpdatedState
@@ -14,9 +10,7 @@ import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.interaction.PickUpAxis
 import io.kontour.ui.interaction.detectPickUp
 import io.kontour.ui.theme.Tone
-import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.layout.sizeIn
@@ -44,6 +38,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Rect
+import kotlinx.datetime.LocalDateTime
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
@@ -449,11 +445,13 @@ private fun DayBox(
 /**
  * Where an event carried by whole days would land — or the new day, or days,
  * being drawn out — over [weeks] rows of [days] from [rowStart]: a lifted copy
- * as long as the event, a piece in each week it is in, leaning toward the
- * pointer by the detent's pull and springing from day to day and from week to
- * week, as a date range's end travels between its days. One for the page, so a
- * week on is travel down rather than a copy gone from one row and another come
- * in the next. A cut under reduced motion.
+ * as long as the event, a piece in each week it is in, on its days and leaning
+ * toward the pointer by the detent's pull, as a date range's end leans between
+ * its days, and hopping to the next day or week as the pointer crosses into it
+ * — see [GhostHop], and the hours' ghost for why it is read live and hops
+ * rather than springs. One for the page, so a week on is travel down rather than a
+ * copy gone from one row and another come in the next. A cut under reduced
+ * motion.
  *
  * @param slot How far down its row a new event's copy is: under the date.
  * @param item How tall a row's line of events is.
@@ -465,104 +463,70 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
     val start = edit.start
     val end = edit.end
     if (!edit.live || !edit.byDays || start == null || end == null) return
-    val last = if (end > start) end.plusMinutes(-1).date else start.date
     val pageEnd = rowStart.plus(weeks * days - 1, DateTimeUnit.DAY)
-    if (last < rowStart || start.date > pageEnd) return
-    val motion = Theme.motion
-    val pull = if (motion.reduceMotion) 0f else SliderDefaults.DetentPull
+    if (lastDayOf(start, end) < rowStart || start.date > pageEnd) return
+    val still = Theme.motion.reduceMotion
+    val pull = if (still) 0f else SliderDefaults.DetentPull
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val shown = remember(event, start, end) {
         CalendarEvent(DaysGhostId, event?.title ?: scope.strings.newEvent, start, end, tone = event?.tone ?: Tone.Accent)
     }
-    // A piece for each week it is in: its row, and its first and last day's columns.
-    val pieces = remember(start, last, rowStart, weeks, days) {
-        buildList {
-            for (row in 0 until weeks) {
-                val first = rowStart.plus(row * days, DateTimeUnit.DAY)
-                val lastInRow = first.plus(days - 1, DateTimeUnit.DAY)
-                if (last < first || start.date > lastInRow) continue
-                val from = (maxOf(start.date, first).toEpochDays() - first.toEpochDays()).toInt()
-                val to = (minOf(last, lastInRow).toEpochDays() - first.toEpochDays()).toInt()
-                add(Triple(row, from, to))
-            }
-        }
-    }
+    // As composed, for how many copies; placed from the edit as it is now.
+    val composed = dayPieces(start, end, rowStart, weeks, days)
     val placed = remember { PlacedAt() }
-    val size = remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
     val slotPx = with(density) { slot.toPx() }
     val itemPx = with(density) { item.toPx() }
     val gapPx = with(density) { gap.toPx() }
-
-    // How far down its row the copy is: the line the event was on, or under the date.
-    fun slotY(rowHeight: Float): Float {
-        val top = edit.grabTop
-        val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
-        if (event == null || top == null || page == null || rowHeight <= 0f) return slotPx
-        val within = (top - page).mod(rowHeight)
-        return within.coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
-    }
-
-    // The first day's place as the proposal puts it — reading order, mirrored in
-    // placing — leaning toward the pointer.
-    fun target(): Offset? {
-        val (w, h) = size.value
-        if (w <= 0 || h <= 0) return null
-        val cell = w.toFloat() / days
-        val rowHeight = h.toFloat() / weeks
-        val index = (start.date.toEpochDays() - rowStart.toEpochDays()).toInt()
-        val row = index.floorDiv(days)
-        val column = index.mod(days)
-        val lean = edit.lean * pull
-        return Offset(column * cell + if (rtl) -lean.x else lean.x, row * rowHeight + slotY(rowHeight) + lean.y)
-    }
-
-    // The proposal of this composition, not of the one the effect started in.
-    val aiming = rememberUpdatedState { target() }
-    val spring = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
-    LaunchedEffect(spring, pull) {
-        var aimed: Offset? = null
-        snapshotFlow { aiming.value() }.collectLatest { aim ->
-            if (aim == null) return@collectLatest
-            val before = aimed
-            aimed = aim
-            val (w, h) = size.value
-            val cell = w.toFloat() / days
-            val rowHeight = h.toFloat() / weeks
-            when {
-                before == null || motion.reduceMotion -> spring.snapTo(aim)
-                else -> {
-                    // A jump of more than a day across — round the end of a week
-                    // to the start of the next — comes in from beside where it
-                    // lands, a day's width away toward where it was, rather than
-                    // flying across the month. As the range picker's end does.
-                    val across = (before.x - aim.x) / cell
-                    val down = (before.y - aim.y) / rowHeight
-                    if (kotlin.math.abs(across) > RebaseCells) {
-                        val length = kotlin.math.hypot(across, down)
-                        spring.snapTo(Offset(aim.x + across / length * cell, aim.y + down / length * rowHeight))
-                    }
-                    spring.animateTo(aim, motion.springOrTween(motion.springSnappy))
-                }
-            }
-        }
-    }
+    val hop = remember { GhostHop() }
+    LaunchedEffect(hop) { hop.run() }
 
     Layout(
-        content = { repeat(pieces.size) { EventChip(event = shown, presentation = EventPresentation.Bar, scope = scope, ghost = true) } },
+        content = { repeat(composed.size) { EventChip(event = shown, presentation = EventPresentation.Bar, scope = scope, ghost = true) } },
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { placed.coordinates = it }
-            .onSizeChanged { size.value = it },
+            .onGloballyPositioned { placed.coordinates = it },
     ) { measurables, constraints ->
         val w = constraints.maxWidth
         val h = constraints.maxHeight
+        val nowStart = edit.start
+        val nowEnd = edit.end
+        if (nowStart == null || nowEnd == null || w <= 0 || h <= 0 || weeks <= 0) return@Layout layout(w, h) {}
         val cell = w.toFloat() / days
-        val rowHeight = if (weeks > 0) h.toFloat() / weeks else 0f
-        val aim = target()
-        val delta = if (aim == null) Offset.Zero else spring.value - aim
-        val y = slotY(rowHeight)
-        val placeables = measurables.mapIndexed { i, measurable ->
+        val rowHeight = h.toFloat() / weeks
+        // How far down its row the copy is: the line the event was on, or under the date.
+        val y = run {
+            val top = edit.grabTop
+            val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
+            if (event == null || top == null || page == null) {
+                slotPx
+            } else {
+                (top - page).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
+            }
+        }
+        // The first day's box, in reading order — mirrored in placing — and
+        // where it leans toward the pointer.
+        val index = (nowStart.date.toEpochDays() - rowStart.toEpochDays()).toInt()
+        val snapped = Rect(Offset(index.mod(days) * cell, index.floorDiv(days) * rowHeight + y), Size(cell, itemPx))
+        val lean = edit.lean * pull
+        val target = snapped.translate(if (rtl) -lean.x else lean.x, lean.y)
+        val drawn = hop.drawnAt(nowStart, target, still) { last, aim ->
+            // A jump of more than a day across — round the end of a week to the
+            // start of the next — comes in from beside where it lands, a day's
+            // width away toward where it was, rather than across the month. As
+            // the range picker's end does.
+            val across = (last.left - aim.left) / cell
+            val down = (last.top - aim.top) / rowHeight
+            if (kotlin.math.abs(across) <= RebaseCells) return@drawnAt null
+            val length = kotlin.math.hypot(across, down)
+            val dx = across / length * cell
+            val dy = down / length * rowHeight
+            Rect(dx, dy, dx, dy)
+        }
+        val dx = drawn.left - snapped.left
+        val dy = drawn.top - snapped.top
+        val pieces = dayPieces(nowStart, nowEnd, rowStart, weeks, days)
+        val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
             val (_, from, to) = pieces[i]
             val width = ((to - from + 1) * cell - gapPx * 2).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(width, (itemPx - gapPx).roundToInt().coerceAtLeast(0)))
@@ -570,9 +534,25 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
         layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
                 val (row, from, _) = pieces[i]
-                placeable.placeRelative((from * cell + gapPx + delta.x).roundToInt(), (row * rowHeight + y + delta.y).roundToInt())
+                placeable.placeRelative((from * cell + gapPx + dx).roundToInt(), (row * rowHeight + y + dy).roundToInt())
             }
         }
+    }
+}
+
+/** The day an event's last minute is on. */
+private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
+
+/** A piece of an event for each week of [weeks] rows of [days] from [rowStart] it is in: its row, and its first and last day's columns. */
+private fun dayPieces(start: LocalDateTime, end: LocalDateTime, rowStart: LocalDate, weeks: Int, days: Int): List<Triple<Int, Int, Int>> = buildList {
+    val last = lastDayOf(start, end)
+    for (row in 0 until weeks) {
+        val first = rowStart.plus(row * days, DateTimeUnit.DAY)
+        val lastInRow = first.plus(days - 1, DateTimeUnit.DAY)
+        if (last < first || start.date > lastInRow) continue
+        val from = (maxOf(start.date, first).toEpochDays() - first.toEpochDays()).toInt()
+        val to = (minOf(last, lastInRow).toEpochDays() - first.toEpochDays()).toInt()
+        add(Triple(row, from, to))
     }
 }
 

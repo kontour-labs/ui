@@ -1,11 +1,7 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.input.pointer.PointerId
-import androidx.compose.ui.layout.onSizeChanged
 import io.kontour.ui.components.selection.SliderDefaults
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.gestures.scrollBy
@@ -80,6 +76,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.plus
 
@@ -755,15 +752,23 @@ internal val NearReach = 12.dp
 
 /**
  * Where an edit in hand would put what it holds, over a period's days: a
- * lifted copy, at the proposal — leaning toward the pointer by the detent's
- * pull, half a step at most, and springing from step to step and day to day as
- * the pointer crosses them, as a range picker's end does between its days.
+ * lifted copy at the proposal — on the step, leaning toward the pointer by the
+ * detent's pull, half a step at most, as a range picker's end leans between
+ * its days — and hopping to the next step as the pointer crosses into it.
  * One for the page rather than one in each day, so going to the next day is
  * travel across, not a copy going out in one column and another coming in in
  * the next.
  *
- * Placed from its spring in layout: a carry recomposes it once a step, for the
- * time it shows, and moves it every frame without recomposing.
+ * **Tight, not floaty.** Within a step it moves with the pointer in the same
+ * frame; a step crossed is a short hop with no overshoot — see [GhostHop] —
+ * from wherever it was drawn. It was a soft spring chasing a target that moved
+ * with every move of the pointer, and so a few frames behind it the whole way —
+ * reported as *"they don't follow the finger, and they just feel floaty"*.
+ *
+ * **Read live.** Where it goes is read from the edit's own state in layout,
+ * never from what this composed with: the lean is state, and read beside a
+ * start a composition behind it, a crossing put the copy back past the step it
+ * had left for a frame — *"they feel like they're going backwards"*.
  */
 @Composable
 private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
@@ -774,101 +779,92 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     val periods = scope.state.periods
     val pageStart = periods.startOf(period, scope.state.view)
     val pageEnd = pageStart.plus(days - 1, DateTimeUnit.DAY)
-    val lastDay = if (end > start) end.plusMinutes(-1).date else start.date
-    if (lastDay < pageStart || start.date > pageEnd) return
+    if (lastDayOf(start, end) < pageStart || start.date > pageEnd) return
 
     val density = LocalDensity.current
     val hourPx = with(density) { scope.hourHeight.toPx() }
     val perMinute = hourPx / MinutesPerHour
     val minChipPx = with(density) { (Theme.typography.labelMedium.lineHeight.toDp() + Theme.spacing.xxs * 2).toPx() }
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
-    val motion = Theme.motion
-    val pull = if (motion.reduceMotion) 0f else SliderDefaults.DetentPull
+    val still = Theme.motion.reduceMotion
+    val pull = if (still) 0f else SliderDefaults.DetentPull
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val event = edit.event
     val shown = remember(event, start, end) {
         CalendarEvent(GhostId, event?.title ?: scope.strings.newEvent, start, end, tone = event?.tone ?: Tone.Accent)
     }
-    // The days of it in this page, each from its start or midnight to its end or midnight.
-    val segments = remember(start, end, pageStart, days) {
-        buildList {
-            var day = maxOf(start.date, pageStart)
-            while (day <= minOf(lastDay, pageEnd)) {
-                val from = if (day == start.date) start.time.minuteOfDay else 0
-                val to = if (day == lastDay && end.date == day) end.time.minuteOfDay else MinutesPerDay
-                add(Triple((day.toEpochDays() - pageStart.toEpochDays()).toInt(), from, maxOf(to, from)))
-                day = day.plus(1, DateTimeUnit.DAY)
-            }
-        }
-    }
-    val width = remember { mutableIntStateOf(0) }
-
-    // The first day's box as the proposal puts it, in this page, leaning.
-    fun target(): Rect? {
-        val w = width.intValue
-        if (w <= 0) return null
-        val column = w.toFloat() / days
-        val day = (start.date.toEpochDays() - pageStart.toEpochDays()).toInt()
-        val from = start.time.minuteOfDay
-        val to = if (lastDay == start.date && end.date == start.date) end.time.minuteOfDay else MinutesPerDay
-        val top = from * perMinute
-        val bottom = top + maxOf(minChipPx, (maxOf(to, from) - from) * perMinute)
-        val left = if (rtl) w - column * (day + 1) else column * day
-        val lean = edit.lean * pull
-        val across = if (rtl) -lean.x else lean.x
-        return when (edit.leanOn) {
-            -1 -> Rect(left, top + lean.y, left + column, bottom)
-            1 -> Rect(left, top, left + column, bottom + lean.y)
-            else -> Rect(left + across, top + lean.y, left + column + across, bottom + lean.y)
-        }
-    }
-
-    // The proposal of this composition, not of the one the effect started in.
-    val aiming = rememberUpdatedState { target() }
-    val spring = remember { Animatable(Rect.Zero, Rect.VectorConverter) }
-    LaunchedEffect(spring, pull) {
-        var placed = false
-        snapshotFlow { aiming.value() }.collectLatest { aim ->
-            if (aim == null) return@collectLatest
-            if (!placed || motion.reduceMotion) {
-                placed = true
-                spring.snapTo(aim)
-            } else {
-                spring.animateTo(aim, motion.springOrTween(motion.springSnappy))
-            }
-        }
-    }
+    // A piece for each day of it in this page — as composed, for the copies'
+    // own content; placed from the edit as it is now.
+    val composed = timedPieces(start, end, pageStart, pageEnd)
+    val hop = remember { GhostHop() }
+    LaunchedEffect(hop) { hop.run() }
 
     Layout(
         content = {
-            for ((_, from, to) in segments) {
+            for ((_, from, to) in composed) {
                 val height = with(density) { (maxOf(minChipPx, (to - from) * perMinute) - gapPx).coerceAtLeast(0f).toDp() }
                 EventChip(event = shown, presentation = EventPresentation.Block, scope = scope, ghost = true, blockHeight = height)
             }
         },
-        modifier = Modifier.fillMaxSize().onSizeChanged { width.intValue = it.width },
+        modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
         val w = constraints.maxWidth
+        val h = constraints.maxHeight
+        val nowStart = edit.start
+        val nowEnd = edit.end
+        if (nowStart == null || nowEnd == null || w <= 0) return@Layout layout(w, h) {}
         val column = w.toFloat() / days
-        val aim = target()
-        val now = spring.value
-        // Where the spring has the first day, against where the proposal has
-        // it: every day of it moved by as much.
-        val dx = if (aim == null) 0f else now.left - aim.left
-        val dy = if (aim == null) 0f else now.top - aim.top
-        val placeables = measurables.mapIndexed { i, measurable ->
-            val (day, from, to) = segments[i]
-            val first = day == (start.date.toEpochDays() - pageStart.toEpochDays()).toInt()
-            val height = if (first && aim != null) now.height else maxOf(minChipPx, (to - from) * perMinute)
-            measurable.measure(Constraints.fixed((column - gapPx).roundToInt().coerceAtLeast(0), (height - gapPx).roundToInt().coerceAtLeast(0)))
+        val pieces = timedPieces(nowStart, nowEnd, pageStart, pageEnd)
+        val firstDay = (nowStart.date.toEpochDays() - pageStart.toEpochDays()).toInt()
+        fun columnLeft(day: Int) = if (rtl) w - column * (day + 1) else column * day
+        fun box(day: Int, from: Int, to: Int): Rect {
+            val top = from * perMinute
+            return Rect(columnLeft(day), top, columnLeft(day) + column, top + maxOf(minChipPx, (to - from) * perMinute))
         }
-        layout(w, constraints.maxHeight) {
+        // The first day's box, leaning: all of it for a move, the edge in hand
+        // for a resize or a new event drawn out.
+        val firstTo = if (lastDayOf(nowStart, nowEnd) == nowStart.date && nowEnd.date == nowStart.date) nowEnd.time.minuteOfDay else MinutesPerDay
+        val snapped = box(firstDay, nowStart.time.minuteOfDay, maxOf(firstTo, nowStart.time.minuteOfDay))
+        val lean = edit.lean * pull
+        val across = if (rtl) -lean.x else lean.x
+        val target = when (edit.leanOn) {
+            -1 -> snapped.copy(top = snapped.top + lean.y)
+            1 -> snapped.copy(bottom = snapped.bottom + lean.y)
+            else -> snapped.translate(across, lean.y)
+        }
+        val drawn = hop.drawnAt(nowStart to nowEnd, target, still)
+        // Every other day of it moved as the first is, for a move; an edge
+        // dragged moves its own day alone.
+        val moving = edit.leanOn == 0
+        val dx = if (moving) drawn.left - snapped.left else 0f
+        val dy = if (moving) drawn.top - snapped.top else 0f
+        val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
+            val (day, from, to) = pieces[i]
+            val rect = if (day == firstDay) drawn else box(day, from, to)
+            measurable.measure(Constraints.fixed((column - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
+        }
+        layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
-                val (day, from, _) = segments[i]
-                val left = if (rtl) w - column * (day + 1) else column * day
-                placeable.place((left + dx + gapPx / 2).roundToInt(), (from * perMinute + dy + gapPx / 2).roundToInt())
+                val (day, from, to) = pieces[i]
+                val rect = if (day == firstDay) drawn else box(day, from, to).translate(dx, dy)
+                placeable.place((rect.left + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
             }
         }
+    }
+}
+
+/** The day an event's last minute is on. */
+private fun lastDayOf(start: LocalDateTime, end: LocalDateTime): LocalDate = if (end > start) end.plusMinutes(-1).date else start.date
+
+/** The days of an event between [pageStart] and [pageEnd]: each day's column and its minutes, from its start or midnight to its end or midnight. */
+private fun timedPieces(start: LocalDateTime, end: LocalDateTime, pageStart: LocalDate, pageEnd: LocalDate): List<Triple<Int, Int, Int>> = buildList {
+    val lastDay = lastDayOf(start, end)
+    var day = maxOf(start.date, pageStart)
+    while (day <= minOf(lastDay, pageEnd)) {
+        val from = if (day == start.date) start.time.minuteOfDay else 0
+        val to = if (day == lastDay && end.date == day) end.time.minuteOfDay else MinutesPerDay
+        add(Triple((day.toEpochDays() - pageStart.toEpochDays()).toInt(), from, maxOf(to, from)))
+        day = day.plus(1, DateTimeUnit.DAY)
     }
 }
 

@@ -208,8 +208,9 @@ passed by position need naming — see **Breaking**, and
   finger held still opens a menu — **New event** on empty time, **Adjust
   time** and **Delete** on an event — and moving on instead drags; a
   right-click opens the same menus. What is carried is shown landing as a
-  lifted copy that leans toward the pointer and springs from step to step,
-  day to day and week to week, as a date range's end does, and a carry held
+  lifted copy on its step that leans toward the pointer as it moves, and
+  hops — quickly, without overshooting — to the next step, day or week as
+  the pointer crosses into it, as a date range's end does; a carry held
   at either side of the days pages on into the next week or month. A
   finger held beside a month's short event takes it. Going back to
   today pulses today's date, as the date picker's button does. From the keyboard, the grid is one stop

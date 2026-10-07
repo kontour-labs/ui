@@ -114,8 +114,11 @@ opens the same menus for a mouse. A finger held just beside one of a month's
 events, which are too short to land on reliably, takes that event.
 
 While anything is carried, a lifted copy shows where it would land, and moves
-as a date range's end does: it leans a little toward the pointer between steps
-and springs from one step, one day and one week to the next.
+as a date range's end does: it sits on its step, leaning a little toward the
+pointer in the same frame the pointer moves, and as the pointer crosses into
+the next step, day or week it hops there — a tenth of a second, with no
+overshoot, from wherever it was. It never trails the pointer within a step,
+and never goes back the way it came.
 
 An event the app only shows, such as a holiday from a subscribed calendar,
 says so with `editable = false` and can't be moved or resized, though it can
