@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,16 +41,18 @@ internal fun YearView(scope: CalendarScope) {
     val tones = Tone.entries.associateWith { toneColours(it).solid }
     BoxWithConstraints(Modifier.fillMaxWidth().then(swipe)) {
         val columns = (maxWidth / CalendarMonthDefaults.MaxWidth).toInt().coerceIn(1, MaxColumns)
+        // **Lazy where it scrolls.** A year is twelve months of forty-odd days,
+        // each a control; composed all at once, switching to the year took
+        // several times a month's first frame — felt as the switch lagging —
+        // for the two or three months a phone shows. A row at a time, as it
+        // comes into view. Given no height, there is nothing to scroll and
+        // nothing to leave out: every row, in a column.
         val scrolls = constraints.hasBoundedHeight
-        val scroll = rememberScrollState()
         PeriodStrip(pager, Modifier.fillMaxWidth()) { year ->
-            YearPage(
-                scope = scope,
-                year = year,
-                columns = columns,
-                tones = tones,
-                modifier = if (scrolls) Modifier.verticalScroll(scroll, flingBehavior = ScrollDefaults.flingBehavior()) else Modifier,
-            )
+            // A list of its own to each year: two are side by side while the
+            // pager slides, and a lazy list's state belongs to one list.
+            val list = rememberLazyListState()
+            YearPage(scope = scope, year = year, columns = columns, tones = tones, lazy = if (scrolls) list else null)
         }
     }
 }
@@ -57,7 +60,7 @@ internal fun YearView(scope: CalendarScope) {
 private const val MaxColumns = 4
 
 @Composable
-private fun YearPage(scope: CalendarScope, year: Int, columns: Int, tones: Map<Tone, Color>, modifier: Modifier) {
+private fun YearPage(scope: CalendarScope, year: Int, columns: Int, tones: Map<Tone, Color>, lazy: LazyListState?) {
     val first = LocalDate(year, 1, 1)
     val busy = remember(scope.events, year) {
         val last = LocalDate(year, 12, 31)
@@ -72,41 +75,58 @@ private fun YearPage(scope: CalendarScope, year: Int, columns: Int, tones: Map<T
         }
         marks
     }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-        for (row in Month.entries.chunked(columns)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
-                for (month in row) {
-                    val firstOfMonth = LocalDate(year, month, 1)
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            scope.formats.monthName(month, NameWidth.Wide),
-                            style = Theme.typography.titleSmall,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .pressable(
-                                    onClick = { scope.state.show(firstOfMonth, CalendarView.Month) },
-                                    shape = Theme.shapes.capsule,
-                                    enabled = scope.enabled,
-                                    minimumTouchTarget = false,
-                                )
-                                .semantics { heading() }
-                                .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
-                        )
-                        CalendarMonth(
-                            month = firstOfMonth,
-                            isSelected = { false },
-                            onSelectedChange = { day -> scope.state.show(day, CalendarView.Day) },
+    val rows = remember(columns) { Month.entries.chunked(columns) }
+    val gap = Theme.spacing.md
+    if (lazy != null) {
+        LazyColumn(
+            state = lazy,
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(gap),
+            flingBehavior = ScrollDefaults.flingBehavior(),
+        ) {
+            items(rows.size, key = { it }) { index -> YearRow(scope, year, rows[index], columns, busy, tones) }
+        }
+    } else {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
+            for (row in rows) YearRow(scope, year, row, columns, busy, tones)
+        }
+    }
+}
+
+/** One row of a year's months, each as wide as the rest. */
+@Composable
+private fun YearRow(scope: CalendarScope, year: Int, row: List<Month>, columns: Int, busy: Map<LocalDate, Tone>, tones: Map<Tone, Color>) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+        for (month in row) {
+            val firstOfMonth = LocalDate(year, month, 1)
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    scope.formats.monthName(month, NameWidth.Wide),
+                    style = Theme.typography.titleSmall,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .pressable(
+                            onClick = { scope.state.show(firstOfMonth, CalendarView.Month) },
+                            shape = Theme.shapes.capsule,
                             enabled = scope.enabled,
-                            today = scope.today,
-                            markerFor = { day -> busy[day]?.let(tones::getValue) },
-                            formats = scope.formats,
-                            firstDayOfWeek = scope.state.periods.firstDayOfWeek,
+                            minimumTouchTarget = false,
                         )
-                    }
-                }
-                // A short last row keeps its months the width of the rest.
-                repeat(columns - row.size) { Column(Modifier.weight(1f)) {} }
+                        .semantics { heading() }
+                        .padding(horizontal = Theme.spacing.xs, vertical = Theme.spacing.xxs),
+                )
+                CalendarMonth(
+                    month = firstOfMonth,
+                    isSelected = { false },
+                    onSelectedChange = { day -> scope.state.show(day, CalendarView.Day) },
+                    enabled = scope.enabled,
+                    today = scope.today,
+                    markerFor = { day -> busy[day]?.let(tones::getValue) },
+                    formats = scope.formats,
+                    firstDayOfWeek = scope.state.periods.firstDayOfWeek,
+                )
             }
         }
+        // A short last row keeps its months the width of the rest.
+        repeat(columns - row.size) { Column(Modifier.weight(1f)) {} }
     }
 }
