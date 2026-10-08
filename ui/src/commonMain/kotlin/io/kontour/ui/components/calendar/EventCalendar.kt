@@ -634,6 +634,15 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             val vertical = Theme.spacing.xxs
             val titleLine = with(LocalDensity.current) { type.labelMedium.lineHeight.toDp() }
             val height = LocalBlockHeight.current
+            // Shorter than a title: a quarter-hour, drawn as tall as its time.
+            // Its title in the small type, in the middle of what there is.
+            if (height != null && height < titleLine + vertical * 2) {
+                val smallLine = with(LocalDensity.current) { type.labelSmall.lineHeight.toDp() }
+                WholeLines(vertical = ((height - smallLine) / 2).coerceIn(0.dp, vertical), inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
+                    Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                return
+            }
             val titleLines = if (height != null && titleLine > 0.dp) {
                 floor((height - vertical * 2) / titleLine).toInt().coerceIn(1, BlockTitleLines)
             } else {
@@ -858,6 +867,19 @@ internal class PlacedAt {
     var coordinates: LayoutCoordinates? = null
 }
 
+/**
+ * How far beside an edge with handles a finger still takes it: outside the
+ * event, a fingertip's half.
+ */
+internal val HandleReach = 16.dp
+
+/**
+ * How far into the event from an edge a finger takes that edge rather than
+ * nothing: an event shorter than two of these is taken by the way the finger
+ * sets off.
+ */
+internal val HandleZone = 20.dp
+
 /** Where a page that has no place is put: well off the side, not drawn. */
 private const val OffStage = 4
 
@@ -879,13 +901,53 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
     val current by rememberUpdatedState(scope)
     return onGloballyPositioned { placed.coordinates = it }.pointerInput(edit) {
         val slop = io.kontour.ui.interaction.PickUpHoldSlop.toPx()
+        val reach = HandleReach.toPx()
+        val zone = HandleZone.toPx()
+        // A press on or beside the handles, until it has gone far enough to say which.
+        var claim: HandleClaim? = null
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: continue
                 if (event.type == PointerEventType.Press && edit.active != null) {
                     val pressed = event.changes.firstOrNull { it.pressed && !it.previousPressed }
-                    if (pressed != null && !edit.onActive(coordinates.localToRoot(pressed.position))) edit.active = null
+                    if (pressed != null) {
+                        val root = coordinates.localToRoot(pressed.position)
+                        if (!edit.onActive(root, reach)) {
+                            edit.active = null
+                        } else if (current.touch && edit.pointer == null && claim == null) {
+                            claim = edit.claimHandle(pressed.id, root, reach, zone)
+                        }
+                    }
+                }
+                claim?.let { held ->
+                    val change = event.changes.firstOrNull { it.id == held.pointer }
+                    when {
+                        // Gone, or taken by a hold on the event: its own carry.
+                        change == null || edit.pointer != null || edit.active == null -> claim = null
+                        // A tap: the event's own, as it was.
+                        !change.pressed -> claim = null
+                        else -> {
+                            // Nothing under it moves while it decides: not the hours, not the pages.
+                            change.consume()
+                            val root = coordinates.localToRoot(change.position)
+                            val moved = root - held.down
+                            if (moved.getDistance() > viewConfiguration.touchSlop) {
+                                claim = null
+                                val along = if (held.horizontal) moved.x else moved.y
+                                val atStart = held.startFor(along)
+                                val edge = if (atStart == true) held.start else held.end
+                                if (atStart != null && edge != null) {
+                                    val fromEdge = if (held.horizontal) Offset(held.down.x - edge, 0f) else Offset(0f, held.down.y - edge)
+                                    edit.beginResize(held.event, atStart, held.down, byDays = held.byDays, top = held.top, fromEdge = fromEdge)
+                                    if (edit.live) {
+                                        edit.take(change.id, held.down, hold = false)
+                                        edit.move(root)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 val id = edit.pointer ?: continue
                 val change = event.changes.firstOrNull { it.id == id }

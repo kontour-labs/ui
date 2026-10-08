@@ -38,9 +38,9 @@ internal fun CalendarEvent.isTimed(): Boolean =
  *
  * Each is cut to the day — a flight from ten at night to six in the morning is
  * two pieces, one on each day — and is at least [minMinutes] long **for the
- * purpose of overlapping**, since that is the least it is drawn at: a five-minute
- * reminder drawn as tall as a quarter-hour pushes the event after it aside
- * rather than printing over it.
+ * purpose of overlapping**, since that is the least it is drawn at: a reminder
+ * with no length, drawn a step tall, pushes the event after it aside rather
+ * than printing over it.
  *
  * Overlapping events share the column: they are gathered into clusters, each
  * cluster runs until nothing in it is still going, and each event takes the

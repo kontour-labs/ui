@@ -120,7 +120,7 @@ class EventCalendarMenuTest {
         return heading(LocalDate(2026, 10, 15)) - heading(wednesday)
     }
 
-    private fun hour(probe: Probe) = 48f * probe.density
+    private fun hour(probe: Probe) = 64f * probe.density
 
     private fun ComposeUiTest.menuItem(label: String) = onNode(hasText(label) and hasClickAction())
 
@@ -223,30 +223,36 @@ class EventCalendarMenuTest {
      * its handles and its title a third of a narrow column wide.
      */
     /**
-     * Widened and narrowed where it can be seen: asked for as *"when it becomes
-     * wider and goes back to being narrower, can you make it animate?"* — it
-     * did, in about 140ms, over before it read as movement.
+     * Widened and narrowed where it can be seen, and not waited on: asked for
+     * as *"when it becomes wider and goes back to being narrower, can you make
+     * it animate?"* — in about 140ms it was over before it read as movement —
+     * and then, at a third of a second, as *"too slow"*. A fifth of one.
      */
     @Test
-    fun anAdjustedEventWidensAndNarrowsOverAVisibleEase() = runComposeUiTest {
+    fun aTakenEventWidensAndNarrowsOverAVisibleEase() = runComposeUiTest {
         val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))
-        val probe = calendar(events = listOf(review, standup), reduceMotion = false)
+        val probe = calendar(events = listOf(review, standup), modality = InputModality.Mouse, reduceMotion = false)
         val day = dayWidth(probe)
         val narrow = boundsOf(review, probe).width
-        hold(boundsOf(review, probe).center)
+        val at = boundsOf(review, probe).center
         mainClock.autoAdvance = false
-        menuItem(probe.strings.adjustTime).performClick()
-        // How far from its lane toward the whole day, at each frame after the tap.
+        // Taken up by a mouse, which carries at once: in focus from there.
+        onRoot().performMouseInput {
+            moveTo(at)
+            press()
+            moveBy(Offset(0f, 20f))
+        }
+        // How far from its lane toward the whole day, at each frame after it was taken.
         fun progress(from: Float, to: Float) = (boundsOf(review, probe).width - from) / (to - from)
         val wide = day - (day - narrow) * 0.02f
         val widening = List(40) { mainClock.advanceTimeByFrame(); progress(narrow, wide) }
-        assertTrue(widening[5] in 0.05f..0.6f, "a tenth of a second in, it was ${widening[5]} of the way wide: $widening")
-        assertTrue(widening.last() > 0.95f, "it never reached the day's width: $widening")
-        val full = boundsOf(review, probe)
-        onRoot().performTouchInput { click(Offset(full.center.x + day * 3f, full.center.y)) }
-        val narrowing = List(40) { mainClock.advanceTimeByFrame(); progress(full.width, narrow) }
-        assertTrue(narrowing[5] in 0.05f..0.6f, "a tenth of a second in, it was ${narrowing[5]} of the way back: $narrowing")
-        assertTrue(narrowing.last() > 0.98f, "it never went back to its lane: $narrowing")
+        assertTrue(widening[0] < 0.6f && widening[3] < 0.98f, "it was wide at once: $widening")
+        assertTrue(widening[17] > 0.95f, "it was still widening at 0.3s: $widening")
+        val full = boundsOf(review, probe).width
+        onRoot().performMouseInput { release() }
+        val narrowing = List(40) { mainClock.advanceTimeByFrame(); progress(full, narrow) }
+        assertTrue(narrowing[0] < 0.6f && narrowing[3] < 0.98f, "it was back in its lane at once: $narrowing")
+        assertTrue(narrowing[17] > 0.98f, "it was still narrowing at 0.3s: $narrowing")
     }
 
     @Test
@@ -265,6 +271,100 @@ class EventCalendarMenuTest {
         onRoot().performTouchInput { click(Offset(during.center.x + day * 3f, during.center.y)) }
         waitForIdle()
         assertTrue(abs(boundsOf(review, probe).width - before.width) < 1f, "it stayed wide after the handles went")
+    }
+
+    /**
+     * Opened out from the moment it is held, its menu open, not once "Adjust
+     * time" is chosen from it: asked for as *"i'd like it to happen (and the
+     * other events to grey out) when you select it, because that's already
+     * when they jump to being full width"* — the copy a hold lifts stood at
+     * the day's width at once, over an event still in its lane.
+     */
+    @Test
+    fun aHeldEventIsWidenedToItsDayWhileItsMenuIsOpen() = runComposeUiTest {
+        val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))
+        val probe = calendar(events = listOf(review, standup))
+        val day = dayWidth(probe)
+        val before = boundsOf(review, probe)
+        assertTrue(before.width < day * 0.7f, "the review was not sharing its day to begin with: ${before.width} of $day")
+        hold(before.center)
+        menuItem(probe.strings.adjustTime).assertExists()
+        assertTrue(boundsOf(review, probe).width > day * 0.9f, "held, its menu open, the review is ${boundsOf(review, probe).width}px wide in a ${day}px day")
+    }
+
+    /**
+     * Each event as tall as its time: asked for as *"i don't like how the
+     * height of each hour box is different based on how many events are in
+     * it… i should always be able to drag to 15/30/45 intervals, not just
+     * 20/40"*. A quarter-hour was grown to fit its title, to about twenty
+     * past, and its edge was on no quarter at all.
+     */
+    @Test
+    fun eventsAreAsTallAsTheirTime() = runComposeUiTest {
+        val quarter = CalendarEvent(6, "Check-in", LocalDateTime(2026, 10, 13, 9, 0), LocalDateTime(2026, 10, 13, 9, 15))
+        val half = CalendarEvent(7, "Sync", LocalDateTime(2026, 10, 13, 11, 0), LocalDateTime(2026, 10, 13, 11, 30))
+        val probe = calendar(events = listOf(review, quarter, half))
+        val hour = boundsOf(review, probe).height
+        assertTrue(abs(boundsOf(quarter, probe).height - (hour + 1f) / 4f) < 2f, "a quarter-hour is ${boundsOf(quarter, probe).height}px of a ${hour}px hour")
+        assertTrue(abs(boundsOf(half, probe).height - (hour + 1f) / 2f) < 2f, "a half-hour is ${boundsOf(half, probe).height}px of a ${hour}px hour")
+    }
+
+    /** An event with its handles out, by touch: [event] held, then "Adjust time". */
+    private fun ComposeUiTest.adjust(event: CalendarEvent, probe: Probe) {
+        hold(boundsOf(event, probe).center)
+        menuItem(probe.strings.adjustTime).performClick()
+        waitForIdle()
+    }
+
+    /**
+     * An edge taken from beside it, not only from the strip drawn on it:
+     * asked for as *"you still have to hit it perfectly to start dragging it.
+     * there needs to be a bit more give"*. Taken from 10dp above, it moves by
+     * what the finger moves by, not to where the finger is.
+     */
+    @Test
+    fun anEdgeIsTakenFromBesideIt() = runComposeUiTest {
+        val probe = calendar()
+        adjust(review, probe)
+        val top = boundsOf(review, probe)
+        onRoot().performTouchInput {
+            down(Offset(top.center.x, top.top - 10f * probe.density))
+            repeat(8) { moveBy(Offset(0f, -hour(probe) / 8f)) }
+            up()
+        }
+        waitForIdle()
+        val (_, start, end) = probe.resizes.singleOrNull() ?: error("the start was not taken: moves ${probe.moves}")
+        assertEquals(LocalDateTime(2026, 10, 14, 9, 0), start)
+        assertEquals(review.end, end)
+    }
+
+    /**
+     * A short event's two edges, told apart by the way the finger sets off,
+     * as a range slider's thumbs on top of each other are: asked for as
+     * *"it's difficult to select the right handle with shorter events… it'd
+     * be better if it did something like what the range slider did"*.
+     */
+    @Test
+    fun aShortEventsEdgeIsTheOneTheFingerSetsOffToward() = runComposeUiTest {
+        val quarter = CalendarEvent(6, "Check-in", LocalDateTime(2026, 10, 14, 13, 0), LocalDateTime(2026, 10, 14, 13, 15))
+        val probe = calendar(events = listOf(quarter))
+        adjust(quarter, probe)
+        val middle = boundsOf(quarter, probe).center
+        onRoot().performTouchInput {
+            down(middle)
+            repeat(8) { moveBy(Offset(0f, -hour(probe) / 8f)) }
+            up()
+        }
+        waitForIdle()
+        assertEquals(Triple(quarter, LocalDateTime(2026, 10, 14, 12, 0), quarter.end), probe.resizes.singleOrNull(), "up from its middle")
+        probe.resizes.clear()
+        onRoot().performTouchInput {
+            down(middle)
+            repeat(8) { moveBy(Offset(0f, hour(probe) / 8f)) }
+            up()
+        }
+        waitForIdle()
+        assertEquals(Triple(quarter, quarter.start, LocalDateTime(2026, 10, 14, 14, 15)), probe.resizes.singleOrNull(), "down from its middle")
     }
 
     @Test

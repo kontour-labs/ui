@@ -99,10 +99,24 @@ passed by position need naming — see **Breaking**, and
 - **A `FabMenu` item's label can be tapped**, and does what its button does.
   It was drawn beside the button, and a tap on it fell through to the scrim and
   closed the menu with nothing chosen.
-- **An event whose times are being adjusted in an event calendar is widened
-  to its whole day**, over any it shares its time with, and the other events
-  fade back while its handles are there, each over about a third of a second,
-  out and back. In a week's narrow lane its handles and title were squashed.
+- **An event in an event calendar's hours is widened to its whole day from the
+  moment it is held**, its menu open, and while it is carried or its times are
+  adjusted, over any it shares its time with; the other events fade back. It
+  eases out and back over about a fifth of a second, and the copy a carry draws
+  opens out with it. In a week's narrow lane its handles and title were
+  squashed, and the copy a hold lifted stood at the day's width at once.
+- **An event calendar's events are as tall as their time**, and an hour is
+  64dp by default rather than 48dp, so a quarter-hour is 16dp with its title on
+  one line. A short event used to be grown to fit its title, so a quarter-hour
+  reached down to about twenty past and an hour with short events in it looked
+  taller than one without. Set `hourHeight` to keep the old height.
+- **An event calendar's handles are taken from beside them.** On a
+  touchscreen an edge is taken from up to 20dp inside the event or 16dp outside
+  it, and on an event under 40dp tall the way the finger sets off picks the
+  edge, as a range slider's thumbs do. The grips sit across the edges, clear of
+  a short event's title.
+- **An event calendar's hour labels stay on one line**: `10 am` wrapped to a
+  bare `10` where a font loaded after the labels were measured set them wider.
 - **An all-day or multi-day event carried into another week of an event
   calendar is seen there as it is carried**, in a line of its own at the foot
   of the all-day strip. A week with no all-day events had no strip to draw it

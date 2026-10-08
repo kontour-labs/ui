@@ -6,6 +6,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -100,6 +101,35 @@ internal class EventEdit(
      * "Adjust time" was chosen on. Until a press anywhere else.
      */
     var active: Any? by mutableStateOf(null)
+
+    /**
+     * The event the calendar is about: the one whose edges have handles, the
+     * one whose menu is open, or the one carried through the hours — from the
+     * moment it is held, not only once "Adjust time" is chosen from its menu.
+     * In the hours it is widened to its day; everywhere the others fade back.
+     * See [widen].
+     */
+    val focus: Any?
+        get() = active
+            ?: menu?.takeIf { it.edges }?.event?.id
+            ?: if (kind != null && !byDays) event?.id else null
+
+    /**
+     * How far [widened] is from its lane to its whole day, 0 to 1: one for
+     * the event in its column and the copy an edit draws, so the two open out
+     * together rather than the copy standing at the day's width at once.
+     */
+    val widen = Animatable(0f)
+
+    /** The event [widen] is of: kept while it narrows again. */
+    var widened: Any? by mutableStateOf(null)
+
+    /**
+     * Where [widened]'s lane is across its day, as fractions of the day's
+     * width: its start and its width. Kept by its column as it lays out, for
+     * the copy to open out from.
+     */
+    var widenedLane: Pair<Float, Float> = 0f to 1f
 
     /** The menu a hold or a secondary click opened, while it is open. */
     var menu: EditMenu? by mutableStateOf(null)
@@ -241,10 +271,64 @@ internal class EventEdit(
         return best
     }
 
-    /** Whether [root] is on the event whose handles are showing, or on one of them. */
-    fun onActive(root: Offset): Boolean {
+    /**
+     * Whether [root] is on the event whose handles are showing, or on one of
+     * them, or within [reach] of its edges: where a press takes a handle,
+     * see [claimHandle], and keeps them.
+     */
+    fun onActive(root: Offset, reach: Float = 0f): Boolean {
         val id = active ?: return false
-        return events.values.any { it.event.id == id && it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
+        return events.values.any {
+            if (it.event.id != id || !it.coordinates.isAttached) return@any false
+            val b = it.coordinates.boundsInRoot()
+            val r = if (it.edge) 0f else reach
+            if (it.byDays) Rect(b.left - r, b.top - r, b.right + r, b.bottom + r).contains(root) else Rect(b.left, b.top - r, b.right, b.bottom + r).contains(root)
+        }
+    }
+
+    /**
+     * The handle a finger pressed at [root] takes, on the event whose edges
+     * have them: an edge within [zone] of it inside the event, or [reach]
+     * outside — not the 10dp strip drawn, which took a fingertip set exactly
+     * on it — or, on an event too short for two such zones, whichever edge
+     * the finger sets off toward, as a range slider's thumbs on top of each
+     * other are told apart. Null where it is no handle's.
+     */
+    fun claimHandle(pointer: PointerId, root: Offset, reach: Float, zone: Float): HandleClaim? {
+        val id = active ?: return null
+        val all = events.values.filter { it.event.id == id && it.coordinates.isAttached }
+        for (body in all) {
+            if (body.edge) continue
+            val b = body.coordinates.boundsInRoot()
+            val horizontal = body.byDays
+            val inflated = if (horizontal) Rect(b.left - reach, b.top - reach, b.right + reach, b.bottom + reach) else Rect(b.left, b.top - reach, b.right, b.bottom + reach)
+            if (!inflated.contains(root)) continue
+            val lo = if (horizontal) b.left else b.top
+            val hi = if (horizontal) b.right else b.bottom
+            var start: Float? = null
+            var end: Float? = null
+            for (handle in all) {
+                val atStart = handle.atStart ?: continue
+                if (!handle.edge) continue
+                val c = handle.coordinates.boundsInRoot().center
+                if (!Rect(b.left - 1f, b.top - 1f, b.right + 1f, b.bottom + 1f).contains(c)) continue
+                val at = if (horizontal) c.x else c.y
+                val edge = if (kotlin.math.abs(at - lo) < kotlin.math.abs(at - hi)) lo else hi
+                if (atStart) start = edge else end = edge
+            }
+            if (start == null && end == null) return null
+            val along = if (horizontal) root.x else root.y
+            val short = hi - lo < zone * 2
+            fun near(edge: Float?) = edge != null && kotlin.math.abs(along - edge) <= zone
+            val claim = { s: Float?, e: Float? -> HandleClaim(pointer, root, body.event, horizontal, body.byDays, s, e, b.top) }
+            return when {
+                short -> claim(start, end)
+                near(start) -> claim(start, null)
+                near(end) -> claim(null, end)
+                else -> null
+            }
+        }
+        return null
     }
 
     /** The pointer [id] carries the edit from here on, from [root]: held still first, or dragged. */
@@ -388,7 +472,8 @@ internal class EventEdit(
      * Takes hold of one of [event]'s edges: in the hours, or — [byDays] — a
      * bar's end, moved a whole day at a time, its row's top at [top].
      */
-    fun beginResize(event: CalendarEvent, atStart: Boolean, root: Offset, byDays: Boolean = false, top: Float? = null) {
+    fun beginResize(event: CalendarEvent, atStart: Boolean, root: Offset, byDays: Boolean = false, top: Float? = null, fromEdge: Offset = Offset.Zero) {
+        edgeOffset = fromEdge
         if (byDays) {
             val day = if (atStart) event.start.date else endDay(event.start, event.end)
             val box = days.of(day) ?: return
@@ -400,6 +485,13 @@ internal class EventEdit(
         begin(if (atStart) EditKind.ResizeStart else EditKind.ResizeEnd, event, event.start, event.end, byDays = byDays)
         lastPointer = root
     }
+
+    /**
+     * How far from the edge it moves the pointer took hold of it, for an edge
+     * taken from beside it: kept, so the edge stays where it was rather than
+     * jumping to the finger.
+     */
+    private var edgeOffset = Offset.Zero
 
     /**
      * Starts drawing out a new event from the step under [root], on [day]: an
@@ -482,7 +574,7 @@ internal class EventEdit(
             // A bar's ends, by whole days: its last day no earlier than its
             // first, its first no later than its last.
             EditKind.ResizeEnd -> if (event != null && byDays) {
-                val to = settledDayAt(root) ?: return
+                val to = settledDayAt(root - edgeOffset) ?: return
                 val last = maxOf(to, event.start.date)
                 val shift = last.toEpochDays() - endDay(event.start, event.end).toEpochDays()
                 val end = maxOf(event.end.epochMinute + shift * MinutesPerDay, event.start.epochMinute + stepMinutes)
@@ -491,7 +583,7 @@ internal class EventEdit(
                 propose(event.start, localDateTimeOfEpochMinute(end))
             } else if (event != null) {
                 val day = endDay(event.start, event.end)
-                val (_, raw) = timeAt(root, sameDayAs = day) ?: return
+                val (_, raw) = timeAt(root - edgeOffset, sameDayAs = day) ?: return
                 val dayStart = day.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
                 val end = resizedEnd(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
@@ -500,7 +592,7 @@ internal class EventEdit(
                 propose(event.start, localDateTimeOfEpochMinute(end))
             }
             EditKind.ResizeStart -> if (event != null && byDays) {
-                val to = settledDayAt(root) ?: return
+                val to = settledDayAt(root - edgeOffset) ?: return
                 val first = minOf(to, endDay(event.start, event.end))
                 val shift = first.toEpochDays() - event.start.date.toEpochDays()
                 val start = minOf(event.start.epochMinute + shift * MinutesPerDay, event.end.epochMinute - stepMinutes)
@@ -508,7 +600,7 @@ internal class EventEdit(
                 lean = Offset(dayLean(first, root).x, 0f)
                 propose(localDateTimeOfEpochMinute(start), event.end)
             } else if (event != null) {
-                val (_, raw) = timeAt(root, sameDayAs = event.start.date) ?: return
+                val (_, raw) = timeAt(root - edgeOffset, sameDayAs = event.start.date) ?: return
                 val dayStart = event.start.date.atMidnight.epochMinute
                 val minute = raw.coerceIn(dayStart, dayStart + MinutesPerDay)
                 val start = resizedStart(event.start.epochMinute, event.end.epochMinute, roundTo(minute, stepMinutes), stepMinutes)
@@ -627,6 +719,7 @@ internal class EventEdit(
         travelled = false
         grabTop = null
         lean = Offset.Zero
+        edgeOffset = Offset.Zero
         steps.reset()
     }
 
@@ -661,7 +754,45 @@ internal class Grab(
     val byDays: Boolean,
     val edge: Boolean = false,
     val edges: Boolean = !byDays,
+    val atStart: Boolean? = null,
 )
+
+/**
+ * A finger pressed on or beside the handles of the event in
+ * [EventEdit.active], not yet moved far enough to say what it is doing.
+ *
+ * @property down Where it pressed, in the root.
+ * @property horizontal Whether the event's edges are across — a bar's ends —
+ *   rather than up and down.
+ * @property start The start's edge, along the axis, if it has a handle there;
+ *   with [end], both for a short event, where the way the finger sets off
+ *   picks which.
+ * @property end The end's, likewise.
+ * @property top The top of the event's row, for a bar's carry to keep to.
+ */
+internal class HandleClaim(
+    val pointer: PointerId,
+    val down: Offset,
+    val event: CalendarEvent,
+    val horizontal: Boolean,
+    val byDays: Boolean,
+    val start: Float?,
+    val end: Float?,
+    val top: Float,
+) {
+    /**
+     * The edge a movement of [along] takes, toward the side it went: the one
+     * there is, or of two the one that way — earlier for up, or toward the
+     * start's side across.
+     */
+    fun startFor(along: Float): Boolean? {
+        val s = start
+        val e = end
+        if (s == null || e == null) return s != null
+        val towardStart = if (s < e) along < 0f else along > 0f
+        return towardStart
+    }
+}
 
 /**
  * A menu opened on the calendar: by a finger held on an event, or on empty

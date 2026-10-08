@@ -116,7 +116,7 @@ class EventCalendarEditTest {
         return heading(thursday) - heading(wednesday)
     }
 
-    private fun hour(probe: Probe) = 48f * probe.density
+    private fun hour(probe: Probe) = 64f * probe.density
 
     @Test
     fun aMouseCarriesAnEventToAnotherDayAndTimeKeepingItsLength() = runComposeUiTest {
@@ -191,7 +191,7 @@ class EventCalendarEditTest {
      */
     @Test
     fun anEndDraggedPastMidnightStopsThere() = runComposeUiTest {
-        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 17, 0), LocalDateTime(2026, 10, 14, 18, 0))
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 14, 0), LocalDateTime(2026, 10, 14, 15, 0))
         val probe = calendar(events = listOf(late))
         val bounds = boundsOf(late, probe)
         onRoot().performMouseInput {
@@ -202,7 +202,7 @@ class EventCalendarEditTest {
             val to = Offset(bounds.center.x + dayWidth(probe), 900f * probe.density - 2f)
             val from = currentPosition
             repeat(20) { moveTo(from + (to - from) * ((it + 1) / 20f)) }
-            repeat(30) {
+            repeat(60) {
                 advanceEventTime(100)
                 moveTo(to + Offset(0f, if (it % 2 == 0) -1f else 0f))
             }
@@ -220,7 +220,7 @@ class EventCalendarEditTest {
      */
     @Test
     fun aCarryToTheFootOfTheHoursStaysOnItsDay() = runComposeUiTest {
-        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 17, 0), LocalDateTime(2026, 10, 14, 18, 0))
+        val late = CalendarEvent(4, "Late call", LocalDateTime(2026, 10, 14, 14, 0), LocalDateTime(2026, 10, 14, 15, 0))
         val probe = calendar(events = listOf(late))
         val bounds = boundsOf(late, probe)
         onRoot().performMouseInput {
@@ -229,7 +229,7 @@ class EventCalendarEditTest {
             val to = Offset(bounds.center.x, 900f * probe.density - 2f)
             val from = currentPosition
             repeat(20) { moveTo(from + (to - from) * ((it + 1) / 20f)) }
-            repeat(30) {
+            repeat(60) {
                 advanceEventTime(100)
                 moveTo(to + Offset(0f, if (it % 2 == 0) -1f else 0f))
             }

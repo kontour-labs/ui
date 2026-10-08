@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.animateFloatAsState
@@ -72,7 +73,7 @@ import io.kontour.ui.theme.toneColours
  * the callbacks, its move and its edges.
  *
  * Short events are below the 48dp a control is otherwise given: a quarter-hour
- * at an hour's 48dp is 12dp, and growing it would cover the next one. A screen
+ * at an hour's 64dp is 16dp, and growing it would cover the next one. A screen
  * reader reaches every event as its own node, and a keyboard by Tab.
  *
  * @param byDays Whether a move carries it by whole days — a bar, or a line in a
@@ -116,9 +117,9 @@ internal fun EventChip(
     // The event as it was, while an edit carries it: there, faded, so where it
     // came from stays in view.
     val carried = !ghost && edit.live && edit.event?.id == event.id
-    // While one event's times are being adjusted, the rest step back: faded,
-    // so the one with the handles is the one thing to look at.
-    val focused = edit.active
+    // While one event in the hours is held, carried or adjusted, the rest
+    // step back: faded, so it is the one thing to look at.
+    val focused = edit.focus
     val faded by animateFloatAsState(
         targetValue = when {
             carried -> CarriedAlpha
@@ -132,16 +133,23 @@ internal fun EventChip(
     Box(
         modifier
             .graphicsLayer { alpha = faded }
-            .clip(shape)
-            .background(fill)
-            .then(if (edge != null) Modifier.border(edge, shape) else Modifier)
             .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn)),
-        // A block's text from its top, as time runs; a bar's and a line's level
-        // in its row, as a chip's label is.
-        contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
     ) {
-        CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
-            ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+        // Its ground and what is on it cut to its shape; its handles not, so
+        // a block's grips can sit across its edges, clear of its title.
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(fill)
+                .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
+            // A block's text from its top, as time runs; a bar's and a line's level
+            // in its row, as a chip's label is.
+            contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
+        ) {
+            CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
+                ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+            }
         }
         // A block's edges, in its hours; a bar's ends, by whole days. Not on
         // an end cut off by the edge of the week or the page: it is not the
@@ -158,7 +166,7 @@ internal fun EventChip(
 /** How faded the event left behind is while an edit carries it. */
 private const val CarriedAlpha = 0.4f
 
-/** How faded the other events are while one has its edges' handles. */
+/** How faded the other events are while one is in focus: see `EventEdit.focus`. */
 private const val UnfocusedAlpha = 0.35f
 
 /**
@@ -368,13 +376,19 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
                 if (bar) {
                     Modifier.align(if (atStart) Alignment.CenterStart else Alignment.CenterEnd).fillMaxHeight().width(HandleHeight)
                 } else {
-                    Modifier.align(if (atStart) Alignment.TopCenter else Alignment.BottomCenter).fillMaxWidth().height(HandleHeight)
+                    // Across the edge, half outside: within a quarter-hour's
+                    // 16dp, two grips inside it covered its title.
+                    Modifier
+                        .align(if (atStart) Alignment.TopCenter else Alignment.BottomCenter)
+                        .offset(y = if (atStart) -HandleHeight / 2 else HandleHeight / 2)
+                        .fillMaxWidth()
+                        .height(HandleHeight)
                 },
             )
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
                 edit.draggables[placed] = coordinates
-                edit.events[placed] = Grab(coordinates, current, byDays = bar, edge = true)
+                edit.events[placed] = Grab(coordinates, current, byDays = bar, edge = true, atStart = atStart)
             }
             .pointerCursor(if (bar) Cursor.ResizeColumn else Cursor.ResizeRow)
             .pointerInput(edit, event.id, atStart, bar) {

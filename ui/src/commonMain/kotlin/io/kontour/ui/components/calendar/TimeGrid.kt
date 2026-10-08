@@ -97,7 +97,12 @@ internal fun TimeView(scope: CalendarScope) {
     val state = scope.state
     val pager = scope.pager
     val days = if (state.view == CalendarView.Day) 1 else DaysPerWeek
-    val gutter = gutterWidth(scope)
+    // As wide as the labels measured ahead, or as they came out once laid
+    // out: a font that loads after the first measure — on the web, from a
+    // file — sets them wider than the measure ahead knew, and "10 am" wrapped
+    // to a bare "10".
+    var laidOut by remember { mutableStateOf(0.dp) }
+    val gutter = maxOf(gutterWidth(scope), laidOut)
     val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
     val hourPx = with(LocalDensity.current) { scope.hourHeight.toPx() }
     val hours = remember { PlacedAt() }
@@ -140,7 +145,7 @@ internal fun TimeView(scope: CalendarScope) {
                     ) { key -> scope.timeKey(key, rtl, firstInView) }
                     .verticalScroll(state.timeScroll, flingBehavior = ScrollDefaults.flingBehavior()),
             ) {
-                HourGutter(scope, gutter)
+                HourGutter(scope, gutter) { if (it > laidOut) laidOut = it }
                 PeriodStrip(pager, Modifier.weight(1f).height(scope.hourHeight * HoursPerDay)) { period ->
                     Box(Modifier.fillMaxSize()) {
                         DayColumns(scope, period, days)
@@ -153,6 +158,7 @@ internal fun TimeView(scope: CalendarScope) {
 
     EditScroll(scope, hours)
     EditDwell(scope)
+    EditWiden(scope)
 
     // The keyboard's slot brought into view as it moves.
     val motion = Theme.motion
@@ -181,6 +187,35 @@ internal fun TimeView(scope: CalendarScope) {
             state.timeScroll.scrollTo((state.initialScrollTime.minuteOfDay * hourPx / MinutesPerHour - labelInset).roundToInt().coerceAtLeast(0))
         }
         state.scrolledToStart = true
+    }
+}
+
+/**
+ * The event in focus opened out to its whole day, and closed back to its lane
+ * when it is let go: from the moment a finger holds it, as the copy the hold
+ * lifts is drawn — that copy stood at the whole day's width at once, and the
+ * event under it opened out only once "Adjust time" was chosen.
+ *
+ * On the default tween, about a fifth of a second: a snappy spring, over in
+ * 140ms, read as a jump, and the gentle one, a third of a second, as a wait.
+ */
+@Composable
+private fun EditWiden(scope: CalendarScope) {
+    val edit = scope.edit
+    val motion by rememberUpdatedState(Theme.motion)
+    LaunchedEffect(edit) {
+        snapshotFlow { edit.focus }.collectLatest { focus ->
+            if (focus != null) {
+                if (edit.widened != focus) {
+                    edit.widen.snapTo(0f)
+                    edit.widened = focus
+                }
+                edit.widen.animateTo(1f, motion.tweenDefault())
+            } else if (edit.widened != null) {
+                edit.widen.animateTo(0f, motion.tweenDefault())
+                edit.widened = null
+            }
+        }
     }
 }
 
@@ -570,11 +605,16 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
 /** At most this many rows of all-day bars before a day says "+N". */
 private const val AllDayRows = 3
 
-/** The hours down the side, each label level with its line. */
+/**
+ * The hours down the side, each label level with its line: on one line
+ * whatever it is given, and [onWidth] told the width they need, for a gutter
+ * narrower than that to widen.
+ */
 @Composable
-private fun HourGutter(scope: CalendarScope, width: Dp) {
+private fun HourGutter(scope: CalendarScope, width: Dp, onWidth: (Dp) -> Unit) {
     val hour = scope.hourHeight
     val marginDp = Theme.spacing.xs
+    val reported by rememberUpdatedState(onWidth)
     Layout(
         content = {
             for (h in 1 until HoursPerDay) {
@@ -583,6 +623,7 @@ private fun HourGutter(scope: CalendarScope, width: Dp) {
                     style = Theme.typography.labelSmall,
                     colour = quietInk(),
                     maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier.clearAndSetSemantics { },
                 )
             }
@@ -591,7 +632,9 @@ private fun HourGutter(scope: CalendarScope, width: Dp) {
     ) { measurables, constraints ->
         val hourPx = hour.toPx()
         val margin = marginDp.roundToPx()
-        val labels = measurables.map { it.measure(Constraints(maxWidth = (constraints.maxWidth - margin * 2).coerceAtLeast(0))) }
+        val labels = measurables.map { it.measure(Constraints()) }
+        val needed = (labels.maxOfOrNull { it.width } ?: 0) + margin * 2
+        if (needed > constraints.maxWidth) reported(needed.toDp())
         layout(constraints.maxWidth, constraints.maxHeight) {
             labels.forEachIndexed { i, label ->
                 val y = ((i + 1) * hourPx - label.height / 2f).roundToInt()
@@ -626,8 +669,13 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val lineColour = gridLine()
     val nowColour = colours.accent.solid
     val hourPx = with(density) { scope.hourHeight.toPx() }
-    val minChipPx = with(density) { (Theme.typography.labelMedium.lineHeight.toDp() + Theme.spacing.xxs * 2).toPx() }
-    val minMinutes = if (hourPx > 0f) ceil(minChipPx / (hourPx / MinutesPerHour)).toInt() else 0
+    // Every event as tall as its time, so an hour is an hour whatever is in
+    // it and a quarter-hour's edge is on the quarter: no shorter than a step,
+    // the least an edit makes, for one with no length at all. Grown to fit
+    // its title, a quarter-hour reached down to twenty past, and the hour
+    // with it looked fuller than the one beside it.
+    val minMinutes = scope.edit.stepMinutes
+    val minChipPx = minMinutes * hourPx / MinutesPerHour
     val placements = remember(scope.events, date, minMinutes) { layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes) }
     val now = scope.now?.takeIf { it.date == date }?.time
     val click by rememberUpdatedState(scope.onTimeClick)
@@ -646,29 +694,11 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val cursorShown = scope.cursorShown
     val state = scope.state
 
-    // The event whose times are being adjusted — its edges given handles from
-    // its menu — widened to the whole day, over the others, so its handles
-    // and its text have room: in a lane a seventh of a week wide it was
-    // squashed between its neighbours. Widened and narrowed on the gentle
-    // spring — about a third of a second, which reads as the event opening
-    // out; the snappy one was over in 140ms, a jump — and the one widened
-    // kept while it narrows again.
-    val adjusting = edit.active?.takeIf { id -> placements.any { it.event.id == id } }
-    var widened by remember { mutableStateOf<Any?>(null) }
-    val widen = remember { Animatable(0f) }
-    val motion = Theme.motion
-    LaunchedEffect(adjusting) {
-        if (adjusting != null) {
-            if (widened != adjusting) {
-                widen.snapTo(0f)
-                widened = adjusting
-            }
-            widen.animateTo(1f, motion.springOrTween(motion.springGentle))
-        } else if (widened != null) {
-            widen.animateTo(0f, motion.springOrTween(motion.springGentle))
-            widened = null
-        }
-    }
+    // The event in focus — held, carried, or its edges given handles —
+    // widened to its whole day by `EditWiden`, over the others, so its
+    // handles and its text have room: in a lane a seventh of a week wide it
+    // was squashed between its neighbours.
+    val widened = edit.widened?.takeIf { id -> placements.any { it.event.id == id } }
 
     // How tall each is drawn, as the layout below draws it.
     val blockHeight = { p: TimedPlacement ->
@@ -817,13 +847,16 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         val perMinute = hourPx / MinutesPerHour
         val all = placements
         val wide = widened
-        val f = if (wide == null) 0f else widen.value
-        // Its lane, or — for the one being adjusted — between its lane and the whole day.
+        val f = if (wide == null) 0f else edit.widen.value
+        // Its lane, or — for the one in focus — between its lane and the whole day.
         fun across(p: TimedPlacement): Pair<Float, Float> {
             val lane = width.toFloat() / p.lanes
             val x = p.lane * lane + gapPx / 2
             val w = lane * p.span - gapPx
-            if (p.event.id != wide || f == 0f) return x to w
+            if (p.event.id != wide) return x to w
+            // Where it opens out from, for the copy an edit draws to open out from too.
+            if (width > 0) edit.widenedLane = (p.lane * lane) / width to (lane * p.span) / width
+            if (f == 0f) return x to w
             return (x + (gapPx / 2 - x) * f) to (w + (width - gapPx - w) * f)
         }
         val placeables = measurables.mapIndexed { i, measurable ->
@@ -883,7 +916,8 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     val density = LocalDensity.current
     val hourPx = with(density) { scope.hourHeight.toPx() }
     val perMinute = hourPx / MinutesPerHour
-    val minChipPx = with(density) { (Theme.typography.labelMedium.lineHeight.toDp() + Theme.spacing.xxs * 2).toPx() }
+    // As the events are drawn: as tall as their time, a step at the least.
+    val minChipPx = scope.edit.stepMinutes * perMinute
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
     val still = Theme.motion.reduceMotion
     val pull = if (still) 0f else SliderDefaults.DetentPull
@@ -941,16 +975,23 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         val moving = edit.leanOn == 0
         val dx = if (moving) drawn.left - snapped.left else 0f
         val dy = if (moving) drawn.top - snapped.top else 0f
+        // Across its day as the event under it is: opening out from its lane
+        // to the whole day as the event does, rather than standing at the
+        // day's width from the first frame of a hold.
+        val f = if (event != null && edit.widened == event.id) edit.widen.value else 1f
+        val (laneStart, laneWidth) = edit.widenedLane
+        val inset = column * (if (rtl) 1f - laneStart - laneWidth else laneStart) * (1f - f)
+        val pieceWidth = column * (laneWidth + (1f - laneWidth) * f)
         val placeables = measurables.take(pieces.size).mapIndexed { i, measurable ->
             val (day, from, to) = pieces[i]
             val rect = if (day == leanDay) drawn else box(day, from, to)
-            measurable.measure(Constraints.fixed((column - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
+            measurable.measure(Constraints.fixed((pieceWidth - gapPx).roundToInt().coerceAtLeast(0), (rect.height - gapPx).roundToInt().coerceAtLeast(0)))
         }
         layout(w, h) {
             placeables.forEachIndexed { i, placeable ->
                 val (day, from, to) = pieces[i]
                 val rect = if (day == leanDay) drawn else box(day, from, to).translate(dx, dy)
-                placeable.place((rect.left + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
+                placeable.place((rect.left + inset + gapPx / 2).roundToInt(), (rect.top + gapPx / 2).roundToInt())
             }
         }
     }
