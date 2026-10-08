@@ -1,5 +1,9 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.catalog.pageScroll
+import io.kontour.ui.theme.Tone
+import io.kontour.ui.overlay.coachmarkStep
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,7 +81,7 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
             supporting { +"${tripsByDay.values.sum()} in the last year" }
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()).testTag("trips"),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()).testTag("trips"),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             ActivityCalendar(
@@ -86,7 +90,17 @@ internal fun TripsPage(onTrip: (String) -> Unit) {
                 today = TransitToday,
                 selected = picked,
                 onDayClick = { picked = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(
+                    LocalTransitTour.current?.let { tour ->
+                        Modifier.coachmarkStep(
+                            tour,
+                            id = "activity",
+                            title = "A year of trips",
+                            message = "A shade a day: the darker the day, the more you travelled.",
+                            tone = Tone.Success,
+                        )
+                    } ?: Modifier,
+                ),
             )
             picked?.let { day ->
                 val count = tripsByDay[day] ?: 0
@@ -167,7 +181,7 @@ internal fun TripPage(trip: Trip) {
             supporting { +formats.date(trip.date) }
         }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(transitPagePadding()),
+            Modifier.fillMaxSize().pageScroll().padding(transitPagePadding()),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {
             Card(Modifier.fillMaxWidth()) {
@@ -227,7 +241,7 @@ private fun ReportSheet(visible: Boolean, onDismiss: () -> Unit, onSend: (String
     val more = rememberTextFieldState()
     ModalBottomSheet(visible = visible, onDismissRequest = onDismiss) { padding ->
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(padding),
+            Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
             SheetHeader { +"Report a problem" }

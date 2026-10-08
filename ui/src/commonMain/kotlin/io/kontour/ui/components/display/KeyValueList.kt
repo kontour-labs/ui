@@ -1,12 +1,14 @@
 package io.kontour.ui.components.display
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.foundation.layout.LayoutScopeMarker
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
@@ -14,6 +16,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -57,10 +60,11 @@ import io.kontour.ui.theme.Theme
  * **Reach for a [Stat] instead** when one figure is the headline. A stat shouts
  * one number; this lists several without ranking them.
  *
- * @param labelWidth How much room the labels get. Fixed rather than intrinsic so
- *   the values line up down the column — a ragged value column is the thing that
- *   makes a details panel look untidy, and intrinsic width re-ragged it every
- *   time the content changed.
+ * @param labelWidth The least room the labels get. Every row shares one label
+ *   column — as wide as the widest label, from this up to what leaves the values
+ *   [KeyValueListDefaults.MinValueWidth] — so the values line up down the list
+ *   whatever the labels are: a ragged value column is the thing that makes a
+ *   details panel look untidy. A longer label than that wraps, to two lines.
  * @param showDividers A hairline between rows. Off by default: the label column
  *   already aligns them, and a rule per row is a lot of lines for a short list.
  */
@@ -83,10 +87,43 @@ inline fun KeyValueList(
 internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: Dp, showDividers: Boolean) {
     val rows = scope.rows
     val gap = Theme.spacing.sm
+    val minValue = KeyValueListDefaults.MinValueWidth
 
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val available = maxWidth
-        /**
+    val label: @Composable (KeyValueRow, Modifier) -> Unit = { row, slot ->
+        ProvideContentColour(Theme.colours.contentMuted) {
+            ProvideTextStyle(Theme.typography.bodyMedium) {
+                Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
+            }
+        }
+    }
+    val value: @Composable (KeyValueRow, Modifier) -> Unit = { row, slot ->
+        ProvideTextStyle(Theme.typography.bodyMedium) {
+            Row(slot) {
+                ContentSlot(
+                    iconSize = Theme.sizing.iconSmall,
+                    maxLines = 4,
+                    content = row.value,
+                )
+            }
+        }
+    }
+
+    SubcomposeLayout(modifier.fillMaxWidth()) { constraints ->
+        val floor = labelWidth.roundToPx()
+        val gapPx = gap.roundToPx()
+        // In a row that scrolls, or anything else with no width to give, as
+        // wide as its widest label and widest value side by side: laid out at
+        // an unbounded width, it threw.
+        val available = if (constraints.hasBoundedWidth) {
+            constraints.maxWidth
+        } else {
+            val labels = subcompose("natural labels") { rows.forEach { row -> label(row, Measured) } }
+                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            val values = subcompose("natural values") { rows.forEach { row -> value(row, Measured) } }
+                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            maxOf(labels, floor) + gapPx + maxOf(values, minValue.roundToPx())
+        }
+        /*
          * Two columns, or one above the other.
          *
          * The label column used to be `widthIn(min = labelWidth)` beside a value
@@ -95,76 +132,79 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
          * label the entire row and the value whatever was left, which was
          * nothing. A `Text` measured at nothing still draws its first character,
          * so the value came out as a single column of letters standing **outside
-         * the component**, one glyph wide — "T" over "r" over "a" over "n". At
-         * 320dp it looks right, which is why it went unnoticed: the gallery
-         * renders at 600.
+         * the component**, one glyph wide — "T" over "r" over "a" over "n".
          *
          * Below the point where a value column would be worth having, the pair
          * stacks instead. That is what a key and a value do on a narrow screen,
          * and it is the only arrangement where both are readable.
          */
-        val stacked = available < labelWidth + gap + KeyValueListDefaults.MinValueWidth
+        val stacked = available < floor + gapPx + minValue.roundToPx()
+        /*
+         * **One label column for every row**: as wide as the widest label, from
+         * `labelWidth` up to what leaves a value its room. It was a floor each
+         * row took for itself, so a label longer than the floor pushed its own
+         * value out and the values went ragged down the list — the two columns
+         * held only while every label fitted, as the demo's did. Measured here,
+         * so nobody has to set `labelWidth` for their longest label to get them.
+         */
+        val column = if (stacked) {
+            0
+        } else {
+            val widest = maxOf(floor, available - gapPx - minValue.roundToPx())
+            val natural = subcompose("labels") { rows.forEach { row -> label(row, Measured) } }
+                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            natural.coerceIn(floor, widest)
+        }
+        val columnDp = column.toDp()
+        val list = subcompose("rows") {
+            Column(Modifier.fillMaxWidth()) {
+                rows.forEachIndexed { index, row ->
+                    if (showDividers && index > 0) HorizontalDivider()
 
-        Column(Modifier.fillMaxWidth()) {
-            rows.forEachIndexed { index, row ->
-                if (showDividers && index > 0) HorizontalDivider()
+                    val rowModifier = Modifier
+                        .fillMaxWidth()
+                        .semantics(mergeDescendants = true) {
+                            row.spoken?.let { contentDescription = it }
+                        }
+                        .padding(vertical = Theme.spacing.xs)
 
-                val rowModifier = Modifier
-                    .fillMaxWidth()
-                    .semantics(mergeDescendants = true) {
-                        row.spoken?.let { contentDescription = it }
-                    }
-                    .padding(vertical = Theme.spacing.xs)
-
-                val label: @Composable (Modifier) -> Unit = { slot ->
-                    ProvideContentColour(Theme.colours.contentMuted) {
-                        ProvideTextStyle(Theme.typography.bodyMedium) {
-                            Row(slot) { ContentSlot(maxLines = 2, content = row.label) }
+                    if (stacked) {
+                        Column(
+                            modifier = rowModifier,
+                            verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+                        ) {
+                            label(row, Modifier.fillMaxWidth())
+                            value(row, Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(
+                            modifier = rowModifier,
+                            horizontalArrangement = Arrangement.spacedBy(gap),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            label(row, Modifier.width(columnDp))
+                            value(row, Modifier.weight(1f))
                         }
                     }
                 }
-                val value: @Composable (Modifier) -> Unit = { slot ->
-                    ProvideTextStyle(Theme.typography.bodyMedium) {
-                        Row(slot) {
-                            ContentSlot(
-                                iconSize = Theme.sizing.iconSmall,
-                                maxLines = 4,
-                                content = row.value,
-                            )
-                        }
-                    }
-                }
-
-                if (stacked) {
-                    Column(
-                        modifier = rowModifier,
-                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-                    ) {
-                        label(Modifier.fillMaxWidth())
-                        value(Modifier.fillMaxWidth())
-                    }
-                } else {
-                    Row(
-                        modifier = rowModifier,
-                        horizontalArrangement = Arrangement.spacedBy(gap),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        // Still a floor rather than a fixed width, so a long
-                        // label pushes the column out instead of wrapping while
-                        // the rest of the row sits empty — but a *capped* floor,
-                        // so it can never push so far that the value is starved.
-                        // `stacked` above guarantees the cap is the wider of the
-                        // two, so the range cannot invert.
-                        val widest = (available - gap - KeyValueListDefaults.MinValueWidth)
-                            .coerceAtLeast(labelWidth)
-                        label(Modifier.widthIn(min = labelWidth, max = widest))
-                        value(Modifier.weight(1f))
-                    }
-                }
+            }
+        }.map { it.measure(constraints.copy(minWidth = 0, maxWidth = available, minHeight = 0)) }
+        val height = list.sumOf { it.height }
+        layout(available, constraints.constrainHeight(height)) {
+            var y = 0
+            list.forEach {
+                it.placeRelative(0, y)
+                y += it.height
             }
         }
     }
 }
+
+/**
+ * A copy composed only to be measured, never placed: nothing a screen reader
+ * should find, or it reads every label twice.
+ */
+private val Measured = Modifier.clearAndSetSemantics { }
 
 /** One collected row. */
 internal class KeyValueRow(
@@ -219,7 +259,13 @@ class KeyValueScope @PublishedApi internal constructor() {
         )
     }
 
-    /** Both regions as content, for a label that is more than a word. */
+    /**
+     * Both regions as content, for a label that is more than a word.
+     *
+     * The label column is as wide as the widest label, so a label is asked how
+     * wide it would be: one with a lazy row or `BoxWithConstraints` inside it,
+     * which cannot say, throws.
+     */
     fun item(
         label: @Composable ContentScope.() -> Unit,
         announcement: String? = null,

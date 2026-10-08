@@ -1,5 +1,7 @@
 package io.kontour.ui.components.list
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -246,6 +248,7 @@ internal fun ListItemImpl(
         interaction != null -> interaction
         onClick == null -> Modifier
         selected || role == Role.RadioButton -> Modifier.pointerCursor(enabled = enabled)
+            .webRole(role, selected)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

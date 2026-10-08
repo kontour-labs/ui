@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.components.list.rememberScrollbarListState
+import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,7 +83,7 @@ internal fun FramesPage(modifier: Modifier = Modifier) {
     val shapes = rememberArmShapes(squircles)
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+        modifier = modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior())
             .padding(Theme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
@@ -263,8 +265,10 @@ private fun Workload(recording: Boolean, onFlipTheme: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 variant = ButtonVariant.Secondary,
             ) { +"Open sheet" }
+            val workload = rememberScrollbarListState()
             LazyColumn(
-                Modifier.fillMaxWidth().weight(1f),
+                Modifier.fillMaxWidth().weight(1f).scrollbar(workload),
+                state = workload,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 flingBehavior = ScrollDefaults.flingBehavior(),
             ) {

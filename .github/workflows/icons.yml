@@ -1,0 +1,105 @@
+# Keeps the icons on the newest `io.kontour:tabler-icons-*` release.
+#
+# Asked for as "whenever the library rebuilds/updates, it automatically checks
+# for a newer version of kontour's tabler icon library and updates to it". On
+# every push to `main`, once a day, and by hand, this reads the newest release
+# from GitHub Packages. When it is newer than the one pinned, the bump goes on a
+# branch of its own (`docs/bump-tabler-icons.py --write` moves the catalogue,
+# the docs' icon-data pin and the changelog), a pull request is opened for it,
+# and CI is run on that branch with the slow classes — so a redrawn icon shows
+# up as a golden diff, and a renamed or removed one as a failed compile, on the
+# pull request rather than on `main`.
+#
+# The check alone is a couple of HTTP requests: nothing is built unless there is
+# something to update, and a release already on its way (its branch exists) is
+# not opened twice.
+#
+# CI is started with `workflow_dispatch`, because it does not run on pull
+# requests (see `ci.yml`), and because a pull request opened with this run's own
+# token starts no workflows; a dispatch is the one event that token can start.
+
+name: Icons
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Daily, off the hour.
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write        # the bump's branch
+  pull-requests: write   # its pull request
+  actions: write         # CI on that branch
+  packages: read         # the icons' versions, on GitHub Packages
+
+env:
+  KONTOUR_PACKAGES_ACTOR: ${{ secrets.KONTOUR_PACKAGES_ACTOR || github.actor }}
+  KONTOUR_PACKAGES_TOKEN: ${{ secrets.KONTOUR_PACKAGES_TOKEN || github.token }}
+
+concurrency:
+  group: icons
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Is there a newer release?
+        id: check
+        run: |
+          current=$(python3 docs/bump-tabler-icons.py --current)
+          latest=$(python3 docs/bump-tabler-icons.py --latest)
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          branch="bot/tabler-icons-$latest"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          if ! python3 docs/bump-tabler-icons.py --is-newer "$latest"; then
+            echo "Tabler $current is the newest release."
+            echo "newer=false" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "Tabler $latest is already on its way, on $branch."
+            echo "newer=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tabler $latest is newer than $current."
+            echo "newer=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump, and open a pull request
+        if: steps.check.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+        run: |
+          summary=$(python3 docs/bump-tabler-icons.py --write "$LATEST")
+          integrity=$(grep -oE "\"$LATEST\": \"[^\"]+\"" docs/icondata.py | cut -d'"' -f4)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "Icons: Tabler $LATEST, from $CURRENT" -m "$summary"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "Icons: Tabler $LATEST" \
+            --body "$(cat <<EOF
+          A newer release of \`io.kontour:tabler-icons-*\` is out: **$LATEST**, from $CURRENT.
+
+          This moves:
+          - \`gradle/libs.versions.toml\`, \`tabler-icons\`
+          - \`docs/icondata.py\`, the docs' icon browser's pin on the \`@tabler/icons\` $LATEST tarball: \`$integrity\` (npm's own \`dist.integrity\` — check it against \`kontour-labs/tabler\`'s \`gradle.properties\`)
+          - the changelog, under Unreleased
+
+          CI is running on this branch with the slow classes. A redrawn icon shows as a golden diff (the run's \`screenshot-diffs\` artifact); if those are the icons' own changes, re-record with \`-Pkontour.screenshots.update=true\` and push to this branch. A renamed or removed icon fails the compile.
+
+          ---
+          _Opened by the Icons workflow._
+          EOF
+          )"
+          gh workflow run ci.yml --ref "$BRANCH" -f full=true

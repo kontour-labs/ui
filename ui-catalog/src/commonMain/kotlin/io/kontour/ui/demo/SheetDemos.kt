@@ -1,5 +1,7 @@
 package io.kontour.ui.demo
 
+import androidx.compose.foundation.layout.ColumnScope
+import io.kontour.ui.sheet.SheetPartPin
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
 import io.kontour.ui.components.text.SearchField
@@ -153,30 +155,34 @@ private val sheetControlsAlignment =
     Knob.Choice("Controls", OverlayAlignment.entries.toList(), OverlayAlignment.End)
 
 /**
- * A search field pinned to the bottom of the sheet, over a list that scrolls
- * behind it — and collapsed, the sheet is only the field.
+ * A search field pinned to the sheet, over a list of stops — and collapsed,
+ * the sheet is only the field. `Bottom` keeps it at the foot as a navigation
+ * bar is, `Top` under the handle as a maps app has it, and `Collapsed` at the
+ * head of the list, carried to the top as the sheet collapses. `None` is the
+ * stop's header and departure board instead.
  *
- * Asked for in those words. The sheet's detents change with it, to
- * `SheetDetent.pinned()` in place of the peek, so the knob starts the sheet over
- * rather than bending the one already open.
+ * The sheet's detents change with it, to `SheetDetent.parts()` in place of the
+ * peek, so the knob starts the sheet over rather than bending the one already
+ * open.
  */
-private val sheetPinnedSearch = Knob.Flag("Pinned search")
+private val sheetSearchBar = Knob.Choice("Search bar", SheetPartPin.entries.toList(), SheetPartPin.None)
 
 /**
- * The pinned field on no ground of its own, so the list goes under it and shows
- * round it. Does nothing without the field.
+ * No fade under the field, so the list shows round it. Does nothing without
+ * the field, or with it in the list.
  */
-private val sheetUnderPinned = Knob.Flag("Content under the field")
+private val sheetNoFade = Knob.Flag("No fade under it")
 
 internal val BottomSheetDemo = ComponentDemo(
     slug = "bottom-sheet",
-    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetPinnedSearch, sheetUnderPinned),
+    knobs = listOf(sheetPresentation, sheetEdgeMorph, sheetAlignment, sheetControlsAlignment, sheetSearchBar, sheetNoFade),
 ) {
     val presentation = this[sheetPresentation]
-    val pinnedSearch = this[sheetPinnedSearch]
-    // Where it rests collapsed: the header, or the pinned field.
-    val collapsed = if (pinnedSearch) SheetDetent.pinned() else SheetDetent.peek(140.dp)
-    val sheet = key(pinnedSearch) {
+    val searchBar = this[sheetSearchBar]
+    val search = searchBar != SheetPartPin.None
+    // Where it rests collapsed: the header, or the search field.
+    val collapsed = if (search) SheetDetent.parts() else SheetDetent.peek(140.dp)
+    val sheet = key(searchBar) {
         rememberSheetState(
             detents = listOf(
                 SheetDetent.Hidden,
@@ -207,22 +213,35 @@ internal val BottomSheetDemo = ComponentDemo(
                     variant = ButtonVariant.Secondary,
                 )
             },
+            fadeUnder = !this@ComponentDemo[sheetNoFade],
         ) { padding ->
-            if (pinnedSearch) {
-                // Over the list, on the bottom of what the sheet shows at every
-                // size: on the sheet's own colour, or on nothing with the list
-                // going under it.
-                pinned(
-                    containerColour = if (this@ComponentDemo[sheetUnderPinned]) Color.Transparent else Color.Unspecified,
-                ) { SearchField(query, placeholder = "Search stops") }
-                // The padding grows by the field's height, so the last stop
-                // scrolls out from behind it; the sides are the sheet's inset,
-                // the same as the field's.
+            if (search) {
+                val field: @Composable ColumnScope.() -> Unit = {
+                    SearchField(
+                        query,
+                        placeholder = "Search stops",
+                        // In from the sheet's sides, as the stops are; the foot's own inset is the sheet's.
+                        modifier = if (searchBar == SheetPartPin.Bottom) {
+                            Modifier
+                        } else {
+                            Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding, vertical = Theme.spacing.xs)
+                        },
+                    )
+                }
+                // At the foot or the top, the field is the sheet's and the list
+                // scrolls under it, its padding grown by the field's height.
+                if (searchBar != SheetPartPin.Collapsed) part(pin = searchBar, content = field)
+                val sheetParts = this
                 LazyColumn(
                     modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
                     contentPadding = padding,
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
                 ) {
+                    // At the head of the list, where it scrolls away with the
+                    // stops, and comes back to the top as the sheet collapses.
+                    if (searchBar == SheetPartPin.Collapsed) {
+                        item(key = "search") { sheetParts.part(pin = SheetPartPin.Collapsed, content = field) }
+                    }
                     itemsIndexed(PinnedStops) { index, stop ->
                         ListItem(onClick = { echo(stop) }, position = GroupPosition.of(index, PinnedStops.size)) { +stop }
                     }
@@ -256,7 +275,7 @@ internal val BottomSheetDemo = ComponentDemo(
     }
 }
 
-/** Enough stops that the list scrolls behind the pinned field at every size. */
+/** Enough stops that the list scrolls behind the field at every size. */
 private val PinnedStops = listOf(
     "Perth Underground", "Elizabeth Quay", "Esplanade", "McIver", "Claisebrook",
     "East Perth", "Mount Lawley", "Maylands", "Meltham", "Bayswater",

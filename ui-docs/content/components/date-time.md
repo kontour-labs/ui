@@ -3,13 +3,14 @@
 | | For | Instead of |
 |---|---|---|
 | [`ActivityCalendar`](activity-calendar.md) | A year of activity, a shade a day | A chart, when the shape of each day matters |
+| [`EventCalendar`](event-calendar.md) | Events in a day's or week's hours, a month of boxes, or a year | A list, when there are only a few and their order is what matters |
 | [`CalendarMonth`](calendar-month.md) | Building your own picker | A picker, unless you need the grid |
 | [`DatePicker`](date-picker.md) | One date | — |
 | [`DateRangePicker`](date-range-picker.md) | A start and an end | Two `DatePicker`s |
 | [`TimePicker`](time-picker.md) | An hour and a minute | — |
 | [`DateTimePicker`](date-time-picker.md) | A day and a time, as one value | A `DatePicker` and a `TimePicker` kept in step by hand |
 | [`TimeField`](time-field.md) | The tappable field that opens a time picker | — |
-| [`DateField`](date-field.md) | The tappable field that opens a date picker; `DateTimeField` for both | A read-only text field with a calendar button |
+| [`DateField`](date-field.md) | The tappable field that opens a date picker; `DateTimeField` for both, and `FieldPicker` for where any of them opens its picker | A read-only text field with a calendar button |
 | [`WheelPicker`](wheel-picker.md) | Any list of values, as a drum | A `Select`, in a form |
 | [`RelativeTimeText`](relative-time-text.md) | A self-updating "in 4 min" | A formatted timestamp |
 | [`LocaleFormats`](locale-formats.md) | Numbers, dates, clocks and plurals, app-wide | Per-call-site formatting |

@@ -336,6 +336,7 @@ class ComponentRenderTest {
             "DatePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateRangePicker" to "a grid of dates on the page, no container; its buttons carry their own edges",
             "DateTimePicker" to "a grid of dates and wheels on the page, no container; its buttons carry their own edges",
+            "TimePicker" to "wheels and a Now button on the page, no container; the band and the button carry their own edges, and the middle row runs between them",
             "IndexScroller" to "a rail of letters beside a list, no container; its labels are held to text contrast",
             "Carousel" to "its pages are the caller's pictures; the carousel draws no ground of its own",
             "TopBar (Hero)" to "its top is the caller's picture, run to the window's edges; its controls carry their own rings",

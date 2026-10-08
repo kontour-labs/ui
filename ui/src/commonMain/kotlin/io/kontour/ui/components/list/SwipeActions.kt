@@ -34,6 +34,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -50,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -122,6 +127,23 @@ class SwipeAction(
      * Set false for an action that should always need the deliberate second tap.
      */
     val fullSwipe: Boolean = true,
+    /**
+     * Whether a full swipe on this action shows its tick before it runs: the
+     * row's `fullSwipeConfirmation` for this action alone. Null, the default,
+     * leaves it to the row.
+     *
+     * Asked for as *"the ability to turn off the swipe/tap confirmation per swipe
+     * action"*: a row whose delete is confirmed by a toast with an undo has no
+     * need of the tick on it, while its archive, beside it, still wants one.
+     */
+    val fullSwipeConfirmation: Boolean? = null,
+    /**
+     * Whether a tap on this action shows its tick before it runs: the row's
+     * `tapConfirmation` for this action alone. Null, the default, leaves it to
+     * the row. An action that opens something — a menu, a sheet, a screen — is
+     * the usual one to turn it off for, since what opens is answer enough.
+     */
+    val tapConfirmation: Boolean? = null,
 )
 
 /** Where a swiped row has settled. */
@@ -372,7 +394,7 @@ object SwipeActionsDefaults {
  *   it runs it: the action's icon turns into a tick, drawn, and the row holds at
  *   the far edge a moment longer to show it. Off runs the action the moment the
  *   row arrives, for a list where the next thing on screen is confirmation
- *   enough.
+ *   enough. An action's own [SwipeAction.fullSwipeConfirmation] overrides it.
  * @param shape The row's shape. In a group of rows, the row's grouped shape —
  *   `position.shape(…)`, square where it meets a neighbour — so the row clips
  *   as it is drawn.
@@ -384,7 +406,7 @@ object SwipeActionsDefaults {
  *   into the same tick, drawn, held a moment, and then the action runs and the
  *   row closes. On by default, as asked for from a phone — a tapped action used
  *   to run and fold away in the same instant, with nothing to say it had. Off
- *   runs it at once.
+ *   runs it at once. An action's own [SwipeAction.tapConfirmation] overrides it.
  * @param maxActionHeight The tallest an action grows on a row taller than it,
  *   where it sits centred on the row. Never less than its icon and label need,
  *   so it cannot be what drops a label at large type. `Dp.Infinity` lets the
@@ -469,6 +491,11 @@ fun SwipeActions(
         )
         state.deliverPending()
     }
+
+    // Read by the settle collector, which outlives a composition: the actions it
+    // runs, and whether each confirms, are this composition's, not the first's.
+    val currentFullStart by rememberUpdatedState(fullStart)
+    val currentFullEnd by rememberUpdatedState(fullEnd)
 
     val onFull by rememberUpdatedState { action: SwipeAction ->
         action.onAction()
@@ -560,8 +587,8 @@ fun SwipeActions(
     LaunchedEffect(state) {
         snapshotFlow { state.anchoredState.settledValue }.collect { settledAt ->
             val action = when (settledAt) {
-                SwipeValue.StartCommitted -> fullStart
-                SwipeValue.EndCommitted -> fullEnd
+                SwipeValue.StartCommitted -> currentFullStart
+                SwipeValue.EndCommitted -> currentFullEnd
                 else -> null
             }
             if (action == null) {
@@ -569,7 +596,7 @@ fun SwipeActions(
                 return@collect
             }
             fullSwipe = true
-            if (confirm) {
+            if (action.fullSwipeConfirmation ?: confirm) {
                 // The drawing the release set off, finished; a row sent to the
                 // edge in code had no release, so its drawing starts here.
                 confirmDraw.job?.join()
@@ -660,6 +687,10 @@ fun SwipeActions(
         )
         val committed = target == SwipeValue.StartCommitted || target == SwipeValue.EndCommitted
         if (committed) fullSwipe = true
+        // Whether the action this release commits shows its tick: its own say,
+        // or the row's.
+        val confirms = committed &&
+            ((if (target == SwipeValue.StartCommitted) currentFullStart else currentFullEnd)?.fullSwipeConfirmation ?: confirm)
         committing = false
         pointOfNoReturn.reset()
         settling?.cancel()
@@ -677,13 +708,13 @@ fun SwipeActions(
             // And the hand gets the same news the eye does, as the tick
             // completes: the action is done. Only here, on a release — a row
             // sent to the edge in code has nobody holding it to feel anything.
-            if (committed && confirm) {
+            if (confirms) {
                 confirmDraw.job = launch {
                     drawConfirmation()
                     confirmed()
                 }
             }
-            if (committed && !confirm) releasedToCommit = true
+            if (committed && !confirms) releasedToCommit = true
             // A row let go where it already rests has nowhere to go, and a spring
             // started with the finger's speed from there overshoots and comes
             // back — the jump. From rest, it stays.
@@ -715,10 +746,43 @@ fun SwipeActions(
 
     val swipeable = enabled && (start.isNotEmpty() || end.isNotEmpty())
 
+    // Showing its actions, it closes at a press anywhere else — another row, a
+    // button, the list scrolled — as a SwiftUI list's row does: asked for as
+    // *"if you start interacting with another component, it closes"*. The press
+    // still does what it does; this row only gets out of the way.
+    //
+    // Open from the moment it is on its way there, not only once it has
+    // arrived: a second row swiped while the first was still sliding open
+    // left the first open, until a third was swiped.
+    val placed = remember { RowPlace() }
+    fun opening() = state.anchoredState.let { it.settledValue.isReveal() || it.targetValue.isReveal() } &&
+        tapped == null && !fullSwipe
+    val showing = opening()
+    DisposableEffect(showing, state) {
+        if (!showing) return@DisposableEffect onDispose { }
+        val key = Any()
+        OpenSwipeRows.add(key) { root ->
+            // On the screen, as the press is: a press in a popup, or another
+            // window, is in a root of its own, and its root's coordinates
+            // compared with this row's said nothing.
+            val bounds = placed.coordinates?.takeIf { it.isAttached }?.let { c ->
+                Rect(c.localToScreen(Offset.Zero), c.localToScreen(Offset(c.size.width.toFloat(), c.size.height.toFloat())))
+            } ?: return@add
+            if (bounds.contains(root) || !opening()) return@add
+            settling?.cancel()
+            scope.launch { state.reset() }
+        }
+        onDispose { OpenSwipeRows.remove(key) }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width.toFloat() }
+            .onGloballyPositioned { placed.coordinates = it }
+            // A press on this row closes any other that is open, with or
+            // without an `OverlayHost` round the app to see every press.
+            .closesOpenSwipeRows()
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists.
@@ -931,7 +995,7 @@ fun SwipeActions(
                 reduceMotion = motion.reduceMotion,
                 onClick = { action ->
                     if (tapped != null) return@SwipeActionButtons
-                    if (!tapConfirmation) {
+                    if (!(action.tapConfirmation ?: tapConfirmation)) {
                         action.onAction()
                         scope.launch { state.reset() }
                         return@SwipeActionButtons
@@ -1547,3 +1611,53 @@ private const val SideScrollDecisionShare = 0.4f
 
 /** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
 private const val SideScrollQuietMillis = 250L
+
+/** Where a row is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
+private class RowPlace {
+    var coordinates: LayoutCoordinates? = null
+}
+
+/**
+ * The [SwipeActions] rows showing their actions, each told of every press —
+ * where, on the screen — to close at one that is not on it.
+ *
+ * One for the process rather than one for each `OverlayHost`: a row inside a
+ * host nested in another is closed by a press in the outer one too.
+ */
+internal object OpenSwipeRows {
+    private val open = LinkedHashMap<Any, (Offset) -> Unit>()
+
+    fun add(key: Any, onPress: (Offset) -> Unit) {
+        open[key] = onPress
+    }
+
+    fun remove(key: Any) {
+        open.remove(key)
+    }
+
+    /** A press went down at [screen], on the screen. */
+    fun pressedAt(screen: Offset) {
+        if (open.isEmpty()) return
+        for (onPress in open.values.toList()) onPress(screen)
+    }
+}
+
+/**
+ * Tells [OpenSwipeRows] of every press that goes down in this node, before
+ * anything in it sees the press, and takes nothing from it: on an app's root —
+ * `OverlayHost` puts it there — so a press anywhere closes a row left open.
+ */
+@Composable
+internal fun Modifier.closesOpenSwipeRows(): Modifier {
+    val placed = remember { RowPlace() }
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
+            OpenSwipeRows.pressedAt(coordinates.localToScreen(down.position))
+        }
+    }
+}
+
+/** Whether this is a side's actions shown, waiting for a tap. */
+private fun SwipeValue.isReveal(): Boolean = this == SwipeValue.Start || this == SwipeValue.End

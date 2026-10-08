@@ -3,7 +3,7 @@
 A Compose Multiplatform design system, built on **Foundation** — no Material.
 
 Android, iOS, desktop and web from one source set.
-<!--counts-->163 public components across 128 pages<!--/counts-->, every one with
+<!--counts-->166 public components across 129 pages<!--/counts-->, every one with
 a demo you can operate, a compiled example and a generated parameter table.
 
 ```kotlin
@@ -53,9 +53,9 @@ maven("https://maven.pkg.github.com/kontour-labs/ui") {
 }
 
 // build.gradle.kts
-implementation("io.kontour:ui:0.4.2")
+implementation("io.kontour:ui:0.4.3")
 // Optional: Navigation 3 scene strategies over the pane scaffolds
-implementation("io.kontour:ui-nav3:0.4.2")
+implementation("io.kontour:ui-nav3:0.4.3")
 ```
 
 `io.kontour:haptics` comes with `:ui` — it plays the library's haptics — and can
@@ -70,11 +70,11 @@ cannot use its own `GITHUB_TOKEN` at any permission level, where the token goes,
 and what each failure mode looks like.
 
 **One thing worth knowing before you start.** This publishes against Compose
-Multiplatform **1.12.0-rc01**, a release candidate, deliberately:
+Multiplatform **1.12.1**. 1.12 is the floor, deliberately:
 `ImageComposeScene.calculateContentSize()` lands there and the screenshot
-harness the whole test suite rests on uses it. A consumer on a stable 1.11 will
-hit binary incompatibility — pin to the same RC, or stay on a version published
-before the bump.
+harness the whole test suite rests on uses it. A consumer on 1.11 will hit
+binary incompatibility — move to 1.12.1, or stay on a version published before
+the bump.
 
 ## Why no Material
 

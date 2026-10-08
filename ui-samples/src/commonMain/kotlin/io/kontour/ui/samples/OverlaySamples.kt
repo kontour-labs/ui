@@ -30,6 +30,8 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.overlay.AlertDialog
 import io.kontour.ui.overlay.LocalOverlayQueue
 import io.kontour.ui.overlay.coachmark
+import io.kontour.ui.overlay.CoachmarkStep
+import io.kontour.ui.overlay.CoachmarkTransition
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
 import io.kontour.ui.overlay.rememberOverlayQueue
@@ -246,6 +248,42 @@ fun CoachmarkBasics() {
             contentDescription = "Saved trips",
             onClick = { save() },
             modifier = Modifier.coachmarkStep(tour, id = "saved", title = "Saved trips", message = "The ones you keep show up here."),
+        )
+    }
+    Button(onClick = tour::start, variant = ButtonVariant.Secondary) { +"Show me around" }
+}
+
+@Composable
+fun CoachmarkTourAcrossTheApp() {
+    var tab by remember { mutableStateOf("plan") }
+
+    // Above the screens, so it outlives each of them, and told each step as
+    // it gets there, to take the reader to the screen that step is on.
+    val tour = rememberCoachmarkTour("welcome", "plan", "saved", transition = CoachmarkTransition.Fade) { step ->
+        if (step != "welcome") tab = step
+    }
+
+    // A step that points at nothing: a card in the middle of the dimmed screen.
+    CoachmarkStep(tour, id = "welcome", title = "Welcome aboard", message = "A minute's tour of the app.")
+
+    when (tab) {
+        "plan" -> IconButton(
+            icon = Tabler.Outline.Route,
+            contentDescription = "Plan a trip",
+            onClick = { plan() },
+            modifier = Modifier.coachmarkStep(tour, id = "plan", title = "Plan a trip", message = "From here to anywhere on the network."),
+        )
+        else -> IconButton(
+            icon = Tabler.Outline.Bookmark,
+            contentDescription = "Saved trips",
+            onClick = { save() },
+            modifier = Modifier.coachmarkStep(
+                tour,
+                id = "saved",
+                title = "Saved trips",
+                message = "The ones you keep show up here.",
+                tone = Tone.Success,
+            ),
         )
     }
     Button(onClick = tour::start, variant = ButtonVariant.Secondary) { +"Show me around" }

@@ -57,6 +57,12 @@ the one arriving, as content replaces content with no relationship between
 them, and the space they take changes size smoothly. `target` is anything with
 `equals`: an enum, a sealed class.
 
+**Each state is a column.** A state that is a whole page — a heading, a list, a
+form — has its sections one under another, as it would anywhere else. It used to
+be a box, and a page's sections were all drawn at its top, over each other:
+*"when a page's content had several sections, they drew on top of each other"*. A state that wants
+its parts side by side or layered says so with a `Row` or a `Box` of its own.
+
 ---
 
 ## Accessibility

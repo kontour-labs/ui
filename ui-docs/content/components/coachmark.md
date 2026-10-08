@@ -1,6 +1,6 @@
 # `Modifier.coachmark`
 
-*Also on this page: `CoachmarkTour`, `Modifier.coachmarkStep`, `rememberCoachmarkTour`, `CoachmarkDefaults`.*
+*Also on this page: `CoachmarkTour`, `Modifier.coachmarkStep`, `CoachmarkStep`, `rememberCoachmarkTour`, `CoachmarkTransition`, `CoachmarkDefaults`.*
 
 A tip that introduces a control the user has not found, or a tour of several.
 
@@ -83,8 +83,7 @@ A walk through several controls, which the user asked for — a "Show me around"
 button, or once on a first run. `rememberCoachmarkTour("plan", "saved", "alerts")`
 holds only the **order**; each step's words live at the control they describe, in
 `Modifier.coachmarkStep(tour, id, title, message)`, which is the only place they
-can be kept honest when that control changes. A step whose control is not on
-screen shows nothing.
+can be kept honest when that control changes.
 
 `tour.start()` begins it, and each bubble carries its position — "2 / 3" — with
 Back and Next, and Back and Done on the last. The way on, Next or Done, is
@@ -93,19 +92,108 @@ step has only "Got it", since there is nothing to go back to or to be done
 with. `tour.index`, `isRunning` and `isFinished` say where it is; `finish()`
 ends it early.
 
+**A tour is not dismissed by accident.** A tap on the dim, Back and Escape do
+nothing by default: the reader asked for the tour, and a stray tap beside the
+bubble used to lose the rest of it. Its way out is its own buttons. Pass
+`dismissible = true` for a tour that a tap outside, Back or Escape ends.
+`showSkip = true` adds **Skip** to every bubble but the last, which goes
+straight to the last step (`tour.skip()`), so a skipped tour still ends on
+its Done.
+
 While a step shows, everything but the control is dimmed, and a hole is cut
 around the control, `CoachmarkDefaults.SpotlightPadding` past its edge with the
 theme's container corner. **Everything the dim covers is blocked, the lit control
 included**: a tap on the control being explained is the likeliest accident here,
 and letting it through would run an action the user was only being shown.
 
-**One dim for the whole tour.** From one step to the next the dim stays where
-it is, and the hole and the bubble travel from the one control to the other.
-Each step used to be an overlay of its own, with its own dim, and the next one
-arrived while the last was leaving, so between every pair of steps the page
-went twice as dark and came back — *"the background gets twice as dim when
-animating between two coachmarks"*. A step whose control is not on screen shows
-nothing, as before, and the dim goes with it.
+**One dim for the whole tour.** From the first step to the last the page is
+dimmed once, and only the hole and the mark change. Each step used to be an
+overlay of its own, with its own dim, and the next one arrived while the last
+was leaving, so between every pair of steps the page went twice as dark and came
+back — *"the background gets twice as dim when animating between two
+coachmarks"*. The tour's one overlay is the tour's own now: it stays up across a
+change of screen, and comes down when the tour finishes.
+
+### From one step to the next
+
+`rememberCoachmarkTour(…, transition = …)` chooses how the mark goes between
+steps — asked for as *"one for just fading one out and fading the new one in,
+and another for the mark shrinking into ball, zipping to it's new position, and
+expanding back into a new mark"*:
+
+| `CoachmarkTransition` | The mark | The hole |
+|---|---|---|
+| `Morph`, the default | shrinks into a ball at the side it points from, keeping its own corner until it is round; the ball zips to the next step, taking its colour on the way and carrying a small clearing in the dim with it so it reads in any tone, and grows into the next mark | closes behind the one, opens round the other |
+| `Fade` | crossfades: fades out where it is while the next fades in where it will be | its control goes dark as the next one's lights |
+
+Next pressed twice turns the mark round from wherever it has got to rather
+than cutting it. Under reduced motion every tour fades.
+
+### A step that points at nothing
+
+`CoachmarkStep(tour, id, title, message)` is a step with no control: a card in
+the middle of the dimmed screen, for a welcome, a word between two screens or a
+last "that's it" — *"a coachmark that acts as a modal, not pointing to anything
+in particular"*. It draws nothing where it is, so put it in the screen it
+belongs to, or above the screens for one that belongs to none. A tour of this one
+step is a modal of its own, closed with "Got it".
+
+### Across the app
+
+A step shows once its control is on screen, so a tour can go wherever the app
+does. Remember it **above the screens it visits**, and give
+`rememberCoachmarkTour` a `navigate`: it is told each step's id as the tour
+reaches it — at the start, forwards and back — and takes the reader to the screen
+that step is on. The dim stays up while the screen changes, and the mark goes to
+the step once its control has arrived.
+
+<!--sample:CoachmarkTourAcrossTheApp-->
+```kotlin
+var tab by remember { mutableStateOf("plan") }
+
+// Above the screens, so it outlives each of them, and told each step as
+// it gets there, to take the reader to the screen that step is on.
+val tour = rememberCoachmarkTour("welcome", "plan", "saved", transition = CoachmarkTransition.Fade) { step ->
+    if (step != "welcome") tab = step
+}
+
+// A step that points at nothing: a card in the middle of the dimmed screen.
+CoachmarkStep(tour, id = "welcome", title = "Welcome aboard", message = "A minute's tour of the app.")
+
+when (tab) {
+    "plan" -> IconButton(
+        icon = Tabler.Outline.Route,
+        contentDescription = "Plan a trip",
+        onClick = { plan() },
+        modifier = Modifier.coachmarkStep(tour, id = "plan", title = "Plan a trip", message = "From here to anywhere on the network."),
+    )
+    else -> IconButton(
+        icon = Tabler.Outline.Bookmark,
+        contentDescription = "Saved trips",
+        onClick = { save() },
+        modifier = Modifier.coachmarkStep(
+            tour,
+            id = "saved",
+            title = "Saved trips",
+            message = "The ones you keep show up here.",
+            tone = Tone.Success,
+        ),
+    )
+}
+Button(onClick = tour::start, variant = ButtonVariant.Secondary) { +"Show me around" }
+```
+
+A step whose control does not turn up within a second and a half — scrolled out
+of a list, or on a screen `navigate` did not go to — is passed over, the way the
+reader was going.
+
+### Colour
+
+Every step, and a single tip, takes a `tone`: the accent by default, and any
+[`Tone`](../tokens.md) the step is better said in — `Success` for something done,
+`Warning` for something to watch, `Neutral` for the inverse surface a toast
+uses. The bubble, its arrow and its buttons take the tone's solid colour and its
+ink; a morph's ball changes from the one step's colour to the next as it goes.
 
 ---
 
@@ -120,13 +208,21 @@ unrelated ones, and its buttons carry real labels — "Got it", and in a tour
 so it follows the reader's language and plural rules.
 
 A tour's dim blocks every tap outside the bubble, so its own buttons are the only
-way on — Next, Back, or Done to finish.
+way on — Next, Back, Skip where there is one, or Done to finish. They are
+buttons a keyboard and a screen reader reach, so a tour that is not dismissible
+is never a trap. Its screen reader dismiss action, and Escape, are there only
+when the tour is `dismissible`.
 
 At high contrast a single tip is the enhanced scheme's inverse surface and ink,
 which already stand apart from the page, and its "Got it" is a ghost button that
 gains the edge those take at this tier. A tour's bubble is the solid accent with
-its own ink, and its position is drawn at full strength rather than faded.
+its own ink, in whichever tone it is in, and its position is drawn at full
+strength rather than faded.
 
 Under reduced motion a coach mark and a tour's bubble fade in where they will sit
-rather than scaling into place, and from one step to the next the hole and the
-bubble are at the new control at once rather than travelling to it.
+rather than scaling into place, and from one step to the next the marks
+crossfade, whichever transition the tour asked for: a ball
+travelling across the screen is the movement the preference asks to be spared.
+
+The mark on its way out is taken out of the accessibility tree and takes no
+taps, so a screen reader finds only the step arriving.

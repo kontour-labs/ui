@@ -15,6 +15,124 @@ from the version the app is on.
 
 ---
 
+## 0.4.2 to 0.4.3
+
+From 0.4.2 to 0.4.3, released on 8 October 2026. A sheet's `pinned { }` becomes a `part` with a `pin`, the
+library is on Compose Multiplatform 1.12.1, a few arguments passed by position
+need naming, and anything built against 0.4.2 has to be rebuilt. Several things
+look or behave differently enough to check: badges, coach mark tours, swipe rows,
+scrollbars beside an index, undismissable sheets, the time pickers' height, a
+top bar's collapse and a `StateSwitcher`.
+
+### Before you start
+
+- **Move all three modules at once**: `kontour = "0.4.3"`.
+- **Move Compose Multiplatform to 1.12.1**, from 1.12.0-rc01, and rebuild
+  anything compiled against 0.4.2.
+
+### A sheet's `pinned` is a pinned `part`
+
+```diff
+  BottomSheet(sheet) { padding ->
+-     pinned { SearchField(query, placeholder = "Search stops") }
++     part(pin = SheetPartPin.Bottom) { SearchField(query, placeholder = "Search stops") }
+      LazyColumn(contentPadding = padding) { stopRows() }
+  }
+```
+
+`pinned(to = SheetPin.Top) { … }` is `part(pin = SheetPartPin.Top) { … }`. A
+top part has no inset of its own, as the content has none: a `SheetHeader`
+there insets itself; a part of your own that relied on the 16dp at its sides
+and below takes `Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding)`
+and a bottom padding itself. A bottom part keeps the inset.
+
+```diff
+- rememberSheetState(detents = listOf(SheetDetent.pinned(), SheetDetent.Half))
++ rememberSheetState(detents = listOf(SheetDetent.parts(), SheetDetent.Half))
+```
+
+`pinned(containerColour = Color.Transparent)`, which let the content show round
+the part, is `fadeUnder = false` on the sheet. Another colour for the part's
+ground is the part's own: a `Surface` round it.
+
+A bottom part is at the foot of what the sheet shows on every frame, a drag
+included, as the 0.4.2 part was. The content now fades out under it the way it
+does under a floating navigation bar, rather than stopping at a band of the
+sheet's colour.
+
+### Arguments passed by position
+
+```diff
+- DatePicker(date, { date = it }, Modifier, true, today, { true }, marks, back, on)
++ DatePicker(date, { date = it }, Modifier, true, today, { true }, marks, previousIcon = back, nextIcon = on)
+```
+
+The same for:
+
+- `DateRangePicker`'s, `DateTimePicker`'s and `CalendarMonth`'s arguments after
+  `markerFor`;
+- `TimePicker`'s `formats` and `DateTimePicker`'s `navigation` after
+  `minuteStep`, where `now` is new;
+- `DateField`'s `style` and `formats` after `placeholder`, and `TimeField`'s and
+  `DateTimeField`'s `formats` after `label`;
+- a sheet's `dragHandle` after `draggable`;
+- a select's `interactionSource` after `otherLabel`;
+- `Modifier.coachmark`'s `priority` after `alignment`, and
+  `Modifier.coachmarkStep`'s `enabled` after `shape`, where `tone` is new.
+
+Each fails to compile rather than meaning something else. Name the argument.
+
+### Check: badges
+
+A [`BadgedBox`](components/badge.md) is exactly the size of what it badges, and
+the badge hangs outside it. Layouts round a badged thing move by up to half a
+badge, and screenshots change. A parent that clips — a `Surface`, an avatar
+clipped to a circle — needs room for half a badge, or cuts it.
+
+### Check: coach mark tours
+
+A tour is not ended by a tap on the dim, Back or Escape; its own buttons end it.
+`rememberCoachmarkTour(dismissible = true)` is 0.4.2's behaviour, and a test that
+tapped outside to end a tour needs it, or a press on the tour's button. Between
+steps a tour morphs by default; `transition = CoachmarkTransition.Fade`
+crossfades.
+
+### Check: swipe rows
+
+A row showing its actions closes at a press anywhere else. A test that opened a
+row and then pressed something else, expecting the row still open, sees it
+closed.
+
+### Check: a scrollbar beside an index
+
+A list with an [`IndexScroller`](components/index-scroller.md) draws no
+scrollbar while the index is there. A test that found the scrollbar there finds
+nothing.
+
+### Check: an undismissable sheet
+
+A modal sheet with `dismissible = false` and one size has no drag handle. A test
+that looked for the handle there finds none.
+
+### Check: the time pickers
+
+A `TimePicker` and a `DateTimePicker` have a Now button under their wheels, so
+they and the field pickers that hold them are taller. `now = null` takes it
+away.
+
+### Check: a large or hero top bar
+
+Let go part-way, it finishes the way the finger was going, not to the nearer
+end. A test that let go of a bar moving and expected the nearer end may see
+the other.
+
+### Check: a `StateSwitcher` with several things in a state
+
+They are laid out one under another, where they were drawn over each other. A
+state that relied on that — a badge over a picture — wraps them in a `Box`.
+
+---
+
 ## 0.4.1 to 0.4.2
 
 From 0.4.1 to 0.4.2, released on 4 October 2026. A lambda literal compiles as

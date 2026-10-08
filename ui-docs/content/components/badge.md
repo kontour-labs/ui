@@ -16,6 +16,12 @@ BadgedBox(badge = { Badge(count = 12, contentDescription = "12 unread alerts") }
 }
 ```
 
+**A badged thing is the size it was.** `BadgedBox` is exactly as big as what
+it badges, with the same baselines, and the badge hangs over its top-trailing
+corner, outside it. So a badged button in a row of buttons — a top bar's
+actions — lines up with the rest. A parent that clips needs half a badge of room
+round that corner.
+
 The navigation surfaces do **not** use `BadgedBox` — they place the badge
 against the glyph rather than the touch target, because a 48dp circle around a
 24dp icon would otherwise leave the dot floating in empty space.

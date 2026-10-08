@@ -2,6 +2,9 @@ package io.kontour.ui.components.list
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +35,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
@@ -43,8 +50,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.geometry.Size
@@ -201,6 +211,12 @@ object ScrollbarDefaults {
  *   them.
  * @param alwaysVisible Drawn at rest under touch as well, half-faded as with a
  *   mouse, and so there to take hold of all along.
+ * @param contentPadding What is over the ends of the scroller — a top bar, a
+ *   floating tab bar or nav bar — for the track to stop short of, as the
+ *   scroller's own `contentPadding` keeps its first and last rows clear of
+ *   them. Usually the same padding. The track keeps clear of the top and the
+ *   foot, and the end it sits at; a horizontal one of the start, the end and
+ *   the foot.
  */
 @Composable
 fun Scrollbar(
@@ -213,6 +229,7 @@ fun Scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val pointer = scrollbarTakesAPointer()
     val interactions = remember { MutableInteractionSource() }
@@ -223,13 +240,18 @@ fun Scrollbar(
     // scrollbar that thinned out halfway through one would be reporting that
     // the grip had been lost.
     val active = (pointer && (hovered || dragged)) || touch.held
+    val source = rememberScrollbarSource(state)
+    // Held, the thumb keeps its length, and a pixel of it the content it was.
+    SideEffect { source.hold(dragged || touch.held) }
+    // A list with an index down its edge has that for a scrollbar.
+    if (state in IndexedLists) return
 
     // Everything but the position, which changes on every frame of a scroll and
     // is read where it is used — in the thumb's placement. Composition only
     // needs what decides the thumb's size, and that holds still while a list of
     // even rows scrolls, so the bar does not recompose once a frame for it.
     val extent by remember(state) {
-        derivedStateOf { scrollbarGeometry(state).copy(position = 0f) }
+        derivedStateOf { source.geometry().copy(position = 0f) }
     }
     if (!extent.isUseful) return
 
@@ -249,7 +271,8 @@ fun Scrollbar(
     // Read live rather than captured — `rememberDraggableState` keeps the
     // current lambda, and both numbers change as the list is scrolled.
     val drag = rememberDraggableState { delta ->
-        if (travel > 0f) state.dispatchRawDelta(delta * extent.scrollable / travel)
+        source.hold(true)
+        source.dragBy(delta, travel)
     }
 
     // Where a finger finds the thumb, in the bar's own box: across the whole of
@@ -265,9 +288,9 @@ fun Scrollbar(
         // A horizontal track runs from the right in right to left.
         sign = if (orientation == Orientation.Horizontal && rtl) -1f else 1f,
         shown = { look.alpha.value > 0f },
-        rate = { _ -> if (travel > 0f) extent.scrollable / travel else 0f },
+        drag = { along, _ -> source.dragBy(along, travel) },
         target = { size ->
-            val along = travel * scrollbarGeometry(state).position
+            val along = travel * source.geometry().position
             if (orientation == Orientation.Vertical) {
                 Rect(0f, lead + along - slop, size.width.toFloat(), lead + along + thumbLength + slop)
             } else {
@@ -281,6 +304,9 @@ fun Scrollbar(
         modifier = modifier
             // Nothing to announce: the list already conveys its own position.
             .clearAndSetSemantics {}
+            // Clear of what is over the scroller's ends, and outside everything
+            // that takes a press: what is there is the bar's or tab's over it.
+            .padding(trackPadding(contentPadding, orientation, LocalLayoutDirection.current))
             // A finger on the thumb, while it is drawn. There whatever the hand,
             // and ahead of the mouse's nodes, so that the tap that turns a
             // mouse's bar into a finger's, and takes those nodes away, is not
@@ -341,7 +367,7 @@ fun Scrollbar(
         if (alpha > 0f) Box(
             Modifier
                 .offset {
-                    val thumbOffset = travel * scrollbarGeometry(state).position
+                    val thumbOffset = travel * source.geometry().position
                     if (orientation == Orientation.Vertical) {
                         IntOffset(0, thumbOffset.roundToInt())
                     } else {
@@ -393,6 +419,26 @@ fun Scrollbar(
  * edge, which thickens under the pointer; a press anywhere else is the
  * content's. Under touch a finger takes hold of the thumb while it is drawn,
  * within a fingertip of it, and anything else is the content's.
+ *
+ * **Under a floating bar**, give it the padding the content keeps clear of, and
+ * the track stops short of the bar rather than running under it:
+ *
+ * ```kotlin
+ * Scaffold(topBar = { TopBar { +"Stops" } }) { padding ->
+ *     LazyColumn(
+ *         Modifier.scrollbar(listState, contentPadding = padding),
+ *         state = listState,
+ *         contentPadding = padding,
+ *     ) { … }
+ * }
+ * ```
+ *
+ * @param contentPadding What is over the ends of the scroller — a top bar, a
+ *   floating tab bar or nav bar — for the track to stop short of, as the
+ *   scroller's own `contentPadding` keeps its first and last rows clear of
+ *   them. Usually the same padding. The track keeps clear of the top and the
+ *   foot, and the end it sits at; a horizontal one of the start, the end and
+ *   the foot.
  */
 @Composable
 fun Modifier.scrollbar(
@@ -404,12 +450,16 @@ fun Modifier.scrollbar(
     minThumbLength: Dp = ScrollbarDefaults.MinThumbLength,
     cornerInset: Dp = 0.dp,
     alwaysVisible: Boolean = false,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ): Modifier {
     val pointer = scrollbarTakesAPointer()
     val grip = remember { ScrollbarGrip() }
     val touch = remember { ScrollbarTouchGrip() }
     val active = (pointer && (grip.hovered || grip.dragging)) || touch.held
     val look = rememberScrollbarLook(state, pointer, alwaysVisible, active, thickness, hoveredThickness, touch.held)
+    val source = rememberScrollbarSource(state)
+    // Held, the thumb keeps its length, and a pixel of it the content it was.
+    SideEffect { source.hold(grip.dragging || touch.held) }
     val density = LocalDensity.current
     val margin = with(density) { Theme.spacing.xxs.toPx() }
     val strip = with(density) { hoveredThickness.toPx() } + 2 * margin
@@ -417,7 +467,8 @@ fun Modifier.scrollbar(
     val corner = with(density) { cornerInset.toPx() }
     val track = remember { ScrollbarTrack() }
     val direction = LocalLayoutDirection.current
-    track.update(orientation, direction, margin, strip, minThumb, corner)
+    val clear = trackClearance(contentPadding, orientation, direction, density)
+    track.update(orientation, direction, margin, strip, minThumb, corner, clear)
     val reach = with(density) { TouchGripReach.toPx() }
     val slop = with(density) { TouchGripSlop.toPx() }
     touch.update(
@@ -425,16 +476,19 @@ fun Modifier.scrollbar(
         orientation = orientation,
         sign = if (orientation == Orientation.Horizontal && direction == LayoutDirection.Rtl) -1f else 1f,
         shown = { look.alpha.value > 0f },
-        rate = { size ->
-            val geometry = scrollbarGeometry(state)
-            val (travel, _) = track.travel(Size(size.width.toFloat(), size.height.toFloat()), geometry)
-            if (travel > 0f) geometry.scrollable / travel else 0f
+        drag = { along, size ->
+            val (travel, _) = track.travel(Size(size.width.toFloat(), size.height.toFloat()), source.geometry())
+            source.dragBy(along, travel)
         },
         target = { size ->
-            val geometry = scrollbarGeometry(state)
+            val geometry = source.geometry()
             if (!geometry.isUseful) null else track.touchTarget(Size(size.width.toFloat(), size.height.toFloat()), geometry, reach, slop)
         },
     )
+
+    // A list with an index down its edge has that for a scrollbar: no bar,
+    // and nothing of one to take hold of.
+    if (state in IndexedLists) return this
 
     // The same nodes whatever the hand, each minding only its own: a mouse's
     // and a finger's. Not chosen by the hand, as they were, because the hand is
@@ -455,15 +509,17 @@ fun Modifier.scrollbar(
             ),
             overrideDescendants = grip.hovered || grip.dragging,
         )
-        .pointerInput(state, track) { gripBar(state, track, grip) }
+        .pointerInput(state, track) { gripBar(state, source, track, grip) }
         // On the scroller itself, so it sees a finger before the content does,
         // and takes only the one on the thumb.
         .then(ScrollbarTouchGripElement(touch, shareWithSiblings = false))
         .drawWithContent {
             drawContent()
+            // Looked at whether or not it is drawn, so the thumb follows a
+            // scroll it was hidden for.
+            val geometry = source.geometry()
             val alpha = look.alpha.value
             if (alpha <= 0f) return@drawWithContent
-            val geometry = scrollbarGeometry(state)
             if (!geometry.isUseful) return@drawWithContent
             val thumb = track.thumb(size, layoutDirection, geometry, look.width.value.toPx()) ?: return@drawWithContent
             drawRoundRect(
@@ -560,6 +616,59 @@ private class ScrollbarGrip {
     var dragging by mutableStateOf(false)
 }
 
+/**
+ * What a track keeps clear of, in pixels: [lead] before it and [trail] after it
+ * along its axis, in the reading direction, and [side] in from the edge it sits
+ * on — the end, or the foot.
+ */
+@Immutable
+internal data class TrackClearance(val lead: Float, val trail: Float, val side: Float) {
+    companion object {
+        val None = TrackClearance(0f, 0f, 0f)
+    }
+}
+
+/**
+ * The parts of [padding] a track along [orientation] keeps clear of: the top
+ * and the foot, and the end it sits at, for a bar down the side; the start and
+ * the end, and the foot, for one along the foot. The other edge is the
+ * content's, and nothing of the bar's is near it.
+ */
+internal fun trackClearance(
+    padding: PaddingValues,
+    orientation: Orientation,
+    direction: LayoutDirection,
+    density: Density,
+): TrackClearance = with(density) {
+    when (orientation) {
+        Orientation.Vertical -> TrackClearance(
+            lead = padding.calculateTopPadding().toPx(),
+            trail = padding.calculateBottomPadding().toPx(),
+            side = padding.calculateEndPadding(direction).toPx(),
+        )
+        Orientation.Horizontal -> TrackClearance(
+            lead = padding.calculateStartPadding(direction).toPx(),
+            trail = padding.calculateEndPadding(direction).toPx(),
+            side = padding.calculateBottomPadding().toPx(),
+        )
+    }
+}
+
+/** [trackClearance] as padding, for a [Scrollbar] of its own. */
+private fun trackPadding(padding: PaddingValues, orientation: Orientation, direction: LayoutDirection): PaddingValues =
+    when (orientation) {
+        Orientation.Vertical -> PaddingValues(
+            top = padding.calculateTopPadding(),
+            bottom = padding.calculateBottomPadding(),
+            end = padding.calculateEndPadding(direction),
+        )
+        Orientation.Horizontal -> PaddingValues(
+            start = padding.calculateStartPadding(direction),
+            end = padding.calculateEndPadding(direction),
+            bottom = padding.calculateBottomPadding(),
+        )
+    }
+
 /** Where a [Modifier.scrollbar]'s track is in its scroller, and where the thumb is on it. All in pixels. */
 private class ScrollbarTrack {
     var orientation = Orientation.Vertical
@@ -570,18 +679,29 @@ private class ScrollbarTrack {
     private var strip = 0f
     private var minThumb = 0f
     private var corner = 0f
+    private var clear = TrackClearance.None
 
-    fun update(orientation: Orientation, direction: LayoutDirection, margin: Float, strip: Float, minThumb: Float, corner: Float) {
+    fun update(
+        orientation: Orientation,
+        direction: LayoutDirection,
+        margin: Float,
+        strip: Float,
+        minThumb: Float,
+        corner: Float,
+        clear: TrackClearance,
+    ) {
         this.orientation = orientation
         this.direction = direction
         this.margin = margin
         this.strip = strip
         this.minThumb = minThumb
         this.corner = corner
+        this.clear = clear
     }
 
     private fun length(size: Size): Float =
-        ((if (orientation == Orientation.Vertical) size.height else size.width) - 2 * (margin + corner)).coerceAtLeast(0f)
+        ((if (orientation == Orientation.Vertical) size.height else size.width) -
+            2 * (margin + corner) - clear.lead - clear.trail).coerceAtLeast(0f)
 
     /** The distance the thumb can travel, and its length, for [geometry] in a scroller [size]. */
     fun travel(size: Size, geometry: ScrollbarGeometry): Pair<Float, Float> {
@@ -591,10 +711,27 @@ private class ScrollbarTrack {
     }
 
     /** Whether [at] is on the strip the bar is grabbed by. */
-    fun onStrip(at: Offset, size: Size, direction: LayoutDirection): Boolean = when (orientation) {
-        Orientation.Vertical ->
-            if (direction == LayoutDirection.Rtl) at.x <= strip else at.x >= size.width - strip
-        Orientation.Horizontal -> at.y >= size.height - strip
+    fun onStrip(at: Offset, size: Size, direction: LayoutDirection): Boolean {
+        val (from, to) = alongRange(size)
+        return when (orientation) {
+            Orientation.Vertical -> at.y in from..to && if (direction == LayoutDirection.Rtl) {
+                at.x >= clear.side && at.x <= clear.side + strip
+            } else {
+                at.x <= size.width - clear.side && at.x >= size.width - clear.side - strip
+            }
+            Orientation.Horizontal -> {
+                // Along the track from where it starts: the right, in right
+                // to left.
+                val x = if (direction == LayoutDirection.Rtl) size.width - at.x else at.x
+                x in from..to && at.y <= size.height - clear.side && at.y >= size.height - clear.side - strip
+            }
+        }
+    }
+
+    /** Where the track starts and ends along its axis, from its start in the reading direction. */
+    private fun alongRange(size: Size): Pair<Float, Float> {
+        val full = if (orientation == Orientation.Vertical) size.height else size.width
+        return clear.lead to (full - clear.trail)
     }
 
     /**
@@ -605,10 +742,13 @@ private class ScrollbarTrack {
         val thumb = thumb(size, direction, geometry, 0f) ?: return null
         return when (orientation) {
             Orientation.Vertical -> {
-                val x = if (direction == LayoutDirection.Rtl) 0f else size.width - reach
+                val x = if (direction == LayoutDirection.Rtl) clear.side else size.width - clear.side - reach
                 Rect(x, thumb.top - slop, x + reach, thumb.bottom + slop)
             }
-            Orientation.Horizontal -> Rect(thumb.left - slop, size.height - reach, thumb.right + slop, size.height)
+            Orientation.Horizontal -> {
+                val y = size.height - clear.side
+                Rect(thumb.left - slop, y - reach, thumb.right + slop, y)
+            }
         }
     }
 
@@ -616,16 +756,16 @@ private class ScrollbarTrack {
     fun thumb(size: Size, direction: LayoutDirection, geometry: ScrollbarGeometry, width: Float): Rect? {
         val (travel, thumb) = travel(size, geometry)
         if (thumb <= 0f) return null
-        val along = margin + corner + travel * geometry.position
+        val along = clear.lead + margin + corner + travel * geometry.position
         return when (orientation) {
             Orientation.Vertical -> {
-                val x = if (direction == LayoutDirection.Rtl) margin else size.width - margin - width
+                val x = if (direction == LayoutDirection.Rtl) clear.side + margin else size.width - clear.side - margin - width
                 Rect(x, along, x + width, along + thumb)
             }
             // From the visual start, which is the right in right to left, as a
             // horizontal scroller's offset is.
             Orientation.Horizontal -> {
-                val y = size.height - margin - width
+                val y = size.height - clear.side - margin - width
                 val x = if (direction == LayoutDirection.Rtl) size.width - along - thumb else along
                 Rect(x, y, x + thumb, y + width)
             }
@@ -640,7 +780,7 @@ private class ScrollbarTrack {
  * never reaches a row under it. A finger, and a press off the strip, are left
  * entirely alone.
  */
-private suspend fun PointerInputScope.gripBar(state: ScrollableState, track: ScrollbarTrack, grip: ScrollbarGrip) {
+private suspend fun PointerInputScope.gripBar(state: ScrollableState, source: ScrollbarSource, track: ScrollbarTrack, grip: ScrollbarGrip) {
     awaitPointerEventScope {
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -651,7 +791,7 @@ private suspend fun PointerInputScope.gripBar(state: ScrollableState, track: Scr
                 PointerEventType.Exit -> grip.hovered = false
                 PointerEventType.Enter, PointerEventType.Move -> {
                     grip.hovered = track.onStrip(change.position, bounds, track.direction) &&
-                        scrollbarGeometry(state).isUseful
+                        source.geometry().isUseful
                 }
                 PointerEventType.Press -> {
                     if (!event.buttons.isPrimaryPressed || !grip.hovered) continue
@@ -669,12 +809,9 @@ private suspend fun PointerInputScope.gripBar(state: ScrollableState, track: Scr
                                 break
                             }
                             val delta = drag.position - drag.previousPosition
-                            val geometry = scrollbarGeometry(state)
-                            val (travel, _) = track.travel(bounds, geometry)
-                            if (travel > 0f) {
-                                val along = if (vertical) delta.y else delta.x
-                                state.dispatchRawDelta(sign * along * geometry.scrollable / travel)
-                            }
+                            val (travel, _) = track.travel(bounds, source.geometry())
+                            source.hold(true)
+                            source.dragBy(sign * (if (vertical) delta.y else delta.x), travel)
                             drag.consume()
                         }
                     } finally {
@@ -720,8 +857,8 @@ private class ScrollbarTouchGrip {
         private set
     var shown: () -> Boolean = { false }
         private set
-    /** Pixels of content for a pixel along the track, in a box [IntSize] big. */
-    var rate: (IntSize) -> Float = { 0f }
+    /** Drags the thumb along its track by a distance, in a box [IntSize] big. */
+    var drag: (Float, IntSize) -> Unit = { _, _ -> }
         private set
     /** Where a finger takes hold, in a box [IntSize] big, or null where it cannot. */
     var target: (IntSize) -> Rect? = { null }
@@ -732,14 +869,14 @@ private class ScrollbarTouchGrip {
         orientation: Orientation,
         sign: Float,
         shown: () -> Boolean,
-        rate: (IntSize) -> Float,
+        drag: (Float, IntSize) -> Unit,
         target: (IntSize) -> Rect?,
     ) {
         this.state = state
         this.orientation = orientation
         this.sign = sign
         this.shown = shown
-        this.rate = rate
+        this.drag = drag
         this.target = target
     }
 }
@@ -807,7 +944,7 @@ private class ScrollbarTouchGripNode(
             }
             val moved = change.position - change.previousPosition
             val along = if (grip.orientation == Orientation.Vertical) moved.y else moved.x
-            if (along != 0f) grip.state?.dispatchRawDelta(grip.sign * along * grip.rate(bounds))
+            if (along != 0f) grip.drag(grip.sign * along, bounds)
             change.consume()
         }
     }
@@ -936,4 +1073,335 @@ internal fun scrollbarGeometry(
         position = if (scrollable <= 0f) 0f else (scrolled / scrollable).coerceIn(0f, 1f),
         scrollable = scrollable,
     )
+}
+
+/**
+ * The lists with an [IndexScroller] down their edge, while it is there: the
+ * index is their position control, and a scrollbar beside it would be a second
+ * one fighting it for the same edge. [Modifier.scrollbar] and [Scrollbar] draw
+ * nothing for these.
+ */
+internal val IndexedLists = mutableStateListOf<LazyListState>()
+
+/**
+ * Where a scrollbar's thumb is drawn: its length and position, kept apart from
+ * the estimate they come from so that the thumb never jumps.
+ *
+ * The estimate is the state's own account — a `ScrollState`'s, a grid's — or,
+ * for a lazy list, [LazyListExtent]'s from every row it has seen. A lazy list
+ * cannot know the rows it has not measured, so its estimate changes as they
+ * come into view, and a thumb drawn straight from it stepped with every card:
+ * reported as it *jumping around* while a page of uneven cards was scrolled
+ * back up, and as a thumb too small to begin with that *jumps to full height*
+ * at the foot, where the last cards were seen and the estimate came right.
+ *
+ * So the thumb moves only when the content does, by how far it moved:
+ * forward, it covers the same share of the way left to the end as the content
+ * did; back, of the way left to the top. However wrong the estimate, the thumb
+ * goes the way the content goes, reaches the end of its track exactly as the
+ * content reaches its end, and the top as it reaches its top. For an exact
+ * account — a `ScrollState` — that is exactly the content's own position. Its
+ * length eases toward the estimate rather than stepping to it: see
+ * [rememberShownFraction].
+ */
+@Stable
+internal class ScrollbarSource(private val state: ScrollableState) {
+    private val lazy = (state as? LazyListState)?.let { LazyListExtent(it) }
+
+    /**
+     * Whether a finger or a mouse has hold of the thumb: its length, and the
+     * content a pixel of it moves, are kept as they were at the press.
+     */
+    var held: Boolean by mutableStateOf(false)
+        private set
+
+    fun hold(on: Boolean) {
+        if (on && !held) frozenScrollable = estimate().scrollable
+        held = on
+    }
+
+    private var frozenScrollable = 0f
+
+    /** The thumb's length as drawn, eased toward the estimate's; the estimate's until there is one. */
+    var shownFraction: State<Float>? = null
+
+    /** Where the thumb is drawn along its track, 0 to 1. */
+    private var position = 0f
+    private var started = false
+
+    /**
+     * Whether the content has moved since the bar first saw it. Until it has,
+     * the thumb is where and as long as the estimate says, however that
+     * changes — rows measured ahead landing as a list opens are the estimate
+     * coming right, not something to ease toward.
+     */
+    var moved = false
+        private set
+
+    /** What the content's own position was last seen as, to tell how far it has moved since. */
+    private var lastValue = 0f
+    private var lastKeys: Map<Any, Int> = emptyMap()
+
+    /** Scroll this bar's own drag asked for and the content has not yet been seen to make. */
+    private var driven = 0f
+
+    /** What the state says: how much is in view, how far along, how far it scrolls. */
+    fun estimate(): ScrollbarGeometry = lazy?.geometry() ?: scrollbarGeometry(state)
+
+    fun geometry(): ScrollbarGeometry {
+        val estimate = estimate()
+        follow(estimate)
+        val fraction = shownFraction?.value?.takeIf { !it.isNaN() && it > 0f && it < 1f && estimate.isUseful } ?: estimate.fraction
+        return ScrollbarGeometry(
+            fraction = fraction,
+            position = position,
+            scrollable = if (held) frozenScrollable else estimate.scrollable,
+        )
+    }
+
+    /** Moves the drawn position by however far the content has moved since it was last looked at. */
+    private fun follow(estimate: ScrollbarGeometry) {
+        val travelled = moved(estimate)
+        val by = when {
+            travelled == null -> null
+            driven > 0f -> (travelled - driven).coerceAtLeast(0f)
+            driven < 0f -> (travelled - driven).coerceAtMost(0f)
+            else -> travelled
+        }
+        driven = 0f
+        if (by != null && by != 0f && started) moved = true
+        when {
+            // Nothing to go on — the first look, a jump with nothing in view
+            // both before and after it, or a list that has not moved yet:
+            // where the estimate says.
+            !started || by == null || !moved -> position = estimate.position
+            by > 0f -> {
+                val ahead = ((1f - estimate.position) * estimate.scrollable).coerceAtLeast(0f)
+                position = if (ahead + by <= 0f) 1f else 1f - (1f - position) * ahead / (ahead + by)
+            }
+            by < 0f -> {
+                val behind = (estimate.position * estimate.scrollable).coerceAtLeast(0f)
+                position = if (behind - by <= 0f) 0f else position * behind / (behind - by)
+            }
+        }
+        started = true
+        // The ends are the content's: at its end the thumb is at the end of its track.
+        if (!state.canScrollForward) position = 1f
+        if (!state.canScrollBackward) position = 0f
+        position = position.coerceIn(0f, 1f)
+    }
+
+    /**
+     * How far the content has moved since it was last looked at, forward
+     * positive, in pixels; null where that cannot be told. Read from the
+     * content's own position, not the estimate's, which changes as rows are
+     * measured while nothing moves: from a `ScrollState`'s value, or for a lazy
+     * list from how far a row in view both times has moved.
+     */
+    private fun moved(estimate: ScrollbarGeometry): Float? {
+        if (state is LazyListState && !state.layoutInfo.reverseLayout) {
+            val visible = state.layoutInfo.visibleItemsInfo
+            val before = lastKeys
+            lastKeys = visible.associate { it.key to it.offset }
+            if (before.isEmpty()) return if (visible.isEmpty()) 0f else null
+            // The first row in view both times: the list keeps its first row
+            // where it was when a row resizes, so this one moved by the scroll.
+            for (item in visible) {
+                val was = before[item.key] ?: continue
+                return (was - item.offset).toFloat()
+            }
+            return null
+        }
+        val value = when (state) {
+            is ScrollState -> state.value.toFloat()
+            is ScrollExtent -> state.extentValue.toFloat()
+            else -> estimate.position * estimate.scrollable
+        }
+        val by = value - lastValue
+        lastValue = value
+        return by
+    }
+
+    /**
+     * The thumb dragged [along] its track, of [travel]: it moves under the
+     * pointer, and the content as far as its frozen length says — to its very
+     * end, when the thumb reaches the end of its track.
+     */
+    fun dragBy(along: Float, travel: Float) {
+        if (travel <= 0f || along == 0f) return
+        // The thumb is the pointer's now, not the estimate's.
+        moved = true
+        val was = position
+        position = (position + along / travel).coerceIn(0f, 1f)
+        val scrollable = if (held) frozenScrollable else estimate().scrollable
+        val delta = when {
+            position >= 1f && along > 0f -> scrollable.coerceAtLeast(1f) * EndPush
+            position <= 0f && along < 0f -> -scrollable.coerceAtLeast(1f) * EndPush
+            else -> (position - was) * scrollable
+        }
+        driven += state.dispatchRawDelta(delta)
+    }
+}
+
+/** How far past its end a thumb dragged to the end of its track pushes the content: all the way. */
+private const val EndPush = 4f
+
+@Composable
+private fun rememberScrollbarSource(state: ScrollableState): ScrollbarSource {
+    val source = remember(state) { ScrollbarSource(state) }
+    source.shownFraction = rememberShownFraction(source)
+    return source
+}
+
+/**
+ * The thumb's length as drawn: the estimate's, eased toward it with a gentle
+ * spring rather than stepped to it, and held still while the thumb is. A list
+ * whose length is only known once it has been scrolled through grows or
+ * shrinks its thumb over a moment, not in a frame.
+ */
+@Composable
+private fun rememberShownFraction(source: ScrollbarSource): State<Float> {
+    val shown = remember(source) { Animatable(Float.NaN) }
+    val motion = Theme.motion
+    LaunchedEffect(source, motion) {
+        snapshotFlow { if (source.held) null else source.estimate().fraction }.collectLatest { target ->
+            if (target == null) return@collectLatest
+            // Not moved yet: the estimate coming right as rows are measured, taken as it is.
+            val first = shown.value.isNaN() || !source.moved
+            // Nothing to scroll, or nothing yet: there is no thumb to ease.
+            if (first || target >= 1f || target <= 0f || shown.value >= 1f) {
+                shown.snapTo(target)
+            } else {
+                shown.animateTo(target, motion.springOrTween(motion.springGentle))
+            }
+        }
+    }
+    return remember(shown) { derivedStateOf { shown.value } }
+}
+
+/**
+ * A lazy list's length, estimated from **every row it has measured**, not only
+ * the ones on screen.
+ *
+ * A lazy list knows the size of what it has laid out and nothing else, so its
+ * own account — foundation's, which the bar used — is the average row on screen
+ * times the number of rows. On a list of headers and cards the average changed
+ * with whatever was in view, and the thumb with it: longer over a run of short
+ * headers, shorter over tall cards — reported as the scrollbar *jumping around
+ * in height at different parts of the page*. Here each row's size is kept once
+ * it has been seen, and the rows not yet seen are taken at the average of all
+ * those that have been: the estimate only gets better as the list is scrolled,
+ * and once every row has been seen it is the list's true length.
+ */
+internal class LazyListExtent(private val state: LazyListState) {
+    private val own = RowSizes()
+
+    fun geometry(): ScrollbarGeometry? {
+        val info = state.layoutInfo
+        // A list laid out from its end is left to foundation, which knows which
+        // way round it is.
+        if (info.reverseLayout) return null
+        // Measured ahead, where the list was made to be — see
+        // `rememberScrollbarListState` — or only as far as it has been seen.
+        val rows = MeasuredLists[state] ?: own
+        // Read, so a row measured ahead redraws the bar.
+        rows.version
+        val total = info.totalItemsCount
+        val visible = info.visibleItemsInfo
+        if (total == 0 || visible.isEmpty()) return ScrollbarGeometry(1f, 0f)
+        if (total != rows.count) rows.resize(total)
+        for (item in visible) rows.record(item.index, item.size, item.key)
+        val average = rows.average()
+        val spacing = info.mainAxisItemSpacing.toFloat()
+        val padding = (info.beforeContentPadding + info.afterContentPadding).toFloat()
+        val content = rows.knownSum + (total - rows.knownCount) * average + spacing * (total - 1) + padding
+        val first = visible.first()
+        val (before, beforeKnown) = rows.sumBefore(first.index)
+        val scrolled = before + (first.index - beforeKnown) * average + spacing * first.index - first.offset
+        return scrollbarGeometry(
+            viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat(),
+            contentLength = content,
+            scrolled = scrolled,
+        )
+    }
+}
+
+/**
+ * Each row's height, as far as it is known, by index: from the rows the list has
+ * laid out, and — for a list made with `rememberScrollbarListState` — from the
+ * rows measured ahead of being shown.
+ */
+@Stable
+internal class RowSizes {
+    private var sizes = IntArray(0)
+    private var keys = arrayOfNulls<Any>(0)
+    var knownSum = 0L
+        private set
+    var knownCount = 0
+        private set
+
+    /** Bumped when a row measured ahead lands, outside layout and drawing, for the bar to redraw. */
+    var version by mutableIntStateOf(0)
+        private set
+
+    val count: Int get() = sizes.size
+
+    fun known(index: Int): Boolean = index in sizes.indices && sizes[index] > 0
+
+    /** The key of the row last seen at [index], where one has been seen. */
+    fun keyAt(index: Int): Any? = if (index in keys.indices) keys[index] else null
+
+    fun average(): Float = if (knownCount == 0) 0f else knownSum.toFloat() / knownCount
+
+    /** The heights known before [index], and how many rows they are. */
+    fun sumBefore(index: Int): Pair<Long, Int> {
+        var before = 0L
+        var known = 0
+        for (i in 0 until minOf(index, sizes.size)) {
+            val size = sizes[i]
+            if (size > 0) {
+                before += size
+                known++
+            }
+        }
+        return before to known
+    }
+
+    /** Rows added or taken away: what is known is kept where it was, and the rest is unknown. */
+    fun resize(total: Int) {
+        val nextSizes = IntArray(total)
+        val nextKeys = arrayOfNulls<Any>(total)
+        knownSum = 0L
+        knownCount = 0
+        for (i in 0 until minOf(total, sizes.size)) {
+            nextSizes[i] = sizes[i]
+            nextKeys[i] = keys[i]
+            if (sizes[i] > 0) {
+                knownSum += sizes[i]
+                knownCount++
+            }
+        }
+        sizes = nextSizes
+        keys = nextKeys
+    }
+
+    /**
+     * Row [index] is [size] tall. [key] is null for a row measured ahead, whose
+     * key is not reported; [notify] only from outside layout and drawing, where
+     * writing state would ask for another pass of the one it is in.
+     */
+    fun record(index: Int, size: Int, key: Any?, notify: Boolean = false) {
+        if (index !in sizes.indices || size <= 0) return
+        val was = sizes[index]
+        if (was == size && (key == null || keys[index] == key)) return
+        if (was > 0) {
+            knownSum -= was
+        } else {
+            knownCount++
+        }
+        knownSum += size
+        sizes[index] = size
+        if (key != null) keys[index] = key
+        if (notify) version++
+    }
 }

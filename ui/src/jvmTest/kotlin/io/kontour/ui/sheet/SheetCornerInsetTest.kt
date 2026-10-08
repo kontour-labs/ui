@@ -124,8 +124,13 @@ class SheetCornerInsetTest {
         near(Inset + RoomIphone + centring(m), m.title.top - m.sheetTop.value, "above the title, with no band over it")
     }
 
+    /**
+     * In a part pinned to the sheet's top, a [SheetHeader] moves in from the corners as it
+     * does in the content: the slot hands it the corners' room and the band, as
+     * the content's column does.
+     */
     @Test
-    fun aTopPinnedPartMovesInToo() {
+    fun aHeaderInTheHeaderSlotMovesInToo() {
         deviceCornersOverride = DeviceCorners.uniform(55.dp)
         try {
             runComposeUiTest {
@@ -135,13 +140,14 @@ class SheetCornerInsetTest {
                         Box(Modifier.fillMaxSize().background(Color.White)) {
                             OverlayHost(Modifier.fillMaxSize()) {
                                 val state = rememberSheetState(
-                                    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
+                                    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
                                     initialDetent = SheetDetent.Half,
                                 )
-                                BottomSheet(state = state, presentation = SheetPresentation.Edge) {
-                                    pinned(to = SheetPin.Top) {
-                                        Box(Modifier.fillMaxWidth().height(48.dp).testTag(Pin))
-                                    }
+                                BottomSheet(
+                                    state = state,
+                                    presentation = SheetPresentation.Edge,
+                                ) {
+                                    part(pin = SheetPartPin.Top) { SheetHeader { +Title } }
                                     Box(Modifier.fillMaxWidth().height(400.dp).testTag(Body))
                                 }
                             }
@@ -151,9 +157,8 @@ class SheetCornerInsetTest {
                 settle()
                 // The body fills the sheet's width: its sides are the sheet's.
                 val body = onNodeWithTag(Body).getBoundsInRoot()
-                val pin = onNodeWithTag(Pin).getBoundsInRoot()
-                near(Inset + RoomIphone, (pin.left - body.left).value, "beside a top pinned part, from the sheet's side")
-                near(Inset + RoomIphone, (body.right - pin.right).value, "and from the other side")
+                val title = onNodeWithText(Title, useUnmergedTree = true).getBoundsInRoot()
+                near(Inset + RoomIphone, (title.left - body.left).value, "beside a header in the slot, from the sheet's side")
             }
         } finally {
             deviceCornersOverride = null
@@ -189,7 +194,6 @@ class SheetCornerInsetTest {
     private companion object {
         const val Title = "Perth Underground"
         const val Body = "body"
-        const val Pin = "pin"
         const val Inset = 16f
         const val Band = 24f
         const val Icon = 24f

@@ -1,5 +1,16 @@
 package io.kontour.ui.demo
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.datetime.plus
+import kotlinx.datetime.DateTimeUnit
+import io.kontour.ui.theme.Tone
+import io.kontour.ui.components.calendar.rememberEventCalendarState
+import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.CalendarView
+import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
@@ -30,6 +41,8 @@ import io.kontour.ui.components.datetime.ActivityLevels
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.FieldPicker
+import io.kontour.ui.components.datetime.DayAnnotation
 import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -41,16 +54,13 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
-import io.kontour.ui.overlay.Dialog
-import androidx.compose.foundation.layout.padding
-import io.kontour.ui.sheet.SheetHeader
-import io.kontour.ui.sheet.ModalBottomSheet
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.minus
 import kotlin.time.Duration.Companion.minutes
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 
 /**
  * A fixed "today", not the real one.
@@ -60,7 +70,31 @@ import androidx.compose.ui.Alignment
  */
 private val Today = LocalDate(2026, 6, 12)
 
-internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
+/** Fares under the days and a holiday in its own colour: `annotationFor` and `containerColourFor`. */
+private val fares = Knob.Flag("Fares")
+
+/** A fare for most days from [Today] on, a little cheaper midweek; none before. */
+private fun demoFare(day: LocalDate): Double? =
+    if (day < Today || day.day % 7 == 0) null else 30.0 + (day.day * 7) % 25 - if (day.dayOfWeek.ordinal in 1..3) 6 else 0
+
+@Composable
+private fun demoDayLooks(on: Boolean): Pair<((LocalDate) -> Color?)?, ((LocalDate) -> DayAnnotation?)?> {
+    if (!on) return null to null
+    val formats = Theme.formats
+    val cheap = Theme.colours.success.solid
+    val holiday = Theme.colours.warning.container
+    return { day: LocalDate -> if (day == LocalDate(2026, 6, 8)) holiday else null } to { day: LocalDate ->
+        demoFare(day)?.let { fare ->
+            DayAnnotation(
+                text = formats.currency(fare, "AUD").substringBefore('.'),
+                colour = if (fare < 30.0) cheap else Color.Unspecified,
+            )
+        }
+    }
+}
+
+internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf(fares)) {
+    val (colourFor, annotationFor) = demoDayLooks(this[fares])
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
     Column(
         Modifier.fillMaxWidth(),
@@ -80,12 +114,15 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker") {
             // happens to be a button, which on a touch screen has no hover to
             // discover it with.
             chooserIcon = Tabler.Outline.ChevronDown,
+            containerColourFor = colourFor,
+            annotationFor = annotationFor,
         )
         Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
 }
 
-internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
+internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", knobs = listOf(fares)) {
+    val (colourFor, annotationFor) = demoDayLooks(this[fares])
     var range by remember {
         mutableStateOf<Pair<LocalDate, LocalDate?>>(
             LocalDate(2026, 6, 9) to LocalDate(2026, 6, 21),
@@ -99,6 +136,8 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker") {
         // In the middle of a card wider than the picker's 308dp.
         modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         chooserIcon = Tabler.Outline.ChevronDown,
+        containerColourFor = colourFor,
+        annotationFor = annotationFor,
     )
 }
 
@@ -169,16 +208,10 @@ internal val TimeFieldDemo = ComponentDemo(slug = "time-field") {
         label = "Leave at",
         modifier = Modifier.fillMaxWidth(),
     )
-    // The wheels set the time as they turn, so the sheet needs no Done: its
-    // close button, a drag down or a tap outside puts it away.
-    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
-        SheetHeader { +"Leave at" }
-        TimePicker(
-            value = leaveAt,
-            onValueChange = { leaveAt = it },
-            minuteStep = 5,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
-        )
+    // A sheet on a phone, a dialog on anything wider: the same as the date
+    // field's. The wheels set the time as they turn, so there is no Cancel.
+    FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+        TimePicker(value = leaveAt, onValueChange = { leaveAt = it }, minuteStep = 5)
     }
 }
 
@@ -213,30 +246,23 @@ internal val DateFieldDemo = ComponentDemo(slug = "date-field", knobs = listOf(d
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    Dialog(
-        visible = pickingDate,
-        onDismissRequest = { pickingDate = false },
-        title = { +"Post date" },
-        actions = { cancel() },
-    ) {
+    // Both open the same way: a sheet on a phone, a dialog on anything wider.
+    FieldPicker(visible = pickingDate, onDismissRequest = { pickingDate = false }, title = "Post date") {
         DatePicker(
             value = date,
+            // A date is picked at one tap, so the picker goes with it.
             onValueChange = { date = it; pickingDate = false },
             today = Today,
             chooserIcon = Tabler.Outline.ChevronDown,
-            // In the middle of a dialog wider than the picker's 308dp.
-            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         )
     }
-    ModalBottomSheet(visible = pickingPublish, onDismissRequest = { pickingPublish = false }) { padding ->
-        SheetHeader { +"Publish at" }
+    FieldPicker(visible = pickingPublish, onDismissRequest = { pickingPublish = false }, title = "Publish at") {
         DateTimePicker(
             value = publishAt,
             onValueChange = { publishAt = it },
             today = Today,
             chooserIcon = Tabler.Outline.ChevronDown,
             minuteStep = 5,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
         )
     }
 }
@@ -436,8 +462,83 @@ internal val ActivityCalendarDemo = ComponentDemo(
     )
 }
 
+/** The view the event calendar opens in; its own switcher changes it too. */
+private val eventCalendarView = Knob.Choice("View", CalendarView.entries.toList(), initial = CalendarView.Month)
+
+/** A fortnight of a working life, round the demo's today. */
+internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
+    fun at(days: Int, hour: Int, minute: Int = 0) = LocalDateTime(today.plus(days, DateTimeUnit.DAY), LocalTime(hour, minute))
+    return listOf(
+        CalendarEvent(1, "Stand-up", at(0, 9), at(0, 9, 15)),
+        CalendarEvent(2, "Design review", at(0, 9), at(0, 10, 30), tone = Tone.Info, location = "Room 4"),
+        CalendarEvent(3, "Planning", at(0, 10), at(0, 11)),
+        CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success),
+        CalendarEvent(5, "Gym", at(0, 18), at(0, 19), tone = Tone.Neutral),
+        CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning),
+        CalendarEvent(7, "Dentist", at(1, 15, 30), at(1, 16), tone = Tone.Danger),
+        CalendarEvent(8, "Stand-up", at(1, 9), at(1, 9, 15)),
+        CalendarEvent(9, "Release", startDate = today.plus(6, DateTimeUnit.DAY), tone = Tone.Accent),
+        CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info),
+        CalendarEvent(11, "Retro", at(-2, 14), at(-2, 15)),
+        CalendarEvent(12, "Public holiday", startDate = today.plus(12, DateTimeUnit.DAY), tone = Tone.Warning, editable = false),
+    )
+}
+
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView)) {
+    val today = LocalDate(2026, 10, 14)
+    val view = this[eventCalendarView]
+    val calendar = rememberEventCalendarState(initialDate = today, initialView = view)
+    LaunchedEffect(view) { calendar.show(view) }
+    // The demo keeps its events, as an app does, and takes the calendar's edits.
+    var events by remember { mutableStateOf(demoCalendarEvents(today)) }
+    var made by remember { mutableIntStateOf(100) }
+    val formats = Theme.formats
+    fun replace(event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) {
+        events = events.map { if (it.id == event.id) it.copy(start = start, end = end) else it }
+    }
+    EventCalendar(
+        state = calendar,
+        events = events,
+        now = LocalDateTime(today, LocalTime(11, 20)),
+        onEventClick = { echo(it.title) },
+        // A day pressed in the month, told and opened, as the calendar opens it by itself.
+        onDateClick = {
+            echo(formats.date(it, DateStyle.Medium))
+            calendar.show(it, CalendarView.Day)
+        },
+        onTimeClick = { echo("${formats.date(it.date, DateStyle.Medium)} ${formats.time(it.time)}") },
+        onCreateRequest = { start, end ->
+            // From the month: whole days, midnight to midnight, kept as all-day.
+            val wholeDays = start.time == LocalTime(0, 0) && end.time == LocalTime(0, 0) && end.date > start.date
+            events = events + if (wholeDays) {
+                CalendarEvent(made++, "New event", startDate = start.date, endDate = end.date.minus(1, DateTimeUnit.DAY))
+            } else {
+                CalendarEvent(made++, "New event", start, end)
+            }
+            echo(if (wholeDays) "New event on ${formats.date(start.date, DateStyle.Medium)}" else "New event at ${formats.time(start.time)}")
+        },
+        onEventMove = { event, start, end ->
+            replace(event, start, end)
+            echo("${event.title} moved")
+        },
+        onEventResize = { event, start, end ->
+            replace(event, start, end)
+            echo("${event.title} now ends ${formats.time(end.time)}")
+        },
+        onEventDelete = { event ->
+            events = events.filterNot { it.id == event.id }
+            echo("${event.title} deleted")
+        },
+        modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
+    )
+}
+
+/** Tall enough for a month's six weeks with an event or two each, and a working day's hours. */
+private val EventCalendarDemoHeight = 640.dp
+
 internal val dateTimeDemos = listOf(
     ActivityCalendarDemo,
+    EventCalendarDemo,
     DatePickerDemo,
     DateRangePickerDemo,
     DateTimePickerDemo,

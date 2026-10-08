@@ -60,7 +60,10 @@ class PageStateTest {
             // A wheel rather than a drag: the About page is a column of text and
             // cards, and a drag through it would find something to press.
             repeat(6) { scene.scroll(Offset(210f, 400f), Offset(0f, 8f)) }
-            val scrolled = scene.frames(8)
+            // Long enough for the page's scrollbar to settle: a wheel makes the
+            // pointer a mouse, the bar shows while the page moves and fades back
+            // to rest after, and the two pictures are compared pixel for pixel.
+            val scrolled = scene.frames(SettleFrames)
             assertTrue(
                 !matches(top, scrolled),
                 "the page did not move under the wheel, so this test cannot tell " +
@@ -70,7 +73,7 @@ class PageStateTest {
             selected = 1
             scene.frames(8)
             selected = 0
-            val returned = scene.frames(8)
+            val returned = scene.frames(SettleFrames)
 
             assertTrue(
                 matches(scrolled, returned),
@@ -89,5 +92,10 @@ class PageStateTest {
             }
         }
         return true
+    }
+
+    private companion object {
+        /** About a second: past the scrollbar's linger and its fade back to rest. */
+        const val SettleFrames = 60
     }
 }

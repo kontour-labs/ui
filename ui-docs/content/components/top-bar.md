@@ -70,11 +70,17 @@ for a bar drawn over its list rather than above it, and
 
 <!--sample:TopBarHeroCollapsing-->
 ```kotlin
-val collapse = rememberTopBarCollapseState()
+val list = rememberLazyListState()
+val collapse = rememberTopBarCollapseState(list)
 
-Column(Modifier.topBarCollapse(collapse)) {
+Box {
+    // Under the bar, starting where the open bar ends: the list is the
+    // only thing that scrolls, and the bar follows it.
+    LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) {
+        stopRows()
+    }
     // The picture runs under the status bar and fades into the bar's colour
-    // under the title, and the bar collapses as a Large one does.
+    // under the title, and the bar collapses as the rows go up under it.
     TopBar(
         style = TopBarStyle.Hero,
         onBack = { back() },
@@ -83,9 +89,6 @@ Column(Modifier.topBarCollapse(collapse)) {
     ) {
         +"Kings Park"
         supporting { +"Fraser Avenue" }
-    }
-    LazyColumn {
-        stopRows()
     }
 }
 ```
@@ -109,10 +112,22 @@ read as a dark band that the picture stopped short of.
 each action sit on a disc of the bar's colour, so a dark glyph is not lost on a
 dark photograph. The discs go as the bar collapses.
 
-**It collapses as `Large` does**, with the same `collapseState` or
-`collapseProgress`, and collapsed it is a `Small` bar to the pixel: the title
-travels into the first line, the picture rises behind the bar at half the speed
-and fades out over the second half of the way.
+**It is drawn over its list, and follows the list's scroll.**
+`rememberTopBarCollapseState(list)` — or `(scrollState)` for a `verticalScroll`
+— reads how far the list has gone, and the list pads its top by the state's
+`openHeight`, the bar's height open, status bar included. The list is the only
+thing that scrolls: as the rows go up, the bar's foot goes with them, the
+picture going as the title comes in, and wherever the finger leaves the list
+the bar stays — there is no finishing to the nearer end over a tall picture.
+Laid out above its list with `topBarCollapse`, a hero shared each drag with
+the list, and on an iPhone the system's stretch, still relaxing from a pull,
+sometimes took the start of the next drag before the bar was asked for it —
+reported as *"sometimes when i start scrolling up, it doesn't and just does the
+overscroll animation"*. That wiring still works, and a `Large` bar keeps it.
+
+Collapsed it is a `Small` bar to the pixel: the title travels into the first
+line, the picture rises behind the bar at half the speed and fades out over the
+second half of the way.
 
 **Several pictures are a `HeroImages`**, swiped between:
 

@@ -179,3 +179,98 @@ class ScrollbarGeometryTest {
         assertTrue(!geometry.isUseful)
     }
 }
+
+/**
+ * Where the drawn thumb is: it moves only as the content moves, and reaches
+ * its track's ends exactly as the content reaches its own, whatever the
+ * estimate of the length in between says.
+ */
+class ScrollbarSourceTest {
+
+    /** A scroller whose length can change under it, as a lazy list's estimate does. */
+    private class Content(var value: Int, var max: Int, val viewport: Int = 400) : ScrollableState, ScrollExtent {
+        override val extentValue: Int get() = value
+        override val extentMax: Int get() = max
+        override val extentViewport: Int get() = viewport
+        override val canScrollForward: Boolean get() = value < max
+        override val canScrollBackward: Boolean get() = value > 0
+        override fun dispatchRawDelta(delta: Float): Float {
+            val was = value
+            value = (value + delta.toInt()).coerceIn(0, max)
+            return (value - was).toFloat()
+        }
+        override val isScrollInProgress: Boolean = false
+        override suspend fun scroll(scrollPriority: MutatePriority, block: suspend ScrollScope.() -> Unit) = Unit
+    }
+
+    @Test
+    fun anExactAccountIsFollowedExactly() {
+        val content = Content(value = 0, max = 600)
+        val source = ScrollbarSource(content)
+        assertEquals(0f, source.geometry().position)
+        content.value = 150
+        assertEquals(0.25f, source.geometry().position, 0.0001f)
+        content.value = 450
+        assertEquals(0.75f, source.geometry().position, 0.0001f)
+    }
+
+    @Test
+    fun aLengthThatChangesWhileNothingMovesLeavesTheThumbWhereItIs() {
+        val content = Content(value = 300, max = 600)
+        val source = ScrollbarSource(content)
+        source.geometry()
+        // Scrolled a little, so the thumb is the scroll's rather than the first estimate's.
+        content.value = 330
+        val at = source.geometry().position
+        assertEquals(0.55f, at, 0.0001f)
+        // Found to be twice as long, standing still: the thumb stays.
+        content.max = 1200
+        assertEquals(at, source.geometry().position, 0.0001f)
+    }
+
+    @Test
+    fun itReachesTheEndsWithTheContentWhateverTheLengthSaid() {
+        val content = Content(value = 300, max = 600)
+        val source = ScrollbarSource(content)
+        source.geometry()
+        content.value = 330
+        source.geometry()
+        content.max = 1200
+        source.geometry()
+        // Forward: on toward the end, never back.
+        var last = source.geometry().position
+        for (value in listOf(400, 600, 900, 1100)) {
+            content.value = value
+            val now = source.geometry().position
+            assertTrue(now > last, "scrolling on moved the thumb back: $last to $now")
+            last = now
+        }
+        content.value = 1200
+        assertEquals(1f, source.geometry().position)
+        // And back to the top.
+        for (value in listOf(900, 500, 100)) {
+            content.value = value
+            val now = source.geometry().position
+            assertTrue(now < last, "scrolling back moved the thumb on: $last to $now")
+            last = now
+        }
+        content.value = 0
+        assertEquals(0f, source.geometry().position)
+    }
+
+    @Test
+    fun aDraggedThumbStaysUnderThePointerAndTakesTheContentToItsEnd() {
+        val content = Content(value = 0, max = 600)
+        val source = ScrollbarSource(content)
+        source.geometry()
+        source.hold(true)
+        source.dragBy(along = 100f, travel = 400f)
+        assertEquals(0.25f, source.geometry().position, 0.0001f)
+        assertEquals(150, content.value)
+        source.dragBy(along = 1000f, travel = 400f)
+        assertEquals(1f, source.geometry().position)
+        assertEquals(600, content.value, "the thumb at the end of its track left the content short of its end")
+        source.hold(false)
+    }
+}
+

@@ -186,6 +186,11 @@ fun LoadingState(
  * The state leaving is cleared from the semantics while it goes, so a screen
  * reader hears the new one and not both.
  *
+ * **Each state is laid out as a column**, so a state that is a page — a
+ * heading, a list, a form — has its sections one under another, as it would
+ * anywhere else. A state that wants them side by side or over each other says
+ * so with a `Row` or a `Box` of its own.
+ *
  * @param target Which state to show. Anything with `equals` — an enum, a sealed
  *   class; a change of it is a change of state.
  * @param contentAlignment Where a smaller state sits in the space of a larger
@@ -211,7 +216,12 @@ fun <T> StateSwitcher(
         label = "stateSwitcher",
     ) { state ->
         val leaving = transition.targetState == EnterExitState.PostExit
-        Box(if (leaving) Modifier.clearAndSetSemantics {} else Modifier) { content(state) }
+        // A column, not a box: a state's content is a page's more often than
+        // not, and a page has sections. In a box they were all drawn at its
+        // top, over each other — reported from an app whose archive and several
+        // forms broke that way, and worked round by keeping the content out of
+        // the switcher.
+        Column(if (leaving) Modifier.clearAndSetSemantics {} else Modifier) { content(state) }
     }
 }
 

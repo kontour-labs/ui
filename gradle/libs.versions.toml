@@ -2,10 +2,10 @@
 # Core build and tooling
 agp = "9.3.1"
 kotlin = "2.4.10"
-# A release candidate, deliberately. `ImageComposeScene.calculateContentSize()`
-# and the screenshot harness this library's tests are built on land here; see the
-# README for what that means for a consumer.
-composeMultiplatform = "1.12.0-rc01"
+# 1.12 at least: `ImageComposeScene.calculateContentSize()`, which the screenshot
+# harness this library's tests are built on uses, lands there. See the README for
+# what that means for a consumer.
+composeMultiplatform = "1.12.1"
 dokka = "2.1.0"
 
 # Android

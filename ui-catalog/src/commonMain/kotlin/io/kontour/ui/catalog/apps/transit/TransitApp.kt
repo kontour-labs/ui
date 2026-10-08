@@ -1,9 +1,20 @@
 package io.kontour.ui.catalog.apps.transit
 
+import androidx.compose.runtime.staticCompositionLocalOf
+import io.kontour.ui.overlay.CoachmarkTour
+import io.kontour.ui.overlay.rememberCoachmarkTour
+import io.kontour.ui.overlay.CoachmarkStep
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
+import io.kontour.ui.components.action.FabSize
+import io.kontour.ui.components.action.FloatingActionButton
+import io.kontour.ui.nav.NavRailDefaults
+import io.kontour.ui.nav.LocalNavExpansion
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -53,6 +64,12 @@ internal data class TripRoute(val id: String)
 private val tabs = listOf(DeparturesRoute, StopsRoute, TripsRoute, SettingsRoute)
 
 /**
+ * The app's tour, for the pages its steps are on. Null outside the app — a page
+ * shown on its own — where a page keeps a tour of its own steps.
+ */
+internal val LocalTransitTour = staticCompositionLocalOf<CoachmarkTour?> { null }
+
+/**
  * Transit: the next departures from a home stop, an A–Z of stops, a year of
  * trips and the app's settings, with a ticket over the navigation and a trip
  * planner in a sheet.
@@ -83,6 +100,19 @@ internal fun TransitApp() {
         backStack += tab
     }
 
+    // The tour is the app's, not a page's: it starts on the departures and
+    // ends on the trips, taking the reader from the one tab to the other.
+    val tour = rememberCoachmarkTour("welcome", "ticket", "filters", "plan", "activity", showSkip = true) { step ->
+        val tab = if (step == "activity") TripsRoute else DeparturesRoute
+        if (root != tab || backStack.size > 1) go(tab)
+    }
+    CoachmarkStep(
+        tour,
+        id = "welcome",
+        title = "Welcome aboard",
+        message = "A minute's tour: the departures first, then the trips you have taken.",
+    )
+
     val suite = rememberNavigationSuiteSceneStrategy<Any> { pages ->
         NavigationSuiteScaffold(
             destinations = {
@@ -97,24 +127,48 @@ internal fun TransitApp() {
                 }
             },
             type = navigationSuiteTypeFor(width),
+            // Grown from a column of icons to the whole header and planner, as the gallery's rail is.
+            railExpandable = true,
+            // As wide as the rail is: collapsed, a rail is a column of icons, and
+            // the way out, the app's name and the planner were crammed into it
+            // at their full width — the name broken a letter to a line.
             header = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = Theme.spacing.sm),
-                ) {
-                    LeaveAppButton()
-                    Icon(MiniApp.Transit.icon, contentDescription = null)
-                    Text(MiniApp.Transit.title, style = Theme.typography.titleSmall)
+                if (LocalNavExpansion.current.expanded) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = Theme.spacing.sm),
+                    ) {
+                        LeaveAppButton()
+                        Icon(MiniApp.Transit.icon, contentDescription = null)
+                        Text(MiniApp.Transit.title, style = Theme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else {
+                    // On the destinations' icons, as the rail's own toggle is.
+                    Box(
+                        Modifier.width(NavRailDefaults.GlyphSize.width).padding(bottom = Theme.spacing.sm),
+                        contentAlignment = Alignment.Center,
+                    ) { LeaveAppButton() }
                 }
             },
             // On a phone the planner is the departures' own button; beside a
             // rail or a sidebar there is room for it on every page.
             action = if (compact) null else {
                 {
-                    Button(onClick = { planning = true }) {
-                        +Tabler.Outline.Route
-                        +"Plan a trip"
+                    if (LocalNavExpansion.current.expanded) {
+                        Button(onClick = { planning = true }) {
+                            +Tabler.Outline.Route
+                            +"Plan a trip"
+                        }
+                    } else {
+                        Box(Modifier.width(NavRailDefaults.GlyphSize.width), contentAlignment = Alignment.Center) {
+                            FloatingActionButton(
+                                onClick = { planning = true },
+                                icon = Tabler.Outline.Route,
+                                contentDescription = "Plan a trip",
+                                size = FabSize.Small,
+                            )
+                        }
                     }
                 }
             },
@@ -128,7 +182,7 @@ internal fun TransitApp() {
     // at the side, out of the way, and the page stays inside it.
     val detail: Map<String, Any> = if (compact) coversNavigation() else emptyMap()
 
-    CompositionLocalProvider(LocalLeaveInTopBar provides compact) {
+    CompositionLocalProvider(LocalLeaveInTopBar provides compact, LocalTransitTour provides tour) {
         NavDisplay(
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },

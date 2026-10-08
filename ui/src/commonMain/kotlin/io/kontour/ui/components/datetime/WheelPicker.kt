@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -206,6 +207,16 @@ internal fun ReportsSettling(moving: () -> Boolean, callerTurning: () -> Boolean
 }
 
 /**
+ * A turn asked of a drum by its caller and shown rather than jumped to: a
+ * picker's "Now", scrolling its wheels to the time. One for each turn; [done]
+ * once the drum is there, or did not need to move.
+ */
+internal class WheelTurn(val index: Int) {
+    /** Complete once the turn is over: true where it arrived, false where a finger, or another turn, took the wheel first. */
+    val done = CompletableDeferred<Boolean>()
+}
+
+/**
  * A drag begun somewhere other than on the drum, played into it as though it
  * had been: a [io.kontour.ui.components.text.WheelSelect]'s closed field, which
  * the drum opens around while the finger is still moving.
@@ -303,6 +314,7 @@ internal fun <T> WheelDrum(
     drive: WheelDrive? = null,
     onCentreTap: (() -> Unit)? = null,
     onSettled: (() -> Unit)? = null,
+    turn: WheelTurn? = null,
 ) {
     require(visibleItems % 2 == 1) {
         "WheelPicker's visibleItems must be odd so a row can sit in the centre, not $visibleItems"
@@ -333,6 +345,7 @@ internal fun <T> WheelDrum(
             drive = drive,
             onCentreTap = onCentreTap,
             onSettled = onSettled,
+            turn = turn,
         )
         return
     }
@@ -605,6 +618,29 @@ internal fun <T> WheelDrum(
             } finally {
                 callerTurning.value = false
             }
+        }
+    }
+    // A turn the caller asked to be seen: the drum scrolls through the rows
+    // to it rather than jumping, quietly, as a tap-to-turn does. Keyed on the
+    // request, not the value, so the rows it reports on the way — which come
+    // back as the value — do not cancel it.
+    LaunchedEffect(turn) {
+        val request = turn ?: return@LaunchedEffect
+        var arrived = false
+        try {
+            val target = request.index.coerceIn(0, items.lastIndex)
+            if (target == centredIndex && !listState.isScrollInProgress) {
+                arrived = true
+                return@LaunchedEffect
+            }
+            callerTurning.value = true
+            driving = true
+            listState.scrollToItem(target, wheelMotion)
+            arrived = true
+        } finally {
+            driving = false
+            callerTurning.value = false
+            request.done.complete(arrived)
         }
     }
     ReportsSettling(moving = { listState.isScrollInProgress }, callerTurning = { callerTurning.value }, onSettled = onSettled)
@@ -992,6 +1028,7 @@ private fun <T> InfiniteWheel(
     drive: WheelDrive? = null,
     onCentreTap: (() -> Unit)? = null,
     onSettled: (() -> Unit)? = null,
+    turn: WheelTurn? = null,
 ) {
     val density = LocalDensity.current
     val itemPx = with(density) { itemHeight.toPx() }
@@ -1031,6 +1068,25 @@ private fun <T> InfiniteWheel(
             } finally {
                 callerTurning.value = false
             }
+        }
+    }
+
+    // As the finite drum's: a turn asked to be seen, the short way round.
+    LaunchedEffect(turn) {
+        val request = turn ?: return@LaunchedEffect
+        var arrived = false
+        try {
+            val turns = shortestTurn(centredIndex, wrap(request.index, items.size), items.size)
+            if (turns == 0) {
+                arrived = true
+                return@LaunchedEffect
+            }
+            callerTurning.value = true
+            offset.animateTo(offset.value + turns * itemPx, motion.springOrTween(motion.springSnappy))
+            arrived = true
+        } finally {
+            callerTurning.value = false
+            request.done.complete(arrived)
         }
     }
 

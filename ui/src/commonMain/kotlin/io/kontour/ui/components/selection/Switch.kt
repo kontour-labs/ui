@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.graphicsLayer
@@ -353,7 +355,7 @@ fun Switch(
             .focusRing(interactions, shape)
             .then(
                 if (onCheckedChange != null) {
-                    Modifier.pointerCursor(enabled = enabled).toggleable(
+                    Modifier.pointerCursor(enabled = enabled).webRole(WebRole.Switch, checked).toggleable(
                         value = checked,
                         onValueChange = {
                             // A tapped switch reports like the checkbox beside
@@ -378,7 +380,7 @@ fun Switch(
                     // is `toggleable`; the same value merged twice is harmless,
                     // and a row that opens a choice — which is `clickable`, not
                     // `toggleable` — publishes nothing at all without it.
-                    Modifier.semantics {
+                    Modifier.webRole(WebRole.Switch, checked).semantics {
                         role = Role.Switch
                         toggleableState = ToggleableState(checked)
                     }

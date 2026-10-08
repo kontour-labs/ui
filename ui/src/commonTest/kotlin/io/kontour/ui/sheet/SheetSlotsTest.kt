@@ -2,6 +2,7 @@ package io.kontour.ui.sheet
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +33,8 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * A part pinned to an edge of the sheet stays there, and the content passes behind.
+ * A sheet's header and footer stay at its top and its foot, and the content
+ * passes behind.
  *
  * Asked for as *"a way to pin a component to certain parts of the sheet… a
  * [search] bar to the bottom of the sheet. Content should be scrollable behind it,
@@ -46,7 +48,7 @@ import kotlin.test.assertTrue
  * the positions compare exactly; the harness has no insets.
  */
 @OptIn(ExperimentalTestApi::class)
-class SheetPinnedTest {
+class SheetSlotsTest {
 
     /**
      * And with the same space all round it: *"when the sheet is collapsed and only
@@ -55,11 +57,11 @@ class SheetPinnedTest {
      * handle's band above, [Band].
      */
     @Test
-    fun collapsedTheSheetIsTheHandleAndThePinnedPart() {
+    fun collapsedTheSheetIsTheHandleAndTheFooter() {
         runComposeUiTest {
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.pinned()) { sheet = it } }
+            setContent { Harness(SheetDetent.parts()) { sheet = it } }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
@@ -81,9 +83,9 @@ class SheetPinnedTest {
     }
 
     @Test
-    fun atEveryDetentThePinnedPartIsOnTheBottomOfWhatTheSheetShows() {
+    fun atEveryDetentTheFooterIsOnTheBottomOfWhatTheSheetShows() {
         runComposeUiTest {
-            var target by mutableStateOf(SheetDetent.pinned())
+            var target by mutableStateOf(SheetDetent.parts())
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
             setContent { Harness(target) { sheet = it } }
@@ -104,7 +106,7 @@ class SheetPinnedTest {
     }
 
     @Test
-    fun aListGivenTheSheetsPaddingScrollsItsLastRowOutFromBehindThePinnedPart() {
+    fun aListGivenTheSheetsPaddingScrollsItsLastRowOutFromBehindTheFooter() {
         runComposeUiTest {
             mainClock.autoAdvance = false
             setContent { Harness(SheetDetent.Expanded) {} }
@@ -119,21 +121,23 @@ class SheetPinnedTest {
     }
 
     @Test
-    fun aPartPinnedToTheTopSitsUnderTheHandleAndTheListStartsBelowIt() {
+    fun aHeaderSitsUnderTheHandleAndTheListStartsBelowIt() {
         runComposeUiTest {
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.Half, pin = SheetPin.Top) {} }
+            setContent { Harness(SheetDetent.Half, slot = Slot.Header) {} }
             settle()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             val first = onNodeWithTag(row(0)).getBoundsInRoot()
-            near(bar.bottom + Inset, first.top, "the first row's top against the bar's bottom")
+            // A header is laid out as the content is, with no inset of its own:
+            // a `SheetHeader` in it brings its own.
+            near(bar.bottom, first.top, "the first row's top against the bar's bottom")
         }
     }
 
     /**
-     * Collapsed to a part pinned to the **top**, an edge sheet still clears the
+     * Collapsed to a **header**, an edge sheet still clears the
      * safe area under it: the part sits above the home indicator, with the
-     * sheet's inset between them as there is round a part pinned to the bottom.
+     * sheet's inset between them as there is round a footer.
      *
      * Reported: *"the "edge" bottom sheet style now doesn't clear the safe area
      * when it's collapsed with a "pinned" item"*. The pinned detent was the
@@ -142,53 +146,53 @@ class SheetPinnedTest {
      * rest a home indicator short, the part's foot behind it.
      */
     @Test
-    fun collapsedToATopPartTheSheetClearsTheSafeArea() {
+    fun collapsedToAHeaderTheSheetClearsTheSafeArea() {
         runComposeUiTest {
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.pinned(), pin = SheetPin.Top, insets = WindowInsets(bottom = SafeArea)) {} }
+            setContent { Harness(SheetDetent.parts(), slot = Slot.Header, insets = WindowInsets(bottom = SafeArea)) {} }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             assertTrue(
                 window.bottom - bar.bottom >= SafeArea,
-                "the part pinned to the top ends ${window.bottom - bar.bottom} above the window's foot, " +
+                "the header ends ${window.bottom - bar.bottom} above the window's foot, " +
                     "inside the $SafeArea of safe area under it",
             )
         }
     }
 
-    /** And a part pinned to the bottom, as it always did: the control for the arm above. */
+    /** And a footer, as it always did: the control for the arm above. */
     @Test
-    fun collapsedToABottomPartTheSheetClearsTheSafeArea() {
+    fun collapsedToAFooterTheSheetClearsTheSafeArea() {
         runComposeUiTest {
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.pinned(), pin = SheetPin.Bottom, insets = WindowInsets(bottom = SafeArea)) {} }
+            setContent { Harness(SheetDetent.parts(), slot = Slot.Footer, insets = WindowInsets(bottom = SafeArea)) {} }
             settle()
             val window = onRoot().getBoundsInRoot()
             val bar = onNodeWithTag(Bar).getBoundsInRoot()
             assertTrue(
                 window.bottom - bar.bottom >= SafeArea,
-                "the part pinned to the bottom ends ${window.bottom - bar.bottom} above the window's foot",
+                "the footer ends ${window.bottom - bar.bottom} above the window's foot",
             )
         }
     }
 
     /**
-     * The control: with nothing pinned, `SheetDetent.pinned` keeps its fallback.
+     * The control: with neither, `SheetDetent.parts` keeps its fallback.
      * Without it the first arm could pass on a detent that happened to resolve to
      * the handle and the bar for some other reason.
      */
     @Test
-    fun withNothingPinnedTheDetentIsItsFallback() {
+    fun withNeitherTheDetentIsItsFallback() {
         runComposeUiTest {
             lateinit var sheet: SheetState
             mainClock.autoAdvance = false
-            setContent { Harness(SheetDetent.pinned(Fallback), pin = null) { sheet = it } }
+            setContent { Harness(SheetDetent.parts(Fallback), slot = null) { sheet = it } }
             settle()
             val shown = with(density) { sheet.visibleHeight.toDp() }
             assertTrue(
                 abs((shown - Fallback).value) < 1f,
-                "with nothing pinned the sheet shows $shown, where the detent's fallback is $Fallback",
+                "with neither the sheet shows $shown, where the detent's fallback is $Fallback",
             )
         }
     }
@@ -204,7 +208,7 @@ class SheetPinnedTest {
     @Composable
     private fun Harness(
         target: SheetDetent,
-        pin: SheetPin? = SheetPin.Bottom,
+        slot: Slot? = Slot.Footer,
         insets: WindowInsets = WindowInsets(0, 0, 0, 0),
         onState: (SheetState) -> Unit,
     ) {
@@ -212,17 +216,21 @@ class SheetPinnedTest {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
                     val state = rememberSheetState(
-                        detents = listOf(SheetDetent.pinned(Fallback), SheetDetent.Half, SheetDetent.Expanded),
-                        initialDetent = SheetDetent.pinned(Fallback),
+                        detents = listOf(SheetDetent.parts(Fallback), SheetDetent.Half, SheetDetent.Expanded),
+                        initialDetent = SheetDetent.parts(Fallback),
                     )
                     onState(state)
                     LaunchedEffect(target) { state.animateTo(target) }
-                    BottomSheet(state = state, presentation = SheetPresentation.Edge, windowInsets = insets) { padding: PaddingValues ->
-                        if (pin != null) {
-                            pinned(to = pin) {
-                                Box(Modifier.fillMaxWidth().height(BarHeight).testTag(Bar).background(Color.Blue))
-                            }
-                        }
+                    val bar: @Composable ColumnScope.() -> Unit = {
+                        Box(Modifier.fillMaxWidth().height(BarHeight).testTag(Bar).background(Color.Blue))
+                    }
+                    BottomSheet(
+                        state = state,
+                        presentation = SheetPresentation.Edge,
+                        windowInsets = insets,
+                    ) { padding: PaddingValues ->
+                        if (slot == Slot.Header) part(pin = SheetPartPin.Top, content = bar)
+                        if (slot == Slot.Footer) part(pin = SheetPartPin.Bottom, content = bar)
                         LazyColumn(Modifier.testTag(List), contentPadding = padding) {
                             items(Rows) { index ->
                                 Box(Modifier.fillMaxWidth().height(RowHeight).testTag(row(index)))
@@ -233,6 +241,8 @@ class SheetPinnedTest {
             }
         }
     }
+
+    private enum class Slot { Header, Footer }
 
     private companion object {
         const val Bar = "bar"

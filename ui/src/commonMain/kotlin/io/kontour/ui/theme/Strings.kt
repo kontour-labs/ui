@@ -348,6 +348,63 @@ data class Strings(
     val selectOtherHint: String = "Please specify",
     /** What a `HeroImages`' set of images is called, where a screen reader is told of it at all. */
     val images: String = "Images",
+    /** An event calendar's view of one day, in its switcher. */
+    val day: String = "Day",
+    /** Its view of a week. */
+    val week: String = "Week",
+    /** An event calendar's step back a day, in the day view. */
+    val previousDay: String = "Previous day",
+    /** And on a day. */
+    val nextDay: String = "Next day",
+    /** Its step back a week, in the week view. */
+    val previousWeek: String = "Previous week",
+    /** And on a week. */
+    val nextWeek: String = "Next week",
+    /** Its step back a year, in the year view. */
+    val previousYear: String = "Previous year",
+    /** And on a year. */
+    val nextYear: String = "Next year",
+    /** The row above a day's hours for what takes the whole day, and what an all-day event is said to be. */
+    val allDay: String = "All day",
+    /** From one time to another: an event's "9:00 – 10:30", and a week's title across two months. */
+    val timeRange: (start: String, end: String) -> String = { start, end -> "$start – $end" },
+    /** How many events a day has, as a screen reader says the day. */
+    val eventCount: (count: Quantity) -> String = { count ->
+        count.select(one = "${count.formatted} event", other = "${count.formatted} events")
+    },
+    /** A day's "+N", read out: the events it has that are not shown. */
+    val moreEvents: (count: Quantity) -> String = { count ->
+        count.select(one = "${count.formatted} more event", other = "${count.formatted} more events")
+    },
+    /** What an event calendar calls one being made, and its action to make one at a time. */
+    val newEvent: String = "New event",
+    /** An event's action to start it a step earlier. */
+    val moveEarlier: String = "Move earlier",
+    /** And a step later. */
+    val moveLater: String = "Move later",
+    /** An event's action to move it to the day before, at the same time. */
+    val moveToPreviousDay: String = "Move to the day before",
+    /** And to the day after. */
+    val moveToNextDay: String = "Move to the day after",
+    /** An event's action to end it a step later. */
+    val makeLonger: String = "Make longer",
+    /** And a step sooner. */
+    val makeShorter: String = "Make shorter",
+    /** An event's menu item that gives its start and end handles to drag. */
+    val adjustTime: String = "Adjust time",
+    /** An event's menu item, and its action, that deletes it. */
+    val deleteEvent: String = "Delete",
+    /** What a screen reader is told when an event has been moved or made longer: "Stand-up moved to Tuesday, 9:15 – 9:30". */
+    val eventMoved: (event: String, time: String) -> String = { event, time -> "$event moved to $time" },
+    /** What a screen reader is told when an event has been deleted: "Stand-up deleted". */
+    val eventDeleted: (event: String) -> String = { event -> "$event deleted" },
+
+    // Overlays and date and time, continued: last so that nothing passed by
+    // position moves.
+    /** Skips the rest of a tour of coach marks, to its last step. */
+    val skipTour: String = "Skip",
+    /** A time picker's button that turns its wheels to the time now. */
+    val now: String = "Now",
 ) {
     companion object {
         /**
@@ -381,6 +438,7 @@ data class Strings(
         confirm = lookup.text("confirm") ?: fallback.confirm,
         gotIt = lookup.text("gotIt") ?: fallback.gotIt,
         done = lookup.text("done") ?: fallback.done,
+        skipTour = lookup.text("skipTour") ?: fallback.skipTour,
         expandSheet = lookup.text("expandSheet") ?: fallback.expandSheet,
         collapseSheet = lookup.text("collapseSheet") ?: fallback.collapseSheet,
         closeMenu = lookup.text("closeMenu") ?: fallback.closeMenu,
@@ -454,6 +512,7 @@ data class Strings(
         previousMonth = lookup.text("previousMonth") ?: fallback.previousMonth,
         nextMonth = lookup.text("nextMonth") ?: fallback.nextMonth,
         returnToToday = lookup.text("returnToToday") ?: fallback.returnToToday,
+        now = lookup.text("now") ?: fallback.now,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -500,6 +559,29 @@ data class Strings(
         selectOther = lookup.text("selectOther") ?: fallback.selectOther,
         selectOtherHint = lookup.text("selectOtherHint") ?: fallback.selectOtherHint,
         images = lookup.text("images") ?: fallback.images,
+        day = lookup.text("day") ?: fallback.day,
+        week = lookup.text("week") ?: fallback.week,
+        previousDay = lookup.text("previousDay") ?: fallback.previousDay,
+        nextDay = lookup.text("nextDay") ?: fallback.nextDay,
+        previousWeek = lookup.text("previousWeek") ?: fallback.previousWeek,
+        nextWeek = lookup.text("nextWeek") ?: fallback.nextWeek,
+        previousYear = lookup.text("previousYear") ?: fallback.previousYear,
+        nextYear = lookup.text("nextYear") ?: fallback.nextYear,
+        allDay = lookup.text("allDay") ?: fallback.allDay,
+        timeRange = { start, end -> lookup.phrase("timeRange", null, start, end) ?: fallback.timeRange(start, end) },
+        eventCount = { count -> lookup.phrase("eventCount", count, count.formatted) ?: fallback.eventCount(count) },
+        moreEvents = { count -> lookup.phrase("moreEvents", count, count.formatted) ?: fallback.moreEvents(count) },
+        newEvent = lookup.text("newEvent") ?: fallback.newEvent,
+        moveEarlier = lookup.text("moveEarlier") ?: fallback.moveEarlier,
+        moveLater = lookup.text("moveLater") ?: fallback.moveLater,
+        moveToPreviousDay = lookup.text("moveToPreviousDay") ?: fallback.moveToPreviousDay,
+        moveToNextDay = lookup.text("moveToNextDay") ?: fallback.moveToNextDay,
+        makeLonger = lookup.text("makeLonger") ?: fallback.makeLonger,
+        makeShorter = lookup.text("makeShorter") ?: fallback.makeShorter,
+        adjustTime = lookup.text("adjustTime") ?: fallback.adjustTime,
+        deleteEvent = lookup.text("deleteEvent") ?: fallback.deleteEvent,
+        eventMoved = { event, time -> lookup.phrase("eventMoved", null, event, time) ?: fallback.eventMoved(event, time) },
+        eventDeleted = { event -> lookup.phrase("eventDeleted", null, event) ?: fallback.eventDeleted(event) },
         )
     }
 }
@@ -583,6 +665,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     confirm = transform(confirm),
     gotIt = transform(gotIt),
     done = transform(done),
+    skipTour = transform(skipTour),
     expandSheet = transform(expandSheet),
     collapseSheet = transform(collapseSheet),
     closeMenu = transform(closeMenu),
@@ -653,6 +736,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     previousMonth = transform(previousMonth),
     nextMonth = transform(nextMonth),
     returnToToday = transform(returnToToday),
+    now = transform(now),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),
@@ -695,4 +779,27 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     selectOther = transform(selectOther),
     selectOtherHint = transform(selectOtherHint),
     images = transform(images),
+    day = transform(day),
+    week = transform(week),
+    previousDay = transform(previousDay),
+    nextDay = transform(nextDay),
+    previousWeek = transform(previousWeek),
+    nextWeek = transform(nextWeek),
+    previousYear = transform(previousYear),
+    nextYear = transform(nextYear),
+    allDay = transform(allDay),
+    timeRange = { a0, a1 -> transform(timeRange(a0, a1)) },
+    eventCount = { a0 -> transform(eventCount(a0)) },
+    moreEvents = { a0 -> transform(moreEvents(a0)) },
+    newEvent = transform(newEvent),
+    moveEarlier = transform(moveEarlier),
+    moveLater = transform(moveLater),
+    moveToPreviousDay = transform(moveToPreviousDay),
+    moveToNextDay = transform(moveToNextDay),
+    makeLonger = transform(makeLonger),
+    makeShorter = transform(makeShorter),
+    adjustTime = transform(adjustTime),
+    deleteEvent = transform(deleteEvent),
+    eventMoved = { a0, a1 -> transform(eventMoved(a0, a1)) },
+    eventDeleted = { a0 -> transform(eventDeleted(a0)) },
 )

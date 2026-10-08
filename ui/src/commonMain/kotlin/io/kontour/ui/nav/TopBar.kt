@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Density
+import androidx.compose.foundation.ScrollState
 import io.kontour.ui.components.action.IconButton
 import io.kontour.ui.components.list.ListItemScope
 import io.kontour.ui.components.list.listItemSlots
@@ -270,7 +273,10 @@ fun TopBar(
 ) {
     val slots = listItemSlots(content)
     val fades = fadeUnder && !highContrast()
-    val outer = if (fades) modifier.fadedGround(containerColour) else modifier
+    val density = LocalDensity.current
+    // How tall it is open, for content that scrolls under it to pad its top by.
+    val sized = if (collapseState != null) modifier.onSizeChanged { collapseState.laidOut(it.height, density) } else modifier
+    val outer = if (fades) sized.fadedGround(containerColour) else sized
     // Fading, the bar's ground is the fade's own, drawn behind the surface;
     // a solid one would hide the fade inside the bar.
     val ground = if (fades) Color.Transparent else containerColour
@@ -684,10 +690,21 @@ private fun HeroDots(state: CarouselState) {
     val scope = rememberCoroutineScope()
     PageIndicator(
         state,
-        modifier = Modifier.clearAndSetSemantics {},
+        modifier = Modifier
+            // Room round the dots for the pill a drag along them brings up,
+            // inside the layer the bar places them in: drawn past the
+            // indicator's own box, the pill was cut off where a renderer
+            // clips a layer to its bounds — reported from an iPad, *"that
+            // popup bubble gets cut off"*. Even all round, so the dots' centre,
+            // which the bar places them by, does not move.
+            .padding(HeroDotsPillRoom)
+            .clearAndSetSemantics {},
         onPageClick = { page -> scope.launch { state.animateScrollToPage(page) } },
     )
 }
+
+/** Round a hero's dots, the pill's own pad past them and a little more. */
+private val HeroDotsPillRoom = 12.dp
 
 /** The room between the end of a hero's last line of text and its carousel's dots. */
 private val HeroDotsGap = 16.dp
@@ -1069,23 +1086,62 @@ private class LineCut {
  * moves with the finger throughout. Scrolling back, the list returns to its top
  * first and the bar opens after, as a large title does on iOS.
  *
- * A collapse left part-way when the finger lifts finishes, to whichever end is
- * nearer — a title stopped between its two places reads as a layout fault. A
- * mouse wheel has no lift, and moves the bar a notch at a time; see
- * [topBarCollapse].
+ * Pulled open at the top of the list, the bar opens over its own height, so the
+ * content comes down with the finger, and a large title on the way back is
+ * where the finger put it.
+ *
+ * A collapse left part-way when the finger lifts finishes — the way the finger
+ * was going if it was let go moving, to whichever end is nearer if it was let go
+ * still — since a title stopped between its two places reads as a layout fault.
+ * A fling that carries the list back to its top opens the bar with what is
+ * left of it. A mouse wheel has no lift, and moves the bar a notch at a time;
+ * see [topBarCollapse].
  */
 @Stable
 class TopBarCollapseState internal constructor(initialProgress: Float) {
 
+    /** The bar's own collapse, where it takes the scroll itself. */
+    private var own: Float by mutableFloatStateOf(initialProgress.coerceIn(0f, 1f))
+
+    /**
+     * How far the content under the bar has scrolled, in pixels, for a bar that
+     * follows it — see [rememberTopBarCollapseState]'s overloads — or null for
+     * one that takes the scroll itself.
+     */
+    internal var follows: (() -> Float)? = null
+
     /** 0 fully open, 1 collapsed to a single line. */
-    var progress: Float by mutableFloatStateOf(initialProgress.coerceIn(0f, 1f))
-        private set
+    val progress: Float
+        get() {
+            val scrolled = follows ?: return own
+            return collapseProgress(scrolled(), followedTravel)
+        }
 
     /**
      * How much shorter the bar is collapsed than open, in pixels, as it last
      * measured. Not state — nothing draws from it.
      */
     private var shrink: Float = 0f
+
+    /** [travel], as state: a following bar's progress is read against it. */
+    private var followedTravel: Float by mutableFloatStateOf(0f)
+
+    /**
+     * How tall the bar is open, status bar included, as it last measured: the
+     * padding to give the top of content that scrolls under a bar following
+     * it. Before the bar has measured, the height it was remembered with.
+     */
+    var openHeight: Dp by mutableStateOf(Dp.Unspecified)
+        internal set
+
+    /** The bar laid out [height] pixels tall at its present [progress]. */
+    internal fun laidOut(height: Int, density: Density) {
+        // In whole pixels: worked back from a height rounded to a pixel at each
+        // step of a collapse, it came out a fraction different every frame,
+        // and every fraction moved the padding of the list under it.
+        val open = with(density) { (height + shrink * progress.coerceIn(0f, 1f)).roundToInt().toDp() }
+        if (openHeight == Dp.Unspecified || with(density) { (open - openHeight).toPx() }.let { kotlin.math.abs(it) >= 1f }) openHeight = open
+    }
 
     /**
      * How far a scroll goes to collapse the bar, in pixels: [shrink], or the
@@ -1107,10 +1163,14 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     internal fun measured(shrink: Float, travel: Float) {
         this.shrink = shrink
         this.travel = travel
+        if (followedTravel != travel) followedTravel = travel
     }
 
     /** How a part-way collapse finishes. */
     internal var settle: AnimationSpec<Float> = spring()
+
+    /** How fast a finger has to be going, in pixels a second, for the finish to follow it. */
+    internal var flingThreshold: Float = 0f
 
     /**
      * The scroll half of [topBarCollapse], for putting on the content with
@@ -1122,25 +1182,47 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
             // Towards the content's end: the bar collapses before the list moves,
             // taking as much of the scroll as its height gives up.
-            if (available.y < 0f) Offset(0f, spend(available.y) * shareOfScroll()) else Offset.Zero
+            if (available.y < 0f && follows == null) Offset(0f, spend(available.y) * shareOfScroll()) else Offset.Zero
 
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
             // Towards the start, with the list already at its top: the bar opens,
-            // and has the whole of what is left, which nothing else can use.
-            if (available.y > 0f) Offset(0f, spend(available.y)) else Offset.Zero
+            // and has the whole of what is left, which nothing else can use —
+            // over its own height, so the content, which only the bar's growing
+            // moves now, comes down with the finger. Spread over [travel], as a
+            // collapse is, a bar with less height than travel to give back opened
+            // slower than the finger pulled, the list lagging under it: *"it
+            // doesn't always feel like they follow the finger"*.
+            if (available.y > 0f && follows == null) Offset(0f, spend(available.y, opening = true)) else Offset.Zero
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-            if (progress > 0f && progress < 1f) {
-                val target = if (progress < 0.5f) 0f else 1f
-                animate(progress, target, animationSpec = settle) { value, _ -> progress = value }
+            if (follows != null || travel <= 0f || progress <= 0f || progress >= 1f) return Velocity.Zero
+            // The way the finger was going when it let go, if it was going
+            // anywhere: the scroll's whole velocity, what the list spent of it
+            // and what it had no room for. Towards the content's start opens.
+            // The nearer end only for a finger let go still. Always the nearer
+            // end, as it was, finished a bar the finger had been opening back
+            // to collapsed, and a list flung back to its top left its bar shut
+            // with the fling still going — *"other times they don't expand
+            // properly"*.
+            val velocity = consumed.y + available.y
+            val target = when {
+                velocity > flingThreshold -> 0f
+                velocity < -flingThreshold -> 1f
+                progress < 0.5f -> 0f
+                else -> 1f
             }
-            return Velocity.Zero
+            // Progress runs against the scroll: towards the start is opening.
+            settling?.cancel()
+            animate(progress, target, -velocity / travel, animationSpec = settle) { value, _ -> own = landed(value) }
+            // What the list had no room for, spent opening the bar, is not
+            // left over for an overscroll to stretch the page with as well.
+            return if (target == 0f && available.y > 0f) Velocity(0f, available.y) else Velocity.Zero
         }
     }
 
     /** A wheel's [finishForWheel], while it runs, and where it is going. */
-    private var wheelSettle: Job? = null
-    private var wheelTarget: Float = 0f
+    private var settling: Job? = null
+    private var settlingTo: Float = 0f
 
     /**
      * Finishes the bar towards [target] — 0 open, 1 collapsed — for a wheel's
@@ -1148,28 +1230,48 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
      * when the bar is already there, nor when it does not collapse at all.
      */
     internal fun finishForWheel(target: Float, scope: CoroutineScope): Boolean {
-        if (travel <= 0f) return false
-        if (wheelSettle?.isActive == true) {
-            if (wheelTarget == target) return true
-            wheelSettle?.cancel()
+        if (travel <= 0f || follows != null) return false
+        if (settling?.isActive == true) {
+            if (settlingTo == target) return true
+            settling?.cancel()
         } else if (progress == target) {
             return false
         }
-        wheelTarget = target
-        wheelSettle = scope.launch {
-            animate(progress, target, animationSpec = settle) { value, _ -> progress = value }
+        settlingTo = target
+        settling = scope.launch {
+            animate(progress, target, animationSpec = settle) { value, _ -> own = landed(value) }
         }
         return true
     }
 
-    /** Moves the collapse along by a scroll of [delta] pixels, and returns how much of it that was. */
-    private fun spend(delta: Float): Float {
+    /**
+     * A finishing spring's value, held to the bar's two ends.
+     *
+     * Reported: on a screen only just long enough to scroll, *"that bar just
+     * jumps around when you try to scroll it"*. The finish is a spring, handed
+     * the fling's speed, and a spring sent at its end that fast goes past it
+     * and comes back: the bar opened taller than open, or collapsed shorter
+     * than a small bar, and the content under it went with it, there and back.
+     * A long list spends most of a fling scrolling and leaves the bar little;
+     * one that can barely scroll leaves it all of it. Past an end there is no
+     * bar to draw, so the overshoot is spent at the end, where the bar waits
+     * for the spring to come back to it.
+     */
+    private fun landed(value: Float): Float = value.coerceIn(0f, 1f)
+
+    /**
+     * Moves the collapse along by a scroll of [delta] pixels, and returns how
+     * much of it that was. [opening] at the content's start, where the scroll
+     * is spent over the bar's height alone; see `onPostScroll`.
+     */
+    private fun spend(delta: Float, opening: Boolean = false): Float {
         // A scroll is the more recent word than a wheel's settle.
-        wheelSettle?.cancel()
+        settling?.cancel()
         if (travel <= 0f) return 0f
-        val before = progress
-        progress = (progress - delta / travel).coerceIn(0f, 1f)
-        return (before - progress) * travel
+        val length = if (opening && shrink > 0f) shrink else travel
+        val before = own
+        own = (own - delta / length).coerceIn(0f, 1f)
+        return (before - own) * length
     }
 
     /** The part of a collapsing scroll the bar's height takes up; the content scrolls by the rest. */
@@ -1183,6 +1285,12 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     }
 }
 
+/**
+ * How fast a finger let go of a collapsing bar has to be moving, a second, for
+ * the bar to finish the way it was going rather than to the nearer end.
+ */
+private val FinishFling: Dp = 125.dp
+
 /** Remembers a [TopBarCollapseState], open to begin with, kept across recreation. */
 @Composable
 fun rememberTopBarCollapseState(): TopBarCollapseState {
@@ -1191,7 +1299,75 @@ fun rememberTopBarCollapseState(): TopBarCollapseState {
     // travelling the rest of a bar's height.
     val motion = Theme.motion
     state.settle = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
+    state.flingThreshold = with(LocalDensity.current) { FinishFling.toPx() }
     return state
+}
+
+/**
+ * A [TopBarCollapseState] that follows [list]'s scroll rather than taking the
+ * scroll itself — for a bar drawn **over** the list, which pads its top by the
+ * bar's [TopBarCollapseState.openHeight]:
+ *
+ * ```kotlin
+ * val list = rememberLazyListState()
+ * val collapse = rememberTopBarCollapseState(list)
+ * Box {
+ *     LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) { … }
+ *     TopBar(style = TopBarStyle.Hero, collapseState = collapse, image = { … }) { +stop.name }
+ * }
+ * ```
+ *
+ * The way to wire a [TopBarStyle.Hero] bar. The list is the only thing that
+ * scrolls, and the bar is drawn from where it has got to: as the rows move up
+ * the bar's foot moves with them, the picture going as the title comes in, and
+ * there is nothing for the bar and the list to share out between them. Taking
+ * the scroll itself, a hero laid out above its list was reported on an iPhone
+ * as *"sometimes when i start scrolling up, it doesn't and just does the
+ * overscroll animation"*: the system's stretch, relaxing from a pull a moment
+ * before, spent the start of the next drag before the bar was asked for it. And
+ * a collapse left part-way stays where the list is, rather than finishing on
+ * its own — over a tall picture, a slow look back up was snapped shut.
+ *
+ * @param initialOpenHeight How tall the bar is open, status bar included,
+ *   until it has measured: what [TopBarCollapseState.openHeight] says in the
+ *   first frame, so the list does not start under the bar for one.
+ */
+@Composable
+fun rememberTopBarCollapseState(
+    list: LazyListState,
+    initialOpenHeight: Dp = TopBarDefaults.HeroHeight,
+): TopBarCollapseState = remember(list) {
+    TopBarCollapseState(0f).apply {
+        this.openHeight = initialOpenHeight
+        follows = {
+            // How far the list has gone while its first row is in view, and
+            // past the end of any collapse once it is not. An empty list — a
+            // page still loading — is open.
+            val info = list.layoutInfo
+            if (info.totalItemsCount == 0) {
+                0f
+            } else {
+                val first = info.visibleItemsInfo.firstOrNull { it.index == 0 }
+                first?.let { 0f - it.offset } ?: Float.MAX_VALUE
+            }
+        }
+    }
+}
+
+/**
+ * A [TopBarCollapseState] that follows [scroll] — content scrolled with
+ * `Modifier.verticalScroll(scroll)` under a bar drawn over it. See the lazy
+ * list's overload, which this is in every way but where the distance is read.
+ */
+@Composable
+fun rememberTopBarCollapseState(
+    scroll: ScrollState,
+    initialOpenHeight: Dp = TopBarDefaults.HeroHeight,
+): TopBarCollapseState = remember(scroll) {
+    TopBarCollapseState(0f).apply {
+        this.openHeight = initialOpenHeight
+        follows = { scroll.value.toFloat() }
+    }
 }
 
 /**

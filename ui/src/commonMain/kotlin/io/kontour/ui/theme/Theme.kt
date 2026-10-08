@@ -596,7 +596,7 @@ val LocalLocaleFormats = compositionLocalOf<LocaleFormats> { error(NOT_IN_THEME)
  *
  * ```
  * ProvideTokens(colours = brandScheme) {
- *     Header()
+ *     BrandedHeader()
  * }
  * ```
  *

@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog.apps.messages
 
+import androidx.compose.foundation.layout.PaddingValues
+import io.kontour.ui.catalog.pageScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -115,7 +117,7 @@ private fun ColumnScope.FiltersContent(state: MessagesState, onDone: () -> Unit,
     Column(
         modifier = Modifier
             .weight(1f, fill = false)
-            .verticalScroll(rememberScrollState())
+            .pageScroll(barPadding = PaddingValues())
             .padding(start = Theme.spacing.md, end = Theme.spacing.md, bottom = Theme.spacing.lg + bottom),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
     ) {

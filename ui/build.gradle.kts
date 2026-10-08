@@ -139,7 +139,16 @@ kotlin {
     // The JVM target is not a shipping platform. It exists so the component
     // library can be compiled, unit-tested and screenshot-tested without an
     // emulator or a simulator in the loop.
-    jvm()
+    // Java 11 bytecode, against Java 11's library, as `:haptics` is. It was the
+    // toolchain's own, Java 25, and the builders a caller's code inlines carry
+    // their bytecode into it — so an app using the JVM artifact had to compile
+    // for Java 25 too. Reported from an app building on 0.4.2.
+    jvm {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+            freeCompilerArgs.add("-Xjdk-release=11")
+        }
+    }
 
     iosArm64()
     iosSimulatorArm64()

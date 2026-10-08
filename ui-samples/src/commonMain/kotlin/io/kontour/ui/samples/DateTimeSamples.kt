@@ -1,18 +1,17 @@
 package io.kontour.ui.samples
 
+import androidx.compose.foundation.layout.fillMaxSize
+import io.kontour.ui.theme.Tone
+import io.kontour.ui.components.calendar.rememberEventCalendarState
+import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
 import io.kontour.ui.locale.DateOrder
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.kontour.ui.components.datetime.DatePickerDefaults
-import io.kontour.ui.sheet.ModalBottomSheet
-import io.kontour.ui.sheet.SheetHeader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -24,6 +23,9 @@ import io.kontour.ui.components.datetime.ActivityMark
 import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
+import io.kontour.ui.components.datetime.FieldPicker
+import io.kontour.ui.components.datetime.DayAnnotation
+import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
 import io.kontour.ui.components.datetime.RelativeTimeText
@@ -32,7 +34,6 @@ import io.kontour.ui.components.datetime.TimePicker
 import io.kontour.ui.components.datetime.WheelPicker
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
-import io.kontour.ui.overlay.Dialog
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -63,6 +64,35 @@ fun DateRangePickerBasics() {
         end = end,
         onRangeChange = { from, to -> start = from; end = to },
         today = LocalDate(2026, 6, 12),
+    )
+}
+
+@Composable
+fun DatePickerAnnotated() {
+    var travelDate by remember { mutableStateOf<LocalDate?>(null) }
+    val fares = remember { mapOf(LocalDate(2026, 6, 15) to 42.0, LocalDate(2026, 6, 16) to 38.0) }
+    val holidays = remember { setOf(LocalDate(2026, 6, 8)) }
+    val formats = Theme.formats
+    val cheap = Theme.colours.success.solid
+    val holiday = Theme.colours.warning.container
+
+    DatePicker(
+        value = travelDate,
+        onValueChange = { travelDate = it },
+        today = LocalDate(2026, 6, 12),
+        // A public holiday in a colour of its own; the chosen day is drawn
+        // over it.
+        containerColourFor = { if (it in holidays) holiday else null },
+        // The fare under each day that has one, the cheapest in green, and
+        // said in words after the date.
+        annotationFor = { day ->
+            fares[day]?.let { fare ->
+                DayAnnotation(
+                    text = formats.currency(fare, "AUD"),
+                    colour = if (fare < 40.0) cheap else Color.Unspecified,
+                )
+            }
+        },
     )
 }
 
@@ -98,19 +128,14 @@ fun DateFieldBasics() {
     // not a text field with a calendar button beside it.
     DateField(value = date, onClick = { picking = true }, label = "Post date")
 
-    Dialog(
-        visible = picking,
-        onDismissRequest = { picking = false },
-        title = { +"Post date" },
-        actions = { cancel() },
-    ) {
+    // A sheet on a phone, a dialog on anything wider — as every field's picker opens.
+    FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Post date") {
         DatePicker(
             value = date,
+            // A date is picked at one tap, so the picker goes with it.
             onValueChange = { date = it; picking = false },
             // Marks today, and gives the header its way back to it.
             today = remember { DatePickerDefaults.currentDate() },
-            // The picker stops at a phone's width; this centres it in a wider dialog.
-            modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         )
     }
 }
@@ -125,16 +150,11 @@ fun TimeFieldBasics() {
     // Typing a time into a text field is how you get 25:61.
     TimeField(value = departAt, onClick = { picking = true }, label = "Leave at")
 
-    // The wheels set the time as they turn, so the sheet needs no Done: its
-    // close button, a drag down or a tap outside puts it away.
-    ModalBottomSheet(visible = picking, onDismissRequest = { picking = false }) { padding ->
-        SheetHeader { +"Leave at" }
-        TimePicker(
-            value = departAt,
-            onValueChange = { departAt = it },
-            minuteStep = 5,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(padding),
-        )
+    // The wheels set the time as they turn, so there is no Cancel: the close,
+    // Done, a tap outside or back puts it away. A sheet on a phone, a dialog
+    // on anything wider.
+    FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+        TimePicker(value = departAt, onValueChange = { departAt = it }, minuteStep = 5)
     }
 }
 
@@ -224,3 +244,20 @@ fun LocaleFormatsBasics() {
         Screen()
     }
 }
+
+@Composable
+fun EventCalendarBasics() {
+    // The app keeps the events; the calendar shows them and says what was pressed.
+    val calendar = rememberEventCalendarState()
+    val events = listOf(
+        CalendarEvent(id = 1, title = "Stand-up", start = LocalDateTime(2026, 10, 14, 9, 0), end = LocalDateTime(2026, 10, 14, 9, 15)),
+        CalendarEvent(id = 2, title = "Perth trip", startDate = LocalDate(2026, 10, 13), endDate = LocalDate(2026, 10, 16), tone = Tone.Warning),
+    )
+    EventCalendar(
+        state = calendar,
+        events = events,
+        onEventClick = { open(it.title) },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+

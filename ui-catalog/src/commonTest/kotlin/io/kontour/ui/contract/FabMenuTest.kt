@@ -11,6 +11,12 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.click
+import kotlin.test.assertEquals
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.test.assertFalse
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -208,6 +214,49 @@ class FabMenuTest {
         )
     }
 
+    /**
+     * A label is part of its button: a tap on the words does what the button
+     * does, and closes the menu. Asked for as *"can we make the labels in
+     * FabMenu tappable"* — they were drawn beside the buttons and a tap on one
+     * fell through to the scrim, closing the menu with nothing done.
+     *
+     * Found beside its button rather than by its text, since the label carries
+     * no semantics of its own: the button is its name for a screen reader.
+     */
+    @Test
+    fun aTapOnALabelDoesWhatItsButtonDoes() = runComposeUiTest {
+        val chosen = mutableListOf<String>()
+        val open = mutableStateOf(true)
+        val density = mutableStateOf(1f)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                density.value = LocalDensity.current.density
+                Window {
+                    Box(Modifier.fillMaxSize()) {
+                        FabMenu(
+                            expanded = open.value,
+                            onExpandedChange = { open.value = it },
+                            icon = Tabler.Outline.Plus,
+                            contentDescription = Anchor,
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            expandedContentDescription = Anchor,
+                        ) {
+                            Labels.forEach { label -> item(Tabler.Outline.Star, label) { chosen += label } }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val button = onNodeWithContentDescription(Labels[1]).fetchSemanticsNode().boundsInRoot
+        // Its label is to the button's start, past the gap: a few dp into the words.
+        val onLabel = Offset(button.left - LabelReach * density.value, button.center.y)
+        onRoot().performTouchInput { click(onLabel) }
+        waitForIdle()
+        assertEquals(listOf(Labels[1]), chosen, "a tap on the label of ${Labels[1]} chose $chosen")
+        assertFalse(open.value, "the menu stayed open after its label was tapped")
+    }
+
     /** The same moment, with the preference on: no wave, because a wave is motion. */
     @Test
     fun reducedMotionDropsTheStagger() = runComposeUiTest {
@@ -390,5 +439,8 @@ class FabMenuTest {
         const val MinStagger = 0.1f
 
         const val ReducedMotionTolerance = 0.05f
+
+        /** How far to the start of a button its label is tapped, in dp: past the gap and into the words. */
+        const val LabelReach = 30f
     }
 }

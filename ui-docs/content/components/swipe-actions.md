@@ -84,6 +84,13 @@ row had never left. Under reduced motion it does not give.
 the row's own click. A tap on one of the buttons runs that action and closes the
 row.
 
+**A press anywhere else closes it too**, as a SwiftUI list's row does: another
+row, a button, the list scrolled. That press still does what it does — the other
+row's click, the button's action — and the open row slides home out of its way.
+Presses are seen at the app's [`OverlayHost`](../overlays.md); without one round
+the app, a press on another swipe row still closes it, and one on anything else
+does not.
+
 **One buzz at the one moment that has a consequence, and a soft tick as each
 action arrives.** It used to be four — a tick per action width uncovered, the
 threshold, a confirmation when the action ran, and a settle when the row came back
@@ -117,6 +124,40 @@ closes — where it used to run and fold away in the same instant, with nothing 
 say it had. While it ticks the row stays put. `tapConfirmation = false` runs a
 tapped action at once. An action run from a screen reader's actions menu runs at
 once either way.
+
+**Each action can say for itself.** `fullSwipeConfirmation` and
+`tapConfirmation` on a `SwipeAction` win over the row's, either way: a removal
+that a toast with an undo already confirms can do without the tick, while the
+pin beside it keeps one; an action that opens a menu or a sheet has that
+for its answer. Left null, an action does what the row does.
+
+<!--sample:SwipeActionOwnTick-->
+```kotlin
+SwipeActions(
+    end = listOf(
+        // Undone from the toast it raises, so it runs as the row arrives.
+        SwipeAction(
+            label = "Remove",
+            icon = Tabler.Outline.Trash,
+            onAction = { remove(stop.name) },
+            background = Theme.colours.danger.solid,
+            fullSwipeConfirmation = false,
+            tapConfirmation = false,
+        ),
+        SwipeAction(
+            label = "Pin",
+            icon = Tabler.Outline.Pin,
+            onAction = { pin(stop.name) },
+            background = Theme.colours.accent.solid,
+        ),
+    ),
+) {
+    ListItem {
+        +stop.name
+        supporting { +"${stop.routes} routes" }
+    }
+}
+```
 
 **A full swipe runs the outermost action**, which is the first one declared —
 the one at the screen edge, and the one that takes the strip at the point of no

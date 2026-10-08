@@ -1,5 +1,8 @@
 package io.kontour.ui.contract
 
+import io.kontour.ui.demo.demoCalendarEvents
+import io.kontour.ui.components.calendar.rememberEventCalendarState
+import io.kontour.ui.components.calendar.EventCalendar
 import androidx.compose.runtime.CompositionLocalProvider
 import io.kontour.ui.files.LocalFileChooser
 import io.kontour.ui.files.FileChooser
@@ -1077,6 +1080,30 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 TimelineItem(connector = ConnectorStyle.Dashed) { +"Packed" }
                 TimelineItem(connector = ConnectorStyle.None, filled = false) { +"Delivered" }
             }
+        }
+    )
+
+    add(
+        // A month with a trip across it and a busy day; the views, the taps
+        // and the "+N" are `EventCalendarTest`'s.
+        ComponentSpec(
+            "EventCalendar",
+            role = null,
+            activatedByClick = false,
+            expectsMinimumTarget = false,
+            underContract = false,
+            // A header and six weeks of boxes, each with room for an event.
+            renderHeight = 520,
+        ) { modifier, _, _ ->
+            val today = LocalDate(2026, 10, 14)
+            EventCalendar(
+                state = rememberEventCalendarState(initialDate = today),
+                events = remember { demoCalendarEvents(today) },
+                now = LocalDateTime(2026, 10, 14, 11, 20),
+                // A size of its own: a calendar fills whatever it is given,
+                // and a specimen is given nothing.
+                modifier = modifier.width(260.dp).height(480.dp),
+            )
         }
     )
 
@@ -2223,7 +2250,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "TimePicker",
             role = null,
             underContract = false,
-            renderHeight = 240,
+            // The wheels' 240, and the Now button under them.
+            renderHeight = 280,
         ) { modifier, _, _ ->
             TimePicker(value = SpecimenTime, onValueChange = {}, modifier = modifier)
         }
@@ -2234,8 +2262,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // A date picker's 380 and a time picker's 240, and the gap between.
-            renderHeight = 640,
+            // A date picker's 380 and a time picker's 280, and the gap between.
+            renderHeight = 680,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,
         ) { modifier, _, _ ->

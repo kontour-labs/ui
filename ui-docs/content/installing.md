@@ -30,11 +30,10 @@ Each is published for **Android** (minSdk 29), **iOS** (`iosArm64` and
 
 ## Requirements
 
-- **Compose Multiplatform 1.12.0-rc01.** A release candidate, deliberately: the
-  screenshot harness the test suite rests on needs
-  `ImageComposeScene.calculateContentSize()`, which lands there. An app on a
-  stable 1.11 hits binary incompatibility; use the same release candidate or
-  newer.
+- **Compose Multiplatform 1.12.1** or newer. 1.12 is the floor, deliberately:
+  the screenshot harness the test suite rests on needs
+  `ImageComposeScene.calculateContentSize()`, which lands there. An app on 1.11
+  hits binary incompatibility.
 - **Kotlin 2.4.10** or newer, the version the libraries are built with.
 - **Android minSdk 29.**
 
@@ -80,7 +79,7 @@ One version for all three, in the version catalog:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kontour = "0.4.2"
+kontour = "0.4.3"
 
 [libraries]
 kontour-ui = { module = "io.kontour:ui", version.ref = "kontour" }
@@ -103,7 +102,7 @@ kotlin {
 ```
 
 Without a catalog, the same thing is
-`implementation("io.kontour:ui:0.4.2")`, and so on.
+`implementation("io.kontour:ui:0.4.3")`, and so on.
 
 ---
 
@@ -163,17 +162,33 @@ and figures, both bundled; there is nothing to add unless you reskin, which
   "Failed to execute 'put' on 'Cache'" while the bundled fonts load: that is
   Compose Resources' own font cache, which the library never touches. And under
   Compose 1.12 the browser's accessibility tree names every clickable node a
-  `button`, with no checked or selected state, whatever role the library passes;
-  [In the browser](accessibility.md#in-the-browser) has what that affects and
-  when Compose fixes it.
+  `button`, with no checked or selected state, whatever role it was given; the
+  library puts its own controls' roles back, and
+  [In the browser](accessibility.md#in-the-browser) has how and what it does
+  not reach.
 
   On an iPhone or iPad, every browser is WebKit, which opens the keyboard only
-  for an input focused during the tap itself; Compose focuses its own a frame
-  later. `KontourTheme` installs a primer for that: a tap on a text field, a
-  combobox, a nav bar's search or an editable knob focuses a hidden input
-  straight away, the keyboard opens for it, and Compose's input takes it over a
-  moment later. Nothing is added off iOS. A text field of your own on
-  `BasicTextField` does not get it.
+  for an input focused during the tap itself; Compose focuses its own while the
+  finger is still down, a frame after it lands, which WebKit does not count. So
+  as the finger lifts from a text field, a combobox, a nav bar's search or an
+  editable knob, `KontourTheme` focuses Compose's input again, during the tap,
+  and the keyboard opens for it. A field that focuses itself later — the box
+  under a select's "Other", a combobox's editor — has a hidden input focused
+  in its place for the moment between. Nothing is added off iOS.
+
+  On a phone or a tablet, in any browser, **a focused text field's selection,
+  its handles and its menu are the browser's own**: Copy, Paste, Look Up and
+  the rest, where the reader expects them. Compose's input is laid over the
+  field's text while it has the focus, in the same face at the same size, and
+  takes the touches on it; Compose still draws the text, and the browser draws
+  its caret and selection over it. A field whose text is drawn as something
+  else — a phone number grouped as it is typed — keeps Compose's selection and
+  menu, as the browser's letters would not be under Compose's. The faces are
+  the library's Outfit and JetBrains Mono; a theme in a face of its own has the
+  browser's sans-serif under it, close but not exact. A swipe that starts on a
+  focused field's text selects rather than scrolls the page.
+
+  Neither reaches a text field of your own on `BasicTextField`.
 - **The desktop.** Nothing is required; see `:haptics` for a Mac's trackpad.
 
 ## Setting up `:ui-nav3`
@@ -313,7 +328,7 @@ Only reading from elsewhere needs an account credential.
 | Hundreds of failing requests for unrelated dependencies | The `content { includeGroup(…) }` filter is missing |
 | AndroidX artifacts will not resolve | `google()` is missing from the repositories |
 | Resolution succeeds but the classes are missing on one platform | A variant did not publish. Each module should have seven per version: the module itself, and one each for `-android`, `-iosarm64`, `-iossimulatorarm64`, `-js`, `-jvm`, `-wasm-js` |
-| `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.0-rc01 |
+| `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.1 |
 | "No KontourTheme found" or "No OverlayHost found" | The root wrappers under [Setting up `:ui`](#setting-up-ui) are missing, or the screen is composed outside them — a separate window, a dialog of the platform's own |
 
 ## Working without a token

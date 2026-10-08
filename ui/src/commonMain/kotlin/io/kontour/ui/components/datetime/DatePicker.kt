@@ -10,8 +10,6 @@ import io.kontour.ui.locale.DateTimeConventions
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -26,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -33,7 +33,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -91,12 +90,9 @@ import io.kontour.ui.motion.exitOrFade
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.theme.Theme
 import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
@@ -294,11 +290,45 @@ private const val TodayFlashOutMillis: Int = 170
 /** How many times today pulses: a single one was easy to miss. */
 private const val TodayFlashPulses: Int = 2
 
+/**
+ * Today pointed at: a colour from the theme pulsed in and out of today's
+ * circle twice, by whatever calendar has a way back to today — the date
+ * picker's button, the event calendar's. Read through [LocalTodayFlash] in a
+ * cell's draw pass, so a flash redraws one cell and recomposes nothing.
+ */
+@Stable
+internal class TodayFlash(private val scope: CoroutineScope) {
+    private val amount = Animatable(0f)
+
+    /** How far today is flashed, 0 to 1. */
+    fun value(): Float = amount.value
+
+    /** Pulses today, [after] a wait — the time a page takes to slide in. */
+    fun flash(after: Duration = Duration.ZERO) {
+        scope.launch {
+            if (after.isPositive()) delay(after)
+            amount.snapTo(0f)
+            // Twice: once to catch the eye, once to hold it there.
+            repeat(TodayFlashPulses) {
+                amount.animateTo(1f, tween(TodayFlashInMillis))
+                amount.animateTo(0f, tween(TodayFlashOutMillis))
+            }
+        }
+    }
+}
+
+/** A [TodayFlash] for this composition. */
+@Composable
+internal fun rememberTodayFlash(): TodayFlash {
+    val scope = rememberCoroutineScope()
+    return remember(scope) { TodayFlash(scope) }
+}
+
 /** How far a swipe has to go to page, as a share of the calendar's width. */
-private const val SwipeCommitShare: Float = 1f / 3f
+internal const val SwipeCommitShare: Float = 1f / 3f
 
 /** How fast a swipe has to be moving, when let go, to page however short it was. */
-private val MonthFlick = 400.dp
+internal val MonthFlick = 400.dp
 
 /** Weeks in the tallest month, and so in every month a picker draws. */
 private const val CalendarWeeks: Int = 6
@@ -384,7 +414,20 @@ fun DatePicker(
     enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
+    /** Draws a dot under a day: for "this day has departures", or a trip already booked. */
     markerFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A day's own colour: its circle filled with it, and its number in the ink
+     * that reads on it — a public holiday, a day sold out, how busy each day is.
+     * The chosen day is drawn over it. See [CalendarMonth].
+     */
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A few characters under a day's number — a fare, a count — and the colour
+     * they are in: see [DayAnnotation]. Given at all, every week is a line
+     * taller, in every month, so the picker does not change height as it pages.
+     */
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     /**
      * The glyphs on the buttons either side of the month, back and on.
      *
@@ -464,6 +507,8 @@ fun DatePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             formats = formats,
             firstDayOfWeek = firstDayOfWeek,
         )
@@ -501,6 +546,13 @@ fun DateRangePicker(
     isDateSelectable: (LocalDate) -> Boolean = { true },
     /** Draws a dot under a day, as a [DatePicker]'s does. */
     markerFor: ((LocalDate) -> Color?)? = null,
+    /**
+     * A day's own colour, as a [DatePicker]'s: the range is drawn over it, so a
+     * fortnight across a holiday still reads as one band.
+     */
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    /** A few characters under a day's number, as a [DatePicker]'s: see [DayAnnotation]. */
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     /** See [DatePicker]. */
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
@@ -595,6 +647,8 @@ fun DateRangePicker(
             isDateSelectable = isDateSelectable,
             today = today,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             rangePositionOf = { date -> rangePosition(date, start, end) },
             // Dragged out in one gesture, in either direction, by the drag held
             // above — which every month in the pager draws from.
@@ -988,8 +1042,7 @@ private fun CalendarFrame(
      * "where is today" on a month where the day is easy to miss. Read by the
      * today cell in its draw pass; see `LocalTodayFlash`.
      */
-    val todayFlash = remember { Animatable(0f) }
-    val flashScope = rememberCoroutineScope()
+    val todayFlash = rememberTodayFlash()
 
     /**
      * The month the wheels open on, and then stop hearing about.
@@ -1066,16 +1119,8 @@ private fun CalendarFrame(
                                     it.year != today.year || it.month != today.month
                                 }
                                 navigation.jumpTo(today)
-                                flashScope.launch {
-                                    // Once the month has slid in, if it had to.
-                                    if (paging) delay(motion.default.toLong())
-                                    todayFlash.snapTo(0f)
-                                    // Twice: once to catch the eye, once to hold it there.
-                                    repeat(TodayFlashPulses) {
-                                        todayFlash.animateTo(1f, tween(TodayFlashInMillis))
-                                        todayFlash.animateTo(0f, tween(TodayFlashOutMillis))
-                                    }
-                                }
+                                // Once the month has slid in, if it had to.
+                                todayFlash.flash(after = if (paging) motion.default.milliseconds else Duration.ZERO)
                             },
                             size = ButtonSize.Small,
                         )
@@ -1152,7 +1197,7 @@ private fun CalendarFrame(
         ) {
         CompositionLocalProvider(
             LocalCalendarDrag provides drag,
-            LocalTodayFlash provides { todayFlash.value },
+            LocalTodayFlash provides { todayFlash.value() },
             // Every month six weeks tall, so paging never changes the height.
             LocalCalendarRows provides CalendarWeeks,
         ) {
@@ -1199,163 +1244,57 @@ private fun CalendarFrame(
 }
 
 /**
- * Where a calendar's months are: a strip of them, and a position along it.
+ * Where a calendar's months are: a [PeriodPager] over month indices, read and
+ * driven in months.
  *
- * Slot 0 is [origin] and each slot on is a month on, so the position is how many
- * months from the origin the view is, to a fraction. A far jump — to today from
- * a year away — does not travel through every month between: the month it is
- * going to stands in at the slot beside the view, a [bridge], and the pager moves
- * one page. When a move lands the strip is counted from where it landed.
- *
- * Plain state rather than an `Animatable`, so a finger can take it over from a
- * gesture callback without waiting on an animation's lock.
+ * Slot 0 is [origin] and each slot on is a month on. A far jump — to today
+ * from a year away — does not travel through every month between; see
+ * [PeriodPager], which the event calendar pages its weeks, days and years with.
  */
 @Stable
 private class MonthPager(start: LocalDate) {
-    var origin by mutableStateOf(start)
-        private set
-    private var shift by mutableFloatStateOf(0f)
-    private var bridge by mutableStateOf<LocalDate?>(null)
-    private var bridgeSlot by mutableIntStateOf(0)
+    private val periods = PeriodPager(monthIndex(start))
 
-    /** Whether a finger has it, and how far along it was when it did. */
-    var held by mutableStateOf(false)
-        private set
-    var heldFrom by mutableFloatStateOf(0f)
-        private set
-    private var pulled by mutableFloatStateOf(0f)
-
-    /** The slot a swipe counts from: where the view was, or where it was going. */
-    var startSlot = 0
-        private set
-
-    /** Whether the finger found it at rest, rather than moving. */
-    var fromRest = true
-        private set
+    val origin: LocalDate get() = monthOf(periods.origin)
+    val held: Boolean get() = periods.held
+    val heldFrom: Float get() = periods.heldFrom
+    val startSlot: Int get() = periods.startSlot
+    val fromRest: Boolean get() = periods.fromRest
+    val position: Float get() = periods.position
 
     /** The month the running move is going to, or last went to. */
-    var headedFor: LocalDate? = start
-    private var headedSlot = 0
-    private var speed = 0f
-    private var job: Job? = null
-
-    /** How far along the strip the view is, in months from [origin]. */
-    val position: Float get() = if (held) heldFrom + pulled else shift
+    var headedFor: LocalDate?
+        get() = periods.headedFor?.let(::monthOf)
+        set(value) {
+            periods.headedFor = value?.let(::monthIndex)
+        }
 
     /** The months any of which is in view: one at rest, two while moving. */
-    val inView: List<LocalDate> by derivedStateOf(structuralEqualityPolicy()) {
-        val at = position
-        val low = floor(at).toInt()
-        val high = ceil(at).toInt()
-        if (low == high) listOf(monthAt(low)) else listOf(monthAt(low), monthAt(high))
-    }
+    val inView: List<LocalDate> by derivedStateOf(structuralEqualityPolicy()) { periods.inView.map(::monthOf) }
 
-    /** The month at [slot]: past a bridge, counted on from the month it stands for. */
-    fun monthAt(slot: Int): LocalDate {
-        val far = bridge
-        return if (far != null && slot != 0 && (slot > 0) == (bridgeSlot > 0)) {
-            far.plus(slot - bridgeSlot, DateTimeUnit.MONTH)
-        } else {
-            origin.plus(slot, DateTimeUnit.MONTH)
-        }
-    }
-
-    /** The slot [month] is at, or null where a bridge stands in its place. */
-    fun slotOf(month: LocalDate): Int? {
-        val far = bridge
-        if (far != null) {
-            val beyond = bridgeSlot + (monthIndex(month) - monthIndex(far))
-            if (beyond != 0 && (beyond > 0) == (bridgeSlot > 0)) return beyond
-        }
-        val here = monthIndex(month) - monthIndex(origin)
-        return if (far != null && here != 0 && (here > 0) == (bridgeSlot > 0)) null else here
-    }
+    fun monthAt(slot: Int): LocalDate = monthOf(periods.periodAt(slot))
 
     /** Pages from the middle of the view to [month]: positive towards later months. */
-    fun placeOf(month: LocalDate): Float = slotOf(month)?.minus(position) ?: Float.NaN
+    fun placeOf(month: LocalDate): Float = periods.placeOf(monthIndex(month))
 
-    fun take() {
-        fromRest = job?.isActive != true
-        job?.cancel()
-        job = null
-        heldFrom = shift
-        pulled = 0f
-        startSlot = if (fromRest) shift.roundToInt() else headedSlot
-        held = true
-    }
+    fun take() = periods.take()
 
-    fun pull(pages: Float) {
-        pulled += pages
-    }
+    fun pull(pages: Float) = periods.pull(pages)
 
-    fun letGo() {
-        shift = position
-        held = false
-        pulled = 0f
-    }
+    fun letGo() = periods.letGo()
 
-    /**
-     * Goes to [month] from wherever the pager is, at [velocity] pages a second
-     * towards later months, or at the speed of the move it takes over.
-     */
-    fun moveTo(
-        month: LocalDate,
-        scope: CoroutineScope,
-        stiffness: Float,
-        cut: Boolean,
-        velocity: Float = speed,
-    ) {
-        job?.cancel()
-        job = null
-        headedFor = month
-        if (cut) {
-            land(month)
-            return
+    fun moveTo(month: LocalDate, scope: CoroutineScope, stiffness: Float, cut: Boolean, velocity: Float? = null) {
+        if (velocity == null) {
+            periods.moveTo(monthIndex(month), scope, stiffness, cut)
+        } else {
+            periods.moveTo(monthIndex(month), scope, stiffness, cut, velocity)
         }
-        var slot = slotOf(month)
-        if (slot == null || abs(slot - shift) > 1.5f) {
-            // Too far to travel: counted from the month most in view, with the
-            // one it is going to standing beside it.
-            rebase()
-            bridge = month
-            bridgeSlot = if (monthIndex(month) > monthIndex(origin)) 1 else -1
-            slot = bridgeSlot
-        }
-        headedSlot = slot
-        job = scope.launch {
-            animate(
-                initialValue = shift,
-                targetValue = slot.toFloat(),
-                initialVelocity = velocity,
-                // Critically damped: an overshoot would show the month beyond,
-                // which is not where it is going.
-                animationSpec = spring(dampingRatio = 1f, stiffness = stiffness),
-            ) { value, moving ->
-                shift = value
-                speed = moving
-            }
-            land(month)
-        }
-    }
-
-    /** Arrived at [month]: the strip is counted from it, all in one write. */
-    private fun land(month: LocalDate) {
-        origin = month
-        shift = 0f
-        bridge = null
-        headedSlot = 0
-        speed = 0f
-    }
-
-    /** Counts the strip from the month most in view, without moving it. */
-    private fun rebase() {
-        val nearest = shift.roundToInt()
-        val month = monthAt(nearest)
-        origin = month
-        shift -= nearest
-        bridge = null
     }
 }
+
+/** The first of the month [index] counts — see [monthIndex]. */
+private fun monthOf(index: Int): LocalDate =
+    LocalDate(index.floorDiv(12), index.mod(12) + 1, 1)
 
 private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.ordinal
 
@@ -1368,23 +1307,25 @@ private fun monthIndex(month: LocalDate): Int = month.year * 12 + month.month.or
  *
  * DateField(value = date, onClick = { picking = true }, label = "Post date")
  *
- * Dialog(
- *     visible = picking,
- *     onDismissRequest = { picking = false },
- *     actions = { cancel() },
- * ) {
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Post date") {
  *     DatePicker(value = date, onValueChange = { date = it; picking = false })
  * }
  * ```
  *
  * The thing you put on a form, as [TimeField] is for a time: tapping it is
- * expected to open a [DatePicker] in a dialog or a sheet. Kept apart from the
+ * expected to open a [DatePicker] in a [FieldPicker], a sheet on a phone and a
+ * dialog on anything wider, as the other fields' pickers open. Kept apart from the
  * picker so the picker never has to know how it is being presented, and so the
  * form is one tap target rather than a text field with a calendar button beside
  * it that both open the same thing.
  *
  * @param value The date chosen, or `null` for none yet, when [placeholder]
  *   is shown, as a [DatePicker] takes one.
+ * @param supporting A line under the field, as a [TextField][io.kontour.ui.components.text.TextField]'s:
+ *   what the date is for, or what it has to be.
+ * @param errorMessage In place of [supporting], in the error colour, the
+ *   field's edge in it too, and said with the field: *"Choose a date after
+ *   today"*.
  * @param style How the date is written: `DateStyle.Medium`, "14 Mar 2026" in
  *   English, by default; `Full` adds the weekday.
  */
@@ -1396,6 +1337,8 @@ fun DateField(
     enabled: Boolean = true,
     label: String? = null,
     placeholder: String = Theme.strings.select,
+    supporting: String? = null,
+    errorMessage: String? = null,
     style: DateStyle = DateStyle.Medium,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
@@ -1408,5 +1351,7 @@ fun DateField(
         label = label,
         interactionSource = interactionSource,
         placeholder = placeholder,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }

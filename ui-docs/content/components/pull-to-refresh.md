@@ -78,6 +78,20 @@ Column {
 }
 ```
 
+**Under a bar drawn over the list** — a `Hero` following its list, with
+`rememberTopBarCollapseState(list)` — the list starts below the bar, and so does
+the gap a pull opens. Give `indicatorPadding` the top the list's content has,
+and the indicator comes in there rather than under the bar:
+
+```kotlin
+Box {
+    PullToRefresh(refreshing, onRefresh, indicatorPadding = PaddingValues(top = collapse.openHeight)) {
+        LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) { … }
+    }
+    TopBar(style = TopBarStyle.Hero, collapseState = collapse, image = { … }) { +"Departures" }
+}
+```
+
 ---
 
 ## Accessibility

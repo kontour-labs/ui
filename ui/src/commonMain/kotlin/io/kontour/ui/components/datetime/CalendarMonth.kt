@@ -43,10 +43,18 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.style.TextOverflow
+import io.kontour.ui.foundation.SurfaceDefaults
+import io.kontour.ui.locale.ListStyle
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
@@ -77,6 +85,44 @@ import kotlinx.datetime.plus
 
 /** How a day sits within a selected range. Drives the cell's shape and fill. */
 enum class RangePosition { None, Start, Middle, End, StartAndEnd }
+
+/**
+ * A few characters under a day's number in a calendar: a fare, a count, *Full*.
+ *
+ * ```kotlin
+ * DatePicker(
+ *     value = date,
+ *     onValueChange = { date = it },
+ *     annotationFor = { day -> fares[day]?.let { DayAnnotation(Theme.formats.currency(it, "AUD")) } },
+ * )
+ * ```
+ *
+ * Kept short: the line is a day's width, four or five characters at most, and
+ * anything longer is cut at the cell's edge. It is read out after the date —
+ * [contentDescription] instead, where the characters say less than words would,
+ * as `"$42"` might be "from 42 dollars".
+ *
+ * @param text What the line says.
+ * @param colour Its ink, for a cheap fare in green or a busy day in the
+ *   warning colour. Unspecified, the day's own muted ink. A chosen day draws it
+ *   in the ink of its fill, whatever this is, as it does its number.
+ * @param contentDescription What a screen reader says for it, after the date;
+ *   [text] when null.
+ */
+@Immutable
+class DayAnnotation(
+    val text: String,
+    val colour: Color = Color.Unspecified,
+    val contentDescription: String? = null,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is DayAnnotation && text == other.text && colour == other.colour &&
+            contentDescription == other.contentDescription
+
+    override fun hashCode(): Int = (text.hashCode() * 31 + colour.hashCode()) * 31 + contentDescription.hashCode()
+
+    override fun toString(): String = "DayAnnotation(text=$text, colour=$colour, contentDescription=$contentDescription)"
+}
 
 /** What [CalendarMonth] uses when it is not told otherwise. */
 object CalendarMonthDefaults {
@@ -133,6 +179,15 @@ object CalendarMonthDefaults {
  *   the user can see *why* a date is unavailable.
  * @param markerFor Draws a dot under a day. For "this day has departures", or a
  *   trip already booked.
+ * @param containerColourFor A day's own colour: its circle filled with it, and
+ *   its number in the ink that reads on it. For a public holiday, a day that is
+ *   sold out, a heat map of how busy each day is. A chosen day and a range are
+ *   drawn over it, and a day that cannot be chosen keeps it with its number
+ *   greyed. Null for a day drawn as usual.
+ * @param annotationFor A line of a few characters under a day's number — see
+ *   [DayAnnotation]. Given at all, every week is a line taller to make room,
+ *   in every month, so the calendar does not change height as it pages; null
+ *   for a day with nothing to say.
  * @param rangePositionOf Where a day sits in a selected range. Days in the
  *   middle get a square fill so the run reads as continuous; the ends get the
  *   rounded cap.
@@ -160,6 +215,8 @@ fun CalendarMonth(
     onDragSelect: ((from: LocalDate, to: LocalDate) -> Unit)? = null,
     today: LocalDate? = null,
     markerFor: ((LocalDate) -> Color?)? = null,
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     rangePositionOf: ((LocalDate) -> RangePosition)? = null,
     formats: LocaleFormats = Theme.formats,
     /**
@@ -262,20 +319,12 @@ fun CalendarMonth(
     BoxWithConstraints(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
         val cellSize = maxWidth / 7
         // A week no taller than a cell is wide, and no taller than
-        // `MaxRowHeight` however wide it is.
-        val rowHeight = minOf(cellSize, MaxRowHeight)
-        // Normal weight, which `labelSmall` is not. It was reported that the
-        // initials need to be smaller than the dates, and by *size* they already
-        // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
-        // `labelSmall` is SemiBold, and semibold at 12 carries about as much ink
-        // as normal at 15, so a row that is numerically subordinate read as
-        // competing with the numbers under it. The weight is the difference the
-        // eye was actually seeing.
-        //
-        // Overridden here rather than in the scale, because `labelSmall` is
-        // shared and its weight is right everywhere it is a *label*. This is a
-        // column heading.
-        val weekdayStyle = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
+        // `MaxRowHeight` however wide it is — and a line of the annotation's
+        // type taller than that where there are annotations, at the reader's
+        // type size, so the number does not move up to make room for one.
+        val annotationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() }
+        val annotated = annotationFor != null
+        val rowHeight = minOf(cellSize, MaxRowHeight) + if (annotated) annotationLine else 0.dp
         val colours = Theme.colours
         // The dwell arrow's ring: a line and a half, thickening with the tier.
         val arrowStroke = Theme.sizing.lines(1.5f)
@@ -283,26 +332,7 @@ fun CalendarMonth(
     val capRingAlpha = if (highContrast()) 1f else CapRingAlpha
         val insetPx = with(LocalDensity.current) { CalendarMonthDefaults.CellInset.toPx() }
         Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth()) {
-            weekFormats.weekdayInitials().forEachIndexed { index, initial ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        // The initials repeat — S for Saturday and Sunday, T for
-                        // Tuesday and Thursday — so they are decorative here and
-                        // each day cell carries its own full announcement.
-                        .semantics { },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = initial,
-                        style = weekdayStyle,
-                        colour = Theme.colours.contentMuted,
-                        modifier = Modifier.padding(vertical = Theme.spacing.xxs),
-                    )
-                }
-            }
-        }
+        WeekdayInitials(weekFormats)
 
         val cells = leadingBlanks + daysInMonth
         // At least as many weeks as the picker round it asks for — six, so every
@@ -406,6 +436,9 @@ fun CalendarMonth(
                             enabled = selectable(date),
                             isToday = date == today,
                             marker = markerFor?.invoke(date),
+                            containerColour = containerColourFor?.invoke(date),
+                            annotation = annotationFor?.invoke(date),
+                            annotated = annotated,
                             rangePosition = rangePositionOf?.invoke(date) ?: RangePosition.None,
                             formats = formats,
                             cellSize = cellSize,
@@ -432,6 +465,75 @@ fun CalendarMonth(
         }
         }
         }
+    }
+}
+
+/** The weekday initials over a month's columns. */
+@Composable
+private fun WeekdayInitials(weekFormats: LocaleFormats) {
+    // Normal weight, which `labelSmall` is not. It was reported that the
+    // initials need to be smaller than the dates, and by *size* they already
+    // were — 12sp against `bodyMedium`'s 15. What they were not is lighter:
+    // `labelSmall` is SemiBold, and semibold at 12 carries about as much ink
+    // as normal at 15, so a row that is numerically subordinate read as
+    // competing with the numbers under it. The weight is the difference the
+    // eye was actually seeing.
+    //
+    // Overridden here rather than in the scale, because `labelSmall` is
+    // shared and its weight is right everywhere it is a *label*. This is a
+    // column heading.
+    val weekdayStyle = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal)
+    Row(Modifier.fillMaxWidth()) {
+        weekFormats.weekdayInitials().forEachIndexed { index, initial ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    // The initials repeat — S for Saturday and Sunday, T for
+                    // Tuesday and Thursday — so they are decorative here and
+                    // each day cell carries its own full announcement.
+                    .semantics { },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = initial,
+                    style = weekdayStyle,
+                    colour = Theme.colours.contentMuted,
+                    modifier = Modifier.padding(vertical = Theme.spacing.xxs),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A month as [CalendarMonth] lays it out — its weekday initials and the room
+ * its weeks take — without its days: for a year that fills its months in a
+ * frame at a time, so each takes its place at once and the days arrive in it.
+ * Exactly as tall as the month it stands for, so nothing moves when they do.
+ */
+@Composable
+internal fun CalendarMonthOutline(
+    month: LocalDate,
+    modifier: Modifier = Modifier,
+    formats: LocaleFormats = Theme.formats,
+    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
+) {
+    val weekFormats = remember(formats, firstDayOfWeek) { formats.startingOn(firstDayOfWeek) }
+    val firstOfMonth = LocalDate(month.year, month.month, 1)
+    val daysInMonth = firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
+    val cells = weekFormats.conventions.columnOf(firstOfMonth.dayOfWeek) + daysInMonth
+    val rows = maxOf((cells + 6) / 7, LocalCalendarRows.current)
+    Column(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
+        WeekdayInitials(weekFormats)
+        // The weeks' height as the month's rows round it: each a seventh of the
+        // width, capped, rounded to the pixel one row at a time.
+        Box(
+            Modifier.fillMaxWidth().layout { measurable, constraints ->
+                val row = minOf(constraints.maxWidth.toDp() / 7, MaxRowHeight).roundToPx()
+                val placeable = measurable.measure(constraints.copy(minHeight = row * rows, maxHeight = row * rows))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
+        )
     }
 }
 
@@ -472,7 +574,7 @@ private fun LocalDate.sameMonth(first: LocalDate): Boolean = year == first.year 
 internal val LocalCalendarRows = staticCompositionLocalOf { 0 }
 
 /** How strong today's flash is at its brightest: enough to find the day, not to read as a selection. */
-private const val TodayFlashAlpha: Float = 0.45f
+internal const val TodayFlashAlpha: Float = 0.45f
 
 /** The arrow's ring on a cap, faint against the cap's ink until the dwell fills it. */
 private const val CapRingAlpha: Float = 0.4f
@@ -485,6 +587,11 @@ private fun DayCell(
     enabled: Boolean,
     isToday: Boolean,
     marker: Color?,
+    /** The day's own fill, under a selection: see `containerColourFor`. */
+    containerColour: Color?,
+    annotation: DayAnnotation?,
+    /** The weeks have room for an annotation, whether this day has one or not. */
+    annotated: Boolean,
     rangePosition: RangePosition,
     formats: LocaleFormats,
     cellSize: Dp,
@@ -567,6 +674,9 @@ private fun DayCell(
     val containerTarget = when {
         filled -> colours.primary
         inRange -> colours.accent.container
+        // The day's own colour, under the selection: the selection is what
+        // the reader did, and is drawn over what the app says about the day.
+        containerColour != null && containerColour.isSpecified -> containerColour
         // `invisible()`, not `Color.Transparent`, which is black. This is where
         // a cell animates *from* when it joins a range, and a lerp moves the
         // channels as well as the alpha — so the tint used to arrive out of the
@@ -599,10 +709,13 @@ private fun DayCell(
         else -> containerTarget
     }
 
+    val ownFill = !filled && !inRange && containerColour != null && containerColour.isSpecified
     val labelTarget = when {
         !enabled -> colours.contentDisabled
         filled -> colours.onPrimary
         inRange -> colours.accent.onContainer
+        // The ink that reads on the day's own colour, as a surface's would.
+        ownFill -> SurfaceDefaults.contentColour(containerColour)
         else -> colours.content
     }
     val animatedLabel by animateColorAsState(
@@ -679,8 +792,12 @@ private fun DayCell(
     // the end being dragged. The cell is a little wider than its week is tall, and
     // a pill as wide as the cell was a lozenge. A range's caps and middle fill the
     // cell's width still, since the band is joined across it.
+    //
+    // With room for an annotation the week is taller than a cell is wide, and a
+    // circle as tall as it would be wider than the day: there the whole of the
+    // cell, a capsule standing up round the number and the line under it.
     val round = travelling || rangePosition == RangePosition.None || rangePosition == RangePosition.StartAndEnd
-    val fillSize = if (round) Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier.matchCellSize()
+    val fillSize = if (round && !annotated) Modifier.aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier.matchCellSize()
 
     Box(
         modifier = modifier
@@ -781,7 +898,12 @@ private fun DayCell(
                 // `selectable` rather than `clickable`: a day in a calendar is
                 // one of a set of choices, and this is the modifier that says so
                 // and carries the state with the action.
-                .semantics { stateDescription = formats.date(date, DateStyle.Full) }
+                .semantics {
+                    val day = formats.date(date, DateStyle.Full)
+                    // The annotation after the date, as it is read on screen.
+                    val said = annotation?.let { it.contentDescription ?: it.text }
+                    stateDescription = if (said == null) day else formats.list(listOf(day, said), ListStyle.Unit)
+                }
                 .pointerCursor(enabled = enabled)
                 .selectable(
                     selected = filled,
@@ -798,28 +920,81 @@ private fun DayCell(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = formats.digits(date.day.toLong()),
-                    style = dayStyle,
-                    colour = label,
-                )
-                if (marker != null) {
-                    Box(
-                        Modifier
-                            .padding(top = 2.dp)
-                            .markerSize()
-                            .clip(Theme.shapes.pill)
-                            .background(if (filled) colours.onPrimary else marker)
+            // The number where it would be with nothing under it — centred, or
+            // in an annotated month at the one place every day's number sits —
+            // and a dot or an annotation under it in room of their own. They
+            // used to share a centred column with it, so a day with a dot had
+            // its number nudged up, and a row of them read as a ragged line.
+            val annotationLine = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.roundToPx() }
+            val markerGap = with(LocalDensity.current) { MarkerGap.roundToPx() }
+            Layout(
+                modifier = Modifier.matchParentSize(),
+                content = {
+                    Text(
+                        text = formats.digits(date.day.toLong()),
+                        style = dayStyle,
+                        colour = label,
+                        modifier = Modifier.layoutId(DayPart.Number),
                     )
+                    if (annotation != null) {
+                        Text(
+                            text = annotation.text,
+                            style = Theme.typography.labelSmall.copy(fontWeight = FontWeight.Normal),
+                            // The day's own ink where it is chosen, in a range,
+                            // greyed or on its own colour: over a fill, an
+                            // annotation's colour of its own would not read.
+                            colour = when {
+                                !enabled || filled || inRange || ownFill -> label
+                                annotation.colour.isSpecified -> annotation.colour
+                                else -> colours.contentMuted
+                            },
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier.layoutId(DayPart.Annotation),
+                        )
+                    }
+                    if (marker != null) {
+                        Box(
+                            Modifier
+                                .layoutId(DayPart.Marker)
+                                .markerSize()
+                                .clip(Theme.shapes.pill)
+                                .background(if (filled) colours.onPrimary else marker)
+                        )
+                    }
+                },
+            ) { measurables, constraints ->
+                val loose = constraints.copy(minWidth = 0, minHeight = 0)
+                val number = measurables.first { it.layoutId == DayPart.Number }.measure(loose)
+                val note = measurables.firstOrNull { it.layoutId == DayPart.Annotation }?.measure(loose)
+                val dot = measurables.firstOrNull { it.layoutId == DayPart.Marker }?.measure(loose)
+                val width = constraints.maxWidth
+                val height = constraints.maxHeight
+                // Centred on its own, whatever is under it; in an annotated month,
+                // centred with a line under it, whether this day has one or not.
+                val block = number.height + if (annotated) annotationLine else 0
+                val numberY = ((height - block) / 2).coerceAtLeast(0)
+                val underNumber = numberY + number.height
+                layout(width, height) {
+                    number.placeRelative((width - number.width) / 2, numberY)
+                    note?.placeRelative((width - note.width) / 2, underNumber)
+                    dot?.let {
+                        val below = if (note != null) underNumber + annotationLine else underNumber
+                        val y = (below + markerGap).coerceAtMost(height - it.height)
+                        it.placeRelative((width - it.width) / 2, y)
+                    }
                 }
             }
         }
     }
 }
+
+/** The pieces of a day, as its layout tells them apart. */
+private enum class DayPart { Number, Annotation, Marker }
+
+/** Between the number, or its annotation, and the dot under it. */
+private val MarkerGap = 2.dp
 
 /**
  * The whole of the cell's padded box — **not** a square derived from its width.

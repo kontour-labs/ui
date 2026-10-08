@@ -132,6 +132,30 @@ class RubberBand internal constructor() {
     }
 
     /**
+     * Follows a pull the caller measures as a whole: the finger [from] pixels
+     * past the stop before this movement and [to] after it, signed the way the
+     * pull is.
+     *
+     * For a control that remembers how far past its end the finger has gone —
+     * a slider, which does not move again until the finger is back level with
+     * it — rather than letting the stretch alone stand for it: the stretch
+     * approaches its limit and stops growing, so paying back only what it held
+     * set the value moving with the finger still far past the end. Growing,
+     * this is [pull]; shrinking, the stretch the band would have at [to].
+     */
+    internal fun follow(from: Float, to: Float, limit: Float) {
+        if (limit <= 0f || from == to) return
+        val sameSide = from == 0f || (from > 0f) == (to > 0f)
+        if (to != 0f && sameSide && abs(to) > abs(from)) {
+            pull(to - from, limit)
+            return
+        }
+        // Back toward the stop, or across it: the stretch [to] would have from rest.
+        val target = if (to == 0f) 0f else (if (to > 0f) 1f else -1f) * limit * (1f - exp(-abs(to) / limit))
+        offset = target
+    }
+
+    /**
      * Springs the stretch back to nothing, and never past it.
      *
      * The magnitude is what animates; the sign is held. `Switch` releases its

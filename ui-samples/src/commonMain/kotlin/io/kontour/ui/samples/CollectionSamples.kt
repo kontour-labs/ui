@@ -36,6 +36,9 @@ import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.components.list.PullToRefresh
 import io.kontour.ui.components.list.ReorderableItem
 import io.kontour.ui.components.list.SwipeToDismiss
+import io.kontour.ui.components.list.SwipeAction
+import io.kontour.ui.components.list.SwipeActions
+import io.kontour.icons.tabler.outline.Pin
 import io.kontour.ui.components.list.rememberReorderableState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
@@ -83,6 +86,34 @@ fun SwipeToDismissBasics(stop: Stop) {
         onDismissRequest = { remove(stop.name) },
         label = "Remove",
         icon = Tabler.Outline.Trash,
+    ) {
+        ListItem {
+            +stop.name
+            supporting { +"${stop.routes} routes" }
+        }
+    }
+}
+
+@Composable
+fun SwipeActionOwnTick(stop: Stop) {
+    SwipeActions(
+        end = listOf(
+            // Undone from the toast it raises, so it runs as the row arrives.
+            SwipeAction(
+                label = "Remove",
+                icon = Tabler.Outline.Trash,
+                onAction = { remove(stop.name) },
+                background = Theme.colours.danger.solid,
+                fullSwipeConfirmation = false,
+                tapConfirmation = false,
+            ),
+            SwipeAction(
+                label = "Pin",
+                icon = Tabler.Outline.Pin,
+                onAction = { pin(stop.name) },
+                background = Theme.colours.accent.solid,
+            ),
+        ),
     ) {
         ListItem {
             +stop.name

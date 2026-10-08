@@ -54,6 +54,12 @@ before it overlaps its buttons. A speed dial in a corner has the room; one in th
 middle of a narrow window does not, and that is the case to check when the labels
 look crowded.
 
+**A label is part of its button.** A tap on the words does what a tap on the
+button does, and closes the menu: they are the larger target, and the one the eye
+lands on. Pressing either shows the press on both. A disabled item's label does
+nothing, as its button does. The label is not a second stop for the keyboard, or a
+second node for a screen reader: the button beside it is both.
+
 Assistive tech was never affected by any of this. Every item has always been
 *named* — the labels were emitted and simply not drawn — so this is a visual
 change rather than an accessibility one, however it was reported.

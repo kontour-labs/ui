@@ -1,5 +1,10 @@
 package io.kontour.ui.sheet
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.BorderStroke
+import io.kontour.ui.nav.easedFade
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.LocalOverscrollFactory
@@ -63,6 +68,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LocalPinnableContainer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.Shape
@@ -280,10 +291,10 @@ object BottomSheetDefaults {
 
     /**
      * The inset a sheet's content keeps from its edges: the sides of a
-     * [SheetHeader] and of a pinned part, and below them; and above them, when
+     * [SheetHeader] and of a footer, and below them; and above them, when
      * the sheet has no drag handle.
      *
-     * One number, so a sheet collapsed to its header or its pinned part shows
+     * One number, so a sheet collapsed to its header or its footer shows
      * that part with the same space round it, and every sheet in an app the same
      * space. Asked for as *"when the sheet is collapsed and only the header (or
      * the part that is pinned) is shown, padding should be uniform around that
@@ -473,6 +484,15 @@ fun BottomSheet(
      * dragged also cannot fade its scrim halfway: there is no halfway to be at.
      */
     draggable: Boolean = true,
+    /**
+     * Whether the content fades out under a part pinned to the top or the
+     * bottom — see [SheetContentScope.part] — as a page does under a
+     * [TopBar][io.kontour.ui.nav.TopBar] or a floating navigation bar: the
+     * sheet's colour behind it, thinning out towards the content. `false` leaves
+     * the content as it is, showing round it — a search field's own ground is
+     * then all that stands over the rows.
+     */
+    fadeUnder: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /**
      * What the sheet's *chrome* keeps clear of, and what its content is **told
@@ -845,9 +865,16 @@ fun BottomSheet(
                 windowInsets = if (floating && morph == null) NoInsets else insets,
                 containerColour = containerColour,
                 contentColour = contentColour,
-                // A handle on a sheet that cannot be dragged is a lie.
-                dragHandle = dragHandle.takeIf { draggable },
+                // A handle on a sheet that cannot be dragged is a lie — and so
+                // is one on a sheet that can be dragged only to spring back: an
+                // undismissable sheet with one size to be has nowhere to go.
+                // Undismissable with sizes to be dragged between, it keeps it.
+                dragHandle = dragHandle.takeIf {
+                    draggable && (dismissible || state.detents.count { it.id != SheetDetent.Hidden.id } > 1)
+                },
                 density = density,
+                fadeUnder = fadeUnder,
+                settleSpec = settleSpec,
                 // Provided around the content rather than the whole sheet: the
                 // sheet's own `anchoredDraggable` is handed its effect directly
                 // and never reads this, and the scrim and the chrome scroll
@@ -1027,6 +1054,15 @@ fun ModalBottomSheet(
     paneTitle: String? = null,
     /** See [BottomSheet]. `false` removes the gesture and the handle with it. */
     draggable: Boolean = true,
+    /**
+     * Whether the content fades out under a part pinned to the top or the
+     * bottom — see [SheetContentScope.part] — as a page does under a
+     * [TopBar][io.kontour.ui.nav.TopBar] or a floating navigation bar: the
+     * sheet's colour behind it, thinning out towards the content. `false` leaves
+     * the content as it is, showing round it — a search field's own ground is
+     * then all that stands over the rows.
+     */
+    fadeUnder: Boolean = true,
     dragHandle: (@Composable () -> Unit)? = { DragHandle(state = state) },
     /** See [BottomSheet]. Every edge, so the handle clears the status bar. */
     windowInsets: WindowInsets = WindowInsets.allEdges,
@@ -1060,6 +1096,7 @@ fun ModalBottomSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestDragHandle by rememberUpdatedState(dragHandle)
     val latestDraggable by rememberUpdatedState(draggable)
+    val latestFadeUnder by rememberUpdatedState(fadeUnder)
     // Declared and then dropped on the floor until now: the inner sheet was never
     // given this, so a caller passing `WindowInsets(0)` to say "whatever is above
     // me has already handled all of it" was silently ignored and the sheet padded
@@ -1184,6 +1221,7 @@ fun ModalBottomSheet(
                             // into the state from here: the sheet owns the drag,
                             // so the sheet is what tells the state about it.
                             dismissible = canDismiss,
+                            fadeUnder = latestFadeUnder,
                             dragHandle = latestDragHandle,
                             windowInsets = latestWindowInsets,
                             content = body,
@@ -1221,6 +1259,8 @@ private fun BoxScope.SheetSurface(
     contentColour: Color,
     dragHandle: (@Composable () -> Unit)?,
     density: Density,
+    fadeUnder: Boolean,
+    settleSpec: FiniteAnimationSpec<Float>,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     // How far into the edge sheet it is becoming, for the one thing that has to be
@@ -1333,6 +1373,8 @@ private fun BoxScope.SheetSurface(
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {
             val pins = remember(state) { SheetPins() }
+            // What the content's pinned parts handed the sheet: see [SheetSlots].
+            val slots = remember(state) { SheetSlots() }
             // **Resolved by the consumer, not here.** `asPaddingValues`
             // reads the inset where it is used, which for a `LazyColumn`'s
             // `contentPadding` is the measure pass; calling
@@ -1350,10 +1392,11 @@ private fun BoxScope.SheetSurface(
                 }
             }
             // What the content is handed: the safe area, and the room the
-            // pinned parts take, so a list's rows scroll out from behind them.
-            val padding = remember(safeArea, pins) { PinnedPadding(safeArea, pins) }
+            // parts pinned to the top and the bottom take, so a list's rows
+            // scroll out from behind them.
+            val padding = remember(safeArea, pins) { SlotPadding(safeArea, pins) }
             val contentInset = BottomSheetDefaults.ContentPadding
-            // The pinned parts keep clear of the same sides the content does.
+            // A pinned part keeps clear of the same sides the content does.
             val sides = if (morph == null) {
                 Modifier.windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
             } else {
@@ -1361,23 +1404,33 @@ private fun BoxScope.SheetSurface(
                     .keepsTheFloatingWidth(state, floatInsets, morph)
                     .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
             }
+            // **The column first.** The parts in the content hand the sheet
+            // what to pin as the content composes, and the slots after it
+            // read that in the same pass: see [SheetSlots].
             Layout(
-                // Composed in this order on purpose: a `pinned` call in the
-                // content registers its part as the content composes, so the
-                // blocks after it find the part there in the same pass rather
-                // than a frame later.
                 contents = listOf(
-                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, room, padding, content) },
-                    { PinnedBlock(pins.top, containerColour, sides, safeArea = null, pins = pins, room = room) },
-                    { PinnedBlock(pins.bottom, containerColour, sides, safeArea = safeArea, pins = pins) },
+                    { SheetColumn(state, floating, floatInsets, morph, windowInsets, density, dragHandle, pins, room, padding, slots, content) },
+                    // Over the content as the sheet collapses to its parts, so
+                    // what was round them fades out of the way: collapsed, the
+                    // sheet is its handle and its parts, and nothing that
+                    // scrolls behind a pinned bar shows round it or through
+                    // its fade.
+                    { if (slots.collapsed != null || slots.top != null || slots.bottom != null) CollapseVeil(state, containerColour) },
+                    { slots.top?.let { HeaderBlock(it, containerColour, fadeUnder, sides, banded = dragHandle != null, room = room) } },
+                    { slots.collapsed?.let { CollapsedBlock(it, sides) } },
+                    { slots.bottom?.let { FooterBlock(it, containerColour, fadeUnder, sides, safeArea) } },
                 ),
-            ) { (column, top, bottom), constraints ->
-                // The blocks first, so the content's padding reads their
-                // heights in this pass rather than the next.
+                modifier = Modifier.onPlaced { slots.origin = it },
+            ) { (column, veil, top, collapsedPart, bottom), constraints ->
+                // The slots first, so the content's padding — and the place a
+                // collapsed part keeps in the content — read their heights in
+                // this pass rather than the next.
                 val loose = constraints.copy(minHeight = 0)
                 pins.insetForContent = contentInset
                 val topBlock = top.firstOrNull()?.measure(loose)
                 val bottomBlock = bottom.firstOrNull()?.measure(loose)
+                val collapsedBlock = collapsedPart.firstOrNull()?.measure(loose)
+                slots.collapsedHeight = collapsedBlock?.height ?: 0
                 pins.topHeight = (topBlock?.height ?: 0).toDp()
                 pins.bottomHeight = if (bottomBlock == null) {
                     0.dp
@@ -1387,30 +1440,31 @@ private fun BoxScope.SheetSurface(
                         .toDp()
                 }
                 val sheet = column.first().measure(constraints)
+                // The sheet's height, placed under the slot top: the surface clips what hangs below.
+                val cover = veil.firstOrNull()?.measure(Constraints.fixed(sheet.width, sheet.height))
                 val handle = pins.handleHeight
-                // Sized as the parts rest at that detent, not as they are now. A
-                // morphing sheet's bottom block grows by the safe area as the
-                // sheet becomes an edge sheet, and a detent that grew with it
-                // moved the anchors under a drag: each move snapped the sheet to
-                // its target, so a drag down from full height ran ahead of the
+                // Sized as the slots rest at that detent, not as they are now. A
+                // morphing sheet's bottom part grows by the safe area as the sheet
+                // becomes an edge sheet, and a detent that grew with it moved
+                // the anchors under a drag: each move snapped the sheet to its
+                // target, so a drag down from full height ran ahead of the
                 // finger and a drag on the content did not move it at all. The
-                // pinned detent is the lowest, where the sheet still floats.
+                // parts detent is the lowest, where the sheet still floats.
                 val now = safeArea.calculateBottomPadding().roundToPx()
                 val safeAtRest = (safeArea as? BottomInsetTheMarginNoLongerClears)?.floating()?.roundToPx() ?: now
                 // The safe area under what the sheet shows, which a bottom part
-                // carries in its own height. With only top parts nothing did:
-                // an edge sheet came to rest at the handle and the parts, and
-                // the last of them sat behind the home indicator or the
-                // gesture bar — *"the edge bottom sheet style now doesn't clear
-                // the safe area when it's collapsed with a pinned item"*. A
-                // floating sheet's margin has cleared it already, and hands
-                // out none.
+                // carries in its own height. With only a top part nothing did: an
+                // edge sheet came to rest at the handle and the top part, and its
+                // foot sat behind the home indicator or the gesture bar — *"the
+                // edge bottom sheet style now doesn't clear the safe area when
+                // it's collapsed with a pinned item"*. A floating sheet's margin
+                // has cleared it already, and hands out none.
                 val bottomAtRest = bottomBlock?.let { block -> block.height - now + safeAtRest }
                     ?: if (floating && morph == null) 0 else safeAtRest
-                state.pinnedHeight = if (topBlock == null && bottomBlock == null) {
+                state.slotsHeight = if (topBlock == null && bottomBlock == null && collapsedBlock == null) {
                     0f
                 } else {
-                    (handle + (topBlock?.height ?: 0) + bottomAtRest).toFloat()
+                    (handle + (topBlock?.height ?: 0) + (collapsedBlock?.height ?: 0) + bottomAtRest).toFloat()
                 }
                 state.updateAnchors(this)
                 layout(sheet.width, sheet.height) {
@@ -1420,23 +1474,49 @@ private fun BoxScope.SheetSurface(
                     val topEdge = sheetTop(state, floating, floatInsets, this@Layout, morph)
                     val inset = windowInsets.getTop(this@Layout)
                     val contentTop = (inset - topEdge).coerceIn(0, inset) + handle
-                    // Each in a layer of its own: a bottom block moves on every
-                    // frame the sheet does, and a layer moves without redrawing.
+                    // Under the handle and the top part: where a collapsed part
+                    // comes to rest, and where a pinned part's room ends.
+                    val slotTop = contentTop + (topBlock?.height ?: 0)
+                    cover?.placeRelative(0, slotTop)
+                    // Each in a layer of its own: a part that moves on frames the
+                    // sheet does moves without redrawing.
                     topBlock?.placeRelativeWithLayer(0, contentTop)
+                    if (collapsedBlock != null) {
+                        // From its place in the content — or from just above the
+                        // top, where the content scrolled it off or never
+                        // composed it — to the top, as the sheet collapses to
+                        // its parts. Collapsed to a peek, or a half, the content
+                        // is still there round it, unveiled, and the part stays
+                        // in it: it slid up over the content it was part of.
+                        val f = state.partsCollapseFraction()
+                        val flow = slots.flowTop
+                        val from = if (flow.isNaN()) slotTop - collapsedBlock.height else flow.roundToInt()
+                        val y = (from + (slotTop - from) * f).roundToInt()
+                        // Cut off above the top: in the content it scrolls under
+                        // the top part and the handle as the content does, and
+                        // coming from above it slides out from under them.
+                        val cut = (slotTop - y).toFloat()
+                        collapsedBlock.placeRelativeWithLayer(0, y) {
+                            if (cut > 0f) {
+                                clip = true
+                                this.shape = CutAbove(cut)
+                            }
+                        }
+                    }
                     if (bottomBlock != null) {
-                        // The bottom of what the sheet shows: the window's, for
-                        // an edge sheet that hangs below it, and the surface's
-                        // own for a floating one, whose bottom edge is seen.
+                        // The bottom of what the sheet shows, every frame — a
+                        // drag included, as a navigation bar is: the window's,
+                        // for an edge sheet that hangs below it, and the
+                        // surface's own for a floating one, whose bottom edge is
+                        // seen.
                         val shown = minOf(
                             constraints.maxHeight,
                             (state.containerHeight - topEdge).roundToInt(),
                         )
-                        // Never above the content's top, which is where it goes
-                        // with the sheet as the sheet leaves.
-                        val floor = contentTop + (topBlock?.height ?: 0)
-                        val y = maxOf(floor, shown - bottomBlock.height)
-                        pins.extension = (y - floor).coerceIn(0, contentInset.roundToPx()).toFloat()
-                        bottomBlock.placeRelativeWithLayer(0, y)
+                        // Never above the content's top: a sheet dragged shorter
+                        // than its bottom part takes it down with its top edge.
+                        val floor = slotTop
+                        bottomBlock.placeRelativeWithLayer(0, maxOf(floor, shown - bottomBlock.height))
                     }
                 }
             }
@@ -1445,9 +1525,50 @@ private fun BoxScope.SheetSurface(
 }
 
 /**
+ * A layer's clip that leaves out the top [cut] pixels of it: a collapsed part
+ * passing under the top of the sheet.
+ */
+private class CutAbove(private val cut: Float) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Rectangle(Rect(0f, cut.coerceIn(0f, size.height), size.width, size.height))
+}
+
+/**
+ * The sheet's colour over its content, as strong as the sheet is collapsed to
+ * its parts — see [SheetState.partsCollapseFraction] — so the content round a
+ * collapsed part fades out of the way as the part goes to the top, and none of
+ * what scrolls behind a pinned bar shows once the sheet is only its parts. Drawn from the sheet's
+ * position in the draw pass: a drag recomposes nothing.
+ */
+@Composable
+private fun CollapseVeil(state: SheetState, ground: Color) {
+    Spacer(
+        Modifier.drawBehind {
+            val f = state.partsCollapseFraction()
+            if (f > 0f) drawRect(ground, alpha = f)
+        },
+    )
+}
+
+/**
+ * A part pinned [SheetPartPin.Collapsed], drawn by the sheet rather than where
+ * it was written: laid out as the content is, in from the sides.
+ */
+@Composable
+private fun CollapsedBlock(part: @Composable ColumnScope.() -> Unit, sides: Modifier) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .semantics { isTraversalGroup = true }
+            .then(sides),
+        content = part,
+    )
+}
+
+/**
  * The sheet's own column: the drag handle, then the caller's content.
  *
- * Its own composable only so the surface can lay it out beside the pinned parts;
+ * Its own composable only so the surface can lay it out beside the header and the footer;
  * nothing about it changed when they arrived.
  */
 @Composable
@@ -1462,6 +1583,7 @@ private fun SheetColumn(
     pins: SheetPins,
     room: SheetCornerRoom,
     padding: PaddingValues,
+    slots: SheetSlots,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
     // Inside the surface: the sheet's own colour still runs to the
@@ -1640,11 +1762,12 @@ private fun SheetColumn(
         if (dragHandle != null) {
             // The band the handle sits in is the content's top padding: the
             // handle's own height, and at least the sheet's inset. Measured, for
-            // where the pinned parts sit and how tall [SheetDetent.pinned] is.
+            // where the header and the footer sit and how tall
+            // [SheetDetent.headerAndFooter] is.
             //
             // Taller by the corners' room, split above and below the handle so
             // it stays centred in the band. Inside the measuring `layout`, so the
-            // pinned detent counts it.
+            // header-and-footer detent counts it.
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -1663,7 +1786,7 @@ private fun SheetColumn(
         // A header knows the band above it is its top padding, and how much
         // further in the corners want it.
         CompositionLocalProvider(LocalSheetBand provides (dragHandle != null), LocalSheetCornerRoom provides room) {
-            SheetParts(this, state, pins).content(padding)
+            SheetParts(this, state, slots).content(padding)
         }
     }
 }
@@ -1679,26 +1802,51 @@ private fun SheetColumn(
 interface SheetContentScope : ColumnScope {
 
     /**
-     * A piece of the sheet that belongs to the sizes big enough to show it.
+     * A piece of the sheet: where it goes as the sheet moves, and which sizes it
+     * belongs to.
      *
      * ```kotlin
-     * BottomSheet(state) {
-     *     part { StopHeader(stop) }
-     *     part(from = SheetDetent.Half) { DepartureBoard(stop) }
+     * BottomSheet(state) { padding ->
+     *     part(pin = SheetPartPin.Bottom) { SearchField(query) }
+     *     LazyColumn(contentPadding = padding) { places(results) }
      * }
      * ```
      *
-     * **The part declares which sizes it is for**, rather than the caller
-     * re-deciding what the sheet contains on every frame of a drag. A sheet
-     * collapsed around a search field is the same sheet as the one showing a
-     * departure board under it, and saying so here keeps the two from being two
-     * code paths that have to agree.
+     * ### [pin]: where it goes
      *
-     * `from = null` is a part that is there at every size, which is worth writing
-     * anyway: it puts every piece of the sheet in the same shape and makes the ones
-     * further down legible as the ones you have to drag for.
+     * - [SheetPartPin.None], the default: **in the content, where it is
+     *   written.** The sheet's own bottom edge hides what is further down, so
+     *   dragging the sheet up uncovers it at the speed of the finger.
+     * - [SheetPartPin.Top]: **under the drag handle, out of the scroll** — a
+     *   maps app's search bar on the top of its sheet. The content scrolls under
+     *   it and fades as it goes.
+     * - [SheetPartPin.Bottom]: **at the foot of what the sheet shows, on every
+     *   frame**, as a navigation bar is at the foot of a screen — a search bar
+     *   that is the sheet's only control until it is pulled up. As the sheet
+     *   grows, the content appears above it; scrolled, it fades under it.
+     * - [SheetPartPin.Collapsed]: **in the content, where it is written — and,
+     *   as the sheet collapses to its lowest size, the only thing left**, carried
+     *   from its place to the top while the rest fades out of the way. A search
+     *   field at the head of a list that becomes the whole of the collapsed
+     *   sheet. Scrolled out of view, it slides in from above instead, and what
+     *   is typed into it stays.
      *
-     * ### Nothing appears, and that is the point
+     * The content is handed the room the top and bottom parts take in its
+     * `PaddingValues`, so a `LazyColumn` given that padding starts its first row
+     * under a top part and scrolls its last out from behind a bottom one.
+     * [SheetDetent.parts] is the size that shows the pinned parts and nothing
+     * else.
+     *
+     * **Write a pinned part at the top level of the content**, outside any
+     * list: it is drawn by the sheet, not where it is written, and a list
+     * disposes of what it has scrolled away. A [SheetPartPin.Collapsed] part
+     * keeps a place of its own height where it is written, so that one goes in
+     * the list, as the first item — and stays the sheet's once written, even
+     * after the list has disposed of its place, so it can be brought back to the
+     * top from wherever the list was scrolled to. One part to each pin; a second
+     * replaces the first.
+     *
+     * ### [from]: which sizes it is for
      *
      * **A part is laid out in place, at its full height, whatever the sheet is
      * doing.** What hides it is the sheet's own bottom edge: a sheet is a column
@@ -1718,79 +1866,47 @@ interface SheetContentScope : ColumnScope {
      * written in anyway. A gated part written above them is above the fold, and
      * will be visible whatever its `from` says.
      *
-     * What [from] does decide is whether the part is in the **assistive tree**: off
-     * the bottom of the window it cannot be seen or tapped, and it is not read out
-     * either.
+     * What [from] does decide is whether an unpinned part is in the **assistive
+     * tree**: off the bottom of the window it cannot be seen or tapped, and it is
+     * not read out either. A pinned part is always on the sheet, and always is.
      */
     @Composable
-    fun part(from: SheetDetent? = null, content: @Composable ColumnScope.() -> Unit)
-
-    /**
-     * A piece of the sheet that stays at one edge of what the sheet shows, with
-     * the rest of the content passing behind it.
-     *
-     * ```kotlin
-     * val sheet = rememberSheetState(
-     *     detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-     * )
-     *
-     * BottomSheet(sheet) { padding ->
-     *     pinned { SearchField(query, placeholder = "Search stops") }
-     *     LazyColumn(contentPadding = padding) {
-     *         items(stops) { stop -> ListItem { +stop.name } }
-     *     }
-     * }
-     * ```
-     *
-     * Asked for as a way *"to 'pin' a component to certain parts of the sheet"*:
-     * a search bar on the bottom of the sheet, where *"content should be
-     * scrollable behind it, and when the sheet is collapsed, only the search bar
-     * should show."*
-     *
-     * **[SheetPin.Bottom] rides the bottom of what the sheet shows** — the window's
-     * edge for an edge sheet, the sheet's own for a floating one — above the safe
-     * area, at every detent and through every frame of a drag. Pulled below the
-     * point where it would cover the handle, it stops, and leaves with the sheet.
-     * **[SheetPin.Top] sits under the drag handle**, where the content starts.
-     *
-     * **Drawn over the content, with the sheet's inset round it** —
-     * [BottomSheetDefaults.ContentPadding] at the sides and below, and the
-     * handle's band above — so a sheet collapsed to it shows it with the same
-     * space at the sides and below. The `PaddingValues` the sheet hands its
-     * content grows by the pinned parts' heights, so a `LazyColumn` given it as
-     * `contentPadding` scrolls its first and last rows out from behind them.
-     * Content that ignores it runs under them.
-     *
-     * **[containerColour] is what it is drawn on**, the width of the sheet and the
-     * inset round it: the sheet's own colour by default, so what scrolls behind it
-     * is hidden, and risen off the band a bottom part has the inset in the
-     * sheet's colour above it as well. `Color.Transparent` lets the content go
-     * under it and show round it — *"the ability for the content to go under the
-     * pinned item"* — with the part itself, a search field's own ground, drawn
-     * over the rows.
-     *
-     * [SheetDetent.pinned] is the size that shows the pinned parts and nothing
-     * else — the collapsed sheet that is only a search field.
-     *
-     * Always in the assistive tree, since it is always on screen. Several at one
-     * edge stack in the order they were first composed. Declare them anywhere in
-     * the content: where one is written does not decide where it is drawn.
-     */
-    @Composable
-    fun pinned(
-        to: SheetPin = SheetPin.Bottom,
-        containerColour: Color = Color.Unspecified,
+    fun part(
+        from: SheetDetent? = null,
+        pin: SheetPartPin = SheetPartPin.None,
         content: @Composable ColumnScope.() -> Unit,
     )
 }
 
-/** Which edge of what a sheet shows a [SheetContentScope.pinned] part stays at. */
-enum class SheetPin {
-    /** Under the drag handle, where the content starts. */
+/**
+ * Where a [SheetContentScope.part] goes as its sheet moves.
+ *
+ * Asked for as a rethink of a sheet's pinned content around three uses: *"a
+ * search bar that's basically locked at the bottom of a sheet, basically acting
+ * like a nav bar"*, *"an apple maps-style search bar that's glued to the top of
+ * the header, that other content scrolls under"*, and *"some content that's
+ * normally scrollable (e.g. the search bar might be at the top of that
+ * scrollable list), but then when the sheet collapses, it smoothly animates
+ * into being the only visible thing"*.
+ */
+enum class SheetPartPin {
+    /** In the content, where it is written: the sheet's bottom edge hides what does not fit. */
+    None,
+
+    /** Under the drag handle, out of the scroll; the content scrolls and fades under it. */
     Top,
 
-    /** At the bottom of what the sheet shows, above the safe area. */
+    /**
+     * At the foot of what the sheet shows, on every frame, as a navigation bar
+     * is; the content appears above it as the sheet grows, and fades under it.
+     */
     Bottom,
+
+    /**
+     * In the content where it is written, and the only thing left as the sheet
+     * collapses to its lowest size: carried to the top as the rest fades.
+     */
+    Collapsed,
 }
 
 /**
@@ -1802,24 +1918,31 @@ enum class SheetPin {
 private class SheetParts(
     column: ColumnScope,
     private val state: SheetState,
-    private val pins: SheetPins,
+    private val slots: SheetSlots,
 ) : SheetContentScope, ColumnScope by column {
 
     @Composable
-    override fun pinned(to: SheetPin, containerColour: Color, content: @Composable ColumnScope.() -> Unit) {
-        // Registered as it composes, not in an effect: the blocks that draw the
-        // pinned parts compose after the content, so they find it in this pass.
-        // An effect would register it after the frame, and a sheet opened at
-        // `SheetDetent.pinned` would show its fallback height for one frame
-        // with nothing pinned in it.
-        val parts = if (to == SheetPin.Top) pins.top else pins.bottom
-        val part = remember(parts) { PinnedPart(parts).also { parts += it } }
-        part.content = content
-        part.containerColour = containerColour
-    }
-
-    @Composable
-    override fun part(from: SheetDetent?, content: @Composable ColumnScope.() -> Unit) {
+    override fun part(from: SheetDetent?, pin: SheetPartPin, content: @Composable ColumnScope.() -> Unit) {
+        if (pin != SheetPartPin.None) {
+            // Handed to the sheet, which draws it in its slot: see [SheetSlots].
+            val owner = remember { Any() }
+            slots.claim(pin, owner, content)
+            // Every part goes with the call that wrote it — a part written under
+            // an `if` is gone when the condition is. A collapsed part in a lazy
+            // list pins its item, so scrolling it away does not dispose of it:
+            // the part is still the sheet's to bring back to the top. It was
+            // kept by never being released, so one taken out stayed for good.
+            if (pin == SheetPartPin.Collapsed) {
+                val pinnable = LocalPinnableContainer.current
+                DisposableEffect(pinnable) {
+                    val handle = pinnable?.pin()
+                    onDispose { handle?.release() }
+                }
+            }
+            DisposableEffect(slots, pin, owner) { onDispose { slots.release(pin, owner) } }
+            if (pin == SheetPartPin.Collapsed) CollapsedPlace(slots)
+            return
+        }
         // **Nothing here gates the pixels, and that is the third answer to the same
         // report.** The first composed a part only once the sheet had settled at its
         // detent; the second composed it always and revealed it with a clipped
@@ -1850,32 +1973,99 @@ private class SheetParts(
 }
 
 /**
- * A sheet's pinned parts, and the room they take.
+ * The place a [SheetPartPin.Collapsed] part keeps where it is written: as tall
+ * as the part, empty — the sheet draws the part over it — and telling the sheet
+ * where it is as the content scrolls, and when it has gone.
+ */
+@Composable
+private fun CollapsedPlace(slots: SheetSlots) {
+    DisposableEffect(slots) { onDispose { slots.flowTop = Float.NaN } }
+    Spacer(
+        Modifier
+            .fillMaxWidth()
+            .layout { measurable, constraints ->
+                // A pixel before the part has been measured, which is the frame
+                // after the place is: a lazy list takes a first item of no
+                // height for one already scrolled past, and starts at the next.
+                val height = slots.collapsedHeight.coerceAtLeast(1).coerceAtMost(constraints.maxHeight)
+                val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                layout(placeable.width, height) { placeable.place(0, 0) }
+            }
+            .onGloballyPositioned { coordinates ->
+                val origin = slots.origin?.takeIf { it.isAttached }
+                slots.flowTop = origin?.localPositionOf(coordinates, Offset.Zero)?.y ?: Float.NaN
+            },
+    )
+}
+
+/**
+ * What the content's pinned parts hand the sheet to draw in its slots.
  *
- * Written by the content as it composes and by the surface as it measures; read
- * by the blocks that draw the parts and by the padding the content is handed.
+ * **Written as the content composes, read by the slots after it in the same
+ * pass.** The sheet's surface lays its column out first and its slots after,
+ * so a part pinned in the content reaches its slot on the frame it is written:
+ * a sheet opened with a search bar at its foot has it there on its first
+ * frame, and the detent that shows only the pinned parts is right from the
+ * start. Never read before it is written in a pass, which is what keeps it
+ * from being the backwards write Compose warns about.
+ */
+@Stable
+internal class SheetSlots {
+    var top: (@Composable ColumnScope.() -> Unit)? by mutableStateOf(null)
+    var bottom: (@Composable ColumnScope.() -> Unit)? by mutableStateOf(null)
+    var collapsed: (@Composable ColumnScope.() -> Unit)? by mutableStateOf(null)
+
+    /** Which part holds each pin, so a part leaving does not take another's slot with it. */
+    private val owners = HashMap<SheetPartPin, Any>()
+
+    /** The collapsed part's height, measured in its slot, for the place it keeps in the content. */
+    var collapsedHeight by mutableIntStateOf(0)
+
+    /** Where that place is, from the sheet's top: `NaN` while it is not composed. */
+    var flowTop by mutableFloatStateOf(Float.NaN)
+
+    /** The surface's layout, which that is measured from. Not state: read in layout. */
+    var origin: LayoutCoordinates? = null
+
+    fun claim(pin: SheetPartPin, owner: Any, content: @Composable ColumnScope.() -> Unit) {
+        owners[pin] = owner
+        when (pin) {
+            SheetPartPin.Top -> if (top !== content) top = content
+            SheetPartPin.Bottom -> if (bottom !== content) bottom = content
+            SheetPartPin.Collapsed -> if (collapsed !== content) collapsed = content
+            SheetPartPin.None -> Unit
+        }
+    }
+
+    fun release(pin: SheetPartPin, owner: Any) {
+        if (owners[pin] !== owner) return
+        owners.remove(pin)
+        when (pin) {
+            SheetPartPin.Top -> top = null
+            SheetPartPin.Bottom -> bottom = null
+            SheetPartPin.Collapsed -> {
+                collapsed = null
+                collapsedHeight = 0
+            }
+            SheetPartPin.None -> Unit
+        }
+    }
+}
+
+/**
+ * The room the parts pinned to the top and the bottom take: written by the
+ * surface as it measures, and read by the padding the content is handed.
  */
 @Stable
 internal class SheetPins {
-    val top: SnapshotStateList<PinnedPart> = mutableStateListOf()
-    val bottom: SnapshotStateList<PinnedPart> = mutableStateListOf()
-
-    /** The top block's height. */
+    /** The top part's height. */
     var topHeight by mutableStateOf(0.dp)
 
-    /** The sheet's inset, which the content clears above the bottom block too. */
+    /** The sheet's inset, which the content clears above the bottom part too. */
     var insetForContent by mutableStateOf(0.dp)
 
-    /** The bottom block's height, less the safe area under it. */
+    /** The bottom part's height, less the safe area under it. */
     var bottomHeight by mutableStateOf(0.dp)
-
-    /**
-     * How much of the sheet's colour the bottom block draws above itself: the
-     * inset, once the block has risen far enough off its floor under the handle
-     * to have room for it, and less on the way down to it. Written where the
-     * block is placed and read where it is drawn, in the same frame.
-     */
-    var extension by mutableFloatStateOf(0f)
 
     /**
      * The drag handle's height, from the column's own measure. Plain rather
@@ -1885,27 +2075,9 @@ internal class SheetPins {
     var handleHeight: Int = 0
 }
 
-/** One `pinned { }` call, for as long as it is composed. */
-internal class PinnedPart(private val list: SnapshotStateList<PinnedPart>) : RememberObserver {
-    var content: @Composable ColumnScope.() -> Unit by mutableStateOf({})
-
-    /** What it is drawn on; unspecified is the sheet's colour. */
-    var containerColour: Color by mutableStateOf(Color.Unspecified)
-
-    override fun onRemembered() = Unit
-    override fun onForgotten() {
-        list.remove(this)
-    }
-
-    // A composition thrown away still ran the `remember` that added it.
-    override fun onAbandoned() {
-        list.remove(this)
-    }
-}
-
 /** The safe area, plus the room the pinned parts take. Read where it is used. */
 @Stable
-private class PinnedPadding(
+private class SlotPadding(
     private val safeArea: PaddingValues,
     private val pins: SheetPins,
 ) : PaddingValues {
@@ -1917,8 +2089,7 @@ private class PinnedPadding(
     override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp =
         safeArea.calculateRightPadding(layoutDirection)
 
-    // The bottom block and the inset of colour above it, which the last row
-    // clears as well.
+    // The bottom part and the inset above it, which the last row clears as well.
     override fun calculateBottomPadding(): Dp = safeArea.calculateBottomPadding() +
         if (pins.bottomHeight > 0.dp) pins.bottomHeight + pins.insetForContent else 0.dp
 }
@@ -1933,74 +2104,121 @@ private class BottomOf(private val safeArea: PaddingValues) : PaddingValues {
 }
 
 /**
- * The pinned parts at one edge, on the sheet's own colour.
+ * Behind a pinned part, when the content fades under it: the sheet's colour.
  *
- * The colour runs the full width, past the sides the parts keep clear of, so the
- * content cannot show beside them; a bottom block carries it down through the
- * safe area too. At high contrast a line marks the edge the content passes
- * behind, where the two grounds are the same colour.
+ * Under a top part, solid where the slot is and thinning out over its inner
+ * [FadeUnderInside], gone [FadeUnderOutside] past it — what a
+ * [TopBar][io.kontour.ui.nav.TopBar]'s `fadeUnder` draws over a page. Under a
+ * bottom part, what a floating [NavBar][io.kontour.ui.nav.NavBar] draws: solid
+ * from the part's middle down, thinning out over [FadeAboveBottom] above it —
+ * asked for as content that *"should fade underneath the search bar, exactly
+ * the same as how nav currently forces it"*.
+ *
+ * Behind the slot's own content, so a search field's ground and its words are
+ * drawn whole over it; only what passes behind fades. At high contrast a line
+ * marks the edge instead, where the two grounds are the same colour and a fade
+ * would leave the edge to be guessed.
  */
-@Composable
-private fun PinnedBlock(
-    parts: SnapshotStateList<PinnedPart>,
-    ground: Color,
-    sides: Modifier,
-    safeArea: PaddingValues?,
-    pins: SheetPins,
-    room: SheetCornerRoom = SheetCornerRoom.None,
-) {
-    if (parts.isEmpty()) return
-    val edge = contrastEdge()
-    val atTop = safeArea == null
-    // The sheet's one inset, at the sides and below, so a sheet collapsed to its
-    // pinned part shows it with the same space round it: the band under the
-    // handle is the space above.
-    val inset = BottomSheetDefaults.ContentPadding
-    Column(Modifier.fillMaxWidth().semantics { isTraversalGroup = true }) {
-        parts.forEachIndexed { index, part ->
-            key(part) {
-                // Each part on its own ground, so one can let the content show
-                // through while another hides it. The part nearest the content
-                // carries the block's edge, and the last carries the inset and
-                // the safe area under the block.
-                val first = index == 0
-                val last = index == parts.lastIndex
-                val colour = part.containerColour.takeOrElse { ground }
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .drawBehind {
-                            if (colour.alpha == 0f) return@drawBehind
-                            // Above a bottom block that has risen off its floor,
-                            // the inset in the part's colour, so the content
-                            // passing behind never meets the part edge to edge.
-                            // None at the floor, where the handle's band is the
-                            // space above it.
-                            val above = if (!atTop && first) pins.extension else 0f
-                            drawRect(colour, topLeft = Offset(0f, -above), size = Size(size.width, size.height + above))
-                            val edgeHere = if (atTop) last else first
-                            if (edge != null && edgeHere) {
-                                val width = edge.width.toPx()
-                                drawRect(
-                                    brush = edge.brush,
-                                    topLeft = Offset(0f, if (atTop) size.height - width else -above),
-                                    size = Size(size.width, width),
-                                )
-                            }
-                        }
-                        .then(if (last && safeArea != null) Modifier.padding(BottomOf(safeArea)) else Modifier)
-                        .then(sides)
-                        // A top block sits under the corners, and moves in from
-                        // them as the header does; a bottom block's corners are
-                        // square or the floating sheet's own.
-                        .padding(start = inset + room.start, end = inset + room.end, bottom = if (last) inset else 0.dp),
-                ) {
-                    val content = part.content
-                    content()
-                }
+private fun Modifier.slotGround(ground: Color, fade: Boolean, contentBelow: Boolean, edge: BorderStroke?): Modifier =
+    if (!fade || ground.alpha == 0f) {
+        this
+    } else {
+        drawBehind {
+            val inside = FadeUnderInside.toPx()
+            val outside = FadeUnderOutside.toPx()
+            if (edge != null) {
+                drawRect(ground)
+                val width = edge.width.toPx()
+                drawRect(edge.brush, topLeft = Offset(0f, if (contentBelow) size.height - width else 0f), size = Size(size.width, width))
+                return@drawBehind
+            }
+            if (contentBelow) {
+                // A header: solid down to its last [inside], then thinning out.
+                val from = (size.height - inside).coerceAtLeast(0f)
+                drawRect(ground, size = Size(size.width, from))
+                drawRect(
+                    easedFade(ground, solidAt = from, clearAt = size.height + outside),
+                    topLeft = Offset(0f, from),
+                    size = Size(size.width, size.height + outside - from),
+                )
+            } else {
+                // A bottom part: solid from its middle down, thinning out
+                // upwards to [FadeAboveBottom] above it, as a navigation bar.
+                val to = size.height / 2f
+                val above = FadeAboveBottom.toPx()
+                drawRect(ground, topLeft = Offset(0f, to), size = Size(size.width, size.height - to))
+                drawRect(
+                    easedFade(ground, solidAt = to, clearAt = -above),
+                    topLeft = Offset(0f, -above),
+                    size = Size(size.width, to + above),
+                )
             }
         }
     }
+
+/** How far into a top part the content passing behind still shows. */
+private val FadeUnderInside = 12.dp
+
+/** How far past a top part the fade reaches, so it has no line. */
+private val FadeUnderOutside = 4.dp
+
+/** How far above a bottom part the fade reaches: a floating navigation bar's. */
+private val FadeAboveBottom = 16.dp
+
+/**
+ * A sheet's header: laid out as the content is, under the handle and in from
+ * the corners, so a [SheetHeader] in it insets itself as it does anywhere in a
+ * sheet.
+ */
+@Composable
+private fun HeaderBlock(
+    header: @Composable ColumnScope.() -> Unit,
+    ground: Color,
+    fade: Boolean,
+    sides: Modifier,
+    banded: Boolean,
+    room: SheetCornerRoom,
+) {
+    val edge = contrastEdge()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .semantics { isTraversalGroup = true }
+            .slotGround(ground, fade, contentBelow = true, edge = edge)
+            .then(sides),
+    ) {
+        CompositionLocalProvider(LocalSheetBand provides banded, LocalSheetCornerRoom provides room) {
+            header()
+        }
+    }
+}
+
+/**
+ * A sheet's footer: inset by the sheet's [BottomSheetDefaults.ContentPadding] at
+ * the sides and below, so a sheet collapsed to it shows it with the same space
+ * round it, and the handle's band above; its ground carried down through the
+ * safe area.
+ */
+@Composable
+private fun FooterBlock(
+    footer: @Composable ColumnScope.() -> Unit,
+    ground: Color,
+    fade: Boolean,
+    sides: Modifier,
+    safeArea: PaddingValues,
+) {
+    val edge = contrastEdge()
+    val inset = BottomSheetDefaults.ContentPadding
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .semantics { isTraversalGroup = true }
+            .slotGround(ground, fade, contentBelow = false, edge = edge)
+            .padding(BottomOf(safeArea))
+            .then(sides)
+            .padding(start = inset, end = inset, bottom = inset),
+        content = footer,
+    )
 }
 
 /**

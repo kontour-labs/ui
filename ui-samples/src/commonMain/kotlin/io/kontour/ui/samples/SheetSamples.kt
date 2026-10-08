@@ -1,5 +1,6 @@
 package io.kontour.ui.samples
 
+import io.kontour.ui.sheet.SheetPartPin
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -183,18 +184,19 @@ fun DragHandleBasics() {
 }
 
 @Composable
-fun BottomSheetPinnedSearch() {
+fun BottomSheetSearchBar() {
     val sheet = rememberSheetState(
-        detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-        initialDetent = SheetDetent.pinned(),
+        detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+        initialDetent = SheetDetent.parts(),
     )
     val query = rememberTextFieldState()
 
     BottomSheet(state = sheet) { padding ->
-        // On the bottom of what the sheet shows at every size, over the list
-        // and on the sheet's own colour, with the sheet's inset round it.
-        // Collapsed, it is all there is: the search, and the account beside it.
-        pinned {
+        // At the foot of what the sheet shows, whatever it is doing, as a
+        // navigation bar is, with the sheet's inset round it and the list
+        // fading out under it. Collapsed, it is all there is: the search, and
+        // the account beside it.
+        part(pin = SheetPartPin.Bottom) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
@@ -203,12 +205,68 @@ fun BottomSheetPinnedSearch() {
                 IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
             }
         }
-        // The padding has grown by the field's height, so the last row
-        // scrolls out from behind it. At the sides, the sheet's inset, the
-        // same as the field's.
+        // The padding ends above it, so the last row scrolls out from behind
+        // it. At the sides, the sheet's inset, the same as the field's.
         LazyColumn(
             modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
             contentPadding = padding,
         ) { stopRows() }
+    }
+}
+
+@Composable
+fun BottomSheetTopSearch() {
+    val sheet = rememberSheetState(
+        detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+        initialDetent = SheetDetent.Half,
+    )
+    val query = rememberTextFieldState()
+
+    BottomSheet(state = sheet) { padding ->
+        // Under the handle, out of the scroll: the list starts below it and
+        // scrolls up under it, fading as it goes.
+        part(pin = SheetPartPin.Top) {
+            SearchField(
+                query,
+                placeholder = "Search places",
+                modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+            )
+        }
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+            contentPadding = padding,
+        ) { stopRows() }
+    }
+}
+
+@Composable
+fun BottomSheetCollapsingSearch() {
+    val sheet = rememberSheetState(
+        detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+        initialDetent = SheetDetent.Half,
+    )
+    val query = rememberTextFieldState()
+
+    BottomSheet(state = sheet) { padding ->
+        val sheetParts = this
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+            contentPadding = padding,
+        ) {
+            // The head of the list, scrolling with it. Collapse the sheet and it
+            // is carried to the top while the stops fade away — from wherever
+            // it had scrolled to, or in from above if it was out of view — and
+            // what was typed in it stays.
+            item(key = "search") {
+                sheetParts.part(pin = SheetPartPin.Collapsed) {
+                    SearchField(
+                        query,
+                        placeholder = "Search stops",
+                        modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+                    )
+                }
+            }
+            stopRows()
+        }
     }
 }

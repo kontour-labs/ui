@@ -265,4 +265,11 @@ data class ComponentDefaults(
      * one after it in a call that gave these by position.
      */
     val scrollbarTouchThickness: Dp = 4.dp,
+    /**
+     * How tall an hour is in an event calendar's day and week views. Events
+     * are drawn as tall as their time, so a quarter-hour is a quarter of this:
+     * 16dp, a line of small text, and a half-hour a title and its padding. A
+     * brand with roomier type wants it taller.
+     */
+    val eventCalendarHourHeight: Dp = 64.dp,
 )

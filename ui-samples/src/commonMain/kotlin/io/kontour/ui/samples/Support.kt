@@ -57,6 +57,7 @@ internal fun replacements() = Unit
 internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay", 3))
 internal fun refresh() = Unit
 internal fun openStop(name: String) = Unit
+internal fun open(title: String) = Unit
 internal fun remove(name: String) = Unit
 internal fun rename(name: String) = Unit
 

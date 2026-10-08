@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -25,6 +26,7 @@ import io.kontour.ui.catalog.apps.AppsPage
 import io.kontour.ui.catalog.apps.LocalOpenApp
 import io.kontour.ui.catalog.apps.MiniApp
 import io.kontour.ui.theme.KontourTheme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -143,7 +145,8 @@ class AppsTest {
 
         mainClock.autoAdvance = false
         onNodeWithTag("departures").performTouchInput {
-            down(Offset(centerX, list.height * 0.3f))
+            // On the rows: the list runs under the hero, which takes a press on itself.
+            down(Offset(centerX, list.height * 0.6f))
             repeat(12) { moveBy(Offset(0f, 20f)); }
         }
         mainClock.advanceTimeBy(100)
@@ -154,6 +157,90 @@ class AppsTest {
 
         assertEquals(title, pulledTitle, 0.5f, "the bar came down with the pull")
         assertTrue(pulledRow > firstRow + 20f, "the list did not come down: ${pulledRow - firstRow}px")
+    }
+
+    /**
+     * The departures' hero collapses as the list goes up, from the first move
+     * of the finger, with the list moving exactly as far as the finger does.
+     *
+     * Reported from an iPad: *"sometimes it shops, sometimes it doesn't"* — the
+     * hero, laid out above its list, shared each drag with it, and the start of
+     * one sometimes went to the system's stretch instead. Drawn over the list
+     * and following its scroll, there is nothing to share.
+     */
+    @Test
+    fun theHeroCollapsesFromTheFirstMoveAndTheListMovesWithTheFinger() = runDesktopComposeUiTest(width = 400, height = 860) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        fun top(text: String) = onAllNodesWithText(text).fetchSemanticsNodes().first().boundsInRoot.top
+        val title = top("Perth Underground")
+        val row = top("Trains")
+        val list = onNodeWithTag("departures").fetchSemanticsNode().boundsInRoot
+        mainClock.autoAdvance = false
+        onNodeWithTag("departures").performTouchInput {
+            down(Offset(centerX, list.height * 0.6f))
+            // Past the slop, then three moves more.
+            repeat(6) { moveBy(Offset(0f, -10f)) }
+        }
+        mainClock.advanceTimeByFrame()
+        val movedRow = row - top("Trains")
+        val movedTitle = title - top("Perth Underground")
+        onNodeWithTag("departures").performTouchInput { up() }
+        mainClock.autoAdvance = true
+        assertTrue(movedTitle > 4f, "the hero did not start collapsing with the drag: ${movedTitle}px")
+        assertTrue(movedRow > 20f, "the list did not move with the finger: ${movedRow}px")
+    }
+
+    /** Pulled at the top, the spinner comes in below the hero, in the gap the list leaves, not under the bar. */
+    @Test
+    fun aPullsSpinnerIsBelowTheHero() = runDesktopComposeUiTest(width = 400, height = 860) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        val subtitle = onAllNodesWithText("Next departures").fetchSemanticsNodes().first().boundsInRoot.bottom
+        val list = onNodeWithTag("departures").fetchSemanticsNode().boundsInRoot
+        mainClock.autoAdvance = false
+        onNodeWithTag("departures").performTouchInput {
+            down(Offset(centerX, list.height * 0.6f))
+            repeat(12) { moveBy(Offset(0f, 20f)) }
+        }
+        mainClock.advanceTimeBy(100)
+        val spinner = onAllNodes(hasContentDescription("Pull to refresh") or hasContentDescription("Release to refresh"))
+            .fetchSemanticsNodes().first().boundsInRoot
+        onNodeWithTag("departures").performTouchInput { up() }
+        mainClock.autoAdvance = true
+        assertTrue(spinner.top >= subtitle, "the spinner was under the hero: its top ${spinner.top}, the hero's subtitle ends at $subtitle")
+    }
+
+    /**
+     * The tour's first step — the welcome card in the middle of the screen —
+     * has its Skip, whole, beside the way on, on the narrowest of phones as
+     * well: *"please also have the coachmark tour skip button on the first
+     * one"*.
+     */
+    @Test
+    fun theTourOffersSkipOnItsFirstStep() {
+        for (width in listOf(400, 320)) {
+            runDesktopComposeUiTest(width = width, height = 760) {
+                setContent {
+                    KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+                }
+                waitForIdle()
+                onNodeWithContentDescription("More").performClick()
+                waitForIdle()
+                onNodeWithText("Show me around").performClick()
+                waitForIdle()
+                val skip = onAllNodesWithText("Skip").fetchSemanticsNodes()
+                assertEquals(1, skip.size, "no Skip on the tour's first step at ${width}dp")
+                val next = onAllNodesWithText("Next").fetchSemanticsNodes().single().boundsInRoot
+                val skipBox = skip.single().boundsInRoot
+                assertTrue(skipBox.width > 20f && skipBox.right <= next.left, "Skip is squeezed or under Next at ${width}dp: $skipBox, $next")
+                assertTrue(next.right <= width.toFloat(), "Next runs off a ${width}dp screen: $next")
+            }
+        }
     }
 
     @Test
@@ -190,6 +277,39 @@ class AppsTest {
             onAllNodesWithText("Topped up $20", substring = true).fetchSemanticsNodes().isNotEmpty(),
             "no toast after topping up",
         )
+    }
+
+    /**
+     * On an iPad held upright the navigation is a collapsed rail, and what is
+     * in it fits it: the way out and the planner as icons on the destinations'
+     * line, not a header and a labelled button squeezed to its width — reported
+     * as *"in the nav rail, you try to cram text and buttons in there that just
+     * don't fit"*. Grown, the rail has them whole.
+     */
+    @Test
+    fun onAnUprightTabletTheRailHoldsOnlyWhatFitsIt() = runDesktopComposeUiTest(width = 800, height = 1100) {
+        setContent {
+            KontourTheme(darkTheme = false) { AppHost(MiniApp.Transit, onLeave = {}) }
+        }
+        waitForIdle()
+        val rail = onNodeWithTag("tab-Departures", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        // The rail's edge: past its icons, short of the page.
+        val edge = 88f
+        for (label in listOf("Leave Transit", "Plan a trip")) {
+            val node = onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
+            assertTrue(node.right <= edge + 0.5f, "$label is wider than the rail: it ends at ${node.right}, the rail at $edge")
+            assertTrue(abs(node.center.x - rail.center.x) <= 4f, "$label is not on the destinations' line: ${node.center.x} against ${rail.center.x}")
+        }
+        // No words in the collapsed rail beside the way out.
+        assertTrue(
+            onAllNodesWithText("Transit").fetchSemanticsNodes().none { it.boundsInRoot.left < edge },
+            "the app's name is crammed into the collapsed rail",
+        )
+        // Grown, the header and the planner are whole.
+        onNodeWithContentDescription("Expand navigation", substring = true, ignoreCase = true).performClick()
+        waitForIdle()
+        onNodeWithText("Plan a trip").assertExists()
+        assertTrue(onAllNodesWithText("Transit").fetchSemanticsNodes().any { it.boundsInRoot.left < 280f })
     }
 
     @Test

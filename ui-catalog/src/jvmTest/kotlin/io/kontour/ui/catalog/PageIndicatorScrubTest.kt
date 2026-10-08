@@ -28,10 +28,11 @@ import kotlin.test.assertTrue
  * it, a little translucent pill shows up around it and you can drag between
  * pages. this should work for both horizontal and vertical."* A drag used to
  * be a tap wherever it ended. And then of the pill: *"a standard colour from
- * our theme"* — `surfaceSunken`, the well a segmented control's track is, read
- * here to the exact colour; *"in dark it's a bit invisible"*, so `outline`
- * there; and *"make the pill expand out of the dots, rather than just
- * appearing"*.
+ * our theme"* — `outline`, the track a slider's thumb runs on, read here to
+ * the exact colour: it was `surfaceSunken`, the well a segmented control's
+ * track is, until *"in dark it's a bit invisible"* and then *"on light mode,
+ * you can't really see the bubble"*; and *"make the pill expand out of the
+ * dots, rather than just appearing"*.
  */
 class PageIndicatorScrubTest {
 
@@ -51,7 +52,7 @@ class PageIndicatorScrubTest {
         val pages = mutableListOf<Int>()
         Scene(width = 400, height = 400, darkTheme = dark) {
             page = Theme.colours.background
-            pill = if (dark) Theme.colours.outline else Theme.colours.surfaceSunken
+            pill = Theme.colours.outline
             Box(Modifier.fillMaxSize().background(page), contentAlignment = Alignment.Center) {
                 PageIndicator(
                     state = rememberCarouselState { 5 },
@@ -122,13 +123,26 @@ class PageIndicatorScrubTest {
 
     /**
      * In the dark the pill is `outline`, which stands off the page: the well it
-     * is in the light was 1.07:1 from a dark page, and reported as invisible.
+     * was is 1.07:1 from a dark page, and was reported as invisible.
      */
     @Test
     fun inTheDarkThePillStandsOffThePage() = strip(Orientation.Horizontal, dark = true) {
         scrubsAlong(vertical = false)
         val ratio = (maxOf(pill.luminance(), page.luminance()) + 0.05f) / (minOf(pill.luminance(), page.luminance()) + 0.05f)
         assertTrue(ratio >= 1.5f, "the dark pill is ${"%.2f".format(ratio)}:1 from the page")
+    }
+
+    /**
+     * And in the light, where the well was as near a light page — over a
+     * hero's fade, reported as unseen. `outline` there is the most that leaves
+     * the dots on it their own: the next step, `outlineStrong`, is the dots'
+     * own colour.
+     */
+    @Test
+    fun inTheLightThePillStandsOffThePage() = strip(Orientation.Horizontal) {
+        scrubsAlong(vertical = false)
+        val ratio = (maxOf(pill.luminance(), page.luminance()) + 0.05f) / (minOf(pill.luminance(), page.luminance()) + 0.05f)
+        assertTrue(ratio >= 1.2f, "the light pill is ${"%.2f".format(ratio)}:1 from the page, the well's 1.07 or near it")
     }
 
     /** The pill as it grows and shrinks: frame by frame, its thickness and its colour at its middle. */

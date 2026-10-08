@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
 import io.kontour.ui.interaction.FeedbackIntent
 import io.kontour.ui.interaction.LocalFeedback
+import io.kontour.ui.interaction.pressable
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -503,6 +505,14 @@ private fun FabMenuItems(
     Layout(
         content = {
             items.forEachIndexed { index, item ->
+                val choose = {
+                    item.onClick()
+                    onDismissRequest()
+                }
+                // One for the label and its button, so a press on either is
+                // seen on both: the label is the button's name, and a tap on it
+                // is a tap on the button.
+                val interactions = remember(item) { MutableInteractionSource() }
                 // The label is always emitted, even when it is not drawn, so the
                 // interleaving holds and the index arithmetic below stays a fact
                 // about the list rather than about this frame's settings.
@@ -548,7 +558,21 @@ private fun FabMenuItems(
                             // Named by the button beside it. Two nodes carrying
                             // the same words is the "label next to a control"
                             // fault the contract suite exists to catch.
-                            .clearAndSetSemantics { },
+                            .clearAndSetSemantics { }
+                            // A tap on the words does what the button does: they
+                            // are the bigger target, and the one the eye lands on.
+                            // Not a second stop for the keyboard, which has the
+                            // button, and no larger than it is drawn — the 48dp
+                            // floor would push it off its place beside the button.
+                            .focusProperties { canFocus = false }
+                            .pressable(
+                                onClick = choose,
+                                shape = Theme.shapes.control,
+                                enabled = item.enabled,
+                                role = null,
+                                minimumTouchTarget = false,
+                                interactionSource = interactions,
+                            ),
                         shape = Theme.shapes.control,
                         containerColour = Theme.colours.surfaceRaised,
                         contentColour = Theme.colours.content,
@@ -589,16 +613,14 @@ private fun FabMenuItems(
                 FloatingActionButton(
                     icon = item.icon,
                     contentDescription = item.label,
-                    onClick = {
-                        item.onClick()
-                        onDismissRequest()
-                    },
+                    onClick = choose,
                     enabled = item.enabled,
                     size = itemSize,
                     shape = shape,
                     containerColour = containerColour,
                     contentColour = contentColour,
                     border = border,
+                    interactionSource = interactions,
                 )
                 }
             }

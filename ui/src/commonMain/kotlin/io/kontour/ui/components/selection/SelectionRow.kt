@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import io.kontour.ui.input.focusRing
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import io.kontour.ui.foundation.shape
@@ -118,13 +120,13 @@ fun SelectionRow(
         // Inert, but still a checkbox that reads as checked. Dropping the
         // modifier entirely would leave a row a screen reader announces as
         // plain text.
-        onSelectedChange == null -> Modifier.semantics {
+        onSelectedChange == null -> Modifier.webRole(role, selected).semantics {
             this.role = role
             toggleableState = ToggleableState(selected)
         }
 
         else -> when (role) {
-        Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).selectable(
+        Role.RadioButton -> Modifier.pointerCursor(enabled = enabled).webRole(role, selected).selectable(
             selected = selected,
             onClick = {
                 // A radio row answers only a change, like a bare radio button.
@@ -139,7 +141,7 @@ fun SelectionRow(
             indication = kontourIndication(shape, pressScale = 1f),
         )
 
-        else -> Modifier.pointerCursor(enabled = enabled).toggleable(
+        else -> Modifier.pointerCursor(enabled = enabled).webRole(role, selected).toggleable(
             value = selected,
             onValueChange = { now ->
                 toggled(now)

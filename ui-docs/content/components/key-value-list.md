@@ -30,8 +30,8 @@ to become tappable, it is not one of these — move it out and leave the rest.
 having — each pair becomes label above value instead of side by side. The label
 column had a floor and the value had no weight at all, so anything under about
 120dp gave the label the whole row and left the value drawing its first character
-outside the component, one glyph wide. The floor is capped now, so a long label
-pushes its column out but can never starve the value.
+outside the component, one glyph wide. The column is capped now, so a long label
+pushes it out but can never starve the value.
 
 **Each row announces as a pair**, "Platform, 2". Separate nodes make the reader
 hold the label while waiting for the value, and the pairing is the entire
@@ -42,9 +42,13 @@ row with its value missing.
 The builder is composable, so a value is formatted where it is written:
 `item("Updated", Theme.formats.date(updated))`.
 
-`labelWidth` is a fixed minimum rather than intrinsic, so the values line up down
-the column. A ragged value column is what makes a details panel look untidy, and
-an intrinsic width re-rags it every time the content changes.
+**Two columns, always.** Every row shares one label column, as wide as the
+widest label — from `labelWidth` up to what leaves the values their room, a
+longer label wrapping to two lines — so the values line up down the list
+whatever the labels are, with nothing to set. A ragged value column is what makes
+a details panel look untidy. `labelWidth` was a floor each row took for itself,
+so one label longer than it pushed its own value out of line with the rest, and
+the columns held only while every label was short.
 
 ---
 

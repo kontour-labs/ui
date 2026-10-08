@@ -1,5 +1,7 @@
 package io.kontour.ui.catalog
 
+import io.kontour.ui.components.list.rememberScrollbarListState
+import io.kontour.ui.components.list.scrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +49,11 @@ import io.kontour.icons.tabler.outline.Stack2
 import io.kontour.icons.tabler.outline.Swipe
 import io.kontour.icons.tabler.outline.Typography
 import io.kontour.icons.tabler.outline.Windmill
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
+import io.kontour.ui.adaptive.edges
 import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.adaptive.Scaffold
 import io.kontour.ui.adaptive.WindowSizeClassProvider
@@ -151,13 +158,15 @@ internal val pages: List<Page> = listOf(
 /** A scroller for the two pages that are a plain column of content. */
 @Composable
 private fun Scrolling(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxSize().verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())) { content() }
+    Box(modifier.fillMaxSize().pageScroll(flingBehavior = ScrollDefaults.flingBehavior())) { content() }
 }
 
 @Composable
 private fun DemoFamilyPage(family: DemoFamily, modifier: Modifier = Modifier) {
+    val list = rememberScrollbarListState()
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        state = list,
+        modifier = modifier.fillMaxSize().scrollbar(list),
         contentPadding = PaddingValues(Theme.spacing.md),
         flingBehavior = ScrollDefaults.flingBehavior(),
         verticalArrangement = Arrangement.spacedBy(Theme.spacing.lg),
@@ -329,10 +338,18 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                                         pageState = pageState,
                                     )
                                 } else {
+                                    // Clear of the status bar and the home
+                                    // indicator, and the far side's cutout: a rail
+                                    // hands its content no padding and clears only
+                                    // its own column, and a gallery page has no
+                                    // bar of its own to clear them, as the
+                                    // mini-apps' pages do. On an iPad held upright
+                                    // the pages ran under the status bar.
                                     Box(
                                         Modifier
                                             .fillMaxSize()
                                             .padding(contentPadding)
+                                            .windowInsetsPadding(WindowInsets.edges.only(WindowInsetsSides.Vertical + WindowInsetsSides.End))
                                     ) {
                                         CatalogDestination(
                                             selected = selected,
@@ -360,6 +377,7 @@ fun Catalog(settings: CatalogSettings = rememberCatalogSettings()) {
                         FrameReadout(
                             Modifier
                                 .align(Alignment.TopEnd)
+                                .windowInsetsPadding(WindowInsets.edges.only(WindowInsetsSides.Top + WindowInsetsSides.End))
                                 .padding(Theme.spacing.sm)
                         )
                     }
@@ -493,7 +511,7 @@ internal fun SettingsSheetContent(
 ) {
     Column(
         Modifier
-            .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+            .pageScroll(flingBehavior = ScrollDefaults.flingBehavior(), barPadding = PaddingValues(bottom = safeArea.calculateBottomPadding()))
             // **Inside the scroller, which is the whole point of being handed
             // it.** Outside it — which is what the sheet used to do for every
             // caller — the viewport stops above the gesture bar and the last

@@ -20,6 +20,13 @@ what sits between the hour and the minute (`.` in Finnish), and the digits.
 `onValueChange` follows every row a wheel passes; `onValueChangeFinished` comes
 once a wheel has come to rest, which is where a save or a request belongs.
 
+**Now, under the wheels.** A small button that scrolls the wheels to the time
+now, rounded to the nearest `minuteStep`. They turn through the rows to get
+there rather than jumping, so the reader sees where the time went, and
+`onValueChangeFinished` comes once they arrive. `now` is the clock it reads,
+`TimePickerDefaults.currentTime()` by default; pass `null` for no button on a
+picker whose time has nothing to do with the present.
+
 ---
 
 ## Accessibility

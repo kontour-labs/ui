@@ -114,27 +114,69 @@ bottom of the window a part cannot be seen or tapped, and it is not read out
 either.
 
 The content lambda's receiver is a `SheetContentScope`, which is a `ColumnScope`
-with `part` and `pinned` added — so `weight`, `align` and everything else a
+with `part` added — so `weight`, `align` and everything else a
 column offers are unchanged, and content written before this existed reads and
 behaves the same.
 
 ---
 
-## `pinned` — a part that stays at an edge, with the content passing behind
+## `part(pin = …)` — what stays put while the sheet moves
 
-<!--sample:BottomSheetPinnedSearch-->
+A part can be **pinned**: drawn by the sheet in a place of its own, rather than
+where it is written in the content. Asked for as a rethink of the sheet's pinned
+content around three uses — *"a search bar that's basically locked at the bottom
+of a sheet, basically acting like a nav bar"*, *"an apple maps-style search bar
+that's glued to the top of the header, that other content scrolls under"*, and
+*"some content that's normally scrollable (e.g. the search bar might be at the
+top of that scrollable list), but then when the sheet collapses, it smoothly
+animates into being the only visible thing"*.
+
+| `pin` | Where it is | The content |
+|---|---|---|
+| `SheetPartPin.None`, the default | in the content, where it is written | — |
+| `SheetPartPin.Bottom` | at the foot of what the sheet shows, on every frame, a drag included | appears above it as the sheet grows, and fades under it |
+| `SheetPartPin.Top` | under the drag handle, out of the scroll | scrolls up under it, and fades as it goes |
+| `SheetPartPin.Collapsed` | in the content where it is written; at the top, and the only thing left, as the sheet collapses | fades out of the way as the part goes to the top |
+
+**`SheetDetent.parts()` shows the pinned parts and nothing else**: the handle,
+the parts, and the safe area under them. That is the collapsed sheet that is
+only a search field, at whatever height the field turns out to be at the
+reader's font scale. Until they have been measured, and on a sheet with none, it
+uses its `fallback`. As the sheet comes down to it from the next size up, the
+content behind the parts fades into the sheet's own colour, so collapsed there
+is nothing of a list showing round a pinned bar or through its fade. A sheet
+whose smallest size is a half or a peek keeps its content in view there.
+
+**The padding the content is handed** starts below a top part and ends above a
+bottom one, with 16dp to spare. A `LazyColumn` given it as `contentPadding`
+scrolls its first and last rows out from behind them, just as it does for the
+safe area. The padding has no inset at the sides, so rows that should line up
+with a part take `BottomSheetDefaults.ContentPadding` there themselves, as the
+examples do.
+
+**Write a pinned part at the top level of the content**, outside any list: it
+is drawn by the sheet, not where it is written, and a list disposes of what it
+has scrolled away. The one exception is a `Collapsed` part, which keeps a place
+of its own height where it is written — so it goes *in* the list, as its first
+item. One part to each pin; a second replaces the first. Pinned parts are always
+on the sheet, so always in the assistive tree.
+
+### `Bottom` — a search bar as a navigation bar
+
+<!--sample:BottomSheetSearchBar-->
 ```kotlin
 val sheet = rememberSheetState(
-    detents = listOf(SheetDetent.pinned(), SheetDetent.Half, SheetDetent.Expanded),
-    initialDetent = SheetDetent.pinned(),
+    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.parts(),
 )
 val query = rememberTextFieldState()
 
 BottomSheet(state = sheet) { padding ->
-    // On the bottom of what the sheet shows at every size, over the list
-    // and on the sheet's own colour, with the sheet's inset round it.
-    // Collapsed, it is all there is: the search, and the account beside it.
-    pinned {
+    // At the foot of what the sheet shows, whatever it is doing, as a
+    // navigation bar is, with the sheet's inset round it and the list
+    // fading out under it. Collapsed, it is all there is: the search, and
+    // the account beside it.
+    part(pin = SheetPartPin.Bottom) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
@@ -143,9 +185,8 @@ BottomSheet(state = sheet) { padding ->
             IconButton(onClick = {}, icon = Tabler.Outline.User, contentDescription = "Account")
         }
     }
-    // The padding has grown by the field's height, so the last row
-    // scrolls out from behind it. At the sides, the sheet's inset, the
-    // same as the field's.
+    // The padding ends above it, so the last row scrolls out from behind
+    // it. At the sides, the sheet's inset, the same as the field's.
     LazyColumn(
         modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
         contentPadding = padding,
@@ -153,59 +194,105 @@ BottomSheet(state = sheet) { padding ->
 }
 ```
 
-Asked for as *"a way to pin a component to certain parts of the sheet… a
-[search] bar to the bottom of the sheet. Content should be scrollable behind it,
-and when the sheet is collapsed, only the search bar should show."* And asked for
-again, separately, for a map: a search field with an account button beside it,
-in reach at every height the sheet is at, which is the example above.
+**It stays at the foot of what the sheet shows, on every frame**, as a
+navigation bar stays at the foot of a screen: dragging the sheet up, the content
+appears above it; dragging it down, it stays put until the sheet is shorter than
+it and then goes down with the sheet's top edge. It is inset by
+`BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, above the
+safe area.
 
-**`SheetPin.Bottom`, the default, rides the bottom of what the sheet shows.**
-That is the window's edge for an edge sheet and the sheet's own for a floating
-one, above the safe area, at every detent and on every frame of a drag. Pulled
-down past the point where it would cover the handle, it stops there and leaves
-with the sheet. **`SheetPin.Top` sits under the drag handle**, where the content
-starts.
+**The content fades out under it the way it does under a floating
+[`NavBar`](nav-bar.md)**: the sheet's colour, solid from the part's middle down
+and thinning out over 16dp above it, so a row passing behind shows faintly above
+the field and is gone under it. What is in the part is drawn whole over that — a
+search field's own ground and its words. `fadeUnder = false` leaves the content
+as it is, showing round it. At high contrast a line marks the edge instead.
 
-**It is drawn over the content, with the sheet's inset round it.** The sheet pads
-it by `BottomSheetDefaults.ContentPadding`, 16dp, at the sides and below, and the
-drag handle's 24dp band above is the space over it. A sheet collapsed to its
-search field shows the field with the handle in the middle of the band above it
-and 16dp beside and below it. A top part moves in from a display's rounder
-corners as the header does; see [`SheetHeader`](sheet-header.md#the-space-round-it).
+### `Top` — a search bar on top of the sheet
 
-**On the sheet's own colour by default**, so whatever scrolls behind it is hidden
-rather than showing through. Once a bottom part has risen off the band, it has the
-inset in the sheet's colour above it too, so the content never meets it edge to
-edge. The colour runs the full width and, at the bottom, down through the safe
-area. At high contrast a line marks the edge the content passes behind, where the
-two grounds would otherwise be the same colour.
+<!--sample:BottomSheetTopSearch-->
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.Half,
+)
+val query = rememberTextFieldState()
 
-**`containerColour = Color.Transparent` lets the content go under it** and show
-round it, with only the part itself — a search field's own ground — drawn over
-the rows. Asked for as *"the ability for the content to go under the pinned
-item"*. The padding is the same either way, so the last row can still be scrolled
-clear of the part. Any other colour is drawn where the sheet's would be.
+BottomSheet(state = sheet) { padding ->
+    // Under the handle, out of the scroll: the list starts below it and
+    // scrolls up under it, fading as it goes.
+    part(pin = SheetPartPin.Top) {
+        SearchField(
+            query,
+            placeholder = "Search places",
+            modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+        )
+    }
+    LazyColumn(
+        modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+        contentPadding = padding,
+    ) { stopRows() }
+}
+```
 
-**The padding the content is handed grows by the pinned parts' heights**, and by
-the inset above a bottom part. A `LazyColumn` given it as `contentPadding` scrolls
-its first and last rows out from behind them, just as it does for the safe area. Content that ignores the padding
-runs under them. The padding has no inset at the sides, so rows that should line
-up with the pinned part take `BottomSheetDefaults.ContentPadding` there
-themselves, as the example does.
+**Under the drag handle, out of the scroll**, laid out as the content is: a
+[`SheetHeader`](sheet-header.md) pinned there insets itself as it does anywhere
+in a sheet, and moves in from a display's rounder corners. The content scrolls
+up under it and fades as it goes, as a page does under a [`TopBar`](top-bar.md):
+the sheet's colour behind it, thinning out over its inner 12dp and gone 4dp
+past it.
 
-**`SheetDetent.pinned()` shows the pinned parts and nothing else**: the handle,
-whatever is pinned to the top, whatever is pinned to the bottom, and the safe
-area under them all. That is the collapsed sheet that is only a search field, at
-whatever height the field turns out to be at the reader's font scale. Until the
-parts have been measured, and on a sheet with none, it uses its `fallback`. The
-safe area used to come only with a part pinned to the bottom: an edge sheet
-collapsed to a part pinned to the top came to rest with that part's foot behind
-the home indicator.
+### `Collapsed` — part of the list until the sheet collapses
 
-Where `pinned` is written in the content does not decide where it is drawn.
-Several at one edge stack in the order they were first composed. A pinned part is
-always on screen, so it is always in the assistive tree, and read after the
-content.
+<!--sample:BottomSheetCollapsingSearch-->
+```kotlin
+val sheet = rememberSheetState(
+    detents = listOf(SheetDetent.parts(), SheetDetent.Half, SheetDetent.Expanded),
+    initialDetent = SheetDetent.Half,
+)
+val query = rememberTextFieldState()
+
+BottomSheet(state = sheet) { padding ->
+    val sheetParts = this
+    LazyColumn(
+        modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+        contentPadding = padding,
+    ) {
+        // The head of the list, scrolling with it. Collapse the sheet and it
+        // is carried to the top while the stops fade away — from wherever
+        // it had scrolled to, or in from above if it was out of view — and
+        // what was typed in it stays.
+        item(key = "search") {
+            sheetParts.part(pin = SheetPartPin.Collapsed) {
+                SearchField(
+                    query,
+                    placeholder = "Search stops",
+                    modifier = Modifier.padding(horizontal = BottomSheetDefaults.ContentPadding),
+                )
+            }
+        }
+        stopRows()
+    }
+}
+```
+
+**In the content where it is written**, scrolling with it, until the sheet
+collapses. Between the sheet's two lowest sizes it is carried from its place to
+the top, under the handle, while the rest of the content fades out of the way;
+collapsed, it is the whole of the sheet. Where it had scrolled out of view — or
+a lazy list had not composed it at all — it slides in from above instead. It is
+the same field throughout, so what was typed in it stays, and the list keeps
+where it was scrolled to for when the sheet opens again.
+
+The sheet's lowest size is the one it collapses to, so give the sheet
+`SheetDetent.parts()` as its lowest detent.
+
+### Before 0.4.3
+
+The sheet's pinned content was a `pinned { }` call in the content in 0.4.2, at
+the foot of what the sheet showed, or on its top with `to = SheetPin.Top`, on a
+band of the sheet's colour. [Migrating](../migrating.md) has the
+change to parts.
 
 ---
 

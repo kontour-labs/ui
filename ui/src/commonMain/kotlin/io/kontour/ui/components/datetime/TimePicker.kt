@@ -1,5 +1,18 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.error
+import io.kontour.ui.components.text.TextFieldDefaults
+import io.kontour.ui.motion.enterOrFade
+import io.kontour.ui.motion.exitOrFade
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import io.kontour.ui.locale.TimePart
@@ -34,6 +47,16 @@ import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlin.time.Clock
+import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.Button
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 
 /**
  * Picks a time of day.
@@ -56,10 +79,16 @@ import kotlinx.datetime.LocalTime
  *   in the disabled content colour and answers nothing.
  * @param minuteStep Coarsens the minute wheel. A planner rarely wants
  *   minute-level precision, and 5 turns 60 rows into 12.
+ * @param now The time now, for the **Now** button under the wheels: pressed,
+ *   the wheels scroll to it — rounded to the nearest [minuteStep] — rather than
+ *   jumping, so the reader sees where the time went. The system clock's by
+ *   default; null for no button, on a picker whose time has nothing to do with
+ *   the present.
  * @param onValueChangeFinished Called when a wheel comes to rest after the
- *   reader turned it. [onValueChange] follows every row a wheel passes; what
- *   should happen once — a save, a request — belongs here. Not called when
- *   [value] is set by the caller.
+ *   reader turned it, and once when the wheels have reached Now.
+ *   [onValueChange] follows every row a wheel passes; what should happen once —
+ *   a save, a request — belongs here. Not called when [value] is set by the
+ *   caller.
  */
 @Composable
 fun TimePicker(
@@ -68,8 +97,46 @@ fun TimePicker(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     minuteStep: Int = 1,
+    now: (() -> LocalTime)? = TimePickerDefaults::currentTime,
     formats: LocaleFormats = Theme.formats,
     onValueChangeFinished: (() -> Unit)? = null,
+) = TimeWheels(value, onValueChange, modifier, enabled, minuteStep, now, formats, onValueChangeFinished, onNow = null)
+
+/** What a [TimePicker] takes by default. */
+object TimePickerDefaults {
+    /** The time now on the system's clock, in its zone: what a picker's Now turns to. */
+    fun currentTime(): LocalTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).time
+}
+
+/**
+ * [time] to the nearest [step] of the minute wheel, half up, and whether that
+ * went past midnight into the next day: 23:58 by fives is 00:00 tomorrow.
+ */
+internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
+    var minute = (time.minute * 2 + step) / (2 * step) * step
+    var hour = time.hour
+    if (minute >= 60) {
+        minute = 0
+        hour += 1
+    }
+    return if (hour >= 24) LocalTime(0, minute) to true else LocalTime(hour, minute) to false
+}
+
+/**
+ * [TimePicker], and [onNow] for a [DateTimePicker], told when Now is pressed
+ * whether the time it turns to is tomorrow's, so the date can go with it.
+ */
+@Composable
+internal fun TimeWheels(
+    value: LocalTime,
+    onValueChange: (LocalTime) -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    minuteStep: Int,
+    now: (() -> LocalTime)?,
+    formats: LocaleFormats,
+    onValueChangeFinished: (() -> Unit)?,
+    onNow: ((tomorrow: Boolean) -> Unit)?,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
 
@@ -86,25 +153,42 @@ fun TimePicker(
         }
     }
 
-    val displayHour = when (cycle) {
-        HourCycle.H23 -> value.hour
-        HourCycle.H12 -> (value.hour % 12).let { if (it == 0) 12 else it }
-        HourCycle.H11 -> value.hour % 12
-        HourCycle.H24 -> if (value.hour == 0) 24 else value.hour
+    fun displayHourOf(hour: Int) = when (cycle) {
+        HourCycle.H23 -> hour
+        HourCycle.H12 -> (hour % 12).let { if (it == 0) 12 else it }
+        HourCycle.H11 -> hour % 12
+        HourCycle.H24 -> if (hour == 0) 24 else hour
     }
+    val displayHour = displayHourOf(value.hour)
     val hourIndex = hours.indexOf(displayHour).coerceAtLeast(0)
     val minuteIndex = minutes.indexOfFirst { it >= value.minute }.coerceAtLeast(0)
     val isPm = value.hour >= 12
 
-    fun emit(hourValue: Int = displayHour, minute: Int = value.minute, pm: Boolean = isPm) {
+    // The value as last reported, not as last composed: two wheels turning in
+    // the same frame — as they do to Now — each change one part of it, and a
+    // part read from the composed value undid the other wheel's.
+    val working = remember { Working(value) }
+    working.compose(value)
+
+    fun emit(
+        hourValue: Int = displayHourOf(working.value.hour),
+        minute: Int = working.value.minute,
+        pm: Boolean = working.value.hour >= 12,
+    ) {
         val hour24 = when (cycle) {
             HourCycle.H23 -> hourValue
             HourCycle.H24 -> hourValue % 24
             HourCycle.H11 -> hourValue + if (pm) 12 else 0
             HourCycle.H12 -> (hourValue % 12) + if (pm) 12 else 0
         }
-        onValueChange(LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59)))
+        val next = LocalTime(hour24.coerceIn(0, 23), minute.coerceIn(0, 59))
+        if (next == working.value) return
+        working.value = next
+        onValueChange(next)
     }
+
+    // The turns Now asks of the hour, minute and day-period wheels.
+    var turns by remember { mutableStateOf<List<WheelTurn?>>(listOf(null, null, null)) }
 
     val strings = Theme.strings
     // The locale's own words, and the same ones the time is written with: the
@@ -124,7 +208,7 @@ fun TimePicker(
     val clock = @Composable {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                WheelPicker(
+                WheelDrum(
                     items = hours,
                     selectedIndex = hourIndex,
                     onSelectedIndexChange = { emit(hourValue = hours[it]) },
@@ -132,12 +216,13 @@ fun TimePicker(
                     modifier = Modifier.width(72.dp),
                     enabled = enabled,
                     contentDescription = strings.hour,
-                    onSelectedIndexChangeFinished = onValueChangeFinished,
+                    onSettled = onValueChangeFinished,
+                    turn = turns[0],
                 )
 
                 Text(layout.separator, style = Theme.typography.headlineSmall, colour = muted)
 
-                WheelPicker(
+                WheelDrum(
                     items = minutes,
                     selectedIndex = minuteIndex,
                     onSelectedIndexChange = { emit(minute = minutes[it]) },
@@ -145,7 +230,8 @@ fun TimePicker(
                     modifier = Modifier.width(72.dp),
                     enabled = enabled,
                     contentDescription = strings.minute,
-                    onSelectedIndexChangeFinished = onValueChangeFinished,
+                    onSettled = onValueChangeFinished,
+                    turn = turns[1],
                 )
             }
         }
@@ -173,7 +259,7 @@ fun TimePicker(
     // shows three rows. Before the time or after it, as the locale writes
     // it: `2:05 pm`, but `오후 2:05`.
     val period = @Composable { first: Boolean ->
-        WheelPicker(
+        WheelDrum(
             items = periods,
             selectedIndex = if (isPm) 1 else 0,
             onSelectedIndexChange = { emit(pm = it == 1) },
@@ -183,8 +269,9 @@ fun TimePicker(
                 .width(periodWidth),
             enabled = enabled,
             contentDescription = strings.dayPeriod,
-            onSelectedIndexChangeFinished = onValueChangeFinished,
+            onSettled = onValueChangeFinished,
             visibleItems = 3,
+            turn = turns[2],
         )
     }
     val periodFirst = layout.parts.indexOf(TimePart.DayPeriod).let { it >= 0 && it < layout.parts.indexOf(TimePart.Hour) }
@@ -199,16 +286,66 @@ fun TimePicker(
             clock()
             if (cycle.usesDayPeriod && !periodFirst) period(false)
         }
+        if (now != null) {
+            val scope = rememberCoroutineScope()
+            val change by rememberUpdatedState(onValueChange)
+            val finished by rememberUpdatedState(onValueChangeFinished)
+            // The last press's wait for its wheels: a second press takes over from it.
+            val waiting = remember { arrayOfNulls<Job>(1) }
+            // Under the wheels, a quiet button: the wheels are the control,
+            // this is a shortcut to a place on them.
+            Button(
+                onClick = {
+                    val (target, tomorrow) = nearestStep(now(), minuteStep)
+                    onNow?.invoke(tomorrow)
+                    val asked = listOf(
+                        WheelTurn(hours.indexOf(displayHourOf(target.hour)).coerceAtLeast(0)),
+                        WheelTurn(minutes.indexOf(target.minute).coerceAtLeast(0)),
+                        WheelTurn(if (target.hour >= 12) 1 else 0).takeIf { cycle.usesDayPeriod },
+                    )
+                    turns = asked
+                    waiting[0]?.cancel()
+                    waiting[0] = scope.launch {
+                        // Every wheel there, or a finger took one on the way: then the
+                        // finger's is the value, and Now says nothing over it.
+                        val arrived = asked.all { turn -> turn?.done?.await() ?: true }
+                        if (!arrived) return@launch
+                        // Where the wheels came to rest, exactly, and said once.
+                        if (working.value != target) {
+                            working.value = target
+                            change(target)
+                        }
+                        finished?.invoke()
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                enabled = enabled,
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Small,
+            ) { +strings.now }
+        }
     }
 }
 
 /**
  * The chosen time, shown as a tappable field.
  *
+ * ```
+ * TimeField(value = leaveAt, onClick = { picking = true }, label = "Leave at")
+ *
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Leave at") {
+ *     TimePicker(value = leaveAt, onValueChange = { leaveAt = it })
+ * }
+ * ```
+ *
  * The thing you put on a form; tapping it is expected to open a [TimePicker] in
- * a sheet. Kept separate from the picker so the picker never has to know how it
+ * a [FieldPicker]. Kept separate from the picker so the picker never has to know how it
  * is being presented. [DateField] and [DateTimeField] are the same field for a
  * [DatePicker] and a [DateTimePicker].
+ *
+ * @param supporting A line under the field, as a [DateField]'s.
+ * @param errorMessage In place of [supporting], in the error colour, as a
+ *   [DateField]'s.
  */
 @Composable
 fun TimeField(
@@ -217,6 +354,8 @@ fun TimeField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -227,6 +366,8 @@ fun TimeField(
         enabled = enabled,
         label = label,
         interactionSource = interactionSource,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }
 
@@ -236,6 +377,10 @@ fun TimeField(
  *
  * @param text What is chosen, as the field shows it; `null` for nothing yet,
  *   when [placeholder] is shown instead.
+ * @param supporting A line under the field, as a text field's: what the value is
+ *   for, or what it has to be.
+ * @param errorMessage In place of [supporting], in the error colour, with the
+ *   field's edge in it too; and said with the field, as a text field's is.
  */
 @Composable
 internal fun PickerField(
@@ -246,10 +391,15 @@ internal fun PickerField(
     label: String?,
     interactionSource: MutableInteractionSource?,
     placeholder: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
 ) {
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
     val shape = Theme.shapes.field
     val shown = text ?: placeholder.orEmpty()
+    // A text field's own colours for the line under it, so a date in a form
+    // says "required" in the same grey and the same red as the name above it.
+    val fieldColours = TextFieldDefaults.colours()
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
@@ -275,6 +425,7 @@ internal fun PickerField(
                 .semantics {
                     if (label != null) contentDescription = label
                     stateDescription = shown
+                    if (errorMessage != null) error(errorMessage)
                 }
                 .pointerCursor(enabled = enabled)
                 .clickable(
@@ -290,8 +441,12 @@ internal fun PickerField(
             shape = shape,
             containerColour = Theme.colours.surfaceSunken,
             // A well on the page is 1.13:1 at the enhanced tier; the field has
-            // to be seen to be pressed.
-            border = contrastEdge(),
+            // to be seen to be pressed. In error, the error colour all round.
+            border = if (errorMessage != null) {
+                BorderStroke(Theme.sizing.borderWidth, fieldColours.error)
+            } else {
+                contrastEdge()
+            },
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
@@ -310,6 +465,30 @@ internal fun PickerField(
                 ),
             )
         }
+        // The same slot a text field has: one line, the error in place of the
+        // supporting text, opening and closing in place.
+        val message = errorMessage ?: supporting
+        val motion = Theme.motion
+        AnimatedVisibility(
+            visible = message != null,
+            enter = motion.enterOrFade(fadeIn(motion.tweenFast()) + expandVertically(motion.tweenFast())),
+            exit = motion.exitOrFade(fadeOut(motion.tweenFast()) + shrinkVertically(motion.tweenFast())),
+        ) {
+            var last by remember { mutableStateOf(message.orEmpty()) }
+            if (message != null) last = message
+            Text(
+                text = message ?: last,
+                style = Theme.typography.bodySmall,
+                colour = when {
+                    !enabled -> Theme.colours.contentDisabled
+                    errorMessage != null -> fieldColours.error
+                    else -> fieldColours.supporting
+                },
+                // Said with the field: its error as the field's, its supporting
+                // line as a line of its own after it.
+                modifier = if (errorMessage != null) Modifier.clearAndSetSemantics {} else Modifier,
+            )
+        }
     }
 }
 
@@ -318,3 +497,21 @@ private val PeriodWheelWidth = 64.dp
 
 /** Room either side of the longest day-period word. */
 private val PeriodWheelPadding = 24.dp
+
+/**
+ * A value a picker's parts each change a part of, read as it was last changed
+ * rather than as it was last composed: two parts changing in one frame keep
+ * both changes. Taken from the caller afresh whenever the caller's changes.
+ */
+internal class Working<T>(initial: T) {
+    private var composed = initial
+    var value = initial
+
+    fun compose(caller: T) {
+        if (caller != composed) {
+            composed = caller
+            value = caller
+        }
+    }
+}
+

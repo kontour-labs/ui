@@ -164,7 +164,7 @@ private fun FramePage(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState(), flingBehavior = ScrollDefaults.flingBehavior())
+                .pageScroll(flingBehavior = ScrollDefaults.flingBehavior())
                 .padding(Theme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
         ) {

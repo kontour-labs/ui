@@ -33,6 +33,18 @@ import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.plus
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlin.time.Clock
+import androidx.compose.runtime.remember
+
+/** What a [DateTimePicker] takes by default. */
+object DateTimePickerDefaults {
+    /** The date and time now on the system's clock, in its zone: what a picker's Now turns to. */
+    fun currentDateTime(): LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+}
 
 /**
  * Picks a date and a time of day: a [DatePicker] and a [TimePicker], side by
@@ -74,14 +86,19 @@ import kotlinx.datetime.LocalDateTime
  * @param onValueChange Every change: a day tapped, or each row a wheel passes,
  *   as the time picker's own does.
  * @param minuteStep Coarsens the minute wheel; see [TimePicker].
+ * @param now The date and time now, for the **Now** button under the wheels:
+ *   pressed, the wheels scroll to the time — rounded to [minuteStep] — and the
+ *   day becomes today, the calendar paging to it. The system clock's by
+ *   default; null for no button.
  * @param navigation Which month is on show; it opens on [value]'s.
  * @param onValueChangeFinished Called once a change has settled: when a day is
  *   tapped, and when a wheel comes to rest after the reader turned it. A save,
  *   a request or a toast belongs here rather than in [onValueChange], which a
  *   flick of the minutes calls a dozen times. Not called when [value] is set by
  *   the caller.
- * @see DatePicker for [today], [isDateSelectable], [markerFor], the icons and
- *   [firstDayOfWeek], which mean what they mean there.
+ * @see DatePicker for [today], [isDateSelectable], [markerFor],
+ *   [containerColourFor], [annotationFor], the icons and [firstDayOfWeek], which
+ *   mean what they mean there.
  */
 @Composable
 fun DateTimePicker(
@@ -93,11 +110,14 @@ fun DateTimePicker(
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
     markerFor: ((LocalDate) -> Color?)? = null,
+    containerColourFor: ((LocalDate) -> Color?)? = null,
+    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
     chooserIcon: ImageVector? = null,
     minuteStep: Int = 1,
+    now: (() -> LocalDateTime)? = DateTimePickerDefaults::currentDateTime,
     navigation: CalendarNavigationState = rememberCalendarNavigationState(value.date),
     formats: LocaleFormats = Theme.formats,
     firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
@@ -106,14 +126,21 @@ fun DateTimePicker(
     // Each half changes its own part of whatever the value is by then, not of
     // the value it was composed with: a day tapped while the minutes are still
     // settling keeps the minute they settle on.
-    val latest by rememberUpdatedState(value)
-    val change by rememberUpdatedState(onValueChange)
+    val working = remember { Working(value) }
+    working.compose(value)
+    val report by rememberUpdatedState(onValueChange)
+    val change: (LocalDateTime) -> Unit = { next ->
+        if (next != working.value) {
+            working.value = next
+            report(next)
+        }
+    }
     val finished by rememberUpdatedState(onValueChangeFinished)
     val date = @Composable { dateModifier: Modifier ->
         DatePicker(
             value = value.date,
             onValueChange = { date ->
-                change(LocalDateTime(date, latest.time))
+                change(LocalDateTime(date, working.value.time))
                 // A tap is the whole of a day's change: settled as it lands.
                 finished?.invoke()
             },
@@ -121,6 +148,8 @@ fun DateTimePicker(
             today = today,
             isDateSelectable = isDateSelectable,
             markerFor = markerFor,
+            containerColourFor = containerColourFor,
+            annotationFor = annotationFor,
             previousIcon = previousIcon,
             nextIcon = nextIcon,
             todayIcon = todayIcon,
@@ -131,15 +160,29 @@ fun DateTimePicker(
             modifier = dateModifier,
         )
     }
+    // Now read once a press, for the wheels' time and the calendar's day alike.
+    val pressedAt = remember { arrayOfNulls<LocalDate>(1) }
     val time = @Composable { timeModifier: Modifier ->
-        TimePicker(
+        TimeWheels(
             value = value.time,
-            onValueChange = { time -> change(LocalDateTime(latest.date, time)) },
+            onValueChange = { time -> change(LocalDateTime(working.value.date, time)) },
+            modifier = timeModifier,
             enabled = enabled,
             minuteStep = minuteStep,
+            now = now?.let { read -> { read().also { pressedAt[0] = it.date }.time } },
             formats = formats,
             onValueChangeFinished = onValueChangeFinished,
-            modifier = timeModifier,
+            // The day goes with the time: today, or tomorrow when the time
+            // rounded past midnight, and the calendar pages there.
+            onNow = { tomorrow ->
+                val day = pressedAt[0]?.let { if (tomorrow) it.plus(1, DateTimeUnit.DAY) else it }
+                // Only to a day the calendar would let be chosen: one it would
+                // refuse, today included, keeps the day there was.
+                if (day != null && day != working.value.date && isDateSelectable(day)) {
+                    change(LocalDateTime(day, working.value.time))
+                    navigation.jumpTo(day)
+                }
+            },
         )
     }
 
@@ -221,21 +264,20 @@ private fun OneOf(index: Int, content: @Composable () -> Unit) {
  *
  * DateTimeField(value = departs, onClick = { picking = true }, label = "Departs")
  *
- * Dialog(
- *     visible = picking,
- *     onDismissRequest = { picking = false },
- *     actions = { confirm("Done") { picking = false } },
- * ) {
+ * FieldPicker(visible = picking, onDismissRequest = { picking = false }, title = "Departs") {
  *     DateTimePicker(value = departs, onValueChange = { departs = it })
  * }
  * ```
  *
  * The thing you put on a form, as [TimeField] and [DateField] are: tapping it is
- * expected to open a [DateTimePicker] in a dialog or a sheet. Written as the
+ * expected to open a [DateTimePicker] in a [FieldPicker]. Written as the
  * locale writes a date and a time together.
  *
  * @param value The date and time chosen. Always one, as a [DateTimePicker]
  *   always has one: there is no empty state to show a placeholder for.
+ * @param supporting A line under the field, as a [DateField]'s.
+ * @param errorMessage In place of [supporting], in the error colour, as a
+ *   [DateField]'s.
  * @param formats Writes the value; the theme's, by default.
  */
 @Composable
@@ -245,6 +287,8 @@ fun DateTimeField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     label: String? = null,
+    supporting: String? = null,
+    errorMessage: String? = null,
     formats: LocaleFormats = Theme.formats,
     interactionSource: MutableInteractionSource? = null,
 ) {
@@ -255,5 +299,7 @@ fun DateTimeField(
         enabled = enabled,
         label = label,
         interactionSource = interactionSource,
+        supporting = supporting,
+        errorMessage = errorMessage,
     )
 }

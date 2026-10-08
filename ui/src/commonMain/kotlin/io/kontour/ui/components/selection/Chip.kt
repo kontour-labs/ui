@@ -1,5 +1,7 @@
 package io.kontour.ui.components.selection
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import io.kontour.ui.motion.sizeSpec
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.contrastEdge
@@ -288,13 +290,14 @@ fun FilterChip(
                 if (onSelectedChange == null) {
                     // Inert, but still a chip that reads as on or off, the way
                     // an inert `SelectionRow` does.
-                    Modifier.semantics {
+                    Modifier.webRole(WebRole.Checkbox, selected).semantics {
                         role = Role.Checkbox
                         this.selected = selected
                     }
                 } else {
                     Modifier
                         .pointerCursor(enabled = enabled)
+                        .webRole(WebRole.Checkbox, selected)
                         .selectable(
                             selected = selected,
                             onClick = {

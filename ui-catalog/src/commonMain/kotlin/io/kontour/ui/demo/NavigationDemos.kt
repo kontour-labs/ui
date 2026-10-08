@@ -47,6 +47,11 @@ import io.kontour.ui.foundation.LocalContainerColour
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.nav.HeroImages
+import io.kontour.ui.nav.TopBarDefaults
+import io.kontour.ui.nav.TopBarCollapseState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import io.kontour.ui.nav.Breadcrumbs
 import io.kontour.ui.nav.Crumb
 import io.kontour.ui.nav.ModalNavRail
@@ -482,46 +487,60 @@ internal val TopBarDemo = ComponentDemo(
     // the first line, then the rows move. And the list under the bar, padded
     // by its height, so there is something to fade under it.
     val collapse = rememberTopBarCollapseState()
-    Frame(height = if (tall) 560.dp else 320.dp) {
-        Scaffold(
-            modifier = Modifier.topBarCollapse(collapse),
-            topBar = {
-                TopBar(
-                    style = style,
-                    onBack = if (back) ({ echo("Back") }) else null,
-                    // A line where the fade starts would undo it.
-                    showDivider = style != TopBarStyle.Hero && !fade,
-                    fadeUnder = fade,
-                    actions = { OverflowMenu(::echo) },
-                    image = {
-                        if (several) {
-                            HeroImages(skies) { page -> DuskOverTheRiver(Skies[page]) }
-                        } else {
-                            DuskOverTheRiver()
-                        }
-                    },
-                    expandedHeight = open ?: Dp.Unspecified,
-                    collapseState = collapse,
-                    // Not at the top of the window: a card on a page. Left to the
-                    // default, the bar padded itself by the status bar's height in
-                    // the middle of the page, which over a picture put its buttons
-                    // well down it.
-                    windowInsets = WindowInsets(0),
-                ) {
-                    +"Perth Underground"
-                    supporting { +"Platform 2 · Joondalup line" }
+    // A hero is drawn over its list instead, and follows the list's scroll:
+    // the list is the only thing that scrolls, so the two never share a drag.
+    val list = rememberLazyListState()
+    val follow = rememberTopBarCollapseState(list, initialOpenHeight = open ?: TopBarDefaults.HeroHeight)
+    val hero = style == TopBarStyle.Hero
+    val bar = @Composable { state: TopBarCollapseState ->
+        TopBar(
+            style = style,
+            onBack = if (back) ({ echo("Back") }) else null,
+            // A line where the fade starts would undo it.
+            showDivider = style != TopBarStyle.Hero && !fade,
+            fadeUnder = fade,
+            actions = { OverflowMenu(::echo) },
+            image = {
+                if (several) {
+                    HeroImages(skies) { page -> DuskOverTheRiver(Skies[page]) }
+                } else {
+                    DuskOverTheRiver()
                 }
             },
+            expandedHeight = open ?: Dp.Unspecified,
+            collapseState = state,
+            // Not at the top of the window: a card on a page. Left to the
+            // default, the bar padded itself by the status bar's height in
+            // the middle of the page, which over a picture put its buttons
+            // well down it.
             windowInsets = WindowInsets(0),
-        ) { padding ->
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-                // One group, a list item's gap between its rows.
-                listSection(List(12) { it }) { index, position ->
-                    ListItem(position = position) {
-                        +"Departure ${index + 1}"
-                        supporting { +"${4 + index * 6} min · Joondalup" }
-                    }
-                }
+        ) {
+            +"Perth Underground"
+            supporting { +"Platform 2 · Joondalup line" }
+        }
+    }
+    val departures: LazyListScope.() -> Unit = {
+        // One group, a list item's gap between its rows.
+        listSection(List(12) { it }) { index, position ->
+            ListItem(position = position) {
+                +"Departure ${index + 1}"
+                supporting { +"${4 + index * 6} min · Joondalup" }
+            }
+        }
+    }
+    Frame(height = if (tall) 560.dp else 320.dp) {
+        if (hero) {
+            Box(Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(top = follow.openHeight), content = departures)
+                bar(follow)
+            }
+        } else {
+            Scaffold(
+                modifier = Modifier.topBarCollapse(collapse),
+                topBar = { bar(collapse) },
+                windowInsets = WindowInsets(0),
+            ) { padding ->
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = padding, content = departures)
             }
         }
     }

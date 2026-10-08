@@ -140,8 +140,8 @@ fun SelectWithOther() {
     var reason by remember { mutableStateOf<String?>(null) }
     var otherReason by remember { mutableStateOf<String?>(null) }
 
-    // "Other" ends the menu; picked, a box opens in the field to type in.
-    // The answer is `otherReason ?: reason`.
+    // "Something else" ends the menu; picked, a box opens in the field to
+    // type in. The answer is `otherReason ?: reason`.
     Select(
         value = reason,
         options = reasons,
@@ -149,6 +149,8 @@ fun SelectWithOther() {
         label = "Reason",
         otherText = otherReason,
         onOtherTextChange = { otherReason = it },
+        otherLabel = "Something else",
+        otherPlaceholder = "What happened?",
     )
 }
 

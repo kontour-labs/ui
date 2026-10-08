@@ -25,6 +25,11 @@ The calendar's parameters — `today`, `isDateSelectable`, `markerFor`, the icon
 `minuteStep` what it means on the `TimePicker`. The clock, 12-hour or 24, comes
 from [`LocaleFormats`](locale-formats.md) as the time picker's does.
 
+**Now** is under the wheels, as on the time picker: the wheels scroll to the
+time now, and the day becomes today, the calendar paging to it, or tomorrow
+when the time rounds past midnight. `now` reads the clock,
+`DateTimePickerDefaults.currentDateTime()` by default; `null` hides it.
+
 **Each change, and then the settled one.** `onValueChange` hears every change:
 a day tapped, and each row a wheel turns past. `onValueChangeFinished` hears a
 change once it has settled — a day as soon as it is tapped, a wheel once it

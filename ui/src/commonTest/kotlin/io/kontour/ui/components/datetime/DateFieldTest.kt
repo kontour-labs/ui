@@ -5,6 +5,11 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kontour.ui.locale.DateStyle
@@ -74,5 +79,35 @@ class DateFieldTest {
         }
         waitForIdle()
         onNodeWithText(written).fetchSemanticsNode()
+    }
+
+    /**
+     * A line under the field and an error in its place, as a text field has.
+     * Reported from an app: *"`DateField` still has no `supporting` or
+     * `errorMessage`."*
+     */
+    @Test
+    fun aDateFieldHasASupportingLineAndAnErrorInItsPlace() = runComposeUiTest {
+        var error by mutableStateOf<String?>(null)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                DateField(
+                    value = null,
+                    onClick = {},
+                    label = "Post date",
+                    supporting = "When it goes live",
+                    errorMessage = error,
+                )
+            }
+        }
+        waitForIdle()
+        onNodeWithText("When it goes live").fetchSemanticsNode()
+        val field = onNodeWithContentDescription("Post date")
+        assertEquals(null, field.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Error))
+
+        error = "Choose a date after today"
+        waitForIdle()
+        assertEquals("Choose a date after today", field.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Error))
+        onAllNodesWithText("When it goes live").assertCountEquals(0)
     }
 }

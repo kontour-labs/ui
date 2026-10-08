@@ -252,6 +252,30 @@ class SwipeCommitTest {
     }
 
     /**
+     * An action's own say on the tick wins over the row's, either way.
+     *
+     * Asked for as *"the ability to turn off the swipe/tap confirmation per swipe
+     * action … right now, you can do it for a full row, but you can't control it
+     * per action"*.
+     */
+    @Test
+    fun anActionsOwnFullSwipeConfirmationWinsOverTheRows() {
+        val off = framesToRun(confirmation = true, actionConfirmation = false)
+        val on = framesToRun(confirmation = false, actionConfirmation = true)
+        assertTrue(off in 0..30, "an action with its tick off, on a row with it on, took $off frames to run")
+        assertTrue(on > off + 15, "an action with its tick on, on a row with it off, ran after $on frames against $off")
+    }
+
+    /** The same for a tap on a revealed action. */
+    @Test
+    fun anActionsOwnTapConfirmationWinsOverTheRows() {
+        val off = framesToRunOnTap(tapConfirmation = true, actionConfirmation = false)
+        val on = framesToRunOnTap(tapConfirmation = false, actionConfirmation = true)
+        assertTrue(off in 0..2, "a tapped action with its tick off, on a row with it on, took $off frames to run")
+        assertTrue(on >= 18, "a tapped action with its tick on, on a row with it off, ran after $on frames")
+    }
+
+    /**
      * The icon starts turning into the tick as the row goes, not after it has
      * settled.
      *
@@ -315,14 +339,14 @@ class SwipeCommitTest {
         return n
     }
 
-    private fun framesToRun(confirmation: Boolean): Int {
+    private fun framesToRun(confirmation: Boolean, actionConfirmation: Boolean? = null): Int {
         var bounds = Rect.Zero
         var ran: String? = null
         var frames = -1
         Scene(width = Width, height = Height) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 SwipeActions(
-                    end = twoActions(OptIn.OuterOnly) { ran = it },
+                    end = twoActions(OptIn.OuterOnly, outerFullSwipeConfirmation = actionConfirmation) { ran = it },
                     fullSwipeConfirmation = confirmation,
                     modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
                 ) {
@@ -588,14 +612,14 @@ class SwipeCommitTest {
         scene.frames(SettleFrames)
     }
 
-    private fun framesToRunOnTap(tapConfirmation: Boolean): Int {
+    private fun framesToRunOnTap(tapConfirmation: Boolean, actionConfirmation: Boolean? = null): Int {
         var bounds = Rect.Zero
         var ran: String? = null
         var frames = -1
         Scene(width = Width, height = Height, reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 SwipeActions(
-                    end = twoActions(OptIn.Neither) { ran = it },
+                    end = twoActions(OptIn.Neither, outerTapConfirmation = actionConfirmation) { ran = it },
                     tapConfirmation = tapConfirmation,
                     modifier = Modifier.fillMaxWidth().height(RowHeight.dp).reportBounds { bounds = it },
                 ) {
@@ -682,7 +706,12 @@ class SwipeCommitTest {
      * Two trailing actions, declared edge-inward: `Remove` at the screen edge and
      * `Archive` against the row.
      */
-    private fun twoActions(optIn: OptIn, onRun: (String) -> Unit = {}): List<SwipeAction> =
+    private fun twoActions(
+        optIn: OptIn,
+        outerFullSwipeConfirmation: Boolean? = null,
+        outerTapConfirmation: Boolean? = null,
+        onRun: (String) -> Unit = {},
+    ): List<SwipeAction> =
         listOf(
             SwipeAction(
                 label = "Remove",
@@ -690,6 +719,8 @@ class SwipeCommitTest {
                 onAction = { onRun("Remove") },
                 background = Outer,
                 fullSwipe = optIn == OptIn.OuterOnly,
+                fullSwipeConfirmation = outerFullSwipeConfirmation,
+                tapConfirmation = outerTapConfirmation,
             ),
             SwipeAction(
                 label = "Archive",

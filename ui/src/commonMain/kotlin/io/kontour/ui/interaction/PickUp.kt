@@ -9,6 +9,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChange
@@ -62,6 +63,23 @@ internal val PickUpHoldSlop: Dp = 24.dp
  *
  * @param immediate A mouse, or a dedicated grip: neither has a scroll to steal,
  *   so neither waits half a second for one. Read once per gesture.
+ * @param accepts Whether a gesture pressed down here is this detector's at all,
+ *   asked once at the down. For a node with something under it that has its own
+ *   pick-up: on a touchscreen both wait out the same long press, and both took
+ *   hold — an event calendar's empty time began a new event under the event a
+ *   finger was holding, then cancelled the shared edit when the event carried.
+ * @param givesWay Whether the hold gives up once something else takes the
+ *   pointer — a scroll that has started moving, a pager that has claimed a
+ *   swipe — as foundation's own long press does. For a surface that scrolls
+ *   under the thing held: in a list that scrolls, the content moves with the
+ *   finger, so the finger stays where it was *in the content* and the distance
+ *   budget cannot see a scroll at all. An event calendar's hours, scrolled and
+ *   stopped with a finger still down, drew out a new event from under it.
+ *   Off for a reorderable row, whose settling fingertip may nudge its list a
+ *   little and should still pick the row up.
+ * @param onPointer Which pointer took hold, just before [onPickUp]: for a
+ *   carry that something above this node follows — an event calendar's, which
+ *   goes on into a period paged in after the node holding it has left.
  * @param onPickUp Where, in this node, the thing was taken hold of.
  * @param onCarry Each movement while carried. Vertical carries only report the
  *   vertical part of the first one.
@@ -71,6 +89,9 @@ internal val PickUpHoldSlop: Dp = 24.dp
 internal suspend fun PointerInputScope.detectPickUp(
     axis: PickUpAxis,
     immediate: () -> Boolean,
+    accepts: (Offset) -> Boolean = { true },
+    givesWay: Boolean = false,
+    onPointer: (PointerId) -> Unit = {},
     onPickUp: (Offset) -> Unit,
     onCarry: (PointerInputChange, Offset) -> Unit,
     onPutDown: () -> Unit,
@@ -79,6 +100,7 @@ internal suspend fun PointerInputScope.detectPickUp(
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        if (!accepts(down.position)) return@awaitEachGesture
         if (immediate()) {
             // Slop rather than a hold. Without it a plain click on a row would
             // pick it up, which is what the long press is for on a touchscreen
@@ -104,6 +126,7 @@ internal suspend fun PointerInputScope.detectPickUp(
                     overSlop = over
                 }
             } ?: return@awaitEachGesture
+            onPointer(down.id)
             onPickUp(moved.position)
             // Delivered as `detectDragGestures` delivers it: the part of the
             // first movement past the slop is movement, not the price of
@@ -122,9 +145,17 @@ internal suspend fun PointerInputScope.detectPickUp(
                     if ((change.position - down.position).getDistance() > budget) {
                         return@withTimeoutOrNull
                     }
+                    // Taken by something else: see [givesWay].
+                    if (givesWay) {
+                        val after = awaitPointerEvent(PointerEventPass.Final)
+                        if (after.changes.any { it.id == down.id && it.isConsumed }) {
+                            return@withTimeoutOrNull
+                        }
+                    }
                 }
             }
             if (gaveUp != null) return@awaitEachGesture
+            onPointer(down.id)
             onPickUp(down.position)
         }
 

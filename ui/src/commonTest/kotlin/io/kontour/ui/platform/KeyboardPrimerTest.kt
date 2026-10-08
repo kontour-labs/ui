@@ -106,4 +106,29 @@ class KeyboardPrimerTest {
         assertTrue(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold))
         assertFalse(handover.shouldRelease(1.seconds + KeyboardPrimerHandover.Hold * 2), "released once")
     }
+
+    /**
+     * Which browsers hand a focused field's touches to their own input: every
+     * phone and tablet, and anything whose main pointer is a finger — and not a
+     * desktop with a mouse, whose selection Compose draws as it always has.
+     */
+    @Test
+    fun touchFirstBrowsersAreThePhonesAndTabletsAndTheFingerPointed() {
+        assertTrue(isTouchFirst("Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36", coarsePointer = true))
+        // A tablet that says only Android, and a pointer it reports as fine.
+        assertTrue(isTouchFirst("Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 Chrome/130.0 Safari/537.36", coarsePointer = false))
+        assertTrue(isTouchFirst("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36", coarsePointer = true))
+        assertFalse(isTouchFirst("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36", coarsePointer = false))
+        assertFalse(isTouchFirst("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15", coarsePointer = false))
+    }
+
+    /** Whether a touch is a tap is asked without ending it: the end still sees its start. */
+    @Test
+    fun askingWhetherATouchIsATapLeavesItAsItWas() {
+        val handover = KeyboardPrimerHandover()
+        handover.onTouchStart(100f, 100f)
+        assertTrue(handover.isTap(104f, 100f))
+        assertFalse(handover.isTap(100f + KeyboardPrimerHandover.TapSlop + 1f, 100f))
+        assertTrue(handover.onTouchEnd(104f, 100f, inRegion = true, editing = false, now = Duration.ZERO))
+    }
 }

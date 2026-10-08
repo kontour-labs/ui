@@ -1,5 +1,8 @@
 package io.kontour.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+
 /**
  * What something is saying about itself, from routine to urgent.
  *
@@ -32,4 +35,32 @@ enum class Tone {
 
     /** Something went wrong, or is about to be destroyed. */
     Danger,
+}
+
+/**
+ * Every colour a component in [tone] is drawn with: the tone's own
+ * [StatusColours], and for [Tone.Neutral] the surface's — the inverse surface
+ * solid, as a toast is, and a sunken panel's ground with the ordinary ink and a
+ * card's hairline as its container.
+ *
+ * One mapping for the banner, the event calendar's events and the coach marks,
+ * so a tone means the same colours wherever it is handed.
+ */
+@Composable
+@ReadOnlyComposable
+internal fun toneColours(tone: Tone): StatusColours = when (tone) {
+    Tone.Neutral -> Theme.colours.let {
+        StatusColours(
+            solid = it.surfaceInverse,
+            onSolid = it.onSurfaceInverse,
+            container = it.surfaceSunken,
+            onContainer = it.content,
+            border = it.outline,
+        )
+    }
+    Tone.Info -> Theme.colours.info
+    Tone.Success -> Theme.colours.success
+    Tone.Warning -> Theme.colours.warning
+    Tone.Danger -> Theme.colours.danger
+    Tone.Accent -> Theme.colours.accent
 }

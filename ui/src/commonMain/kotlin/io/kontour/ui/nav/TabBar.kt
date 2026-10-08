@@ -1,5 +1,7 @@
 package io.kontour.ui.nav
 
+import io.kontour.ui.platform.webRole
+import io.kontour.ui.platform.WebRole
 import io.kontour.ui.a11y.optionalBorder
 import io.kontour.ui.a11y.selectionEdge
 import io.kontour.ui.components.list.Scrollbar
@@ -379,6 +381,7 @@ fun TabBarScope.Tab(
             .focusRing(interactions, Theme.shapes.control)
             .clip(Theme.shapes.control)
             .pointerCursor(enabled = enabled)
+            .webRole(WebRole.Tab, selected)
             .selectable(
                 selected = selected,
                 interactionSource = interactions,

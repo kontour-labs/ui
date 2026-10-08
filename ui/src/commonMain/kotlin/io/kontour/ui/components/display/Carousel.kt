@@ -964,13 +964,15 @@ private fun PageDots(
     // ground the theme gives a control's parts to sit in, rather than a wash
     // of its own. Asked for as "a standard colour from our theme".
     //
-    // Except in the dark, where the well is 1.07:1 from the page, and the pill
-    // was reported as "a bit invisible". There it is `outline`, the track a
-    // slider's thumb runs on, at 1.60:1, as a skeleton's band takes `outline`
-    // in the dark for the same reason. Not at high contrast, where `outline`
-    // is darker than the dots and would hide them: the well, with its edge.
+    // Except that the well is 1.07:1 from the page, and the pill was reported
+    // as "a bit invisible" in the dark, and then in the light, over a hero's
+    // fade — *"on light mode, you can't really see the bubble that pops up
+    // when you drag"*. So it is `outline`, the track a slider's thumb runs on,
+    // at 1.60:1 in either scheme, as a skeleton's band takes `outline` for the
+    // same reason. Not at high contrast, where `outline` is darker than the
+    // dots and would hide them: the well, with its edge.
     val colours = Theme.colours
-    val platterColour = if (colours.isDark && !highContrast()) colours.outline else colours.surfaceSunken
+    val platterColour = if (!highContrast()) colours.outline else colours.surfaceSunken
     // **In the theme's `pill`, uncapped**, as asked: "a squircle (g2
     // continuous, using our pill shape)". On the switch's argument too: the
     // pill's ends are round round the round dots inside them, and a capped
