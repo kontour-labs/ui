@@ -246,6 +246,10 @@ internal class EventEdit(
      */
     val events = HashMap<Any, Grab>()
 
+    /** Whether [root] is on the days: a column of hours, a month's box, or an all-day row's day. */
+    fun inDays(root: Offset): Boolean = columns.values.any { it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) } ||
+        days.values.any { it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
+
     /** Whether a press at [root] lands on an event that can be taken hold of. */
     fun eventAt(root: Offset): Boolean = events.values.any { it.coordinates.isAttached && it.coordinates.boundsInRoot().contains(root) }
 
@@ -660,12 +664,17 @@ internal class EventEdit(
             val next = if (byDaysEnd) {
                 barEnd(start.epochMinute, end.epochMinute, minutes, if (from.allDay) MinutesPerDay else stepMinutes)
             } else {
-                resizedEnd(from.start.epochMinute, from.end.epochMinute, end.epochMinute + minutes, stepMinutes)
+                // Against where it is now, not where it was: moved to another
+                // day first, the end was held to the old day's and could
+                // come out before the start.
+                resizedEnd(start.epochMinute, end.epochMinute, end.epochMinute + minutes, stepMinutes)
             }
             propose(start, localDateTimeOfEpochMinute(next))
         } else if (kotlin.math.abs(minutes) < MinutesPerDay) {
-            // Up or down a step: within its day, as a carry is.
+            // Up or down a step: within its day, as a carry is. An all-day
+            // event, or one carried by days, has no step to move by.
             val from = event ?: return
+            if (byDays || from.allDay) return
             val length = end.epochMinute - start.epochMinute
             val next = movedStart(start.epochMinute + minutes, length, start.date.atMidnight.epochMinute, onOneDay(from.start, from.end), stepMinutes)
             propose(localDateTimeOfEpochMinute(next), localDateTimeOfEpochMinute(next + length))

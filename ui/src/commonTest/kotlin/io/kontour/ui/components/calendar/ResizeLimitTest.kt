@@ -57,6 +57,13 @@ class ResizeLimitTest {
         assertEquals(at(14, 9), movedStart(at(14, 9), 60, day, oneDay = true, step = 15))
     }
 
+    /** One with no length stops a step short of the next midnight, not on it — on the next day's first minute. */
+    @Test
+    fun anEventWithNoLengthStaysOnItsDay() {
+        val day = at(14, 0)
+        assertEquals(at(14, 23, 45), movedStart(at(15, 0), 0, day, oneDay = true, step = 15))
+    }
+
     @Test
     fun anEventAlreadyPastMidnightKeepsOnlyItsStartOnTheDay() {
         val day = at(14, 0)

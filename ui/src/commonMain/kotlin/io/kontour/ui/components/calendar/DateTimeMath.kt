@@ -78,7 +78,9 @@ internal fun barEnd(start: Long, end: Long, by: Long, step: Int): Long = maxOf(e
  * event stopped at nothing and spilled into the next day.
  */
 internal fun movedStart(proposed: Long, length: Long, day: Long, oneDay: Boolean, step: Int): Long {
-    val latest = if (oneDay && length <= MinutesPerDay) day + MinutesPerDay - length else day + MinutesPerDay - step
+    // At least a step from the next midnight: one with no length, at the foot
+    // of the day, went on to the next day's first minute.
+    val latest = if (oneDay && length <= MinutesPerDay) day + MinutesPerDay - maxOf(length, step.toLong()) else day + MinutesPerDay - step
     return proposed.coerceIn(day, maxOf(day, latest))
 }
 

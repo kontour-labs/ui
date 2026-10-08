@@ -674,7 +674,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     // the least an edit makes, for one with no length at all. Grown to fit
     // its title, a quarter-hour reached down to twenty past, and the hour
     // with it looked fuller than the one beside it.
-    val minMinutes = scope.edit.stepMinutes
+    // A quarter-hour at most, whatever the step: an hour's snap drew a
+    // quarter-hour event an hour tall.
+    val minMinutes = minOf(scope.edit.stepMinutes, ShortestDrawnMinutes)
     val minChipPx = minMinutes * hourPx / MinutesPerHour
     val placements = remember(scope.events, date, minMinutes) { layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes) }
     val now = scope.now?.takeIf { it.date == date }?.time
@@ -704,7 +706,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
 
     // How tall each is drawn, as the layout below draws it.
     val blockHeight = { p: TimedPlacement ->
-        with(density) { (maxOf(minChipPx, (p.end - p.start) * hourPx / MinutesPerHour) - gapPx).coerceAtLeast(0f).toDp() }
+        with(density) { (minOf(maxOf(minChipPx, (p.end - p.start) * hourPx / MinutesPerHour), (MinutesPerDay - p.start) * hourPx / MinutesPerHour) - gapPx).coerceAtLeast(0f).toDp() }
     }
 
     DisposableEffect(edit, date) {
@@ -814,12 +816,14 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                                         scope.takeUp(near.event, root, near.byDays, top, taking, hold = true, edges = near.edges)
                                         return@detectPickUp
                                     }
-                                    if (!offers) return@detectPickUp
+                                    if (!creates && !offers) return@detectPickUp
                                     // An hour where the finger is, with its menu: let go, and
-                                    // "New event" makes it; set off, and it is drawn out instead.
+                                    // "New event" makes it; set off, and it is drawn out instead
+                                    // — where there is a new event to make. A menu of the app's
+                                    // own alone is only that: the finger is not taken up.
                                     edit.beginCreate(date, root, length = NewEventMinutes)
                                     if (!edit.live) return@detectPickUp
-                                    taking?.let { edit.take(it, root, hold = true) }
+                                    if (creates) taking?.let { edit.take(it, root, hold = true) }
                                     edit.pickedUp()
                                     scope.openMenu(root, null, edges = true)
                                 } else {
@@ -873,7 +877,8 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         val placeables = measurables.mapIndexed { i, measurable ->
             val p = all[i]
             val w = across(p).second.roundToInt().coerceAtLeast(0)
-            val h = (maxOf(minChipPx, (p.end - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
+            // Never past midnight: one in the day's last minutes is cut at its foot.
+            val h = (minOf(maxOf(minChipPx, (p.end - p.start) * perMinute), (MinutesPerDay - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(w, h))
         }
         layout(width, height) {
@@ -933,7 +938,7 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     val hourPx = with(density) { scope.hourHeight.toPx() }
     val perMinute = hourPx / MinutesPerHour
     // As the events are drawn: as tall as their time, a step at the least.
-    val minChipPx = scope.edit.stepMinutes * perMinute
+    val minChipPx = minOf(scope.edit.stepMinutes, ShortestDrawnMinutes) * perMinute
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
     val still = Theme.motion.reduceMotion
     val pull = if (still) 0f else SliderDefaults.DetentPull
@@ -994,7 +999,9 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         val leanTo = if (leanDay == lastDay && nowEnd.date == lastDayOf(nowStart, nowEnd)) nowEnd.time.minuteOfDay else MinutesPerDay
         val snapped = box(leanDay, leanFrom, maxOf(leanTo, leanFrom))
         val lean = edit.lean * pull
-        val across = if (rtl) -lean.x else lean.x
+        // On the screen, as the columns are placed here — `place`, not
+        // `placeRelative` — so not turned round for a right-to-left reading.
+        val across = lean.x
         val target = when (edit.leanOn) {
             -1 -> snapped.copy(top = snapped.top + lean.y)
             1 -> snapped.copy(bottom = snapped.bottom + lean.y)
@@ -1050,6 +1057,9 @@ private fun timedPieces(start: LocalDateTime, end: LocalDateTime, pageStart: Loc
         day = day.plus(1, DateTimeUnit.DAY)
     }
 }
+
+/** The shortest an event is drawn in the hours, however short it is or however long the step. */
+private const val ShortestDrawnMinutes = 15
 
 /** An empty time pressed is the quarter-hour it is in. */
 private const val TapStepMinutes = 15

@@ -294,6 +294,29 @@ class EventCalendarEditTest {
         assertEquals(LocalDateTime(2026, 10, 15, 0, 0), probe.resizes.single().third, "the keyboard ran the end past midnight")
     }
 
+    /**
+     * Carried to the next day from the keyboard and then made longer, its end
+     * is held to the day it is on now, not the day it came from — where it
+     * came out before its start.
+     */
+    @Test
+    fun aKeyboardResizeAfterAMoveKeepsTheEndAfterTheStart() = runComposeUiTest {
+        // On the cursor's day, Wednesday, where the keyboard reaches it.
+        val call = CalendarEvent(4, "Call", LocalDateTime(2026, 10, 14, 9, 0), LocalDateTime(2026, 10, 14, 10, 0))
+        val probe = calendar(events = listOf(call))
+        onNode(hasContentDescription(eventDescription(call, probe.formats, probe.strings))).requestFocus()
+        onRoot().performKeyInput {
+            pressKey(Key.Spacebar)
+            pressKey(Key.DirectionRight)
+            withKeyDown(Key.ShiftLeft) { pressKey(Key.DirectionDown) }
+            pressKey(Key.Enter)
+        }
+        waitForIdle()
+        val (_, start, end) = probe.moves.singleOrNull() ?: error("nothing was put down: resizes ${probe.resizes}")
+        assertEquals(LocalDateTime(2026, 10, 15, 9, 0), start)
+        assertEquals(LocalDateTime(2026, 10, 15, 10, 15), end, "the end was held to the day it came from")
+    }
+
     @Test
     fun aMouseDragOnEmptyTimeDrawsOutANewEvent() = runComposeUiTest {
         val probe = calendar()

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import kotlinx.datetime.LocalDate
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -224,9 +225,12 @@ private fun Modifier.eventControl(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val step = edit.stepMinutes.toLong()
     val actions = buildList {
-        if (movable) {
+        // A step earlier or later for one in the hours; an all-day event moves by days alone.
+        if (movable && !event.allDay && !byDays) {
             add(CustomAccessibilityAction(scope.strings.moveEarlier) { scope.moveBy(current, -step, resize = false); true })
             add(CustomAccessibilityAction(scope.strings.moveLater) { scope.moveBy(current, step, resize = false); true })
+        }
+        if (movable) {
             add(CustomAccessibilityAction(scope.strings.moveToPreviousDay) { scope.moveBy(current, -MinutesPerDay.toLong(), resize = false); true })
             add(CustomAccessibilityAction(scope.strings.moveToNextDay) { scope.moveBy(current, MinutesPerDay.toLong(), resize = false); true })
         }
@@ -283,6 +287,18 @@ private fun Modifier.eventControl(
             },
         )
         .then(if (movable && !scope.touch) Modifier.pointerCursor(Cursor.Grab) else Modifier)
+        .then(
+            if (movable || resizable) {
+                // Picked up from the keyboard and left — Tab away, a click
+                // elsewhere — it is put back, not left carried with nothing to
+                // carry it: the pages would not turn and its copy stayed.
+                Modifier.onFocusChanged { state ->
+                    if (!state.isFocused && edit.live && edit.pointer == null && edit.menu == null && edit.event?.id == current.id) edit.cancel()
+                }
+            } else {
+                Modifier
+            },
+        )
         .then(
             if (holdable) {
                 Modifier.notesPress(press).pointerInput(edit, event.id, byDays, movable) {

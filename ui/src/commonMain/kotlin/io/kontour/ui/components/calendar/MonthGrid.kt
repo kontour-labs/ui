@@ -190,9 +190,10 @@ private fun MonthWeek(
     val edit = scope.edit
     val placed = remember { PlacedAt() }
     val isTouch by rememberUpdatedState(scope.touch)
+    val creates = scope.enabled && scope.onCreateRequest != null
     // A day's menu, the calendar's "New event" or an app's own.
     val offers = scope.hasMenu(null, edges = false)
-    val holds = offers || (scope.enabled && scope.onEventMove != null)
+    val holds = creates || offers || (scope.enabled && scope.onEventMove != null)
     val nearReach = with(LocalDensity.current) { NearReach.toPx() }
     BoxWithConstraints(
         modifier
@@ -219,10 +220,11 @@ private fun MonthWeek(
                                     scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true, edges = near.edges)
                                     return@detectPickUp
                                 }
-                                if (!offers) return@detectPickUp
+                                if (!creates && !offers) return@detectPickUp
                                 edit.beginCreateDays(root)
                                 if (!edit.live) return@detectPickUp
-                                taking?.let { edit.take(it, root, hold = true) }
+                                // Taken up to draw out days only where there are days to make.
+                                if (creates) taking?.let { edit.take(it, root, hold = true) }
                                 edit.pickedUp()
                                 scope.openMenu(root, null, edges = false)
                             },

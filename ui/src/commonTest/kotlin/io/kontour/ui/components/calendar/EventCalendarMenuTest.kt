@@ -472,6 +472,68 @@ class EventCalendarMenuTest {
         mainClock.autoAdvance = true
     }
 
+    /** With no menu on empty time, a finger held and drawn out still draws a new event. */
+    @Test
+    fun withNoEmptyMenuAHoldStillDrawsOut() = runComposeUiTest {
+        val probe = calendar(emptyMenu = null)
+        val from = mondayEleven(probe)
+        onRoot().performTouchInput {
+            down(from)
+            advanceEventTime(800)
+            repeat(8) { moveBy(Offset(0f, hour(probe) / 8f)) }
+            up()
+        }
+        waitForIdle()
+        assertEquals(1, probe.creates.size, "a hold drawn out on empty time made nothing")
+    }
+
+    /** Handles on an event that goes away go with it: the next press on a day is a press on the day. */
+    @Test
+    fun theHandlesGoWithTheirEvent() = runComposeUiTest {
+        val events = androidx.compose.runtime.mutableStateListOf(review, trip)
+        val probe = calendar(view = CalendarView.Month, events = events)
+        val bar = boundsOf(trip, probe)
+        hold(bar.center)
+        menuItem(probe.strings.adjustTime).performClick()
+        waitForIdle()
+        runOnIdle { events.remove(trip) }
+        waitForIdle()
+        onRoot().performTouchInput { click(Offset(bar.left + 10f, bar.top - bar.height * 4f)) }
+        waitForIdle()
+        assertEquals(1, probe.dates.size, "the first press after the event went was swallowed")
+    }
+
+    /** A short event with its handles out still holds: a finger kept still opens its menu. */
+    @Test
+    fun aShortEventWithHandlesStillHolds() = runComposeUiTest {
+        val quarter = CalendarEvent(6, "Check-in", LocalDateTime(2026, 10, 14, 13, 0), LocalDateTime(2026, 10, 14, 13, 15))
+        val probe = calendar(events = listOf(quarter))
+        adjust(quarter, probe)
+        hold(boundsOf(quarter, probe).center)
+        menuItem(probe.strings.deleteEvent).assertExists()
+    }
+
+    /** A press on the header takes the handles away and is still a press on the header. */
+    @Test
+    fun aHeaderPressWithHandlesOutStillPresses() = runComposeUiTest {
+        val probe = calendar()
+        adjust(review, probe)
+        onNode(hasContentDescription(probe.strings.nextWeek) and hasClickAction()).performClick()
+        waitForIdle()
+        onNode(hasContentDescription(probe.formats.date(LocalDate(2026, 10, 21), DateStyle.Full)) and hasClickAction()).assertExists()
+    }
+
+    /** An all-day event moves by days, not by a step: its actions say so. */
+    @Test
+    fun anAllDayEventHasNoStepMoves() = runComposeUiTest {
+        val away = CalendarEvent(9, "Away", startDate = LocalDate(2026, 10, 13), endDate = LocalDate(2026, 10, 15))
+        val probe = calendar(events = listOf(review, away))
+        val actions = onNode(hasContentDescription(eventDescription(away, probe.formats, probe.strings)))
+            .fetchSemanticsNode().config.getOrNull(SemanticsActions.CustomActions).orEmpty().map { it.label }
+        assertTrue(probe.strings.moveEarlier !in actions && probe.strings.moveLater !in actions, "an all-day event offers $actions")
+        assertTrue(probe.strings.moveToNextDay in actions)
+    }
+
     @Test
     fun aHeldEventDraggedAwayClosesItsMenuAndMoves() = runComposeUiTest {
         val probe = calendar()

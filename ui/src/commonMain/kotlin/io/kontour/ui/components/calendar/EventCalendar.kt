@@ -265,6 +265,17 @@ fun EventCalendar(
     SideEffect { edit.shown = { state.visibleDates } }
     // Turned off — disabled — mid-edit, the edit is put back.
     if (!enabled && edit.live) SideEffect { edit.cancel() }
+    // Handles, or a menu, on an event that has gone — deleted, or taken out of
+    // `events` by the app — or on a calendar turned off, go with it: left, the
+    // other events stayed faded and the next press only took them away.
+    val activeGone = edit.active?.let { id -> events.none { it.id == id } } == true
+    val menuGone = edit.menu?.event?.let { menu -> events.none { it.id == menu.id } } == true
+    if (activeGone || menuGone || (!enabled && (edit.active != null || edit.menu != null))) {
+        SideEffect {
+            if (activeGone || !enabled) edit.active = null
+            if (menuGone || !enabled) edit.menu = null
+        }
+    }
     // Today pointed at whenever it is gone back to: the header's button, or the app's own call.
     val todayFlash = rememberTodayFlash()
     val motion = Theme.motion
@@ -411,6 +422,7 @@ internal class CalendarScope(
 
     /** Deletes [event], and reads out that it has gone. */
     fun delete(event: CalendarEvent) {
+        if (edit.active == event.id) edit.active = null
         onEventDelete?.invoke(event)
         announcer.say(strings.eventDeleted(event.title))
     }
@@ -420,6 +432,8 @@ internal class CalendarScope(
         edit.menu = null
         val done = edit.finish() ?: return
         val event = done.event
+        // Nothing to report it to, and nothing to read out: it was not made.
+        if (done.kind == EditKind.Create && onCreateRequest == null) return
         when {
             done.kind == EditKind.Create -> onCreateRequest?.invoke(done.start, done.end)
             event == null -> Unit
@@ -980,8 +994,12 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
                         val root = coordinates.localToRoot(pressed.position)
                         if (!edit.onActive(root, reach)) {
                             edit.active = null
-                            dismissing = pressed.id
-                            dismissedAt = pressed.position
+                            // Only on the days: a press on the header — its arrows, the
+                            // view switcher — takes the handles away and is still pressed.
+                            if (edit.inDays(root)) {
+                                dismissing = pressed.id
+                                dismissedAt = pressed.position
+                            }
                         } else if (current.touch && edit.pointer == null && claim == null) {
                             claim = edit.claimHandle(pressed.id, root, reach, zone)
                         }
@@ -1006,11 +1024,13 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
                         // A tap: the event's own, as it was.
                         !change.pressed -> claim = null
                         else -> {
-                            // Nothing under it moves while it decides: not the hours, not the pages.
-                            change.consume()
                             val root = coordinates.localToRoot(change.position)
                             val moved = root - held.down
+                            // Left alone until it has gone a slop, so a finger held still
+                            // still holds the event — for its menu, or to carry it — and
+                            // taken then, before the hours or the pages see it set off.
                             if (moved.getDistance() > viewConfiguration.touchSlop) {
+                                change.consume()
                                 claim = null
                                 val along = if (held.horizontal) moved.x else moved.y
                                 val atStart = held.startFor(along)

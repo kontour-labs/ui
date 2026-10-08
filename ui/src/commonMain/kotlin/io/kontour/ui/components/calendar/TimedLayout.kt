@@ -63,7 +63,7 @@ internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinu
         if (!onDay) return@mapIndexedNotNull null
         val start = (maxOf(from, dayStart) - dayStart).toInt()
         val end = (minOf(to, dayEnd) - dayStart).toInt()
-        Segment(event, index, start, end, maxOf(end, start + minMinutes))
+        Segment(event, index, start, end, minOf(maxOf(end, start + minMinutes), MinutesPerDay))
     }.sortedWith(compareBy<Segment>({ it.start }, { -(it.end - it.start) }, { it.index }))
 
     val placed = ArrayList<TimedPlacement>(segments.size)
