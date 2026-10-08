@@ -121,6 +121,32 @@ class EventCalendarTest {
         assertEquals(CalendarView.Month, probe.state.view, "pressing a day's box is not opening it")
     }
 
+    /**
+     * One rule for a day, wherever it is pressed: asked for as *"sometimes
+     * clicking a date in the month view will take you to the day view, but
+     * other times it won't? please make it consistent"*. Its number opened the
+     * day and the rest of its box called `onDateClick`.
+     */
+    @Test
+    fun aDaysBoxWithNoCallbackOpensThatDayAsItsNumberDoes() = runComposeUiTest {
+        val probe = calendar()
+        val date = LocalDate(2026, 10, 22)
+        onNode(hasContentDescription(probe.formats.date(date, DateStyle.Full), substring = true) and hasClickAction()).performClick()
+        waitForIdle()
+        assertEquals(CalendarView.Day, probe.state.view, "a day's box pressed did not open it")
+        assertEquals(date, probe.state.date)
+    }
+
+    @Test
+    fun aDaysNumberWithACallbackReportsTheDayAsItsBoxDoes() = runComposeUiTest {
+        val pressed = mutableListOf<LocalDate>()
+        val probe = calendar(onDateClick = { pressed += it })
+        onNode(hasText(probe.formats.integer(20)) and hasClickAction()).performClick()
+        waitForIdle()
+        assertEquals(listOf(LocalDate(2026, 10, 20)), pressed)
+        assertEquals(CalendarView.Month, probe.state.view, "the number opened the day over the callback")
+    }
+
     @Test
     fun theHeaderStepsByTheViewsPeriodAndComesBackToToday() = runComposeUiTest {
         val probe = calendar()

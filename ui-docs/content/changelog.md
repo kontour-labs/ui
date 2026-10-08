@@ -97,9 +97,10 @@ passed by position need naming — see **Breaking**, and
   page felt once. It shows within about 72dp of the side, the same in every
   view and the same size for an all-day event as a timed one.
 - **A swipe row showing its actions closes when anything else is pressed**:
-  another row, a button, the list scrolled, as a SwiftUI list's row does. The
-  press still does what it does. It stayed open, its actions out, while the
-  reader went on to something else.
+  another row, a button, the list scrolled, as a SwiftUI list's row does — from
+  the moment it sets off open, not only once it has arrived. The press still
+  does what it does. It stayed open, its actions out, while the reader went on
+  to something else.
 - **A `FabMenu` item's label can be tapped**, and does what its button does.
   It was drawn beside the button, and a tap on it fell through to the scrim and
   closed the menu with nothing chosen.
@@ -118,7 +119,12 @@ passed by position need naming — see **Breaking**, and
   touchscreen an edge is taken from up to 20dp inside the event or 16dp outside
   it, and on an event under 40dp tall the way the finger sets off picks the
   edge, as a range slider's thumbs do. The grips sit across the edges, clear of
-  a short event's title.
+  a short event's title, and are whole while the event fades.
+- **A day pressed in an event calendar's month does one thing wherever it is
+  pressed**: `onDateClick` where the calendar has one, its day view where it
+  has not, as Enter on it already did. Its number opened the day view and the
+  rest of its box called `onDateClick`, so the same day opened on one tap and
+  not the next.
 - **An event calendar's hour labels stay on one line**: `10 am` wrapped to a
   bare `10` where a font loaded after the labels were measured set them wider.
 - **An all-day or multi-day event carried into another week of an event

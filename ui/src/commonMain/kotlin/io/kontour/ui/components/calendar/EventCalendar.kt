@@ -133,7 +133,7 @@ import kotlinx.datetime.toLocalDateTime
  * From the keyboard the grid is one stop, with a cursor the arrows move: a day
  * in a month, a slot of [snap] in a day or a week. Its day is the state's
  * [EventCalendarState.date], so it pages past the period's ends. Enter opens
- * the day — [onDateClick], or its day view — or presses the time —
+ * the day — [onDateClick], or its day view, as a press on it does — or presses the time —
  * [onTimeClick], or else [onCreateRequest] for an hour. Tab goes on to the
  * events of the cursor's day.
  *
@@ -144,8 +144,10 @@ import kotlinx.datetime.toLocalDateTime
  *   across the hours: by default the system's, kept to the minute. Null for a
  *   calendar that is not about the present — no today, no line.
  * @param onEventClick An event pressed. Null: events are not buttons.
- * @param onDateClick A day pressed in the month view, away from its number and
- *   its events — to make an event there, say. Null: the boxes are not buttons.
+ * @param onDateClick A day pressed in the month view — anywhere in its box, its
+ *   number included, away from its events — or Enter on it, instead of opening
+ *   its day view: to make an event there, say, or to open the day yourself.
+ *   Null: a pressed day opens its day view.
  * @param onTimeClick An empty time pressed in the day or week view, to the
  *   quarter-hour before it. Null: empty time is not a button.
  * @param onCreateRequest A new event, from its start to its end, on whole
@@ -335,6 +337,18 @@ internal class CalendarScope(
             start = edit.start
             end = edit.end
         }
+    }
+
+    /**
+     * A day of the month opened, however it was: its number, anywhere else in
+     * its box, or Enter on it — [onDateClick] where there is one, its day view
+     * where there is not. One rule for all of it: the number opened the day
+     * and the rest of the box called [onDateClick], so the same day opened on
+     * one tap and not on the next.
+     */
+    fun openDay(date: LocalDate) {
+        val click = onDateClick
+        if (click != null) click(date) else state.show(date, CalendarView.Day)
     }
 
     /** Makes the new event [menu] was opened for, and reads out where. */

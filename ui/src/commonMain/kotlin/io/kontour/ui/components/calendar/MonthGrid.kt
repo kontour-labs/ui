@@ -344,7 +344,6 @@ private fun DayBox(
     val line = Theme.sizing.borderWidth
     val lineColour = gridLine()
     val isToday = date == scope.today
-    val dayClick = scope.onDateClick
     val described = formats.list(
         listOfNotNull(formats.date(date, DateStyle.Full), if (count > 0) strings.eventCount(formats.quantity(count)) else null),
         ListStyle.Unit,
@@ -361,23 +360,19 @@ private fun DayBox(
                 drawLine(lineColour, Offset(x + width / 2, 0f), Offset(x + width / 2, size.height), width)
                 drawLine(lineColour, Offset(0f, size.height - width / 2), Offset(size.width, size.height - width / 2), width)
             }
-            .then(
-                if (dayClick != null) {
-                    // The keyboard's way to a day is the grid's cursor, not a stop per day.
-                    Modifier.focusProperties { canFocus = false }.pressable(
-                        onClick = { dayClick(date) },
-                        shape = RectangleShape,
-                        enabled = scope.enabled,
-                        minimumTouchTarget = false,
-                    )
-                } else {
-                    Modifier
-                },
+            // The whole box, as its number is: see `CalendarScope.openDay`. The
+            // keyboard's way to a day is the grid's cursor, not a stop per day.
+            .focusProperties { canFocus = false }
+            .pressable(
+                onClick = { scope.openDay(date) },
+                shape = RectangleShape,
+                enabled = scope.enabled,
+                minimumTouchTarget = false,
             )
             .semantics { contentDescription = described },
     ) {
-        // The date: its day, opened by pressing its number — today's ringed,
-        // as the date picker rings it.
+        // The date — today's ringed, as the date picker rings it — opening its
+        // day as the rest of the box does, its press round the number.
         val number = dateLabel - Theme.spacing.xxs * 2
         Box(
             contentAlignment = Alignment.Center,
@@ -387,7 +382,7 @@ private fun DayBox(
                 .todayRing(isToday)
                 .focusProperties { canFocus = false }
                 .pressable(
-                    onClick = { scope.state.show(date, CalendarView.Day) },
+                    onClick = { scope.openDay(date) },
                     shape = Theme.shapes.capsule,
                     enabled = scope.enabled,
                     minimumTouchTarget = false,
@@ -418,7 +413,7 @@ private fun DayBox(
                         .pressable(
                             // The day's list where there is a host to show it in;
                             // the day itself where there is not.
-                            onClick = { if (canList) listing = true else scope.state.show(date, CalendarView.Day) },
+                            onClick = { if (canList) listing = true else scope.openDay(date) },
                             shape = Theme.shapes.capsule,
                             enabled = scope.enabled,
                             minimumTouchTarget = false,

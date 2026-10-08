@@ -501,7 +501,11 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
         events = events,
         now = LocalDateTime(today, LocalTime(11, 20)),
         onEventClick = { echo(it.title) },
-        onDateClick = { echo(formats.date(it, DateStyle.Medium)) },
+        // A day pressed in the month, told and opened, as the calendar opens it by itself.
+        onDateClick = {
+            echo(formats.date(it, DateStyle.Medium))
+            calendar.show(it, CalendarView.Day)
+        },
         onTimeClick = { echo("${formats.date(it.date, DateStyle.Medium)} ${formats.time(it.time)}") },
         onCreateRequest = { start, end ->
             // From the month: whole days, midnight to midnight, kept as all-day.

@@ -13,6 +13,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.SystemIcons
@@ -85,6 +88,74 @@ class SwipeActionsCloseTest {
         waitForIdle()
         assertEquals(SwipeValue.Resting, row.currentValue, "the row stayed open while a button beside it was used")
         assertEquals(1, pressed, "the button's press should still be its own")
+    }
+
+    /**
+     * As it was reported, by finger: the first row swiped open, then a second
+     * swiped the other way — the first stayed open until a third was swiped.
+     * Its opening slide was still going when the second row was pressed.
+     */
+    @Test
+    fun aRowStillSlidingOpenClosesWhenAnotherIsSwiped() = runComposeUiTest {
+        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Close, onAction = {}, background = Color.Green)
+        val states = mutableListOf<SwipeActionsState>()
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                OverlayHost {
+                    Column {
+                        repeat(3) { i ->
+                            val state = rememberSwipeActionsState()
+                            if (states.size <= i) states += state
+                            SwipeActions(modifier = Modifier.fillMaxWidth().height(72.dp), start = listOf(favourite), end = listOf(delete), state = state) {
+                                Box(Modifier.fillMaxWidth().height(72.dp).testTag("row$i"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        // The clock held, so the first row is still on its way open when the
+        // second is taken: a few frames after letting go, not settled.
+        mainClock.autoAdvance = false
+        onNodeWithTag("row0").performTouchInput { swipe(centerLeft + Offset(20f, 0f), center + Offset(10f, 0f), durationMillis = 200) }
+        repeat(3) { mainClock.advanceTimeByFrame() }
+        assertEquals(SwipeValue.Resting, states[0].currentValue, "the first row had already settled, so this measured nothing")
+        onNodeWithTag("row1").performTouchInput { swipe(centerRight - Offset(20f, 0f), center - Offset(10f, 0f), durationMillis = 200) }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        assertEquals(SwipeValue.End, states[1].currentValue, "the second row did not open")
+        assertEquals(SwipeValue.Resting, states[0].currentValue, "the first row stayed open while the second was swiped")
+    }
+
+    /** The same, with the first row settled before the second is touched. */
+    @Test
+    fun aSettledRowClosesWhenAnotherIsSwiped() = runComposeUiTest {
+        val favourite = SwipeAction(label = "Favourite", icon = SystemIcons.Close, onAction = {}, background = Color.Green)
+        val states = mutableListOf<SwipeActionsState>()
+        setContent {
+            KontourTheme(reduceMotion = false) {
+                OverlayHost {
+                    Column {
+                        repeat(2) { i ->
+                            val state = rememberSwipeActionsState()
+                            if (states.size <= i) states += state
+                            SwipeActions(modifier = Modifier.fillMaxWidth().height(72.dp), start = listOf(favourite), end = listOf(delete), state = state) {
+                                Box(Modifier.fillMaxWidth().height(72.dp).testTag("row$i"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithTag("row0").performTouchInput { swipe(centerLeft + Offset(20f, 0f), center + Offset(10f, 0f), durationMillis = 200) }
+        waitForIdle()
+        assertEquals(SwipeValue.Start, states[0].currentValue, "the first row did not open")
+        onNodeWithTag("row1").performTouchInput { swipe(centerRight - Offset(20f, 0f), center - Offset(10f, 0f), durationMillis = 200) }
+        waitForIdle()
+        assertEquals(SwipeValue.End, states[1].currentValue, "the second row did not open")
+        assertEquals(SwipeValue.Resting, states[0].currentValue, "the first row stayed open while the second was swiped")
     }
 
     /** Between rows the rows see to it themselves, with no host round them. */

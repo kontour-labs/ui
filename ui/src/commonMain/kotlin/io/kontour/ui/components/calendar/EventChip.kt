@@ -132,14 +132,18 @@ internal fun EventChip(
 
     Box(
         modifier
-            .graphicsLayer { alpha = faded }
             .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn)),
     ) {
         // Its ground and what is on it cut to its shape; its handles not, so
         // a block's grips can sit across its edges, clear of its title.
+        //
+        // Faded each on its own, not all of it at once: a fade draws into a
+        // layer as big as what it is on, and the grips past the edge were cut
+        // off until the event, put down, had faded back up.
         Box(
             Modifier
                 .matchParentSize()
+                .graphicsLayer { alpha = faded }
                 .clip(shape)
                 .background(fill)
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
@@ -157,8 +161,8 @@ internal fun EventChip(
         val edges = presentation != EventPresentation.Line
         if (!ghost && edges && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
             val bar = presentation == EventPresentation.Bar
-            if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar)
-            if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar)
+            if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar) { faded }
+            if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar) { faded }
         }
     }
 }
@@ -358,7 +362,7 @@ private fun Modifier.eventControl(
  * menu, until a press anywhere else.
  */
 @Composable
-private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, atStart: Boolean, bar: Boolean) {
+private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, atStart: Boolean, bar: Boolean, alpha: () -> Float) {
     val edit = scope.edit
     val placed = remember { PlacedAt() }
     val current by rememberUpdatedState(event)
@@ -417,7 +421,7 @@ private fun BoxScope.ResizeHandle(event: CalendarEvent, scope: CalendarScope, at
             val size = if (bar) Modifier.width(GripHeight).height(BarGripHeight) else Modifier.width(GripWidth).height(GripHeight)
             // On a bar, its own colour is the ground: the grip in the ink on it.
             val colour = if (bar) toneColours(event.tone).onSolid else grip
-            Box(size.background(colour, Theme.shapes.capsule))
+            Box(size.graphicsLayer { this.alpha = alpha() }.background(colour, Theme.shapes.capsule))
         }
     }
 }

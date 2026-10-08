@@ -80,7 +80,7 @@ unless `rememberEventCalendarState` is given another.
 | Callback | When |
 |---|---|
 | `onEventClick` | An event pressed. Null and events are not buttons. |
-| `onDateClick` | A day's box pressed in the month, away from its number and its events — to start a new event there, say. |
+| `onDateClick` | A day pressed in the month — anywhere in its box, its number included, away from its events — or Enter on it, *instead of* opening its day view: to start a new event there, say, or to open the day yourself as well. Without it, a pressed day opens its day view, wherever on it the press was. |
 | `onTimeClick` | An empty time pressed in the day or week view, to the quarter-hour before it. |
 
 ## Editing

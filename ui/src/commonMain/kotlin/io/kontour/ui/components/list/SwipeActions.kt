@@ -749,16 +749,22 @@ fun SwipeActions(
     // button, the list scrolled — as a SwiftUI list's row does: asked for as
     // *"if you start interacting with another component, it closes"*. The press
     // still does what it does; this row only gets out of the way.
+    //
+    // Open from the moment it is on its way there, not only once it has
+    // arrived: a second row swiped while the first was still sliding open
+    // left the first open, until a third was swiped.
     val placed = remember { RowPlace() }
-    val showing = state.anchoredState.settledValue.let { it == SwipeValue.Start || it == SwipeValue.End } &&
+    fun opening() = state.anchoredState.let { it.settledValue.isReveal() || it.targetValue.isReveal() } &&
         tapped == null && !fullSwipe
+    val showing = opening()
     DisposableEffect(showing, state) {
         if (!showing) return@DisposableEffect onDispose { }
         val key = Any()
         OpenSwipeRows.add(key) { root ->
             val bounds = placed.coordinates?.takeIf { it.isAttached }?.boundsInRoot() ?: return@add
-            val still = state.anchoredState.settledValue.let { it == SwipeValue.Start || it == SwipeValue.End }
-            if (!bounds.contains(root) && still && tapped == null && !fullSwipe) scope.launch { state.reset() }
+            if (bounds.contains(root) || !opening()) return@add
+            settling?.cancel()
+            scope.launch { state.reset() }
         }
         onDispose { OpenSwipeRows.remove(key) }
     }
@@ -1646,3 +1652,6 @@ internal fun Modifier.closesOpenSwipeRows(): Modifier {
         }
     }
 }
+
+/** Whether this is a side's actions shown, waiting for a tap. */
+private fun SwipeValue.isReveal(): Boolean = this == SwipeValue.Start || this == SwipeValue.End

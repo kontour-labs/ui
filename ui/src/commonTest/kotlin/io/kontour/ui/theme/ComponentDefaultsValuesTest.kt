@@ -136,7 +136,7 @@ class ComponentDefaultsValuesTest {
         assertEquals(36.dp, d.toastPillHeight)
         assertEquals(360.dp, d.topBarHeroHeight)
         assertEquals(4.dp, d.scrollbarTouchThickness)
-        assertEquals(48.dp, d.eventCalendarHourHeight)
+        assertEquals(64.dp, d.eventCalendarHourHeight)
     }
 
     /**
@@ -209,7 +209,7 @@ class ComponentDefaultsValuesTest {
                 toastPillHeight = 36.dp,
                 topBarHeroHeight = 360.dp,
                 scrollbarTouchThickness = 4.dp,
-                eventCalendarHourHeight = 48.dp,
+                eventCalendarHourHeight = 64.dp,
             ),
             "a field was added to ComponentDefaults without being pinned here. " +
                 "Add it to whichever test above covers its section, and to this " +

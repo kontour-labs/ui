@@ -112,8 +112,7 @@ internal fun CalendarScope.monthKey(key: Key, rtl: Boolean): Boolean {
         }
         else -> {
             if (!activates(key)) return false
-            val click = onDateClick
-            if (click != null) click(date) else state.show(date, CalendarView.Day)
+            openDay(date)
             return true
         }
     }
