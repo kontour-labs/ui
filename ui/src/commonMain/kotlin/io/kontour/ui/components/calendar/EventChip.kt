@@ -125,7 +125,7 @@ internal fun EventChip(
             !ghost && focused != null && focused != event.id -> UnfocusedAlpha
             else -> 1f
         },
-        animationSpec = Theme.motion.tweenFast(),
+        animationSpec = Theme.motion.tweenDefault(),
         label = "eventFade",
     )
 

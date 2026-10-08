@@ -98,8 +98,8 @@ passed by position need naming — see **Breaking**, and
   view and the same size for an all-day event as a timed one.
 - **An event whose times are being adjusted in an event calendar is widened
   to its whole day**, over any it shares its time with, and the other events
-  fade back while its handles are there. In a week's narrow lane its handles
-  and title were squashed.
+  fade back while its handles are there, each over about a third of a second,
+  out and back. In a week's narrow lane its handles and title were squashed.
 - **An all-day or multi-day event carried into another week of an event
   calendar is seen there as it is carried**, in a line of its own at the foot
   of the all-day strip. A week with no all-day events had no strip to draw it

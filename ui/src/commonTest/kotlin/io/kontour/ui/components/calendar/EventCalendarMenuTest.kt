@@ -222,6 +222,33 @@ class EventCalendarMenuTest {
      * widened to the whole day, over the rest: in a week's lane it was squashed,
      * its handles and its title a third of a narrow column wide.
      */
+    /**
+     * Widened and narrowed where it can be seen: asked for as *"when it becomes
+     * wider and goes back to being narrower, can you make it animate?"* — it
+     * did, in about 140ms, over before it read as movement.
+     */
+    @Test
+    fun anAdjustedEventWidensAndNarrowsOverAVisibleEase() = runComposeUiTest {
+        val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))
+        val probe = calendar(events = listOf(review, standup), reduceMotion = false)
+        val day = dayWidth(probe)
+        val narrow = boundsOf(review, probe).width
+        hold(boundsOf(review, probe).center)
+        mainClock.autoAdvance = false
+        menuItem(probe.strings.adjustTime).performClick()
+        // How far from its lane toward the whole day, at each frame after the tap.
+        fun progress(from: Float, to: Float) = (boundsOf(review, probe).width - from) / (to - from)
+        val wide = day - (day - narrow) * 0.02f
+        val widening = List(40) { mainClock.advanceTimeByFrame(); progress(narrow, wide) }
+        assertTrue(widening[5] in 0.05f..0.6f, "a tenth of a second in, it was ${widening[5]} of the way wide: $widening")
+        assertTrue(widening.last() > 0.95f, "it never reached the day's width: $widening")
+        val full = boundsOf(review, probe)
+        onRoot().performTouchInput { click(Offset(full.center.x + day * 3f, full.center.y)) }
+        val narrowing = List(40) { mainClock.advanceTimeByFrame(); progress(full.width, narrow) }
+        assertTrue(narrowing[5] in 0.05f..0.6f, "a tenth of a second in, it was ${narrowing[5]} of the way back: $narrowing")
+        assertTrue(narrowing.last() > 0.98f, "it never went back to its lane: $narrowing")
+    }
+
     @Test
     fun anEventBeingAdjustedIsWidenedToItsWholeDay() = runComposeUiTest {
         val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))

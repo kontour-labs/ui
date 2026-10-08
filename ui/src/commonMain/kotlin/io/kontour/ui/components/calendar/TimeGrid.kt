@@ -649,8 +649,10 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     // The event whose times are being adjusted — its edges given handles from
     // its menu — widened to the whole day, over the others, so its handles
     // and its text have room: in a lane a seventh of a week wide it was
-    // squashed between its neighbours. Widened and narrowed with a short
-    // ease, and the one widened kept while it narrows again.
+    // squashed between its neighbours. Widened and narrowed on the gentle
+    // spring — about a third of a second, which reads as the event opening
+    // out; the snappy one was over in 140ms, a jump — and the one widened
+    // kept while it narrows again.
     val adjusting = edit.active?.takeIf { id -> placements.any { it.event.id == id } }
     var widened by remember { mutableStateOf<Any?>(null) }
     val widen = remember { Animatable(0f) }
@@ -661,9 +663,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 widen.snapTo(0f)
                 widened = adjusting
             }
-            widen.animateTo(1f, motion.springOrTween(motion.springSnappy))
+            widen.animateTo(1f, motion.springOrTween(motion.springGentle))
         } else if (widened != null) {
-            widen.animateTo(0f, motion.springOrTween(motion.springSnappy))
+            widen.animateTo(0f, motion.springOrTween(motion.springGentle))
             widened = null
         }
     }
