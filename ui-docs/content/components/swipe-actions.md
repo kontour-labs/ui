@@ -84,6 +84,13 @@ row had never left. Under reduced motion it does not give.
 the row's own click. A tap on one of the buttons runs that action and closes the
 row.
 
+**A press anywhere else closes it too**, as a SwiftUI list's row does: another
+row, a button, the list scrolled. That press still does what it does — the other
+row's click, the button's action — and the open row slides home out of its way.
+Presses are seen at the app's [`OverlayHost`](../overlays.md); without one round
+the app, a press on another swipe row still closes it, and one on anything else
+does not.
+
 **One buzz at the one moment that has a consequence, and a soft tick as each
 action arrives.** It used to be four — a tick per action width uncovered, the
 threshold, a confirmation when the action ran, and a settle when the row came back

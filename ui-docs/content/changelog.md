@@ -96,6 +96,10 @@ passed by position need naming — see **Breaking**, and
   month, with the picker's haptics: a rumble that builds while held, and the
   page felt once. It shows within about 72dp of the side, the same in every
   view and the same size for an all-day event as a timed one.
+- **A swipe row showing its actions closes when anything else is pressed**:
+  another row, a button, the list scrolled, as a SwiftUI list's row does. The
+  press still does what it does. It stayed open, its actions out, while the
+  reader went on to something else.
 - **A `FabMenu` item's label can be tapped**, and does what its button does.
   It was drawn beside the button, and a tap on it fell through to the scrim and
   closed the menu with nothing chosen.

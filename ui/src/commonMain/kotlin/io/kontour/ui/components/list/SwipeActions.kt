@@ -34,6 +34,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -741,10 +745,32 @@ fun SwipeActions(
 
     val swipeable = enabled && (start.isNotEmpty() || end.isNotEmpty())
 
+    // Showing its actions, it closes at a press anywhere else — another row, a
+    // button, the list scrolled — as a SwiftUI list's row does: asked for as
+    // *"if you start interacting with another component, it closes"*. The press
+    // still does what it does; this row only gets out of the way.
+    val placed = remember { RowPlace() }
+    val showing = state.anchoredState.settledValue.let { it == SwipeValue.Start || it == SwipeValue.End } &&
+        tapped == null && !fullSwipe
+    DisposableEffect(showing, state) {
+        if (!showing) return@DisposableEffect onDispose { }
+        val key = Any()
+        OpenSwipeRows.add(key) { root ->
+            val bounds = placed.coordinates?.takeIf { it.isAttached }?.boundsInRoot() ?: return@add
+            val still = state.anchoredState.settledValue.let { it == SwipeValue.Start || it == SwipeValue.End }
+            if (!bounds.contains(root) && still && tapped == null && !fullSwipe) scope.launch { state.reset() }
+        }
+        onDispose { OpenSwipeRows.remove(key) }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .onSizeChanged { width = it.width.toFloat() }
+            .onGloballyPositioned { placed.coordinates = it }
+            // A press on this row closes any other that is open, with or
+            // without an `OverlayHost` round the app to see every press.
+            .closesOpenSwipeRows()
             .semantics {
                 // The only route to these that does not require knowing the
                 // gesture exists.
@@ -1573,3 +1599,50 @@ private const val SideScrollDecisionShare = 0.4f
 
 /** A scroll quiet for this long has ended, and the next is a new gesture to decide. */
 private const val SideScrollQuietMillis = 250L
+
+/** Where a row is, for a press elsewhere to be told from one on it. Not state: written in layout, read in input. */
+private class RowPlace {
+    var coordinates: LayoutCoordinates? = null
+}
+
+/**
+ * The [SwipeActions] rows showing their actions, each told of every press —
+ * where, in its root — to close at one that is not on it.
+ *
+ * One for the process rather than one for each `OverlayHost`: a row inside a
+ * host nested in another is closed by a press in the outer one too.
+ */
+internal object OpenSwipeRows {
+    private val open = LinkedHashMap<Any, (Offset) -> Unit>()
+
+    fun add(key: Any, onPress: (Offset) -> Unit) {
+        open[key] = onPress
+    }
+
+    fun remove(key: Any) {
+        open.remove(key)
+    }
+
+    /** A press went down at [root]. */
+    fun pressedAt(root: Offset) {
+        if (open.isEmpty()) return
+        for (onPress in open.values.toList()) onPress(root)
+    }
+}
+
+/**
+ * Tells [OpenSwipeRows] of every press that goes down in this node, before
+ * anything in it sees the press, and takes nothing from it: on an app's root —
+ * `OverlayHost` puts it there — so a press anywhere closes a row left open.
+ */
+@Composable
+internal fun Modifier.closesOpenSwipeRows(): Modifier {
+    val placed = remember { RowPlace() }
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
+            OpenSwipeRows.pressedAt(coordinates.localToRoot(down.position))
+        }
+    }
+}
