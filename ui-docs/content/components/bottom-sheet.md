@@ -289,8 +289,9 @@ The sheet's lowest size is the one it collapses to, so give the sheet
 
 ### Before 0.4.3
 
-The sheet's pinned content was a `pinned { }` call in the content in 0.4.2, and
-its part rode the bottom of the window. [Migrating](../migrating.md) has the
+The sheet's pinned content was a `pinned { }` call in the content in 0.4.2, at
+the foot of what the sheet showed, or on its top with `to = SheetPin.Top`, on a
+band of the sheet's colour. [Migrating](../migrating.md) has the
 change to parts.
 
 ---

@@ -18,9 +18,11 @@ from the version the app is on.
 ## 0.4.2 to 0.4.3
 
 From 0.4.2 to 0.4.3. A sheet's `pinned { }` becomes a `part` with a `pin`, the
-library is on Compose Multiplatform 1.12.1, and a few arguments passed by
-position need naming. A top bar's collapse and a `StateSwitcher` behave
-differently enough to check.
+library is on Compose Multiplatform 1.12.1, a few arguments passed by position
+need naming, and anything built against 0.4.2 has to be rebuilt. Several things
+look or behave differently enough to check: badges, coach mark tours, swipe rows,
+scrollbars beside an index, undismissable sheets, the time pickers' height, a
+top bar's collapse and a `StateSwitcher`.
 
 ### Before you start
 
@@ -65,10 +67,58 @@ sheet's colour.
 + DatePicker(date, { date = it }, Modifier, true, today, { true }, marks, previousIcon = back, nextIcon = on)
 ```
 
-The same for `DateField`'s `style` and `formats` after `placeholder`,
-`TimeField`'s and `DateTimeField`'s `formats` after `label`, a sheet's
-`dragHandle` after `draggable`, and a select's `interactionSource` after
-`otherLabel`. Each fails to compile rather than meaning something else.
+The same for:
+
+- `DateRangePicker`'s, `DateTimePicker`'s and `CalendarMonth`'s arguments after
+  `markerFor`;
+- `TimePicker`'s `formats` and `DateTimePicker`'s `navigation` after
+  `minuteStep`, where `now` is new;
+- `DateField`'s `style` and `formats` after `placeholder`, and `TimeField`'s and
+  `DateTimeField`'s `formats` after `label`;
+- a sheet's `dragHandle` after `draggable`;
+- a select's `interactionSource` after `otherLabel`;
+- `Modifier.coachmark`'s `priority` after `alignment`, and
+  `Modifier.coachmarkStep`'s `enabled` after `shape`, where `tone` is new.
+
+Each fails to compile rather than meaning something else. Name the argument.
+
+### Check: badges
+
+A [`BadgedBox`](components/badge.md) is exactly the size of what it badges, and
+the badge hangs outside it. Layouts round a badged thing move by up to half a
+badge, and screenshots change. A parent that clips — a `Surface`, an avatar
+clipped to a circle — needs room for half a badge, or cuts it.
+
+### Check: coach mark tours
+
+A tour is not ended by a tap on the dim, Back or Escape; its own buttons end it.
+`rememberCoachmarkTour(dismissible = true)` is 0.4.2's behaviour, and a test that
+tapped outside to end a tour needs it, or a press on the tour's button. Between
+steps a tour morphs by default; `transition = CoachmarkTransition.Fade`
+crossfades.
+
+### Check: swipe rows
+
+A row showing its actions closes at a press anywhere else. A test that opened a
+row and then pressed something else, expecting the row still open, sees it
+closed.
+
+### Check: a scrollbar beside an index
+
+A list with an [`IndexScroller`](components/index-scroller.md) draws no
+scrollbar while the index is there. A test that found the scrollbar there finds
+nothing.
+
+### Check: an undismissable sheet
+
+A modal sheet with `dismissible = false` and one size has no drag handle. A test
+that looked for the handle there finds none.
+
+### Check: the time pickers
+
+A `TimePicker` and a `DateTimePicker` have a Now button under their wheels, so
+they and the field pickers that hold them are taller. `now = null` takes it
+away.
 
 ### Check: a large or hero top bar
 

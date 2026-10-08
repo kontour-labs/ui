@@ -103,6 +103,20 @@ take hold of it and the content follows rather than jumping. It scrolls raw
 rather than flinging — a scrollbar is a position control, and letting go of one
 should leave the content where the thumb is.
 
+**Clear of bars over the list.** A list drawn under a top bar, or over a
+floating tab or nav bar, pads its content clear of them; give the scrollbar the
+same padding and its track stops short of the bars rather than running under
+them:
+
+```kotlin
+val list = rememberScrollbarListState()
+LazyColumn(
+    Modifier.scrollbar(list, contentPadding = padding),
+    state = list,
+    contentPadding = padding,
+) { items(stops) { StopRow(it) } }
+```
+
 The full modality table is in
 [`accessibility.md`](../accessibility.md#input-modality).
 
