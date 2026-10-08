@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -115,10 +116,22 @@ internal fun EventChip(
     // The event as it was, while an edit carries it: there, faded, so where it
     // came from stays in view.
     val carried = !ghost && edit.live && edit.event?.id == event.id
+    // While one event's times are being adjusted, the rest step back: faded,
+    // so the one with the handles is the one thing to look at.
+    val focused = edit.active
+    val faded by animateFloatAsState(
+        targetValue = when {
+            carried -> CarriedAlpha
+            !ghost && focused != null && focused != event.id -> UnfocusedAlpha
+            else -> 1f
+        },
+        animationSpec = Theme.motion.tweenFast(),
+        label = "eventFade",
+    )
 
     Box(
         modifier
-            .graphicsLayer { alpha = if (carried) CarriedAlpha else 1f }
+            .graphicsLayer { alpha = faded }
             .clip(shape)
             .background(fill)
             .then(if (edge != null) Modifier.border(edge, shape) else Modifier)
@@ -144,6 +157,9 @@ internal fun EventChip(
 
 /** How faded the event left behind is while an edit carries it. */
 private const val CarriedAlpha = 0.4f
+
+/** How faded the other events are while one has its edges' handles. */
+private const val UnfocusedAlpha = 0.35f
 
 /**
  * An event as a control: its press, its move — a pointer's, the keyboard's,

@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -38,6 +39,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -76,6 +78,7 @@ class EventCalendarMenuTest {
         modality: InputModality = InputModality.Touch,
         reduceMotion: Boolean = true,
         feedback: FeedbackDispatcher? = null,
+        events: List<CalendarEvent> = listOf(review, trip),
     ): Probe {
         val probe = Probe()
         setContent {
@@ -92,7 +95,7 @@ class EventCalendarMenuTest {
                                 initialScrollTime = LocalTime(8, 0),
                                 firstDayOfWeek = DayOfWeek.MONDAY,
                             ),
-                            events = listOf(review, trip),
+                            events = events,
                             now = null,
                             onEventMove = { event, start, end -> probe.moves += Triple(event, start, end) },
                             onEventResize = { event, start, end -> probe.resizes += Triple(event, start, end) },
@@ -212,6 +215,29 @@ class EventCalendarMenuTest {
         }
         waitForIdle()
         assertEquals(1, probe.resizes.size, "the handles were still there after a tap elsewhere")
+    }
+
+    /**
+     * An event sharing its time with others, its times being adjusted, is
+     * widened to the whole day, over the rest: in a week's lane it was squashed,
+     * its handles and its title a third of a narrow column wide.
+     */
+    @Test
+    fun anEventBeingAdjustedIsWidenedToItsWholeDay() = runComposeUiTest {
+        val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))
+        val probe = calendar(events = listOf(review, standup))
+        val day = dayWidth(probe)
+        val before = boundsOf(review, probe)
+        assertTrue(before.width < day * 0.7f, "the review was not sharing its day to begin with: ${before.width} of $day")
+        hold(before.center)
+        menuItem(probe.strings.adjustTime).performClick()
+        waitForIdle()
+        val during = boundsOf(review, probe)
+        assertTrue(during.width > day * 0.9f, "the review being adjusted is ${during.width}px wide in a ${day}px day")
+        // A tap elsewhere: the handles go, and it goes back to its lane.
+        onRoot().performTouchInput { click(Offset(during.center.x + day * 3f, during.center.y)) }
+        waitForIdle()
+        assertTrue(abs(boundsOf(review, probe).width - before.width) < 1f, "it stayed wide after the handles went")
     }
 
     @Test

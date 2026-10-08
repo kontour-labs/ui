@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -644,6 +646,28 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val cursorShown = scope.cursorShown
     val state = scope.state
 
+    // The event whose times are being adjusted — its edges given handles from
+    // its menu — widened to the whole day, over the others, so its handles
+    // and its text have room: in a lane a seventh of a week wide it was
+    // squashed between its neighbours. Widened and narrowed with a short
+    // ease, and the one widened kept while it narrows again.
+    val adjusting = edit.active?.takeIf { id -> placements.any { it.event.id == id } }
+    var widened by remember { mutableStateOf<Any?>(null) }
+    val widen = remember { Animatable(0f) }
+    val motion = Theme.motion
+    LaunchedEffect(adjusting) {
+        if (adjusting != null) {
+            if (widened != adjusting) {
+                widen.snapTo(0f)
+                widened = adjusting
+            }
+            widen.animateTo(1f, motion.springOrTween(motion.springSnappy))
+        } else if (widened != null) {
+            widen.animateTo(0f, motion.springOrTween(motion.springSnappy))
+            widened = null
+        }
+    }
+
     // How tall each is drawn, as the layout below draws it.
     val blockHeight = { p: TimedPlacement ->
         with(density) { (maxOf(minChipPx, (p.end - p.start) * hourPx / MinutesPerHour) - gapPx).coerceAtLeast(0f).toDp() }
@@ -790,18 +814,28 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         val height = constraints.maxHeight
         val perMinute = hourPx / MinutesPerHour
         val all = placements
+        val wide = widened
+        val f = if (wide == null) 0f else widen.value
+        // Its lane, or — for the one being adjusted — between its lane and the whole day.
+        fun across(p: TimedPlacement): Pair<Float, Float> {
+            val lane = width.toFloat() / p.lanes
+            val x = p.lane * lane + gapPx / 2
+            val w = lane * p.span - gapPx
+            if (p.event.id != wide || f == 0f) return x to w
+            return (x + (gapPx / 2 - x) * f) to (w + (width - gapPx - w) * f)
+        }
         val placeables = measurables.mapIndexed { i, measurable ->
             val p = all[i]
-            val lane = width.toFloat() / p.lanes
-            val w = (lane * p.span - gapPx).roundToInt().coerceAtLeast(0)
+            val w = across(p).second.roundToInt().coerceAtLeast(0)
             val h = (maxOf(minChipPx, (p.end - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(w, h))
         }
         layout(width, height) {
             placeables.forEachIndexed { i, placeable ->
                 val p = all[i]
-                val lane = width.toFloat() / p.lanes
-                placeable.placeRelative((p.lane * lane + gapPx / 2).roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt())
+                val x = across(p).first
+                // Over the others while it is widened, and while it narrows back.
+                placeable.placeRelative(x.roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt(), zIndex = if (p.event.id == wide) 1f else 0f)
             }
         }
     }
