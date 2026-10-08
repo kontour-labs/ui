@@ -147,14 +147,38 @@ import sys
 # and the changelog and guides that describe them.
 #
 # `app` and `total` through `--update`'s rule by hand, over CI's figures.
+#
+# Raised 2026-10-08 for 0.4.3, from a measurement here, built as for 0.4.0 with
+# `:ui-docs:compileProductionExecutableKotlinWasmJsOptimize`: `app` is
+# 3,555,536, +188,406 gzip on 0.4.2's 3,367,130, +5.6%, and over its ceiling by
+# 85,536. Compose moved from 1.12.0-rc01 to 1.12.1; the `skiko.wasm` it unpacks
+# measures 3,324,678, inside its ceiling, so `skiko` stays. Read by source, net
+# lines since v0.4.2:
+#
+#   calendar   +5,553  EventCalendar, new: day, week, month and year views,
+#                      drag to create, move and resize, menus, keyboard
+#   lists      +768    the scrollbar that measures its rows, swipe rows that
+#                      confirm and close when something else is used
+#   date and
+#   time       +657    FieldPicker, the time picker's Now, the range picker's
+#                      edge arrows and dates' colours and annotations
+#   overlay    +663    coachmark tours
+#   sheet, nav +433    pinned parts; top bars that follow the finger
+#   the site   +1,032  lines of pages: the changelog, the event calendar's page
+#
+# `app` through `--update`'s rule by hand. `total`, which cannot be measured
+# here — the loader's `js` needs the webpack step this environment cannot
+# fetch — by the same rule over 0.4.2's total (7,148,576, as 0.4.2 derived it)
+# plus `app`'s growth. It holds even with `js`, `fonts` and `other` at their
+# ceilings: 7,370,214.
 
 CEILINGS = {
     "skiko": 3_430_000,
-    "app": 3_470_000,
+    "app": 3_670_000,
     "js": 110_000,
     "fonts": 370_000,
     "other": 10_000,
-    "total": 7_370_000,
+    "total": 7_560_000,
 }
 
 # The whole *distribution*, in files — `dist.rglob("*")`, which is every file the
