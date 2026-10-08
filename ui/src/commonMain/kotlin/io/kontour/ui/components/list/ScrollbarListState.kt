@@ -42,7 +42,8 @@ import androidx.compose.foundation.lazy.layout.PrefetchRequest
  * from the first few frames.
  *
  * **What it costs**: every row composed once, in idle time, up to
- * [MeasuredRowsCap] rows; past that the rest are estimated. A list of a few
+ * [MeasuredRowsCap] rows, and held until the last is measured; past that the
+ * rest are estimated. A list of a few
  * dozen rows of very different heights — a page of cards — is what it is for.
  * A list of thousands of even rows is estimated exactly enough without it.
  */
@@ -69,8 +70,12 @@ fun rememberScrollbarListState(
     return state
 }
 
-/** The most rows a [rememberScrollbarListState] list measures ahead; past these, the rest are estimated. */
-const val MeasuredRowsCap: Int = 1000
+/**
+ * The most rows a [rememberScrollbarListState] list measures ahead; past these,
+ * the rest are estimated. The rows measured are kept composed until the last
+ * of them is, so this is also the most it holds at once.
+ */
+const val MeasuredRowsCap: Int = 200
 
 /** The lists made with [rememberScrollbarListState], and the heights of their rows. */
 internal val MeasuredLists = mutableStateMapOf<LazyListState, RowSizes>()
@@ -87,6 +92,9 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
     override val prefetchScheduler: PrefetchScheduler = frames
     private val inFlight = HashMap<Int, LazyLayoutPrefetchState.PrefetchHandle>()
 
+    /** The rows asked for, measured or not: each is asked for once. */
+    private val measured = HashSet<Int>()
+
     override fun LazyListPrefetchScope.onScroll(delta: Float, layoutInfo: LazyListLayoutInfo) =
         with(default) { onScroll(delta, layoutInfo) }
 
@@ -96,23 +104,25 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
     override fun LazyListPrefetchScope.onVisibleItemsUpdated(layoutInfo: LazyListLayoutInfo) {
         with(default) { onVisibleItemsUpdated(layoutInfo) }
         val total = layoutInfo.totalItemsCount
-        if (total != rows.count) {
-            cancelAll()
-            rows.resize(total)
-        }
+        if (total != rows.count) rows.resize(total)
         for (item in layoutInfo.visibleItemsInfo) rows.record(item.index, item.size, item.key)
         for (index in 0 until minOf(total, MeasuredRowsCap)) {
-            if (rows.known(index) || index in inFlight) continue
+            if (rows.known(index) || index in inFlight || index in measured) continue
             val handle = schedulePrefetch(index) {
                 rows.record(this.index, mainAxisSize, key = null, notify = true)
-                // Measured: no need to keep it composed.
-                inFlight.remove(this.index)?.cancel()
+                // Kept composed until every row is measured, then all let go
+                // together: a row let go of hands its composition back for
+                // reuse, and the next row measured in it reported the height
+                // of the row before — every card on a page measured as the
+                // first one measured was.
+                if (rows.knownCount >= minOf(rows.count, MeasuredRowsCap)) cancelAll()
             }
             // Urgent, or a row's composition waits for an average of earlier
             // ones to fit the time left, and a list that has measured nothing
             // has no average: our own slice of each frame is the limit.
             handle.markAsUrgent()
             inFlight[index] = handle
+            measured += index
         }
     }
 

@@ -34,8 +34,13 @@ import kotlin.test.assertTrue
  */
 class ScrollbarMeasuredTest {
 
-    /** One card taller than the window, then a run of short rows: the worst a first guess can be. */
-    private val heights = listOf(600) + List(60) { 10 }
+    /**
+     * One card taller than the window, then a run of rows each a different
+     * height: the worst a first guess can be, and rows that cannot pass for one
+     * another — a row measured in the composition of the one before reported
+     * that one's height, which rows all alike never showed.
+     */
+    private val heights = listOf(600) + List(40) { 10 + (it * 37) % 90 }
 
     @Test
     fun theThumbIsTheListsLengthFromTheStart() {
@@ -134,7 +139,12 @@ private fun MeasuredList(heights: List<Int>, measured: Boolean, onState: (LazyLi
     onState(state)
     Box(Modifier.fillMaxSize().background(Color.White)) {
         LazyColumn(state = state, modifier = Modifier.fillMaxSize().scrollbar(state, alwaysVisible = true)) {
-            items(heights.size) { Box(Modifier.fillMaxWidth().height(heights[it].dp)) }
+            // Keyed, and something in each, as a page of cards is.
+            items(heights.size, key = { "row$it" }) {
+                Column(Modifier.fillMaxWidth()) {
+                    Box(Modifier.fillMaxWidth().height(heights[it].dp))
+                }
+            }
         }
     }
 }
