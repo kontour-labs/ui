@@ -96,6 +96,9 @@ passed by position need naming — see **Breaking**, and
   month, with the picker's haptics: a rumble that builds while held, and the
   page felt once. It shows within about 72dp of the side, the same in every
   view and the same size for an all-day event as a timed one.
+- **A `FabMenu` item's label can be tapped**, and does what its button does.
+  It was drawn beside the button, and a tap on it fell through to the scrim and
+  closed the menu with nothing chosen.
 - **An event whose times are being adjusted in an event calendar is widened
   to its whole day**, over any it shares its time with, and the other events
   fade back while its handles are there, each over about a third of a second,
