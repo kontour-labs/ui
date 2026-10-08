@@ -212,7 +212,8 @@ internal fun ReportsSettling(moving: () -> Boolean, callerTurning: () -> Boolean
  * once the drum is there, or did not need to move.
  */
 internal class WheelTurn(val index: Int) {
-    val done = CompletableDeferred<Unit>()
+    /** Complete once the turn is over: true where it arrived, false where a finger, or another turn, took the wheel first. */
+    val done = CompletableDeferred<Boolean>()
 }
 
 /**
@@ -625,16 +626,21 @@ internal fun <T> WheelDrum(
     // back as the value — do not cancel it.
     LaunchedEffect(turn) {
         val request = turn ?: return@LaunchedEffect
+        var arrived = false
         try {
             val target = request.index.coerceIn(0, items.lastIndex)
-            if (target == centredIndex && !listState.isScrollInProgress) return@LaunchedEffect
+            if (target == centredIndex && !listState.isScrollInProgress) {
+                arrived = true
+                return@LaunchedEffect
+            }
             callerTurning.value = true
             driving = true
             listState.scrollToItem(target, wheelMotion)
+            arrived = true
         } finally {
             driving = false
             callerTurning.value = false
-            request.done.complete(Unit)
+            request.done.complete(arrived)
         }
     }
     ReportsSettling(moving = { listState.isScrollInProgress }, callerTurning = { callerTurning.value }, onSettled = onSettled)
@@ -1068,14 +1074,19 @@ private fun <T> InfiniteWheel(
     // As the finite drum's: a turn asked to be seen, the short way round.
     LaunchedEffect(turn) {
         val request = turn ?: return@LaunchedEffect
+        var arrived = false
         try {
             val turns = shortestTurn(centredIndex, wrap(request.index, items.size), items.size)
-            if (turns == 0) return@LaunchedEffect
+            if (turns == 0) {
+                arrived = true
+                return@LaunchedEffect
+            }
             callerTurning.value = true
             offset.animateTo(offset.value + turns * itemPx, motion.springOrTween(motion.springSnappy))
+            arrived = true
         } finally {
             callerTurning.value = false
-            request.done.complete(Unit)
+            request.done.complete(arrived)
         }
     }
 

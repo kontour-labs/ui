@@ -102,6 +102,45 @@ class TimePickerNowTest {
         assertEquals(LocalDateTime(2026, 6, 13, 9, 0), value)
     }
 
+    /** Pressed again on its way, Now says it has arrived once, not once a press. */
+    @Test
+    fun nowPressedTwiceFinishesOnce() = runComposeUiTest {
+        val probe = picker()
+        mainClock.autoAdvance = false
+        onNode(hasText(probe.now) and hasClickAction()).performClick()
+        repeat(3) { mainClock.advanceTimeByFrame() }
+        onNode(hasText(probe.now) and hasClickAction()).performClick()
+        mainClock.autoAdvance = true
+        waitForIdle()
+        assertEquals(LocalTime(14, 30), probe.seen.lastOrNull())
+        assertEquals(1, probe.finished, "a press taken over by another still said it had finished")
+    }
+
+    /** Today, where the calendar would refuse it, is not where Now takes the day. */
+    @Test
+    fun aDateAndTimePickersNowKeepsADayItCannotTake() = runComposeUiTest {
+        var value by mutableStateOf(LocalDateTime(2026, 6, 10, 18, 0))
+        var now = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                now = Theme.strings.now
+                DateTimePicker(
+                    value = value,
+                    onValueChange = { value = it },
+                    minuteStep = 5,
+                    now = { LocalDateTime(2026, 6, 13, 9, 2) },
+                    isDateSelectable = { it != LocalDate(2026, 6, 13) },
+                    modifier = Modifier.width(900.dp),
+                )
+            }
+        }
+        waitForIdle()
+        onNode(hasText(now) and hasClickAction()).performClick()
+        waitForIdle()
+        assertEquals(LocalDate(2026, 6, 10), value.date, "Now took the day to one the calendar refuses")
+        assertEquals(LocalTime(9, 0), value.time)
+    }
+
     @Test
     fun roundingPastMidnightIsTomorrow() {
         assertEquals(LocalTime(0, 0) to true, nearestStep(LocalTime(23, 58), 5))

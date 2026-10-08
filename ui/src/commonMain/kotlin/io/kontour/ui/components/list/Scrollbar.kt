@@ -1348,6 +1348,9 @@ internal class RowSizes {
 
     fun known(index: Int): Boolean = index in sizes.indices && sizes[index] > 0
 
+    /** The key of the row last seen at [index], where one has been seen. */
+    fun keyAt(index: Int): Any? = if (index in keys.indices) keys[index] else null
+
     fun average(): Float = if (knownCount == 0) 0f else knownSum.toFloat() / knownCount
 
     /** The heights known before [index], and how many rows they are. */

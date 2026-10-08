@@ -95,6 +95,9 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
     /** The rows asked for, measured or not: each is asked for once. */
     private val measured = HashSet<Int>()
 
+    /** The rows asked for that have reported, whatever their height — none tall included. */
+    private val landed = HashSet<Int>()
+
     override fun LazyListPrefetchScope.onScroll(delta: Float, layoutInfo: LazyListLayoutInfo) =
         with(default) { onScroll(delta, layoutInfo) }
 
@@ -104,18 +107,34 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
     override fun LazyListPrefetchScope.onVisibleItemsUpdated(layoutInfo: LazyListLayoutInfo) {
         with(default) { onVisibleItemsUpdated(layoutInfo) }
         val total = layoutInfo.totalItemsCount
-        if (total != rows.count) rows.resize(total)
+        // Rows replaced — a row on screen is not the row measured at its
+        // place — and everything measured is of other rows: forgotten, and
+        // asked for again. More rows, or fewer, and those not yet asked for are.
+        val replaced = layoutInfo.visibleItemsInfo.any { item -> rows.keyAt(item.index).let { it != null && it != item.key } }
+        if (replaced) {
+            cancelAll()
+            measured.clear()
+            rows.resize(0)
+        }
+        if (total != rows.count) {
+            rows.resize(total)
+            measured.retainAll { it < total }
+        }
         for (item in layoutInfo.visibleItemsInfo) rows.record(item.index, item.size, item.key)
         for (index in 0 until minOf(total, MeasuredRowsCap)) {
             if (rows.known(index) || index in inFlight || index in measured) continue
             val handle = schedulePrefetch(index) {
                 rows.record(this.index, mainAxisSize, key = null, notify = true)
-                // Kept composed until every row is measured, then all let go
-                // together: a row let go of hands its composition back for
-                // reuse, and the next row measured in it reported the height
-                // of the row before — every card on a page measured as the
-                // first one measured was.
-                if (rows.knownCount >= minOf(rows.count, MeasuredRowsCap)) cancelAll()
+                landed += this.index
+                // Kept composed until every row asked for has reported, then
+                // all let go together: a row let go of hands its composition
+                // back for reuse, and the next row measured in it reported the
+                // height of the row before — every card on a page measured as
+                // the first one measured was. Counted by the rows that
+                // reported, not by the heights known: a row with no height is
+                // never known, and waiting for it held every row composed for
+                // the life of the list.
+                if (inFlight.keys.all { it in landed }) cancelAll()
             }
             // Urgent, or a row's composition waits for an average of earlier
             // ones to fit the time left, and a list that has measured nothing
@@ -129,6 +148,7 @@ private class MeasuringPrefetch(private val rows: RowSizes, frames: PrefetchSche
     fun cancelAll() {
         for (handle in inFlight.values) handle.cancel()
         inFlight.clear()
+        landed.clear()
     }
 }
 

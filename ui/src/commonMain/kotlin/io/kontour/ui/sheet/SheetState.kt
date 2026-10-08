@@ -1577,8 +1577,8 @@ fun rememberSheetState(
  *
  * - **The measured peek wins over the detent's fallback.** [SheetDetent.peek]
  *   carries a fixed height so a sheet has somewhere to sit before its header has
- *   been measured; once it has, the real height replaces it. [SheetDetent.headerAndFooter]
- *   is the same, with the header's and the footer's height.
+ *   been measured; once it has, the real height replaces it. [SheetDetent.parts]
+ *   is the same, with the pinned parts' height.
  * - **Duplicates are dropped.** Two anchors at the same offset make
  *   `settledValue` ambiguous, and the sheet flickers between two names for one
  *   position. It happens easily: on a short screen `Half` and `Expanded` can

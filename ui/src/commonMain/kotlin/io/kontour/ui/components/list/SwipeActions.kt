@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -761,7 +762,12 @@ fun SwipeActions(
         if (!showing) return@DisposableEffect onDispose { }
         val key = Any()
         OpenSwipeRows.add(key) { root ->
-            val bounds = placed.coordinates?.takeIf { it.isAttached }?.boundsInRoot() ?: return@add
+            // On the screen, as the press is: a press in a popup, or another
+            // window, is in a root of its own, and its root's coordinates
+            // compared with this row's said nothing.
+            val bounds = placed.coordinates?.takeIf { it.isAttached }?.let { c ->
+                Rect(c.localToScreen(Offset.Zero), c.localToScreen(Offset(c.size.width.toFloat(), c.size.height.toFloat())))
+            } ?: return@add
             if (bounds.contains(root) || !opening()) return@add
             settling?.cancel()
             scope.launch { state.reset() }
@@ -1613,7 +1619,7 @@ private class RowPlace {
 
 /**
  * The [SwipeActions] rows showing their actions, each told of every press —
- * where, in its root — to close at one that is not on it.
+ * where, on the screen — to close at one that is not on it.
  *
  * One for the process rather than one for each `OverlayHost`: a row inside a
  * host nested in another is closed by a press in the outer one too.
@@ -1629,10 +1635,10 @@ internal object OpenSwipeRows {
         open.remove(key)
     }
 
-    /** A press went down at [root]. */
-    fun pressedAt(root: Offset) {
+    /** A press went down at [screen], on the screen. */
+    fun pressedAt(screen: Offset) {
         if (open.isEmpty()) return
-        for (onPress in open.values.toList()) onPress(root)
+        for (onPress in open.values.toList()) onPress(screen)
     }
 }
 
@@ -1648,7 +1654,7 @@ internal fun Modifier.closesOpenSwipeRows(): Modifier {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@awaitEachGesture
-            OpenSwipeRows.pressedAt(coordinates.localToRoot(down.position))
+            OpenSwipeRows.pressedAt(coordinates.localToScreen(down.position))
         }
     }
 }

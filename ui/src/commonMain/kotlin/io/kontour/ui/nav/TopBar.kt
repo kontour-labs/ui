@@ -1136,8 +1136,11 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
 
     /** The bar laid out [height] pixels tall at its present [progress]. */
     internal fun laidOut(height: Int, density: Density) {
-        val open = with(density) { (height + shrink * progress.coerceIn(0f, 1f)).toDp() }
-        if (open != openHeight) openHeight = open
+        // In whole pixels: worked back from a height rounded to a pixel at each
+        // step of a collapse, it came out a fraction different every frame,
+        // and every fraction moved the padding of the list under it.
+        val open = with(density) { (height + shrink * progress.coerceIn(0f, 1f)).roundToInt().toDp() }
+        if (openHeight == Dp.Unspecified || with(density) { (open - openHeight).toPx() }.let { kotlin.math.abs(it) >= 1f }) openHeight = open
     }
 
     /**

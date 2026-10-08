@@ -16,6 +16,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -108,9 +109,20 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
     }
 
     SubcomposeLayout(modifier.fillMaxWidth()) { constraints ->
-        val available = constraints.maxWidth
         val floor = labelWidth.roundToPx()
         val gapPx = gap.roundToPx()
+        // In a row that scrolls, or anything else with no width to give, as
+        // wide as its widest label and widest value side by side: laid out at
+        // an unbounded width, it threw.
+        val available = if (constraints.hasBoundedWidth) {
+            constraints.maxWidth
+        } else {
+            val labels = subcompose("natural labels") { rows.forEach { row -> label(row, Measured) } }
+                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            val values = subcompose("natural values") { rows.forEach { row -> value(row, Measured) } }
+                .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
+            maxOf(labels, floor) + gapPx + maxOf(values, minValue.roundToPx())
+        }
         /*
          * Two columns, or one above the other.
          *
@@ -139,7 +151,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
             0
         } else {
             val widest = maxOf(floor, available - gapPx - minValue.roundToPx())
-            val natural = subcompose("labels") { rows.forEach { row -> label(row, Modifier) } }
+            val natural = subcompose("labels") { rows.forEach { row -> label(row, Measured) } }
                 .maxOfOrNull { it.maxIntrinsicWidth(Constraints.Infinity) } ?: 0
             natural.coerceIn(floor, widest)
         }
@@ -176,7 +188,7 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
                     }
                 }
             }
-        }.map { it.measure(constraints.copy(minHeight = 0)) }
+        }.map { it.measure(constraints.copy(minWidth = 0, maxWidth = available, minHeight = 0)) }
         val height = list.sumOf { it.height }
         layout(available, constraints.constrainHeight(height)) {
             var y = 0
@@ -187,6 +199,12 @@ internal fun KeyValueRows(scope: KeyValueScope, modifier: Modifier, labelWidth: 
         }
     }
 }
+
+/**
+ * A copy composed only to be measured, never placed: nothing a screen reader
+ * should find, or it reads every label twice.
+ */
+private val Measured = Modifier.clearAndSetSemantics { }
 
 /** One collected row. */
 internal class KeyValueRow(
@@ -241,7 +259,13 @@ class KeyValueScope @PublishedApi internal constructor() {
         )
     }
 
-    /** Both regions as content, for a label that is more than a word. */
+    /**
+     * Both regions as content, for a label that is more than a word.
+     *
+     * The label column is as wide as the widest label, so a label is asked how
+     * wide it would be: one with a lazy row or `BoxWithConstraints` inside it,
+     * which cannot say, throws.
+     */
     fun item(
         label: @Composable ContentScope.() -> Unit,
         announcement: String? = null,

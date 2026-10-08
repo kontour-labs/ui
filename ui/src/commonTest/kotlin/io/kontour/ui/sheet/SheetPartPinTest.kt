@@ -115,6 +115,24 @@ class SheetPartPinTest {
         }
     }
 
+    /**
+     * A collapsed part taken out is gone: written under an `if`, it stayed
+     * drawn after the condition went false, and kept its room in the sheet.
+     */
+    @Test
+    fun aCollapsedPartTakenOutIsGone() {
+        runComposeUiTest {
+            var shown by mutableStateOf(true)
+            mainClock.autoAdvance = false
+            setContent { Harness(SheetDetent.Half, SheetPartPin.Collapsed, shown = shown) {} }
+            settle()
+            onNodeWithTag(Part).assertExists()
+            shown = false
+            settle()
+            onNodeWithTag(Part).assertDoesNotExist()
+        }
+    }
+
     @Test
     fun collapsedToItsPartsNothingOfTheContentShowsRoundABottomPart() = nothingShowsRound(SheetPartPin.Bottom)
 
@@ -161,7 +179,7 @@ class SheetPartPinTest {
     }
 
     @Composable
-    private fun Harness(target: SheetDetent, pin: SheetPartPin, rows: Color = Color.Unspecified, onState: (SheetState) -> Unit) {
+    private fun Harness(target: SheetDetent, pin: SheetPartPin, rows: Color = Color.Unspecified, shown: Boolean = true, onState: (SheetState) -> Unit) {
         KontourTheme(reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -187,7 +205,7 @@ class SheetPartPinTest {
                         if (pin == SheetPartPin.Top) part(pin = SheetPartPin.Top) { part() }
                         if (pin == SheetPartPin.Bottom) part(pin = SheetPartPin.Bottom) { part() }
                         LazyColumn(Modifier.testTag(List), contentPadding = padding) {
-                            if (pin == SheetPartPin.Collapsed) {
+                            if (pin == SheetPartPin.Collapsed && shown) {
                                 item(key = "part") { sheetParts.part(pin = SheetPartPin.Collapsed) { part() } }
                             }
                             items(Rows) { index ->

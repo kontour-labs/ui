@@ -176,7 +176,9 @@ fun DateTimePicker(
             // rounded past midnight, and the calendar pages there.
             onNow = { tomorrow ->
                 val day = pressedAt[0]?.let { if (tomorrow) it.plus(1, DateTimeUnit.DAY) else it }
-                if (day != null && day != working.value.date) {
+                // Only to a day the calendar would let be chosen: one it would
+                // refuse, today included, keeps the day there was.
+                if (day != null && day != working.value.date && isDateSelectable(day)) {
                     change(LocalDateTime(day, working.value.time))
                     navigation.jumpTo(day)
                 }

@@ -68,6 +68,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.geometry.Rect
@@ -1483,8 +1484,11 @@ private fun BoxScope.SheetSurface(
                     if (collapsedBlock != null) {
                         // From its place in the content — or from just above the
                         // top, where the content scrolled it off or never
-                        // composed it — to the top, as the sheet collapses.
-                        val f = state.collapseFraction()
+                        // composed it — to the top, as the sheet collapses to
+                        // its parts. Collapsed to a peek, or a half, the content
+                        // is still there round it, unveiled, and the part stays
+                        // in it: it slid up over the content it was part of.
+                        val f = state.partsCollapseFraction()
                         val flow = slots.flowTop
                         val from = if (flow.isNaN()) slotTop - collapsedBlock.height else flow.roundToInt()
                         val y = (from + (slotTop - from) * f).roundToInt()
@@ -1923,14 +1927,20 @@ private class SheetParts(
             // Handed to the sheet, which draws it in its slot: see [SheetSlots].
             val owner = remember { Any() }
             slots.claim(pin, owner, content)
-            // A collapsed part outlives its place: a list disposes of the place
-            // when it scrolls away, and the part is still the sheet's to bring
-            // back to the top. The others go with the call that wrote them.
-            if (pin != SheetPartPin.Collapsed) {
-                DisposableEffect(slots, pin, owner) { onDispose { slots.release(pin, owner) } }
-            } else {
-                CollapsedPlace(slots)
+            // Every part goes with the call that wrote it — a part written under
+            // an `if` is gone when the condition is. A collapsed part in a lazy
+            // list pins its item, so scrolling it away does not dispose of it:
+            // the part is still the sheet's to bring back to the top. It was
+            // kept by never being released, so one taken out stayed for good.
+            if (pin == SheetPartPin.Collapsed) {
+                val pinnable = LocalPinnableContainer.current
+                DisposableEffect(pinnable) {
+                    val handle = pinnable?.pin()
+                    onDispose { handle?.release() }
+                }
             }
+            DisposableEffect(slots, pin, owner) { onDispose { slots.release(pin, owner) } }
+            if (pin == SheetPartPin.Collapsed) CollapsedPlace(slots)
             return
         }
         // **Nothing here gates the pixels, and that is the third answer to the same

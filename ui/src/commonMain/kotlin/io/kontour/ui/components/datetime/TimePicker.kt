@@ -53,6 +53,7 @@ import kotlin.time.Clock
 import io.kontour.ui.components.action.ButtonVariant
 import io.kontour.ui.components.action.ButtonSize
 import io.kontour.ui.components.action.Button
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -289,6 +290,8 @@ internal fun TimeWheels(
             val scope = rememberCoroutineScope()
             val change by rememberUpdatedState(onValueChange)
             val finished by rememberUpdatedState(onValueChangeFinished)
+            // The last press's wait for its wheels: a second press takes over from it.
+            val waiting = remember { arrayOfNulls<Job>(1) }
             // Under the wheels, a quiet button: the wheels are the control,
             // this is a shortcut to a place on them.
             Button(
@@ -301,8 +304,12 @@ internal fun TimeWheels(
                         WheelTurn(if (target.hour >= 12) 1 else 0).takeIf { cycle.usesDayPeriod },
                     )
                     turns = asked
-                    scope.launch {
-                        for (turn in asked) turn?.done?.await()
+                    waiting[0]?.cancel()
+                    waiting[0] = scope.launch {
+                        // Every wheel there, or a finger took one on the way: then the
+                        // finger's is the value, and Now says nothing over it.
+                        val arrived = asked.all { turn -> turn?.done?.await() ?: true }
+                        if (!arrived) return@launch
                         // Where the wheels came to rest, exactly, and said once.
                         if (working.value != target) {
                             working.value = target
