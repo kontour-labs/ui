@@ -216,7 +216,10 @@ val generateApiTables = tasks.register("generateApiTables") {
         // own declaration *and* the members of the scope named after it.
         val bySymbol = sortedMapOf<String, MutableList<KotlinSignatures.Declaration>>()
         for (declaration in public) {
-            val owner = declaration.receiver ?: declaration.enclosing
+            // A secondary constructor is another way to write its class, and
+            // goes in its class's table: `CalendarEvent(…, startDate = …)` is
+            // `CalendarEvent`, not `CalendarEvent.CalendarEvent`.
+            val owner = if (declaration.kind == KotlinSignatures.Kind.Constructor) null else declaration.receiver ?: declaration.enclosing
             val symbol = when {
                 owner == null -> declaration.name
                 owner.endsWith("Scope") -> owner.removeSuffix("Scope")
@@ -296,9 +299,9 @@ val generateApiTables = tasks.register("generateApiTables") {
                 }.distinct().sorted()
                 body.append("            ApiEntry(\n")
                 body.append("                name = ").append(literal(declaration.name)).append(",\n")
-                body.append("                owner = ").append(literal(declaration.receiver ?: declaration.enclosing)).append(",\n")
+                body.append("                owner = ").append(literal(if (declaration.kind == KotlinSignatures.Kind.Constructor) null else declaration.receiver ?: declaration.enclosing)).append(",\n")
                 body.append("                isComposable = ").append(declaration.isComposable).append(",\n")
-                body.append("                isClass = ").append(declaration.kind == KotlinSignatures.Kind.Class).append(",\n")
+                body.append("                isClass = ").append(declaration.kind != KotlinSignatures.Kind.Function).append(",\n")
                 if (parameters.isEmpty()) {
                     body.append("                parameters = emptyList(),\n")
                 } else {

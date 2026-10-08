@@ -63,6 +63,15 @@ class CalendarEvent(
     /**
      * An all-day event from [startDate] to [endDate], both days included — as
      * people say it, "the 14th to the 16th".
+     *
+     * @param id What the event is known by across changes.
+     * @param title What it is called.
+     * @param startDate Its first day.
+     * @param endDate Its last day, itself included: the same day for a day's event.
+     * @param tone Its colour.
+     * @param location Where, read out and shown under the title where there is room.
+     * @param supporting A line more about it, shown where there is room.
+     * @param editable Whether a drag or a keyboard can move it or change its length.
      */
     constructor(
         id: Any,

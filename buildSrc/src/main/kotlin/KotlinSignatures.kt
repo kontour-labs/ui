@@ -39,7 +39,11 @@ object KotlinSignatures {
         val optional: Boolean get() = default != null
     }
 
-    enum class Kind { Function, Class }
+    /**
+     * A function, a class's primary constructor, or one of its secondary
+     * constructors — named after the class, as a call to it is.
+     */
+    enum class Kind { Function, Class, Constructor }
 
     data class Declaration(
         val kind: Kind,
@@ -299,6 +303,11 @@ object KotlinSignatures {
         RegexOption.MULTILINE,
     )
 
+    private val secondaryConstructor = Regex(
+        """^([ \t]*)(?:(public|internal|private)\s+)?constructor\s*\(""",
+        RegexOption.MULTILINE,
+    )
+
     private val classHeader = Regex(
         """^([ \t]*)(?:(public|internal|private)\s+)?""" +
             """(?:(?:abstract|open|sealed|data|value|inner|expect|actual)\s+)*""" +
@@ -487,6 +496,18 @@ object KotlinSignatures {
         }
         classHeader.findAll(clean).forEach { m ->
             add(Kind.Class, m, m.groupValues[1], m.groupValues[2], null, m.groupValues[3])
+        }
+        // A secondary constructor is called by its class's name: `CalendarEvent(id,
+        // title, startDate = …)` is as much a call to `CalendarEvent` as one with
+        // a start and an end, and a sample of it read as a parameter that was not
+        // there.
+        secondaryConstructor.findAll(clean).forEach { m ->
+            val owner = scopes
+                .filter { (body, depth, _) -> body != null && m.range.first in body && depth < m.groupValues[1].length }
+                .maxByOrNull { it.first!!.first }
+                ?.third
+                ?: return@forEach
+            add(Kind.Constructor, m, m.groupValues[1], m.groupValues[2], null, owner)
         }
         return found.sortedBy { it.line }
     }
