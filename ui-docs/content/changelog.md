@@ -28,6 +28,10 @@ On `main`, and in the next release. Nothing yet.
 
 ---
 
+### Changed
+
+- **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
+
 ## 0.4.3 — 8 October 2026
 
 An event calendar; coach mark tours that cross the app; a Now on the time

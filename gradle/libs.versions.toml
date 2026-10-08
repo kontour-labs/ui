@@ -18,7 +18,7 @@ androidx-activity = "1.13.0"
 # outline and filled. On GitHub Packages, so reading it needs credentials: see
 # `settings.gradle.kts`. The version is Tabler's own. The library draws its
 # system icons from it; the catalog, the samples and the docs use the rest.
-tabler-icons = "3.48.0"
+tabler-icons = "3.49.0"
 
 # Navigation 3 — `:ui-nav3` only. The scene API is JetBrains' multiplatform
 # build of it; `NavEntry` and the rest of the runtime come from Google's.
