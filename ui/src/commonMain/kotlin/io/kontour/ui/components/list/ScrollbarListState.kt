@@ -42,7 +42,7 @@ import androidx.compose.foundation.lazy.layout.PrefetchRequest
  * from the first few frames.
  *
  * **What it costs**: every row composed once, in idle time, up to
- * [MeasuredRowsCap] rows, and held until the last is measured; past that the
+ * 200 rows, and held until the last is measured; past that the
  * rest are estimated. A list of a few
  * dozen rows of very different heights — a page of cards — is what it is for.
  * A list of thousands of even rows is estimated exactly enough without it.
@@ -75,7 +75,7 @@ fun rememberScrollbarListState(
  * the rest are estimated. The rows measured are kept composed until the last
  * of them is, so this is also the most it holds at once.
  */
-const val MeasuredRowsCap: Int = 200
+internal const val MeasuredRowsCap: Int = 200
 
 /** The lists made with [rememberScrollbarListState], and the heights of their rows. */
 internal val MeasuredLists = mutableStateMapOf<LazyListState, RowSizes>()

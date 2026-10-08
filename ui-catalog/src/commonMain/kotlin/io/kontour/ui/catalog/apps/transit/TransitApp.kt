@@ -102,7 +102,7 @@ internal fun TransitApp() {
 
     // The tour is the app's, not a page's: it starts on the departures and
     // ends on the trips, taking the reader from the one tab to the other.
-    val tour = rememberCoachmarkTour("welcome", "ticket", "filters", "plan", "activity", skippable = true) { step ->
+    val tour = rememberCoachmarkTour("welcome", "ticket", "filters", "plan", "activity", showSkip = true) { step ->
         val tab = if (step == "activity") TripsRoute else DeparturesRoute
         if (root != tab || backStack.size > 1) go(tab)
     }

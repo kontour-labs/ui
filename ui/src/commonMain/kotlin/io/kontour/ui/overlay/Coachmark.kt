@@ -266,7 +266,7 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
     internal var dismissible: Boolean by mutableStateOf(false)
 
     /** Whether its bubbles offer Skip; see [rememberCoachmarkTour]. */
-    internal var skippable: Boolean by mutableStateOf(false)
+    internal var showSkip: Boolean by mutableStateOf(false)
 
     /** The way the reader last went: 1 forwards, -1 back. Which way a missing step is passed over. */
     internal var heading: Int = 1
@@ -322,8 +322,8 @@ class CoachmarkTour internal constructor(internal val order: List<String>) {
  * @param dismissible Whether a tap on the dim round the step, Back or Escape
  *   ends the tour. Not by default: a tour is something the reader asked for and
  *   walks through — a stray tap beside the bubble lost the rest of it — and its
- *   way out is the bubble's own, Done on the last step, or [skippable]'s Skip.
- * @param skippable Whether each bubble but the last offers Skip, which goes
+ *   way out is the bubble's own, Done on the last step, or [showSkip]'s Skip.
+ * @param showSkip Whether each bubble but the last offers Skip, which goes
  *   straight to the last step: see [CoachmarkTour.skip].
  * @param navigate Takes the reader to the screen a step is on, told each step's
  *   id as the tour reaches it — at the start, forwards and back. Null for a tour
@@ -335,14 +335,14 @@ fun rememberCoachmarkTour(
     vararg steps: String,
     transition: CoachmarkTransition = CoachmarkTransition.Morph,
     dismissible: Boolean = false,
-    skippable: Boolean = false,
+    showSkip: Boolean = false,
     navigate: (suspend (step: String) -> Unit)? = null,
 ): CoachmarkTour {
     val tour = remember(steps.toList()) { CoachmarkTour(steps.toList()) }
     SideEffect {
         tour.transition = transition
         tour.dismissible = dismissible
-        tour.skippable = skippable
+        tour.showSkip = showSkip
     }
     val goTo by rememberUpdatedState(navigate)
     LaunchedEffect(tour) {
@@ -1085,7 +1085,7 @@ private fun CoachmarkBubble(
                 // ghost buttons side by side each keep their invisible pad,
                 // which put twice of it between their words — Skip looked to
                 // have more room on its right than anything else in the row.
-                val skips = tour.skippable && hasNext
+                val skips = tour.showSkip && hasNext
                 if (skips || hasPrevious) {
                     val pad = Theme.componentDefaults.buttonPaddingSmall
                     Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs - pad)) {

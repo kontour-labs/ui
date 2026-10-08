@@ -49,7 +49,7 @@ measured off screen with its own constraints, a few each frame in a slice of
 the time between frames, and thrown away again — and the thumb is the list's
 true length within the first few frames, reaching the end of its track exactly
 as the list reaches its end. It costs every row composed once, up to
-`MeasuredRowsCap` rows. A page of cards of very different heights is what it is
+200 rows, the rest estimated. A page of cards of very different heights is what it is
 for; a long list of even rows is estimated closely enough without it.
 
 **Otherwise a lazy list's length is from every row it has measured**, not only the rows on

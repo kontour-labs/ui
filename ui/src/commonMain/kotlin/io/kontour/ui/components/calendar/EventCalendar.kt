@@ -204,7 +204,7 @@ fun EventCalendar(
     events: List<CalendarEvent>,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    now: LocalDateTime? = EventCalendarDefaults.currentTime(),
+    now: LocalDateTime? = EventCalendarDefaults.currentDateTime(),
     onEventClick: ((CalendarEvent) -> Unit)? = null,
     onDateClick: ((LocalDate) -> Unit)? = null,
     onTimeClick: ((LocalDateTime) -> Unit)? = null,
@@ -212,11 +212,11 @@ fun EventCalendar(
     onEventMove: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventResize: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventDelete: ((event: CalendarEvent) -> Unit)? = null,
-    eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
-    emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     formats: LocaleFormats = Theme.formats,
+    eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
+    emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
     header: (@Composable (EventCalendarState) -> Unit)? = { EventCalendarDefaults.Header(it) },
     eventContent: @Composable (event: CalendarEvent, presentation: EventPresentation) -> Unit =
         { event, presentation -> EventCalendarDefaults.EventContent(event, presentation) },
@@ -496,7 +496,7 @@ object EventCalendarDefaults {
      * midnight without anything asking it to.
      */
     @Composable
-    fun currentTime(): LocalDateTime {
+    fun currentDateTime(): LocalDateTime {
         val time by produceState(systemNow()) {
             while (true) {
                 waitForNextMinute()

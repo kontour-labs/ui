@@ -12,7 +12,8 @@ app/ui/src/commonMain/kotlin/io/kontour/ui/
   components/
     action/       buttons, FABs, links
     selection/    checkboxes, switches, sliders, chips
-    datetime/     pickers, calendars
+    datetime/     pickers, the date pickers' calendars, fields
+    calendar/     the event calendar: its views, its edits, its layout
     text/         text fields
     display/      cards, badges, avatars, progress, banners
     list/         list items, sections, swipe actions, reordering

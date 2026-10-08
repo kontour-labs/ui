@@ -33,12 +33,12 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class CoachmarkTourOptionsTest {
 
-    private fun ComposeUiTest.tour(dismissible: Boolean = false, skippable: Boolean = false): CoachmarkTour {
+    private fun ComposeUiTest.tour(dismissible: Boolean = false, showSkip: Boolean = false): CoachmarkTour {
         val steps = arrayOf("a", "b", "c")
         lateinit var tour: CoachmarkTour
         setContent {
             KontourTheme(reduceMotion = true) {
-                tour = rememberCoachmarkTour(*steps, dismissible = dismissible, skippable = skippable)
+                tour = rememberCoachmarkTour(*steps, dismissible = dismissible, showSkip = showSkip)
                 Box(Modifier.requiredSize(400.dp, 700.dp)) {
                     OverlayHost(Modifier.fillMaxSize()) {
                         Column {
@@ -90,7 +90,7 @@ class CoachmarkTourOptionsTest {
 
     @Test
     fun skipGoesToTheLastStepAndIsNotOnIt() = runComposeUiTest {
-        val tour = tour(skippable = true)
+        val tour = tour(showSkip = true)
         button("Skip").performClick()
         waitForIdle()
         assertEquals("c", tour.current, "Skip did not go to the last step")
@@ -105,7 +105,7 @@ class CoachmarkTourOptionsTest {
      */
     @Test
     fun skipBackAndNextAreEvenlySpaced() = runComposeUiTest {
-        tour(skippable = true)
+        tour(showSkip = true)
         button("Next").performClick()
         waitForIdle()
         fun text(label: String) = onAllNodes(hasText(label), useUnmergedTree = true).fetchSemanticsNodes()

@@ -180,7 +180,7 @@ passed by position need naming — see **Breaking**, and
 - **A [coach mark tour](components/coachmark.md#coachmarktour) is not
   dismissed by a tap on the dim, Back or Escape** unless
   `rememberCoachmarkTour(dismissible = true)`. Its way out is its own buttons.
-  `skippable = true` adds a Skip that goes to the last step, `tour.skip()`.
+  `showSkip = true` adds a Skip that goes to the last step, `tour.skip()`.
 - **Collapsed to its parts, a [bottom sheet](components/bottom-sheet.md) shows
   nothing of its content round them.** The content fades into the sheet's
   colour on the way down to `SheetDetent.parts()`, whatever the parts are

@@ -88,7 +88,7 @@ internal fun DeparturesPage(
     var menu by remember { mutableStateOf(false) }
     val list = rememberScrollbarListState()
     val collapse = rememberTopBarCollapseState(list)
-    val tour = LocalTransitTour.current ?: rememberCoachmarkTour("ticket", "filters", "plan", skippable = true)
+    val tour = LocalTransitTour.current ?: rememberCoachmarkTour("ticket", "filters", "plan", showSkip = true)
 
     LaunchedEffect(refreshing) {
         if (!refreshing) return@LaunchedEffect

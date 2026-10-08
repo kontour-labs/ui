@@ -70,8 +70,6 @@ data class Strings(
     val gotIt: String = "Got it",
     /** Ends a tour of coach marks, on its last step: the way out after "Next". */
     val done: String = "Done",
-    /** Skips the rest of a tour of coach marks, to its last step. */
-    val skipTour: String = "Skip",
     val expandSheet: String = "Expand sheet",
     val collapseSheet: String = "Collapse sheet",
     /** A menu's dismiss affordance, for assistive technology. */
@@ -232,8 +230,6 @@ data class Strings(
     val nextMonth: String = "Next month",
     /** Moves a calendar back to the month with today in it. */
     val returnToToday: String = "Return to today",
-    /** A time picker's button that turns its wheels to the time now. */
-    val now: String = "Now",
     /** The click label on a calendar's title, which opens the month-and-year wheels. */
     val chooseMonthAndYear: String = "Choose month and year",
 
@@ -402,6 +398,13 @@ data class Strings(
     val eventMoved: (event: String, time: String) -> String = { event, time -> "$event moved to $time" },
     /** What a screen reader is told when an event has been deleted: "Stand-up deleted". */
     val eventDeleted: (event: String) -> String = { event -> "$event deleted" },
+
+    // Overlays and date and time, continued: last so that nothing passed by
+    // position moves.
+    /** Skips the rest of a tour of coach marks, to its last step. */
+    val skipTour: String = "Skip",
+    /** A time picker's button that turns its wheels to the time now. */
+    val now: String = "Now",
 ) {
     companion object {
         /**

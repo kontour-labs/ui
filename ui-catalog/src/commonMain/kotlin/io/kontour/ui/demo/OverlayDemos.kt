@@ -447,7 +447,7 @@ internal val CoachmarkDemo = ComponentDemo(
             "welcome", "plan", "saved", "alerts",
             transition = this@ComponentDemo[coachmarkTransition],
             dismissible = this@ComponentDemo[coachmarkDismissible],
-            skippable = this@ComponentDemo[coachmarkSkippable],
+            showSkip = this@ComponentDemo[coachmarkSkippable],
         )
         // The first step points at nothing: a card in the middle, to say what
         // the tour is before it starts pointing at things.

@@ -1328,17 +1328,17 @@ fun rememberTopBarCollapseState(): TopBarCollapseState {
  * a collapse left part-way stays where the list is, rather than finishing on
  * its own — over a tall picture, a slow look back up was snapped shut.
  *
- * @param openHeight How tall the bar is open, status bar included, until it
- *   has measured: what [TopBarCollapseState.openHeight] says in the first
- *   frame, so the list does not start under the bar for one.
+ * @param initialOpenHeight How tall the bar is open, status bar included,
+ *   until it has measured: what [TopBarCollapseState.openHeight] says in the
+ *   first frame, so the list does not start under the bar for one.
  */
 @Composable
 fun rememberTopBarCollapseState(
     list: LazyListState,
-    openHeight: Dp = TopBarDefaults.HeroHeight,
+    initialOpenHeight: Dp = TopBarDefaults.HeroHeight,
 ): TopBarCollapseState = remember(list) {
     TopBarCollapseState(0f).apply {
-        this.openHeight = openHeight
+        this.openHeight = initialOpenHeight
         follows = {
             // How far the list has gone while its first row is in view, and
             // past the end of any collapse once it is not. An empty list — a
@@ -1362,10 +1362,10 @@ fun rememberTopBarCollapseState(
 @Composable
 fun rememberTopBarCollapseState(
     scroll: ScrollState,
-    openHeight: Dp = TopBarDefaults.HeroHeight,
+    initialOpenHeight: Dp = TopBarDefaults.HeroHeight,
 ): TopBarCollapseState = remember(scroll) {
     TopBarCollapseState(0f).apply {
-        this.openHeight = openHeight
+        this.openHeight = initialOpenHeight
         follows = { scroll.value.toFloat() }
     }
 }

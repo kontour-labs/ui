@@ -32,8 +32,12 @@ import kotlinx.datetime.plus
  *
  * @property id What the event is known by across changes: a moved event comes
  *   back with the same id. Any value with a meaningful `equals`.
- * @property end Not before [start]. An event as long as it is short — a
- *   reminder at nine — is drawn at the least height an event has.
+ * @property title What it is called: what its box shows first, and what a
+ *   screen reader says first.
+ * @property start When it begins, on the reader's clock: a wall-clock time,
+ *   with no zone, as a calendar shows one.
+ * @property end Not before [start]. An event with no length — a reminder at
+ *   nine — is drawn a quarter-hour tall, the least an event is drawn.
  * @property allDay Whether it is a day or days rather than a time: drawn as a
  *   bar across its days, above the hours in the day and week views.
  * @property tone Its colour: the accent by default, any [Tone] that says what

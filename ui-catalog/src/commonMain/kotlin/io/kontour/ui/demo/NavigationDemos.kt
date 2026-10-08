@@ -490,7 +490,7 @@ internal val TopBarDemo = ComponentDemo(
     // A hero is drawn over its list instead, and follows the list's scroll:
     // the list is the only thing that scrolls, so the two never share a drag.
     val list = rememberLazyListState()
-    val follow = rememberTopBarCollapseState(list, openHeight = open ?: TopBarDefaults.HeroHeight)
+    val follow = rememberTopBarCollapseState(list, initialOpenHeight = open ?: TopBarDefaults.HeroHeight)
     val hero = style == TopBarStyle.Hero
     val bar = @Composable { state: TopBarCollapseState ->
         TopBar(

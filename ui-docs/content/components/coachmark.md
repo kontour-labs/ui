@@ -96,7 +96,7 @@ ends it early.
 nothing by default: the reader asked for the tour, and a stray tap beside the
 bubble used to lose the rest of it. Its way out is its own buttons. Pass
 `dismissible = true` for a tour that a tap outside, Back or Escape ends.
-`skippable = true` adds **Skip** to every bubble but the last, which goes
+`showSkip = true` adds **Skip** to every bubble but the last, which goes
 straight to the last step (`tour.skip()`), so a skipped tour still ends on
 its Done.
 
