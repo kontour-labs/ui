@@ -584,7 +584,7 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
 
 /**
  * A day's place for an edit by days to find. Where it would land is drawn by
- * [DaysGhost], over the days, rather than by each day here.
+ * `DaysGhostLayer`, over the days, rather than by each day here.
  */
 @Composable
 internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier) {
