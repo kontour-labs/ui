@@ -128,6 +128,10 @@ passed by position need naming — see **Breaking**, and
 - **The press that takes an event calendar's handles away does only that**:
   it is not also a tap on the day or the time under it. In a month it opened
   the day.
+- **An event held keeps still as it opens out**: its title is laid out once,
+  at the width it is opening out to, rather than wrapped afresh every frame of
+  the ease; its copy starts in its lane; and a month's timed event, held, is
+  lifted as the line it is rather than turning into a bar.
 - **An event let go is whole at once**, over the events it was widened across:
   it faded back up from 40% and let them show through it.
 - **A day pressed in an event calendar's month does one thing wherever it is

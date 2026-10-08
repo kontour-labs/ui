@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -84,6 +85,11 @@ import io.kontour.ui.theme.toneColours
  *   composes: for the default content to fit its title to.
  * @param focusableOn The days the keyboard reaches it on, by Tab from the grid
  *   it is in: only while the grid's cursor is on one of them. Null, always.
+ * @param contentWidth How wide, in pixels, what is inside is laid out, where
+ *   that is not the box's width: the width a block opening out or closing back
+ *   is on its way to, read as it is measured. Laid out at the width of each
+ *   frame instead, its title was wrapped again every frame of the ease, and
+ *   jumped about. Null: the box's width.
  */
 @Composable
 internal fun EventChip(
@@ -97,6 +103,7 @@ internal fun EventChip(
     ghost: Boolean = false,
     focusableOn: ClosedRange<LocalDate>? = null,
     blockHeight: Dp? = null,
+    contentWidth: (() -> Int)? = null,
 ) {
     val colours = toneColours(event.tone)
     // A block is a box of time, cornered like the library's other small boxes;
@@ -156,8 +163,20 @@ internal fun EventChip(
             // in its row, as a chip's label is.
             contentAlignment = if (presentation == EventPresentation.Block) Alignment.TopStart else Alignment.CenterStart,
         ) {
-            CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
-                ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+            Box(
+                if (contentWidth == null) {
+                    Modifier
+                } else {
+                    Modifier.layout { measurable, constraints ->
+                        val width = contentWidth().coerceAtLeast(0)
+                        val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = width))
+                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
+                    }
+                },
+            ) {
+                CompositionLocalProvider(LocalBlockHeight provides blockHeight) {
+                    ProvideContentColour(ink) { scope.eventContent(event, presentation) }
+                }
             }
         }
         // A block's edges, in its hours; a bar's ends, by whole days. Not on

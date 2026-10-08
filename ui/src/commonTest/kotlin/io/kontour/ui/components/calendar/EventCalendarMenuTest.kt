@@ -446,6 +446,32 @@ class EventCalendarMenuTest {
         assertEquals(emptyList(), probe.creates, "a menu of the app's own made an event")
     }
 
+    /**
+     * Its title laid out once as it opens out, not again each frame: reported
+     * as *"the events do still jump around a bit… when you select them"*. Laid
+     * out at the width of each frame of the ease, a title in a week's narrow
+     * lane wrapped differently from one frame to the next.
+     */
+    @Test
+    fun aTitleIsLaidOutOnceAsItsEventOpensOut() = runComposeUiTest {
+        val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45))
+        val probe = calendar(events = listOf(review, standup), modality = InputModality.Mouse, reduceMotion = false)
+        val at = boundsOf(review, probe).center
+        fun title() = onAllNodes(hasText(review.title), useUnmergedTree = true).fetchSemanticsNodes().map { it.size }
+        val before = title()
+        mainClock.autoAdvance = false
+        onRoot().performMouseInput {
+            moveTo(at)
+            press()
+            moveBy(Offset(0f, 20f))
+        }
+        val sizes = List(20) { mainClock.advanceTimeByFrame(); title() }
+        val changes = (listOf(before) + sizes).zipWithNext().count { (a, b) -> a != b }
+        assertTrue(changes <= 1, "the title was laid out afresh $changes times as it opened out: $sizes")
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+    }
+
     @Test
     fun aHeldEventDraggedAwayClosesItsMenuAndMoves() = runComposeUiTest {
         val probe = calendar()

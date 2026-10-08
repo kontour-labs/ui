@@ -483,7 +483,14 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
     LaunchedEffect(hop) { hop.run() }
 
     Layout(
-        content = { repeat(composed.size) { EventChip(event = shown, presentation = EventPresentation.Bar, scope = scope, ghost = true) } },
+        // As the event is drawn where it was taken from: a timed event's line
+        // in a month, its dot, time and title, rather than a bar with its title
+        // alone — held, the line turned into a bar, and back into a line when
+        // it was let go.
+        content = {
+            val presentation = if (event?.isTimed() == true) EventPresentation.Line else EventPresentation.Bar
+            repeat(composed.size) { EventChip(event = shown, presentation = presentation, scope = scope, ghost = true) }
+        },
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { placed.coordinates = it },

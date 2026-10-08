@@ -714,6 +714,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         }
     }
 
+    // The day's width as it was last measured, for the event opening out to
+    // lay what it shows out at the width it is on its way to.
+    val across = remember { MeasuredWidth() }
     Layout(
         content = {
             for (placement in placements) {
@@ -726,6 +729,11 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                         clippedEnd = placement.clippedEnd,
                         focusableOn = date..date,
                         blockHeight = blockHeight(placement),
+                        contentWidth = {
+                            val width = across.px.toFloat()
+                            val opening = edit.widened == placement.event.id && edit.widen.targetValue == 1f
+                            (if (opening) width - gapPx else width / placement.lanes * placement.span - gapPx).roundToInt()
+                        },
                     )
                 }
             }
@@ -846,6 +854,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
+        across.px = width
         val perMinute = hourPx / MinutesPerHour
         val all = placements
         val wide = widened
@@ -876,6 +885,11 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
             }
         }
     }
+}
+
+/** A width in pixels kept from measuring, for what is measured inside to read. Not state: written in layout, read in layout. */
+private class MeasuredWidth {
+    var px = 0
 }
 
 /** The id of the ghost an edit draws: nothing an app's events could be. */
@@ -933,12 +947,26 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
     val composed = timedPieces(start, end, pageStart, pageEnd)
     val hop = remember { GhostHop() }
     LaunchedEffect(hop) { hop.run() }
+    // A day's width, as last measured: see the event's own, in `DayColumn`.
+    val across = remember { MeasuredWidth() }
 
     Layout(
         content = {
             for ((_, from, to) in composed) {
                 val height = with(density) { (maxOf(minChipPx, (to - from) * perMinute) - gapPx).coerceAtLeast(0f).toDp() }
-                EventChip(event = shown, presentation = EventPresentation.Block, scope = scope, ghost = true, blockHeight = height)
+                EventChip(
+                    event = shown,
+                    presentation = EventPresentation.Block,
+                    scope = scope,
+                    ghost = true,
+                    blockHeight = height,
+                    // Laid out at the width it is opening out to, as the event under it is.
+                    contentWidth = {
+                        val column = across.px.toFloat()
+                        val opening = event == null || edit.widened != event.id || edit.widen.targetValue == 1f
+                        (if (opening) column - gapPx else column * edit.widenedLane.second - gapPx).roundToInt()
+                    },
+                )
             }
         },
         modifier = Modifier.fillMaxSize(),
@@ -949,6 +977,7 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         val nowEnd = edit.end
         if (nowStart == null || nowEnd == null || w <= 0) return@Layout layout(w, h) {}
         val column = w.toFloat() / days
+        across.px = column.roundToInt()
         val pieces = timedPieces(nowStart, nowEnd, pageStart, pageEnd)
         val firstDay = (nowStart.date.toEpochDays() - pageStart.toEpochDays()).toInt()
         fun columnLeft(day: Int) = if (rtl) w - column * (day + 1) else column * day
@@ -980,7 +1009,15 @@ private fun TimeGhost(scope: CalendarScope, period: Int, days: Int) {
         // Across its day as the event under it is: opening out from its lane
         // to the whole day as the event does, rather than standing at the
         // day's width from the first frame of a hold.
-        val f = if (event != null && edit.widened == event.id) edit.widen.value else 1f
+        // In its lane until it is told to open out: in the frame before the
+        // widening has started, at the day's width, it would show there and
+        // then jump back to its lane to open out from it.
+        val f = when {
+            event == null -> 1f
+            edit.widened == event.id -> edit.widen.value
+            edit.focus == event.id -> 0f
+            else -> 1f
+        }
         val (laneStart, laneWidth) = edit.widenedLane
         val inset = column * (if (rtl) 1f - laneStart - laneWidth else laneStart) * (1f - f)
         val pieceWidth = column * (laneWidth + (1f - laneWidth) * f)
