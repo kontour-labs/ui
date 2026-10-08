@@ -54,6 +54,7 @@ CATALOGUE = ROOT / "gradle/libs.versions.toml"
 # icons is a deliberate act, and so is trusting a new tarball.
 #   curl -s https://registry.npmjs.org/@tabler/icons/<version> | jq -r .dist.integrity
 INTEGRITY = {
+    "3.49.0": "sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==",
     "3.48.0": "sha512-lQk06gVHNVBnJp0UOgtth54mcZBJM7rdYKsAxKOProj1bbSAx+/xiuOWfHlyvgdL3M+Y+I0HINrjHa3ygp8eXQ==",
 }
 
