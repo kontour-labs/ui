@@ -27,7 +27,7 @@ internal class TimedPlacement(
 )
 
 /**
- * Whether [event] goes in the hours of a day — timed and shorter than a whole
+ * Whether this event goes in the hours of a day — timed and shorter than a whole
  * day — rather than across the top, with the all-day ones.
  */
 internal fun CalendarEvent.isTimed(): Boolean =

@@ -426,7 +426,7 @@ internal class EventEdit(
     /** Where in its day's box the pointer took hold, for the ghost's lean. */
     private var grabInDay = Offset.Zero
 
-    /** Takes [event] up to move by whole days, held at [root] over [day]. */
+    /** Takes [event] up to move by whole days, held at [root] over the day under it. */
     fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null) {
         val day = dayAt(root) ?: return
         grabDay = day
