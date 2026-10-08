@@ -71,6 +71,7 @@ class EventCalendarMenuTest {
         val resizes = mutableListOf<Triple<CalendarEvent, LocalDateTime, LocalDateTime>>()
         val creates = mutableListOf<Pair<LocalDateTime, LocalDateTime>>()
         val deletes = mutableListOf<CalendarEvent>()
+        val dates = mutableListOf<LocalDate>()
     }
 
     private fun ComposeUiTest.calendar(
@@ -79,6 +80,9 @@ class EventCalendarMenuTest {
         reduceMotion: Boolean = true,
         feedback: FeedbackDispatcher? = null,
         events: List<CalendarEvent> = listOf(review, trip),
+        eventMenu: (@androidx.compose.runtime.Composable EventMenuScope.(CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
+        emptyMenu: (@androidx.compose.runtime.Composable EmptyMenuScope.(LocalDateTime, LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
+        moves: Boolean = true,
     ): Probe {
         val probe = Probe()
         setContent {
@@ -97,10 +101,13 @@ class EventCalendarMenuTest {
                             ),
                             events = events,
                             now = null,
-                            onEventMove = { event, start, end -> probe.moves += Triple(event, start, end) },
+                            onEventMove = if (moves) ({ event, start, end -> probe.moves += Triple(event, start, end) }) else null,
                             onEventResize = { event, start, end -> probe.resizes += Triple(event, start, end) },
                             onCreateRequest = { start, end -> probe.creates += start to end },
                             onEventDelete = { probe.deletes += it },
+                            onDateClick = { probe.dates += it },
+                            eventMenu = eventMenu,
+                            emptyMenu = emptyMenu,
                             modifier = Modifier.size(900.dp, 900.dp),
                         )
                     }
@@ -365,6 +372,78 @@ class EventCalendarMenuTest {
         }
         waitForIdle()
         assertEquals(Triple(quarter, quarter.start, LocalDateTime(2026, 10, 14, 14, 15)), probe.resizes.singleOrNull(), "down from its middle")
+    }
+
+    /**
+     * The press that takes a bar's handles away does only that: asked for as
+     * *"when i'm adjusting times in the month view, and i click to deselect
+     * it, it selects a day. it shouldn't do that until the next click"*.
+     */
+    @Test
+    fun thePressThatTakesTheHandlesAwayIsNotAlsoATapOnTheDay() = runComposeUiTest {
+        val probe = calendar(view = CalendarView.Month)
+        val bar = boundsOf(trip, probe)
+        hold(bar.center)
+        menuItem(probe.strings.adjustTime).performClick()
+        waitForIdle()
+        // A day well away from the bar, in the week above it.
+        val elsewhere = Offset(bar.left + 10f, bar.top - bar.height * 4f)
+        onRoot().performTouchInput { click(elsewhere) }
+        waitForIdle()
+        assertEquals(emptyList(), probe.dates, "the press that took the handles away also pressed a day")
+        onRoot().performTouchInput { click(elsewhere) }
+        waitForIdle()
+        assertEquals(1, probe.dates.size, "the next press on the day did not press it")
+    }
+
+    /**
+     * Every hold and secondary click's menu is the app's to build: asked for as
+     * *"i'd like to make it so all long-press/right-click actions are
+     * configurable in the event calendar"*.
+     */
+    @Test
+    fun anEventsMenuIsTheAppsToBuild() = runComposeUiTest {
+        val shared = mutableListOf<CalendarEvent>()
+        val probe = calendar(eventMenu = { event ->
+            item("Share") { shared += event }
+            delete()
+        })
+        hold(boundsOf(review, probe).center)
+        menuItem(probe.strings.adjustTime).assertDoesNotExist()
+        menuItem(probe.strings.deleteEvent).assertExists()
+        menuItem("Share").performClick()
+        waitForIdle()
+        assertEquals(listOf(review), shared)
+    }
+
+    @Test
+    fun anAppsMenuOpensOnAnEventThatCannotMove() = runComposeUiTest {
+        val probe = calendar(moves = false, eventMenu = { item("Share") {} })
+        hold(boundsOf(review, probe).center)
+        menuItem("Share").assertExists()
+    }
+
+    @Test
+    fun noEventMenuOpensNothing() = runComposeUiTest {
+        val probe = calendar(eventMenu = null)
+        hold(boundsOf(review, probe).center)
+        menuItem(probe.strings.deleteEvent).assertDoesNotExist()
+        menuItem(probe.strings.adjustTime).assertDoesNotExist()
+    }
+
+    @Test
+    fun emptyTimesMenuIsTheAppsToBuildAndIsToldTheTime() = runComposeUiTest {
+        val asked = mutableListOf<Pair<LocalDateTime, LocalDateTime>>()
+        val probe = calendar(emptyMenu = { start, end ->
+            item("Block out") { asked += start to end }
+            newEvent()
+        })
+        hold(mondayEleven(probe))
+        menuItem(probe.strings.newEvent).assertExists()
+        menuItem("Block out").performClick()
+        waitForIdle()
+        assertEquals(LocalDateTime(2026, 10, 12, 11, 0), asked.single().first)
+        assertEquals(emptyList(), probe.creates, "a menu of the app's own made an event")
     }
 
     @Test

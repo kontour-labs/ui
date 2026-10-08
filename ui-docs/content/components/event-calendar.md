@@ -96,6 +96,8 @@ to keep the result, or leave them as they are to refuse it.
 | `onEventMove(event, start, end)` | An event carried somewhere else, keeping its length. In the hours it moves by time, and to another day by moving across; near the top or bottom of the hours they scroll. It stays on the day it is over: carried to the top or the foot of the hours it stops at midnight rather than spilling into the day before or after, and so do the arrow keys and a screen reader's move earlier and later. An event that already runs past midnight keeps its start on the day. A bar, or a line in a month, moves by whole days and keeps its time. Held at either side of the days, a carry pages on to the week or month there and goes on, so an event can be carried into next week or next month. As it comes within about 72dp of a side, the date range picker's arrow shows against that side, just above the pointer and following it, the same size in every view; its ring fills over the hold that pages on, felt as the picker's is, a rumble that builds and then the page as one threshold. |
 | `onEventResize(event, start, end)` | An event's start or end dragged by its edge, never shorter than one step. In the hours an edge keeps to its own day: an end stops at midnight and a start at the day's first minute, so a resize never runs an event on into the next day. An event that crosses midnight has its start on its first day's piece and its end on its last. A bar, all day or a day or longer, has its ends at its sides, and they move a whole day at a time, never shorter than its first day. An end cut off by the edge of the week or the month has no handle there. With a mouse the edges are always there, with the resize cursor. On a touchscreen, choose **Adjust time** from the event's menu to give its edges handles, drawn across its edges; a press anywhere else takes them away. A handle is taken from up to 20dp inside the event or 16dp outside it, not only from the grip, and keeps its distance from the finger rather than jumping to it. On an event too short for two such zones — under 40dp — a press anywhere on or beside it takes the edge the finger sets off toward: up for the start, down for the end, as a range slider's thumbs on top of each other are told apart. From the moment an event in the hours is held, its menu open, and for as long as it is carried or its handles are out, it is widened to its whole day, over any it shares its time with, and every other event fades back, the same in the day and week views; it eases out and back over about a fifth of a second, and the copy a carry draws opens out with it. |
 | `onEventDelete(event)` | **Delete**, from the event's menu, the Delete key on a focused event, or a screen reader's action. Take it out of `events` to delete it. |
+| `eventMenu` | What a finger held on an event, or a right-click on it, offers. By default **Adjust time** and **Delete**, each where it applies. Null for no menu. See below. |
+| `emptyMenu` | What a finger held on empty time, or a right-click there, offers, told the time it would be for. By default **New event**. Null for no menu. |
 
 Every edit moves in steps of `snap`, a quarter-hour by default, and each step
 is felt as a tick. A step must be a whole number of minutes that divides a day.
@@ -112,6 +114,33 @@ chosen from; move instead and the menu closes, and the hold carries on as the
 drag it always was — a new event drawn out, or the event carried. A right-click
 opens the same menus for a mouse. A finger held just beside one of a month's
 events, which are too short to land on reliably, takes that event.
+
+**The menus are yours to build.** `eventMenu` and `emptyMenu` are built as any
+[menu](../dsls.md) is, with `item`, `divider` and `section`, and the calendar's
+own actions are calls in them — `adjustTime()` and `delete()` for an event,
+`newEvent()` for empty time — each drawn only where it applies, so a menu can
+keep them, drop them, or put its own beside them:
+
+```kotlin
+EventCalendar(
+    state = calendar,
+    events = events,
+    onEventDelete = { remove(it) },
+    eventMenu = { event ->
+        item("Share", leadingIcon = Tabler.Outline.Share) { share(event) }
+        divider()
+        adjustTime()
+        delete()
+    },
+    emptyMenu = { start, end ->
+        item("Block out") { blockOut(start, end) }
+    },
+)
+```
+
+A menu of your own opens on any event, one that cannot be moved included, and
+on any empty time; the default opens only where one of its actions applies.
+Null turns a menu off: a hold on an event then only takes it up.
 
 While anything is carried, a lifted copy shows where it would land, and moves
 as a date range's end does: it sits on its step, leaning a little toward the

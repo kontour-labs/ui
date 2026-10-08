@@ -43,6 +43,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.foundation.layout.LayoutScopeMarker
+import androidx.compose.ui.input.pointer.PointerId
+import io.kontour.ui.overlay.MenuScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -171,6 +174,18 @@ import kotlinx.datetime.toLocalDateTime
  * @param onEventDelete An event deleted: from the menu a finger held on it
  *   opens, or a secondary click; with Delete from the keyboard; or by a screen
  *   reader's action. The calendar removes nothing — take it out of [events].
+ * @param eventMenu What a finger held on an event, or a secondary click on it,
+ *   offers: by default [EventCalendarDefaults.EventMenu] — "Adjust time" on a
+ *   touchscreen and "Delete", each where it applies. Built with a
+ *   [io.kontour.ui.overlay.MenuScope], so an app's own actions go beside or
+ *   instead of the calendar's, which are [EventMenuScope.adjustTime] and
+ *   [EventMenuScope.delete]. A menu of the app's own opens on any event,
+ *   one that cannot be moved included; the default only where one of its
+ *   actions applies. Null: no menu, and a hold only takes the event up.
+ * @param emptyMenu What a finger held on empty time, or a secondary click there,
+ *   offers, with the time the edit in hand proposes — an hour where the finger
+ *   is, or the day held in a month: by default [EventCalendarDefaults.EmptyMenu],
+ *   "New event", which is [EmptyMenuScope.newEvent]. Null: no menu.
  * @param snap The step every edit moves in: a quarter-hour by default. A whole
  *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
@@ -197,6 +212,8 @@ fun EventCalendar(
     onEventMove: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventResize: ((event: CalendarEvent, start: LocalDateTime, end: LocalDateTime) -> Unit)? = null,
     onEventDelete: ((event: CalendarEvent) -> Unit)? = null,
+    eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
+    emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     formats: LocaleFormats = Theme.formats,
@@ -241,6 +258,8 @@ fun EventCalendar(
         cursorInteractions = cursorInteractions,
         cursorShown = cursorShown,
         menus = LocalOverlayHostOrNull.current != null,
+        eventMenu = eventMenu,
+        emptyMenu = emptyMenu,
     )
     // The days a pointer's day can be: the ones on show, not a page sliding away.
     SideEffect { edit.shown = { state.visibleDates } }
@@ -313,6 +332,8 @@ internal class CalendarScope(
     val cursorShown: Boolean,
     /** Whether there is an overlay host to open menus in. */
     val menus: Boolean,
+    val eventMenu: (@Composable EventMenuScope.(CalendarEvent) -> Unit)?,
+    val emptyMenu: (@Composable EmptyMenuScope.(LocalDateTime, LocalDateTime) -> Unit)?,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -326,8 +347,17 @@ internal class CalendarScope(
     /** Whether the menu for [event] — null, for empty time — would have anything in it. */
     fun hasMenu(event: CalendarEvent?, edges: Boolean): Boolean = when {
         !menus || !enabled -> false
-        event == null -> onCreateRequest != null
-        else -> deletable(event) || (edges && touch && resizable(event))
+        event == null -> when (emptyMenu) {
+            null -> false
+            // The default's one action, where it has it; an app's own menu, always.
+            EventCalendarDefaults.EmptyMenu -> onCreateRequest != null
+            else -> true
+        }
+        else -> when (eventMenu) {
+            null -> false
+            EventCalendarDefaults.EventMenu -> deletable(event) || (edges && touch && resizable(event))
+            else -> true
+        }
     }
 
     /** Opens the menu for [event], or for the new event in hand, at [root] — if it has anything in it. */
@@ -426,6 +456,22 @@ object EventCalendarDefaults {
 
     /** The step every edit moves in: a quarter-hour. */
     val Snap: Duration get() = DefaultSnap
+
+    /**
+     * An event's menu: "Adjust time" on a touchscreen and "Delete", each where
+     * it applies. Opens only where one of them does. Pass it on to keep them
+     * in a menu of the app's own, or call [EventMenuScope.adjustTime] and
+     * [EventMenuScope.delete] among its items.
+     */
+    val EventMenu: @Composable EventMenuScope.(event: CalendarEvent) -> Unit = {
+        adjustTime()
+        delete()
+    }
+
+    /** Empty time's menu: "New event", where the calendar has `onCreateRequest`. */
+    val EmptyMenu: @Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit = { _, _ ->
+        newEvent()
+    }
 
     /** Today, on the system's clock in its time zone. */
     fun currentDate(): LocalDate = DatePickerDefaults.currentDate()
@@ -919,6 +965,11 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
         val zone = HandleZone.toPx()
         // A press on or beside the handles, until it has gone far enough to say which.
         var claim: HandleClaim? = null
+        // A press that took the handles away, and does nothing else: let go
+        // where it went down, it is not also a tap on the day or the time
+        // under it. A scroll or a swipe it sets off is still the scroll's.
+        var dismissing: PointerId? = null
+        var dismissedAt = Offset.Zero
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -929,8 +980,21 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
                         val root = coordinates.localToRoot(pressed.position)
                         if (!edit.onActive(root, reach)) {
                             edit.active = null
+                            dismissing = pressed.id
+                            dismissedAt = pressed.position
                         } else if (current.touch && edit.pointer == null && claim == null) {
                             claim = edit.claimHandle(pressed.id, root, reach, zone)
+                        }
+                    }
+                }
+                dismissing?.let { id ->
+                    val change = event.changes.firstOrNull { it.id == id }
+                    when {
+                        change == null -> dismissing = null
+                        (change.position - dismissedAt).getDistance() > viewConfiguration.touchSlop -> dismissing = null
+                        !change.pressed -> {
+                            change.consume()
+                            dismissing = null
                         }
                     }
                 }
@@ -1010,20 +1074,88 @@ private fun EditMenus(scope: CalendarScope) {
     ) {
         val event = shown.event
         if (event == null) {
-            item(strings.newEvent, onClick = { scope.create(shown) })
+            val start = shown.start
+            val end = shown.end
+            val build = scope.emptyMenu
+            if (build != null && start != null && end != null) EmptyMenuScopeImpl(this, scope, shown).build(start, end)
         } else {
-            if (shown.edges && scope.touch && scope.resizable(event)) {
-                item(strings.adjustTime, onClick = {
-                    edit.menu = null
-                    edit.active = event.id
-                })
-            }
-            if (scope.deletable(event)) {
-                item(strings.deleteEvent, destructive = true, onClick = {
-                    edit.menu = null
-                    scope.delete(event)
-                })
-            }
+            scope.eventMenu?.let { build -> EventMenuScopeImpl(this, scope, shown, event).build(event) }
         }
+    }
+}
+
+/**
+ * The menu a finger held on an event, or a secondary click on it, opens: a
+ * [MenuScope], with the calendar's own actions on the event beside an app's.
+ * See `eventMenu` on [EventCalendar].
+ */
+@Stable
+@LayoutScopeMarker
+interface EventMenuScope : MenuScope {
+
+    /**
+     * "Adjust time": the event's edges given handles, to drag its start and
+     * its end by, until a press anywhere else. Only where it applies — on a
+     * touchscreen, a mouse having the edges already, and on a block or a bar
+     * the calendar can resize, not a month's line.
+     */
+    @Composable
+    fun adjustTime()
+
+    /** "Delete", in the danger tone: `onEventDelete` for the event. Only where it can be deleted. */
+    @Composable
+    fun delete()
+}
+
+/**
+ * The menu a finger held on empty time, or a secondary click there, opens: a
+ * [MenuScope], with the calendar's own new event beside an app's actions. See
+ * `emptyMenu` on [EventCalendar].
+ */
+@Stable
+@LayoutScopeMarker
+interface EmptyMenuScope : MenuScope {
+
+    /** "New event": `onCreateRequest` for the time the menu was opened with. Only where there is one. */
+    @Composable
+    fun newEvent()
+}
+
+private class EventMenuScopeImpl(
+    menu: MenuScope,
+    private val scope: CalendarScope,
+    private val shown: EditMenu,
+    private val event: CalendarEvent,
+) : EventMenuScope, MenuScope by menu {
+
+    @Composable
+    override fun adjustTime() {
+        if (!shown.edges || !scope.touch || !scope.resizable(event)) return
+        item(scope.strings.adjustTime, onClick = {
+            scope.edit.menu = null
+            scope.edit.active = event.id
+        })
+    }
+
+    @Composable
+    override fun delete() {
+        if (!scope.deletable(event)) return
+        item(scope.strings.deleteEvent, destructive = true, onClick = {
+            scope.edit.menu = null
+            scope.delete(event)
+        })
+    }
+}
+
+private class EmptyMenuScopeImpl(
+    menu: MenuScope,
+    private val scope: CalendarScope,
+    private val shown: EditMenu,
+) : EmptyMenuScope, MenuScope by menu {
+
+    @Composable
+    override fun newEvent() {
+        if (scope.onCreateRequest == null) return
+        item(scope.strings.newEvent, onClick = { scope.create(shown) })
     }
 }

@@ -685,8 +685,10 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     val placed = remember { PlacedAt() }
     val press = remember { PressAt() }
     val creates = scope.enabled && scope.onCreateRequest != null
+    // Empty time's menu, the calendar's "New event" or an app's own.
+    val offers = scope.hasMenu(null, edges = true)
     // A finger held beside a short event, rather than on it, takes the event.
-    val holds = creates || (scope.enabled && scope.onEventMove != null)
+    val holds = creates || offers || (scope.enabled && scope.onEventMove != null)
     val nearReach = with(density) { NearReach.toPx() }
     val isTouch by rememberUpdatedState(scope.touch)
     val ringColour = colours.focusRing
@@ -804,7 +806,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                                         scope.takeUp(near.event, root, near.byDays, top, taking, hold = true, edges = near.edges)
                                         return@detectPickUp
                                     }
-                                    if (!creates) return@detectPickUp
+                                    if (!offers) return@detectPickUp
                                     // An hour where the finger is, with its menu: let go, and
                                     // "New event" makes it; set off, and it is drawn out instead.
                                     edit.beginCreate(date, root, length = NewEventMinutes)
@@ -830,7 +832,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 },
             )
             .then(
-                if (creates && scope.hasMenu(null, edges = true)) {
+                if (offers) {
                     Modifier.secondaryClick { at ->
                         val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
                         if (edit.live) return@secondaryClick

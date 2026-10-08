@@ -100,4 +100,53 @@ class EventCalendarGripTest {
         }
         assertTrue(missing.isEmpty(), "the grip past the event's bottom edge was cut off on frames $missing after letting go")
     }
+    /**
+     * Let go, the event held is whole at once, over the events it was widened
+     * across: reported as *"when you tap and hold an event… then when you let
+     * go, the other events briefly flash through before disappearing again"*.
+     * The copy over it went at once and it faded back up from 40%, so what was
+     * under it showed through.
+     */
+    @Test
+    fun letGoTheEventHeldHidesWhatItCoversAtOnce() = runComposeUiTest {
+        val standup = CalendarEvent(5, "Standup", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 45), tone = Tone.Success)
+        lateinit var formats: LocaleFormats
+        lateinit var strings: Strings
+        setContent {
+            KontourTheme(darkTheme = false, reduceMotion = false) {
+                CompositionLocalProvider(LocalInputModality provides InputModality.Touch) {
+                    OverlayHost(Modifier.size(700.dp, 700.dp).background(Color.White)) {
+                        formats = Theme.formats
+                        strings = Theme.strings
+                        EventCalendar(
+                            state = rememberEventCalendarState(LocalDate(2026, 10, 14), CalendarView.Week, LocalTime(8, 0), DayOfWeek.MONDAY),
+                            events = listOf(review, standup),
+                            now = null,
+                            onEventMove = { _, _, _ -> },
+                            onEventDelete = {},
+                            modifier = Modifier.size(700.dp, 700.dp),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val held = onNode(hasContentDescription(eventDescription(review, formats, strings))).fetchSemanticsNode().boundsInRoot
+        val under = onNode(hasContentDescription(eventDescription(standup, formats, strings))).fetchSemanticsNode().boundsInRoot
+        // Held and not let go: the clock run on past the long press.
+        onRoot().performTouchInput { down(held.center) }
+        mainClock.advanceTimeBy(800)
+        waitForIdle()
+        mainClock.autoAdvance = false
+        onRoot().performTouchInput { up() }
+        val at = (under.center.x.toInt()) to (under.top + 4f).toInt()
+        fun colour() = onRoot().captureToImage().toPixelMap()[at.first, at.second]
+        mainClock.advanceTimeByFrame()
+        mainClock.advanceTimeByFrame()
+        val first = colour()
+        repeat(30) { mainClock.advanceTimeByFrame() }
+        val settled = colour()
+        val apart = maxOf(kotlin.math.abs(first.red - settled.red), kotlin.math.abs(first.green - settled.green), kotlin.math.abs(first.blue - settled.blue))
+        assertTrue(apart < 0.03f, "just after letting go the event held showed what was under it: $first, then $settled")
+    }
 }

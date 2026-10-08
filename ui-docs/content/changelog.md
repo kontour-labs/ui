@@ -125,6 +125,11 @@ passed by position need naming — see **Breaking**, and
   it, and on an event under 40dp tall the way the finger sets off picks the
   edge, as a range slider's thumbs do. The grips sit across the edges, clear of
   a short event's title, and are whole while the event fades.
+- **The press that takes an event calendar's handles away does only that**:
+  it is not also a tap on the day or the time under it. In a month it opened
+  the day.
+- **An event let go is whole at once**, over the events it was widened across:
+  it faded back up from 40% and let them show through it.
 - **A day pressed in an event calendar's month does one thing wherever it is
   pressed**: `onDateClick` where the calendar has one, its day view where it
   has not, as Enter on it already did. Its number opened the day view and the
@@ -252,6 +257,10 @@ passed by position need naming — see **Breaking**, and
 
 ### Added
 
+- **An event calendar's hold and right-click menus are the app's to build**:
+  `eventMenu` and `emptyMenu`, menus like any other, with the calendar's own
+  actions as calls in them — `adjustTime()`, `delete()` and `newEvent()` —
+  each drawn only where it applies. Null turns a menu off.
 - **`rememberScrollbarListState()`**: a lazy list state whose list measures
   every row ahead of showing it, so a [scrollbar](components/scrollbar.md) on it
   is exactly the list's length from the first few frames and reaches the end of

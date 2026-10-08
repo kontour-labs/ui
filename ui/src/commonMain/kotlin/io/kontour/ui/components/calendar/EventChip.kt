@@ -16,7 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -120,15 +121,19 @@ internal fun EventChip(
     // While one event in the hours is held, carried or adjusted, the rest
     // step back: faded, so it is the one thing to look at.
     val focused = edit.focus
-    val faded by animateFloatAsState(
-        targetValue = when {
-            carried -> CarriedAlpha
-            !ghost && focused != null && focused != event.id -> UnfocusedAlpha
-            else -> 1f
-        },
-        animationSpec = Theme.motion.tweenDefault(),
-        label = "eventFade",
-    )
+    val target = when {
+        carried -> CarriedAlpha
+        !ghost && focused != null && focused != event.id -> UnfocusedAlpha
+        else -> 1f
+    }
+    val fade = remember { Animatable(target) }
+    val spec = Theme.motion.tweenDefault<Float>()
+    LaunchedEffect(target) {
+        // Put down, it takes the place of the copy that was over it at once:
+        // faded back up over a fifth of a second, widened over the events
+        // beside it, it let them show through it as it came back.
+        if (fade.targetValue == CarriedAlpha && target == 1f) fade.snapTo(target) else fade.animateTo(target, spec)
+    }
 
     Box(
         modifier
@@ -143,7 +148,7 @@ internal fun EventChip(
         Box(
             Modifier
                 .matchParentSize()
-                .graphicsLayer { alpha = faded }
+                .graphicsLayer { alpha = fade.value }
                 .clip(shape)
                 .background(fill)
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
@@ -161,8 +166,8 @@ internal fun EventChip(
         val edges = presentation != EventPresentation.Line
         if (!ghost && edges && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
             val bar = presentation == EventPresentation.Bar
-            if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar) { faded }
-            if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar) { faded }
+            if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar) { fade.value }
+            if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar) { fade.value }
         }
     }
 }
@@ -217,7 +222,11 @@ private fun Modifier.eventControl(
         }
     }
 
-    if (movable) {
+    // Held for its menu alone, where it cannot be carried: an app's own menu
+    // opens on any event.
+    val offers = scope.touch && scope.hasMenu(event, edges = edges)
+    val holdable = movable || offers
+    if (holdable) {
         DisposableEffect(edit, event.id) {
             onDispose {
                 edit.draggables.remove(placed)
@@ -229,10 +238,9 @@ private fun Modifier.eventControl(
     return this
         .onGloballyPositioned { coordinates ->
             placed.coordinates = coordinates
-            if (movable) {
-                edit.draggables[placed] = coordinates
-                edit.events[placed] = Grab(coordinates, current, byDays, edges = edges)
-            }
+            if (movable) edit.draggables[placed] = coordinates
+            // Empty time under it steps aside for its hold.
+            if (holdable) edit.events[placed] = Grab(coordinates, current, byDays, edges = edges)
         }
         .then(
             if (focusableOn != null) {
@@ -257,18 +265,25 @@ private fun Modifier.eventControl(
         )
         .then(if (movable && !scope.touch) Modifier.pointerCursor(Cursor.Grab) else Modifier)
         .then(
-            if (movable) {
-                Modifier.notesPress(press).pointerInput(edit, event.id, byDays) {
+            if (holdable) {
+                Modifier.notesPress(press).pointerInput(edit, event.id, byDays, movable) {
                     var taking: PointerId? = null
                     detectPickUp(
                         axis = PickUpAxis.Free,
-                        immediate = { !isTouch },
+                        immediate = { !isTouch && movable },
+                        // A mouse has nothing to take up here: its menu is a secondary click.
+                        accepts = { isTouch || movable },
                         // A scroll of the hours, or a swipe of the pages, is not a hold.
                         givesWay = true,
                         onPointer = { taking = it },
                         onPickUp = { at ->
                             val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: return@detectPickUp
                             val root = coordinates.localToRoot(press.position ?: at)
+                            if (!movable) {
+                                edit.pickedUp()
+                                scope.openMenu(root, current, edges = edges)
+                                return@detectPickUp
+                            }
                             scope.takeUp(current, root, byDays, top = coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch, edges = edges)
                             // A mouse is already on its way: the proposal follows it from here.
                             if (!isTouch) edit.move(coordinates.localToRoot(at))
