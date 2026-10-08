@@ -17,7 +17,7 @@ from the version the app is on.
 
 ## 0.4.2 to 0.4.3
 
-From 0.4.2 to 0.4.3. A sheet's `pinned { }` becomes a `part` with a `pin`, the
+From 0.4.2 to 0.4.3, released on 8 October 2026. A sheet's `pinned { }` becomes a `part` with a `pin`, the
 library is on Compose Multiplatform 1.12.1, a few arguments passed by position
 need naming, and anything built against 0.4.2 has to be rebuilt. Several things
 look or behave differently enough to check: badges, coach mark tours, swipe rows,

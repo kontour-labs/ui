@@ -24,7 +24,11 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release: 0.4.3.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.3 — 8 October 2026
 
 An event calendar; coach mark tours that cross the app; a Now on the time
 pickers, and one way for every date and time field to open its picker. A
