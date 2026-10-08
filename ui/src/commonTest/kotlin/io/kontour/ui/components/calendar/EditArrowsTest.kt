@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  */
 class EditArrowsTest {
 
-    private fun places(pointer: Offset, dwellSide: Int = 0) = arrowPlaces(
+    private fun places(pointer: Offset, dwellSide: Int = 0, lift: Float = 0f) = arrowPlaces(
         left = 100f,
         right = 900f,
         pointer = pointer,
@@ -22,6 +22,7 @@ class EditArrowsTest {
         inset = 10f,
         fadeFrom = 72f,
         full = 24f,
+        lift = lift,
     ).associateBy { it.side }
 
     @Test
@@ -29,6 +30,13 @@ class EditArrowsTest {
         val at = places(Offset(880f, 333f))
         assertEquals(Offset(110f, 333f), at.getValue(-1).centre)
         assertEquals(Offset(890f, 333f), at.getValue(1).centre)
+    }
+
+    /** Asked for again as *a little bit above the finger*: level with it, a fingertip at the edge covered it. */
+    @Test
+    fun theyFollowThePointerAFixedDistanceAboveIt() {
+        assertEquals(Offset(890f, 293f), places(Offset(880f, 333f), lift = 40f).getValue(1).centre)
+        assertEquals(Offset(890f, 560f), places(Offset(880f, 600f), lift = 40f).getValue(1).centre)
     }
 
     @Test

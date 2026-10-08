@@ -91,11 +91,15 @@ passed by position need naming — see **Breaking**, and
   event stayed where it was. A pointer held still at the edge is followed into
   the period paged in.
 - **An event carried to the side of an [event calendar](components/event-calendar.md)
-  shows the date range picker's arrow** against that side, level with the
-  pointer, its ring filling over the hold that pages on to the next week or
+  shows the date range picker's arrow** against that side, just above the
+  pointer and following it, its ring filling over the hold that pages on to the next week or
   month, with the picker's haptics: a rumble that builds while held, and the
   page felt once. It shows within about 72dp of the side, the same in every
   view and the same size for an all-day event as a timed one.
+- **An all-day or multi-day event carried into another week of an event
+  calendar is seen there as it is carried**, in a line of its own at the foot
+  of the all-day strip. A week with no all-day events had no strip to draw it
+  in, so it appeared only when put down.
 - **A carried event in an event calendar stays on its day.** Carried to the top
   or the foot of the hours, it stops at midnight, where it used to spill into
   the day before or after. The arrow keys and a screen reader's move earlier

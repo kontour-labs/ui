@@ -14,6 +14,8 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
@@ -61,6 +63,7 @@ class EventCalendarEditTest {
         val moves = mutableListOf<Triple<CalendarEvent, LocalDateTime, LocalDateTime>>()
         val resizes = mutableListOf<Triple<CalendarEvent, LocalDateTime, LocalDateTime>>()
         val creates = mutableListOf<Pair<LocalDateTime, LocalDateTime>>()
+        var barInk = androidx.compose.ui.graphics.Color.Unspecified
     }
 
     private fun ComposeUiTest.calendar(
@@ -80,6 +83,7 @@ class EventCalendarEditTest {
                         probe.formats = Theme.formats
                         probe.strings = Theme.strings
                         probe.density = LocalDensity.current.density
+                        probe.barInk = io.kontour.ui.theme.toneColours(trip.tone).solid
                         EventCalendar(
                             state = rememberEventCalendarState(
                                 initialDate = initialDate,
@@ -584,6 +588,40 @@ class EventCalendarEditTest {
         dragTripEnd(probe, atStart = false, days = 2f, view = CalendarView.Week)
         val (_, _, end) = probe.resizes.singleOrNull() ?: error("the all-day bar's end did not resize it")
         assertEquals(trip.end.plusMinutes(2L * MinutesPerDay), end)
+    }
+
+    /**
+     * An all-day bar carried into a week with none of its own is seen there
+     * while it is carried. The week had no all-day strip to draw it in, so it
+     * appeared only when put down, the strip making room for it then.
+     */
+    @Test
+    fun aBarCarriedIntoAWeekWithoutAllDayEventsIsSeenThere() = runComposeUiTest {
+        val probe = calendar(events = listOf(trip), initialDate = LocalDate(2026, 10, 19))
+        val bar = boundsOf(trip, probe)
+        val from = Offset(bar.left + 10f * probe.density, bar.center.y)
+        val edge = 900f * probe.density - 6f
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        // Held at the edge into the week after, which has nothing all day.
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_000)
+        val weekAfter = probe.formats.date(LocalDate(2026, 10, 26), DateStyle.Full)
+        onNode(hasContentDescription(weekAfter) and hasClickAction()).assertExists("the carry did not page on")
+        val image = onRoot().captureToImage().toPixelMap()
+        val ink = probe.barInk
+        var seen = 0
+        for (x in 0 until image.width step 2) for (y in 0 until image.height / 2 step 2) {
+            val c = image[x, y]
+            if (kotlin.math.abs(c.red - ink.red) < 0.03f && kotlin.math.abs(c.green - ink.green) < 0.03f && kotlin.math.abs(c.blue - ink.blue) < 0.03f) seen++
+        }
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        waitForIdle()
+        assertTrue(seen > 20, "the carried bar was not to be seen in the week it was carried into ($seen pixels of it)")
     }
 
     @Test

@@ -462,7 +462,7 @@ private fun DayBox(
  * @param item How tall a row's line of events is.
  */
 @Composable
-internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: Int, days: Int, slot: Dp, item: Dp, gap: Dp) {
+internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: Int, days: Int, slot: Dp, item: Dp, gap: Dp, line: Int? = null) {
     val edit = scope.edit
     val event = edit.event
     val start = edit.start
@@ -503,7 +503,10 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
         val y = run {
             val top = edit.grabTop
             val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
-            if (event == null || top == null || page == null) {
+            if (line != null) {
+                // A line of its own, kept free for it.
+                line * itemPx + slotPx
+            } else if (event == null || top == null || page == null) {
                 slotPx
             } else {
                 (top - page).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))

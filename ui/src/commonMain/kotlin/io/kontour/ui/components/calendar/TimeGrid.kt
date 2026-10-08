@@ -467,7 +467,11 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     val start = state.periods.startOf(state.period, state.view)
     val end = start.plus(days - 1, DateTimeUnit.DAY)
     val any = remember(scope.events, start, days) { weekItems(start, scope.eventsBetween(start, end), lines = false, days = days).isNotEmpty() }
-    if (!any) return
+    // A bar being carried, or days drawn out, needs the strip to be there to be
+    // seen in, whatever week it is carried into.
+    val edit = scope.edit
+    val carrying = edit.live && edit.byDays
+    if (!any && !carrying) return
     val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
     Row(Modifier.fillMaxWidth()) {
         // No label beside it: the bars say what they are, and "All day" was
@@ -479,7 +483,17 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
             val pack = remember(scope.events, from, days) {
                 packWeek(weekItems(from, scope.eventsBetween(from, to), lines = false, days = days), maxRows = AllDayRows, days = days)
             }
-            val rows = (pack.placed.maxOfOrNull { it.row } ?: -1) + 1 + if (pack.more.any { it > 0 }) 1 else 0
+            val held = (pack.placed.maxOfOrNull { it.row } ?: -1) + 1 + if (pack.more.any { it > 0 }) 1 else 0
+            // Carried into a week it is not in, the bar is given a line of its
+            // own at the foot, so it is seen where it would land rather than
+            // appearing only once it is put down. The week it came from has its
+            // line already.
+            val proposedStart = edit.start
+            val proposedEnd = edit.end
+            val visiting = carrying && proposedStart != null && proposedEnd != null &&
+                proposedStart.date <= to && lastDayOf(proposedStart, proposedEnd) >= from &&
+                pack.placed.none { it.item.event.id == edit.event?.id }
+            val rows = held + if (visiting) 1 else 0
             BoxWithConstraints(Modifier.fillMaxWidth().height(item * rows)) {
                 val cell = maxWidth / days
                 val gap = Theme.spacing.xxs / 2
@@ -503,7 +517,7 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                             .height(item - gap),
                     )
                 }
-                DaysGhostLayer(scope, from, weeks = 1, days = days, slot = gap / 2, item = item, gap = gap)
+                DaysGhostLayer(scope, from, weeks = 1, days = days, slot = gap / 2, item = item, gap = gap, line = if (visiting) rows - 1 else null)
                 for (column in 0 until days) {
                     val more = pack.more[column]
                     if (more == 0) continue
