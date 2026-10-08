@@ -96,6 +96,11 @@ passed by position need naming — see **Breaking**, and
   month, with the picker's haptics: a rumble that builds while held, and the
   page felt once. It shows within about 72dp of the side, the same in every
   view and the same size for an all-day event as a timed one.
+- **A `KeyValueList`'s values line up in one column whatever the labels.**
+  Every row shares a label column as wide as the widest label, from
+  `labelWidth` up to what leaves the values their room. `labelWidth` was a floor
+  each row took for itself, so a label longer than it pushed its own value out
+  of line with the rest.
 - **A swipe row showing its actions closes when anything else is pressed**:
   another row, a button, the list scrolled, as a SwiftUI list's row does — from
   the moment it sets off open, not only once it has arrived. The press still
