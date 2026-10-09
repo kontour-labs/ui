@@ -24,12 +24,11 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
-
----
+On `main`, and in the next release.
 
 ### Changed
 
+- **An [event calendar](components/event-calendar.md)'s arrow at the side of the days is level with a mouse's pointer** while an event is carried. It was 40dp above it, which is for a fingertip; under a finger it still is.
 - **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
 
 ## 0.4.3 — 8 October 2026

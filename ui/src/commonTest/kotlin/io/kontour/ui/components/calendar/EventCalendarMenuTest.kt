@@ -693,6 +693,45 @@ class EventCalendarMenuTest {
     }
 
     /**
+     * Carried by a mouse, the arrow is level with the pointer: asked for as
+     * *"with mouse input, it doesn't go 40dp or whatever it was above the
+     * pointer"*. The lift is for a fingertip, which covers what is under it; a
+     * mouse's pointer covers nothing, and the arrow above it read as somewhere
+     * else. Found by where the ring's filling changes the most, up and down.
+     */
+    @Test
+    fun aMouseCarrysArrowIsLevelWithThePointer() = runComposeUiTest {
+        val probe = calendar(modality = InputModality.Mouse)
+        val from = boundsOf(review, probe).center
+        val to = Offset(900f * probe.density - 6f, from.y)
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(10) { moveTo(Offset(from.x + (to.x - from.x) * (it + 1) / 10f, from.y)) }
+        }
+        mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(200)
+        val early = onRoot().captureToImage().toPixelMap()
+        mainClock.advanceTimeBy(350)
+        val later = onRoot().captureToImage().toPixelMap()
+        val reach = 80f * probe.density
+        var sum = 0f
+        var count = 0
+        for (x in (to.x - 60f * probe.density).toInt() until minOf(later.width, (to.x + 4f).toInt())) {
+            for (y in (to.y - reach).toInt()..(to.y + reach).toInt()) {
+                if (y !in 0 until later.height || early[x, y] == later[x, y]) continue
+                sum += y
+                count++
+            }
+        }
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        assertTrue(count > 20, "the arrow did not fill ($count pixels changed)")
+        val off = (sum / count - to.y) / probe.density
+        assertTrue(abs(off) < 8f, "the arrow's ring is ${off}dp from the pointer, not level with it")
+    }
+
+    /**
      * Paged twice, the carry still follows: the days it looked for its own in
      * were the first page's, kept from when the calendar last composed, and at
      * the second page none of them were on show — the event stopped following

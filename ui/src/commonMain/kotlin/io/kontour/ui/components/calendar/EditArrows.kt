@@ -25,9 +25,11 @@ import io.kontour.ui.theme.lines
  * that pages on — see `EditDwell`, which also gives it the picker's rumble —
  * so holding a carry at the side says what it is about to do.
  *
- * - **Just above the pointer**, following it up and down, against the days'
+ * - **Level with the pointer**, following it up and down, against the days'
  *   outer edge: not in the edge day's middle, which in a day view is the
- *   middle of the screen. Level with it, a finger at the edge covered it.
+ *   middle of the screen. Under a finger, [Lift] above it instead: level with
+ *   it, a finger at the edge covered it. A mouse's pointer covers nothing, and
+ *   an arrow above it read as somewhere else.
  * - **Near the edge only**: fading in from [FadeFrom] of it to whole at the
  *   [DwellZone] where the dwell starts, the same distance in every view. By
  *   the day's width it came in from two and a half days away, which a day
@@ -52,6 +54,7 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
     val fill = colours.primary
     val chevron = colours.content
     val disc = colours.surface
+    val touch = scope.touch
     Spacer(
         Modifier
             .matchParentSize()
@@ -79,7 +82,7 @@ internal fun BoxScope.EditArrows(scope: CalendarScope) {
                     pointer = pointer,
                     dwellSide = edit.dwellSide,
                     inset = pad + EdgeInset.toPx(),
-                    lift = Lift.toPx(),
+                    lift = if (touch) Lift.toPx() else 0f,
                     fadeFrom = FadeFrom.toPx(),
                     full = DwellZone.toPx(),
                 )
