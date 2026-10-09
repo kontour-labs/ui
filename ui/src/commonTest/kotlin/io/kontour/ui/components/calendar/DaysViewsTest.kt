@@ -97,6 +97,24 @@ class DaysViewsTest {
         assertEquals(LocalDate(2026, 10, 28), probe.state.date, "a step keeps the day's place in the fortnight")
     }
 
+    /** Narrower than a phone, the five views would be a column; the switcher leaves out three days instead. */
+    @Test
+    fun aHeaderNarrowerThanAPhoneLeavesOutThreeDays() = runComposeUiTest {
+        lateinit var strings: Strings
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                strings = Theme.strings
+                androidx.compose.foundation.layout.Column {
+                    EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(260.dp, 200.dp))
+                    EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(400.dp, 200.dp))
+                }
+            }
+        }
+        waitForIdle()
+        assertEquals(1, onAllNodes(hasText(strings.threeDays)).fetchSemanticsNodes().size, "three days should be in the wide header only")
+        assertEquals(2, onAllNodes(hasText(strings.week)).fetchSemanticsNodes().size)
+    }
+
     @Test
     fun aWeekCountOutsideOneToSixIsRefusedByName() {
         val state = EventCalendarState(wednesday, CalendarView.Week, LocalTime(8, 0), DayOfWeek.MONDAY)

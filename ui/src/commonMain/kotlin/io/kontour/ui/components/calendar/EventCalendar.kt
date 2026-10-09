@@ -532,7 +532,11 @@ object EventCalendarDefaults {
         CalendarHeader(state, modifier, views)
     }
 
-    /** Every view, in the order the header's switcher offers them: a day, three days, a week, a month and a year. */
+    /**
+     * Every view, in the order the header's switcher offers them: a day, three
+     * days, a week, a month and a year. In a header narrower than a phone, the
+     * switcher leaves out three days unless it is the view on show.
+     */
     val Views: List<CalendarView> get() = DefaultViews
 
     /**
@@ -641,6 +645,17 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val oneRow = constraints.hasBoundedWidth && maxWidth >= HeaderOneRowWidth
+        // Too narrow for every view side by side — under a phone's width —
+        // the default switcher leaves out three days, the extra between a day
+        // and a week, rather than stack five views in a column; but not while
+        // it is the one on show.
+        val views = if (
+            views == DefaultViews && constraints.hasBoundedWidth && maxWidth < FiveViewsWidth && state.view != CalendarView.ThreeDays
+        ) {
+            views - CalendarView.ThreeDays
+        } else {
+            views
+        }
         val titleText = @Composable { titleModifier: Modifier ->
             Text(
                 text = title,
@@ -710,6 +725,9 @@ private val HeaderOneRowWidth = 680.dp
 
 /** The switcher's width beside the title: five short words with room round them. */
 private val HeaderSwitcherWidth = 400.dp
+
+/** The narrowest the default switcher's five views fit side by side in: a phone's. */
+private val FiveViewsWidth = 300.dp
 
 private val DefaultViews = listOf(CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month, CalendarView.Year)
 

@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -154,6 +155,8 @@ fun ThumbnailStrip(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            // The thumbnails either side run on past the ends: cut there.
+            .clipToBounds()
             .focusRing(interactions, shape, enabled = enabled)
             .selectableGroup()
             .onKeyEvent { event ->
