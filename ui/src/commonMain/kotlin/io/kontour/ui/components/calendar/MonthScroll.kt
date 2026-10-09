@@ -160,7 +160,8 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: Flo
             if (first.offset == 0) return@collectLatest
             val back = -first.offset
             val toNext = first.size + first.offset
-            list.animateScrollToItem(if (back <= toNext) first.index else first.index + 1)
+            val row = if (back <= toNext) first.index else first.index + 1
+            if (motion.reduceMotion) list.scrollToItem(row) else list.animateScrollToItem(row)
         }
     }
     return list

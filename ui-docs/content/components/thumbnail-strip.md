@@ -47,3 +47,11 @@ goes to its page. A keyboard reaches the strip as one stop, with a focus ring:
 the left and right arrows step a page — mirrored for right-to-left reading —
 and Home and End go to the first and last. A drag is not the only way to move
 it: a press, a key and a screen reader's action each do it too.
+
+Under reduced motion a thumbnail pressed, a key or a screen reader's action
+goes to its page at once rather than sliding there, as a carousel's own arrows
+do. A drag still follows the finger: the reader is moving it.
+
+At high contrast nothing changes, because the strip draws no ink of its own:
+the thumbnails are the app's pictures, the current page is told apart by its
+width rather than by a colour, and the focus ring is the tier's.

@@ -57,6 +57,7 @@ internal const val MinMonthRows = 3
 @Stable
 internal class MonthZoom(private val state: EventCalendarState, private val list: LazyListState, private val scope: CoroutineScope) {
     var viewportPx = 0f
+    var reduceMotion = false
     var fewest = MinMonthRows.toFloat()
     var most = MonthRowsInView.toFloat()
 
@@ -102,7 +103,9 @@ internal class MonthZoom(private val state: EventCalendarState, private val list
         if (whole != state.monthRows) zoomTo(whole, focusY)
         val at = top ?: return
         top = null
-        scope.launch { list.animateScrollToItem(at.roundToInt().coerceAtLeast(0)) }
+        val row = at.roundToInt().coerceAtLeast(0)
+        // Settled on its week at once under reduced motion, rather than slid there.
+        scope.launch { if (reduceMotion) list.scrollToItem(row) else list.animateScrollToItem(row) }
     }
 }
 

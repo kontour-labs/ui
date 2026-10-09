@@ -121,9 +121,12 @@ fun ThumbnailStrip(
         }
     }
 
+    val reduceMotion = Theme.motion.reduceMotion
     fun goTo(page: Int) {
         if (!enabled || count == 0) return
-        scope.launch { state.animateScrollToPage(page.coerceIn(0, count - 1)) }
+        val target = page.coerceIn(0, count - 1)
+        // There at once under reduced motion, as the carousel's own arrows are.
+        scope.launch { if (reduceMotion) state.scrollToPage(target) else state.animateScrollToPage(target) }
     }
 
     Layout(

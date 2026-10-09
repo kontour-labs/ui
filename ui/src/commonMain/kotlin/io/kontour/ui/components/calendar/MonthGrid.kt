@@ -159,6 +159,7 @@ internal fun MonthView(scope: CalendarScope) {
             val coroutines = rememberCoroutineScope()
             val zoom = remember(list, state) { MonthZoom(state, list, coroutines) }
             zoom.viewportPx = viewportPx
+            zoom.reduceMotion = Theme.motion.reduceMotion
             zoom.most = most
             zoomer[0] = zoom
             dayAt[0] = {
