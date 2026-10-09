@@ -559,22 +559,15 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                     val more = pack.more[column]
                     if (more == 0) continue
                     val date = from.plus(column, DateTimeUnit.DAY)
-                    val described = Theme.strings.moreEvents(scope.formats.quantity(more))
-                    Text(
-                        Theme.strings.moreCount(scope.formats.quantity(more)),
-                        style = Theme.typography.labelSmall,
-                        colour = quietInk(),
-                        maxLines = 1,
+                    MoreChip(
+                        count = more,
+                        muted = false,
+                        enabled = scope.enabled,
+                        onClick = { scope.state.show(date, CalendarView.Day) },
                         modifier = Modifier
-                            .padding(start = cell * column + gap, top = item * pack.shownRows[column])
-                            .pressable(
-                                onClick = { scope.state.show(date, CalendarView.Day) },
-                                shape = Theme.shapes.capsule,
-                                enabled = scope.enabled,
-                                minimumTouchTarget = false,
-                            )
-                            .semantics { contentDescription = described }
-                            .padding(horizontal = Theme.spacing.xs),
+                            .padding(start = cell * column + gap, top = item * pack.shownRows[column] + gap / 2)
+                            .width(cell - gap * 2)
+                            .height(item - gap),
                     )
                 }
             }

@@ -28,6 +28,7 @@ On `main`, and in the next release.
 
 ### Changed
 
+- **An [event calendar](components/event-calendar.md)'s titles show more of themselves.** A month's line is in a slightly smaller type, and in a narrow day gives up its time, then its dot, before its title. A title cut short fades out instead of ending in "…". In the hours a title wraps over every line its event is tall, not two. A busy day's "+N" is a row the size of its events, in line with them, rather than text under them; in the week's all-day strip too.
 - **An [event calendar](components/event-calendar.md)'s arrow at the side of the days is level with a mouse's pointer** while an event is carried. It was 40dp above it, which is for a fingertip; under a finger it still is.
 - **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
 

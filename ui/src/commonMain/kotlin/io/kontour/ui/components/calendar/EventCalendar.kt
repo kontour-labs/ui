@@ -703,8 +703,10 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
     val type = Theme.typography
     when (presentation) {
         EventPresentation.Block -> {
-            // The title as many lines as the block is tall, up to two, so a
-            // half-hour block does not cut its second line through the middle.
+            // The title as many lines as the block is tall, so a half-hour
+            // block does not cut its second line through the middle, and a
+            // narrow one wraps a long title — a word broken where it must be
+            // — rather than give up all but three letters of it to "…".
             val vertical = Theme.spacing.xxs
             val titleLine = with(LocalDensity.current) { type.labelMedium.lineHeight.toDp() }
             val height = LocalBlockHeight.current
@@ -713,50 +715,31 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             if (height != null && height < titleLine + vertical * 2) {
                 val smallLine = with(LocalDensity.current) { type.labelSmall.lineHeight.toDp() }
                 WholeLines(vertical = ((height - smallLine) / 2).coerceIn(0.dp, vertical), inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
-                    Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    FadingText(event.title, calendarItemStyle())
                 }
                 return
             }
             val titleLines = if (height != null && titleLine > 0.dp) {
-                floor((height - vertical * 2) / titleLine).toInt().coerceIn(1, BlockTitleLines)
+                floor((height - vertical * 2) / titleLine).toInt().coerceAtLeast(1)
             } else {
-                BlockTitleLines
+                Int.MAX_VALUE
             }
             WholeLines(vertical = vertical, inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
-                Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
-                Text(
-                    strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)),
-                    style = type.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                event.location?.let { Text(it, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                // One line fades out where it is cut, as a month's do: "DR-…" was
+                // a letter given up to say there was more.
+                if (titleLines == 1) {
+                    FadingText(event.title, type.labelMedium)
+                } else {
+                    Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
+                }
+                FadingText(strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)), type.labelSmall)
+                event.location?.let { FadingText(it, type.labelSmall) }
             }
         }
-        EventPresentation.Bar -> Text(
-            event.title,
-            style = type.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = Theme.spacing.xs),
-        )
-        EventPresentation.Line -> Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-            modifier = Modifier.padding(horizontal = Theme.spacing.xxs),
-        ) {
-            Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
-            Text(formats.time(event.start.time), style = type.labelSmall, colour = Theme.colours.contentMuted, maxLines = 1)
-            Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        EventPresentation.Bar -> EventBar(event)
+        EventPresentation.Line -> EventLine(event)
     }
 }
-
-/** At most this many lines of a block's title. */
-private const val BlockTitleLines = 2
-
-/** Below this a block's text is inset by less. */
-private val NarrowBlockWidth = 56.dp
 
 /**
  * How tall the block being drawn is, for its default content to fit its title
@@ -769,13 +752,13 @@ internal val LocalBlockHeight = compositionLocalOf<Dp?> { null }
  * Lines one under another, as many as fit whole: the first always, the rest
  * only where all of each is inside the height — never one cut in half. Inset
  * by [inset] either side, or by [narrowInset] in a block narrower than
- * [NarrowBlockWidth]: a week's narrow column keeps its few letters for the
+ * [NarrowItemWidth]: a week's narrow column keeps its few letters for the
  * title, not for the margin.
  */
 @Composable
 private fun WholeLines(vertical: Dp, inset: Dp, narrowInset: Dp, content: @Composable () -> Unit) {
     Layout(content) { measurables, constraints ->
-        val side = (if (constraints.maxWidth < NarrowBlockWidth.roundToPx()) narrowInset else inset).roundToPx()
+        val side = (if (constraints.maxWidth < NarrowItemWidth.roundToPx()) narrowInset else inset).roundToPx()
         val top = vertical.roundToPx()
         val room = (constraints.maxHeight - top * 2).coerceAtLeast(0)
         val lineConstraints = Constraints(maxWidth = (constraints.maxWidth - side * 2).coerceAtLeast(0))

@@ -403,26 +403,20 @@ private fun DayBox(
             )
         }
         if (more > 0) {
-            Box(Modifier.padding(top = dateLabel + itemHeight * moreRow)) {
-                Text(
-                    strings.moreCount(formats.quantity(more)),
-                    style = Theme.typography.labelSmall,
-                    colour = quietInk(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
+            // A row of the day's, as the events above it are.
+            val gap = Theme.spacing.xxs / 2
+            Box(Modifier.padding(start = gap, end = gap, top = dateLabel + itemHeight * moreRow + gap / 2)) {
+                MoreChip(
+                    count = more,
+                    muted = !inMonth,
+                    enabled = scope.enabled,
+                    // The day's list where there is a host to show it in; the day itself where there is not.
+                    onClick = { if (canList) listing = true else scope.openDay(date) },
                     modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight - gap)
                         // Reached by Tab with the day's events: from the cursor, on its day.
-                        .focusProperties { canFocus = scope.state.date == date }
-                        .pressable(
-                            // The day's list where there is a host to show it in;
-                            // the day itself where there is not.
-                            onClick = { if (canList) listing = true else scope.openDay(date) },
-                            shape = Theme.shapes.capsule,
-                            enabled = scope.enabled,
-                            minimumTouchTarget = false,
-                        )
-                        .semantics { contentDescription = strings.moreEvents(formats.quantity(more)) }
-                        .padding(horizontal = Theme.spacing.xs),
+                        .focusProperties { canFocus = scope.state.date == date },
                 )
                 // Every event of the day, from its "+N".
                 if (canList) Popover(visible = listing, onDismissRequest = { listing = false }, title = { +formats.date(date, DateStyle.Long) }) {
