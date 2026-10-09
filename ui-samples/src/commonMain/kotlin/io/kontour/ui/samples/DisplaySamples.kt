@@ -50,6 +50,7 @@ import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
+import io.kontour.ui.components.display.ThumbnailStrip
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
@@ -293,6 +294,17 @@ fun CarouselWithIndicator(photos: List<String>) {
         Text(photos[page])
     }
     PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
+}
+
+@Composable
+fun ThumbnailStripBasics(photoCount: Int, photo: @Composable (page: Int, modifier: Modifier) -> Unit) {
+    val pages = rememberCarouselState { photoCount }
+
+    Column {
+        Carousel(pages, contentDescription = "Trip photos") { page -> photo(page, Modifier.fillMaxWidth()) }
+        // Under the photos: dragged, it scrubs through them; a thumbnail pressed goes to it.
+        ThumbnailStrip(pages) { page -> photo(page, Modifier.fillMaxSize()) }
+    }
 }
 
 @Composable

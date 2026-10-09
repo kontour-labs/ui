@@ -1,5 +1,8 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.display.ThumbnailStrip
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -867,6 +870,24 @@ internal val PageIndicatorDemo = ComponentDemo(
     )
 }
 
+/** A trip's photos, as tinted boxes: forty, enough to scrub through. */
+private val stripPhotos = (0 until 40).map { Color.hsv((it * 37f) % 360f, 0.45f, 0.85f) }
+
+internal val ThumbnailStripDemo = ComponentDemo(slug = "thumbnail-strip") {
+    val pages = rememberCarouselState { stripPhotos.size }
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm), modifier = Modifier.fillMaxWidth()) {
+        Carousel(pages, contentDescription = "Trip photos", modifier = Modifier.height(ThumbnailStripDemoHeight)) { page ->
+            Box(Modifier.fillMaxSize().background(stripPhotos[page]), contentAlignment = Alignment.Center) {
+                Text("Photo ${page + 1}", colour = Color.Black)
+            }
+        }
+        ThumbnailStrip(pages) { page -> Box(Modifier.fillMaxSize().background(stripPhotos[page])) }
+    }
+}
+
+/** Tall enough for a photo, short enough to see the strip under it. */
+private val ThumbnailStripDemoHeight = 220.dp
+
 private val kvDividers = Knob.Flag("Dividers")
 
 internal val KeyValueListDemo = ComponentDemo(
@@ -1331,6 +1352,7 @@ internal val displayDemos = listOf(
     StatDemo,
     CarouselDemo,
     PageIndicatorDemo,
+    ThumbnailStripDemo,
     KeyValueListDemo,
     KbdDemo,
     GaugeDemo,

@@ -1211,6 +1211,19 @@ public final class io/kontour/ui/components/display/TagKt {
 	public static final fun Tag-gF0flNs (Landroidx/compose/ui/Modifier;ZLio/kontour/ui/theme/Tone;JLandroidx/compose/ui/graphics/Shape;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/components/display/ThumbnailStripDefaults {
+	public static final field $stable I
+	public static final field INSTANCE Lio/kontour/ui/components/display/ThumbnailStripDefaults;
+	public final fun getCurrentWidth (Landroidx/compose/runtime/Composer;I)F
+	public final fun getGap (Landroidx/compose/runtime/Composer;I)F
+	public final fun getHeight (Landroidx/compose/runtime/Composer;I)F
+	public final fun getThumbnailWidth (Landroidx/compose/runtime/Composer;I)F
+}
+
+public final class io/kontour/ui/components/display/ThumbnailStripKt {
+	public static final fun ThumbnailStrip (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class io/kontour/ui/components/display/TimelineColours {
 	public static final field $stable I
 	public synthetic fun <init> (JJJLkotlin/jvm/internal/DefaultConstructorMarker;)V

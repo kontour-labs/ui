@@ -32,6 +32,7 @@ On `main`, and in the next release.
 
 ### Added
 
+- **[`ThumbnailStrip`](components/thumbnail-strip.md)**: a carousel's pages as a photo app's filmstrip, the current one wide in the middle. Dragged, it scrubs through the pages with the carousel following; a thumbnail pressed, an arrow key or a screen reader's action goes to its page. It shares the carousel's `CarouselState`, and composes only the thumbnails on screen.
 - **A [toast](components/toast.md) can show the time it has left**: `ToastHost(countdown = ToastCountdown.Wipe)` washes its background and draws it back as the time runs out, and `ToastCountdown.Bar` draws a bar along its foot that shortens. Both stand still while the toast's clock does.
 - **An [event calendar](components/event-calendar.md) shows three days**, `CalendarView.ThreeDays`: their hours side by side, from the day it was switched to, stepped and swiped three days at a time. The header's switcher offers it between the day and the week; `EventCalendarDefaults.Views` is the switcher's order. New strings: `threeDays`, `previousDays`, `nextDays`.
 - **An [event calendar](components/event-calendar.md) lays out its days three ways**, `daysStyle`: `CalendarDaysStyle.Hours`, as before; `Split`, every all-day event in a pane of its own above the hours with a divider between them to drag; and `Condensed`, no hours, each day's events stacked in a list down the days.

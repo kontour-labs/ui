@@ -29,6 +29,7 @@ Things that show rather than take input.
 | [`KeyValueList`](key-value-list.md) | Label-and-value facts about one thing | `SelectionRow`, only if the rows are tappable |
 | [`Carousel`](carousel.md) | Pages one at a time, that snap | A scrolling `Row`, when they are not pages |
 | [`PageIndicator`](page-indicator.md) | Which page of how many | — |
+| [`ThumbnailStrip`](thumbnail-strip.md) | A carousel's pages as a filmstrip, dragged to scrub through them | `PageIndicator`, for a few pages that need no picture |
 | [`AnimatedCounter`](animated-counter.md) | A number that changes while you watch | A `Text`, when it changes off-screen |
 | [`Modifier.marquee`](modifier-marquee.md) | A label that is occasionally too long | Truncation, when the tail does not matter |
 | [`Kbd`](kbd.md) | A keyboard shortcut, rendered as a key | — |
