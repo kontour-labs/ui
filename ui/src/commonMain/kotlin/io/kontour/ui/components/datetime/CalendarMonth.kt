@@ -506,38 +506,6 @@ private fun WeekdayInitials(weekFormats: LocaleFormats) {
 }
 
 /**
- * A month as [CalendarMonth] lays it out — its weekday initials and the room
- * its weeks take — without its days: for a year that fills its months in a
- * frame at a time, so each takes its place at once and the days arrive in it.
- * Exactly as tall as the month it stands for, so nothing moves when they do.
- */
-@Composable
-internal fun CalendarMonthOutline(
-    month: LocalDate,
-    modifier: Modifier = Modifier,
-    formats: LocaleFormats = Theme.formats,
-    firstDayOfWeek: DayOfWeek = formats.conventions.firstDayOfWeek,
-) {
-    val weekFormats = remember(formats, firstDayOfWeek) { formats.startingOn(firstDayOfWeek) }
-    val firstOfMonth = LocalDate(month.year, month.month, 1)
-    val daysInMonth = firstOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
-    val cells = weekFormats.conventions.columnOf(firstOfMonth.dayOfWeek) + daysInMonth
-    val rows = maxOf((cells + 6) / 7, LocalCalendarRows.current)
-    Column(modifier.widthIn(max = CalendarMonthDefaults.MaxWidth).fillMaxWidth()) {
-        WeekdayInitials(weekFormats)
-        // The weeks' height as the month's rows round it: each a seventh of the
-        // width, capped, rounded to the pixel one row at a time.
-        Box(
-            Modifier.fillMaxWidth().layout { measurable, constraints ->
-                val row = minOf(constraints.maxWidth.toDp() / 7, MaxRowHeight).roundToPx()
-                val placeable = measurable.measure(constraints.copy(minHeight = row * rows, maxHeight = row * rows))
-                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-            },
-        )
-    }
-}
-
-/**
  * The drag a month or a picker holds: the state, and the three things it reports
  * to the hand — a day crossed, a faint rumble while a month is being held for,
  * and the month paged.

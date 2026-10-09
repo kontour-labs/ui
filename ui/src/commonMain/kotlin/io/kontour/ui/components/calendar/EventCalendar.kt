@@ -129,8 +129,9 @@ import kotlinx.datetime.toLocalDateTime
  * ### Moving about
  *
  * The header steps a period back and on, goes to today, and switches the view.
- * A sideways swipe steps too, in the day and week views; the month scrolls up
- * and down through its weeks instead, and is about the month most on screen.
+ * A sideways swipe steps too, in the day, three-day and week views; the month
+ * scrolls up and down through its weeks instead, and the year through the
+ * years, each about the month or year most on screen.
  * A day's number, in the
  * month and in a week's heading, opens that day; a month's name in the year
  * opens that month, and a day in it its day.

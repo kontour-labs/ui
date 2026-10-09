@@ -172,23 +172,6 @@ class EventCalendarTest {
     }
 
     @Test
-    fun theYearOpensAtTheMonthItIsOnWithEveryMonthInViewFilledIn() = runComposeUiTest {
-        val probe = calendar(view = CalendarView.Year)
-        fun day(date: LocalDate) = onNode(
-            androidx.compose.ui.test.SemanticsMatcher.expectValue(
-                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
-                probe.formats.date(date, DateStyle.Full),
-            ),
-        )
-        // October's row first: January is scrolled past, not shown above it.
-        onNode(hasText(probe.formats.monthName(kotlinx.datetime.Month.OCTOBER, io.kontour.ui.locale.NameWidth.Wide))).assertExists()
-        onNode(hasText(probe.formats.monthName(kotlinx.datetime.Month.JANUARY, io.kontour.ui.locale.NameWidth.Wide))).assertDoesNotExist()
-        // And its days there, and those of the month beside it, filled in a frame apart.
-        day(today).assertExists()
-        day(LocalDate(2026, 9, 1)).assertExists()
-    }
-
-    @Test
     fun anEmptyTimePressedIsTheQuarterHourItIsIn() = runComposeUiTest {
         val pressed = mutableListOf<LocalDateTime>()
         val probe = calendar(view = CalendarView.Day, events = emptyList(), onTimeClick = { pressed += it })

@@ -135,6 +135,16 @@ class EventCalendarState internal constructor(
         scrolledDate = date
     }
 
+    /**
+     * The year [year], scrolled to: the same month, and the same day of it
+     * where it has one, as [step] keeps it.
+     */
+    internal fun showYearFromScroll(year: Int) {
+        val first = LocalDate(year, date.month, 1)
+        date = LocalDate(year, date.month, minOf(date.day, lengthOfMonth(first)))
+        scrolledDate = date
+    }
+
     /** The day [showFromScroll] last moved to, which the scroll need not bring into view. */
     internal var scrolledDate: LocalDate? = null
 

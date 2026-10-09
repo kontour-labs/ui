@@ -56,6 +56,8 @@ keep the switcher as it was, pass the views: `Header(state, views = listOf(Day, 
 - **Event titles** are in a slightly smaller type, and fade out where they are
   cut rather than ending in "…". A busy day's "+N" is a row of its own.
 - **The edge arrow, carrying an event with a mouse,** is level with the pointer.
+- **An event calendar's year scrolls up and down** through the years, and a
+  screen reader reaches its months, not each of its days.
 
 ---
 
