@@ -405,6 +405,16 @@ data class Strings(
     val skipTour: String = "Skip",
     /** A time picker's button that turns its wheels to the time now. */
     val now: String = "Now",
+    /** An event calendar's month, a screen reader's action that shows fewer weeks, each taller. */
+    val zoomIn: String = "Zoom in",
+    /** An event calendar's month, a screen reader's action that shows more weeks, each shorter. */
+    val zoomOut: String = "Zoom out",
+    /** An event calendar's view of three days' hours side by side, in its switcher. */
+    val threeDays: String = "3 Days",
+    /** An event calendar's header button that steps back by the days a view shows, where that is not a day, a week or a month. */
+    val previousDays: String = "Previous days",
+    /** An event calendar's header button that steps on by the days a view shows. */
+    val nextDays: String = "Next days",
 ) {
     companion object {
         /**
@@ -513,6 +523,11 @@ data class Strings(
         nextMonth = lookup.text("nextMonth") ?: fallback.nextMonth,
         returnToToday = lookup.text("returnToToday") ?: fallback.returnToToday,
         now = lookup.text("now") ?: fallback.now,
+        zoomIn = lookup.text("zoomIn") ?: fallback.zoomIn,
+        zoomOut = lookup.text("zoomOut") ?: fallback.zoomOut,
+        threeDays = lookup.text("threeDays") ?: fallback.threeDays,
+        previousDays = lookup.text("previousDays") ?: fallback.previousDays,
+        nextDays = lookup.text("nextDays") ?: fallback.nextDays,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -737,6 +752,11 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     nextMonth = transform(nextMonth),
     returnToToday = transform(returnToToday),
     now = transform(now),
+    zoomIn = transform(zoomIn),
+    zoomOut = transform(zoomOut),
+    threeDays = transform(threeDays),
+    previousDays = transform(previousDays),
+    nextDays = transform(nextDays),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),

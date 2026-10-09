@@ -47,6 +47,18 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import kotlin.math.ceil
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
@@ -87,6 +99,11 @@ internal fun MonthView(scope: CalendarScope) {
     val state = scope.state
     val periods = state.periods
     val density = LocalDensity.current
+    val strings = Theme.strings
+    // Made with the list, inside; reached from the keys and actions round it.
+    val zoomer = remember { arrayOfNulls<MonthZoom>(1) }
+    // A key's or a screen reader's zoom is about the state's day, kept in view.
+    val dayAt = remember { arrayOf<() -> Float>({ 0f }) }
     Column(Modifier.fillMaxWidth()) {
         WeekdayRow(scope)
         val frame = Theme.shapes.container
@@ -99,52 +116,102 @@ internal fun MonthView(scope: CalendarScope) {
                 // than stopping in the open.
                 .clip(frame)
                 .border(Theme.sizing.borderWidth, gridLine(), frame)
+                // Ctrl, or Cmd, and plus or minus: a week fewer or more, as a
+                // browser zooms its page. Before the cursor, which leaves keys
+                // held with Ctrl to whatever else wants them.
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || !(event.isCtrlPressed || event.isMetaPressed)) return@onPreviewKeyEvent false
+                    val zoom = zoomer[0] ?: return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.Equals, Key.Plus, Key.NumPadAdd -> zoom.step(-1, dayAt[0]())
+                        Key.Minus, Key.NumPadSubtract -> zoom.step(1, dayAt[0]())
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    true
+                }
+                .semantics {
+                    customActions = listOf(
+                        CustomAccessibilityAction(strings.zoomIn) { zoomer[0]?.step(-1, dayAt[0]()) != null },
+                        CustomAccessibilityAction(strings.zoomOut) { zoomer[0]?.step(1, dayAt[0]()) != null },
+                    )
+                }
                 .calendarCursor(scope, description = scope.dayDescription(state.date)) { key -> scope.monthKey(key, rtl) },
         ) {
             // Bounded, the rows share the height; in a scrolling page, a row
             // is as tall as a date and three events, and the box six of them.
             val viewport = if (constraints.hasBoundedHeight) maxHeight else monthRowMinHeight() * MonthRowsInView
             val viewportPx = with(density) { viewport.toPx() }
-            val rowPx = floor(viewportPx / MonthRowsInView)
+            val dateLabel = dateLabelHeight()
+            val dateLabelPx = with(density) { dateLabel.toPx() }
+            val linePx = with(density) { Theme.typography.labelSmall.lineHeight.toPx() }
+            val padPx = with(density) { Theme.spacing.xxs.toPx() }
+            // Zoomed in no further than three weeks, nor out past six or past
+            // a row with room for its date and one event.
+            val most = minOf(MonthRowsInView.toFloat(), floor(viewportPx / (dateLabelPx + linePx + padPx * 2))).coerceAtLeast(MinMonthRows.toFloat())
+            val rows = state.monthRows.coerceIn(MinMonthRows.toFloat(), most)
+            val rowPx = floor(viewportPx / rows)
             val row = with(density) { rowPx.toDp() }
+            val lines = itemLines(rowPx, dateLabelPx, linePx, padPx)
+            val item = itemHeight(lines)
             val list = rememberMonthList(scope, wholeRows(viewportPx, rowPx), rowPx)
             val snap = rememberWeekSnap(list)
             val placed = remember { PlacedAt() }
+            val coroutines = rememberCoroutineScope()
+            val zoom = remember(list, state) { MonthZoom(state, list, coroutines) }
+            zoom.viewportPx = viewportPx
+            zoom.most = most
+            zoomer[0] = zoom
+            dayAt[0] = {
+                val row = periods.rowOf(state.date)
+                list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == row }?.let { it.offset + it.size / 2f } ?: (viewportPx / 2f)
+            }
             // Each week's events, found once for as long as the events are the same.
             val byWeek = remember(scope.events, periods) { HashMap<LocalDate, List<CalendarEvent>>() }
             val gap = Theme.spacing.xxs / 2
-            // Whole rows, so no sliver of a seventh week shows at the foot.
-            val rowsHeight = with(density) { (rowPx * MonthRowsInView).toDp() }
-            Box(Modifier.fillMaxWidth().height(rowsHeight).onGloballyPositioned { placed.coordinates = it }) {
-                LazyColumn(
-                    state = list,
-                    flingBehavior = snap,
-                    userScrollEnabled = scope.enabled,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(WeekRows, key = { it }) { index ->
-                        val weekStart = periods.weekOfRow(index)
-                        val events = byWeek.getOrPut(weekStart) {
-                            scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
+            // Whole rows, so no sliver of a week shows at the foot — but while
+            // a pinch is under way, between two numbers of them.
+            val whole = rows == floor(rows)
+            val rowsHeight = if (whole) with(density) { (rowPx * rows).toDp() } else viewport
+            val edit = scope.edit
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(rowsHeight)
+                    .onGloballyPositioned { placed.coordinates = it }
+                    .pinchesRows(zoom) { !edit.live }
+                    .wheelZoomsRows(zoom),
+            ) {
+                CompositionLocalProvider(LocalItemLines provides lines) {
+                    LazyColumn(
+                        state = list,
+                        flingBehavior = snap,
+                        userScrollEnabled = scope.enabled,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(WeekRows, key = { it }) { index ->
+                            val weekStart = periods.weekOfRow(index)
+                            val events = byWeek.getOrPut(weekStart) {
+                                scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
+                            }
+                            MonthWeek(scope, weekStart, events, item, Modifier.fillMaxWidth().height(row))
                         }
-                        MonthWeek(scope, weekStart, events, Modifier.fillMaxWidth().height(row))
                     }
+                    // Where a carried event would land, over the weeks on screen:
+                    // from one to the next is travel down.
+                    val ghostRows = remember(list, periods) { ListRows(list, periods) }
+                    ghostRows.rowPx = rowPx
+                    val first by remember(list, periods) { derivedStateOf { periods.weekOfRow(list.firstVisibleItemIndex) } }
+                    DaysGhostLayer(
+                        scope,
+                        first,
+                        weeks = ceil(rows).toInt() + 1,
+                        days = DaysPerWeek,
+                        slot = dateLabel + gap / 2,
+                        item = item,
+                        gap = gap,
+                        rows = ghostRows,
+                    )
                 }
-                // Where a carried event would land, over the weeks on screen:
-                // from one to the next is travel down.
-                val rows = remember(list, periods) { ListRows(list, periods) }
-                rows.rowPx = rowPx
-                val first by remember(list, periods) { derivedStateOf { periods.weekOfRow(list.firstVisibleItemIndex) } }
-                DaysGhostLayer(
-                    scope,
-                    first,
-                    weeks = MonthRowsInView + 1,
-                    days = DaysPerWeek,
-                    slot = dateLabelHeight() + gap / 2,
-                    item = itemHeight(),
-                    gap = gap,
-                    rows = rows,
-                )
             }
             EditScroll(scope, placed, list, byDays = true)
         }
@@ -194,8 +261,9 @@ private fun monthRowMinHeight(): Dp = dateLabelHeight() + itemHeight() * MinRows
 
 private const val MinRowsInPage = 3
 
+/** A month's event's height, [lines] of the small label's tall and a margin above and below. */
 @Composable
-private fun itemHeight(): Dp = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
+private fun itemHeight(lines: Int = 1): Dp = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } * lines + Theme.spacing.xxs * 2
 
 @Composable
 private fun dateLabelHeight(): Dp = with(LocalDensity.current) { Theme.typography.labelMedium.lineHeight.toDp() } + Theme.spacing.xs * 2
@@ -205,9 +273,9 @@ private fun MonthWeek(
     scope: CalendarScope,
     weekStart: LocalDate,
     weekEvents: List<CalendarEvent>,
+    item: Dp,
     modifier: Modifier,
 ) {
-    val item = itemHeight()
     val dateLabel = dateLabelHeight()
     val gap = Theme.spacing.xxs / 2
     val state = scope.state

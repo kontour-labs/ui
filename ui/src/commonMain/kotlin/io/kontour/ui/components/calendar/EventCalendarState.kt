@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
@@ -78,6 +79,13 @@ class EventCalendarState internal constructor(
             val shown = shownWeeks?.takeIf { view == CalendarView.Month } ?: return dates
             return minOf(dates.start, shown.start)..maxOf(dates.endInclusive, shown.endInclusive)
         }
+
+    /**
+     * How many weeks the month shows at once: [MonthRowsInView] for the whole
+     * of one, fewer zoomed in, each taller. A whole number but while a pinch
+     * is under way.
+     */
+    internal var monthRows: Float by mutableFloatStateOf(MonthRowsInView.toFloat())
 
     /** The days of the weeks a scrolling month has on screen, whole weeks; null where it has not said. */
     internal var shownWeeks: ClosedRange<LocalDate>? by mutableStateOf(null)
@@ -154,9 +162,18 @@ class EventCalendarState internal constructor(
         private set
 
     internal companion object {
-        /** The date as an epoch day, the view, and the hours' scroll. */
+        /** The date as an epoch day, the view, the hours' scroll, and how far the month is zoomed. */
         val Saver: Saver<EventCalendarState, Any> = listSaver(
-            save = { listOf(it.date.toEpochDays(), it.view.ordinal, it.timeScroll.value, it.initialScrollTime.toSecondOfDay(), it.periods.firstDayOfWeek.ordinal) },
+            save = {
+                listOf(
+                    it.date.toEpochDays(),
+                    it.view.ordinal,
+                    it.timeScroll.value,
+                    it.initialScrollTime.toSecondOfDay(),
+                    it.periods.firstDayOfWeek.ordinal,
+                    it.monthRows,
+                )
+            },
             restore = { saved ->
                 EventCalendarState(
                     initialDate = LocalDate.fromEpochDays(saved[0] as Long),
@@ -166,6 +183,8 @@ class EventCalendarState internal constructor(
                 ).also { state ->
                     state.restoredScroll = saved[2] as Int
                     state.scrolledToStart = true
+                    // Each added on the end, so what an earlier version saved still restores.
+                    (saved.getOrNull(5) as? Float)?.let { state.monthRows = it }
                 }
             },
         )

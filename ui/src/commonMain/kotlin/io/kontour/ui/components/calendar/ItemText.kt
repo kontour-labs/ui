@@ -1,7 +1,10 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -113,10 +116,12 @@ private const val MinTitleEms = 2.4f
 /**
  * A timed event in a month's day, or a week's list: its tone's dot, its start
  * and its title, in that order, as many of the first two as leave the title
- * [lineParts]' room.
+ * [lineParts]' room. Given more [lines], zoomed in: the dot and the title,
+ * then its time on a line of its own, then where it is.
  */
 @Composable
-internal fun EventLine(event: CalendarEvent) {
+internal fun EventLine(event: CalendarEvent, lines: Int = 1) {
+    if (lines > 1) return DetailedItem(event, lines, dot = true)
     val style = calendarItemStyle()
     val dotSize = Theme.spacing.xs
     val gap = Theme.spacing.xxs
@@ -153,11 +158,35 @@ internal fun EventLine(event: CalendarEvent) {
 }
 
 /**
+ * An event in a zoomed-in month, on [lines] lines: its title — after its
+ * tone's dot, for a [dot] line — then, for a timed one, the time it starts,
+ * then where it is, as many as there are lines for and it has.
+ */
+@Composable
+private fun DetailedItem(event: CalendarEvent, lines: Int, dot: Boolean) {
+    val style = calendarItemStyle()
+    val muted = Theme.colours.contentMuted
+    val formats = Theme.formats
+    val rest = buildList {
+        if (dot) add(formats.time(event.start.time))
+        event.location?.let(::add)
+    }.take(lines - 1)
+    Column(Modifier.padding(horizontal = Theme.spacing.xxs)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+            if (dot) Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
+            FadingText(event.title, style)
+        }
+        for (line in rest) FadingText(line, style, colour = if (dot) muted else Color.Unspecified)
+    }
+}
+
+/**
  * An all-day or multi-day event's bar: its title alone, inset by less in a
  * narrow day, so the few letters there are go to the title.
  */
 @Composable
-internal fun EventBar(event: CalendarEvent) {
+internal fun EventBar(event: CalendarEvent, lines: Int = 1) {
+    if (lines > 1 && event.location != null) return DetailedItem(event, lines, dot = false)
     val wide = Theme.spacing.xs
     val narrow = Theme.spacing.xxs
     Layout(content = { FadingText(event.title, calendarItemStyle()) }) { (title), constraints ->

@@ -739,8 +739,8 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
                 event.location?.let { FadingText(it, type.labelSmall) }
             }
         }
-        EventPresentation.Bar -> EventBar(event)
-        EventPresentation.Line -> EventLine(event)
+        EventPresentation.Bar -> EventBar(event, LocalItemLines.current)
+        EventPresentation.Line -> EventLine(event, LocalItemLines.current)
     }
 }
 
@@ -750,6 +750,12 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
  * need not wait for layout to find out.
  */
 internal val LocalBlockHeight = compositionLocalOf<Dp?> { null }
+
+/**
+ * How many lines a month's event has room for: 1 at a whole month to the
+ * screen, up to 3 zoomed in, for its title, its time and where it is.
+ */
+internal val LocalItemLines = compositionLocalOf { 1 }
 
 /**
  * Lines one under another, as many as fit whole: the first always, the rest

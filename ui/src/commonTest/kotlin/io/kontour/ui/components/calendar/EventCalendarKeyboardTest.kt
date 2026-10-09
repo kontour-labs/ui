@@ -95,10 +95,16 @@ class EventCalendarKeyboardTest {
         return probe
     }
 
-    /** The grid's one stop: focusable, and neither a button nor an event with its actions. */
+    /**
+     * The grid's one stop: focusable, and neither a button nor an event with
+     * its actions — a month's own actions are its zoom, not an event's.
+     */
     private fun ComposeUiTest.grid() = onNode(
         SemanticsMatcher.keyIsDefined(SemanticsProperties.Focused) and hasNoClickAction() and
-            SemanticsMatcher.keyNotDefined(SemanticsActions.CustomActions),
+            SemanticsMatcher("no event's actions") { node ->
+                val zoom = io.kontour.ui.theme.Strings().let { setOf(it.zoomIn, it.zoomOut) }
+                node.config.getOrNull(SemanticsActions.CustomActions).orEmpty().all { it.label in zoom }
+            },
     )
 
     private fun ComposeUiTest.keys(key: Key) = keys(listOf(key))

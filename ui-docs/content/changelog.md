@@ -26,6 +26,10 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 On `main`, and in the next release.
 
+### Added
+
+- **An [event calendar](components/event-calendar.md)'s month zooms**: two fingers spread show fewer weeks, each taller, down to three to the box; pinched, more, up to six. Ctrl or Cmd with the wheel, or with plus and minus, steps a week, and a screen reader has Zoom in and Zoom out. Zoomed in, an event shows its time and where it is on lines of their own. The zoom is kept with the state. New strings: `zoomIn`, `zoomOut`.
+
 ### Changed
 
 - **An [event calendar](components/event-calendar.md)'s month scrolls up and down by the week**, as Apple's calendar does, instead of paging sideways a month at a time. Every row is the same height — six weeks to the box — so the weeks sit under each other from one month into the next, and a scroll or a fling settles with a week at the top. The month most on screen is the one the title, the state's `date` and the quieter days are about; the header's arrows, Page Up and Page Down and `state.step` scroll to that month's first week. An event carried near the top or the foot scrolls the weeks with it, as the hours do, in place of the arrow at the side. `visibleDates` in the month also covers any weeks either side scrolled into view.
