@@ -71,6 +71,7 @@ import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.Popover
 import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.overlay.SubMenu
+import io.kontour.ui.overlay.ToastCountdown
 import io.kontour.ui.overlay.ToastHost
 import io.kontour.ui.overlay.ToastPosition
 import io.kontour.ui.theme.Tone
@@ -533,9 +534,13 @@ private val toastPosition =
 private val toastAlignment =
     Knob.Choice("Align", OverlayAlignment.entries.toList(), initial = OverlayAlignment.Centre)
 
+/** How a toast shows the time it has left. */
+private val toastCountdown =
+    Knob.Choice("Countdown", ToastCountdown.entries.toList(), initial = ToastCountdown.None)
+
 internal val ToastDemo = ComponentDemo(
     slug = "toast",
-    knobs = listOf(toastPosition, toastAlignment),
+    knobs = listOf(toastPosition, toastAlignment, toastCountdown),
 ) {
     val toasts = rememberToastHostState()
     val scope = rememberCoroutineScope()
@@ -545,6 +550,7 @@ internal val ToastDemo = ComponentDemo(
             position = this@ComponentDemo[toastPosition],
             alignment = this@ComponentDemo[toastAlignment],
             showDismiss = true,
+            countdown = this@ComponentDemo[toastCountdown],
         )
         Column(
             modifier = Modifier.align(Alignment.Center),
@@ -570,7 +576,7 @@ internal val ToastDemo = ComponentDemo(
                 size = ButtonSize.Small,
             ) { +"With an action" }
             Text(
-                "Three at once is the cap — press faster than they expire.",
+                "Four at once is the cap — press faster than they expire.",
                 style = Theme.typography.labelSmall,
                 colour = Theme.colours.contentMuted,
             )

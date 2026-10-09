@@ -58,6 +58,8 @@ keep the switcher as it was, pass the views: `Header(state, views = listOf(Day, 
 - **The edge arrow, carrying an event with a mouse,** is level with the pointer.
 - **An event calendar's year scrolls up and down** through the years, and a
   screen reader reaches its months, not each of its days.
+- **A toast's clock stops while a mouse rests on it.** A test that hovers a
+  toast and waits for it to go needs to move the pointer away first.
 
 ---
 

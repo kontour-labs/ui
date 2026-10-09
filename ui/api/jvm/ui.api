@@ -3772,6 +3772,15 @@ public final class io/kontour/ui/overlay/ScrimStyle : java/lang/Enum {
 	public static fun values ()[Lio/kontour/ui/overlay/ScrimStyle;
 }
 
+public final class io/kontour/ui/overlay/ToastCountdown : java/lang/Enum {
+	public static final field Bar Lio/kontour/ui/overlay/ToastCountdown;
+	public static final field None Lio/kontour/ui/overlay/ToastCountdown;
+	public static final field Wipe Lio/kontour/ui/overlay/ToastCountdown;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/overlay/ToastCountdown;
+	public static fun values ()[Lio/kontour/ui/overlay/ToastCountdown;
+}
+
 public final class io/kontour/ui/overlay/ToastDefaults {
 	public static final field $stable I
 	public static final field ActionGround F
@@ -3807,7 +3816,7 @@ public final class io/kontour/ui/overlay/ToastHostState {
 }
 
 public final class io/kontour/ui/overlay/ToastKt {
-	public static final fun ToastHost (Lio/kontour/ui/overlay/ToastHostState;Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/ToastPosition;Lio/kontour/ui/overlay/OverlayAlignment;IZLjava/lang/String;Landroidx/compose/foundation/layout/WindowInsets;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ToastHost (Lio/kontour/ui/overlay/ToastHostState;Landroidx/compose/ui/Modifier;Lio/kontour/ui/overlay/ToastPosition;Lio/kontour/ui/overlay/OverlayAlignment;IZLjava/lang/String;Lio/kontour/ui/overlay/ToastCountdown;Landroidx/compose/foundation/layout/WindowInsets;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberToastHostState (Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/overlay/ToastHostState;
 }
 
