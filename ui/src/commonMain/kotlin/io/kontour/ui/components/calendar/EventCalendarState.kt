@@ -69,9 +69,38 @@ class EventCalendarState internal constructor(
 
     /**
      * Every date the current view shows — for loading the events it needs.
-     * A month's includes the days of the months either side its weeks show.
+     * A month's includes the days of the months either side its weeks show,
+     * and whatever weeks either side of it are scrolled into view.
      */
-    val visibleDates: ClosedRange<LocalDate> get() = periods.visibleDates(period, view)
+    val visibleDates: ClosedRange<LocalDate>
+        get() {
+            val dates = periods.visibleDates(period, view)
+            val shown = shownWeeks?.takeIf { view == CalendarView.Month } ?: return dates
+            return minOf(dates.start, shown.start)..maxOf(dates.endInclusive, shown.endInclusive)
+        }
+
+    /** The days of the weeks a scrolling month has on screen, whole weeks; null where it has not said. */
+    internal var shownWeeks: ClosedRange<LocalDate>? by mutableStateOf(null)
+
+    /**
+     * The month a scrolling month was last scrolled to, as [period]: so the
+     * scroll that set it is not answered by scrolling there again.
+     */
+    internal var scrolledTo: Int? = null
+
+    /**
+     * The month at [month], scrolled to: the same day of it where it has one,
+     * its last day where it does not, as [step] keeps it.
+     */
+    internal fun showFromScroll(month: Int) {
+        val first = periods.startOf(month, CalendarView.Month)
+        date = LocalDate(first.year, first.month, minOf(date.day, lengthOfMonth(first)))
+        scrolledTo = month
+        scrolledDate = date
+    }
+
+    /** The day [showFromScroll] last moved to, which the scroll need not bring into view. */
+    internal var scrolledDate: LocalDate? = null
 
     /** Shows [view], about the same day. */
     fun show(view: CalendarView) {

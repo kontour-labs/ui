@@ -50,7 +50,13 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek) {
     }
 
     /** The first day of the week [date] is in. */
-    fun weekStart(date: LocalDate): LocalDate = startOf(indexOf(date, CalendarView.Week), CalendarView.Week)
+    fun weekStart(date: LocalDate): LocalDate = startOfWeek(weekIndex(date))
+
+    /** The index of the single week [date] is in, whatever a week view pages by. */
+    fun weekIndex(date: LocalDate): Int = (date.toEpochDays() - weekZero).floorDiv(DaysPerWeek.toLong()).toInt()
+
+    /** The first day of the single week at [index]. */
+    fun startOfWeek(index: Int): LocalDate = LocalDate.fromEpochDays(weekZero + index.toLong() * DaysPerWeek)
 
     /**
      * Every date the [view] period at [index] shows: a month's whole weeks,

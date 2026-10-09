@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.input.pointer.PointerId
 import io.kontour.ui.components.selection.SliderDefaults
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.scrollBy
 import io.kontour.ui.interaction.detectPickUp
 import io.kontour.ui.interaction.PickUpAxis
@@ -220,24 +221,26 @@ private fun EditWiden(scope: CalendarScope) {
 }
 
 /**
- * While an edit is in hand: the hours scroll when the pointer is near their
- * top or bottom — once it has been away from that edge, so taking hold of an
- * event beside the edge does not run off with it.
+ * While an edit is in hand: [scrollable] scrolls when the pointer is near the
+ * top or bottom of [viewport] — once it has been away from that edge, so
+ * taking hold of an event beside the edge does not run off with it. The hours
+ * for an edit through them; a month's weeks, with [byDays], for one by days.
  */
 @Composable
-private fun EditScroll(scope: CalendarScope, hours: PlacedAt) {
+internal fun EditScroll(scope: CalendarScope, viewport: PlacedAt, scrollable: ScrollableState = scope.state.timeScroll, byDays: Boolean = false) {
+    val hours = viewport
     val edit = scope.edit
     val state = scope.state
     val density = LocalDensity.current
     val zone = with(density) { EdgeZone.toPx() }
     val fastest = with(density) { EdgeSpeed.toPx() }
-    LaunchedEffect(edit) {
+    LaunchedEffect(edit, scrollable) {
         var armed = false
         // How deep into the top or bottom zone the pointer is, -1 to 1, and
         // nothing — not even a frame — while it is not in either.
         snapshotFlow {
             val pointer = edit.lastPointer
-            if (!edit.live || edit.pointer == null || edit.byDays || pointer == null) return@snapshotFlow Float.NaN
+            if (!edit.live || edit.pointer == null || edit.byDays != byDays || pointer == null) return@snapshotFlow Float.NaN
             val box = hours.coordinates?.takeIf { it.isAttached } ?: return@snapshotFlow 0f
             val top = box.localToRoot(Offset.Zero).y
             val bottom = top + box.size.height
@@ -254,7 +257,7 @@ private fun EditScroll(scope: CalendarScope, hours: PlacedAt) {
                     var last = withFrameNanos { it }
                     while (true) {
                         val now = withFrameNanos { it }
-                        state.timeScroll.scrollBy(depth * fastest * (now - last) / NanosPerSecond)
+                        scrollable.scrollBy(depth * fastest * (now - last) / NanosPerSecond)
                         last = now
                         edit.lastPointer?.let(edit::move)
                     }

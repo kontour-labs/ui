@@ -129,7 +129,9 @@ import kotlinx.datetime.toLocalDateTime
  * ### Moving about
  *
  * The header steps a period back and on, goes to today, and switches the view.
- * A sideways swipe steps too, in every view but the year. A day's number, in the
+ * A sideways swipe steps too, in the day and week views; the month scrolls up
+ * and down through its weeks instead, and is about the month most on screen.
+ * A day's number, in the
  * month and in a week's heading, opens that day; a month's name in the year
  * opens that month, and a day in it its day.
  *
@@ -164,8 +166,9 @@ import kotlinx.datetime.toLocalDateTime
  * @param onEventMove An event carried to another time or day — held and
  *   dragged, dragged with a mouse, picked up with Space and moved with the
  *   arrows, or moved by a screen reader's actions — with where it would start
- *   and end. Its length is kept. Held at either side of the days, a carry pages
- *   on to the week or month there and goes on. Null, or an event not
+ *   and end. Its length is kept. Held at either side of a day or week, a carry
+ *   pages on to the one there and goes on; near the top or the foot of a
+ *   month, the weeks scroll with it. Null, or an event not
  *   [CalendarEvent.editable]: it stays where it is.
  * @param onEventResize An event's start or end dragged — by its edge, or with
  *   Shift and the arrows — with its new times, never shorter than [snap]. With

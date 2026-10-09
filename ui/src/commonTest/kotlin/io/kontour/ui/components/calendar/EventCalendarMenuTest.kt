@@ -72,6 +72,7 @@ class EventCalendarMenuTest {
         val creates = mutableListOf<Pair<LocalDateTime, LocalDateTime>>()
         val deletes = mutableListOf<CalendarEvent>()
         val dates = mutableListOf<LocalDate>()
+        lateinit var state: EventCalendarState
     }
 
     private fun ComposeUiTest.calendar(
@@ -92,13 +93,14 @@ class EventCalendarMenuTest {
                         probe.formats = Theme.formats
                         probe.strings = Theme.strings
                         probe.density = LocalDensity.current.density
+                        probe.state = rememberEventCalendarState(
+                            initialDate = wednesday,
+                            initialView = view,
+                            initialScrollTime = LocalTime(8, 0),
+                            firstDayOfWeek = DayOfWeek.MONDAY,
+                        )
                         EventCalendar(
-                            state = rememberEventCalendarState(
-                                initialDate = wednesday,
-                                initialView = view,
-                                initialScrollTime = LocalTime(8, 0),
-                                firstDayOfWeek = DayOfWeek.MONDAY,
-                            ),
+                            state = probe.state,
                             events = events,
                             now = null,
                             onEventMove = if (moves) ({ event, start, end -> probe.moves += Triple(event, start, end) }) else null,
@@ -789,34 +791,46 @@ class EventCalendarMenuTest {
         )
     }
 
-    /** As [aMonthsBarCarriedToTheEdgeGoesOnIntoTheNextMonth], with the slide: two months show the same spare days while it runs. */
+    /**
+     * Carried to the foot of a month, a bar scrolls the weeks up with it, as
+     * the hours do, and is put down in the next month: asked for as *"this
+     * means we can get rid of the little edge arrow in month view when
+     * dragging, and just scroll up/down as we're dragging"*.
+     */
     @Test
-    fun withMotionAMonthsBarGoesOnIntoTheNextMonth() = runComposeUiTest {
+    fun aMonthsBarCarriedToTheFootScrollsOnIntoTheNextMonth() = runComposeUiTest {
         val probe = calendar(view = CalendarView.Month, modality = InputModality.Mouse, reduceMotion = false)
         val bar = boundsOf(trip, probe)
         val cell = 900f * probe.density / DaysPerWeek
         val from = Offset(bar.left + cell / 2f, bar.center.y)
-        val edge = 900f * probe.density - 6f
+        val foot = 900f * probe.density - 12f * probe.density
         onRoot().performMouseInput {
             moveTo(from)
             press()
-            repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
+            repeat(10) { moveTo(Offset(from.x, from.y + (foot - from.y) * (it + 1) / 10f)) }
         }
         mainClock.autoAdvance = false
-        mainClock.advanceTimeBy(1_250)
+        // Held there until the weeks have scrolled on into November, then put
+        // down in the middle of what is on screen.
+        var frames = 0
+        while (probe.state.date.month != kotlinx.datetime.Month.NOVEMBER && frames++ < 200) mainClock.advanceTimeByFrame()
+        assertTrue(frames < 200, "held at the foot, the weeks did not scroll on into November")
         onRoot().performMouseInput {
             val at = currentPosition
-            repeat(10) { moveTo(Offset(at.x - cell * 3f * (it + 1) / 10f, at.y)) }
+            val middle = 560f * probe.density
+            repeat(10) { moveTo(Offset(at.x, at.y + (middle - at.y) * (it + 1) / 10f)) }
             release()
         }
         mainClock.autoAdvance = true
         waitForIdle()
-        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go when the month paged")
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go as the weeks scrolled")
         assertEquals(kotlinx.datetime.Month.NOVEMBER, start.date.month, "the bar did not go on into November: $start")
+        assertEquals(kotlinx.datetime.Month.NOVEMBER, probe.state.date.month, "the month the weeks scrolled to is not the calendar's")
     }
 
+    /** Held at the side of a month, a carry stays where it is: a month pages up and down, not across. */
     @Test
-    fun aMonthsBarCarriedToTheEdgeGoesOnIntoTheNextMonth() = runComposeUiTest {
+    fun aMonthsBarHeldAtTheSideDoesNotPage() = runComposeUiTest {
         val probe = calendar(view = CalendarView.Month, modality = InputModality.Mouse)
         val bar = boundsOf(trip, probe)
         val cell = 900f * probe.density / DaysPerWeek
@@ -828,16 +842,13 @@ class EventCalendarMenuTest {
             repeat(10) { moveTo(Offset(from.x + (edge - from.x) * (it + 1) / 10f, from.y)) }
         }
         mainClock.autoAdvance = false
-        mainClock.advanceTimeBy(1_000)
-        onRoot().performMouseInput {
-            val at = currentPosition
-            repeat(10) { moveTo(Offset(at.x - cell * 3f * (it + 1) / 10f, at.y)) }
-            release()
-        }
+        mainClock.advanceTimeBy(1_500)
+        onRoot().performMouseInput { release() }
         mainClock.autoAdvance = true
         waitForIdle()
-        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry let go when the month paged")
-        assertEquals(kotlinx.datetime.Month.NOVEMBER, start.date.month, "the bar did not go on into November: $start")
+        val (_, start, _) = probe.moves.singleOrNull() ?: error("the carry was let go")
+        assertEquals(LocalDate(2026, 10, 25), start.date, "held at the side, the bar went somewhere other than the last day: $start")
+        assertEquals(kotlinx.datetime.Month.OCTOBER, probe.state.date.month)
     }
 
     /** A bar held, "Adjust time", and its end dragged by a finger: a day longer. */

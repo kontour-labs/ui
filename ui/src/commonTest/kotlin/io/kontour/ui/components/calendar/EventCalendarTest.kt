@@ -212,12 +212,17 @@ class EventCalendarTest {
         assertEquals(LocalDate(2026, 2, 28), probe.state.date)
     }
 
+    /**
+     * A month's visible dates are its whole weeks and whatever weeks are
+     * scrolled into view beside them: six rows, so October's five and the
+     * first week of November under them, which an app loads events for too.
+     */
     @Test
-    fun theVisibleDatesOfAMonthAreItsWholeWeeks() = runComposeUiTest {
+    fun theVisibleDatesOfAMonthAreTheWeeksOnScreen() = runComposeUiTest {
         val probe = calendar()
         val dates = probe.state.visibleDates
         assertEquals(LocalDate(2026, 9, 28), dates.start)
-        assertEquals(LocalDate(2026, 11, 1), dates.endInclusive)
+        assertEquals(LocalDate(2026, 11, 8), dates.endInclusive)
     }
 
     /**

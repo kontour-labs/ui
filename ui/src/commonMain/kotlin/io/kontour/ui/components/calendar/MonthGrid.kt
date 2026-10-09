@@ -25,10 +25,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,14 +71,22 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 
 /**
- * A month of day boxes, a week to a row — every week the month touches, with
- * the days of the months either side in them, quieter — and each box holding
- * as many of its events as fit, and "+N" for the rest.
+ * A month of day boxes, a week to a row, scrolling up and down through the
+ * weeks either side as Apple's calendar does — every row the same height, so
+ * the weeks sit under each other and a day is under its weekday all the way
+ * down — and settling with a week at the top. The month most on screen is the
+ * one the calendar is about; the days of the others are quieter. Each box
+ * holds as many of its events as fit, and "+N" for the rest.
+ *
+ * Carried near the top or bottom, an event scrolls the weeks with it, as the
+ * hours do: there is no page to dwell at the side for.
  */
 @Composable
 internal fun MonthView(scope: CalendarScope) {
-    val pager = scope.pager
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val state = scope.state
+    val periods = state.periods
+    val density = LocalDensity.current
     Column(Modifier.fillMaxWidth()) {
         WeekdayRow(scope)
         val frame = Theme.shapes.container
@@ -88,21 +99,67 @@ internal fun MonthView(scope: CalendarScope) {
                 // than stopping in the open.
                 .clip(frame)
                 .border(Theme.sizing.borderWidth, gridLine(), frame)
-                // Round the pages rather than on one: a page paged away does
-                // not take the keyboard's focus with it.
-                .calendarCursor(scope, description = scope.dayDescription(scope.state.date)) { key -> scope.monthKey(key, rtl) },
+                .calendarCursor(scope, description = scope.dayDescription(state.date)) { key -> scope.monthKey(key, rtl) },
         ) {
-            // Bounded, the weeks share the height; in a scrolling page, each
-            // week is as tall as a date and three events.
-            val bounded = constraints.hasBoundedHeight
-            val minRow = monthRowMinHeight()
-            val swipe = with(pager) { Modifier.swipesPeriods(scope.enabled, scope.edit, scope.touch) }
-            PeriodStrip(pager, Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier).then(swipe)) { month ->
-                MonthPage(scope, month, if (bounded) null else minRow)
+            // Bounded, the rows share the height; in a scrolling page, a row
+            // is as tall as a date and three events, and the box six of them.
+            val viewport = if (constraints.hasBoundedHeight) maxHeight else monthRowMinHeight() * MonthRowsInView
+            val viewportPx = with(density) { viewport.toPx() }
+            val rowPx = floor(viewportPx / MonthRowsInView)
+            val row = with(density) { rowPx.toDp() }
+            val list = rememberMonthList(scope, wholeRows(viewportPx, rowPx), rowPx)
+            val snap = rememberWeekSnap(list)
+            val placed = remember { PlacedAt() }
+            // Each week's events, found once for as long as the events are the same.
+            val byWeek = remember(scope.events, periods) { HashMap<LocalDate, List<CalendarEvent>>() }
+            val gap = Theme.spacing.xxs / 2
+            // Whole rows, so no sliver of a seventh week shows at the foot.
+            val rowsHeight = with(density) { (rowPx * MonthRowsInView).toDp() }
+            Box(Modifier.fillMaxWidth().height(rowsHeight).onGloballyPositioned { placed.coordinates = it }) {
+                LazyColumn(
+                    state = list,
+                    flingBehavior = snap,
+                    userScrollEnabled = scope.enabled,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(WeekRows, key = { it }) { index ->
+                        val weekStart = periods.weekOfRow(index)
+                        val events = byWeek.getOrPut(weekStart) {
+                            scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
+                        }
+                        MonthWeek(scope, weekStart, events, Modifier.fillMaxWidth().height(row))
+                    }
+                }
+                // Where a carried event would land, over the weeks on screen:
+                // from one to the next is travel down.
+                val rows = remember(list, periods) { ListRows(list, periods) }
+                rows.rowPx = rowPx
+                val first by remember(list, periods) { derivedStateOf { periods.weekOfRow(list.firstVisibleItemIndex) } }
+                DaysGhostLayer(
+                    scope,
+                    first,
+                    weeks = MonthRowsInView + 1,
+                    days = DaysPerWeek,
+                    slot = dateLabelHeight() + gap / 2,
+                    item = itemHeight(),
+                    gap = gap,
+                    rows = rows,
+                )
             }
+            EditScroll(scope, placed, list, byDays = true)
         }
     }
-    EditDwell(scope)
+}
+
+/** How many weeks the month shows at once: a whole month, however it falls. */
+internal const val MonthRowsInView = 6
+
+/** A scrolling month's weeks for the copy a carry draws, read as they are laid out. */
+private class ListRows(private val list: LazyListState, private val periods: CalendarPeriods) : GhostRows {
+    var rowPx = 0f
+    override fun start(): LocalDate = periods.weekOfRow(list.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: list.firstVisibleItemIndex)
+    override fun top(): Float = (list.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0).toFloat()
+    override fun height(): Float = rowPx
 }
 
 /** The weekday names over the month's columns: abbreviated, or a letter where they do not fit. */
@@ -144,45 +201,15 @@ private fun itemHeight(): Dp = with(LocalDensity.current) { Theme.typography.lab
 private fun dateLabelHeight(): Dp = with(LocalDensity.current) { Theme.typography.labelMedium.lineHeight.toDp() } + Theme.spacing.xs * 2
 
 @Composable
-private fun MonthPage(scope: CalendarScope, month: Int, rowHeight: Dp?) {
-    val periods = scope.state.periods
-    val dates = periods.visibleDates(month, CalendarView.Month)
-    val weeks = periods.weeksIn(month)
-    val firstOfMonth = periods.startOf(month, CalendarView.Month)
-    val events = remember(scope.events, dates) { scope.eventsBetween(dates.start, dates.endInclusive) }
-    val gap = Theme.spacing.xxs / 2
-    Box(Modifier.fillMaxWidth().then(if (rowHeight == null) Modifier.fillMaxHeight() else Modifier)) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .then(if (rowHeight == null) Modifier.fillMaxHeight() else Modifier)
-                .semantics { collectionInfo = CollectionInfo(rowCount = weeks, columnCount = DaysPerWeek) },
-        ) {
-            for (week in 0 until weeks) {
-                val weekStart = dates.start.plus(week * DaysPerWeek, DateTimeUnit.DAY)
-                val rowModifier = if (rowHeight == null) Modifier.weight(1f) else Modifier.height(rowHeight)
-                MonthWeek(scope, weekStart, firstOfMonth, events, rowModifier.fillMaxWidth())
-            }
-        }
-        // Where a carried event would land, over all the weeks: from one to the next is travel down.
-        DaysGhostLayer(scope, dates.start, weeks, DaysPerWeek, slot = dateLabelHeight() + gap / 2, item = itemHeight(), gap = gap)
-    }
-}
-
-@Composable
 private fun MonthWeek(
     scope: CalendarScope,
     weekStart: LocalDate,
-    firstOfMonth: LocalDate,
-    events: List<CalendarEvent>,
+    weekEvents: List<CalendarEvent>,
     modifier: Modifier,
 ) {
     val item = itemHeight()
     val dateLabel = dateLabelHeight()
     val gap = Theme.spacing.xxs / 2
-    val weekEvents = remember(events, weekStart) {
-        events.filter { it.overlaps(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY)) }
-    }
     val state = scope.state
     val cursorShown = scope.cursorShown
     val ringColour = Theme.colours.focusRing
@@ -252,10 +279,9 @@ private fun MonthWeek(
             )
             .drawWithContent {
             drawContent()
-            // The keyboard's day, over its events, so they do not hide it. Only
-            // in its own month: a page sliding away shows it among its spare days.
+            // The keyboard's day, over its events, so they do not hide it.
             val date = state.date
-            if (!cursorShown || date.month != firstOfMonth.month || date.year != firstOfMonth.year) return@drawWithContent
+            if (!cursorShown) return@drawWithContent
             val column = (date.toEpochDays() - weekStart.toEpochDays()).toInt()
             if (column !in 0 until DaysPerWeek) return@drawWithContent
             val width = size.width / DaysPerWeek
@@ -271,10 +297,13 @@ private fun MonthWeek(
             for (column in 0 until DaysPerWeek) {
                 val date = dayInWeek(weekStart, column)
                 val count = weekEvents.count { it.coversDay(date) }
+                // Whether it is in the month most on screen: only the boxes
+                // whose answer changes are drawn again as the month does.
+                val inMonth by remember(date) { derivedStateOf { state.date.year == date.year && state.date.month == date.month } }
                 DayBox(
                     scope = scope,
                     date = date,
-                    inMonth = date.month == firstOfMonth.month && date.year == firstOfMonth.year,
+                    inMonth = inMonth,
                     count = count,
                     // Only where a row is left for it: a box too short for even
                     // one says how many it has to a screen reader, and no more.
@@ -454,7 +483,17 @@ private fun DayBox(
  * @param item How tall a row's line of events is.
  */
 @Composable
-internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: Int, days: Int, slot: Dp, item: Dp, gap: Dp, line: Int? = null) {
+internal fun DaysGhostLayer(
+    scope: CalendarScope,
+    rowStart: LocalDate,
+    weeks: Int,
+    days: Int,
+    slot: Dp,
+    item: Dp,
+    gap: Dp,
+    line: Int? = null,
+    rows: GhostRows? = null,
+) {
     val edit = scope.edit
     val event = edit.event
     val start = edit.start
@@ -497,9 +536,15 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
         val nowEnd = edit.end
         if (nowStart == null || nowEnd == null || w <= 0 || h <= 0 || weeks <= 0) return@Layout layout(w, h) {}
         val cell = w.toFloat() / days
-        val rowHeight = h.toFloat() / weeks
+        // A scrolling month's rows as they are laid out now, read here so the
+        // first row and where it is are always the same frame's.
+        val rowStart = rows?.start() ?: rowStart
+        val rowHeight = rows?.height()?.takeIf { it > 0f } ?: (h.toFloat() / weeks)
+        val rowsTop = rows?.top() ?: 0f
         // How far down its row the copy is: the line the event was on, or under the date.
-        val y = run {
+        // Measured from the first row's top, which a scrolling month's is
+        // above the layer's by however far it is scrolled into its week.
+        val y = rowsTop + run {
             val top = edit.grabTop
             val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
             if (line != null) {
@@ -508,7 +553,7 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
             } else if (event == null || top == null || page == null) {
                 slotPx
             } else {
-                (top - page).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
+                (top - page - rowsTop).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
             }
         }
         // An end dragged: the bar where it is, but for that end, which
@@ -578,6 +623,17 @@ internal fun DaysGhostLayer(scope: CalendarScope, rowStart: LocalDate, weeks: In
             }
         }
     }
+}
+
+/**
+ * Where a [DaysGhostLayer]'s rows are, where they scroll: the first one's
+ * first day, its top against the layer's — at or above it — and a row's
+ * height, all in pixels and read as the layer is laid out.
+ */
+internal interface GhostRows {
+    fun start(): LocalDate
+    fun top(): Float
+    fun height(): Float
 }
 
 /** The day an event's last minute is on. */
