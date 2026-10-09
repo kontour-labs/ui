@@ -300,7 +300,7 @@ fun EventCalendar(
                 header?.invoke(state)
                 when (state.view) {
                     CalendarView.Month -> MonthView(scope)
-                    CalendarView.Day, CalendarView.Week -> TimeView(scope)
+                    CalendarView.Day, CalendarView.Week, CalendarView.ThreeDays -> TimeView(scope)
                     CalendarView.Year -> YearView(scope)
                 }
             }
@@ -520,10 +520,13 @@ object EventCalendarDefaults {
     fun Header(
         state: EventCalendarState,
         modifier: Modifier = Modifier,
-        views: List<CalendarView> = CalendarView.entries,
+        views: List<CalendarView> = Views,
     ) {
         CalendarHeader(state, modifier, views)
     }
+
+    /** Every view, in the order the header's switcher offers them: a day, three days, a week, a month and a year. */
+    val Views: List<CalendarView> get() = DefaultViews
 
     /**
      * What an event shows inside its box, bar or line: its title, and its time
@@ -594,6 +597,7 @@ internal fun viewName(view: CalendarView): String {
         CalendarView.Week -> strings.week
         CalendarView.Month -> strings.month
         CalendarView.Year -> strings.year
+        CalendarView.ThreeDays -> strings.threeDays
     }
 }
 
@@ -604,7 +608,7 @@ internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, time
         // Long rather than full: the weekday is under it, over the day's hours,
         // and the full date did not fit a phone's header beside its arrows.
         CalendarView.Day -> formats.date(state.date, DateStyle.Long)
-        CalendarView.Week -> {
+        CalendarView.Week, CalendarView.ThreeDays -> {
             val first = formats.monthAndYear(dates.start)
             val last = formats.monthAndYear(dates.endInclusive)
             if (first == last) first else timeRange(first, last)
@@ -620,9 +624,10 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
     val formats = Theme.formats
     val (back, on) = when (state.view) {
         CalendarView.Day -> strings.previousDay to strings.nextDay
-        CalendarView.Week -> strings.previousWeek to strings.nextWeek
+        CalendarView.Week -> if (state.weekCount == 1) strings.previousWeek to strings.nextWeek else strings.previousDays to strings.nextDays
         CalendarView.Month -> strings.previousMonth to strings.nextMonth
         CalendarView.Year -> strings.previousYear to strings.nextYear
+        CalendarView.ThreeDays -> strings.previousDays to strings.nextDays
     }
     val title = periodTitle(state, formats, strings.timeRange)
     val names = views.associateWith { viewName(it) }
@@ -694,10 +699,12 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
 }
 
 /** Wide enough for the title, the arrows and the switcher on one line. */
-private val HeaderOneRowWidth = 600.dp
+private val HeaderOneRowWidth = 680.dp
 
-/** The switcher's width beside the title: four short words with room round them. */
-private val HeaderSwitcherWidth = 320.dp
+/** The switcher's width beside the title: five short words with room round them. */
+private val HeaderSwitcherWidth = 400.dp
+
+private val DefaultViews = listOf(CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month, CalendarView.Year)
 
 @Composable
 private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresentation) {
@@ -849,7 +856,9 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
     val motion = Theme.motion
     val scope = rememberCoroutineScope()
     val view = state.view
-    val periods = remember(view) { PeriodPager(state.period) }
+    // A new pager, a cut, for another view — or the same one counted afresh:
+    // three days, or several weeks, from another day.
+    val periods = remember(view, state.periods) { PeriodPager(state.period) }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val flickPx = with(LocalDensity.current) { MonthFlick.toPx() }
     val stiffness = motion.springSnappy.stiffness

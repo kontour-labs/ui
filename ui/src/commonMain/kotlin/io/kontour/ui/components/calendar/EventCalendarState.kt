@@ -35,7 +35,12 @@ class EventCalendarState internal constructor(
     initialView: CalendarView,
     internal val initialScrollTime: LocalTime,
     firstDayOfWeek: DayOfWeek,
+    initialWeekCount: Int = 1,
 ) {
+    init {
+        require(initialWeekCount in 1..MaxWeekCount) { "A week view shows 1 to $MaxWeekCount weeks, not $initialWeekCount." }
+    }
+
     /** The day the calendar is about: the day itself, or a day in the week, month or year shown. */
     var date: LocalDate by mutableStateOf(initialDate)
         private set
@@ -45,10 +50,27 @@ class EventCalendarState internal constructor(
         private set
 
     /**
-     * The reader's first day of the week, which weeks and month rows start on.
-     * Kept current by [rememberEventCalendarState].
+     * How many weeks the [CalendarView.Week] view shows side by side, 1 to 6:
+     * a fortnight's two, as a planner's, and the steps and swipes go by as
+     * many. Set with [showWeeks].
      */
-    internal var periods: CalendarPeriods by mutableStateOf(CalendarPeriods(firstDayOfWeek))
+    var weekCount: Int by mutableStateOf(initialWeekCount)
+        private set
+
+    /**
+     * The reader's first day of the week, which weeks and month rows start
+     * on, kept current by [rememberEventCalendarState]; and where pages of
+     * several days or weeks start, kept by [show].
+     */
+    internal var periods: CalendarPeriods by mutableStateOf(CalendarPeriods(firstDayOfWeek, initialWeekCount, initialDate.toEpochDays()))
+
+    /** The periods again, with any of what they are counted by changed. */
+    internal fun recount(firstDayOfWeek: DayOfWeek = periods.firstDayOfWeek, weekCount: Int = this.weekCount, anchor: Long = periods.anchor) {
+        val now = periods
+        if (now.firstDayOfWeek != firstDayOfWeek || now.weekCount != weekCount || now.anchor != anchor) {
+            periods = CalendarPeriods(firstDayOfWeek, weekCount, anchor)
+        }
+    }
 
     /** Today, as the calendar was last told — null when it was told nothing. */
     internal var today: LocalDate? by mutableStateOf(null)
@@ -110,15 +132,32 @@ class EventCalendarState internal constructor(
     /** The day [showFromScroll] last moved to, which the scroll need not bring into view. */
     internal var scrolledDate: LocalDate? = null
 
-    /** Shows [view], about the same day. */
+    /**
+     * Shows [view], about the same day. Three days, or several weeks, start
+     * their page at the day, or its week.
+     */
     fun show(view: CalendarView) {
-        this.view = view
+        show(date, view)
     }
 
     /** Shows [date], in [view] — the current one unless given. */
     fun show(date: LocalDate, view: CalendarView = this.view) {
+        // Re-counted only on a change of view: a move within it pages, as a key's does.
+        val anew = view != this.view
         this.date = date
         this.view = view
+        if (anew && (view == CalendarView.ThreeDays || (view == CalendarView.Week && weekCount > 1))) recount(anchor = date.toEpochDays())
+    }
+
+    /**
+     * Shows [count] weeks side by side in the week view — 1 to 6 — from the
+     * week [date] is in. In another view, the week view will show as many
+     * when it is shown.
+     */
+    fun showWeeks(count: Int) {
+        require(count in 1..MaxWeekCount) { "A week view shows 1 to $MaxWeekCount weeks, not $count." }
+        weekCount = count
+        recount(weekCount = count, anchor = date.toEpochDays())
     }
 
     /**
@@ -129,7 +168,7 @@ class EventCalendarState internal constructor(
     fun step(periods: Int) {
         val target = this.periods.startOf(period + periods, view)
         date = when (view) {
-            CalendarView.Day, CalendarView.Week -> {
+            CalendarView.Day, CalendarView.Week, CalendarView.ThreeDays -> {
                 // The same day of the week, the same distance into the period.
                 val into = date.toEpochDays() - this.periods.startOf(period, view).toEpochDays()
                 LocalDate.fromEpochDays(target.toEpochDays() + into)
@@ -162,7 +201,7 @@ class EventCalendarState internal constructor(
         private set
 
     internal companion object {
-        /** The date as an epoch day, the view, the hours' scroll, and how far the month is zoomed. */
+        /** The date as an epoch day, the view, the hours' scroll, how far the month is zoomed, and how many weeks from where. */
         val Saver: Saver<EventCalendarState, Any> = listSaver(
             save = {
                 listOf(
@@ -172,6 +211,8 @@ class EventCalendarState internal constructor(
                     it.initialScrollTime.toSecondOfDay(),
                     it.periods.firstDayOfWeek.ordinal,
                     it.monthRows,
+                    it.weekCount,
+                    it.periods.anchor,
                 )
             },
             restore = { saved ->
@@ -180,11 +221,13 @@ class EventCalendarState internal constructor(
                     initialView = CalendarView.entries[saved[1] as Int],
                     initialScrollTime = LocalTime.fromSecondOfDay(saved[3] as Int),
                     firstDayOfWeek = DayOfWeek.entries[saved[4] as Int],
+                    initialWeekCount = saved.getOrNull(6) as? Int ?: 1,
                 ).also { state ->
                     state.restoredScroll = saved[2] as Int
                     state.scrolledToStart = true
                     // Each added on the end, so what an earlier version saved still restores.
                     (saved.getOrNull(5) as? Float)?.let { state.monthRows = it }
+                    (saved.getOrNull(7) as? Long)?.let { state.recount(anchor = it) }
                 }
             },
         )
@@ -204,6 +247,8 @@ class EventCalendarState internal constructor(
  *   first thing seen is not the small hours.
  * @param firstDayOfWeek The day weeks and month rows start on: the reader's, by
  *   their locale, unless an app has a reason of its own.
+ * @param initialWeekCount How many weeks the week view shows side by side, 1
+ *   to 6, until [EventCalendarState.showWeeks] says otherwise.
  */
 @Composable
 fun rememberEventCalendarState(
@@ -211,12 +256,13 @@ fun rememberEventCalendarState(
     initialView: CalendarView = CalendarView.Month,
     initialScrollTime: LocalTime = EventCalendarDefaults.ScrollTime,
     firstDayOfWeek: DayOfWeek = Theme.formats.conventions.firstDayOfWeek,
+    initialWeekCount: Int = 1,
 ): EventCalendarState {
     val state = rememberSaveable(saver = EventCalendarState.Saver) {
-        EventCalendarState(initialDate, initialView, initialScrollTime, firstDayOfWeek)
+        EventCalendarState(initialDate, initialView, initialScrollTime, firstDayOfWeek, initialWeekCount)
     }
     SideEffect {
-        if (state.periods.firstDayOfWeek != firstDayOfWeek) state.periods = CalendarPeriods(firstDayOfWeek)
+        state.recount(firstDayOfWeek = firstDayOfWeek)
     }
     return state
 }

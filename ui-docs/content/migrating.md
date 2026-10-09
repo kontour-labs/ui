@@ -15,6 +15,50 @@ from the version the app is on.
 
 ---
 
+## 0.4.3 to 0.4.4
+
+Not released yet: what is on `main`. A view of three days joins `CalendarView`,
+and anything built against 0.4.3 has to be rebuilt. An event calendar's month
+scrolls rather than pages, and several of its views look different enough to
+check.
+
+### Before you start
+
+- **Move all three modules at once**: `kontour = "0.4.4"`, and rebuild anything
+  compiled against 0.4.3 — `rememberEventCalendarState` and `Strings` have new
+  parameters.
+
+### A `when` over `CalendarView` has a fifth branch
+
+`CalendarView.ThreeDays` is new, so a `when` that names every view no longer
+compiles. Give it a branch of its own, or put it with the day and the week:
+
+```diff
+  when (view) {
+-     CalendarView.Day, CalendarView.Week -> showHours()
++     CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week -> showHours()
+      CalendarView.Month -> showMonth()
+      CalendarView.Year -> showYear()
+  }
+```
+
+`EventCalendarDefaults.Header` offers it, between the day and the week. To
+keep the switcher as it was, pass the views: `Header(state, views = listOf(Day, Week, Month, Year))`.
+
+### Check
+
+- **An event calendar's month scrolls up and down** by the week, and holds six
+  weeks whatever the month. A month's `visibleDates` covers the weeks on
+  screen, which can be one more than the month's own. An app that loads events
+  by `visibleDates` needs no change.
+- **Overlapping events in the hours** are laid over each other when one starts
+  below the other's title, rather than side by side.
+- **Event titles** are in a slightly smaller type, and fade out where they are
+  cut rather than ending in "…". A busy day's "+N" is a row of its own.
+- **The edge arrow, carrying an event with a mouse,** is level with the pointer.
+
+---
+
 ## 0.4.2 to 0.4.3
 
 From 0.4.2 to 0.4.3, released on 8 October 2026. A sheet's `pinned { }` becomes a `part` with a `pin`, the

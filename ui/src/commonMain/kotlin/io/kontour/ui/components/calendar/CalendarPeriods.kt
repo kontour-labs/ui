@@ -20,33 +20,55 @@ enum class CalendarView {
 
     /** Twelve small months, the busy days marked. */
     Year,
+
+    /**
+     * Three days' hours side by side, from the day the view was shown on and
+     * three at a time from there: between a day and a week, for a phone.
+     */
+    ThreeDays,
 }
 
 /**
  * Each view's periods counted by a plain index, so one pager pages them all:
  * a day's index is its epoch day, a week's the weeks since the first one that
- * starts on [firstDayOfWeek] after 1970-01-01, a month's `year × 12 + month`,
- * a year's itself.
+ * starts on [firstDayOfWeek] after 1970-01-01 — [weekCount] of them at a time,
+ * counted from the week [anchor] is in — three days' the threes from [anchor],
+ * a month's `year × 12 + month`, a year's itself.
+ *
+ * @param anchor An epoch day, where pages of more than one day or week are
+ *   counted from: the day the view was shown on, so its page starts there.
  */
-internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek) {
+internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek, val weekCount: Int = 1, val anchor: Long = 0) {
 
     /** The epoch day of the first day after 1970-01-01, itself included, that starts a week. */
     private val weekZero: Long = (firstDayOfWeek.isoDayNumber - Thursday).mod(DaysPerWeek).toLong()
 
+    /** The single week [anchor] is in, which a week view's pages of several are counted from. */
+    private val anchorWeek: Int = if (weekCount == 1) 0 else weekIndex(LocalDate.fromEpochDays(anchor))
+
     /** The index of the [view] period [date] is in. */
     fun indexOf(date: LocalDate, view: CalendarView): Int = when (view) {
         CalendarView.Day -> date.toEpochDays().toInt()
-        CalendarView.Week -> (date.toEpochDays() - weekZero).floorDiv(DaysPerWeek.toLong()).toInt()
+        CalendarView.Week -> (weekIndex(date) - anchorWeek).floorDiv(weekCount)
         CalendarView.Month -> date.year * MonthsPerYear + date.month.ordinal
         CalendarView.Year -> date.year
+        CalendarView.ThreeDays -> (date.toEpochDays() - anchor).floorDiv(ThreeDaysLong).toInt()
     }
 
     /** The first day of the [view] period at [index]. */
     fun startOf(index: Int, view: CalendarView): LocalDate = when (view) {
         CalendarView.Day -> LocalDate.fromEpochDays(index.toLong())
-        CalendarView.Week -> LocalDate.fromEpochDays(weekZero + index.toLong() * DaysPerWeek)
+        CalendarView.Week -> startOfWeek(anchorWeek + index * weekCount)
         CalendarView.Month -> LocalDate(index.floorDiv(MonthsPerYear), index.mod(MonthsPerYear) + 1, 1)
         CalendarView.Year -> LocalDate(index, 1, 1)
+        CalendarView.ThreeDays -> LocalDate.fromEpochDays(anchor + index.toLong() * ThreeDaysLong)
+    }
+
+    /** How many days side by side the hours of [view] show. */
+    fun daysIn(view: CalendarView): Int = when (view) {
+        CalendarView.Day -> 1
+        CalendarView.ThreeDays -> ThreeDaysLong.toInt()
+        else -> DaysPerWeek * weekCount
     }
 
     /** The first day of the week [date] is in. */
@@ -66,7 +88,7 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek) {
         val start = startOf(index, view)
         return when (view) {
             CalendarView.Day -> start..start
-            CalendarView.Week -> start..start.plus(DaysPerWeek - 1, DateTimeUnit.DAY)
+            CalendarView.Week, CalendarView.ThreeDays -> start..start.plus(daysIn(view) - 1, DateTimeUnit.DAY)
             CalendarView.Month -> {
                 val last = start.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
                 weekStart(start)..weekStart(last).plus(DaysPerWeek - 1, DateTimeUnit.DAY)
@@ -85,3 +107,7 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek) {
 internal const val DaysPerWeek: Int = 7
 private const val MonthsPerYear = 12
 private const val Thursday = 4
+private const val ThreeDaysLong = 3L
+
+/** The most weeks a week view shows side by side. */
+internal const val MaxWeekCount: Int = 6

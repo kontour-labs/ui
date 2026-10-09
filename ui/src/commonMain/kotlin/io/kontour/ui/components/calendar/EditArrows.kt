@@ -45,7 +45,7 @@ import io.kontour.ui.theme.lines
 internal fun BoxScope.EditArrows(scope: CalendarScope) {
     val edit = scope.edit
     // Only where the days page sideways: a month scrolls up and down instead.
-    val sideways = scope.state.view == CalendarView.Day || scope.state.view == CalendarView.Week
+    val sideways = scope.state.view.let { it == CalendarView.Day || it == CalendarView.ThreeDays || it == CalendarView.Week }
     val carrying = sideways && edit.kind == EditKind.Move && edit.pointer != null
     val shown by animateFloatAsState(if (carrying) 1f else 0f, Theme.motion.tweenFast(), label = "editArrows")
     if (!carrying && shown == 0f) return

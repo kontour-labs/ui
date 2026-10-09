@@ -9,6 +9,7 @@ import kotlinx.datetime.DateTimeUnit
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.calendar.rememberEventCalendarState
 import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.EventCalendarDefaults
 import io.kontour.ui.components.calendar.CalendarView
 import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
@@ -463,7 +464,10 @@ internal val ActivityCalendarDemo = ComponentDemo(
 }
 
 /** The view the event calendar opens in; its own switcher changes it too. */
-private val eventCalendarView = Knob.Choice("View", CalendarView.entries.toList(), initial = CalendarView.Month)
+private val eventCalendarView = Knob.Choice("View", EventCalendarDefaults.Views, initial = CalendarView.Month)
+
+/** How many weeks the week view shows side by side. */
+private val eventCalendarWeeks = Knob.Choice("Weeks", listOf(1, 2, 3), initial = 1)
 
 /** A fortnight of a working life, round the demo's today. */
 internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
@@ -484,11 +488,13 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     )
 }
 
-internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView)) {
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks)) {
     val today = LocalDate(2026, 10, 14)
     val view = this[eventCalendarView]
+    val weeks = this[eventCalendarWeeks]
     val calendar = rememberEventCalendarState(initialDate = today, initialView = view)
     LaunchedEffect(view) { calendar.show(view) }
+    LaunchedEffect(weeks) { calendar.showWeeks(weeks) }
     // The demo keeps its events, as an app does, and takes the calendar's edits.
     var events by remember { mutableStateOf(demoCalendarEvents(today)) }
     var made by remember { mutableIntStateOf(100) }

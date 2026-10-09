@@ -97,7 +97,7 @@ import kotlinx.datetime.plus
 internal fun TimeView(scope: CalendarScope) {
     val state = scope.state
     val pager = scope.pager
-    val days = if (state.view == CalendarView.Day) 1 else DaysPerWeek
+    val days = state.periods.daysIn(state.view)
     // As wide as the labels measured ahead, or as they came out once laid
     // out: a font that loads after the first measure — on the web, from a
     // file — sets them wider than the measure ahead knew, and "10 am" wrapped

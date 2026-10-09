@@ -388,6 +388,7 @@ public final class io/kontour/ui/components/calendar/CalendarEvent {
 public final class io/kontour/ui/components/calendar/CalendarView : java/lang/Enum {
 	public static final field Day Lio/kontour/ui/components/calendar/CalendarView;
 	public static final field Month Lio/kontour/ui/components/calendar/CalendarView;
+	public static final field ThreeDays Lio/kontour/ui/components/calendar/CalendarView;
 	public static final field Week Lio/kontour/ui/components/calendar/CalendarView;
 	public static final field Year Lio/kontour/ui/components/calendar/CalendarView;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
@@ -411,6 +412,7 @@ public final class io/kontour/ui/components/calendar/EventCalendarDefaults {
 	public final fun getHourHeight (Landroidx/compose/runtime/Composer;I)F
 	public final fun getScrollTime ()Lkotlinx/datetime/LocalTime;
 	public final fun getSnap-UwyO8pc ()J
+	public final fun getViews ()Ljava/util/List;
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarKt {
@@ -422,15 +424,17 @@ public final class io/kontour/ui/components/calendar/EventCalendarState {
 	public final fun getDate ()Lkotlinx/datetime/LocalDate;
 	public final fun getView ()Lio/kontour/ui/components/calendar/CalendarView;
 	public final fun getVisibleDates ()Lkotlin/ranges/ClosedRange;
+	public final fun getWeekCount ()I
 	public final fun show (Lio/kontour/ui/components/calendar/CalendarView;)V
 	public final fun show (Lkotlinx/datetime/LocalDate;Lio/kontour/ui/components/calendar/CalendarView;)V
 	public static synthetic fun show$default (Lio/kontour/ui/components/calendar/EventCalendarState;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/components/calendar/CalendarView;ILjava/lang/Object;)V
 	public final fun showToday ()V
+	public final fun showWeeks (I)V
 	public final fun step (I)V
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarStateKt {
-	public static final fun rememberEventCalendarState (Lkotlinx/datetime/LocalDate;Lio/kontour/ui/components/calendar/CalendarView;Lkotlinx/datetime/LocalTime;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/calendar/EventCalendarState;
+	public static final fun rememberEventCalendarState (Lkotlinx/datetime/LocalDate;Lio/kontour/ui/components/calendar/CalendarView;Lkotlinx/datetime/LocalTime;Lkotlinx/datetime/DayOfWeek;ILandroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/calendar/EventCalendarState;
 }
 
 public abstract interface class io/kontour/ui/components/calendar/EventMenuScope : io/kontour/ui/overlay/MenuScope {

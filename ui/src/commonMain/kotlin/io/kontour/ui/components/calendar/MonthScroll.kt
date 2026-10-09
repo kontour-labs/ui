@@ -85,7 +85,9 @@ internal fun CalendarPeriods.dominantMonth(rows: List<VisibleRow>, viewport: Int
 internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: Float): LazyListState {
     val state = scope.state
     val periods = state.periods
-    val list = remember(periods) { LazyListState(firstVisibleItemIndex = periods.monthTarget(state.date, rowsInView)) }
+    // Kept as the periods are counted afresh for a week view: only the first
+    // day of the week moves a month's rows.
+    val list = remember(periods.firstDayOfWeek) { LazyListState(firstVisibleItemIndex = periods.monthTarget(state.date, rowsInView)) }
     val motion by rememberUpdatedState(Theme.motion)
     val rows by rememberUpdatedState(rowsInView)
     val row by rememberUpdatedState(rowPx)
