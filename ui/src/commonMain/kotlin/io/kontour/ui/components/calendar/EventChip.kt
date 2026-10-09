@@ -31,6 +31,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -91,6 +96,8 @@ import io.kontour.ui.theme.toneColours
  *   is on its way to, read as it is measured. Laid out at the width of each
  *   frame instead, its title was wrapped again every frame of the ease, and
  *   jumped about. Null: the box's width.
+ * @param stacked Whether it is laid over another event: ringed in the
+ *   surface's colour, so where it starts over the one under it reads as two.
  */
 @Composable
 internal fun EventChip(
@@ -105,6 +112,7 @@ internal fun EventChip(
     focusableOn: ClosedRange<LocalDate>? = null,
     blockHeight: Dp? = null,
     contentWidth: (() -> Int)? = null,
+    stacked: Boolean = false,
 ) {
     val colours = toneColours(event.tone)
     // A block is a box of time, cornered like the library's other small boxes;
@@ -122,6 +130,8 @@ internal fun EventChip(
         presentation == EventPresentation.Block -> BorderStroke(Theme.sizing.borderWidth, colours.border)
         else -> contrastEdge(colours.border)
     }
+    val ring = Theme.colours.surface
+    val ringWidth = Theme.sizing.borderWidthStrong
     val edit = scope.edit
     // The event as it was, while an edit carries it: there, faded, so where it
     // came from stays in view.
@@ -157,6 +167,7 @@ internal fun EventChip(
             Modifier
                 .matchParentSize()
                 .graphicsLayer { alpha = fade.value }
+                .then(if (stacked) Modifier.drawBehind { drawRing(shape, ring, ringWidth.toPx()) } else Modifier)
                 .clip(shape)
                 .background(fill)
                 .then(if (edge != null) Modifier.border(edge, shape) else Modifier),
@@ -190,6 +201,12 @@ internal fun EventChip(
             if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar) { fade.value }
         }
     }
+}
+
+/** A ring [width] wide just outside [shape], round what this draws. */
+private fun DrawScope.drawRing(shape: Shape, colour: Color, width: Float) {
+    val outline = shape.createOutline(Size(size.width + width, size.height + width), layoutDirection, this)
+    translate(-width / 2, -width / 2) { drawOutline(outline, colour, style = Stroke(width)) }
 }
 
 /** How faded the event left behind is while an edit carries it. */

@@ -46,6 +46,72 @@ class CalendarLayoutTest {
 
     // --- Timed lanes ---
 
+    // --- Laid over each other, as Google's calendar does ---
+
+    @Test
+    fun anEventStartingBelowAnothersTitleIsLaidOverItInItsLane() {
+        // 9–11, then 9:30–10:30: half an hour on, below the first's title.
+        val placed = layoutTimedDay(day, listOf(timed(at(9), at(11)), timed(at(9, 30), at(10, 30))), minMinutes = 15, cascadeMinutes = 24)
+        assertEquals(listOf(0, 0), placed.map { it.lane }, "the second went beside the first")
+        assertEquals(listOf(1, 1), placed.map { it.lanes }, "the pair took two lanes")
+        assertEquals(listOf(0, 1), placed.map { it.depth })
+    }
+
+    @Test
+    fun anEventStartingBesideAnothersTitleStillGoesBesideIt() {
+        // A quarter of an hour on: its top would be over the first's title.
+        val placed = layoutTimedDay(day, listOf(timed(at(9), at(11)), timed(at(9, 15), at(10, 30))), minMinutes = 15, cascadeMinutes = 24)
+        assertEquals(listOf(0, 1), placed.map { it.lane })
+        assertEquals(listOf(0, 0), placed.map { it.depth })
+    }
+
+    @Test
+    fun eachLaterOneIsLaidOverTheOneBefore() {
+        val placed = layoutTimedDay(
+            day,
+            listOf(timed(at(9), at(12)), timed(at(9, 30), at(11, 30)), timed(at(10), at(11))),
+            minMinutes = 15,
+            cascadeMinutes = 24,
+        )
+        assertEquals(listOf(0, 1, 2), placed.map { it.depth })
+        assertEquals(setOf(1), placed.map { it.lanes }.toSet())
+    }
+
+    @Test
+    fun aLaneFreeForItIsTakenBeforeLayingItOverAnother() {
+        // 9–12 and 9–9:30 side by side; at 10 the second lane is free again.
+        val placed = layoutTimedDay(
+            day,
+            listOf(timed(at(9), at(12)), timed(at(9), at(9, 30)), timed(at(10), at(11))),
+            minMinutes = 15,
+            cascadeMinutes = 24,
+        )
+        assertEquals(listOf(0, 1, 1), placed.map { it.lane })
+        assertEquals(listOf(0, 0, 0), placed.map { it.depth })
+    }
+
+    @Test
+    fun withoutCascadingTheLanesAreAsTheyWere() {
+        val events = listOf(
+            timed(at(9), at(12)), timed(at(9, 30), at(11, 30)), timed(at(10), at(11)),
+            timed(at(13), at(14)), timed(at(13, 10), at(13, 50)), timed(at(15), at(15)),
+        )
+        val placed = layoutTimedDay(day, events, minMinutes = 15)
+        assertEquals(listOf(0, 1, 2, 0, 1, 0), placed.map { it.lane })
+        assertEquals(setOf(0), placed.map { it.depth }.toSet())
+    }
+
+    @Test
+    fun oneLaidOverAnotherIsInFromItAndNeverMoreThanHalfway() {
+        val parent = TimedPlacement(timed(at(9), at(11)), 540, 660, lane = 0, lanes = 1, clippedStart = false, clippedEnd = false)
+        val child = TimedPlacement(timed(at(9, 30), at(10)), 570, 600, lane = 0, lanes = 1, clippedStart = false, clippedEnd = false, depth = 1)
+        val deep = TimedPlacement(timed(at(9, 30), at(10)), 570, 600, lane = 0, lanes = 1, clippedStart = false, clippedEnd = false, depth = 4)
+        assertEquals(0f to 100f, timedAcross(parent, 100f, gap = 0f, indent = 16f))
+        assertEquals(16f to 84f, timedAcross(child, 100f, gap = 0f, indent = 16f))
+        // Four deep at 16 would be 64 in; it stops at half.
+        assertEquals(50f to 50f, timedAcross(deep, 100f, gap = 0f, indent = 16f))
+    }
+
     @Test
     fun eventsThatDoNotOverlapTakeTheWholeWidth() {
         val placed = layoutTimedDay(day, listOf(timed(at(9), at(10)), timed(at(10), at(11))), minMinutes = 15)

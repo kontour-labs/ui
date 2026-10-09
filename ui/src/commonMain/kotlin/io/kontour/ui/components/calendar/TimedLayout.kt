@@ -14,6 +14,9 @@ import kotlinx.datetime.LocalDate
  * @property clippedStart Whether it began on an earlier day: its top edge is
  *   not its start, so it has no corner there and no handle to move it by.
  * @property clippedEnd The same at the bottom, for one that runs past midnight.
+ * @property depth How many events it is laid over in its lane: 0 for one with
+ *   the lane to itself, 1 for one that starts below the title of the event
+ *   it is on, and so on — drawn a little in from it, over it.
  */
 internal class TimedPlacement(
     val event: CalendarEvent,
@@ -24,6 +27,7 @@ internal class TimedPlacement(
     val clippedStart: Boolean,
     val clippedEnd: Boolean,
     val span: Int = 1,
+    val depth: Int = 0,
 )
 
 /**
@@ -47,8 +51,17 @@ internal fun CalendarEvent.isTimed(): Boolean =
  * first lane free when it starts. Every event in a cluster is as narrow as the
  * cluster's widest moment needs, so a long event beside two short ones in turn
  * takes half, not a third.
+ *
+ * With [cascadeMinutes], an event that starts that long or more after every
+ * event still going in a lane — below their titles — is laid over them in it,
+ * a [TimedPlacement.depth] deeper, rather than given a lane of its own, as a
+ * day in Google's calendar is: asked for as *"if the text doesn't overlap,
+ * then the event partially overlaps"*. In a week's narrow column a lane each
+ * left an afternoon of three meetings a letter wide apiece. A lane free for it
+ * is still taken first, and one that starts beside another, before its title
+ * is done, still goes beside it. Null: a lane each, side by side.
  */
-internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinutes: Int): List<TimedPlacement> {
+internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinutes: Int, cascadeMinutes: Int? = null): List<TimedPlacement> {
     val dayStart = day.atMidnight.epochMinute
     val dayEnd = dayStart + MinutesPerDay
 
@@ -67,20 +80,24 @@ internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinu
     }.sortedWith(compareBy<Segment>({ it.start }, { -(it.end - it.start) }, { it.index }))
 
     val placed = ArrayList<TimedPlacement>(segments.size)
-    var cluster = ArrayList<Pair<Segment, Int>>()
-    val laneEnds = ArrayList<Int>()
+
+    class InLane(val segment: Segment, val lane: Int, val depth: Int)
+
+    var cluster = ArrayList<InLane>()
+    // What each lane of the cluster holds, ended or not.
+    val lanes = ArrayList<ArrayList<InLane>>()
     var clusterEnd = Int.MIN_VALUE
 
     fun close() {
-        val lanes = laneEnds.size
-        for ((segment, lane) in cluster) {
+        val count = lanes.size
+        for (item in cluster) {
+            val segment = item.segment
             val event = segment.event
             // On across the next lanes for as long as nothing in them meets it.
             var span = 1
-            while (lane + span < lanes) {
-                val next = lane + span
-                val blocked = cluster.any { (other, otherLane) ->
-                    otherLane == next && other.start < segment.visualEnd && segment.start < other.visualEnd
+            while (item.lane + span < count) {
+                val blocked = lanes[item.lane + span].any { other ->
+                    other.segment.start < segment.visualEnd && segment.start < other.segment.visualEnd
                 }
                 if (blocked) break
                 span++
@@ -89,29 +106,63 @@ internal fun layoutTimedDay(day: LocalDate, events: List<CalendarEvent>, minMinu
                 event = event,
                 start = segment.start,
                 end = segment.end,
-                lane = lane,
-                lanes = lanes,
+                lane = item.lane,
+                lanes = count,
                 clippedStart = event.start.epochMinute < dayStart,
                 clippedEnd = event.end.epochMinute > dayEnd,
                 span = span,
+                depth = item.depth,
             )
         }
         cluster = ArrayList()
-        laneEnds.clear()
+        lanes.clear()
     }
 
     for (segment in segments) {
         if (cluster.isNotEmpty() && segment.start >= clusterEnd) close()
-        var lane = laneEnds.indexOfFirst { it <= segment.start }
-        if (lane < 0) {
-            lane = laneEnds.size
-            laneEnds += segment.visualEnd
-        } else {
-            laneEnds[lane] = segment.visualEnd
+        fun going(lane: Int) = lanes[lane].filter { it.segment.visualEnd > segment.start }
+        var lane = lanes.indices.firstOrNull { going(it).isEmpty() } ?: -1
+        var depth = 0
+        if (lane < 0 && cascadeMinutes != null) {
+            // Over the lane whose latest event it starts below the title of —
+            // and below the title of everything else still going there.
+            var latest = Int.MIN_VALUE
+            for (candidate in lanes.indices) {
+                val there = going(candidate)
+                if (there.any { segment.start - it.segment.start < cascadeMinutes }) continue
+                val start = there.maxOf { it.segment.start }
+                if (start > latest) {
+                    latest = start
+                    lane = candidate
+                    depth = there.maxOf { it.depth } + 1
+                }
+            }
         }
-        cluster += segment to lane
+        if (lane < 0) {
+            lane = lanes.size
+            lanes += ArrayList<InLane>()
+        }
+        val item = InLane(segment, lane, depth)
+        lanes[lane] += item
+        cluster += item
         clusterEnd = if (cluster.size == 1) segment.visualEnd else maxOf(clusterEnd, segment.visualEnd)
     }
     if (cluster.isNotEmpty()) close()
     return placed
 }
+
+/**
+ * Where [p] goes across a day [width] wide, as its start and its width: its
+ * lanes' share of the day, less [gap], and in from its start by [indent] for
+ * each event it is laid over — never more than half its lanes' width in all,
+ * so a deep pile still leaves the top one half the room.
+ */
+internal fun timedAcross(p: TimedPlacement, width: Float, gap: Float, indent: Float): Pair<Float, Float> {
+    val lane = width / p.lanes
+    val share = lane * p.span
+    val inset = if (p.depth == 0) 0f else p.depth * minOf(indent, share * MaxCascadeShare / p.depth)
+    return (p.lane * lane + inset + gap / 2) to (share - inset - gap)
+}
+
+/** The most of its lanes' width an event laid over others is in from their start. */
+private const val MaxCascadeShare = 0.5f

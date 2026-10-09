@@ -671,7 +671,15 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
     // quarter-hour event an hour tall.
     val minMinutes = minOf(scope.edit.stepMinutes, ShortestDrawnMinutes)
     val minChipPx = minMinutes * hourPx / MinutesPerHour
-    val placements = remember(scope.events, date, minMinutes) { layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes) }
+    // An event that starts below the title of the one it overlaps is laid
+    // over it, not beside it: see `layoutTimedDay`. Its title's line and its
+    // margin, in minutes at this hour's height.
+    val titlePx = with(density) { Theme.typography.labelMedium.lineHeight.toPx() + Theme.spacing.xxs.toPx() * 2 }
+    val cascadeMinutes = ceil(titlePx * MinutesPerHour / hourPx).toInt()
+    val placements = remember(scope.events, date, minMinutes, cascadeMinutes) {
+        layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes, cascadeMinutes)
+    }
+    val indentPx = with(density) { CascadeIndent.toPx() }
     val now = scope.now?.takeIf { it.date == date }?.time
     val click by rememberUpdatedState(scope.onTimeClick)
     val step = TapStepMinutes
@@ -727,8 +735,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                         contentWidth = {
                             val width = across.px.toFloat()
                             val opening = edit.widened == placement.event.id && edit.widen.targetValue == 1f
-                            (if (opening) width - gapPx else width / placement.lanes * placement.span - gapPx).roundToInt()
+                            (if (opening) width - gapPx else timedAcross(placement, width, gapPx, indentPx).second).roundToInt()
                         },
+                        stacked = placement.depth > 0,
                     )
                 }
             }
@@ -858,12 +867,10 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         val f = if (wide == null) 0f else edit.widen.value
         // Its lane, or — for the one in focus — between its lane and the whole day.
         fun across(p: TimedPlacement): Pair<Float, Float> {
-            val lane = width.toFloat() / p.lanes
-            val x = p.lane * lane + gapPx / 2
-            val w = lane * p.span - gapPx
+            val (x, w) = timedAcross(p, width.toFloat(), gapPx, indentPx)
             if (p.event.id != wide) return x to w
             // Where it opens out from, for the copy an edit draws to open out from too.
-            if (width > 0) edit.widenedLane = (p.lane * lane) / width to (lane * p.span) / width
+            if (width > 0) edit.widenedLane = (x - gapPx / 2) / width to (w + gapPx) / width
             if (f == 0f) return x to w
             return (x + (gapPx / 2 - x) * f) to (w + (width - gapPx - w) * f)
         }
@@ -878,12 +885,19 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
             placeables.forEachIndexed { i, placeable ->
                 val p = all[i]
                 val x = across(p).first
-                // Over the others while it is widened, and while it narrows back.
-                placeable.placeRelative(x.roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt(), zIndex = if (p.event.id == wide) 1f else 0f)
+                // Over the others while it is widened, and while it narrows
+                // back; one laid over another above it, and first to a press.
+                placeable.placeRelative(x.roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt(), zIndex = if (p.event.id == wide) WidenedZ else p.depth.toFloat())
             }
         }
     }
 }
+
+/** How far in an event laid over another is from its start edge. */
+private val CascadeIndent = 16.dp
+
+/** Above any pile of events laid over each other: the one widened to its day. */
+private const val WidenedZ = 1_000f
 
 /** A width in pixels kept from measuring, for what is measured inside to read. Not state: written in layout, read in layout. */
 private class MeasuredWidth {
