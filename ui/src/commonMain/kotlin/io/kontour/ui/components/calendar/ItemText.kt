@@ -171,10 +171,26 @@ private fun DetailedItem(event: CalendarEvent, lines: Int, dot: Boolean) {
         if (dot) add(formats.time(event.start.time))
         event.location?.let(::add)
     }.take(lines - 1)
+    val gap = Theme.spacing.xxs
     Column(Modifier.padding(horizontal = Theme.spacing.xxs)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-            if (dot) Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
-            FadingText(event.title, style)
+        // The dot only where it leaves the title its room, as a line's is.
+        Layout(
+            content = {
+                if (dot) Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
+                FadingText(event.title, style)
+            },
+        ) { measurables, constraints ->
+            val gapPx = gap.roundToPx()
+            val titleM = measurables.last()
+            val dotP = if (measurables.size > 1) measurables.first().measure(Constraints()) else null
+            val shown = dotP?.takeIf { constraints.maxWidth - it.width - gapPx >= (style.fontSize.toPx() * MinTitleEms).toInt() }
+            val used = if (shown != null) shown.width + gapPx else 0
+            val titleP = titleM.measure(Constraints(maxWidth = (constraints.maxWidth - used).coerceAtLeast(0)))
+            val height = maxOf(titleP.height, shown?.height ?: 0)
+            layout(constraints.constrainWidth(used + titleP.width), height) {
+                shown?.placeRelative(0, (height - shown.height) / 2)
+                titleP.placeRelative(used, (height - titleP.height) / 2)
+            }
         }
         for (line in rest) FadingText(line, style, colour = if (dot) muted else Color.Unspecified)
     }

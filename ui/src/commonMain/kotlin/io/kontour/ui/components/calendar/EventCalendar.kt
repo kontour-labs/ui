@@ -192,6 +192,9 @@ import kotlinx.datetime.toLocalDateTime
  * @param snap The step every edit moves in: a quarter-hour by default. A whole
  *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
+ * @param daysStyle How the day, three-day and week views lay their days out:
+ *   the hours with the all-day events above them, the all-day events in a
+ *   pane of their own beside the hours, or every event stacked with no hours.
  * @param formats How dates, times and numbers are written: the theme's.
  * @param header Above the calendar: by default [EventCalendarDefaults.Header],
  *   with the title, the arrows, today and the view switcher. Null for none — an
@@ -217,6 +220,7 @@ fun EventCalendar(
     onEventDelete: ((event: CalendarEvent) -> Unit)? = null,
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
+    daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
     formats: LocaleFormats = Theme.formats,
     eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
     emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
@@ -263,6 +267,7 @@ fun EventCalendar(
         menus = LocalOverlayHostOrNull.current != null,
         eventMenu = eventMenu,
         emptyMenu = emptyMenu,
+        daysStyle = daysStyle,
     )
     // The days a pointer's day can be: the ones on show, not a page sliding away.
     SideEffect { edit.shown = { state.visibleDates } }
@@ -348,6 +353,7 @@ internal class CalendarScope(
     val menus: Boolean,
     val eventMenu: (@Composable EventMenuScope.(CalendarEvent) -> Unit)?,
     val emptyMenu: (@Composable EmptyMenuScope.(LocalDateTime, LocalDateTime) -> Unit)?,
+    val daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable

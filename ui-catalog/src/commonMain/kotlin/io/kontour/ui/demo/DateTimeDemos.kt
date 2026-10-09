@@ -11,6 +11,7 @@ import io.kontour.ui.components.calendar.rememberEventCalendarState
 import io.kontour.ui.components.calendar.EventCalendar
 import io.kontour.ui.components.calendar.EventCalendarDefaults
 import io.kontour.ui.components.calendar.CalendarView
+import io.kontour.ui.components.calendar.CalendarDaysStyle
 import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
@@ -469,6 +470,9 @@ private val eventCalendarView = Knob.Choice("View", EventCalendarDefaults.Views,
 /** How many weeks the week view shows side by side. */
 private val eventCalendarWeeks = Knob.Choice("Weeks", listOf(1, 2, 3), initial = 1)
 
+/** How the day, three-day and week views lay their days out. */
+private val eventCalendarDays = Knob.Choice("Days", CalendarDaysStyle.entries.toList(), initial = CalendarDaysStyle.Hours)
+
 /** A fortnight of a working life, round the demo's today. */
 internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     fun at(days: Int, hour: Int, minute: Int = 0) = LocalDateTime(today.plus(days, DateTimeUnit.DAY), LocalTime(hour, minute))
@@ -488,7 +492,7 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     )
 }
 
-internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks)) {
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays)) {
     val today = LocalDate(2026, 10, 14)
     val view = this[eventCalendarView]
     val weeks = this[eventCalendarWeeks]
@@ -535,6 +539,7 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
             events = events.filterNot { it.id == event.id }
             echo("${event.title} deleted")
         },
+        daysStyle = this[eventCalendarDays],
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )
 }

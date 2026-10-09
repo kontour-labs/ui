@@ -120,13 +120,8 @@ internal fun TimeView(scope: CalendarScope) {
     val frame = Theme.shapes.container
     val cursor = scope.slotDescription(state.date, state.cursorMinute?.let { scope.cursorMinute { it } })
 
-    Column(Modifier.fillMaxWidth().then(swipe)) {
-        Row(Modifier.fillMaxWidth()) {
-            Spacer(Modifier.width(gutter))
-            PeriodStrip(pager, Modifier.weight(1f)) { period -> DayHeadings(scope, period, days) }
-        }
-        AllDayStrip(scope, gutter, days)
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+    val hoursView: @Composable (Modifier) -> Unit = { boxModifier ->
+        BoxWithConstraints(boxModifier.fillMaxWidth()) {
             // In a page that scrolls, the hours have no height to fill: a working
             // day's worth of them, scrolling within.
             val viewport = if (constraints.hasBoundedHeight) Modifier.fillMaxHeight() else Modifier.height(scope.hourHeight * UnboundedHours)
@@ -152,6 +147,49 @@ internal fun TimeView(scope: CalendarScope) {
                         DayColumns(scope, period, days)
                         TimeGhost(scope, period, days)
                     }
+                }
+            }
+        }
+    }
+
+    val style = scope.daysStyle
+    Column(Modifier.fillMaxWidth().then(swipe)) {
+        Row(Modifier.fillMaxWidth()) {
+            // No hours, no gutter: the days have the width.
+            if (style != CalendarDaysStyle.Condensed) Spacer(Modifier.width(gutter))
+            PeriodStrip(pager, Modifier.weight(1f)) { period -> DayHeadings(scope, period, days) }
+        }
+        when (style) {
+            CalendarDaysStyle.Hours -> {
+                AllDayStrip(scope, gutter, days)
+                hoursView(Modifier.weight(1f, fill = false))
+            }
+            CalendarDaysStyle.Condensed -> {
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                    val height = if (constraints.hasBoundedHeight) maxHeight else scope.hourHeight * UnboundedHours
+                    CondensedDays(scope, days, Modifier.height(height))
+                }
+            }
+            CalendarDaysStyle.Split -> {
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                    val total = if (constraints.hasBoundedHeight) maxHeight else scope.hourHeight * UnboundedHours
+                    val totalPx = with(LocalDensity.current) { total.toPx() }
+                    val pane = remember { PlacedAt() }
+                    Column(Modifier.fillMaxWidth().height(total)) {
+                        // Every all-day event, in a pane of its own that scrolls.
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(total * state.splitShare)
+                                .onGloballyPositioned { pane.coordinates = it }
+                                .verticalScroll(state.allDayScroll, flingBehavior = ScrollDefaults.flingBehavior()),
+                        ) {
+                            AllDayStrip(scope, gutter, days, maxRows = Int.MAX_VALUE, always = true)
+                        }
+                        SplitHandle(state.splitShare, totalPx) { state.splitShare = it }
+                        hoursView(Modifier.weight(1f))
+                    }
+                    EditScroll(scope, pane, state.allDayScroll, byDays = true)
                 }
             }
         }
@@ -502,7 +540,7 @@ private val WeekdayHeadingWidth = 48.dp
 
 /** What takes the whole day, above the hours: as bars across their days. */
 @Composable
-private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
+private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int, maxRows: Int = AllDayRows, always: Boolean = false) {
     val state = scope.state
     val start = state.periods.startOf(state.period, state.view)
     val end = start.plus(days - 1, DateTimeUnit.DAY)
@@ -511,7 +549,7 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
     // seen in, whatever week it is carried into.
     val edit = scope.edit
     val carrying = edit.live && edit.byDays
-    if (!any && !carrying) return
+    if (!any && !carrying && !always) return
     val item = with(LocalDensity.current) { Theme.typography.labelSmall.lineHeight.toDp() } + Theme.spacing.xxs * 2
     Row(Modifier.fillMaxWidth()) {
         // No label beside it: the bars say what they are, and "All day" was
@@ -521,7 +559,7 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
             val from = state.periods.startOf(period, state.view)
             val to = from.plus(days - 1, DateTimeUnit.DAY)
             val pack = remember(scope.events, from, days) {
-                packWeek(weekItems(from, scope.eventsBetween(from, to), lines = false, days = days), maxRows = AllDayRows, days = days)
+                packWeek(weekItems(from, scope.eventsBetween(from, to), lines = false, days = days), maxRows = maxRows, days = days)
             }
             val held = (pack.placed.maxOfOrNull { it.row } ?: -1) + 1 + if (pack.more.any { it > 0 }) 1 else 0
             // Carried into a week it is not in, the bar is given a line of its

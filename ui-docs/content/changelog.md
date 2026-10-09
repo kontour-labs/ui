@@ -33,6 +33,7 @@ On `main`, and in the next release.
 ### Added
 
 - **An [event calendar](components/event-calendar.md) shows three days**, `CalendarView.ThreeDays`: their hours side by side, from the day it was switched to, stepped and swiped three days at a time. The header's switcher offers it between the day and the week; `EventCalendarDefaults.Views` is the switcher's order. New strings: `threeDays`, `previousDays`, `nextDays`.
+- **An [event calendar](components/event-calendar.md) lays out its days three ways**, `daysStyle`: `CalendarDaysStyle.Hours`, as before; `Split`, every all-day event in a pane of its own above the hours with a divider between them to drag; and `Condensed`, no hours, each day's events stacked in a list down the days.
 - **An [event calendar](components/event-calendar.md)'s week view shows several weeks at once**: `state.showWeeks(count)`, 1 to 6, or `rememberEventCalendarState(initialWeekCount = …)`, from the week the date is in. Steps and swipes go by as many weeks. `state.weekCount` says how many; it is kept with the state.
 
 - **An [event calendar](components/event-calendar.md)'s month zooms**: two fingers spread show fewer weeks, each taller, down to three to the box; pinched, more, up to six. Ctrl or Cmd with the wheel, or with plus and minus, steps a week, and a screen reader has Zoom in and Zoom out. Zoomed in, an event shows its time and where it is on lines of their own. The zoom is kept with the state. New strings: `zoomIn`, `zoomOut`.

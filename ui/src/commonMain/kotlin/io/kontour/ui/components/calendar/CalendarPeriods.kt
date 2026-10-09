@@ -29,6 +29,32 @@ enum class CalendarView {
 }
 
 /**
+ * How an [EventCalendar]'s day, three-day and week views lay their days out.
+ */
+enum class CalendarDaysStyle {
+    /**
+     * The hours, each event as tall as its time, with the all-day events in a
+     * strip above them: three rows at most, and a "+N" for the rest.
+     */
+    Hours,
+
+    /**
+     * The hours below, and every all-day event above them in a pane of its
+     * own that scrolls, with no "+N": a divider between them sets how much of
+     * the height each has.
+     */
+    Split,
+
+    /**
+     * No hours: each day's events — all-day ones as bars across their days,
+     * timed ones as a line with their time — stacked in a list down the days,
+     * that scrolls. As many days as the view shows, side by side, so a week
+     * view of two weeks is a fortnight's plan at a glance.
+     */
+    Condensed,
+}
+
+/**
  * Each view's periods counted by a plain index, so one pager pages them all:
  * a day's index is its epoch day, a week's the weeks since the first one that
  * starts on [firstDayOfWeek] after 1970-01-01 — [weekCount] of them at a time,

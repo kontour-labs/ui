@@ -363,6 +363,15 @@ public final class io/kontour/ui/components/action/ToolbarKt {
 	public static final fun VerticalToolbar-Gdeddnk (Landroidx/compose/ui/Modifier;Landroidx/compose/ui/graphics/Shape;JLio/kontour/ui/theme/Shadow;FLandroidx/compose/foundation/layout/Arrangement$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class io/kontour/ui/components/calendar/CalendarDaysStyle : java/lang/Enum {
+	public static final field Condensed Lio/kontour/ui/components/calendar/CalendarDaysStyle;
+	public static final field Hours Lio/kontour/ui/components/calendar/CalendarDaysStyle;
+	public static final field Split Lio/kontour/ui/components/calendar/CalendarDaysStyle;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/calendar/CalendarDaysStyle;
+	public static fun values ()[Lio/kontour/ui/components/calendar/CalendarDaysStyle;
+}
+
 public final class io/kontour/ui/components/calendar/CalendarEvent {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Object;Ljava/lang/String;Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lio/kontour/ui/theme/Tone;Ljava/lang/String;Ljava/lang/String;Z)V
@@ -416,7 +425,7 @@ public final class io/kontour/ui/components/calendar/EventCalendarDefaults {
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarKt {
-	public static final fun EventCalendar-kgGJHIk (Lio/kontour/ui/components/calendar/EventCalendarState;Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;JFLio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
+	public static final fun EventCalendar-_4lb-lE (Lio/kontour/ui/components/calendar/EventCalendarState;Ljava/util/List;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;JFLio/kontour/ui/components/calendar/CalendarDaysStyle;Lio/kontour/ui/locale/LocaleFormats;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function5;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/calendar/EventCalendarState {

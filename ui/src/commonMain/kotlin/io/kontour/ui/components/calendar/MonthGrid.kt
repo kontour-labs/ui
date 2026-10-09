@@ -282,69 +282,11 @@ private fun MonthWeek(
     val cursorShown = scope.cursorShown
     val ringColour = Theme.colours.focusRing
     val ringWidth = Theme.sizing.focusRingWidth
-    val edit = scope.edit
     val placed = remember { PlacedAt() }
-    val isTouch by rememberUpdatedState(scope.touch)
-    val creates = scope.enabled && scope.onCreateRequest != null
-    // A day's menu, the calendar's "New event" or an app's own.
-    val offers = scope.hasMenu(null, edges = false)
-    val holds = creates || offers || (scope.enabled && scope.onEventMove != null)
-    val nearReach = with(LocalDensity.current) { NearReach.toPx() }
     BoxWithConstraints(
         modifier
             .onGloballyPositioned { placed.coordinates = it }
-            .then(
-                if (holds) {
-                    // A finger held in a day: the event it is beside — a month's
-                    // line is under half a fingertip tall — or else a new event.
-                    Modifier.pointerInput(edit, weekStart) {
-                        var taking: PointerId? = null
-                        detectPickUp(
-                            axis = PickUpAxis.Free,
-                            immediate = { false },
-                            givesWay = true,
-                            accepts = { at ->
-                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at)
-                                isTouch && (root == null || !edit.eventAt(root))
-                            },
-                            onPointer = { taking = it },
-                            onPickUp = { at ->
-                                val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
-                                val near = edit.eventNear(root, nearReach)
-                                if (near != null && scope.movable(near.event)) {
-                                    scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true, edges = near.edges)
-                                    return@detectPickUp
-                                }
-                                if (!creates && !offers) return@detectPickUp
-                                edit.beginCreateDays(root)
-                                if (!edit.live) return@detectPickUp
-                                // Taken up to draw out days only where there are days to make.
-                                if (creates) taking?.let { edit.take(it, root, hold = true) }
-                                edit.pickedUp()
-                                scope.openMenu(root, null, edges = false)
-                            },
-                            // The calendar follows the carry from here: see `carriesEdits`.
-                            onCarry = { _, _ -> },
-                            onPutDown = {},
-                            onCancel = {},
-                        )
-                    }
-                } else {
-                    Modifier
-                },
-            )
-            .then(
-                if (offers) {
-                    Modifier.secondaryClick { at ->
-                        val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
-                        if (edit.live) return@secondaryClick
-                        edit.beginCreateDays(root)
-                        scope.openMenu(root, null, edges = false)
-                    }
-                } else {
-                    Modifier
-                },
-            )
+            .holdsDays(scope, placed, weekStart)
             .drawWithContent {
             drawContent()
             // The keyboard's day, over its events, so they do not hide it.
@@ -407,6 +349,74 @@ private fun MonthWeek(
             )
         }
     }
+}
+
+/**
+ * A finger held in a box of days: the event it is beside — a month's line is
+ * under half a fingertip tall — or else a new day, or days, drawn out; and a
+ * mouse's secondary click, the days' menu. [placed] is where the box is, and
+ * [key] what it shows, so the hold starts afresh for other days.
+ */
+@Composable
+internal fun Modifier.holdsDays(scope: CalendarScope, placed: PlacedAt, key: Any): Modifier {
+    val edit = scope.edit
+    val isTouch by rememberUpdatedState(scope.touch)
+    val creates = scope.enabled && scope.onCreateRequest != null
+    // A day's menu, the calendar's "New event" or an app's own.
+    val offers = scope.hasMenu(null, edges = false)
+    val holds = creates || offers || (scope.enabled && scope.onEventMove != null)
+    val nearReach = with(LocalDensity.current) { NearReach.toPx() }
+    return this
+        .then(
+            if (holds) {
+                Modifier.pointerInput(edit, key) {
+                    var taking: PointerId? = null
+                    detectPickUp(
+                        axis = PickUpAxis.Free,
+                        immediate = { false },
+                        givesWay = true,
+                        accepts = { at ->
+                            val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at)
+                            isTouch && (root == null || !edit.eventAt(root))
+                        },
+                        onPointer = { taking = it },
+                        onPickUp = { at ->
+                            val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@detectPickUp
+                            val near = edit.eventNear(root, nearReach)
+                            if (near != null && scope.movable(near.event)) {
+                                scope.takeUp(near.event, root, near.byDays, near.coordinates.localToRoot(Offset.Zero).y, taking, hold = true, edges = near.edges)
+                                return@detectPickUp
+                            }
+                            if (!creates && !offers) return@detectPickUp
+                            edit.beginCreateDays(root)
+                            if (!edit.live) return@detectPickUp
+                            // Taken up to draw out days only where there are days to make.
+                            if (creates) taking?.let { edit.take(it, root, hold = true) }
+                            edit.pickedUp()
+                            scope.openMenu(root, null, edges = false)
+                        },
+                        // The calendar follows the carry from here: see `carriesEdits`.
+                        onCarry = { _, _ -> },
+                        onPutDown = {},
+                        onCancel = {},
+                    )
+                }
+            } else {
+                Modifier
+            },
+        )
+        .then(
+            if (offers) {
+                Modifier.secondaryClick { at ->
+                    val root = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(at) ?: return@secondaryClick
+                    if (edit.live) return@secondaryClick
+                    edit.beginCreateDays(root)
+                    scope.openMenu(root, null, edges = false)
+                }
+            } else {
+                Modifier
+            },
+        )
 }
 
 /** Whether any of this event is on [date]. */

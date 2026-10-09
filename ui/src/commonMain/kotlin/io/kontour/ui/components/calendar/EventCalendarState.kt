@@ -109,6 +109,12 @@ class EventCalendarState internal constructor(
      */
     internal var monthRows: Float by mutableFloatStateOf(MonthRowsInView.toFloat())
 
+    /** In [CalendarDaysStyle.Split], how much of the height the all-day pane has. */
+    internal var splitShare: Float by mutableFloatStateOf(DefaultSplitShare)
+
+    /** The scroll of the all-day pane in [CalendarDaysStyle.Split]. */
+    internal val allDayScroll = ScrollState(0)
+
     /** The days of the weeks a scrolling month has on screen, whole weeks; null where it has not said. */
     internal var shownWeeks: ClosedRange<LocalDate>? by mutableStateOf(null)
 
@@ -213,6 +219,7 @@ class EventCalendarState internal constructor(
                     it.monthRows,
                     it.weekCount,
                     it.periods.anchor,
+                    it.splitShare,
                 )
             },
             restore = { saved ->
@@ -228,6 +235,7 @@ class EventCalendarState internal constructor(
                     // Each added on the end, so what an earlier version saved still restores.
                     (saved.getOrNull(5) as? Float)?.let { state.monthRows = it }
                     (saved.getOrNull(7) as? Long)?.let { state.recount(anchor = it) }
+                    (saved.getOrNull(8) as? Float)?.let { state.splitShare = it }
                 }
             },
         )
@@ -271,6 +279,9 @@ private fun lengthOfMonth(first: LocalDate): Int {
     val next = if (first.month.ordinal == 11) LocalDate(first.year + 1, 1, 1) else LocalDate(first.year, first.month.ordinal + 2, 1)
     return (next.toEpochDays() - LocalDate(first.year, first.month, 1).toEpochDays()).toInt()
 }
+
+/** The all-day pane's share of the height in a split, to start with. */
+internal const val DefaultSplitShare = 0.3f
 
 /** One [EventCalendarState.showToday]: which, and whether it had to page to get there. */
 internal class TodayRequest(val serial: Int, val paged: Boolean)

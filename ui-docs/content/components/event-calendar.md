@@ -59,6 +59,14 @@ three at a time. The week view shows one week, or several side by side —
 `state.showWeeks(2)` for a fortnight, up to six, or `initialWeekCount` — and
 steps by as many.
 
+`daysStyle` lays out the day, three-day and week views' days:
+
+| `CalendarDaysStyle` | What it draws |
+|---|---|
+| `Hours` | The hours, with the all-day events in a strip above them, three rows at most and a "+N" for the rest. The default. |
+| `Split` | The hours below and every all-day event above them, in a pane of its own that scrolls, with no "+N". The divider between them is dragged to give either more of the height, a tenth to seven tenths of it, and a screen reader sets it as a range. |
+| `Condensed` | No hours: each day's events stacked down the days in a list that scrolls — all-day ones as bars across their days, timed ones as their title over their time — packed the way a month's week is but with no limit. A day's empty space opens it. With `showWeeks(2)`, a fortnight's plan at a glance. |
+
 | View | What it draws |
 |---|---|
 | `Day`, `ThreeDays`, `Week` | The hours, an hour `hourHeight` tall, one scroll shared by the week so a time is level across it. All-day events and anything a day or longer sit in a strip above the hours. Overlapping events share a day's column side by side, and run on across the lanes beside them wherever those are free. One that starts below the title of an event it overlaps — about twenty minutes on, at the default height — is laid over it instead, a little in from its start edge and ringed in the surface's colour, as Google's calendar does, so a busy afternoon in a narrow week is still readable; where they overlap, a press is the later one's; every event is drawn as tall as its time, so an hour is the same height whatever is in it and a quarter-hour's edge is on the quarter: at the default 64dp an hour, a quarter-hour is 16dp, with its title on one line in the small type. A title wraps over as many lines as its event is tall, a long word broken where it must be, and a title, time or place cut short on its last line fades out. An event with no length is drawn a step tall. Each event is a box in its tone, edged as a banner is. A line marks the time now, on today. The hours sit in a rounded box with their labels beside it — `9 am` on a twelve-hour clock, the clock's own `09:00` on a twenty-four-hour one, each on one line, the column widening if a font loaded late sets them wider — and open scrolled to `initialScrollTime`, eight in the morning by default. |
