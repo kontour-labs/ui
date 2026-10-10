@@ -57,6 +57,7 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A floating [bottom sheet](components/bottom-sheet.md) no longer draws its shadow again on every frame it is dragged.** Its surface changes height as it moves, and its two blurred shadow layers were rasterised again with it each frame: measured on an Android phone at 25% janky frames and a 150ms p99, against 5% for an edge sheet. The shadow is drawn behind it in pieces that keep their size and only move, and looks the same.
 - **A decoration on a day in the band of a [date range](components/date-range-picker.md) keeps its colours.** It took the band's ink, which read as grey.
 - **Today's ring stays a circle inside a [date range](components/date-range-picker.md).** It was the outline of the band's square day, and drew a pill the width of it.
 - **Something picked up with a long press and let go where it was is not also tapped.** A [reorderable](components/reorderable-item.md) row or a [drag source](drag-and-drop.md) with its own click, held until it lifted and let go without moving, also clicked; moved first, it did not, so it happened only sometimes.

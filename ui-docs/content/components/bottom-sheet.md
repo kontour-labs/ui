@@ -314,6 +314,15 @@ is two frames around one thing; tried on a phone, it did not feel right. Ask for
 at every size, or for `Floating` on a modal one. The side sheets are always flush
 to their edge.
 
+**A floating sheet costs about what an edge sheet does to drag.** Its bottom edge
+is seen, so its surface changes height on every frame it moves, and its shadow —
+two blurred layers — used to be drawn again with it each frame: an app measured
+25% janky frames dragging one on an Android phone, against 5% for an edge sheet,
+and switched to edge sheets to get rid of them. The shadow is drawn behind the
+surface now in pieces that keep their size and only move, cut where the sides
+are straight, so it looks the same and is drawn once. What a drag still redraws
+is the surface's own colour and outline, which is a shape, not a blur.
+
 ```kotlin
 val search = rememberSheetState(
     // No `Hidden`, so there is nowhere to be swiped away to.

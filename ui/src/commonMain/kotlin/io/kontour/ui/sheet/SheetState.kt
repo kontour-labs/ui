@@ -951,6 +951,13 @@ class SheetState internal constructor(
         private set
 
     /**
+     * How many times a floating sheet's shadow has been recorded: an increment
+     * in each of its pieces' layers, so the suite can ask whether a drag
+     * re-rasterises it. See `FloatingShadow`.
+     */
+    internal var shadowRecords: Int = 0
+
+    /**
      * The measurements the current anchors were built from, in whole pixels.
      *
      * Anchors depend on the container, the content, the peek anchor and the

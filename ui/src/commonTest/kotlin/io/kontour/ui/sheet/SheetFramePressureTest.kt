@@ -157,17 +157,18 @@ class SheetFramePressureTest {
      * it back to 0: the content is rasterised once and composited, and only the
      * surface's background and shadow redraw.
      *
-     * The surface's own re-record is not counted here and is not free: it is one
-     * node with two blurred `dropShadow` layers, re-rasterised per frame of a
-     * drag. `countPhases` cannot be put on it from a test — it is private — so
-     * this measures what it can and the rest is written down rather than
-     * asserted. It is the price of the presentation, paid only by callers who
-     * ask for it.
+     * **Nor its shadow.** The surface used to draw it, two blurred `dropShadow`
+     * layers re-rasterised on every frame of a drag because the surface changes
+     * height on every frame — most of a floating sheet's frame on a phone, where
+     * an app measured 25% janky frames dragging one against 5% for an edge
+     * sheet. It is drawn behind the surface now, in pieces that keep their size,
+     * so a drag records it no more than an edge sheet's: see `FloatingShadow`.
      */
     @Test
     fun aFloatingSheetStillCostsItsContentNothingToMove() {
         var frames = 0
         var travelled = 0f
+        var shadowRecords = 0
         val counts = PhaseCounts()
 
         runComposeUiTest {
@@ -189,6 +190,7 @@ class SheetFramePressureTest {
             visible = true
             repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
             counts.reset()
+            val recordedBefore = sheet.shadowRecords
 
             val startedAt = sheet.offset
             repeat(DraggedFrames) { step ->
@@ -197,6 +199,7 @@ class SheetFramePressureTest {
                 frames++
             }
             travelled = abs(sheet.offset - startedAt)
+            shadowRecords = sheet.shadowRecords - recordedBefore
         }
 
         assertTrue(
@@ -207,6 +210,7 @@ class SheetFramePressureTest {
 
         assertBudget("measured", counts.measures, frames)
         assertBudget("drawn", counts.draws, frames)
+        assertBudget("shadow recorded", shadowRecords, frames)
     }
 
     /**

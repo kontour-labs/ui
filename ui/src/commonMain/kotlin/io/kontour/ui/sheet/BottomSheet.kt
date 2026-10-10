@@ -1,5 +1,8 @@
 package io.kontour.ui.sheet
 
+import io.kontour.ui.foundation.elevation
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import kotlinx.coroutines.flow.collectLatest
@@ -1279,6 +1282,10 @@ private fun BoxScope.SheetSurface(
     // The room the parts near the top corners keep from them, for the roundest
     // corners this sheet will have: see [SheetCornerRoom].
     val room = rememberSheetCornerRoom(shape, expandedShape.takeIf { morph != null })
+    val shadow = Theme.elevation.overlay
+    // A floating sheet's shadow is drawn behind it in pieces that never change
+    // size, rather than by the surface, which does: see [FloatingShadow].
+    if (floating) FloatingShadow(state, shadow, drawnShape)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1371,7 +1378,7 @@ private fun BoxScope.SheetSurface(
         containerColour = containerColour,
         contentColour = contentColour,
         border = contrastEdge(),
-        shadow = Theme.elevation.overlay,
+        shadow = if (floating) Shadow.None else shadow,
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {
             val pins = remember(state) { SheetPins() }
@@ -2431,6 +2438,92 @@ private fun Modifier.floatingSides(
         constraints.constrainHeight(placeable.height),
     ) { placeable.place(left, 0) }
 }.consumeWindowInsets(floatInsets.only(WindowInsetsSides.Horizontal))
+
+/**
+ * A floating sheet's shadow, drawn behind its surface in pieces that keep their
+ * size while the sheet moves.
+ *
+ * **The surface cannot carry it.** A floating sheet's bottom edge is seen, pinned
+ * a margin off the window's, so the surface is exactly as tall as the sheet is
+ * visible and changes height on every frame of a drag. A shadow drawn by a node
+ * that changes size is rasterised again each time — two blurred layers, sixty
+ * times a second — and that was most of a floating sheet's frame: measured on an
+ * Android phone by an app that had to switch to edge sheets to get rid of it,
+ * 25% janky frames dragging a floating sheet against 5% for an edge one, with a
+ * 150ms p99.
+ *
+ * So it is two shadows of shapes that never change size. One is as tall as the
+ * window and hangs from the sheet's top edge; the other is [pieceHeight] tall and
+ * stands on the pinned bottom. Each is cut where it is straight — halfway up the
+ * bottom one, which is further from either end than a corner and the blur reach
+ * — and along a straight side a shadow is the same at any height, so the two meet
+ * without a seam. Each piece is a layer of its own, recorded once and then only
+ * moved; the cut is the one thing redrawn, and it is a clip.
+ *
+ * A sheet shorter than the bottom piece has no straight run to cut along, and is
+ * given one shadow its own size, as it always was.
+ */
+@Composable
+private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Shape) {
+    if (shadow.layers.isEmpty()) return
+    val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
+    val pieceHeight = (FloatingShadowCorner + shadow.bleed) * 2
+    // Where the two pieces meet, from the sheet's top: written in layout, read
+    // in draw, so a frame of a drag redraws the clip and nothing else.
+    val cut = remember { mutableFloatStateOf(0f) }
+    val whole = remember { mutableStateOf(false) }
+    // A piece's shadow, in a layer of its own so it is recorded once.
+    fun Modifier.piece() = graphicsLayer().drawBehind { state.shadowRecords++ }.then(raised)
+    Layout(
+        modifier = Modifier.matchParentSize(),
+        content = {
+            // From the top: everything above the cut.
+            Box(
+                Modifier.drawWithContent {
+                    if (whole.value) return@drawWithContent
+                    clipRect(left = -size.width, top = -size.height, right = size.width * 2, bottom = cut.floatValue) {
+                        this@drawWithContent.drawContent()
+                    }
+                }
+            ) { Box(Modifier.fillMaxSize().piece()) }
+            // From the bottom: everything below it.
+            Box(
+                Modifier.drawWithContent {
+                    if (whole.value) return@drawWithContent
+                    clipRect(left = -size.width, top = size.height / 2f, right = size.width * 2, bottom = size.height * 3) {
+                        this@drawWithContent.drawContent()
+                    }
+                }
+            ) { Box(Modifier.fillMaxSize().piece()) }
+            // A sheet too short to cut: its own size.
+            Box(Modifier.drawWithContent { if (whole.value) drawContent() }) {
+                Box(Modifier.fillMaxSize().piece())
+            }
+        },
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val piece = pieceHeight.roundToPx()
+        val tall = maxOf(state.containerHeight.roundToInt(), height)
+        val short = height < piece
+        whole.value = short
+        cut.floatValue = (height - piece / 2f)
+        val top = measurables[0].measure(Constraints.fixed(width, tall))
+        val bottom = measurables[1].measure(Constraints.fixed(width, piece))
+        val own = measurables[2].measure(Constraints.fixed(width, height))
+        layout(width, height) {
+            top.place(0, 0)
+            bottom.place(0, height - piece)
+            own.place(0, 0)
+        }
+    }
+}
+
+/**
+ * Generous for a floating sheet's corner: what the bottom piece of
+ * [FloatingShadow] keeps clear of on each side of its cut, with the blur's reach.
+ */
+private val FloatingShadowCorner = 48.dp
 
 /**
  * A morphing sheet's content, held at the width it had while the sheet floated.
