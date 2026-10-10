@@ -48,6 +48,12 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md)'s titles show more of themselves.** A month's line is in a slightly smaller type, and in a narrow day gives up its time, then its dot, before its title. A title cut short fades out instead of ending in "…". In the hours a title wraps over every line its event is tall, not two. A busy day's "+N" is a row the size of its events, in line with them, rather than text under them; in the week's all-day strip too.
 - **An [event calendar](components/event-calendar.md)'s arrow at the side of the days is level with a mouse's pointer** while an event is carried. It was 40dp above it, which is for a fingertip; under a finger it still is.
 - **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
+- **A [bottom sheet](components/bottom-sheet.md)'s content fades out a little higher above a part pinned to its foot**, 24dp rather than 16dp, so the buttons read as standing over what scrolls behind them.
+
+### Fixed
+
+- **Something picked up with a long press and let go where it was is not also tapped.** A [reorderable](components/reorderable-item.md) row or a [drag source](drag-and-drop.md) with its own click, held until it lifted and let go without moving, also clicked; moved first, it did not, so it happened only sometimes.
+- **The discs behind a hero [top bar](components/top-bar.md)'s actions follow the collapse after the screen is come back to.** A screen left part-way down its scroll and navigated back to kept the discs as faint as they were when it was left, or gone, however far back up it was scrolled.
 
 ## 0.4.3 — 8 October 2026
 

@@ -71,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
@@ -448,7 +449,13 @@ private fun HeroBar(
     }
     val dotsReserve = if (dotCount < 2) 0.dp else dotsWidth + HeroDotsGap
     val insetTop = with(LocalDensity.current) { windowInsets.getTop(this).toDp() }
-    val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - progress() } }
+    // Through the latest `progress`, not the first: a `remember`ed lambda keeps
+    // what it closed over, and the first composition's closed over the
+    // `collapseProgress` of that frame. A screen come back to is composed again
+    // part-way down, so the discs behind the actions stayed at that frame's
+    // opacity — or none — however far the reader then scrolled.
+    val latestProgress by rememberUpdatedState(progress)
+    val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - latestProgress() } }
     val solid = highContrast()
     val reduce = Theme.motion.reduceMotion
     val rise = HeroFadeRise

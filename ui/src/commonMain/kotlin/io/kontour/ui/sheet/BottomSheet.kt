@@ -2109,10 +2109,9 @@ private class BottomOf(private val safeArea: PaddingValues) : PaddingValues {
  * Under a top part, solid where the slot is and thinning out over its inner
  * [FadeUnderInside], gone [FadeUnderOutside] past it — what a
  * [TopBar][io.kontour.ui.nav.TopBar]'s `fadeUnder` draws over a page. Under a
- * bottom part, what a floating [NavBar][io.kontour.ui.nav.NavBar] draws: solid
- * from the part's middle down, thinning out over [FadeAboveBottom] above it —
- * asked for as content that *"should fade underneath the search bar, exactly
- * the same as how nav currently forces it"*.
+ * bottom part, as a floating [NavBar][io.kontour.ui.nav.NavBar] does: solid
+ * from the part's middle down, thinning out over [FadeAboveBottom] above it,
+ * which reaches a little higher than the bar's own.
  *
  * Behind the slot's own content, so a search field's ground and its words are
  * drawn whole over it; only what passes behind fades. At high contrast a line
@@ -2143,7 +2142,7 @@ private fun Modifier.slotGround(ground: Color, fade: Boolean, contentBelow: Bool
                 )
             } else {
                 // A bottom part: solid from its middle down, thinning out
-                // upwards to [FadeAboveBottom] above it, as a navigation bar.
+                // upwards to [FadeAboveBottom] above it.
                 val to = size.height / 2f
                 val above = FadeAboveBottom.toPx()
                 drawRect(ground, topLeft = Offset(0f, to), size = Size(size.width, size.height - to))
@@ -2162,8 +2161,12 @@ private val FadeUnderInside = 12.dp
 /** How far past a top part the fade reaches, so it has no line. */
 private val FadeUnderOutside = 4.dp
 
-/** How far above a bottom part the fade reaches: a floating navigation bar's. */
-private val FadeAboveBottom = 16.dp
+/**
+ * How far above a bottom part the fade reaches. A floating navigation bar's
+ * 16dp started too low under a sheet's buttons: content still read clearly
+ * right up to their edge, so the part looked laid on top rather than pinned.
+ */
+private val FadeAboveBottom = 24.dp
 
 /**
  * A sheet's header: laid out as the content is, under the handle and in from

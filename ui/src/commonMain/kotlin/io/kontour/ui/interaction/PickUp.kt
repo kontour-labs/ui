@@ -160,6 +160,21 @@ internal suspend fun PointerInputScope.detectPickUp(
         }
 
         while (true) {
+            // **Let go of, it is put down before anything under it hears the
+            // release.** Main runs from the innermost node out, so a row's own
+            // `clickable` — inside this node, which is on the row — saw the
+            // release first, unconsumed, and clicked: a hold put straight back
+            // down was also a tap. Moving hid it, because a tap gives up on a
+            // movement consumed by the time Final comes round; holding still and
+            // letting go did not, which is why it was "sometimes". On Initial,
+            // outermost first, the release is spent before the click looks.
+            val first = awaitPointerEvent(PointerEventPass.Initial)
+                .changes.firstOrNull { it.id == down.id }
+            if (first != null && !first.pressed && !first.isConsumed) {
+                first.consume()
+                onPutDown()
+                break
+            }
             val event = awaitPointerEvent(PointerEventPass.Main)
             val change = event.changes.firstOrNull { it.id == down.id }
             if (change == null || change.isConsumed) {
