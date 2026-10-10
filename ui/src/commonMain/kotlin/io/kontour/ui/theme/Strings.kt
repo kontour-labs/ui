@@ -415,6 +415,8 @@ data class Strings(
     val previousDays: String = "Previous days",
     /** An event calendar's header button that steps on by the days a view shows. */
     val nextDays: String = "Next days",
+    /** An event calendar's header button that opens a menu of its views, as what pressing it does. */
+    val chooseView: String = "Choose a view",
 ) {
     companion object {
         /**
@@ -528,6 +530,7 @@ data class Strings(
         threeDays = lookup.text("threeDays") ?: fallback.threeDays,
         previousDays = lookup.text("previousDays") ?: fallback.previousDays,
         nextDays = lookup.text("nextDays") ?: fallback.nextDays,
+        chooseView = lookup.text("chooseView") ?: fallback.chooseView,
         chooseMonthAndYear = lookup.text("chooseMonthAndYear") ?: fallback.chooseMonthAndYear,
         resizePanes = lookup.text("resizePanes") ?: fallback.resizePanes,
         navigation = lookup.text("navigation") ?: fallback.navigation,
@@ -757,6 +760,7 @@ internal fun Strings.mapped(transform: (String) -> String): Strings = Strings(
     threeDays = transform(threeDays),
     previousDays = transform(previousDays),
     nextDays = transform(nextDays),
+    chooseView = transform(chooseView),
     chooseMonthAndYear = transform(chooseMonthAndYear),
     resizePanes = transform(resizePanes),
     navigation = transform(navigation),

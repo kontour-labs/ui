@@ -44,6 +44,8 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md)'s events can have an icon**: `CalendarEvent(icon = …)`, before the title in a block or a bar and in place of the dot in a line, given up before the title where a day is narrow.
 - **An [event calendar](components/event-calendar.md) can show only all-day and multi-day events**: `showTimedEvents = false`. Its days are stacked with no hours, the day view's too.
 
+- **An [event calendar](components/event-calendar.md) can leave views out**: `EventCalendar(views = …)`. The switcher offers only those, and a day opened without a day view opens the nearest view there is. **Its header can offer the views in a menu**: `EventCalendarDefaults.Header(state, switcher = CalendarSwitcher.Dropdown)`. New string: `chooseView`.
+
 ### Changed
 
 - **A [toast](components/toast.md)'s clock stops while a mouse's pointer rests on it**, as it already did while a finger held the stack, so one being read is not taken away.

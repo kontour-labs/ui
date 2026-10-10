@@ -12,6 +12,7 @@ import io.kontour.ui.components.calendar.EventCalendar
 import io.kontour.ui.components.calendar.EventCalendarDefaults
 import io.kontour.ui.components.calendar.CalendarView
 import io.kontour.ui.components.calendar.CalendarDaysStyle
+import io.kontour.ui.components.calendar.CalendarSwitcher
 import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
@@ -491,6 +492,12 @@ private val eventCalendarDays = Knob.Choice("Days", CalendarDaysStyle.entries.to
 /** Off, only the all-day events and those a day or longer. */
 private val eventCalendarTimed = Knob.Flag("Timed events", initial = true)
 
+/** How the header offers the views. */
+private val eventCalendarSwitcher = Knob.Choice("Switcher", CalendarSwitcher.entries.toList(), initial = CalendarSwitcher.Segmented)
+
+/** Off, the calendar has no day view: a day opened shows its week. */
+private val eventCalendarDayView = Knob.Flag("Day view", initial = true)
+
 /** A fortnight of a working life, round the demo's today. */
 internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     fun at(days: Int, hour: Int, minute: Int = 0) = LocalDateTime(today.plus(days, DateTimeUnit.DAY), LocalTime(hour, minute))
@@ -510,7 +517,9 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
     )
 }
 
-internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays, eventCalendarTimed)) {
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays, eventCalendarTimed, eventCalendarSwitcher, eventCalendarDayView)) {
+    val switcher = this[eventCalendarSwitcher]
+    val views = if (this[eventCalendarDayView]) EventCalendarDefaults.Views else EventCalendarDefaults.Views - CalendarView.Day
     val today = LocalDate(2026, 10, 14)
     val view = this[eventCalendarView]
     val weeks = this[eventCalendarWeeks]
@@ -559,6 +568,8 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
         },
         daysStyle = this[eventCalendarDays],
         showTimedEvents = this[eventCalendarTimed],
+        views = views,
+        header = { EventCalendarDefaults.Header(it, switcher = switcher) },
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )
 }

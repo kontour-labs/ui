@@ -1,5 +1,11 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.ui.semantics.onClick
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.Button
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -196,6 +202,10 @@ import kotlinx.datetime.toLocalDateTime
  * @param daysStyle How the three-day and week views lay their days out: the
  *   hours with the all-day events above them, or every event stacked with no
  *   hours. The day view always has its hours.
+ * @param views The views the calendar offers: its switcher's, in its order,
+ *   and the only ones it can be in. A day pressed in a calendar without its day
+ *   view opens the nearest view it has — three days, or the week — and a state
+ *   in a view not offered is moved to the nearest that is. At least one.
  * @param showTimedEvents Off, the calendar shows only all-day events and
  *   those a day or longer — a plan of trips and leave rather than of meetings —
  *   and the day, three-day and week views stack them with no hours, as
@@ -228,6 +238,7 @@ fun EventCalendar(
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
     showTimedEvents: Boolean = true,
+    views: List<CalendarView> = EventCalendarDefaults.Views,
     formats: LocaleFormats = Theme.formats,
     eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
     emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
@@ -240,6 +251,11 @@ fun EventCalendar(
         "EventCalendar: `snap` is $snap, and every edit moves in whole steps of it through a day — give it a whole " +
             "number of minutes that divides a day: 5, 10, 15, 30 or 60 minutes."
     }
+    require(views.isNotEmpty()) { "EventCalendar: `views` is empty, and a calendar has to show something. Give it at least one view." }
+    // Before anything reads the view: a state in a view not offered moves to
+    // the nearest that is, rather than drawing one frame of it.
+    if (state.allowedViews != views) state.allowedViews = views
+    if (state.view !in views) state.show(state.offered(state.view) ?: views.first())
     val today = now?.date
     SideEffect { state.today = today }
     val pager = rememberCalendarPager(state)
@@ -531,16 +547,20 @@ object EventCalendarDefaults {
      * The calendar's header: the period's title, back and on, today, and the
      * view switcher. On a narrow window the switcher takes a row of its own.
      *
-     * @param views The views the switcher offers, in its order. One view, or
-     *   none, and there is no switcher.
+     * @param views The views the switcher offers, in its order — of those the
+     *   calendar offers, its `views`. One view, or none, and there is no
+     *   switcher.
+     * @param switcher How the views are offered: side by side, or in a menu
+     *   from a button that names the one on show. See [CalendarSwitcher].
      */
     @Composable
     fun Header(
         state: EventCalendarState,
         modifier: Modifier = Modifier,
         views: List<CalendarView> = Views,
+        switcher: CalendarSwitcher = CalendarSwitcher.Segmented,
     ) {
-        CalendarHeader(state, modifier, views)
+        CalendarHeader(state, modifier, views, switcher)
     }
 
     /**
@@ -641,7 +661,9 @@ internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, time
 }
 
 @Composable
-private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views: List<CalendarView>) {
+private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked: List<CalendarView>, style: CalendarSwitcher) {
+    // Only what the calendar offers, whatever the header was asked for.
+    val views = asked.filter { it in state.allowedViews }
     val strings = Theme.strings
     val formats = Theme.formats
     val (back, on) = when (state.view) {
@@ -661,7 +683,8 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
         // and a week, rather than stack five views in a column; but not while
         // it is the one on show.
         val views = if (
-            views == DefaultViews && constraints.hasBoundedWidth && maxWidth < FiveViewsWidth && state.view != CalendarView.ThreeDays
+            style == CalendarSwitcher.Segmented && views == DefaultViews && constraints.hasBoundedWidth &&
+            maxWidth < FiveViewsWidth && state.view != CalendarView.ThreeDays
         ) {
             views - CalendarView.ThreeDays
         } else {
@@ -695,7 +718,9 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
             }
         }
         val switcher = @Composable { switcherModifier: Modifier ->
-            if (views.size > 1) {
+            if (views.size > 1 && style == CalendarSwitcher.Dropdown) {
+                ViewMenu(state, views, names)
+            } else if (views.size > 1) {
                 SegmentedControl(
                     value = state.view,
                     options = views,
@@ -705,7 +730,18 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
                 )
             }
         }
-        if (oneRow) {
+        // A menu's button is narrow enough to sit beside the arrows on a phone.
+        if (style == CalendarSwitcher.Dropdown) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                modifier = Modifier.padding(bottom = Theme.spacing.sm),
+            ) {
+                titleText(Modifier.weight(1f))
+                arrows()
+                switcher(Modifier)
+            }
+        } else if (oneRow) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
@@ -726,6 +762,33 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
                     arrows()
                 }
                 switcher(Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+/**
+ * The views as a button naming the one on show, which opens a menu of them with
+ * that one ticked: [CalendarSwitcher.Dropdown].
+ */
+@Composable
+private fun ViewMenu(state: EventCalendarState, views: List<CalendarView>, names: Map<CalendarView, String>) {
+    var open by remember { mutableStateOf(false) }
+    val strings = Theme.strings
+    Box {
+        Button(
+            onClick = { open = true },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+            // Read as the view on show, and what pressing it does.
+            modifier = Modifier.semantics { onClick(label = strings.chooseView) { open = true; true } },
+        ) {
+            +names.getValue(state.view)
+            +SystemIcons.ChevronDown
+        }
+        DropdownMenu(visible = open, onDismissRequest = { open = false }, alignment = OverlayAlignment.End) {
+            for (view in views) {
+                item(label = names.getValue(view), selected = view == state.view) { state.show(view) }
             }
         }
     }

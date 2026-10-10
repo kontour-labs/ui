@@ -131,3 +131,16 @@ private const val ThreeDaysLong = 3L
 
 /** The most weeks a week view shows side by side. */
 internal const val MaxWeekCount: Int = 6
+
+/** How an [EventCalendarDefaults.Header] offers the views. */
+enum class CalendarSwitcher {
+    /** Side by side, each a segment: every view in sight. The default. */
+    Segmented,
+
+    /**
+     * A button naming the view on show, which opens a menu of them: narrow
+     * enough to sit beside the arrows on a phone, and for a calendar with more
+     * views than a segmented control has room for.
+     */
+    Dropdown,
+}

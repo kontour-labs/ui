@@ -186,8 +186,18 @@ still be pressed.
 
 `header` replaces the default `EventCalendarDefaults.Header`, or is null for
 none — an app with its own top bar drives the state from there instead.
-`EventCalendarDefaults.Header(state, views = …)` can also limit the switcher to
-the views you offer.
+`EventCalendarDefaults.Header(state, switcher = CalendarSwitcher.Dropdown)` offers
+the views as a button naming the one on show, which opens a menu of them with that
+one ticked — narrow enough to sit beside the arrows on a phone — in place of the
+segmented control.
+
+**`views` on the calendar says which views it has.** Leave a view out and the
+switcher does not offer it, and nothing else reaches it: a day opened in a
+calendar without its day view — its number pressed, a day's heading, a "+N" —
+opens the nearest view there is, three days or the week, and
+`state.show(CalendarView.Day)` does the same. A state in a view the calendar does
+not have is moved to the nearest one it does before it is drawn.
+`Header(state, views = …)` limits the switcher further, to some of those.
 
 `eventContent` draws the inside of an event. It is told the event and its
 `EventPresentation`: a `Block` in a day's hours, a `Bar` across days, or a

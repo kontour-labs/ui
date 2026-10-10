@@ -150,8 +150,16 @@ class EventCalendarState internal constructor(
         show(date, view)
     }
 
-    /** Shows [date], in [view] — the current one unless given. */
+    /**
+     * Shows [date], in [view] — the current one unless given.
+     *
+     * A view the calendar does not offer — see `EventCalendar`'s `views` — is
+     * shown as the nearest one it does: a day as three days or the week, a
+     * month as the week. With none near enough, [date] is shown in the view
+     * already on show.
+     */
     fun show(date: LocalDate, view: CalendarView = this.view) {
+        val view = offered(view) ?: this.view
         // Re-counted only on a change of view: a move within it pages, as a key's does.
         val anew = view != this.view
         this.date = date
@@ -205,6 +213,13 @@ class EventCalendarState internal constructor(
         date = today
         todayRequest = TodayRequest((todayRequest?.serial ?: 0) + 1, paged)
     }
+
+    /** The views the calendar offers, in its switcher's order: `EventCalendar`'s `views`. */
+    internal var allowedViews: List<CalendarView> by mutableStateOf(CalendarView.entries.toList())
+
+    /** [view] if the calendar offers it, or else the nearest one it does; null for none. */
+    internal fun offered(view: CalendarView): CalendarView? =
+        if (view in allowedViews) view else nearViews(view).firstOrNull { it in allowedViews }
 
     /** The latest [showToday], for the calendar to flash today for. */
     internal var todayRequest: TodayRequest? by mutableStateOf(null)
@@ -284,3 +299,15 @@ private fun lengthOfMonth(first: LocalDate): Int {
 
 /** One [EventCalendarState.showToday]: which, and whether it had to page to get there. */
 internal class TodayRequest(val serial: Int, val paged: Boolean)
+
+/**
+ * What to show [view] as when it is not offered, nearest first: a day as a few
+ * days, then a week; a month as a week; a year as a month.
+ */
+private fun nearViews(view: CalendarView): List<CalendarView> = when (view) {
+    CalendarView.Day -> listOf(CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month)
+    CalendarView.ThreeDays -> listOf(CalendarView.Day, CalendarView.Week)
+    CalendarView.Week -> listOf(CalendarView.ThreeDays, CalendarView.Day, CalendarView.Month)
+    CalendarView.Month -> listOf(CalendarView.Week, CalendarView.Year)
+    CalendarView.Year -> listOf(CalendarView.Month)
+}
