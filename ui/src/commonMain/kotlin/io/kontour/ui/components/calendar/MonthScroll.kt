@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -79,10 +80,14 @@ internal fun CalendarPeriods.dominantMonth(rows: List<VisibleRow>, viewport: Int
  * by the header, a key, the app, today — the list scrolls there.
  *
  * @param rowsInView How many whole rows fit on screen.
- * @param rowPx How tall a row is, in pixels.
+ * @param rowPx How tall a row is, in pixels, read when it is needed: it moves
+ *   with every frame of a pinch, and nothing here should recompose for it.
+ * @param zooming Whether a pinch is under way: the month does not settle on a
+ *   week under one, which it would otherwise do a moment after the list stopped
+ *   scrolling — and a pinch moves the list without scrolling it.
  */
 @Composable
-internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: Float): LazyListState {
+internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: () -> Float, zooming: State<Boolean>): LazyListState {
     val state = scope.state
     val periods = state.periods
     // Kept as the periods are counted afresh for a week view: only the first
@@ -114,7 +119,7 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: Flo
             }
             if (going[0] || state.view != CalendarView.Month) return@collect
             val current = periods.indexOf(state.date, CalendarView.Month)
-            val month = periods.dominantMonth(shown, viewport, current, hysteresis = row * DaysPerWeek / 2f)
+            val month = periods.dominantMonth(shown, viewport, current, hysteresis = row() * DaysPerWeek / 2f)
             if (month != current) state.showFromScroll(month)
         }
     }
@@ -153,7 +158,7 @@ internal fun rememberMonthList(scope: CalendarScope, rowsInView: Int, rowPx: Flo
 
     // Left between weeks by a wheel or a carry's scroll, it settles on one.
     LaunchedEffect(list) {
-        snapshotFlow { list.isScrollInProgress || edit.live }.collectLatest { moving ->
+        snapshotFlow { list.isScrollInProgress || edit.live || zooming.value }.collectLatest { moving ->
             if (moving) return@collectLatest
             delay(WheelSettleMillis)
             val first = list.layoutInfo.visibleItemsInfo.firstOrNull() ?: return@collectLatest

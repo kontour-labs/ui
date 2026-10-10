@@ -184,10 +184,37 @@ class MonthScrollTest {
     @Test
     fun zoomedTheRowUnderTheFingersStaysThere() {
         // Rows 100px tall, the list's top 2.5 rows down; the focus 250px down.
-        val top = 2.5f
-        val after = zoomAnchor(top, focusY = 250f, oldRow = 100f, newRow = 200f)
+        val top = 2.5
+        val after = zoomAnchor(top, fromY = 250f, toY = 250f, oldRow = 100f, newRow = 200f)
         // What was under the focus — row 5 — is under it still.
-        assertEquals(top + 250f / 100f, after + 250f / 200f)
+        assertEquals(top + 250.0 / 100.0, after + 250.0 / 200.0, 1e-9)
+    }
+
+    /**
+     * *"when pinching to zoom in the month view, it's a bit jittery"*: the rows
+     * are numbered from a million, where a float keeps a sixteenth of a row — a
+     * hundred-pixel row's week under the fingers moved in six-pixel steps.
+     */
+    @Test
+    fun aZoomAMillionRowsInIsAsExactAsOneAtTheStart() {
+        val top = WeekOrigin + 0.37
+        var at = top
+        var row = 100f
+        // Twenty small steps of a spread, each about the same point.
+        repeat(20) {
+            val next = row * 1.03f
+            at = zoomAnchor(at, fromY = 250f, toY = 250f, oldRow = row, newRow = next)
+            row = next
+        }
+        val under = at + 250.0 / row
+        assertEquals(top + 2.5, under, 1e-6, "the week under the fingers drifted ${(under - top - 2.5) * row}px")
+    }
+
+    /** Fingers that move together as well as apart take the weeks with them. */
+    @Test
+    fun fingersMovingTogetherPanTheWeeks() {
+        val after = zoomAnchor(10.0, fromY = 250f, toY = 300f, oldRow = 100f, newRow = 100f)
+        assertEquals(9.5, after, 1e-9, "50px down at 100px a row is half a row")
     }
 
     @Test
@@ -243,6 +270,44 @@ class MonthScrollTest {
         val after = days(probe).getValue(day)
         assertTrue(at.y in after.top..after.bottom, "the 14th, between the fingers, is now at $after, not under $at")
         assertTrue(!probe.moved, "the pinch moved or made an event")
+    }
+
+    /**
+     * Step by step through a spread, what is between the fingers stays there —
+     * to within a pixel and a half every step, not only at the end — and the
+     * events keep their lines until the fingers let go, so no week jumps.
+     */
+    @Test
+    fun aPinchHoldsTheWeekUnderTheFingersEveryStepAndTheEventsStill() = runComposeUiTest {
+        val review = CalendarEvent(1, "Design review", kotlinx.datetime.LocalDateTime(2026, 10, 14, 9, 0), kotlinx.datetime.LocalDateTime(2026, 10, 14, 10, 0), location = "Room 4")
+        val probe = zoomable(listOf(review))
+        val day = LocalDate(2026, 10, 14)
+        val start = days(probe).getValue(day)
+        val focus = start.top + start.height * 0.6f
+        val fraction = (focus - start.top) / start.height
+        fun chip() = onNode(hasContentDescription(eventDescription(review, probe.formats, probe.strings))).fetchSemanticsNode().boundsInRoot
+        val chipBefore = chip().height
+        onRoot().performTouchInput {
+            down(0, androidx.compose.ui.geometry.Offset(start.center.x, focus - 20f))
+            down(1, androidx.compose.ui.geometry.Offset(start.center.x, focus + 20f))
+        }
+        var worst = 0f
+        repeat(20) {
+            onRoot().performTouchInput {
+                moveBy(0, androidx.compose.ui.geometry.Offset(0f, -6f))
+                moveBy(1, androidx.compose.ui.geometry.Offset(0f, 6f))
+            }
+            waitForIdle()
+            val now = days(probe).getValue(day)
+            val drift = abs(now.top + now.height * fraction - focus)
+            if (it > 2) worst = maxOf(worst, drift)
+        }
+        val chipDuring = chip().height
+        onRoot().performTouchInput { up(0); up(1) }
+        waitForIdle()
+        assertTrue(worst < 1.5f, "the point between the fingers drifted ${worst}px from them during the pinch")
+        assertEquals(chipBefore, chipDuring, 0.5f, "an event changed height mid-pinch")
+        assertTrue(chip().height > chipBefore + 1f, "let go zoomed in to ${probe.state.monthRows} weeks, the event is ${chip().height} tall, from $chipBefore")
     }
 
     @Test

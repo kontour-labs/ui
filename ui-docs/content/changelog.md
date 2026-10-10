@@ -57,6 +57,7 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **An [event calendar](components/event-calendar.md)'s month zooms smoothly under two fingers.** The week between them moved in steps of several pixels — its place was worked out in a float, a sixteenth of a row's precision that far into the list — every week and event was composed again each frame, the events' lines changed mid-pinch, and the month's settling on a week could start under the fingers. Now the day between the fingers stays there to the pixel, the weeks pan as the fingers move together, and the events keep their lines until the fingers let go.
 - **A floating [bottom sheet](components/bottom-sheet.md) no longer draws its shadow again on every frame it is dragged.** Its surface changes height as it moves, and its two blurred shadow layers were rasterised again with it each frame: measured on an Android phone at 25% janky frames and a 150ms p99, against 5% for an edge sheet. The shadow is drawn behind it in pieces that keep their size and only move, and looks the same.
 - **A decoration on a day in the band of a [date range](components/date-range-picker.md) keeps its colours.** It took the band's ink, which read as grey.
 - **Today's ring stays a circle inside a [date range](components/date-range-picker.md).** It was the outline of the band's square day, and drew a pill the width of it.

@@ -1,5 +1,6 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.background
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -59,13 +60,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import kotlin.math.ceil
-import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -148,16 +146,35 @@ internal fun MonthView(scope: CalendarScope) {
             // Zoomed in no further than three weeks, nor out past six or past
             // a row with room for its date and one event.
             val most = minOf(MonthRowsInView.toFloat(), floor(viewportPx / (dateLabelPx + linePx + padPx * 2))).coerceAtLeast(MinMonthRows.toFloat())
-            val rows = state.monthRows.coerceIn(MinMonthRows.toFloat(), most)
-            val rowPx = floor(viewportPx / rows)
-            val row = with(density) { rowPx.toDp() }
-            val lines = itemLines(rowPx, dateLabelPx, linePx, padPx)
+            // **The zoom is read in layout, and in what is derived from it, never
+            // here.** It changes on every frame of a pinch, and read here it
+            // recomposed the month, every week on screen and every event in
+            // them, each frame: the pinch's stutter. Now a frame lays the weeks
+            // out again, and what is composed changes only when a whole row
+            // more fits, or an event's lines change.
+            val rows = { state.monthRows.coerceIn(MinMonthRows.toFloat(), most) }
+            val rowPx = { monthRowPx(viewportPx, rows()) }
+            val zooming = remember { mutableStateOf(false) }
+            val inView by remember(viewportPx, most) { derivedStateOf { wholeRows(viewportPx, rowPx()) } }
+            val linesNow by remember(viewportPx, most, dateLabelPx, linePx, padPx) {
+                derivedStateOf { itemLines(rowPx(), dateLabelPx, linePx, padPx) }
+            }
+            // Held as they were while a pinch is under way: an event given another
+            // line mid-pinch grew every event at once, and the weeks jumped.
+            val heldLines = remember { IntArray(1) }
+            if (!zooming.value || heldLines[0] == 0) heldLines[0] = linesNow
+            val lines = heldLines[0]
             val item = itemHeight(lines)
-            val list = rememberMonthList(scope, wholeRows(viewportPx, rowPx), rowPx)
+            val itemPx = with(density) { item.toPx() }
+            // How many events a day has room for: a whole one more as a row grows.
+            val maxRows by remember(viewportPx, most, dateLabelPx, itemPx) {
+                derivedStateOf { if (itemPx > 0f) floor((rowPx() - dateLabelPx) / itemPx).toInt().coerceAtLeast(0) else 0 }
+            }
+            val list = rememberMonthList(scope, inView, rowPx, zooming)
             val snap = rememberWeekSnap(list)
             val placed = remember { PlacedAt() }
             val coroutines = rememberCoroutineScope()
-            val zoom = remember(list, state) { MonthZoom(state, list, coroutines) }
+            val zoom = remember(list, state) { MonthZoom(state, list, coroutines, zooming) }
             zoom.viewportPx = viewportPx
             zoom.reduceMotion = Theme.motion.reduceMotion
             zoom.most = most
@@ -169,15 +186,21 @@ internal fun MonthView(scope: CalendarScope) {
             // Each week's events, found once for as long as the events are the same.
             val byWeek = remember(scope.events, periods) { HashMap<LocalDate, List<CalendarEvent>>() }
             val gap = Theme.spacing.xxs / 2
-            // Whole rows, so no sliver of a week shows at the foot — but while
-            // a pinch is under way, between two numbers of them.
-            val whole = rows == floor(rows)
-            val rowsHeight = if (whole) with(density) { (rowPx * rows).toDp() } else viewport
+            val cell = maxWidth / DaysPerWeek
             val edit = scope.edit
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(rowsHeight)
+                    // Whole rows, so no sliver of a week shows at the foot — but
+                    // while a pinch is under way, the whole box.
+                    .layout { measurable, constraints ->
+                        val r = rows()
+                        val whole = r == floor(r) && !zooming.value
+                        val height = (if (whole) rowPx() * r else viewportPx).roundToInt()
+                            .coerceAtMost(constraints.maxHeight)
+                        val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
                     .onGloballyPositioned { placed.coordinates = it }
                     .pinchesRows(zoom) { !edit.live }
                     .wheelZoomsRows(zoom),
@@ -194,7 +217,7 @@ internal fun MonthView(scope: CalendarScope) {
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
-                            MonthWeek(scope, weekStart, events, item, Modifier.fillMaxWidth().height(row))
+                            MonthWeek(scope, weekStart, events, item, maxRows, cell, Modifier.fillMaxWidth().weekRow(rowPx))
                         }
                     }
                     // Where a carried event would land, over the weeks on screen:
@@ -205,7 +228,7 @@ internal fun MonthView(scope: CalendarScope) {
                     DaysGhostLayer(
                         scope,
                         first,
-                        weeks = ceil(rows).toInt() + 1,
+                        weeks = ceil(most).toInt() + 1,
                         days = DaysPerWeek,
                         slot = dateLabel + gap / 2,
                         item = item,
@@ -224,10 +247,17 @@ internal const val MonthRowsInView = 6
 
 /** A scrolling month's weeks for the copy a carry draws, read as they are laid out. */
 private class ListRows(private val list: LazyListState, private val periods: CalendarPeriods) : GhostRows {
-    var rowPx = 0f
+    var rowPx: () -> Float = { 0f }
     override fun start(): LocalDate = periods.weekOfRow(list.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: list.firstVisibleItemIndex)
     override fun top(): Float = (list.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0).toFloat()
-    override fun height(): Float = rowPx
+    override fun height(): Float = rowPx()
+}
+
+/** A week's row, [rowPx] tall, read as it is laid out: a pinch's frame moves it without composing it. */
+private fun Modifier.weekRow(rowPx: () -> Float): Modifier = layout { measurable, constraints ->
+    val height = rowPx().roundToInt().coerceAtLeast(0)
+    val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /** The weekday names over the month's columns: abbreviated, or a letter where they do not fit. */
@@ -275,6 +305,10 @@ private fun MonthWeek(
     weekStart: LocalDate,
     weekEvents: List<CalendarEvent>,
     item: Dp,
+    /** How many events a day has room for under its date. */
+    maxRows: Int,
+    /** A day's width. */
+    cell: Dp,
     modifier: Modifier,
 ) {
     val dateLabel = dateLabelHeight()
@@ -284,7 +318,9 @@ private fun MonthWeek(
     val ringColour = Theme.colours.focusRing
     val ringWidth = Theme.sizing.focusRingWidth
     val placed = remember { PlacedAt() }
-    BoxWithConstraints(
+    // Not a `BoxWithConstraints`: its height changes on every frame of a pinch,
+    // and one of those composes its content again for each.
+    Box(
         modifier
             .onGloballyPositioned { placed.coordinates = it }
             .holdsDays(scope, placed, weekStart)
@@ -300,9 +336,6 @@ private fun MonthWeek(
             drawCursorRing(Rect(left, 0f, left + width, size.height), ringColour, ringWidth.toPx())
         },
     ) {
-        val cell = maxWidth / DaysPerWeek
-        val room = (maxHeight - dateLabel).coerceAtLeast(0.dp)
-        val maxRows = if (item > 0.dp) floor(room / item).toInt().coerceAtLeast(0) else 0
         val pack = remember(weekEvents, weekStart, maxRows) { packWeek(weekItems(weekStart, weekEvents, lines = true), maxRows) }
         Row(Modifier.fillMaxSize()) {
             for (column in 0 until DaysPerWeek) {

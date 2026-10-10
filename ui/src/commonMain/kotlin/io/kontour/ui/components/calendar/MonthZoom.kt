@@ -3,6 +3,7 @@ package io.kontour.ui.components.calendar
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -14,18 +15,23 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Where the list's first row goes, as a row and how far into it, for the row
- * at [focusY] to stay under it as each row goes from [oldRow] pixels tall to
+ * Where the list's first row goes, as a row and how far into it, for what was
+ * at [fromY] to be at [toY] as each row goes from [oldRow] pixels tall to
  * [newRow]: [top] is where the first row is now, in rows — its index and how
- * far down it the list's top is.
+ * far down it the list's top is. [fromY] and [toY] differ when the fingers
+ * move together as well as apart, and the weeks pan with them.
+ *
+ * **In doubles.** The list's rows are numbered from a million, and a float
+ * there has a sixteenth of a row to spare: at a hundred pixels a row, the week
+ * under the fingers moved in six-pixel steps — the pinch's jitter.
  */
-internal fun zoomAnchor(top: Float, focusY: Float, oldRow: Float, newRow: Float): Float {
+internal fun zoomAnchor(top: Double, fromY: Float, toY: Float, oldRow: Float, newRow: Float): Double {
     if (oldRow <= 0f || newRow <= 0f) return top
-    val focus = top + focusY / oldRow
-    return focus - focusY / newRow
+    return top + fromY / oldRow.toDouble() - toY / newRow.toDouble()
 }
 
 /**
@@ -55,44 +61,66 @@ internal const val MinMonthRows = 3
  * the state; [viewportPx] and the limits are as the month last laid out.
  */
 @Stable
-internal class MonthZoom(private val state: EventCalendarState, private val list: LazyListState, private val scope: CoroutineScope) {
+internal class MonthZoom(
+    private val state: EventCalendarState,
+    private val list: LazyListState,
+    private val scope: CoroutineScope,
+    /** Whether a pinch is under way: what holds the month's other settling off, and its events' lines as they were. */
+    private val zooming: MutableState<Boolean>,
+) {
     var viewportPx = 0f
     var reduceMotion = false
     var fewest = MinMonthRows.toFloat()
     var most = MonthRowsInView.toFloat()
 
     /** Where the first row is, in rows, as this zoom has put it: the list's own lags a frame behind. */
-    private var top: Float? = null
+    private var top: Double? = null
 
-    private fun rowPx(rows: Float) = if (rows <= 0f) 0f else floor(viewportPx / rows)
+    /** The slide to a whole week after a zoom, cancelled by the next pinch rather than fought. */
+    private var settling: Job? = null
 
-    private fun currentTop(): Float {
+    private fun rowPx(rows: Float) = monthRowPx(viewportPx, rows)
+
+    private fun currentTop(): Double {
         top?.let { return it }
-        val first = list.layoutInfo.visibleItemsInfo.firstOrNull() ?: return list.firstVisibleItemIndex.toFloat()
-        return first.index - first.offset.toFloat() / first.size.coerceAtLeast(1)
+        val first = list.layoutInfo.visibleItemsInfo.firstOrNull() ?: return list.firstVisibleItemIndex.toDouble()
+        return first.index - first.offset.toDouble() / first.size.coerceAtLeast(1)
     }
 
-    /** Zoomed to [rows] weeks, the week at [focusY] still under it. */
-    fun zoomTo(rows: Float, focusY: Float) {
+    /** Zoomed to [rows] weeks, what was at [fromY] now at [toY]. */
+    fun zoomTo(rows: Float, fromY: Float, toY: Float = fromY) {
         val next = rows.coerceIn(fewest, maxOf(fewest, most))
         val now = state.monthRows.coerceIn(fewest, maxOf(fewest, most))
-        if (next == now || viewportPx <= 0f) return
+        if ((next == now && fromY == toY) || viewportPx <= 0f) return
         val newRow = rowPx(next)
-        val moved = zoomAnchor(currentTop(), focusY, rowPx(now), newRow).coerceAtLeast(0f)
+        val moved = zoomAnchor(currentTop(), fromY, toY, rowPx(now), newRow).coerceAtLeast(0.0)
         top = moved
         state.monthRows = next
         val index = floor(moved).toInt()
         list.requestScrollToItem(index, ((moved - index) * newRow).roundToInt())
     }
 
-    /** Pinched by [factor] about [focusY]: spread, fewer weeks; pinched in, more. */
-    fun pinch(factor: Float, focusY: Float) {
+    /** Two fingers down and moving apart or together: whatever was settling stops. */
+    fun begin() {
+        settling?.cancel()
+        settling = null
+        top = null
+        zooming.value = true
+    }
+
+    /**
+     * Pinched by [factor] about [focusY], the fingers' middle having come from
+     * [fromY]: spread, fewer weeks; pinched in, more; and the weeks move with
+     * the fingers as they go.
+     */
+    fun pinch(factor: Float, focusY: Float, fromY: Float = focusY) {
         if (factor <= 0f) return
-        zoomTo(state.monthRows / factor, focusY)
+        zoomTo(state.monthRows / factor, fromY, focusY)
     }
 
     /** One whole week more, or fewer, about [focusY]: a wheel's turn, a key. */
     fun step(weeks: Int, focusY: Float) {
+        begin()
         zoomTo(state.monthRows.roundToInt().toFloat() + weeks, focusY)
         settle()
     }
@@ -101,13 +129,31 @@ internal class MonthZoom(private val state: EventCalendarState, private val list
     fun settle(focusY: Float = 0f) {
         val whole = state.monthRows.roundToInt().toFloat().coerceIn(fewest, maxOf(fewest, most))
         if (whole != state.monthRows) zoomTo(whole, focusY)
-        val at = top ?: return
+        val at = top
         top = null
+        if (at == null) {
+            zooming.value = false
+            return
+        }
         val row = at.roundToInt().coerceAtLeast(0)
-        // Settled on its week at once under reduced motion, rather than slid there.
-        scope.launch { if (reduceMotion) list.scrollToItem(row) else list.animateScrollToItem(row) }
+        // Read here, where it is used: settled on its week at once under
+        // reduced motion, rather than slid there.
+        val reduceMotion = reduceMotion
+        settling = scope.launch {
+            try {
+                if (reduceMotion) list.scrollToItem(row) else list.animateScrollToItem(row)
+            } finally {
+                zooming.value = false
+            }
+        }
     }
 }
+
+/**
+ * How tall a month's row is with [rows] of them in [viewportPx]: whole pixels,
+ * the same for every row, so what the zoom works out is what the list lays out.
+ */
+internal fun monthRowPx(viewportPx: Float, rows: Float): Float = if (rows <= 0f) 0f else floor(viewportPx / rows)
 
 /**
  * Two fingers spread or pinched over the month zoom it, about the point
@@ -122,6 +168,7 @@ internal fun Modifier.pinchesRows(zoom: MonthZoom, enabled: () -> Boolean): Modi
         var startSpan = 0f
         var last = 0f
         var focusY = 0f
+        var lastFocusY = 0f
         do {
             val event = awaitPointerEvent(PointerEventPass.Initial)
             val pressed = event.changes.filter { it.pressed }
@@ -135,11 +182,14 @@ internal fun Modifier.pinchesRows(zoom: MonthZoom, enabled: () -> Boolean): Modi
                     if (abs(span - startSpan) > viewConfiguration.touchSlop) {
                         zooming = true
                         last = span
+                        lastFocusY = focusY
+                        zoom.begin()
                     }
                 }
                 if (zooming) {
-                    if (last > 0f && span > 0f) zoom.pinch(span / last, focusY)
+                    if (last > 0f && span > 0f) zoom.pinch(span / last, focusY, lastFocusY)
                     last = span
+                    lastFocusY = focusY
                     event.changes.forEach { it.consume() }
                 }
             } else if (zooming) {
