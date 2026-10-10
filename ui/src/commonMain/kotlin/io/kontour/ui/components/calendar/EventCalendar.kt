@@ -193,9 +193,9 @@ import kotlinx.datetime.toLocalDateTime
  * @param snap The step every edit moves in: a quarter-hour by default. A whole
  *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
- * @param daysStyle How the day, three-day and week views lay their days out:
- *   the hours with the all-day events above them, the all-day events in a
- *   pane of their own beside the hours, or every event stacked with no hours.
+ * @param daysStyle How the three-day and week views lay their days out: the
+ *   hours with the all-day events above them, or every event stacked with no
+ *   hours. The day view always has its hours.
  * @param formats How dates, times and numbers are written: the theme's.
  * @param header Above the calendar: by default [EventCalendarDefaults.Header],
  *   with the title, the arrows, today and the view switcher. Null for none — an

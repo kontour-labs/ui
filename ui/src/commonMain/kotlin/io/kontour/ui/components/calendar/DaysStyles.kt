@@ -1,13 +1,8 @@
 package io.kontour.ui.components.calendar
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,10 +18,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -36,17 +28,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
-import io.kontour.ui.input.Cursor
-import io.kontour.ui.input.pointerCursor
-import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.motion.ScrollDefaults
 import io.kontour.ui.theme.Theme
 import kotlinx.datetime.DateTimeUnit
@@ -119,9 +102,14 @@ private fun CondensedPage(scope: CalendarScope, period: Int, days: Int) {
                 }
             }
             .drawWithContent {
-                // A line between each day and the next, the length of the list.
+                // A line at each day's start edge, the length of the list: the
+                // first day's too, as the hours' columns draw it, so a page
+                // swiped in beside this one has its line between the two —
+                // the last day of one week and the first of the next.
                 val width = line.toPx()
                 val cell = size.width / days
+                val edge = if (layoutDirection == LayoutDirection.Rtl) size.width - width / 2 else width / 2
+                drawLine(lineColour, Offset(edge, 0f), Offset(edge, size.height), width)
                 for (column in 1 until days) {
                     val x = cell * column
                     drawLine(lineColour, Offset(x, 0f), Offset(x, size.height), width)
@@ -193,59 +181,3 @@ private fun CondensedRows(
     }
 }
 
-/**
- * The divider between [CalendarDaysStyle.Split]'s all-day pane and its hours:
- * dragged, it moves, the pane taking [share] of [total] pixels, from a tenth
- * to seven tenths. Under touch it reserves a fingertip; for a mouse, it
- * thickens on hover and shows the resize cursor. A screen reader has it as a
- * range it can set, as a pane divider is.
- */
-@Composable
-internal fun SplitHandle(share: Float, total: Float, onShare: (Float) -> Unit) {
-    val colours = Theme.colours
-    val label = Theme.strings.resizePanes
-    val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
-    val lineDp = Theme.sizing.dividerThickness.value
-    val thickness by animateFloatAsState(if (hovered) lineDp * 3f else lineDp, Theme.motion.tweenFast(), label = "splitHandle")
-    val current by rememberUpdatedState(share)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .minimumTouchTarget()
-            .fillMaxWidth()
-            .height(SplitHandleHeight)
-            .pointerCursor(Cursor.ResizeRow)
-            .hoverable(interactions)
-            .semantics {
-                contentDescription = label
-                progressBarRangeInfo = ProgressBarRangeInfo(share, MinSplitShare..MaxSplitShare)
-                setProgress { target ->
-                    onShare(target.coerceIn(MinSplitShare, MaxSplitShare))
-                    true
-                }
-            }
-            .pointerInput(total) {
-                detectVerticalDragGestures { change, amount ->
-                    change.consume()
-                    if (total > 0f) onShare((current + amount / total).coerceIn(MinSplitShare, MaxSplitShare))
-                }
-            },
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(thickness.dp)
-                .background(if (hovered) colours.accent.solid else colours.outline),
-        )
-    }
-}
-
-/** How tall the split's divider is, its line in the middle. */
-private val SplitHandleHeight = 12.dp
-
-/** The least of the height a split's all-day pane has. */
-internal const val MinSplitShare = 0.1f
-
-/** The most of the height a split's all-day pane has. */
-internal const val MaxSplitShare = 0.7f

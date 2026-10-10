@@ -39,17 +39,11 @@ enum class CalendarDaysStyle {
     Hours,
 
     /**
-     * The hours below, and every all-day event above them in a pane of its
-     * own that scrolls, with no "+N": a divider between them sets how much of
-     * the height each has.
-     */
-    Split,
-
-    /**
      * No hours: each day's events — all-day ones as bars across their days,
      * timed ones as a line with their time — stacked in a list down the days,
      * that scrolls. As many days as the view shows, side by side, so a week
-     * view of two weeks is a fortnight's plan at a glance.
+     * view of two weeks is a fortnight's plan at a glance. The three-day and
+     * week views only: a day on its own keeps its hours.
      */
     Condensed,
 }

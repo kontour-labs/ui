@@ -59,13 +59,13 @@ three at a time. The week view shows one week, or several side by side —
 `state.showWeeks(2)` for a fortnight, up to six, or `initialWeekCount` — and
 steps by as many.
 
-`daysStyle` lays out the day, three-day and week views' days:
+`daysStyle` lays out the three-day and week views' days. The day view always has
+its hours: a single day condensed is a list, and its hours say more about it.
 
 | `CalendarDaysStyle` | What it draws |
 |---|---|
 | `Hours` | The hours, with the all-day events in a strip above them, three rows at most and a "+N" for the rest. The default. |
-| `Split` | The hours below and every all-day event above them, in a pane of its own that scrolls, with no "+N". The divider between them is dragged to give either more of the height, a tenth to seven tenths of it, and a screen reader sets it as a range. |
-| `Condensed` | No hours: each day's events stacked down the days in a list that scrolls — all-day ones as bars across their days, timed ones as their title over their time — packed the way a month's week is but with no limit. A day's empty space opens it. With `showWeeks(2)`, a fortnight's plan at a glance. |
+| `Condensed` | No hours: each day's events stacked down the days in a list that scrolls — all-day ones as bars across their days, timed ones as their title over their time — packed the way a month's week is but with no limit. A day's empty space opens it. A line runs down each day's start edge, so a week swiped in beside another has its line between them. With `showWeeks(2)`, a fortnight's plan at a glance. |
 
 | View | What it draws |
 |---|---|

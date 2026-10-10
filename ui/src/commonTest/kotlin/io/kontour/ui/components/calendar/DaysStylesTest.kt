@@ -5,7 +5,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -16,7 +15,6 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performMouseInput
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -36,11 +34,10 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 
 /**
- * The day and week views without their hours, and with their all-day events
- * in a pane of their own: asked for as *"option to hide the hourly grid and
- * only show all-day events (condensed list per day)"*, and *"option for a
- * split layout: all-day events on top, timed events below"* — the strip above
- * the hours held three rows and a "+N".
+ * The three-day and week views without their hours: asked for as *"option to
+ * hide the hourly grid and only show all-day events (condensed list per
+ * day)"*. A split layout, the all-day events in a pane of their own above the
+ * hours, was tried and taken out again as *"too confusing"*.
  */
 @OptIn(ExperimentalTestApi::class)
 class DaysStylesTest {
@@ -144,29 +141,13 @@ class DaysStylesTest {
         CalendarEvent(200L + it, "Trip $it", startDate = LocalDate(2026, 10, 12), endDate = LocalDate(2026, 10, 14 + it))
     }
 
+    /** *"the day view shouldn't have a condensed option"*: a day on its own keeps its hours. */
     @Test
-    fun splitShowsEveryAllDayEventWithoutAMore() = runComposeUiTest {
-        val probe = calendar(CalendarDaysStyle.Split, trips)
-        for (trip in trips) onNode(hasContentDescription(eventDescription(trip, probe.formats, probe.strings))).assertExists("${trip.title} is not in the pane")
-        onNode(hours).assertExists("a split has no hours")
-    }
-
-    @Test
-    fun splitsDividerSetsThePanesShare() = runComposeUiTest {
-        val probe = calendar(CalendarDaysStyle.Split, trips)
-        val before = probe.state.splitShare
-        val divider = onNode(hasContentDescription(probe.strings.resizePanes))
-        val at = divider.fetchSemanticsNode().boundsInRoot.center
-        onRoot().performMouseInput {
-            moveTo(at)
-            press()
-            repeat(10) { moveTo(Offset(at.x, at.y + 10f * probe.density * (it + 1))) }
-            release()
-        }
+    fun aDayOnItsOwnKeepsItsHoursWhenCondensed() = runComposeUiTest {
+        val probe = calendar(CalendarDaysStyle.Condensed, listOf(review))
+        onNode(hours).assertDoesNotExist()
+        probe.state.show(CalendarView.Day)
         waitForIdle()
-        assertTrue(probe.state.splitShare > before + 0.05f, "dragged down 100dp, the share went from $before to ${probe.state.splitShare}")
-        divider.performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
-        waitForIdle()
-        assertEquals(0.5f, probe.state.splitShare)
+        onNode(hours).assertExists("the day view, condensed, lost its hours")
     }
 }

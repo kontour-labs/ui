@@ -366,7 +366,6 @@ public final class io/kontour/ui/components/action/ToolbarKt {
 public final class io/kontour/ui/components/calendar/CalendarDaysStyle : java/lang/Enum {
 	public static final field Condensed Lio/kontour/ui/components/calendar/CalendarDaysStyle;
 	public static final field Hours Lio/kontour/ui/components/calendar/CalendarDaysStyle;
-	public static final field Split Lio/kontour/ui/components/calendar/CalendarDaysStyle;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/kontour/ui/components/calendar/CalendarDaysStyle;
 	public static fun values ()[Lio/kontour/ui/components/calendar/CalendarDaysStyle;

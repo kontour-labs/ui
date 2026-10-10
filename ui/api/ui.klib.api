@@ -123,7 +123,6 @@ final enum class io.kontour.ui.components.action/FabSize : kotlin/Enum<io.kontou
 final enum class io.kontour.ui.components.calendar/CalendarDaysStyle : kotlin/Enum<io.kontour.ui.components.calendar/CalendarDaysStyle> { // io.kontour.ui.components.calendar/CalendarDaysStyle|null[0]
     enum entry Condensed // io.kontour.ui.components.calendar/CalendarDaysStyle.Condensed|null[0]
     enum entry Hours // io.kontour.ui.components.calendar/CalendarDaysStyle.Hours|null[0]
-    enum entry Split // io.kontour.ui.components.calendar/CalendarDaysStyle.Split|null[0]
 
     final val entries // io.kontour.ui.components.calendar/CalendarDaysStyle.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<io.kontour.ui.components.calendar/CalendarDaysStyle> // io.kontour.ui.components.calendar/CalendarDaysStyle.entries.<get-entries>|<get-entries>#static(){}[0]
