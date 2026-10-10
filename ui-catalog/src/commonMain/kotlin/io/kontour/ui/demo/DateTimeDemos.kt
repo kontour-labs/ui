@@ -44,7 +44,7 @@ import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.FieldPicker
-import io.kontour.ui.components.datetime.DayAnnotation
+import io.kontour.ui.components.datetime.DayDecoration
 import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -72,31 +72,46 @@ import androidx.compose.ui.graphics.Color
  */
 private val Today = LocalDate(2026, 6, 12)
 
-/** Fares under the days and a holiday in its own colour: `annotationFor` and `containerColourFor`. */
+/** Fares under the days, a holiday in its own colour and dots for trips booked: `decorationFor`. */
 private val fares = Knob.Flag("Fares")
+
+/** Whether the decorations keep their colours on the chosen days: `keepColours`. */
+private val keepColours = Knob.Flag("Keep colours")
 
 /** A fare for most days from [Today] on, a little cheaper midweek; none before. */
 private fun demoFare(day: LocalDate): Double? =
     if (day < Today || day.day % 7 == 0) null else 30.0 + (day.day * 7) % 25 - if (day.dayOfWeek.ordinal in 1..3) 6 else 0
 
 @Composable
-private fun demoDayLooks(on: Boolean): Pair<((LocalDate) -> Color?)?, ((LocalDate) -> DayAnnotation?)?> {
-    if (!on) return null to null
+private fun demoDecorations(on: Boolean, keep: Boolean): ((LocalDate) -> DayDecoration?)? {
+    if (!on) return null
     val formats = Theme.formats
     val cheap = Theme.colours.success.solid
     val holiday = Theme.colours.warning.container
-    return { day: LocalDate -> if (day == LocalDate(2026, 6, 8)) holiday else null } to { day: LocalDate ->
-        demoFare(day)?.let { fare ->
-            DayAnnotation(
-                text = formats.currency(fare, "AUD").substringBefore('.'),
-                colour = if (fare < 30.0) cheap else Color.Unspecified,
+    val booked = Theme.colours.info.solid
+    return { day: LocalDate ->
+        val fare = demoFare(day)
+        val isHoliday = day == LocalDate(2026, 6, 8)
+        // A trip already booked on these: a dot, and a plane on the first.
+        val trip = day.day == 15 || day.day == 19
+        if (fare == null && !isHoliday && !trip) {
+            null
+        } else {
+            DayDecoration(
+                text = fare?.let { formats.currency(it, "AUD").substringBefore('.') },
+                textColour = if (fare != null && fare < 30.0) cheap else Color.Unspecified,
+                icon = if (day.day == 15) Tabler.Outline.Plane else null,
+                iconColour = booked,
+                dots = if (trip) listOf(booked) else emptyList(),
+                containerColour = if (isHoliday) holiday else Color.Unspecified,
+                keepColours = keep,
             )
         }
     }
 }
 
-internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf(fares)) {
-    val (colourFor, annotationFor) = demoDayLooks(this[fares])
+internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf(fares, keepColours)) {
+    val decorationFor = demoDecorations(this[fares], this[keepColours])
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
     Column(
         Modifier.fillMaxWidth(),
@@ -116,15 +131,14 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf
             // happens to be a button, which on a touch screen has no hover to
             // discover it with.
             chooserIcon = Tabler.Outline.ChevronDown,
-            containerColourFor = colourFor,
-            annotationFor = annotationFor,
+            decorationFor = decorationFor,
         )
         Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
 }
 
-internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", knobs = listOf(fares)) {
-    val (colourFor, annotationFor) = demoDayLooks(this[fares])
+internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", knobs = listOf(fares, keepColours)) {
+    val decorationFor = demoDecorations(this[fares], this[keepColours])
     var range by remember {
         mutableStateOf<Pair<LocalDate, LocalDate?>>(
             LocalDate(2026, 6, 9) to LocalDate(2026, 6, 21),
@@ -138,8 +152,7 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", kno
         // In the middle of a card wider than the picker's 308dp.
         modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         chooserIcon = Tabler.Outline.ChevronDown,
-        containerColourFor = colourFor,
-        annotationFor = annotationFor,
+        decorationFor = decorationFor,
     )
 }
 

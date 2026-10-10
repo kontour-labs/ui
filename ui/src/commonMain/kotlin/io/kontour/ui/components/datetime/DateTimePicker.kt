@@ -16,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -96,8 +95,8 @@ object DateTimePickerDefaults {
  *   a request or a toast belongs here rather than in [onValueChange], which a
  *   flick of the minutes calls a dozen times. Not called when [value] is set by
  *   the caller.
- * @see DatePicker for [today], [isDateSelectable], [markerFor],
- *   [containerColourFor], [annotationFor], the icons and [firstDayOfWeek], which
+ * @see DatePicker for [today], [isDateSelectable], [decorationFor],
+ *   [showDecorationLine], the icons and [firstDayOfWeek], which
  *   mean what they mean there.
  */
 @Composable
@@ -109,9 +108,8 @@ fun DateTimePicker(
     enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
-    markerFor: ((LocalDate) -> Color?)? = null,
-    containerColourFor: ((LocalDate) -> Color?)? = null,
-    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
+    decorationFor: ((LocalDate) -> DayDecoration?)? = null,
+    showDecorationLine: Boolean = decorationFor != null,
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
     todayIcon: ImageVector? = DatePickerDefaults.TodayIcon,
@@ -147,9 +145,8 @@ fun DateTimePicker(
             enabled = enabled,
             today = today,
             isDateSelectable = isDateSelectable,
-            markerFor = markerFor,
-            containerColourFor = containerColourFor,
-            annotationFor = annotationFor,
+            decorationFor = decorationFor,
+            showDecorationLine = showDecorationLine,
             previousIcon = previousIcon,
             nextIcon = nextIcon,
             todayIcon = todayIcon,

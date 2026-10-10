@@ -30,6 +30,15 @@ the size it is on a phone, and its digits and weekday initials stay on the type
 scale. A week is as tall as a day is wide, up to 40dp, so six of them stack no taller
 than they need to; a chosen day is a circle as tall as its week.
 
+**`decorationFor` draws what the app has to say about a day** — dots, a few
+characters and an icon, a colour of its own — as a [`DayDecoration`](#daydecoration);
+the [`DatePicker`](date-picker.md#what-the-app-has-to-say-about-a-day) page has
+what each field does and how its colours sit on a chosen day and a range.
+
+**Today's ring is a circle wherever today is**, the shape a lone chosen day is.
+Inside a range it was the outline of the band's square cell, and drew a pill the
+width of the day.
+
 **Dragging a range extends one band.** Only the end the finger is moving
 travels, leaning toward the finger between days; everything behind it is drawn.
 While the finger is down the grid draws the band itself, so it runs right up to
@@ -45,6 +54,15 @@ is held above the pager, so it carries on when the month changes.
 > contract suite.
 
 ---
+
+## `DayDecoration`
+
+What a calendar draws on a day besides its number. Every field is optional:
+`dots`, up to three colours; `text` and `textColour`, and `icon` and
+`iconColour`, which share the line under the number; `containerColour`, the day's
+own fill; `keepColours`, which keeps every colour on a chosen day and on one that
+cannot be chosen; and `contentDescription`, read after the date in place of
+`text`.
 
 ## Accessibility
 

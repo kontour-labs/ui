@@ -21,6 +21,7 @@ import io.kontour.ui.adaptive.windowSizeClass
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.TextButton
 import io.kontour.ui.components.datetime.DateRangePicker
+import io.kontour.ui.components.datetime.DayDecoration
 import io.kontour.ui.components.datetime.rememberCalendarNavigationState
 import io.kontour.ui.components.selection.ChipGroup
 import io.kontour.ui.components.selection.FilterChip
@@ -153,7 +154,9 @@ private fun ColumnScope.FiltersContent(state: MessagesState, onDone: () -> Unit,
             isDateSelectable = { it <= Today },
             // A dot under each day somebody said something, so the range is
             // picked from the days that have anything in them.
-            markerFor = { day -> marker.takeIf { day in activeDays } },
+            decorationFor = { day -> if (day in activeDays) DayDecoration(dots = listOf(marker)) else null },
+            // Dots only: no line under the numbers to make room for.
+            showDecorationLine = false,
             chooserIcon = Tabler.Outline.ChevronDown,
             // September, where most of the conversations are, rather than the
             // month of today with two days in it.

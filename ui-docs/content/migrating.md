@@ -18,7 +18,8 @@ from the version the app is on.
 ## 0.4.3 to 0.4.4
 
 Not released yet: what is on `main`. A view of three days joins `CalendarView`,
-and anything built against 0.4.3 has to be rebuilt. An event calendar's month
+a date picker's day decorations become one `DayDecoration`, and anything built
+against 0.4.3 has to be rebuilt. An event calendar's month
 scrolls rather than pages, and several of its views look different enough to
 check.
 
@@ -26,7 +27,7 @@ check.
 
 - **Move all three modules at once**: `kontour = "0.4.4"`, and rebuild anything
   compiled against 0.4.3 — `EventCalendar`, `rememberEventCalendarState`,
-  `ToastHost`, `SheetHeader` and `Strings` have new parameters.
+  `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters.
 
 ### A `when` over `CalendarView` has a fifth branch
 
@@ -45,8 +46,43 @@ compiles. Give it a branch of its own, or put it with the day and the week:
 `EventCalendarDefaults.Header` offers it, between the day and the week. To
 keep the switcher as it was, pass the views: `Header(state, views = listOf(Day, Week, Month, Year))`.
 
+### A date picker's days are decorated with one `DayDecoration`
+
+`markerFor`, `containerColourFor` and `annotationFor`, and `DayAnnotation`, are
+gone from `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth`.
+One `decorationFor` takes their place, giving a day a
+[`DayDecoration`](components/calendar-month.md#daydecoration) with all three in it,
+more than one dot, an icon, and the choice to keep its colours on a chosen day:
+
+```diff
+  DatePicker(
+      value = date,
+      onValueChange = { date = it },
+-     markerFor = { day -> if (day in booked) trip else null },
+-     containerColourFor = { day -> if (day in holidays) holiday else null },
+-     annotationFor = { day -> fares[day]?.let { DayAnnotation(it.label, colour = cheap) } },
++     decorationFor = { day ->
++         DayDecoration(
++             dots = if (day in booked) listOf(trip) else emptyList(),
++             containerColour = if (day in holidays) holiday else Color.Unspecified,
++             text = fares[day]?.label,
++             textColour = cheap,
++         )
++     },
+  )
+```
+
+A `DayAnnotation`'s `colour` is `textColour` now. A calendar given only dots, as
+`markerFor` was, says `showDecorationLine = false`: without it the weeks are a
+line taller to make room for text, as they were with `annotationFor`.
+
 ### Check
 
+- **A decoration in the band of a range keeps its colours.** A day annotation
+  between a range's ends took the band's ink; a decoration keeps its own there.
+  On the range's ends, and on a chosen day, it still takes the fill's ink unless
+  `keepColours` is set.
+- **Today's ring is a circle inside a range**, not the width of the day.
 - **An event calendar's month scrolls up and down** by the week, and holds six
   weeks whatever the month. A month's `visibleDates` covers the weeks on
   screen, which can be one more than the month's own. An app that loads events

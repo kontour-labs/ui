@@ -561,7 +561,7 @@ public final class io/kontour/ui/components/datetime/CalendarMonthDefaults {
 }
 
 public final class io/kontour/ui/components/datetime/CalendarMonthKt {
-	public static final fun CalendarMonth (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
+	public static final fun CalendarMonth (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function1;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/datetime/CalendarNavigationState {
@@ -580,8 +580,8 @@ public final class io/kontour/ui/components/datetime/DatePickerDefaults {
 
 public final class io/kontour/ui/components/datetime/DatePickerKt {
 	public static final fun DateField (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/kontour/ui/locale/DateStyle;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;III)V
-	public static final fun DatePicker (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
-	public static final fun DateRangePicker (Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
+	public static final fun DatePicker (Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
+	public static final fun DateRangePicker (Lkotlinx/datetime/LocalDate;Lkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function2;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Landroidx/compose/runtime/Composer;III)V
 	public static final fun rememberCalendarNavigationState (Lkotlinx/datetime/LocalDate;Landroidx/compose/runtime/Composer;I)Lio/kontour/ui/components/datetime/CalendarNavigationState;
 }
 
@@ -593,17 +593,22 @@ public final class io/kontour/ui/components/datetime/DateTimePickerDefaults {
 
 public final class io/kontour/ui/components/datetime/DateTimePickerKt {
 	public static final fun DateTimeField (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/kontour/ui/locale/LocaleFormats;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/runtime/Composer;II)V
-	public static final fun DateTimePicker (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;ILkotlin/jvm/functions/Function0;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
+	public static final fun DateTimePicker (Lkotlinx/datetime/LocalDateTime;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;ZLkotlinx/datetime/LocalDate;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;Landroidx/compose/ui/graphics/vector/ImageVector;ILkotlin/jvm/functions/Function0;Lio/kontour/ui/components/datetime/CalendarNavigationState;Lio/kontour/ui/locale/LocaleFormats;Lkotlinx/datetime/DayOfWeek;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;III)V
 }
 
-public final class io/kontour/ui/components/datetime/DayAnnotation {
+public final class io/kontour/ui/components/datetime/DayDecoration {
 	public static final field $stable I
-	public synthetic fun <init> (Ljava/lang/String;JLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/String;JLjava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;JLandroidx/compose/ui/graphics/vector/ImageVector;JJZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;JLandroidx/compose/ui/graphics/vector/ImageVector;JJZLjava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getColour-0d7_KjU ()J
+	public final fun getContainerColour-0d7_KjU ()J
 	public final fun getContentDescription ()Ljava/lang/String;
+	public final fun getDots ()Ljava/util/List;
+	public final fun getIcon ()Landroidx/compose/ui/graphics/vector/ImageVector;
+	public final fun getIconColour-0d7_KjU ()J
+	public final fun getKeepColours ()Z
 	public final fun getText ()Ljava/lang/String;
+	public final fun getTextColour-0d7_KjU ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

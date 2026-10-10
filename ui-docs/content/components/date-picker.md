@@ -120,56 +120,72 @@ way and so does the scroll.
 
 ### What the app has to say about a day
 
-**A day can carry a colour and a few characters of its own**: a fare under each
-day, a public holiday in a colour of its own, how full each day is. Asked for as
-*"the ability to colour and annotate dates (with things like small numbers or
-text or stuff)"*.
+**`decorationFor` gives a day a [`DayDecoration`](calendar-month.md)**: dots
+under it, a few characters and an icon, a colour of its own — a fare under each
+day, a trip already booked, a public holiday. Null for a day with nothing to say.
 
-<!--sample:DatePickerAnnotated-->
+<!--sample:DatePickerDecorated-->
 ```kotlin
 var travelDate by remember { mutableStateOf<LocalDate?>(null) }
 val fares = remember { mapOf(LocalDate(2026, 6, 15) to 42.0, LocalDate(2026, 6, 16) to 38.0) }
 val holidays = remember { setOf(LocalDate(2026, 6, 8)) }
+val booked = remember { setOf(LocalDate(2026, 6, 16)) }
 val formats = Theme.formats
 val cheap = Theme.colours.success.solid
 val holiday = Theme.colours.warning.container
+val trip = Theme.colours.info.solid
 
 DatePicker(
     value = travelDate,
     onValueChange = { travelDate = it },
     today = LocalDate(2026, 6, 12),
-    // A public holiday in a colour of its own; the chosen day is drawn
-    // over it.
-    containerColourFor = { if (it in holidays) holiday else null },
-    // The fare under each day that has one, the cheapest in green, and
-    // said in words after the date.
-    annotationFor = { day ->
-        fares[day]?.let { fare ->
-            DayAnnotation(
-                text = formats.currency(fare, "AUD"),
-                colour = if (fare < 40.0) cheap else Color.Unspecified,
+    decorationFor = { day ->
+        val fare = fares[day]
+        if (fare == null && day !in holidays && day !in booked) {
+            null
+        } else {
+            DayDecoration(
+                // The fare under the day, the cheapest in green, and said in
+                // words after the date.
+                text = fare?.let { formats.currency(it, "AUD") },
+                textColour = if (fare != null && fare < 40.0) cheap else Color.Unspecified,
+                // A dot for a trip already booked.
+                dots = if (day in booked) listOf(trip) else emptyList(),
+                // A public holiday in a colour of its own; the chosen day is
+                // drawn over it.
+                containerColour = if (day in holidays) holiday else Color.Unspecified,
+                // Green and blue on the chosen day too, not its ink.
+                keepColours = true,
             )
         }
     },
 )
 ```
 
-`containerColourFor` fills a day's circle with a colour, and its number is drawn
-in the ink that reads on it. The chosen day, and a range's band and ends, are
-drawn over it, so a fortnight across a holiday still reads as one range; a day
-that cannot be chosen keeps its colour, with its number greyed.
+| Field | What it draws |
+|---|---|
+| `dots` | A dot under the day for each colour, up to three: one per calendar the day is busy in |
+| `text`, `textColour` | Four or five characters under the number, in their colour or the day's muted ink |
+| `icon`, `iconColour` | A small glyph on the same line, before the text |
+| `containerColour` | The day's circle filled with it, and its number in the ink that reads on it |
+| `keepColours` | Every colour kept, on a chosen day and a day that cannot be chosen too |
+| `contentDescription` | What a screen reader says after the date, where the text says less than words would — "$42" as "42 dollars" |
 
-`annotationFor` puts a [`DayAnnotation`](calendar-month.md) under the number: its
-`text`, four or five characters at most, in its `colour` or the day's muted ink.
-On a chosen day or in a range it takes the fill's ink, like the number. It is
-read out after the date, as its `contentDescription` where the characters say
-less than words would — "$42" as "42 dollars". **Given at all, every week is a
-line taller**, in every month, so the picker does not change height as it pages
-between a month with fares and one without; the numbers stay where they were.
+**On a chosen day, and on a range's ends, a decoration takes the fill's ink**, as
+the number does, so it reads on the fill; in the band between them it keeps its
+colours. A day that cannot be chosen greys it. `keepColours = true` keeps them
+everywhere: on a chosen day each dot is ringed and the line sits on a patch of the
+page's own ground, so a green fare is still green on the near-black fill, and a
+day's own colour is a ring inside the fill, or a circle on the band of a range.
+Without it, the chosen day and the range are drawn over the day's own colour, so a
+fortnight across a holiday still reads as one range.
 
-Both take the date and return null for a day with nothing to say, as
-`markerFor`'s dot does. `DateRangePicker`, `DateTimePicker` and `CalendarMonth`
-take the same two.
+**Given decorations, every week is a line taller**, in every month, so the picker
+does not change height as it pages between a month with fares and one without;
+the numbers stay where they were. A picker that only draws dots says
+`showDecorationLine = false`, and keeps its weeks as they were; text and icons are
+then not drawn. `DateRangePicker`, `DateTimePicker` and `CalendarMonth` take the
+same two.
 
 ### It needs its whole month
 

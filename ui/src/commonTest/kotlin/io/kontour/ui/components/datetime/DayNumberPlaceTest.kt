@@ -38,8 +38,14 @@ class DayNumberPlaceTest {
                         month = dotted,
                         isSelected = { false },
                         onSelectedChange = {},
-                        markerFor = { if (it == dotted || it == noted) Color.Red else null },
-                        annotationFor = if (annotated) ({ if (it == noted) DayAnnotation("$9") else null }) else null,
+                        decorationFor = {
+                            when (it) {
+                                dotted -> DayDecoration(dots = listOf(Color.Red))
+                                noted -> DayDecoration(dots = listOf(Color.Red), text = if (annotated) "$9" else null)
+                                else -> null
+                            }
+                        },
+                        showDecorationLine = annotated,
                         firstDayOfWeek = DayOfWeek.MONDAY,
                         modifier = Modifier.width(350.dp),
                     )

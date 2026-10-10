@@ -28,7 +28,9 @@ On `main`, and in the next release.
 
 ### Breaking
 
-- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
+- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
+
+- **A date picker's days are decorated with one [`DayDecoration`](components/calendar-month.md#daydecoration)**, by `decorationFor`, in place of `markerFor`, `containerColourFor` and `annotationFor` and its `DayAnnotation`, on `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth` — see [Migrating](migrating.md#a-date-pickers-days-are-decorated-with-one-daydecoration). It has more than one dot, an icon beside the text, and `keepColours`, which keeps them on a chosen day, where they took its ink. `showDecorationLine = false` keeps the weeks their height for a calendar that only draws dots.
 
 ### Added
 
@@ -55,6 +57,8 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A decoration on a day in the band of a [date range](components/date-range-picker.md) keeps its colours.** It took the band's ink, which read as grey.
+- **Today's ring stays a circle inside a [date range](components/date-range-picker.md).** It was the outline of the band's square day, and drew a pill the width of it.
 - **Something picked up with a long press and let go where it was is not also tapped.** A [reorderable](components/reorderable-item.md) row or a [drag source](drag-and-drop.md) with its own click, held until it lifted and let go without moving, also clicked; moved first, it did not, so it happened only sometimes.
 - **The discs behind a hero [top bar](components/top-bar.md)'s actions follow the collapse after the screen is come back to.** A screen left part-way down its scroll and navigated back to kept the discs as faint as they were when it was left, or gone, however far back up it was scrolled.
 
