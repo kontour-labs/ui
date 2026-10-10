@@ -1,12 +1,16 @@
 package io.kontour.ui.components.display
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -20,9 +24,11 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -84,6 +90,14 @@ import kotlinx.coroutines.launch
  * @param enabled Off, the strip is shown but not pressed, dragged or stepped.
  * @param pageDescription How a thumbnail is announced: "Photo 2 of 40" for a
  *   strip of photos. `page` counts from zero, as the carousel's does.
+ * @param thumbnailAspectRatio Each page's picture's width over its height, so
+ *   the current one widens to the picture's own shape: a portrait narrower than
+ *   a landscape, as a photo app's filmstrip does. Null for a page — or for the
+ *   whole strip, the default — is [ThumbnailStripDefaults.CurrentWidth]. The
+ *   width is kept between [ThumbnailStripDefaults.ThumbnailWidth] and a little
+ *   over twice the default, so a panorama does not take the strip; a picture
+ *   narrower than a thumbnail is shown whole at that width, with black at its
+ *   sides.
  * @param thumbnail Draws the thumbnail of `page`, filling the box it is given.
  */
 @Composable
@@ -92,6 +106,7 @@ fun ThumbnailStrip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     pageDescription: (page: Int, count: Int) -> String = PageIndicatorDefaults.pageDescription(),
+    thumbnailAspectRatio: ((page: Int) -> Float?)? = null,
     thumbnail: @Composable (page: Int) -> Unit,
 ) {
     val height = ThumbnailStripDefaults.Height
@@ -106,6 +121,15 @@ fun ThumbnailStrip(
     val count = state.pageCount
     val current = state.currentPage
     val describe by rememberUpdatedState(pageDescription)
+    val aspect by rememberUpdatedState(thumbnailAspectRatio)
+    val density = LocalDensity.current
+    // How wide each page's thumbnail grows in the middle, in pixels: its
+    // picture's shape where the caller says what that is.
+    val wideOf: (Int) -> Float = { page ->
+        with(density) {
+            currentWidth(aspect?.invoke(page), height.toPx(), narrow.toPx(), wide.toPx(), MaxCurrentWidth.toPx())
+        }
+    }
     // Where the strip is, as a page and a fraction: the carousel's, or while a
     // finger scrubs, the finger's — the carousel follows it a frame behind.
     val scrub = remember { mutableFloatStateOf(0f) }
@@ -148,7 +172,21 @@ fun ThumbnailStrip(
                                     }
                                 }
                             },
-                    ) { thumbnail(page) }
+                    ) {
+                        val ratio = thumbnailAspectRatio?.invoke(page)
+                        if (ratio != null && ratio > 0f && height * ratio < narrow) {
+                            // Narrower than a thumbnail: whole, with black at
+                            // its sides, as a photo app shows a tall sliver.
+                            Box(
+                                Modifier.fillMaxSize().background(Letterbox),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(Modifier.fillMaxHeight().width(height * ratio)) { thumbnail(page) }
+                            }
+                        } else {
+                            thumbnail(page)
+                        }
+                    }
                 }
             }
         },
@@ -212,7 +250,7 @@ fun ThumbnailStrip(
                     if (!dragging) {
                         if (wandered > viewConfiguration.touchSlop) return@awaitEachGesture
                         // A press: the thumbnail under it.
-                        val page = pageAt(down.position.x, size.width.toFloat(), position(), narrowPx, wide.toPx(), gap.toPx(), rtl)
+                        val page = pageAt(down.position.x, size.width.toFloat(), position(), narrowPx, wideOf, gap.toPx(), rtl)
                         if (page != null) goTo(page)
                         return@awaitEachGesture
                     }
@@ -230,15 +268,14 @@ fun ThumbnailStrip(
         val stripHeight = constraints.maxHeight
         val gapPx = gap.toPx()
         val narrowW = narrow.toPx()
-        val wideW = wide.toPx()
         val at = position()
         val first = shown.first
         val placeables = measurables.mapIndexed { i, measurable ->
-            val w = thumbWidth(first + i, at, narrowW, wideW)
+            val w = thumbWidth(first + i, at, narrowW, wideOf(first + i))
             measurable.measure(Constraints.fixed(w.roundToInt().coerceAtLeast(0), stripHeight))
         }
         layout(width, stripHeight) {
-            val lefts = thumbLefts(first, placeables.size, at, width.toFloat(), narrowW, wideW, gapPx)
+            val lefts = thumbLefts(first, placeables.size, at, width.toFloat(), narrowW, wideOf, gapPx)
             placeables.forEachIndexed { i, placeable -> placeable.placeRelative(lefts[i].roundToInt(), 0) }
         }
     }
@@ -255,9 +292,19 @@ private fun CarouselState.requestPageAt(position: Float) {
     listState.requestScrollToItem(page.coerceAtLeast(0), ((position - page) * pitch).roundToInt())
 }
 
-/** How wide [page]'s thumbnail is with the strip at [position]: wide in the middle, narrowing to the rest a page away. */
+/**
+ * How wide [page]'s thumbnail is with the strip at [position]: [wide], its own
+ * width in the middle, narrowing to the rest a page away.
+ */
 internal fun thumbWidth(page: Int, position: Float, narrow: Float, wide: Float): Float =
     narrow + (wide - narrow) * (1f - abs(page - position)).coerceIn(0f, 1f)
+
+/**
+ * How wide a thumbnail grows in the middle: a picture [ratio] wide for each of
+ * its [height], kept between [narrow] and [max]; [standard] without a ratio.
+ */
+internal fun currentWidth(ratio: Float?, height: Float, narrow: Float, standard: Float, max: Float): Float =
+    if (ratio == null || !(ratio > 0f) || ratio.isInfinite()) standard else (ratio * height).coerceIn(narrow, max)
 
 /**
  * Where each of [count] thumbnails from [first] starts, in reading order,
@@ -265,31 +312,31 @@ internal fun thumbWidth(page: Int, position: Float, narrow: Float, wide: Float):
  * middle, the rest a [gap] apart either side, so the strip slides as the
  * position moves and the widening one stays centred.
  */
-internal fun thumbLefts(first: Int, count: Int, position: Float, width: Float, narrow: Float, wide: Float, gap: Float): FloatArray {
+internal fun thumbLefts(first: Int, count: Int, position: Float, width: Float, narrow: Float, wide: (Int) -> Float, gap: Float): FloatArray {
     val lefts = FloatArray(count)
     if (count == 0) return lefts
     // The one the position is at or just past, and how far toward the next.
     val anchor = floor(position).toInt()
     val fraction = position - anchor
-    val anchorWidth = thumbWidth(anchor, position, narrow, wide)
-    val nextWidth = thumbWidth(anchor + 1, position, narrow, wide)
+    val anchorWidth = thumbWidth(anchor, position, narrow, wide(anchor))
+    val nextWidth = thumbWidth(anchor + 1, position, narrow, wide(anchor + 1))
     val anchorLeft = width / 2f - anchorWidth / 2f - fraction * (anchorWidth / 2f + gap + nextWidth / 2f)
     // Out from the anchor both ways.
     var left = anchorLeft
     for (page in anchor downTo first) {
-        if (page != anchor) left -= thumbWidth(page, position, narrow, wide) + gap
+        if (page != anchor) left -= thumbWidth(page, position, narrow, wide(page)) + gap
         if (page - first in 0 until count) lefts[page - first] = left
     }
     left = anchorLeft
     for (page in anchor + 1 until first + count) {
-        left += thumbWidth(page - 1, position, narrow, wide) + gap
+        left += thumbWidth(page - 1, position, narrow, wide(page - 1)) + gap
         if (page - first in 0 until count) lefts[page - first] = left
     }
     return lefts
 }
 
 /** The page whose thumbnail is under [x], in a strip [width] wide at [position]; null in a gap or past the ends. */
-private fun pageAt(x: Float, width: Float, position: Float, pitch: Float, wide: Float, gap: Float, rtl: Boolean): Int? {
+internal fun pageAt(x: Float, width: Float, position: Float, pitch: Float, wide: (Int) -> Float, gap: Float, rtl: Boolean): Int? {
     val reading = if (rtl) width - x else x
     val narrow = pitch - gap
     val near = position.roundToInt()
@@ -299,7 +346,7 @@ private fun pageAt(x: Float, width: Float, position: Float, pitch: Float, wide: 
     for (i in 0 until count) {
         val page = first + i
         val left = lefts[i]
-        if (reading >= left && reading <= left + thumbWidth(page, position, narrow, wide)) return page
+        if (reading >= left && reading <= left + thumbWidth(page, position, narrow, wide(page))) return page
     }
     return null
 }
@@ -327,3 +374,13 @@ private val DefaultHeight = 48.dp
 private val DefaultThumbnailWidth = 28.dp
 private val DefaultCurrentWidth = 64.dp
 private val DefaultGap = 2.dp
+
+/**
+ * The widest a current thumbnail grows for a wide picture: a little over twice
+ * [DefaultCurrentWidth], about a 7:3 panorama at the strip's height. Wider ones
+ * are cut to it, so one panorama does not take the strip.
+ */
+private val MaxCurrentWidth = 112.dp
+
+/** The bars either side of a picture narrower than a thumbnail: black, as a photo app's. */
+private val Letterbox = Color.Black

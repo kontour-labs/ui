@@ -307,6 +307,23 @@ fun ThumbnailStripBasics(photoCount: Int, photo: @Composable (page: Int, modifie
     }
 }
 
+/** A photo of the caller's own, with the size it was taken at. */
+data class Photo(val url: String, val width: Int, val height: Int)
+
+@Composable
+fun ThumbnailStripShapes(photos: List<Photo>, photo: @Composable (Photo, Modifier) -> Unit) {
+    val pages = rememberCarouselState { photos.size }
+
+    Column {
+        Carousel(pages, contentDescription = "Trip photos") { page -> photo(photos[page], Modifier.fillMaxWidth()) }
+        // The current one widens to its photo's own shape.
+        ThumbnailStrip(
+            pages,
+            thumbnailAspectRatio = { page -> photos[page].width.toFloat() / photos[page].height },
+        ) { page -> photo(photos[page], Modifier.fillMaxSize()) }
+    }
+}
+
 @Composable
 fun AccordionBasics(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
     Accordion(

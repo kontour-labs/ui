@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -873,15 +875,32 @@ internal val PageIndicatorDemo = ComponentDemo(
 /** A trip's photos, as tinted boxes: forty, enough to scrub through. */
 private val stripPhotos = (0 until 40).map { Color.hsv((it * 37f) % 360f, 0.45f, 0.85f) }
 
-internal val ThumbnailStripDemo = ComponentDemo(slug = "thumbnail-strip") {
+/** Landscapes, portraits, a square, a sliver and a panorama, in turn. */
+private val stripShapes = listOf(1.5f, 0.75f, 1f, 0.25f, 16f / 9f, 3f, 0.8f, 4f / 3f)
+
+private val stripShaped = Knob.Flag("Photo shapes", initial = true)
+
+internal val ThumbnailStripDemo = ComponentDemo(slug = "thumbnail-strip", knobs = listOf(stripShaped)) {
+    val shaped = this[stripShaped]
     val pages = rememberCarouselState { stripPhotos.size }
+    val shape = { page: Int -> stripShapes[page % stripShapes.size] }
     Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm), modifier = Modifier.fillMaxWidth()) {
         Carousel(pages, contentDescription = "Trip photos", modifier = Modifier.height(ThumbnailStripDemoHeight)) { page ->
-            Box(Modifier.fillMaxSize().background(stripPhotos[page]), contentAlignment = Alignment.Center) {
-                Text("Photo ${page + 1}", colour = Color.Black)
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .then(if (shaped) Modifier.fillMaxHeight().aspectRatio(shape(page), matchHeightConstraintsFirst = true) else Modifier.fillMaxSize())
+                        .background(stripPhotos[page]),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("${page + 1}", colour = Color.Black)
+                }
             }
         }
-        ThumbnailStrip(pages) { page -> Box(Modifier.fillMaxSize().background(stripPhotos[page])) }
+        ThumbnailStrip(
+            pages,
+            thumbnailAspectRatio = if (shaped) shape else null,
+        ) { page -> Box(Modifier.fillMaxSize().background(stripPhotos[page])) }
     }
 }
 

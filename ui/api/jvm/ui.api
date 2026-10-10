@@ -1221,7 +1221,7 @@ public final class io/kontour/ui/components/display/ThumbnailStripDefaults {
 }
 
 public final class io/kontour/ui/components/display/ThumbnailStripKt {
-	public static final fun ThumbnailStrip (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ThumbnailStrip (Lio/kontour/ui/components/display/CarouselState;Landroidx/compose/ui/Modifier;ZLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TimelineColours {

@@ -34,6 +34,29 @@ photos costs what a screenful does.
 [`PageIndicator`](page-indicator.md)'s dot is. Name the pages for what they are
 — "Photo 2 of 40" — where the carousel's own `contentDescription` does not.
 
+**`thumbnailAspectRatio` gives the current thumbnail its photo's own shape**:
+each page's width over its height, so a portrait widens less than a landscape
+does. A page it says nothing about, `null`, takes `CurrentWidth`. The width is
+kept between `ThumbnailWidth` and 112dp, a little over a 7:3 panorama at the
+strip's height, so one panorama does not take the strip; a photo narrower than a
+thumbnail is shown whole at that width, with black bars at its sides. Moving from
+one page to the next, the strip slides from one shape to the other without a
+jump.
+
+<!--sample:ThumbnailStripShapes-->
+```kotlin
+val pages = rememberCarouselState { photos.size }
+
+Column {
+    Carousel(pages, contentDescription = "Trip photos") { page -> photo(photos[page], Modifier.fillMaxWidth()) }
+    // The current one widens to its photo's own shape.
+    ThumbnailStrip(
+        pages,
+        thumbnailAspectRatio = { page -> photos[page].width.toFloat() / photos[page].height },
+    ) { page -> photo(photos[page], Modifier.fillMaxSize()) }
+}
+```
+
 `ThumbnailStripDefaults` has the sizes: `Height`, a fingertip's 48dp;
 `ThumbnailWidth`, how wide each thumbnail beside the current one is;
 `CurrentWidth`, how wide the current one grows; and `Gap`. `enabled = false`
