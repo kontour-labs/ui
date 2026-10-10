@@ -2453,7 +2453,7 @@ private fun Modifier.floatingSides(
  * 150ms p99.
  *
  * So it is two shadows of shapes that never change size. One is as tall as the
- * window and hangs from the sheet's top edge; the other is [pieceHeight] tall and
+ * sheet at its tallest detent and hangs from the sheet's top edge; the other is [pieceHeight] tall and
  * stands on the pinned bottom. Each is cut where it is straight — halfway up the
  * bottom one, which is further from either end than a corner and the blur reach
  * — and along a straight side a shadow is the same at any height, so the two meet
@@ -2504,7 +2504,14 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val piece = pieceHeight.roundToPx()
-        val tall = maxOf(state.containerHeight.roundToInt(), height)
+        // As tall as the sheet is at its tallest detent — a constant while it is
+        // dragged, as an edge sheet's surface is — and in steps above that, so
+        // a pull past the top re-records it a few times rather than each frame.
+        // Not the window's height: a blurred shadow that size is memory, and a
+        // tall window's was enough to run a test suite out of it.
+        val step = FloatingShadowStep.roundToPx().coerceAtLeast(1)
+        val tallest = maxOf(state.surfaceHeight.roundToInt(), height)
+        val tall = ((tallest + step - 1) / step) * step
         val short = height < piece
         whole.value = short
         cut.floatValue = (height - piece / 2f)
@@ -2524,6 +2531,9 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
  * [FloatingShadow] keeps clear of on each side of its cut, with the blur's reach.
  */
 private val FloatingShadowCorner = 48.dp
+
+/** The steps a floating sheet's top shadow grows in, past its tallest detent. */
+private val FloatingShadowStep = 64.dp
 
 /**
  * A morphing sheet's content, held at the width it had while the sheet floated.
