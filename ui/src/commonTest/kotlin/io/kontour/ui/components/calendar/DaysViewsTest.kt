@@ -97,22 +97,30 @@ class DaysViewsTest {
         assertEquals(LocalDate(2026, 10, 28), probe.state.date, "a step keeps the day's place in the fortnight")
     }
 
-    /** Narrower than a phone, the five views would be a column; the switcher leaves out three days instead. */
+    /**
+     * Too narrow for every view side by side, they are offered in a menu: six
+     * segments on a phone stacked into a column. Wide enough, they are side by
+     * side.
+     */
     @Test
-    fun aHeaderNarrowerThanAPhoneLeavesOutThreeDays() = runComposeUiTest {
+    fun aHeaderTooNarrowForEveryViewOffersThemInAMenu() = runComposeUiTest {
         lateinit var strings: Strings
         setContent {
             KontourTheme(reduceMotion = true) {
-                strings = Theme.strings
-                androidx.compose.foundation.layout.Column {
-                    EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(260.dp, 200.dp))
-                    EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(400.dp, 200.dp))
+                io.kontour.ui.overlay.OverlayHost(Modifier.size(600.dp, 500.dp)) {
+                    strings = Theme.strings
+                    androidx.compose.foundation.layout.Column {
+                        EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(360.dp, 200.dp))
+                        EventCalendarDefaults.Header(rememberEventCalendarState(wednesday, CalendarView.Month), Modifier.size(560.dp, 200.dp))
+                    }
                 }
             }
         }
         waitForIdle()
-        assertEquals(1, onAllNodes(hasText(strings.threeDays)).fetchSemanticsNodes().size, "three days should be in the wide header only")
-        assertEquals(2, onAllNodes(hasText(strings.week)).fetchSemanticsNodes().size)
+        assertEquals(1, onAllNodes(hasText(strings.threeDays)).fetchSemanticsNodes().size, "the views should be side by side in the wide header only")
+        assertEquals(1, onAllNodes(hasText(strings.schedule)).fetchSemanticsNodes().size)
+        // The narrow one names the view on show, as its menu's button.
+        assertEquals(2, onAllNodes(hasText(strings.month) and hasClickAction()).fetchSemanticsNodes().size)
     }
 
     @Test

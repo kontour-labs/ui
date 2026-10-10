@@ -30,10 +30,11 @@ check.
   `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip`
   and `Strings` have new parameters.
 
-### A `when` over `CalendarView` has a fifth branch
+### A `when` over `CalendarView` has two more branches
 
-`CalendarView.ThreeDays` is new, so a `when` that names every view no longer
-compiles. Give it a branch of its own, or put it with the day and the week:
+`CalendarView.ThreeDays` and `CalendarView.Schedule` are new, so a `when` that
+names every view no longer compiles. Give each a branch, or put three days with
+the day and the week:
 
 ```diff
   when (view) {
@@ -41,11 +42,13 @@ compiles. Give it a branch of its own, or put it with the day and the week:
 +     CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week -> showHours()
       CalendarView.Month -> showMonth()
       CalendarView.Year -> showYear()
++     CalendarView.Schedule -> showList()
   }
 ```
 
-`EventCalendarDefaults.Header` offers it, between the day and the week. To
-keep the switcher as it was, pass the views: `Header(state, views = listOf(Day, Week, Month, Year))`.
+`EventCalendarDefaults.Views` has both, three days between the day and the
+week and the schedule last. To keep the calendar as it was, give it the views:
+`EventCalendar(views = listOf(Day, Week, Month, Year))`.
 
 ### A date picker's days are decorated with one `DayDecoration`
 

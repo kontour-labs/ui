@@ -139,6 +139,12 @@ class EventCalendarState internal constructor(
         scrolledDate = date
     }
 
+    /** A schedule scrolled to [day]: the state is about it, and the list need not go there. */
+    internal fun showFromScheduleScroll(day: LocalDate) {
+        date = day
+        scrolledDate = day
+    }
+
     /** The day [showFromScroll] last moved to, which the scroll need not bring into view. */
     internal var scrolledDate: LocalDate? = null
 
@@ -199,6 +205,8 @@ class EventCalendarState internal constructor(
                 val last = lengthOfMonth(LocalDate(target.year, date.month, 1))
                 LocalDate(target.year, date.month, minOf(date.day, last))
             }
+            // To the month's start: its first day with anything on comes to the top.
+            CalendarView.Schedule -> target
         }
     }
 
@@ -305,9 +313,10 @@ internal class TodayRequest(val serial: Int, val paged: Boolean)
  * days, then a week; a month as a week; a year as a month.
  */
 private fun nearViews(view: CalendarView): List<CalendarView> = when (view) {
-    CalendarView.Day -> listOf(CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month)
-    CalendarView.ThreeDays -> listOf(CalendarView.Day, CalendarView.Week)
-    CalendarView.Week -> listOf(CalendarView.ThreeDays, CalendarView.Day, CalendarView.Month)
-    CalendarView.Month -> listOf(CalendarView.Week, CalendarView.Year)
-    CalendarView.Year -> listOf(CalendarView.Month)
+    CalendarView.Day -> listOf(CalendarView.ThreeDays, CalendarView.Week, CalendarView.Schedule, CalendarView.Month)
+    CalendarView.ThreeDays -> listOf(CalendarView.Day, CalendarView.Week, CalendarView.Schedule)
+    CalendarView.Week -> listOf(CalendarView.ThreeDays, CalendarView.Day, CalendarView.Month, CalendarView.Schedule)
+    CalendarView.Month -> listOf(CalendarView.Week, CalendarView.Schedule, CalendarView.Year)
+    CalendarView.Year -> listOf(CalendarView.Month, CalendarView.Schedule)
+    CalendarView.Schedule -> listOf(CalendarView.Month, CalendarView.Week)
 }

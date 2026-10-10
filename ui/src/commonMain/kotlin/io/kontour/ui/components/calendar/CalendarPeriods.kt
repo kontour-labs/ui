@@ -26,6 +26,13 @@ enum class CalendarView {
      * three at a time from there: between a day and a week, for a phone.
      */
     ThreeDays,
+
+    /**
+     * The days that have something on, one under another with their events,
+     * month by month, scrolled through: what is coming up. Today is always
+     * there, if only to say nothing is planned.
+     */
+    Schedule,
 }
 
 /**
@@ -70,7 +77,7 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek, val weekCount: Int
     fun indexOf(date: LocalDate, view: CalendarView): Int = when (view) {
         CalendarView.Day -> date.toEpochDays().toInt()
         CalendarView.Week -> (weekIndex(date) - anchorWeek).floorDiv(weekCount)
-        CalendarView.Month -> date.year * MonthsPerYear + date.month.ordinal
+        CalendarView.Month, CalendarView.Schedule -> date.year * MonthsPerYear + date.month.ordinal
         CalendarView.Year -> date.year
         CalendarView.ThreeDays -> (date.toEpochDays() - anchor).floorDiv(ThreeDaysLong).toInt()
     }
@@ -79,7 +86,7 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek, val weekCount: Int
     fun startOf(index: Int, view: CalendarView): LocalDate = when (view) {
         CalendarView.Day -> LocalDate.fromEpochDays(index.toLong())
         CalendarView.Week -> startOfWeek(anchorWeek + index * weekCount)
-        CalendarView.Month -> LocalDate(index.floorDiv(MonthsPerYear), index.mod(MonthsPerYear) + 1, 1)
+        CalendarView.Month, CalendarView.Schedule -> LocalDate(index.floorDiv(MonthsPerYear), index.mod(MonthsPerYear) + 1, 1)
         CalendarView.Year -> LocalDate(index, 1, 1)
         CalendarView.ThreeDays -> LocalDate.fromEpochDays(anchor + index.toLong() * ThreeDaysLong)
     }
@@ -114,6 +121,9 @@ internal class CalendarPeriods(val firstDayOfWeek: DayOfWeek, val weekCount: Int
                 weekStart(start)..weekStart(last).plus(DaysPerWeek - 1, DateTimeUnit.DAY)
             }
             CalendarView.Year -> start..LocalDate(start.year, 12, 31)
+            // The month before, for scrolling back into, and two after it:
+            // what a schedule scrolls through next.
+            CalendarView.Schedule -> start.minus(1, DateTimeUnit.MONTH)..start.plus(ScheduleMonthsAhead, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
         }
     }
 
@@ -128,6 +138,9 @@ internal const val DaysPerWeek: Int = 7
 private const val MonthsPerYear = 12
 private const val Thursday = 4
 private const val ThreeDaysLong = 3L
+
+/** How many months a schedule's dates reach on from its month, that one included. */
+internal const val ScheduleMonthsAhead = 3
 
 /** The most weeks a week view shows side by side. */
 internal const val MaxWeekCount: Int = 6

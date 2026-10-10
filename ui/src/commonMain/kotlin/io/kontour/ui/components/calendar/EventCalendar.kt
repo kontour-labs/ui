@@ -333,6 +333,7 @@ fun EventCalendar(
                     CalendarView.Month -> MonthView(scope)
                     CalendarView.Day, CalendarView.Week, CalendarView.ThreeDays -> TimeView(scope)
                     CalendarView.Year -> YearView(scope)
+                    CalendarView.Schedule -> ScheduleView(scope)
                 }
             }
             // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
@@ -640,6 +641,7 @@ internal fun viewName(view: CalendarView): String {
         CalendarView.Month -> strings.month
         CalendarView.Year -> strings.year
         CalendarView.ThreeDays -> strings.threeDays
+        CalendarView.Schedule -> strings.schedule
     }
 }
 
@@ -655,13 +657,13 @@ internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, time
             val last = formats.monthAndYear(dates.endInclusive)
             if (first == last) first else timeRange(first, last)
         }
-        CalendarView.Month -> formats.monthAndYear(state.date)
+        CalendarView.Month, CalendarView.Schedule -> formats.monthAndYear(state.date)
         CalendarView.Year -> formats.digits(state.date.year.toLong())
     }
 }
 
 @Composable
-private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked: List<CalendarView>, style: CalendarSwitcher) {
+private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked: List<CalendarView>, asStyle: CalendarSwitcher) {
     // Only what the calendar offers, whatever the header was asked for.
     val views = asked.filter { it in state.allowedViews }
     val strings = Theme.strings
@@ -669,7 +671,7 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked:
     val (back, on) = when (state.view) {
         CalendarView.Day -> strings.previousDay to strings.nextDay
         CalendarView.Week -> if (state.weekCount == 1) strings.previousWeek to strings.nextWeek else strings.previousDays to strings.nextDays
-        CalendarView.Month -> strings.previousMonth to strings.nextMonth
+        CalendarView.Month, CalendarView.Schedule -> strings.previousMonth to strings.nextMonth
         CalendarView.Year -> strings.previousYear to strings.nextYear
         CalendarView.ThreeDays -> strings.previousDays to strings.nextDays
     }
@@ -678,17 +680,18 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked:
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val oneRow = constraints.hasBoundedWidth && maxWidth >= HeaderOneRowWidth
-        // Too narrow for every view side by side — under a phone's width —
-        // the default switcher leaves out three days, the extra between a day
-        // and a week, rather than stack five views in a column; but not while
-        // it is the one on show.
-        val views = if (
-            style == CalendarSwitcher.Segmented && views == DefaultViews && constraints.hasBoundedWidth &&
-            maxWidth < FiveViewsWidth && state.view != CalendarView.ThreeDays
-        ) {
-            views - CalendarView.ThreeDays
-        } else {
-            views
+        // Too narrow for every view side by side — six of them on a phone —
+        // the views are offered in a menu instead. Squeezed, a segmented
+        // control stacks its segments in a column; it used to leave three days
+        // out to fit five, and a sixth does not fit at all.
+        // A menu needs an overlay host to open in; a calendar without one
+        // keeps its segments, as its other menus go without.
+        val canMenu = LocalOverlayHostOrNull.current != null
+        val style = when {
+            !canMenu -> CalendarSwitcher.Segmented
+            asStyle == CalendarSwitcher.Segmented && constraints.hasBoundedWidth && maxWidth < MinSegmentWidth * views.size ->
+                CalendarSwitcher.Dropdown
+            else -> asStyle
         }
         val titleText = @Composable { titleModifier: Modifier ->
             Text(
@@ -795,15 +798,15 @@ private fun ViewMenu(state: EventCalendarState, views: List<CalendarView>, names
 }
 
 /** Wide enough for the title, the arrows and the switcher on one line. */
-private val HeaderOneRowWidth = 680.dp
+private val HeaderOneRowWidth = 760.dp
 
-/** The switcher's width beside the title: five short words with room round them. */
-private val HeaderSwitcherWidth = 400.dp
+/** The switcher's width beside the title: six short words with room round them. */
+private val HeaderSwitcherWidth = 480.dp
 
-/** The narrowest the default switcher's five views fit side by side in: a phone's. */
-private val FiveViewsWidth = 300.dp
+/** The least a segment of the switcher takes, its word and room round it: narrower than this for every view, a menu instead. */
+private val MinSegmentWidth = 72.dp
 
-private val DefaultViews = listOf(CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month, CalendarView.Year)
+private val DefaultViews = listOf(CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month, CalendarView.Year, CalendarView.Schedule)
 
 @Composable
 private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresentation) {
