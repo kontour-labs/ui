@@ -34,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Map
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityLegend
@@ -483,8 +485,11 @@ private val eventCalendarView = Knob.Choice("View", EventCalendarDefaults.Views,
 /** How many weeks the week view shows side by side. */
 private val eventCalendarWeeks = Knob.Choice("Weeks", listOf(1, 2, 3), initial = 1)
 
-/** How the day, three-day and week views lay their days out. */
+/** How the three-day and week views lay their days out. */
 private val eventCalendarDays = Knob.Choice("Days", CalendarDaysStyle.entries.toList(), initial = CalendarDaysStyle.Hours)
+
+/** Off, only the all-day events and those a day or longer. */
+private val eventCalendarTimed = Knob.Flag("Timed events", initial = true)
 
 /** A fortnight of a working life, round the demo's today. */
 internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
@@ -493,19 +498,19 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
         CalendarEvent(1, "Stand-up", at(0, 9), at(0, 9, 15)),
         CalendarEvent(2, "Design review", at(0, 9), at(0, 10, 30), tone = Tone.Info, location = "Room 4"),
         CalendarEvent(3, "Planning", at(0, 10), at(0, 11)),
-        CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success),
+        CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success, icon = Tabler.Outline.User),
         CalendarEvent(5, "Gym", at(0, 18), at(0, 19), tone = Tone.Neutral),
-        CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning),
+        CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning, icon = Tabler.Outline.Map),
         CalendarEvent(7, "Dentist", at(1, 15, 30), at(1, 16), tone = Tone.Danger),
         CalendarEvent(8, "Stand-up", at(1, 9), at(1, 9, 15)),
         CalendarEvent(9, "Release", startDate = today.plus(6, DateTimeUnit.DAY), tone = Tone.Accent),
-        CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info),
+        CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info, icon = Tabler.Outline.Plane),
         CalendarEvent(11, "Retro", at(-2, 14), at(-2, 15)),
         CalendarEvent(12, "Public holiday", startDate = today.plus(12, DateTimeUnit.DAY), tone = Tone.Warning, editable = false),
     )
 }
 
-internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays)) {
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays, eventCalendarTimed)) {
     val today = LocalDate(2026, 10, 14)
     val view = this[eventCalendarView]
     val weeks = this[eventCalendarWeeks]
@@ -553,6 +558,7 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
             echo("${event.title} deleted")
         },
         daysStyle = this[eventCalendarDays],
+        showTimedEvents = this[eventCalendarTimed],
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )
 }

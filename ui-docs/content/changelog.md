@@ -28,7 +28,7 @@ On `main`, and in the next release.
 
 ### Breaking
 
-- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
+- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
 
 - **A date picker's days are decorated with one [`DayDecoration`](components/calendar-month.md#daydecoration)**, by `decorationFor`, in place of `markerFor`, `containerColourFor` and `annotationFor` and its `DayAnnotation`, on `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth` — see [Migrating](migrating.md#a-date-pickers-days-are-decorated-with-one-daydecoration). It has more than one dot, an icon beside the text, and `keepColours`, which keeps them on a chosen day, where they took its ink. `showDecorationLine = false` keeps the weeks their height for a calendar that only draws dots.
 
@@ -40,6 +40,9 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md)'s three-day and week views can do without their hours**, `daysStyle = CalendarDaysStyle.Condensed`: each day's events stacked in a list down the days, a line at each day's edge. `CalendarDaysStyle.Hours`, the default, is as before, and the day view always has its hours.
 - **An [event calendar](components/event-calendar.md)'s week view shows several weeks at once**: `state.showWeeks(count)`, 1 to 6, or `rememberEventCalendarState(initialWeekCount = …)`, from the week the date is in. Steps and swipes go by as many weeks. `state.weekCount` says how many; it is kept with the state.
 - **An [event calendar](components/event-calendar.md)'s month zooms**: two fingers spread show fewer weeks, each taller, down to three to the box; pinched, more, up to six. Ctrl or Cmd with the wheel, or with plus and minus, steps a week, and a screen reader has Zoom in and Zoom out. Zoomed in, an event shows its time and where it is on lines of their own. The zoom is kept with the state. New strings: `zoomIn`, `zoomOut`.
+
+- **An [event calendar](components/event-calendar.md)'s events can have an icon**: `CalendarEvent(icon = …)`, before the title in a block or a bar and in place of the dot in a line, given up before the title where a day is narrow.
+- **An [event calendar](components/event-calendar.md) can show only all-day and multi-day events**: `showTimedEvents = false`. Its days are stacked with no hours, the day view's too.
 
 ### Changed
 

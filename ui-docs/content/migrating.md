@@ -26,8 +26,9 @@ check.
 ### Before you start
 
 - **Move all three modules at once**: `kontour = "0.4.4"`, and rebuild anything
-  compiled against 0.4.3 — `EventCalendar`, `rememberEventCalendarState`,
-  `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters.
+  compiled against 0.4.3 — `EventCalendar`, `CalendarEvent`,
+  `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip`
+  and `Strings` have new parameters.
 
 ### A `when` over `CalendarView` has a fifth branch
 

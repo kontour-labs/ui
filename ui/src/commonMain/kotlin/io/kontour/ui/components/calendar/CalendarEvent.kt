@@ -1,6 +1,7 @@
 package io.kontour.ui.components.calendar
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.vector.ImageVector
 import io.kontour.ui.theme.Tone
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -47,6 +48,10 @@ import kotlinx.datetime.plus
  * @property editable Whether a drag or a keyboard can move it or change its
  *   length, where the calendar offers those at all. False for an event the app
  *   only shows — a public holiday from a subscribed calendar.
+ * @property icon A glyph before its title, in its ink: a plane for a flight, a
+ *   cake for a birthday. In a line, in place of its tone's dot; dropped, as the
+ *   dot is, where a day is too narrow for it and the title. Decorative: say
+ *   what matters in the title.
  */
 @Immutable
 class CalendarEvent(
@@ -59,6 +64,7 @@ class CalendarEvent(
     val location: String? = null,
     val supporting: String? = null,
     val editable: Boolean = true,
+    val icon: ImageVector? = null,
 ) {
     /**
      * An all-day event from [startDate] to [endDate], both days included — as
@@ -72,6 +78,7 @@ class CalendarEvent(
      * @param location Where, read out and shown under the title where there is room.
      * @param supporting A line more about it, shown where there is room.
      * @param editable Whether a drag or a keyboard can move it or change its length.
+     * @param icon A glyph before its title.
      */
     constructor(
         id: Any,
@@ -82,6 +89,7 @@ class CalendarEvent(
         location: String? = null,
         supporting: String? = null,
         editable: Boolean = true,
+        icon: ImageVector? = null,
     ) : this(
         id = id,
         title = title,
@@ -92,6 +100,7 @@ class CalendarEvent(
         location = location,
         supporting = supporting,
         editable = editable,
+        icon = icon,
     )
 
     init {
@@ -112,13 +121,14 @@ class CalendarEvent(
         location: String? = this.location,
         supporting: String? = this.supporting,
         editable: Boolean = this.editable,
-    ): CalendarEvent = CalendarEvent(id, title, start, end, allDay, tone, location, supporting, editable)
+        icon: ImageVector? = this.icon,
+    ): CalendarEvent = CalendarEvent(id, title, start, end, allDay, tone, location, supporting, editable, icon)
 
     override fun equals(other: Any?): Boolean =
         other is CalendarEvent &&
             id == other.id && title == other.title && start == other.start && end == other.end &&
             allDay == other.allDay && tone == other.tone && location == other.location &&
-            supporting == other.supporting && editable == other.editable
+            supporting == other.supporting && editable == other.editable && icon == other.icon
 
     override fun hashCode(): Int {
         var result = id.hashCode()
@@ -130,6 +140,7 @@ class CalendarEvent(
         result = 31 * result + (location?.hashCode() ?: 0)
         result = 31 * result + (supporting?.hashCode() ?: 0)
         result = 31 * result + editable.hashCode()
+        result = 31 * result + (icon?.hashCode() ?: 0)
         return result
     }
 

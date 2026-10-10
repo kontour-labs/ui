@@ -29,7 +29,16 @@ for choosing a date. This is for reading a schedule.
 ## The events
 
 An event is a `CalendarEvent`: an `id`, a `title`, when it starts and ends, a
-`tone` to colour it, and optionally a `location` and a supporting line.
+`tone` to colour it, and optionally a `location`, a supporting line and an
+`icon`.
+
+**`icon` leads its title** — a plane for a flight, a person for a lunch — in each
+of its shapes: before the title in a block or a bar, in the ink on it, and in a
+line in place of its tone's dot, in the dot's colour. Where a day or a block is
+too narrow for the icon and four letters of the title, the icon goes, as the dot
+does. It is decorative: a screen reader hears the title. It is a field of the
+event rather than a `+` in a slot, because an event is data the app keeps and
+hands over, not a composable it writes.
 
 - **Times are wall-clock times** (`LocalDateTime`): the time on the reader's
   clock, not an instant. The day and week views always draw 24 hours a day,
@@ -61,6 +70,12 @@ steps by as many.
 
 `daysStyle` lays out the three-day and week views' days. The day view always has
 its hours: a single day condensed is a list, and its hours say more about it.
+
+**`showTimedEvents = false` shows only all-day events and those a day or
+longer** — a plan of trips and leave rather than of meetings. An event that runs
+overnight but less than a day is a timed one, and is left out. With nothing for
+the hours, the day, three-day and week views stack their events as `Condensed`
+does, the day view too.
 
 | `CalendarDaysStyle` | What it draws |
 |---|---|

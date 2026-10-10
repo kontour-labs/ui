@@ -152,7 +152,7 @@ internal fun TimeView(scope: CalendarScope) {
 
     // A day on its own keeps its hours: condensed, one day is a list, and the
     // hours say more about it.
-    val style = if (state.view == CalendarView.Day) CalendarDaysStyle.Hours else scope.daysStyle
+    val style = if (state.view == CalendarView.Day && scope.showsTimed) CalendarDaysStyle.Hours else scope.daysStyle
     Column(Modifier.fillMaxWidth().then(swipe)) {
         Row(Modifier.fillMaxWidth()) {
             // No hours, no gutter: the days have the width.

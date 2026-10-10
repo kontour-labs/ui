@@ -1,5 +1,9 @@
 package io.kontour.ui.components.calendar
 
+import io.kontour.ui.foundation.LocalContentColour
+import io.kontour.ui.foundation.Icon
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,7 +132,8 @@ internal fun EventLine(event: CalendarEvent, lines: Int = 1) {
     val pad = Theme.spacing.xxs
     Layout(
         content = {
-            Box(Modifier.size(dotSize).background(toneColours(event.tone).solid, Theme.shapes.capsule))
+            // Its icon, where it has one, in the dot's place and colour.
+            ToneMark(event, style, dotSize)
             Text(Theme.formats.time(event.start.time), style = style, colour = Theme.colours.contentMuted, maxLines = 1, softWrap = false)
             FadingText(event.title, style)
         },
@@ -176,7 +181,7 @@ private fun DetailedItem(event: CalendarEvent, lines: Int, dot: Boolean) {
         // The dot only where it leaves the title its room, as a line's is.
         Layout(
             content = {
-                if (dot) Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
+                if (dot) ToneMark(event, style, Theme.spacing.xs) else event.icon?.let { ItemIcon(it, style) }
                 FadingText(event.title, style)
             },
         ) { measurables, constraints ->
@@ -205,15 +210,71 @@ internal fun EventBar(event: CalendarEvent, lines: Int = 1) {
     if (lines > 1 && event.location != null) return DetailedItem(event, lines, dot = false)
     val wide = Theme.spacing.xs
     val narrow = Theme.spacing.xxs
-    Layout(content = { FadingText(event.title, calendarItemStyle()) }) { (title), constraints ->
+    val style = calendarItemStyle()
+    Layout(content = { FadingText(event.title, style); event.icon?.let { ItemIcon(it, style) } }) { measurables, constraints ->
         val side = (if (constraints.maxWidth < NarrowItemWidth.roundToPx()) narrow else wide).roundToPx()
-        val placeable = title.measure(Constraints(maxWidth = (constraints.maxWidth - side * 2).coerceAtLeast(0)))
-        val height = constraints.constrainHeight(placeable.height)
-        layout(constraints.constrainWidth(placeable.width + side * 2), height) {
-            placeable.placeRelative(side, (height - placeable.height) / 2)
+        val inner = (constraints.maxWidth - side * 2).coerceAtLeast(0)
+        // Its icon before its title, where that leaves the title its room.
+        val gapPx = narrow.roundToPx()
+        val icon = measurables.getOrNull(1)?.measure(Constraints())
+            ?.takeIf { inner - it.width - gapPx >= (style.fontSize.toPx() * MinTitleEms).toInt() }
+        val used = if (icon != null) icon.width + gapPx else 0
+        val placeable = measurables[0].measure(Constraints(maxWidth = (inner - used).coerceAtLeast(0)))
+        val height = constraints.constrainHeight(maxOf(placeable.height, icon?.height ?: 0))
+        layout(constraints.constrainWidth(placeable.width + used + side * 2), height) {
+            icon?.placeRelative(side, (height - icon.height) / 2)
+            placeable.placeRelative(side + used, (height - placeable.height) / 2)
         }
     }
 }
+
+/** An event's tone's dot, or its icon in the dot's colour where it has one: what leads a line. */
+@Composable
+private fun ToneMark(event: CalendarEvent, style: TextStyle, dotSize: Dp) {
+    val colour = toneColours(event.tone).solid
+    val icon = event.icon
+    if (icon != null) {
+        ItemIcon(icon, style, tint = colour)
+    } else {
+        Box(Modifier.size(dotSize).background(colour, Theme.shapes.capsule))
+    }
+}
+
+/** An event's icon at its text's size: as tall as a capital, in the ink round it unless given one. */
+@Composable
+internal fun ItemIcon(icon: ImageVector, style: TextStyle, tint: Color = LocalContentColour.current) {
+    val size = with(LocalDensity.current) { (style.fontSize * ItemIconScale).toDp() }
+    Icon(icon, contentDescription = null, tint = tint, size = size)
+}
+
+/** An item's icon against its type's size: a little over a capital's height. */
+private const val ItemIconScale = 1.15f
+
+/**
+ * [lead] before what follows it on the first line, where that leaves at least
+ * [minTitle] pixels for the rest; otherwise the rest alone. A block's icon, before
+ * its title.
+ */
+@Composable
+internal fun LeadBefore(lead: (@Composable () -> Unit)?, lineHeight: Dp, minTitle: Float, gap: Dp, rest: @Composable () -> Unit) {
+    if (lead == null) return rest()
+    Layout(content = { lead(); rest() }) { (leadM, restM), constraints ->
+        val gapPx = gap.roundToPx()
+        val leadP = leadM.measure(Constraints())
+        val shows = constraints.maxWidth - leadP.width - gapPx >= minTitle
+        val used = if (shows) leadP.width + gapPx else 0
+        val restP = restM.measure(constraints.copy(minWidth = 0, maxWidth = (constraints.maxWidth - used).coerceAtLeast(0)))
+        val height = constraints.constrainHeight(maxOf(restP.height, if (shows) leadP.height else 0))
+        val line = lineHeight.roundToPx()
+        layout(constraints.constrainWidth(used + restP.width), height) {
+            if (shows) leadP.placeRelative(0, ((line - leadP.height) / 2).coerceAtLeast(0))
+            restP.placeRelative(used, 0)
+        }
+    }
+}
+
+/** How much of a title an icon before it must leave: about four letters, against the type's size. */
+internal fun minTitlePx(style: TextStyle, density: androidx.compose.ui.unit.Density): Float = with(density) { style.fontSize.toPx() * MinTitleEms }
 
 /** Below this a bar's title is inset by less. */
 internal val NarrowItemWidth: Dp = 56.dp

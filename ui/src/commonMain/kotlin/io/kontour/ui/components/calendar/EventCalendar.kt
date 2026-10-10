@@ -196,6 +196,11 @@ import kotlinx.datetime.toLocalDateTime
  * @param daysStyle How the three-day and week views lay their days out: the
  *   hours with the all-day events above them, or every event stacked with no
  *   hours. The day view always has its hours.
+ * @param showTimedEvents Off, the calendar shows only all-day events and
+ *   those a day or longer — a plan of trips and leave rather than of meetings —
+ *   and the day, three-day and week views stack them with no hours, as
+ *   [CalendarDaysStyle.Condensed] does, since there is nothing to put in the
+ *   hours.
  * @param formats How dates, times and numbers are written: the theme's.
  * @param header Above the calendar: by default [EventCalendarDefaults.Header],
  *   with the title, the arrows, today and the view switcher. Null for none — an
@@ -222,6 +227,7 @@ fun EventCalendar(
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
     daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
+    showTimedEvents: Boolean = true,
     formats: LocaleFormats = Theme.formats,
     eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
     emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
@@ -243,9 +249,11 @@ fun EventCalendar(
     val modality = LocalInputModality.current
     val cursorInteractions = remember { MutableInteractionSource() }
     val cursorShown = rememberFocusRingVisible(cursorInteractions)
+    // The one place events are filtered: everything below finds them here.
+    val shown = if (showTimedEvents) events else remember(events) { events.filterNot { it.isTimed() } }
     val scope = CalendarScope(
         state = state,
-        events = events,
+        events = shown,
         enabled = enabled,
         now = now,
         onEventClick = onEventClick,
@@ -268,7 +276,8 @@ fun EventCalendar(
         menus = LocalOverlayHostOrNull.current != null,
         eventMenu = eventMenu,
         emptyMenu = emptyMenu,
-        daysStyle = daysStyle,
+        daysStyle = if (showTimedEvents) daysStyle else CalendarDaysStyle.Condensed,
+        showsTimed = showTimedEvents,
     )
     // The days a pointer's day can be: the ones on show, not a page sliding away.
     SideEffect { edit.shown = { state.visibleDates } }
@@ -355,6 +364,8 @@ internal class CalendarScope(
     val eventMenu: (@Composable EventMenuScope.(CalendarEvent) -> Unit)?,
     val emptyMenu: (@Composable EmptyMenuScope.(LocalDateTime, LocalDateTime) -> Unit)?,
     val daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
+    /** Whether timed events are shown at all: without them, a day on its own is stacked too. */
+    val showsTimed: Boolean = true,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -749,8 +760,11 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             // Its title in the small type, in the middle of what there is.
             if (height != null && height < titleLine + vertical * 2) {
                 val smallLine = with(LocalDensity.current) { type.labelSmall.lineHeight.toDp() }
+                val small = calendarItemStyle()
                 WholeLines(vertical = ((height - smallLine) / 2).coerceIn(0.dp, vertical), inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
-                    FadingText(event.title, calendarItemStyle())
+                    LeadBefore(event.icon?.let { { ItemIcon(it, small) } }, smallLine, minTitlePx(small, LocalDensity.current), Theme.spacing.xxs) {
+                        FadingText(event.title, small)
+                    }
                 }
                 return
             }
@@ -762,10 +776,13 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             WholeLines(vertical = vertical, inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
                 // One line fades out where it is cut, as a month's do: "DR-…" was
                 // a letter given up to say there was more.
-                if (titleLines == 1) {
-                    FadingText(event.title, type.labelMedium)
-                } else {
-                    Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
+                // Its icon before the title's first line, the title's lines after it.
+                LeadBefore(event.icon?.let { { ItemIcon(it, type.labelMedium) } }, titleLine, minTitlePx(type.labelMedium, LocalDensity.current), Theme.spacing.xxs) {
+                    if (titleLines == 1) {
+                        FadingText(event.title, type.labelMedium)
+                    } else {
+                        Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 FadingText(strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)), type.labelSmall)
                 event.location?.let { FadingText(it, type.labelSmall) }
