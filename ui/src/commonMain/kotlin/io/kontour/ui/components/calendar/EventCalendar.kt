@@ -733,8 +733,9 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked:
                 )
             }
         }
-        // A menu's button is narrow enough to sit beside the arrows on a phone.
-        if (style == CalendarSwitcher.Dropdown) {
+        // A menu's button is narrow enough to sit beside the arrows on a
+        // phone — but not on a narrower box, where it left the title none.
+        if (style == CalendarSwitcher.Dropdown && (!constraints.hasBoundedWidth || maxWidth >= DropdownOneRowWidth)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
@@ -764,7 +765,7 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked:
                     titleText(Modifier.weight(1f))
                     arrows()
                 }
-                switcher(Modifier.fillMaxWidth())
+                switcher(if (style == CalendarSwitcher.Dropdown) Modifier else Modifier.fillMaxWidth())
             }
         }
     }
@@ -802,6 +803,9 @@ private val HeaderOneRowWidth = 760.dp
 
 /** The switcher's width beside the title: six short words with room round them. */
 private val HeaderSwitcherWidth = 480.dp
+
+/** Wide enough for the title, the arrows and a menu's button on one line. */
+private val DropdownOneRowWidth = 380.dp
 
 /** The least a segment of the switcher takes, its word and room round it: narrower than this for every view, a menu instead. */
 private val MinSegmentWidth = 72.dp

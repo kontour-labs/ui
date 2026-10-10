@@ -16,6 +16,7 @@ import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -121,6 +122,24 @@ class DaysViewsTest {
         assertEquals(1, onAllNodes(hasText(strings.schedule)).fetchSemanticsNodes().size)
         // The narrow one names the view on show, as its menu's button.
         assertEquals(2, onAllNodes(hasText(strings.month) and hasClickAction()).fetchSemanticsNodes().size)
+    }
+
+    /** Narrower than a phone, the menu's button goes under the title rather than squeezing it out. */
+    @Test
+    fun aNarrowHeaderKeepsItsTitle() = runComposeUiTest {
+        var title = ""
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                io.kontour.ui.overlay.OverlayHost(Modifier.size(300.dp, 300.dp)) {
+                    val state = rememberEventCalendarState(wednesday, CalendarView.Month)
+                    title = Theme.formats.monthAndYear(state.date)
+                    EventCalendarDefaults.Header(state, Modifier.size(280.dp, 200.dp))
+                }
+            }
+        }
+        waitForIdle()
+        val bounds = onNode(hasText(title)).fetchSemanticsNode().boundsInRoot
+        assertTrue(bounds.width > 60f, "the title is ${bounds.width}px wide beside the arrows and the menu")
     }
 
     @Test
