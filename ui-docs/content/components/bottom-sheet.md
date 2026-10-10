@@ -421,13 +421,15 @@ of your own. It used to follow the live position over that last 64dp, and a tall
 sheet opened floating and changed shape in its final frames — reported as the
 sheet "snapping" open near the top.
 
-**The content keeps its floating width.** As the sheet widens by its side margins
-the surface grows out around the content and the content stays where it was, so
-an expanded sheet's content sits a margin further in than an edge sheet's would.
-That is the price of not re-flowing in the middle of a drag: a line that wraps
-differently at each width changes the sheet's height, and its detents with it,
-while a finger is on it — the other half of the reported snap. It also means
-nothing is re-measured across the step.
+**The content keeps its floating width while the sheet moves, and takes the
+whole width once it lands.** As the sheet widens by its side margins the surface
+grows out around the content and the content stays where it was: a line that
+wraps differently at each width changes the sheet's height, and its detents with
+it, while a finger is on it — the other half of the reported snap. Once the sheet
+rests at the top as an edge sheet, the content eases out to the edge sheet's own
+sides, the window's insets and nothing more, so an expanded sheet has no floating
+margin left inside it. Taken hold of again, it eases back to its floating width
+before the morph goes anywhere. Under reduced motion it changes over at once.
 
 ---
 

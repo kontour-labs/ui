@@ -336,7 +336,7 @@ fun TopBar(
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
                     centred = style == TopBarStyle.Centred,
-                    leading = { Leading(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, navigation) },
                     title = {
                         // Centred when the bar could centre it and started when it
                         // could not — see `CentredBarTitle` — so a Centred bar
@@ -363,7 +363,7 @@ fun TopBar(
                     // had: a bar with nothing to put on that line was drawing
                     // 56dp of nothing above its own title.
                     hasControls = onBack != null || navigation != null || actions != null,
-                    leading = { Leading(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, navigation) },
                     actions = actions,
                     slots = slots,
                     minExpanded = floor,
@@ -528,7 +528,7 @@ private fun HeroBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
                                 hasControls = onBack != null || navigation != null || actions != null,
-                                leading = { Leading(onBack, backLabel, navigation) },
+                                leading = { BarNavigation(onBack, backLabel, navigation) },
                                 actions = actions,
                                 slots = slots,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
@@ -1422,8 +1422,13 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
         }
     }
 
+/**
+ * A bar's leading navigation: [navigation] if there is one, otherwise a back
+ * button for [onBack], otherwise nothing. A [TopBar]'s, and a
+ * [SheetHeader][io.kontour.ui.sheet.SheetHeader]'s, so the two read the same.
+ */
 @Composable
-private fun Leading(
+internal fun BarNavigation(
     onBack: (() -> Unit)?,
     backLabel: String,
     navigation: (@Composable () -> Unit)?,

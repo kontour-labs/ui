@@ -1343,6 +1343,10 @@ class SheetState internal constructor(
             }
         }
         if (atLeastOne && next != null && (aimed == null || (aimedAt - nextAt) * sign(velocity) < 0f)) return next
+        // Past the next detent only on a throw meant to go past it: see
+        // [SheetSkipVelocity]. Under it, a flick from the top stops at the middle.
+        val skip = with(anchorDensity ?: Density(1f)) { SheetSkipVelocity.toPx() }
+        if (next != null && aimed != null && abs(velocity) < skip && (aimedAt - nextAt) * sign(velocity) > 0f) return next
         return aimed
     }
 
@@ -1777,6 +1781,20 @@ internal val SheetMinThrow: Dp = 14.dp
  * projects to; below it, the nearest detent.
  */
 internal val SheetHandleFlickVelocity: Dp = 125.dp
+
+/**
+ * How fast a throw has to be to go past the next detent rather than stop there.
+ *
+ * Under it the projection still decides whether a flick moves the sheet at all,
+ * but it moves one detent at most. Without it, the half second of projection took
+ * an ordinary flick down from the top straight past the middle detent and
+ * closed the sheet: from full height the middle is a short way off, and an easy
+ * 2000px/s carries a thousand pixels on. Reported as "really easy to flick a
+ * sheet past its middle detent".
+ *
+ * A hard, deliberate throw is well over this, and still closes the sheet in one.
+ */
+internal val SheetSkipVelocity: Dp = 2500.dp
 
 /** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
 private const val BackTravel = 0.95f

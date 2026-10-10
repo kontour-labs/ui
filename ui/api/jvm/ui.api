@@ -3931,7 +3931,7 @@ public final class io/kontour/ui/sheet/SheetEdgeMorph$Companion {
 
 public final class io/kontour/ui/sheet/SheetHeaderKt {
 	public static final fun DragHandle (Landroidx/compose/ui/Modifier;Lio/kontour/ui/sheet/SheetState;Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)V
-	public static final fun SheetHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/sheet/SheetHeaderStyle;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SheetHeader (Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/sheet/SheetHeaderStyle;Lkotlin/jvm/functions/Function0;Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun closeEnclosingSheet (Landroidx/compose/runtime/Composer;I)Lkotlin/jvm/functions/Function0;
 }
 

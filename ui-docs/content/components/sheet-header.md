@@ -107,6 +107,28 @@ is a header fighting its own sheet.
 
 ---
 
+## A way back
+
+`onBack` puts a back button at the leading end, as a [`TopBar`](top-bar.md)'s
+does — for a sheet that goes a step in, a list and then one of its items, and
+comes back out without closing. `backLabel` is what a screen reader calls it, and
+`navigation` leads with something else in its place.
+
+<!--sample:SheetHeaderBack-->
+```kotlin
+// One sheet, two steps: the list, then one of its items.
+var stop by remember { mutableStateOf<String?>(null) }
+SheetHeader(onBack = if (stop != null) ({ stop = null }) else null) {
+    +(stop ?: "Stops nearby")
+}
+```
+
+Its icon is as far in from the leading side as the close button's is from the
+trailing one; the title follows it. A `Large` title stays in line with the
+sheet's content under it, whatever the row above leads with.
+
+---
+
 ## Accessibility
 
 The title is marked `heading()`, so a screen reader can jump to it — which is

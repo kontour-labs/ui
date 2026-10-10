@@ -28,7 +28,7 @@ On `main`, and in the next release.
 
 ### Breaking
 
-- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `rememberEventCalendarState`, `ToastHost` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
+- **`CalendarView` has a fifth view, `ThreeDays`**, so a `when` that names every view needs a branch for it — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
 
 ### Added
 
@@ -48,6 +48,9 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md)'s titles show more of themselves.** A month's line is in a slightly smaller type, and in a narrow day gives up its time, then its dot, before its title. A title cut short fades out instead of ending in "…". In the hours a title wraps over every line its event is tall, not two. A busy day's "+N" is a row the size of its events, in line with them, rather than text under them; in the week's all-day strip too.
 - **An [event calendar](components/event-calendar.md)'s arrow at the side of the days is level with a mouse's pointer** while an event is carried. It was 40dp above it, which is for a fingertip; under a finger it still is.
 - **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
+- **A [bottom sheet](components/sheets.md)'s ordinary flick down from the top stops at its middle detent.** A flick goes past the next detent only at 2500dp/s or more, so a hard throw still closes it in one; the half second the release is projected by had carried an ordinary one straight past the middle.
+- **A floating [bottom sheet](components/bottom-sheet.md) that has become an edge sheet at the top gives its content the whole width once it rests there.** Its content kept the floating width inside the edge sheet's sides; it still does while the sheet moves, so nothing reflows under a finger.
+- **A [sheet header](components/sheet-header.md) can lead with a back button**: `SheetHeader(onBack = …)`, with `backLabel`, or `navigation` for something else in its place, as a [top bar](components/top-bar.md) takes them.
 - **A [bottom sheet](components/bottom-sheet.md)'s content fades out a little higher above a part pinned to its foot**, 24dp rather than 16dp, so the buttons read as standing over what scrolls behind them.
 
 ### Fixed

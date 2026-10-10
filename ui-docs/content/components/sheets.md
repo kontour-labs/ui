@@ -233,12 +233,15 @@ nested-scroll connection has the same exception: nothing would answer a list tha
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
 
-**One flick closes it.** A release lands where the throw would have carried
-the sheet had it kept going for half a second — what iOS projects a release by —
-at the nearest detent to that, so a hard throw goes past a middle detent and
-closes the sheet in one, where it used to take one flick per detent. A throw of
-the sheet itself, by its handle or its surface, counts from 125dp/s and always
-moves it at least one detent the way it was thrown.
+**One hard flick closes it; an ordinary one stops at the middle.** A release
+lands where the throw would have carried the sheet had it kept going for half a
+second — what iOS projects a release by — at the nearest detent to that. It goes
+past the next detent only when it is thrown at 2500dp/s or more: a hard throw
+closes a sheet with a middle detent in one, where it used to take one flick per
+detent, and an ordinary flick down from the top stops at the middle, which the
+projection alone carried straight past. A throw of the sheet itself, by its
+handle or its surface, counts from 125dp/s and always moves it at least one
+detent the way it was thrown.
 
 **A finger rolling off the glass is not a throw.** A release only counts as one
 if the finger's last run in one direction was at least 14dp, a little past touch

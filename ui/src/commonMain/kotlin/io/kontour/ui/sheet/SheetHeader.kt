@@ -52,6 +52,7 @@ import io.kontour.ui.foundation.ContentSlot
 import io.kontour.ui.foundation.ProvideContentColour
 import io.kontour.ui.foundation.ProvideTextStyle
 import io.kontour.ui.foundation.SystemIcons
+import io.kontour.ui.nav.BarNavigation
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
@@ -282,6 +283,12 @@ enum class SheetHeaderStyle {
  * close button is a real button with its own label rather than a glyph in the
  * title row.
  *
+ * @param onBack Draws a back button on the leading side, as a
+ *   [TopBar][io.kontour.ui.nav.TopBar]'s does: for a sheet that has gone a step
+ *   in — a list, then one of its items — and comes back out without closing.
+ * @param backLabel What a screen reader calls the back button.
+ * @param navigation Something else to lead with in its place, as a top bar's
+ *   `navigation`. Takes precedence over [onBack].
  * @param onClose What the close button does, or **`null` for no close button** —
  *   which is the way to say a sheet cannot be dismissed from its header, and
  *   pairs with `dismissible = false` on the sheet itself. The default asks the
@@ -298,10 +305,14 @@ fun SheetHeader(
     closeLabel: String = Theme.strings.close,
     closeIcon: ImageVector = SystemIcons.Close,
     style: SheetHeaderStyle = SheetHeaderStyle.Small,
+    onBack: (() -> Unit)? = null,
+    backLabel: String = Theme.strings.back,
+    navigation: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
+    val leads = navigation != null || onBack != null
 
     @Composable
     fun Controls(scope: RowScope) {
@@ -352,11 +363,13 @@ fun SheetHeader(
     // see [SheetCornerRoom].
     val inset = BottomSheetDefaults.ContentPadding
     val room = LocalSheetCornerRoom.current
-    val start = inset + room.start
+    // A back button's own padding makes up the rest at the leading end, as the
+    // close button's does at the trailing.
+    val start = (if (leads) Theme.spacing.xs else inset) + room.start
     val end = Theme.spacing.xs + room.end
     val banded = LocalSheetBand.current
     val top = if (banded) 0.dp else inset + room.top
-    val controls = actions != null || onClose != null
+    val controls = actions != null || onClose != null || leads
     val icon = Theme.sizing.iconLarge
     // What is drawn, as against what is laid out: a 48dp button is a 24dp icon
     // with 12dp of nothing round it, and the space round a header is measured to
@@ -376,8 +389,16 @@ fun SheetHeader(
             startInset = start,
             endInset = end,
             leading = {
-                slots.leading?.let { leading ->
-                    Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
+                if (leads || slots.leading != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BarNavigation(onBack, backLabel, navigation)
+                        slots.leading?.let { leading ->
+                            Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
+                        }
+                    }
                 }
             },
             title = {
@@ -418,6 +439,7 @@ fun SheetHeader(
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                BarNavigation(onBack, backLabel, navigation)
                 slots.leading?.let { leading ->
                     Box(Modifier.recordHeight { drawn.leading = it }) { ContentSlot(content = leading) }
                 }
@@ -425,7 +447,11 @@ fun SheetHeader(
                 Controls(this)
             }
 
-            Title(textStyle = Theme.typography.titleLarge)
+            // In line with what it heads, whatever the row above leads with.
+            Title(
+                textStyle = Theme.typography.titleLarge,
+                modifier = if (leads) Modifier.padding(start = inset - Theme.spacing.xs) else Modifier,
+            )
         }
     }
 }

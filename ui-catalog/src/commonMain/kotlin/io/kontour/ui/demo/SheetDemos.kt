@@ -444,13 +444,15 @@ private fun FilterBody() {
 
 private val headerStyle =
     Knob.Choice("Style", SheetHeaderStyle.entries.toList(), SheetHeaderStyle.Small)
+private val headerBack = Knob.Flag("Back button")
 
 internal val SheetHeaderDemo = ComponentDemo(
     slug = "sheet-header",
-    knobs = listOf(headerStyle),
+    knobs = listOf(headerStyle, headerBack),
 ) {
     var open by remember { mutableStateOf(true) }
     val style = this[headerStyle]
+    val back = this[headerBack]
     Screen {
         if (!open) {
             Button(
@@ -463,6 +465,7 @@ internal val SheetHeaderDemo = ComponentDemo(
         ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
             SheetHeader(
                 style = style,
+                onBack = if (back) ({ echo("Back") }) else null,
                 actions = {
                     IconButton(
                         icon = Tabler.Outline.Star,

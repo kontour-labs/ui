@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import io.kontour.ui.nav.easedFade
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.geometry.Size
@@ -1397,11 +1399,12 @@ private fun BoxScope.SheetSurface(
             val padding = remember(safeArea, pins) { SlotPadding(safeArea, pins) }
             val contentInset = BottomSheetDefaults.ContentPadding
             // A pinned part keeps clear of the same sides the content does.
+            val widen = rememberLandedWidening(state, morph)
             val sides = if (morph == null) {
                 Modifier.windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
             } else {
                 Modifier
-                    .keepsTheFloatingWidth(state, floatInsets, morph)
+                    .keepsTheFloatingWidth(state, floatInsets, windowInsets, morph, widen)
                     .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
             }
             // **The column first.** The parts in the content hand the sheet
@@ -1586,6 +1589,7 @@ private fun SheetColumn(
     slots: SheetSlots,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
+    val widen = rememberLandedWidening(state, morph)
     // Inside the surface: the sheet's own colour still runs to the
     // bottom of the window, so the gesture bar sits on the sheet rather
     // than on a strip of whatever is behind it.
@@ -1754,7 +1758,7 @@ private fun SheetColumn(
                     // and all of them once it is an edge sheet. Margin plus
                     // padding never falls short of the inset on the way.
                     Modifier
-                        .keepsTheFloatingWidth(state, floatInsets, morph)
+                        .keepsTheFloatingWidth(state, floatInsets, windowInsets, morph, widen)
                         .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
                 }
             )
@@ -2441,22 +2445,57 @@ private fun Modifier.floatingSides(
  * The same rounding as [floatingSides], so surface and content agree to the pixel.
  * The floating margin is at least the window's inset on each side, so the content
  * is clear of a cutout at every fraction without asking the insets again.
+ *
+ * **Until it lands.** Once the sheet rests at the top as an edge sheet, [widen]
+ * eases the padding from the floating margin down to the window's own inset, so
+ * the content has the whole width rather than a floating sheet's, inside an edge
+ * sheet's sides — *"floating sheets which expand to fill leave a lot of padding on
+ * the sides"*. A drag takes it back first, so the content is at its floating
+ * width again before the morph goes anywhere. See [rememberLandedWidening].
  */
 private fun Modifier.keepsTheFloatingWidth(
     state: SheetState,
     floatInsets: WindowInsets,
+    windowInsets: WindowInsets,
     morph: SheetEdgeMorph?,
+    widen: () -> Float,
 ): Modifier = layout { measurable, constraints ->
     val kept = 1f - edgeness(state, morph)
     val leftMargin = floatInsets.getLeft(this, layoutDirection)
     val rightMargin = floatInsets.getRight(this, layoutDirection)
-    val left = (leftMargin - (leftMargin * kept).roundToInt()).coerceAtLeast(0)
-    val right = (rightMargin - (rightMargin * kept).roundToInt()).coerceAtLeast(0)
+    val grownLeft = (leftMargin - (leftMargin * kept).roundToInt()).coerceAtLeast(0)
+    val grownRight = (rightMargin - (rightMargin * kept).roundToInt()).coerceAtLeast(0)
+    val w = widen().coerceIn(0f, 1f)
+    val left = (grownLeft + (windowInsets.getLeft(this, layoutDirection) - grownLeft) * w).roundToInt().coerceAtLeast(0)
+    val right = (grownRight + (windowInsets.getRight(this, layoutDirection) - grownRight) * w).roundToInt().coerceAtLeast(0)
     val placeable = measurable.measure(constraints.offset(horizontal = -(left + right)))
     layout(
         constraints.constrainWidth(placeable.width + left + right),
         constraints.constrainHeight(placeable.height),
     ) { placeable.place(left, 0) }
+}
+
+/**
+ * How far a morphing sheet's content has widened from its floating width: 1 once
+ * the sheet rests at the top as an edge sheet, 0 the moment anything moves it.
+ *
+ * Read in layout, through the lambda, so the easing re-lays the content out
+ * without recomposing it. Under reduced motion it changes over at once.
+ */
+@Composable
+private fun rememberLandedWidening(state: SheetState, morph: SheetEdgeMorph?): () -> Float {
+    val landed by remember(state, morph) {
+        derivedStateOf {
+            morph != null && edgeness(state, morph) >= 1f && !state.isMoving && !state.draggedByHand
+        }
+    }
+    val motion = Theme.motion
+    val widen = animateFloatAsState(
+        targetValue = if (landed) 1f else 0f,
+        animationSpec = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy),
+        label = "sheetWiden",
+    )
+    return remember(widen) { { widen.value } }
 }
 
 /**

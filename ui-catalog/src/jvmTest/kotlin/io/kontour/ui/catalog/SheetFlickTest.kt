@@ -298,20 +298,33 @@ class SheetFlickTest {
     }
 
     /**
-     * One flick of the sheet itself closes it from full height, past a middle
-     * detent — reported from a phone as taking "too much effort to flick closed".
-     * It was Compose's own rule, one detent per flick however hard, so a sheet
-     * with a half-way detent took two.
+     * One hard flick of the sheet itself closes it from full height, past a
+     * middle detent — reported from a phone as taking "too much effort to flick
+     * closed". It was Compose's own rule, one detent per flick however hard, so a
+     * sheet with a half-way detent took two.
+     *
+     * Hard, not brisk: a brisk one, [FlickPerFrame], stops at the middle now.
      */
     @Test
     fun oneHardFlickOfTheSheetClosesItPastTheMiddle() {
-        assertEquals(SheetDetent.Hidden, flungFromFull(pixelsPerFrame = FlickPerFrame))
+        assertEquals(SheetDetent.Hidden, flungFromFull(pixelsPerFrame = HardFlickPerFrame))
     }
 
     /** And not one that may not be put away by hand, however hard it is thrown. */
     @Test
     fun aHardFlickDoesNotCloseASheetThatMustBeAnswered() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame, dismissible = false))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = HardFlickPerFrame, dismissible = false))
+    }
+
+    /**
+     * An ordinary flick down from the top stops at the middle. Its projection
+     * reaches past the middle, and it used to close the sheet: reported as
+     * "really easy to flick a sheet past its middle detent".
+     */
+    @Test
+    fun anOrdinaryFlickFromTheTopStopsAtTheMiddle() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 25f))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame))
     }
 
     /** A gentle flick of the sheet still moves it — to the next detent, not past it. */
@@ -426,6 +439,9 @@ class SheetFlickTest {
 
         /** About 3600px/s — a brisk throw on a phone. */
         const val FlickPerFrame = 60f
+
+        /** About 7200px/s, 3600dp/s at this scene's density: a hard throw, past the sheet's skip speed. */
+        const val HardFlickPerFrame = 120f
 
         /**
          * The same travel spread over enough frames to be a haul, not a throw.
