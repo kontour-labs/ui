@@ -153,10 +153,12 @@ internal fun MonthView(scope: CalendarScope) {
             // out again, and what is composed changes only when a whole row
             // more fits, or an event's lines change.
             val rows = { state.monthRows.coerceIn(MinMonthRows.toFloat(), most) }
-            val rowPx = { monthRowPx(viewportPx, rows()) }
+            // A date and an event, however little room the month is given.
+            val leastRowPx = dateLabelPx + linePx + padPx * 2
+            val rowPx = { monthRowPx(viewportPx, rows(), leastRowPx) }
             val zooming = remember { mutableStateOf(false) }
-            val inView by remember(viewportPx, most) { derivedStateOf { wholeRows(viewportPx, rowPx()) } }
-            val linesNow by remember(viewportPx, most, dateLabelPx, linePx, padPx) {
+            val inView by remember(viewportPx, most, leastRowPx) { derivedStateOf { wholeRows(viewportPx, rowPx()) } }
+            val linesNow by remember(viewportPx, most, leastRowPx, dateLabelPx, linePx, padPx) {
                 derivedStateOf { itemLines(rowPx(), dateLabelPx, linePx, padPx) }
             }
             // Held as they were while a pinch is under way: an event given another
@@ -167,7 +169,7 @@ internal fun MonthView(scope: CalendarScope) {
             val item = itemHeight(lines)
             val itemPx = with(density) { item.toPx() }
             // How many events a day has room for: a whole one more as a row grows.
-            val maxRows by remember(viewportPx, most, dateLabelPx, itemPx) {
+            val maxRows by remember(viewportPx, most, leastRowPx, dateLabelPx, itemPx) {
                 derivedStateOf { if (itemPx > 0f) floor((rowPx() - dateLabelPx) / itemPx).toInt().coerceAtLeast(0) else 0 }
             }
             val list = rememberMonthList(scope, inView, rowPx, zooming)
@@ -178,6 +180,7 @@ internal fun MonthView(scope: CalendarScope) {
             zoom.viewportPx = viewportPx
             zoom.reduceMotion = Theme.motion.reduceMotion
             zoom.most = most
+            zoom.leastRowPx = leastRowPx
             zoomer[0] = zoom
             dayAt[0] = {
                 val row = periods.rowOf(state.date)

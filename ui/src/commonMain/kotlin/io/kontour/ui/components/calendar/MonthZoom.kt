@@ -73,13 +73,16 @@ internal class MonthZoom(
     var fewest = MinMonthRows.toFloat()
     var most = MonthRowsInView.toFloat()
 
+    /** The least a row is: see [monthRowPx]. */
+    var leastRowPx = 1f
+
     /** Where the first row is, in rows, as this zoom has put it: the list's own lags a frame behind. */
     private var top: Double? = null
 
     /** The slide to a whole week after a zoom, cancelled by the next pinch rather than fought. */
     private var settling: Job? = null
 
-    private fun rowPx(rows: Float) = monthRowPx(viewportPx, rows)
+    private fun rowPx(rows: Float) = monthRowPx(viewportPx, rows, leastRowPx)
 
     private fun currentTop(): Double {
         top?.let { return it }
@@ -152,8 +155,14 @@ internal class MonthZoom(
 /**
  * How tall a month's row is with [rows] of them in [viewportPx]: whole pixels,
  * the same for every row, so what the zoom works out is what the list lays out.
+ *
+ * **Never under [least]**, a date and an event. A month given next to no
+ * height — a header taller than the box it shares — had rows of nothing, and a
+ * lazy list of rows of nothing composes every row it has to fill the space:
+ * two million weeks, and the heap with them.
  */
-internal fun monthRowPx(viewportPx: Float, rows: Float): Float = if (rows <= 0f) 0f else floor(viewportPx / rows)
+internal fun monthRowPx(viewportPx: Float, rows: Float, least: Float = 1f): Float =
+    maxOf(if (rows <= 0f) 0f else floor(viewportPx / rows), least, 1f)
 
 /**
  * Two fingers spread or pinched over the month zoom it, about the point

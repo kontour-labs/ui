@@ -210,6 +210,38 @@ class MonthScrollTest {
         assertEquals(top + 2.5, under, 1e-6, "the week under the fingers drifted ${(under - top - 2.5) * row}px")
     }
 
+    /**
+     * A month given next to no height still has rows a date and an event tall.
+     * Rows of nothing made a lazy list compose every one of its two million
+     * weeks to fill the space, and run out of memory doing it: a calendar with
+     * no overlay host, whose six views stacked into a header taller than it.
+     */
+    @Test
+    fun aMonthWithNoRoomStillHasRowsWorthLayingOut() {
+        assertEquals(40f, monthRowPx(viewportPx = 0f, rows = 6f, least = 40f))
+        assertEquals(40f, monthRowPx(viewportPx = 90f, rows = 3f, least = 40f))
+        assertEquals(100f, monthRowPx(viewportPx = 300f, rows = 3f, least = 40f))
+    }
+
+    @Test
+    fun aCalendarSqueezedUnderItsHeaderStillDraws() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                // No overlay host, so the views stay side by side, stacked.
+                EventCalendar(
+                    state = rememberEventCalendarState(LocalDate(2026, 10, 14), CalendarView.Month, firstDayOfWeek = DayOfWeek.MONDAY),
+                    events = emptyList(),
+                    now = null,
+                    modifier = Modifier.size(360.dp, 200.dp),
+                )
+            }
+        }
+        repeat(3) { mainClock.advanceTimeByFrame() }
+        val weeks = onAllNodes(hasText("14"), useUnmergedTree = true).fetchSemanticsNodes().size
+        assertTrue(weeks <= 2, "the squeezed month composed the 14th $weeks times")
+    }
+
     /** Fingers that move together as well as apart take the weeks with them. */
     @Test
     fun fingersMovingTogetherPanTheWeeks() {
