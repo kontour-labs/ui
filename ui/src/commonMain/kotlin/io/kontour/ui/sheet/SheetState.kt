@@ -1799,9 +1799,12 @@ internal val SheetHandleFlickVelocity: Dp = 125.dp
  * 2000px/s carries a thousand pixels on. Reported as "really easy to flick a
  * sheet past its middle detent".
  *
- * A hard, deliberate throw is well over this, and still closes the sheet in one.
+ * **5000dp/s, from 2500.** At 2500 it was still "quite sensitive to flicks for
+ * travelling multiple detents", tried on a phone: an ordinary flick there is
+ * two to four thousand dp a second, so half of them were over it. A hard,
+ * deliberate throw is six thousand and more, and still closes the sheet in one.
  */
-internal val SheetSkipVelocity: Dp = 2500.dp
+internal val SheetSkipVelocity: Dp = 5000.dp
 
 /** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
 private const val BackTravel = 0.95f

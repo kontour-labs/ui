@@ -236,7 +236,7 @@ feel.
 **One hard flick closes it; an ordinary one stops at the middle.** A release
 lands where the throw would have carried the sheet had it kept going for half a
 second — what iOS projects a release by — at the nearest detent to that. It goes
-past the next detent only when it is thrown at 2500dp/s or more: a hard throw
+past the next detent only when it is thrown at 5000dp/s or more: a hard throw
 closes a sheet with a middle detent in one, where it used to take one flick per
 detent, and an ordinary flick down from the top stops at the middle, which the
 projection alone carried straight past. A throw of the sheet itself, by its

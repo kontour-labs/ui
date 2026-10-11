@@ -153,6 +153,7 @@ class SheetSettleTest {
         val handle = with(Density(1f)) { SheetHandleFlickVelocity.toPx() }
         assertEquals(SheetDetent.Half, state.detentFlungTo(200f, handle), "a gentle flick down goes one detent")
         assertEquals(SheetDetent.Half, state.detentFlungTo(2000f, handle), "an ordinary flick down from the top stops at the middle")
+        assertEquals(SheetDetent.Half, state.detentFlungTo(4000f, handle), "a brisk flick down from the top, a phone's ordinary one, stops at the middle")
         val skip = with(Density(1f)) { SheetSkipVelocity.toPx() }
         assertEquals(SheetDetent.Hidden, state.detentFlungTo(skip + 500f, handle), "a hard one closes it past the middle")
         assertEquals(SheetDetent.Expanded, state.detentFlungTo(60f, handle), "under the floor it stays where it is nearest")
