@@ -277,6 +277,76 @@ fun TimelineItem(
     gutterWidth: Dp = TimelineDefaults.GutterWidth,
     connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
     content: ListItemScope.() -> Unit,
+) = TimelineStopItem(
+    modifier, connector, nodeColour, connectorColour, filled, loading, icon,
+    stack = 1, nodeSize, gutterWidth, connectorWidth, content,
+)
+
+/**
+ * One item of a [Timeline] or a [HorizontalTimeline] that stands for several
+ * stops — "Show 10 past stops", the stretch of a trip nobody needs to see stop
+ * by stop — its node a few nodes bunched along the rail, overlapping.
+ *
+ * ```kotlin
+ * Timeline(progress = 2f) {
+ *     TimelineItem { +"Hospital Av"; trailing { +"11:34 pm" } }
+ *     TimelineNodeGroup(
+ *         count = 10,
+ *         connector = ConnectorStyle.Dotted,
+ *         modifier = Modifier.clickable { showPast = true },
+ *     ) {
+ *         +"Show 10 past stops"
+ *     }
+ *     TimelineItem(connector = ConnectorStyle.None) { +"Elizabeth Quay Bus Station" }
+ * }
+ * ```
+ *
+ * One item to the timeline: one label, one node, one leg after it — and one
+ * stop to `progress`. A journey that is somewhere among the stops the group
+ * stands for is at the group, and the halo goes round the whole stack.
+ *
+ * @param count How many stops the item stands for. Up to three nodes are drawn,
+ *   however many it is; the number is drawn, not announced, so say it in the
+ *   item's words.
+ * @param filled Solid nodes rather than rings. Rings by default, for stops
+ *   passed over.
+ * @param content What the item says, as a [TimelineItem]'s does.
+ */
+@Composable
+fun TimelineNodeGroup(
+    count: Int,
+    modifier: Modifier = Modifier,
+    connector: ConnectorStyle = ConnectorStyle.Solid,
+    nodeColour: Color = Color.Unspecified,
+    connectorColour: Color = Color.Unspecified,
+    filled: Boolean = false,
+    nodeSize: Dp = TimelineDefaults.NodeSize,
+    gutterWidth: Dp = TimelineDefaults.GutterWidth,
+    connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
+    content: ListItemScope.() -> Unit,
+) {
+    require(count >= 1) { "A node group stands for at least one stop, not $count" }
+    TimelineStopItem(
+        modifier, connector, nodeColour, connectorColour, filled, loading = false, icon = null,
+        stack = count.coerceAtMost(MaxGroupNodes), nodeSize, gutterWidth, connectorWidth, content,
+    )
+}
+
+/** A [TimelineItem] or a [TimelineNodeGroup]: the same item, with [stack] nodes bunched in its node. */
+@Composable
+private fun TimelineStopItem(
+    modifier: Modifier,
+    connector: ConnectorStyle,
+    nodeColour: Color,
+    connectorColour: Color,
+    filled: Boolean,
+    loading: Boolean,
+    icon: ImageVector?,
+    stack: Int,
+    nodeSize: Dp,
+    gutterWidth: Dp,
+    connectorWidth: Dp,
+    content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
     val shown = icon.takeIf { !loading }
@@ -307,6 +377,7 @@ fun TimelineItem(
                 here = at?.here == true,
                 reached = at?.reached != false,
                 icon = shown,
+                stack = stack,
             ),
             legs = listOf(
                 RailLeg(
@@ -321,7 +392,7 @@ fun TimelineItem(
         )
     }
     if (context?.axis == Orientation.Horizontal) {
-        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, dot, connectorWidth, painter) {
+        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, dot, stack, connectorWidth, painter) {
             TimelineItemBody(slots, across = true)
         }
         return
@@ -383,7 +454,9 @@ fun TimelineItem(
                     Orientation.Vertical,
                     firstLane = size.width / 2f,
                     laneWidth = 0f,
-                    nodeAlong = nodeRadius + TimelineNodeGap.toPx(),
+                    // A node group's stack hangs from the same gap, so it
+                    // never pokes above the row.
+                    nodeAlong = stackHalfLength(nodeRadius, stack) + TimelineNodeGap.toPx(),
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
                     highContrast = enhanced,
@@ -468,27 +541,30 @@ private fun AcrossItem(
     nodeColour: Color,
     loading: Boolean,
     nodeSize: Dp,
+    stack: Int,
     connectorWidth: Dp,
     icon: Painter?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val band = nodeSize + TimelineNodeGap * 2
+    // Along the rail: a node group's stack is longer than a node.
+    val length = (nodeSize * (stackHalfLength(1f, stack) - 1f)) + band
     val enhanced = highContrast()
     Box(
         Modifier
-            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Band, band)))
+            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Band, band, length)))
             .drawBehind {
                 // The same rail, turned across: the node a gap in from the start
                 // edge, whichever side that is, and the leg to the end edge —
                 // where the next item's band begins.
                 val nodeRadius = nodeSize.toPx() / 2f
-                val centre = TimelineNodeGap.toPx() + nodeRadius
+                val gap = TimelineNodeGap.toPx()
                 drawRail(
                     rail(),
                     Orientation.Horizontal,
-                    firstLane = centre,
+                    firstLane = gap + nodeRadius,
                     laneWidth = 0f,
-                    nodeAlong = centre,
+                    nodeAlong = gap + stackHalfLength(nodeRadius, stack),
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
                     highContrast = enhanced,
@@ -508,11 +584,11 @@ private fun AcrossItem(
     val index = slot.index
     Column(
         modifier = Modifier
-            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Label, band)))
+            .then(TimelinePartElement(TimelinePart(slot, TimelinePart.Kind.Label, band, length)))
             .semantics { traversalIndex = index.toFloat() }
             .then(modifier)
             // Never so narrow that the connector has nowhere to run.
-            .widthIn(min = band + AcrossMinimumRun)
+            .widthIn(min = length + AcrossMinimumRun)
             // Starting where the node does, and stopping short of the next
             // node, as a row's content stops short of the next row down.
             .padding(start = TimelineNodeGap, end = Theme.spacing.md),
@@ -562,7 +638,7 @@ internal class TimelineContext(
 internal val LocalTimelineContext = compositionLocalOf<TimelineContext?> { null }
 
 /** Which part of which item a layout node is, for the [HorizontalTimeline] laying it out. */
-internal class TimelinePart(val slot: TimelineSlot, val kind: Kind, val band: Dp) {
+internal class TimelinePart(val slot: TimelineSlot, val kind: Kind, val band: Dp, val length: Dp = band) {
     enum class Kind { Band, Label }
 }
 
@@ -576,8 +652,8 @@ private class TimelinePartElement(val part: TimelinePart) : ModifierNodeElement<
         node.part = part
     }
     override fun equals(other: Any?) = other is TimelinePartElement && other.part.slot === part.slot &&
-        other.part.kind == part.kind && other.part.band == part.band
-    override fun hashCode() = 31 * (31 * part.slot.hashCode() + part.kind.hashCode()) + part.band.hashCode()
+        other.part.kind == part.kind && other.part.band == part.band && other.part.length == part.length
+    override fun hashCode() = 31 * (31 * (31 * part.slot.hashCode() + part.kind.hashCode()) + part.band.hashCode()) + part.length.hashCode()
 }
 
 private class TimelinePartNode(var part: TimelinePart) : Modifier.Node(), ParentDataModifierNode {
@@ -663,7 +739,7 @@ fun HorizontalTimeline(
                 val height = outer.maxHeight
                 val maxBand = items.maxOfOrNull { it.bandHeight.roundToPx() } ?: 0
                 val labelHeight = if (height == Constraints.Infinity) height else (height - maxBand - gap).coerceAtLeast(0)
-                val minPitches = items.map { (it.bandHeight + AcrossMinimumRun).roundToPx() }
+                val minPitches = items.map { (it.bandLength + AcrossMinimumRun).roundToPx() }
                 val even = if (equalWidths && items.isNotEmpty() && !alternating) {
                     maxOf(
                         items.maxOf { it.label?.maxIntrinsicWidth(height) ?: 0 }.coerceAtMost(widest),
@@ -734,6 +810,7 @@ private class AcrossParts(
     var band: Measurable? = null,
     var label: Measurable? = null,
     var bandHeight: Dp = 0.dp,
+    var bandLength: Dp = 0.dp,
     var slot: TimelineSlot? = null,
 )
 
@@ -755,6 +832,7 @@ private fun acrossItems(measurables: List<Measurable>): List<AcrossParts> {
             TimelinePart.Kind.Band -> {
                 item.band = measurable
                 item.bandHeight = part.band
+                item.bandLength = part.length
             }
             TimelinePart.Kind.Label -> item.label = measurable
         }

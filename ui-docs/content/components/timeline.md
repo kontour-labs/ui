@@ -1,6 +1,6 @@
 # `Timeline`
 
-*Also on this page: `TimelineItem`, `HorizontalTimeline`, `TimelineColours`, `TimelineLabelPlacement`.*
+*Also on this page: `TimelineItem`, `TimelineNodeGroup`, `HorizontalTimeline`, `TimelineColours`, `TimelineLabelPlacement`.*
 
 <!--sample:TimelineBasics-->
 ```kotlin
@@ -70,6 +70,13 @@ each by the same gap. On a solid dot the icon takes whichever of light or dark
 reads on it; inside a hollow one, the ring's colour. A `loading` item shows its
 spinner and no icon. It is drawn, not announced, as the dot is, so say what it
 means in the item's words. Across a `HorizontalTimeline` it is the same.
+
+**`TimelineNodeGroup(count)` is one item standing for several stops**: its node
+a few nodes bunched along the rail, up to three however many it stands for, and
+its words saying how many — "Show 10 past stops". It is one item to the rail and
+to `progress`, whose halo goes round the whole stack, and it takes the same
+content and connector as a `TimelineItem`. Across a `HorizontalTimeline` the
+stack runs across. A `TimelineList` has the same as `nodeGroup`.
 
 ## Progress
 

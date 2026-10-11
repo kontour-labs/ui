@@ -49,6 +49,7 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md) has a schedule**, `CalendarView.Schedule`: the days with something on, one under another with their events, under each month's name, scrolled through, today always among them and saying "Nothing planned" when it has nothing on. It is last in the switcher. New strings: `schedule`, `nothingPlanned`.
 - **An [event calendar](components/event-calendar.md)'s header too narrow for every view side by side offers them in a menu**, rather than leaving three days out.
 
+- **A timeline can fold several stops into one row**: [`TimelineNodeGroup(count)`](components/timeline.md), and `nodeGroup(count)` in a [`TimelineList`](components/timeline-list.md) or a [`BranchTimeline`](components/branch-timeline.md) — "Show 10 past stops", its node up to three nodes bunched along the rail. It is one stop to the rail and to `progress`, whose halo goes round the whole stack.
 - **A timeline's node can hold an icon**: `icon = …` on a [`TimelineItem`](components/timeline.md), and on a [`TimelineList`](components/timeline-list.md) stop or a [`BranchTimeline`](components/branch-timeline.md) commit. The node grows to `TimelineDefaults.IconNodeSize` to hold it, and the icon reads on it — light or dark on a solid node, the ring's colour inside a hollow one.
 
 ### Changed

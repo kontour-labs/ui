@@ -65,6 +65,35 @@ TimelineList {
 }
 ```
 
+## Node groups
+
+**`nodeGroup(count)` is one row standing for several stops**: the stretch of a
+route nobody needs to see stop by stop, folded away until it is pressed open.
+Its node is a few nodes bunched along the rail, overlapping — up to three,
+however many stops it stands for — the last whole and each before it cut back
+where the next covers it, so it reads the same on the page or on grouped rows.
+They are rings unless `filled` says otherwise.
+
+<!--sample:TimelineNodeGroupBasics-->
+```kotlin
+// Each group is one row for the stops it folds away: one node to progress,
+// one tap to open them.
+TimelineList(progress = 2f) {
+    item("Hospital Av", trailing = "11:34 pm")
+    nodeGroup("Show 10 past stops", count = 10, connector = ConnectorStyle.Dotted, onClick = onShowPast)
+    item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+    nodeGroup("Show 38 upcoming stops", count = 38, connector = ConnectorStyle.Dotted, onClick = onShowUpcoming)
+    item("Morley", supporting = "Stand 10", trailing = "12:19 am")
+}
+```
+
+To the rail a group is a stop: its `connector` is the leg after it, and the
+legs either side clear the whole stack. To `progress` it is one stop too — put
+a journey that is somewhere among the stops it folds at the group's row, and
+the halo goes round the whole stack. Opening it is the caller's: replace the
+group with its stops, and the progress with the count to the stop the journey
+is at.
+
 **The node sits on the middle of the label's first line.** An `overline` above
 the label, such as a route number, does not move it, and neither does a second
 line below it.
@@ -120,8 +149,9 @@ trailing value. When it has an `onClick` it is a button, or whatever its `role`
 says, and a selected stop announces as selected. A disabled list disables every
 row, and the rows stay in the reading order.
 
-The rail, the nodes and their icons, the progress colour and the ring round the
-current stop are drawn, not announced. The words have to carry the journey. Write "Departed
+The rail, the nodes and their icons, a node group's stack, the progress colour
+and the ring round the current stop are drawn, not announced. A group's row has
+to say how many stops it stands for in its words — "Show 10 past stops". The words have to carry the journey. Write "Departed
 08:12", "Next stop", or "Walk 4 min, in progress" in the rows themselves. A
 `loading` stop's spinner says nothing to a screen reader, so its row should say
 what is being waited for.

@@ -101,6 +101,7 @@ import io.kontour.ui.components.display.BranchTimeline
 import io.kontour.ui.components.display.BranchTimelineDefaults
 import io.kontour.ui.components.display.TimelineDefaults
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineNodeGroup
 import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
@@ -391,13 +392,20 @@ private val timelineProgress = Knob.Choice(
 /** A small icon in some of the nodes: how the stop is left, and the end of the trip. */
 private val timelineIcons = Knob.Flag("Icons", initial = false)
 
+/** The bus's stops before the last as one node group, rather than not at all. */
+private val timelineGrouped = Knob.Flag("Stops between", initial = false)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector, timelineLoading, timelineIcons, timelineAcross, timelineLabels, timelineEqualWidths, timelineProgress),
+    knobs = listOf(
+        timelineConnector, timelineLoading, timelineIcons, timelineGrouped, timelineAcross, timelineLabels, timelineEqualWidths,
+        timelineProgress,
+    ),
 ) {
     val walking = this[timelineLoading]
     val connector = this[timelineConnector]
     val icons = this[timelineIcons]
+    val grouped = this[timelineGrouped]
     val stops: @Composable () -> Unit = {
         TimelineItem(icon = if (icons) Tabler.Outline.Train else null) {
             +"Perth Station"
@@ -413,6 +421,9 @@ internal val TimelineDemo = ComponentDemo(
             +"Elizabeth Quay"
             supporting { +"08:21 — Route 950" }
         }
+        // The stops the bus calls at on the way, as one item: one node to
+        // progress, its halo round the whole stack.
+        if (grouped) TimelineNodeGroup(count = 4) { supporting { +"4 stops" } }
         TimelineItem(connector = ConnectorStyle.None, icon = if (icons) Tabler.Outline.Flag2 else null) {
             +"Perth Busport"
             supporting { +"08:29 — Stand 24" }
@@ -422,7 +433,7 @@ internal val TimelineDemo = ComponentDemo(
         "At Perth Station" -> 0f
         "Walking" -> 1.5f
         "On the bus" -> 2.4f
-        "Arrived" -> 3f
+        "Arrived" -> if (grouped) 4f else 3f
         else -> null
     }
     if (this[timelineAcross]) {
@@ -455,10 +466,20 @@ private val timelineListLoading = Knob.Flag("Loading", initial = false)
 /** A small icon in some of the nodes, as the timeline demo has. */
 private val timelineListIcons = Knob.Flag("Icons", initial = false)
 
+/**
+ * A bus's whole route, the stops either side of the rider's folded into node
+ * groups that open when pressed.
+ */
+private val timelineListGroups = Knob.Flag("Fold stops", initial = false)
+
 internal val TimelineListDemo = ComponentDemo(
     slug = "timeline-list",
-    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading, timelineListIcons),
+    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading, timelineListIcons, timelineListGroups),
 ) {
+    if (this[timelineListGroups]) {
+        FoldedRoute(this[timelineListStyle])
+        return@ComponentDemo
+    }
     val waiting = this[timelineListLoading]
     val icons = this[timelineListIcons]
     // Every stop opens; none is picked. A stop list says where the trip goes,
@@ -493,6 +514,34 @@ internal val TimelineListDemo = ComponentDemo(
         item("Perth Busport", supporting = "Stand 24", trailing = "08:29", icon = if (icons) Tabler.Outline.Flag2 else null) {
             echo("Opened Perth Busport")
         }
+    }
+}
+
+/**
+ * A route of a dozen stops with the rider on at the third: the stops before it
+ * and after the one they get off at each one node group until pressed open.
+ */
+@Composable
+private fun FoldedRoute(style: TimelineListStyle) {
+    val past = listOf("Hospital Av", "Kings Park Rd", "Havelock St")
+    val ahead = listOf("Wellington St", "Perth Busport", "Beaufort St", "Walcott St")
+    var showPast by remember { mutableStateOf(false) }
+    var showAhead by remember { mutableStateOf(false) }
+    val boarded = if (showPast) past.size + 1 else 2
+    TimelineList(Modifier.fillMaxWidth(), style = style, progress = boarded.toFloat()) {
+        item("Shenton Park Station", trailing = "11:34 pm")
+        if (showPast) {
+            past.forEach { item(it, filled = false) }
+        } else {
+            nodeGroup("Show ${past.size} past stops", count = past.size, connector = ConnectorStyle.Dotted) { showPast = true }
+        }
+        item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+        if (showAhead) {
+            ahead.forEach { item(it, filled = false) }
+        } else {
+            nodeGroup("Show ${ahead.size} upcoming stops", count = ahead.size, connector = ConnectorStyle.Dotted) { showAhead = true }
+        }
+        item("Morley", supporting = "Stand 10", trailing = "12:19 am")
     }
 }
 

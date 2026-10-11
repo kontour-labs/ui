@@ -101,6 +101,65 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
     }
 
     /**
+     * One row that stands for several stops — "Show 10 past stops", the stretch
+     * of a trip nobody needs to see stop by stop — its node a few nodes bunched
+     * along the rail, overlapping. One row, one label and one tap, to the rail
+     * and to progress alike: put a journey that is somewhere among the stops it
+     * stands for at this row, and the halo goes round the whole stack.
+     *
+     * Its legs are a stop's: the one after it is [connector], and the one
+     * before it the row before's.
+     *
+     * @param count How many stops the row stands for. Up to three nodes are
+     *   drawn, however many it is; the number is drawn, not announced, so say it
+     *   in the row's words.
+     * @param filled Solid nodes rather than rings. Rings by default, for stops
+     *   passed over.
+     */
+    fun nodeGroup(
+        count: Int,
+        enabled: Boolean = true,
+        nodeColour: Color = Color.Unspecified,
+        filled: Boolean = false,
+        connector: ConnectorStyle = ConnectorStyle.Solid,
+        connectorColour: Color = Color.Unspecified,
+        connectorWidth: Dp = Dp.Unspecified,
+        role: Role = Role.Button,
+        onClick: (() -> Unit)? = null,
+        content: ListItemScope.() -> Unit,
+    ) {
+        require(count >= 1) { "A node group stands for at least one stop, not $count" }
+        stops += TimelineStop(
+            nodeColour, filled, loading = false, icon = null, connector, connectorColour, connectorWidth,
+            enabled, selected = false, role, onClick, content, stack = count.coerceAtMost(MaxGroupNodes),
+        )
+    }
+
+    /** One row that stands for several stops, as text: "Show 10 past stops". */
+    fun nodeGroup(
+        label: String,
+        count: Int,
+        supporting: String? = null,
+        trailing: String? = null,
+        nodeColour: Color = Color.Unspecified,
+        filled: Boolean = false,
+        connector: ConnectorStyle = ConnectorStyle.Solid,
+        onClick: (() -> Unit)? = null,
+    ) {
+        nodeGroup(
+            count = count,
+            nodeColour = nodeColour,
+            filled = filled,
+            connector = connector,
+            onClick = onClick,
+        ) {
+            +label
+            if (supporting != null) supporting { +supporting }
+            if (trailing != null) trailing { +trailing }
+        }
+    }
+
+    /**
      * One row, as text: a label, a second line under it and a value at the end
      * — a time, a platform.
      */
@@ -349,6 +408,7 @@ internal fun TimelineRow.rail(
             here = here?.here == true,
             reached = here?.reached != false,
             icon = stop.icon.takeIf { !stop.loading },
+            stack = stop.stack,
         ),
         legs = listOfNotNull(
             above?.leg(LegAt.Start, index - 1, from = 1f),

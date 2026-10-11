@@ -1269,6 +1269,7 @@ public final class io/kontour/ui/components/display/TimelineKt {
 	public static final fun HorizontalTimeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineLabelPlacement;ZLio/kontour/ui/components/display/TimelineColours;Landroidx/compose/foundation/ScrollState;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Timeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun TimelineItem-FOGgDO8 (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZLandroidx/compose/ui/graphics/vector/ImageVector;FFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+	public static final fun TimelineNodeGroup-f95F4RY (ILandroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZFFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class io/kontour/ui/components/display/TimelineLabelPlacement : java/lang/Enum {
@@ -1305,6 +1306,10 @@ public abstract class io/kontour/ui/components/display/TimelineRowScope {
 	public static synthetic fun item-7Z-pwmE$default (Lio/kontour/ui/components/display/TimelineRowScope;ZJZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;JFZILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun item-fWhpE4E (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;)V
 	public static synthetic fun item-fWhpE4E$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun nodeGroup-EJ1ELSs (IZJZLio/kontour/ui/components/display/ConnectorStyle;JFILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun nodeGroup-EJ1ELSs$default (Lio/kontour/ui/components/display/TimelineRowScope;IZJZLio/kontour/ui/components/display/ConnectorStyle;JFILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun nodeGroup-yrwZFoE (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;JZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun nodeGroup-yrwZFoE$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;JZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/list/DisclosureListItemKt {

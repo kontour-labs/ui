@@ -589,6 +589,19 @@ fun TimelineIcons() {
 }
 
 @Composable
+fun TimelineNodeGroupBasics(onShowPast: () -> Unit, onShowUpcoming: () -> Unit) {
+    // Each group is one row for the stops it folds away: one node to progress,
+    // one tap to open them.
+    TimelineList(progress = 2f) {
+        item("Hospital Av", trailing = "11:34 pm")
+        nodeGroup("Show 10 past stops", count = 10, connector = ConnectorStyle.Dotted, onClick = onShowPast)
+        item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+        nodeGroup("Show 38 upcoming stops", count = 38, connector = ConnectorStyle.Dotted, onClick = onShowUpcoming)
+        item("Morley", supporting = "Stand 10", trailing = "12:19 am")
+    }
+}
+
+@Composable
 fun BranchTimelineBasics() {
     // Only which commit comes from which: the lanes are laid out from that. The
     // merge's second parent opens a lane of its own, which closes back into the

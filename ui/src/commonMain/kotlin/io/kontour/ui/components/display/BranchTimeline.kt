@@ -361,6 +361,7 @@ internal fun branchRail(
             here = index == shape.reachedRow,
             reached = reached == null || reached[index],
             icon = stop.icon.takeIf { !stop.loading },
+            stack = stop.stack,
         ),
         legs = legs,
     )

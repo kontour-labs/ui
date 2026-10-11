@@ -57,6 +57,10 @@ The builder declares each commit's row with `item`, **the same `item` a
   branch that only exists locally, a dotted one for work nobody has committed
   to, or a release branch's commits all in one colour.
 
+**`nodeGroup(count)` stands for several commits in one row** — "12 more
+commits" — its node a few nodes bunched down the lane, as a `TimelineList`'s
+does. The commit's `parents` still say where its lines go.
+
 **A merge is a ring unless it says otherwise.** `filled` defaults to the
 scope's `filledByDefault`, which is false for a commit with more than one
 parent, so a merge reads as a join rather than as work. Pass `filled = true` for

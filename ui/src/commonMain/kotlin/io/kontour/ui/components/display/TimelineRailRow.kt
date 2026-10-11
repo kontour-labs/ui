@@ -11,8 +11,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
@@ -20,6 +23,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
@@ -109,6 +113,8 @@ internal class RailNode(
     /** Whether a journey has got this far. Only a travelled timeline has stops that are not. */
     val reached: Boolean = true,
     val icon: ImageVector? = null,
+    /** How many nodes are bunched along the rail for a node group; 1 for a stop. */
+    val stack: Int = 1,
 ) {
     /**
      * Whether the node is drawn solid. Not yet reached is hollow at the enhanced
@@ -219,7 +225,11 @@ internal fun DrawScope.drawRail(
     icon: Painter? = null,
 ) {
     val space = RailSpace(axis, layoutDirection == LayoutDirection.Rtl, size)
-    val clear = nodeRadius + TimelineNodeGap.toPx()
+    val stack = row.node?.stack ?: 1
+    // A node group's stack is longer along the rail than a node, and its legs
+    // leave it from its ends; across the rail it is one node wide.
+    val half = stackHalfLength(nodeRadius, stack)
+    val clear = half + TimelineNodeGap.toPx()
     fun cross(lane: Int) = firstLane + lane * laneWidth
     fun along(end: LegEnd, towards: LegEnd): Float = when (end.at) {
         LegAt.Start -> 0f
@@ -288,7 +298,32 @@ internal fun DrawScope.drawRail(
     if (node.loading) return
     val centre = space.point(nodeAlong, cross(node.lane))
     val ring = node.ringWidth.toPx()
-    if (node.here) {
+    val gap = TimelineNodeGap.toPx()
+    if (node.here && stack > 1) {
+        // Round the whole of a node group, which is one stop to the journey: a
+        // capsule, one node and its gap wide, as long as the stack and its gap.
+        val haloStyle = if (highContrast) Stroke(ring) else Fill
+        val haloAlpha = if (highContrast) 1f else HaloAlpha
+        val inset = if (highContrast) ring / 2f else 0f
+        fun capsule(grow: Float, alpha: Float) {
+            val across = nodeRadius + gap - inset + grow
+            val along = half + gap - inset + grow
+            val a = space.point(nodeAlong - along, cross(node.lane) - across)
+            val b = space.point(nodeAlong + along, cross(node.lane) + across)
+            drawRoundRect(
+                node.colour.copy(alpha = alpha),
+                topLeft = Offset(min(a.x, b.x), min(a.y, b.y)),
+                size = Size(abs(b.x - a.x), abs(b.y - a.y)),
+                cornerRadius = CornerRadius(across),
+                style = haloStyle,
+            )
+        }
+        capsule(0f, haloAlpha)
+        if (!phase.isNaN()) {
+            val eased = 1f - (1f - phase).let { it * it * it }
+            capsule((nodeRadius + gap - inset) * (PulseReach - 1f) * eased, haloAlpha * (1f - phase))
+        }
+    } else if (node.here) {
         // At the enhanced tier the halo is a ring rather than a wash: 30% of the
         // node's colour is a shape the tier's reader may not see at all, and the
         // stop the journey is *at* is the one thing on a timeline they came for.
@@ -309,6 +344,25 @@ internal fun DrawScope.drawRail(
         }
     }
     val solid = node.drawnFilled(highContrast)
+    if (stack > 1) {
+        // Back to front, so the last along the rail is whole and each before it
+        // is cut back where the next one covers it, a stroke's gap round it —
+        // drawn, rather than painted over in the ground's colour, so a stack
+        // reads the same on a page, on a grouped row or on anything else.
+        val centres = stackCentres(nodeAlong, nodeRadius, stack)
+        centres.forEachIndexed { i, along ->
+            val at = space.point(along, cross(node.lane))
+            val next = centres.getOrNull(i + 1)
+            if (next == null) {
+                drawTimelineNode(at, nodeRadius, ring, node.colour, solid)
+            } else {
+                val cover = space.point(next, cross(node.lane))
+                val cut = Path().apply { addOval(Rect(cover, nodeRadius + ring)) }
+                clipPath(cut, ClipOp.Difference) { drawTimelineNode(at, nodeRadius, ring, node.colour, solid) }
+            }
+        }
+        return
+    }
     drawTimelineNode(centre, nodeRadius, ring, node.colour, solid)
     if (icon != null) {
         // On a solid node, whichever of light or dark reads on it — a route
@@ -377,6 +431,8 @@ internal class TimelineStop(
     val role: Role,
     val onClick: (() -> Unit)?,
     val content: ListItemScope.() -> Unit,
+    /** How many nodes the row's node bunches, for a node group; 1 for a stop. */
+    val stack: Int = 1,
 )
 
 /**
@@ -476,6 +532,15 @@ internal fun nodeColourFor(own: Color, progress: StopProgress?, node: Color, pro
     progress == null -> node
     progress.reached -> progressColour
     else -> rail
+}
+
+/** Half a node group's length along the rail: a node, and the steps to the rest of the stack. */
+internal fun stackHalfLength(radius: Float, stack: Int): Float = radius * (1f + (stack - 1) * GroupStep)
+
+/** Where each node of a stack centred [along] the rail sits, back to front. */
+internal fun stackCentres(along: Float, radius: Float, stack: Int): FloatArray {
+    val first = along - stackHalfLength(radius, stack) + radius
+    return FloatArray(stack) { first + it * radius * 2f * GroupStep }
 }
 
 /** How close to a stop `progress` has to be to count as at it. */
