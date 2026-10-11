@@ -135,8 +135,22 @@ internal fun Modifier.sheetDrag(
                     val event = awaitPointerEvent()
                     val change = event.changes.firstOrNull { it.id == down.id } ?: break
                     if (!change.pressed) {
+                        // **Let go, or taken away.** A pointer the system took —
+                        // the notification shade pulled down over the app, focus
+                        // gone elsewhere — arrives as an up already consumed, at
+                        // the time of the last move: a cancel, not a release, and
+                        // the sheet goes to the nearest detent rather than being
+                        // thrown at the speed of whatever moved last. Read as a
+                        // release, a sheet nudged a notch at full height closed.
+                        val cancelled = change.isConsumed
                         change.consume()
-                        lifted = true
+                        if (!cancelled) {
+                            lifted = true
+                            // When it let go, as well as where: a finger that
+                            // stopped and then lifted threw nothing, where the
+                            // tracker, told only of the moves, read the last of them.
+                            tracker.addPosition(change.uptimeMillis, Offset(0f, travelled))
+                        }
                         break
                     }
                     val dy = change.positionChange().y

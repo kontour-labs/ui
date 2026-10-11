@@ -71,6 +71,8 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A [bottom sheet](components/sheets.md) nudged a notch and then taken away by the system — the notification shade pulled down over it, focus gone elsewhere — stays where it was.** The cancel was read as a release, at the speed of the nudge, and could close a sheet moved a millimetre. So could a finger held still a moment before lifting: the throw was read from the moves alone, not from when the finger let go.
+
 - **A swipe across a carousel, a row of chips or a pager inside a [bottom sheet](components/sheets.md) is theirs up to about sixty degrees from across**, where the sheet took any swipe over thirty. The sheet's drag is its own now, not Compose's `anchoredDraggable`: a Compose draggable round a horizontal one takes every swipe over thirty degrees from it, however long its slop. It waits for 1.75 times the touch slop up or down, so a swipe mostly up or down still moves the sheet from over a carousel.
 
 - **An [event calendar](components/event-calendar.md)'s month zooms smoothly under two fingers.** The week between them moved in steps of several pixels — its place was worked out in a float, a sixteenth of a row's precision that far into the list — every week and event was composed again each frame, the events' lines changed mid-pinch, and the month's settling on a week could start under the fingers. Now the day between the fingers stays there to the pixel, the weeks pan as the fingers move together, and the events grow and shrink with their weeks as they go, a line more or fewer as there is room for a whole one, rather than all at once when the fingers let go.

@@ -98,4 +98,16 @@ class SheetFingerTest {
         finger.lift(66)
         assertEquals(500f, finger.throwOf(reported = 500f, atLeast = 28f))
     }
+
+    @Test
+    fun aPointerTakenAwayThrowsNothing() {
+        // A fast run of the finger, then the system takes the pointer — the
+        // notification shade — which Compose sends as a consumed up: no speed is
+        // reported, and the finger's own last moves are not a throw either.
+        val finger = SheetFinger()
+        finger.down(0)
+        repeat(6) { finger.move(8L * (it + 1), 20f) }
+        finger.cancel()
+        assertEquals(0f, finger.throwOf(reported = 0f, atLeast = 28f))
+    }
 }

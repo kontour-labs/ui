@@ -85,6 +85,17 @@ internal class SheetFinger {
     }
 
     /**
+     * The pointer was taken away rather than lifted — the notification shade, a
+     * focus change — so its last moves are not a throw. Without this a release
+     * reported at no speed was given the finger's own, from the last tenth of a
+     * second before the cancel, and a sheet nudged a notch could be thrown shut.
+     */
+    fun cancel() {
+        liftedAt = -1L
+        run = 0f
+    }
+
+    /**
      * What a release reported as [reported], in pixels a second along the sheet's
      * axis, should count as.
      */
@@ -147,7 +158,10 @@ internal fun Modifier.followSheetFinger(finger: SheetFinger): Modifier =
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (change.changedToUpIgnoreConsumed()) {
-                    finger.lift(change.uptimeMillis)
+                    // Already consumed before the sheet has seen it at all: a
+                    // cancel, which Compose sends as a consumed up — the system
+                    // took the pointer. Not a lift, so not a throw: see [SheetFinger.cancel].
+                    if (change.isConsumed) finger.cancel() else finger.lift(change.uptimeMillis)
                     break
                 }
                 val dy = change.positionChangeIgnoreConsumed().y
