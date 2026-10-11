@@ -10,6 +10,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,11 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      * @param filled A solid node for a stop; a ring for a point passed through.
      * @param loading A spinner in place of the node, for the one being waited
      *   on. Drawn, not announced: say "in progress" in the row's words too.
+     * @param icon A small icon inside the node — a train, a walk, a flag at the
+     *   end. The node grows to [TimelineDefaults.IconNodeSize] to hold it, and
+     *   the icon takes whichever of light or dark reads on a solid node, or the
+     *   ring's colour inside a hollow one. Decorative, like the node: say what
+     *   it means in the row's words. Not drawn while [loading].
      * @param connector How this row joins the next — the leg after it, or in a
      *   history, the lines down to its parents.
      * @param connectorColour The leg's colour. Unspecified takes the timeline's.
@@ -79,6 +85,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         nodeColour: Color = Color.Unspecified,
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
+        icon: ImageVector? = null,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         connectorColour: Color = Color.Unspecified,
         connectorWidth: Dp = Dp.Unspecified,
@@ -88,7 +95,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         content: ListItemScope.() -> Unit,
     ) {
         stops += TimelineStop(
-            nodeColour, filled, loading, connector, connectorColour, connectorWidth,
+            nodeColour, filled, loading, icon, connector, connectorColour, connectorWidth,
             enabled, selected, role, onClick, content,
         )
     }
@@ -104,6 +111,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         nodeColour: Color = Color.Unspecified,
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
+        icon: ImageVector? = null,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         onClick: (() -> Unit)? = null,
     ) {
@@ -111,6 +119,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
             nodeColour = nodeColour,
             filled = filled,
             loading = loading,
+            icon = icon,
             connector = connector,
             onClick = onClick,
         ) {
@@ -339,6 +348,7 @@ internal fun TimelineRow.rail(
             ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
             here = here?.here == true,
             reached = here?.reached != false,
+            icon = stop.icon.takeIf { !stop.loading },
         ),
         legs = listOfNotNull(
             above?.leg(LegAt.Start, index - 1, from = 1f),

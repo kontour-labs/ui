@@ -14,13 +14,18 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -29,6 +34,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.isSpecified
+import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.a11y.highContrast
 import io.kontour.ui.components.list.ListItemImpl
 import io.kontour.ui.components.list.ListItemScope
@@ -89,6 +95,8 @@ internal class RailLeg(
 /**
  * A row's node. [here] is the stop a journey is at, which gets the halo; a
  * [loading] node is not drawn at all, because its composable puts a spinner there.
+ * An [icon] makes the node [TimelineIconNodeSize] and is drawn inside it, from
+ * the painter [drawRail] is handed for it.
  */
 @Immutable
 internal class RailNode(
@@ -100,7 +108,22 @@ internal class RailNode(
     val here: Boolean = false,
     /** Whether a journey has got this far. Only a travelled timeline has stops that are not. */
     val reached: Boolean = true,
-)
+    val icon: ImageVector? = null,
+) {
+    /**
+     * Whether the node is drawn solid. Not yet reached is hollow at the enhanced
+     * tier, so reached and not reached differ in shape as well as colour.
+     */
+    fun drawnFilled(highContrast: Boolean): Boolean = filled && (reached || !highContrast)
+}
+
+/**
+ * A node's diameter: [size], or [TimelineIconNodeSize] if that is bigger and the
+ * node carries an icon — a 12dp dot has no room inside it for one.
+ */
+internal fun nodeSizeFor(size: Dp, icon: ImageVector?): Dp =
+    if (icon != null) maxOf(size, TimelineIconNodeSize) else size
+
 
 /** Everything one row draws of the rail, legs in the order they are drawn. */
 @Immutable
@@ -182,7 +205,7 @@ internal fun rememberRailPhase(running: Boolean): FloatState {
  * start edge) and across it: lane `j` runs at [firstLane] `+ j ×` [laneWidth]
  * from the start edge, and the node sits [nodeAlong] along. Right to left is
  * handled here, for both axes. [phase] is [rememberRailPhase]'s; NaN draws the
- * rail still.
+ * rail still. [icon] is the node's [RailNode.icon], painted inside it.
  */
 internal fun DrawScope.drawRail(
     row: RailRow,
@@ -193,6 +216,7 @@ internal fun DrawScope.drawRail(
     nodeRadius: Float,
     phase: Float = Float.NaN,
     highContrast: Boolean = false,
+    icon: Painter? = null,
 ) {
     val space = RailSpace(axis, layoutDirection == LayoutDirection.Rtl, size)
     val clear = nodeRadius + TimelineNodeGap.toPx()
@@ -284,10 +308,18 @@ internal fun DrawScope.drawRail(
             )
         }
     }
-    // Not yet reached is hollow at the enhanced tier, so reached and not
-    // reached differ in shape as well as colour.
-    val filled = node.filled && (node.reached || !highContrast)
-    drawTimelineNode(centre, nodeRadius, ring, node.colour, filled)
+    val solid = node.drawnFilled(highContrast)
+    drawTimelineNode(centre, nodeRadius, ring, node.colour, solid)
+    if (icon != null) {
+        // On a solid node, whichever of light or dark reads on it — a route
+        // colour straight from a feed included; inside a ring, the ring's own.
+        val side = TimelineNodeIconSize.toPx()
+        translate(centre.x - side / 2f, centre.y - side / 2f) {
+            with(icon) {
+                draw(Size(side, side), colorFilter = ColorFilter.tint(if (solid) contentColourFor(node.colour) else node.colour))
+            }
+        }
+    }
 }
 
 /**
@@ -336,6 +368,7 @@ internal class TimelineStop(
     val nodeColour: Color,
     val filled: Boolean,
     val loading: Boolean,
+    val icon: ImageVector?,
     val connector: ConnectorStyle,
     val connectorColour: Color,
     val connectorWidth: Dp,
@@ -382,6 +415,8 @@ internal fun RailListRow(
     val nodeY = remember { mutableFloatStateOf(0f) }
     val phase = rememberRailPhase(rail.animates)
     val node = rail.node
+    val size = nodeSizeFor(nodeSize, node?.icon)
+    val icon = node?.icon?.let { rememberVectorPainter(it) }
 
     Layout(
         content = {
@@ -403,7 +438,7 @@ internal fun RailListRow(
                 edged = edged,
                 disabledContainerColour = disabledContainerColour,
             )
-            if (node != null && node.loading) Spinner(size = nodeSize, colour = node.colour, strokeWidth = node.ringWidth)
+            if (node != null && node.loading) Spinner(size = size, colour = node.colour, strokeWidth = node.ringWidth)
         },
         modifier = Modifier
             .fillMaxWidth()
@@ -415,9 +450,10 @@ internal fun RailListRow(
                     firstLane = (start + gutterWidth / 2).toPx(),
                     laneWidth = laneWidth.toPx(),
                     nodeAlong = nodeY.floatValue,
-                    nodeRadius = nodeSize.toPx() / 2f,
+                    nodeRadius = size.toPx() / 2f,
                     phase = phase.floatValue,
                     highContrast = enhanced,
+                    icon = icon,
                 )
             },
     ) { measurables, constraints ->

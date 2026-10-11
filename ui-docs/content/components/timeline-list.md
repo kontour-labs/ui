@@ -47,6 +47,24 @@ rail is unbroken whatever the rows' heights, and a list built lazily draws
 exactly the same as one built all at once. The dots and dashes are spaced so the
 two halves meet with one whole gap between them, rather than two marks touching.
 
+**`icon` puts a small icon inside a stop's node**: how the stop is left, a
+transfer, the end of the trip. The node grows to `TimelineDefaults.IconNodeSize`
+to hold it, and only that one: the stops without keep their dot. On a solid node
+the icon takes whichever of light or dark reads on it, so a route colour straight
+from a feed stays legible; inside a ring it takes the ring's colour. A `loading`
+stop shows its spinner and no icon.
+
+<!--sample:TimelineIcons-->
+```kotlin
+// An icon inside a node grows it to hold one; the stops without keep their dot.
+TimelineList {
+    item("Perth Station", trailing = "08:12", icon = Tabler.Outline.Train)
+    item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false, icon = Tabler.Outline.Walk)
+    item("Elizabeth Quay", trailing = "08:21")
+    item("Perth Busport", trailing = "08:29", icon = Tabler.Outline.Flag2)
+}
+```
+
 **The node sits on the middle of the label's first line.** An `overline` above
 the label, such as a route number, does not move it, and neither does a second
 line below it.
@@ -102,8 +120,8 @@ trailing value. When it has an `onClick` it is a button, or whatever its `role`
 says, and a selected stop announces as selected. A disabled list disables every
 row, and the rows stay in the reading order.
 
-The rail, the nodes, the progress colour and the ring round the current stop are
-drawn, not announced. The words have to carry the journey. Write "Departed
+The rail, the nodes and their icons, the progress colour and the ring round the
+current stop are drawn, not announced. The words have to carry the journey. Write "Departed
 08:12", "Next stop", or "Walk 4 min, in progress" in the rows themselves. A
 `loading` stop's spinner says nothing to a screen reader, so its row should say
 what is being waited for.

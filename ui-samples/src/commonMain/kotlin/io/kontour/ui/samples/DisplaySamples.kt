@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import io.kontour.icons.tabler.outline.Walk
+import io.kontour.icons.tabler.outline.Flag2
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.StateSwitcher
@@ -572,6 +574,17 @@ fun TimelineListBasics() {
         item("Elizabeth Quay", supporting = "Stand C", trailing = "08:21") {
             openStop("Elizabeth Quay")
         }
+    }
+}
+
+@Composable
+fun TimelineIcons() {
+    // An icon inside a node grows it to hold one; the stops without keep their dot.
+    TimelineList {
+        item("Perth Station", trailing = "08:12", icon = Tabler.Outline.Train)
+        item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false, icon = Tabler.Outline.Walk)
+        item("Elizabeth Quay", trailing = "08:21")
+        item("Perth Busport", trailing = "08:29", icon = Tabler.Outline.Flag2)
     }
 }
 

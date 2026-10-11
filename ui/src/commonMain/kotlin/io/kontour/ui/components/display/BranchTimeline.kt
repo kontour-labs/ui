@@ -126,7 +126,9 @@ class BranchTimelineScope internal constructor(merge: Boolean) : TimelineRowScop
  * @param enabled Whether the rows can be used.
  * @param progress How far the history has got, if it is being tracked through.
  * @param nodeSize The commits' diameter.
- * @param laneWidth The distance from one lane to the next.
+ * @param laneWidth The distance from one lane to the next. A commit with an
+ *   `icon` has a node [TimelineDefaults.IconNodeSize] across, which fills a
+ *   default lane: widen it for a history that uses them off its first lane.
  * @param gutterWidth The column the first lane runs down; the text starts half
  *   of one past the last lane.
  * @param content Declares each commit's row, with one [BranchTimelineScope.item].
@@ -235,6 +237,7 @@ private fun <T> branchStops(
         nodeColour = Color.Unspecified,
         filled = !merge,
         loading = false,
+        icon = null,
         connector = ConnectorStyle.Solid,
         connectorColour = Color.Unspecified,
         connectorWidth = Dp.Unspecified,
@@ -357,6 +360,7 @@ internal fun branchRail(
             ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
             here = index == shape.reachedRow,
             reached = reached == null || reached[index],
+            icon = stop.icon.takeIf { !stop.loading },
         ),
         legs = legs,
     )

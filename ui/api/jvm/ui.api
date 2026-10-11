@@ -1260,6 +1260,7 @@ public final class io/kontour/ui/components/display/TimelineDefaults {
 	public final fun colours-RGew2ao (JJJLandroidx/compose/runtime/Composer;II)Lio/kontour/ui/components/display/TimelineColours;
 	public final fun getConnectorWidth (Landroidx/compose/runtime/Composer;I)F
 	public final fun getGutterWidth-D9Ej5fM ()F
+	public final fun getIconNodeSize-D9Ej5fM ()F
 	public final fun getNodeGap-D9Ej5fM ()F
 	public final fun getNodeSize-D9Ej5fM ()F
 }
@@ -1267,7 +1268,7 @@ public final class io/kontour/ui/components/display/TimelineDefaults {
 public final class io/kontour/ui/components/display/TimelineKt {
 	public static final fun HorizontalTimeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineLabelPlacement;ZLio/kontour/ui/components/display/TimelineColours;Landroidx/compose/foundation/ScrollState;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Timeline (Landroidx/compose/ui/Modifier;Ljava/lang/Float;Lio/kontour/ui/components/display/TimelineColours;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun TimelineItem-mu7haNk (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZFFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun TimelineItem-FOGgDO8 (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/display/ConnectorStyle;JJZZLandroidx/compose/ui/graphics/vector/ImageVector;FFFLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class io/kontour/ui/components/display/TimelineLabelPlacement : java/lang/Enum {
@@ -1300,10 +1301,10 @@ public final class io/kontour/ui/components/display/TimelineListStyle : java/lan
 public abstract class io/kontour/ui/components/display/TimelineRowScope {
 	public static final field $stable I
 	public final fun getFilledByDefault ()Z
-	public final fun item-8DX6B8E (ZJZZLio/kontour/ui/components/display/ConnectorStyle;JFZILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
-	public static synthetic fun item-8DX6B8E$default (Lio/kontour/ui/components/display/TimelineRowScope;ZJZZLio/kontour/ui/components/display/ConnectorStyle;JFZILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public final fun item-uDo3WH8 (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;)V
-	public static synthetic fun item-uDo3WH8$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun item-7Z-pwmE (ZJZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;JFZILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun item-7Z-pwmE$default (Lio/kontour/ui/components/display/TimelineRowScope;ZJZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;JFZILkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun item-fWhpE4E (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun item-fWhpE4E$default (Lio/kontour/ui/components/display/TimelineRowScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JZZLandroidx/compose/ui/graphics/vector/ImageVector;Lio/kontour/ui/components/display/ConnectorStyle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/list/DisclosureListItemKt {

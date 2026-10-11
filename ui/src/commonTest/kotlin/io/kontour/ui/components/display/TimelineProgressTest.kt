@@ -108,6 +108,7 @@ class TimelineProgressTest {
         nodeColour = colour,
         filled = true,
         loading = false,
+        icon = null,
         connector = ConnectorStyle.Solid,
         connectorColour = Color.Unspecified,
         connectorWidth = Dp.Unspecified,

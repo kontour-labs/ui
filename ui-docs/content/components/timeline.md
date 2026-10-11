@@ -63,6 +63,14 @@ hollow dot it replaces. `Spinner` otherwise derives its stroke from its size,
 which at a 12dp node is 1.5dp against the ring's 2dp: a step going into progress
 got visibly thinner and the rail around it did not.
 
+**`icon` puts a small icon inside the dot** — a train, a walk, a flag at the end.
+The dot grows to `TimelineDefaults.IconNodeSize` to hold it, if `nodeSize` is
+smaller, and only that item's: the rest keep theirs, and the rail still clears
+each by the same gap. On a solid dot the icon takes whichever of light or dark
+reads on it; inside a hollow one, the ring's colour. A `loading` item shows its
+spinner and no icon. It is drawn, not announced, as the dot is, so say what it
+means in the item's words. Across a `HorizontalTimeline` it is the same.
+
 ## Progress
 
 `progress` says how far along a timeline the journey is, counted in items:

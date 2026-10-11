@@ -31,10 +31,14 @@ import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.Flag2
+import io.kontour.icons.tabler.outline.GitMerge
+import io.kontour.icons.tabler.outline.Rocket
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.Star
 import io.kontour.icons.tabler.outline.Train
 import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Walk
 import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -94,6 +98,8 @@ import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.display.BranchTimelineDefaults
+import io.kontour.ui.components.display.TimelineDefaults
 import io.kontour.ui.components.display.TimelineItem
 import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.components.display.TimelineList
@@ -382,28 +388,32 @@ private val timelineProgress = Knob.Choice(
     listOf("None", "At Perth Station", "Walking", "On the bus", "Arrived"),
 )
 
+/** A small icon in some of the nodes: how the stop is left, and the end of the trip. */
+private val timelineIcons = Knob.Flag("Icons", initial = false)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector, timelineLoading, timelineAcross, timelineLabels, timelineEqualWidths, timelineProgress),
+    knobs = listOf(timelineConnector, timelineLoading, timelineIcons, timelineAcross, timelineLabels, timelineEqualWidths, timelineProgress),
 ) {
     val walking = this[timelineLoading]
     val connector = this[timelineConnector]
+    val icons = this[timelineIcons]
     val stops: @Composable () -> Unit = {
-        TimelineItem {
+        TimelineItem(icon = if (icons) Tabler.Outline.Train else null) {
             +"Perth Station"
             supporting { +"08:12 — Platform 3" }
         }
-        TimelineItem(connector = connector, filled = false, loading = walking) {
+        TimelineItem(connector = connector, filled = false, loading = walking, icon = if (icons) Tabler.Outline.Walk else null) {
             // A leg rather than a stop, so only the quiet line — and in the
             // words as well as in the node, which is the rule the component's
             // own KDoc states: the spinner is not announced.
             supporting { +(if (walking) "Walking — 4 min" else "Walk 4 min") }
         }
-        TimelineItem {
+        TimelineItem(icon = if (icons) Tabler.Outline.Bus else null) {
             +"Elizabeth Quay"
             supporting { +"08:21 — Route 950" }
         }
-        TimelineItem(connector = ConnectorStyle.None) {
+        TimelineItem(connector = ConnectorStyle.None, icon = if (icons) Tabler.Outline.Flag2 else null) {
             +"Perth Busport"
             supporting { +"08:29 — Stand 24" }
         }
@@ -442,11 +452,15 @@ private val timelineListProgress = Knob.Choice("Progress", TripProgress.entries.
 /** The stop being waited on: a spinner where its node was, and the words say so. */
 private val timelineListLoading = Knob.Flag("Loading", initial = false)
 
+/** A small icon in some of the nodes, as the timeline demo has. */
+private val timelineListIcons = Knob.Flag("Icons", initial = false)
+
 internal val TimelineListDemo = ComponentDemo(
     slug = "timeline-list",
-    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading),
+    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading, timelineListIcons),
 ) {
     val waiting = this[timelineListLoading]
+    val icons = this[timelineListIcons]
     // Every stop opens; none is picked. A stop list says where the trip goes,
     // and progress — not a selection — says where it has got to.
     TimelineList(
@@ -455,22 +469,30 @@ internal val TimelineListDemo = ComponentDemo(
         progress = this[timelineListProgress].stops,
         leadIn = ConnectorStyle.Dotted,
     ) {
-        item(nodeColour = Color(0xFF1B5E20), onClick = { echo("Opened Perth Station") }) {
+        item(nodeColour = Color(0xFF1B5E20), icon = if (icons) Tabler.Outline.Train else null, onClick = { echo("Opened Perth Station") }) {
             +"Perth Station"
             supporting { +"Platform 3 · Joondalup line" }
             trailing { Text("08:12", colour = Theme.colours.contentMuted) }
         }
-        item(connector = ConnectorStyle.Dashed, filled = false, loading = waiting, onClick = { echo("Opened the walk") }) {
+        item(
+            connector = ConnectorStyle.Dashed,
+            filled = false,
+            loading = waiting,
+            icon = if (icons) Tabler.Outline.Walk else null,
+            onClick = { echo("Opened the walk") },
+        ) {
             +if (waiting) "Finding your platform" else "Walk to Elizabeth Quay"
             supporting { +"4 min · 350 m" }
         }
-        item(nodeColour = Color(0xFF0D47A1), onClick = { echo("Opened Elizabeth Quay") }) {
+        item(nodeColour = Color(0xFF0D47A1), icon = if (icons) Tabler.Outline.Bus else null, onClick = { echo("Opened Elizabeth Quay") }) {
             overline { +"Route 950" }
             +"Elizabeth Quay"
             supporting { +"Stand C" }
             trailing { Text("08:21", colour = Theme.colours.contentMuted) }
         }
-        item("Perth Busport", supporting = "Stand 24", trailing = "08:29") { echo("Opened Perth Busport") }
+        item("Perth Busport", supporting = "Stand 24", trailing = "08:29", icon = if (icons) Tabler.Outline.Flag2 else null) {
+            echo("Opened Perth Busport")
+        }
     }
 }
 
@@ -523,12 +545,15 @@ private val branchTipLoading = Knob.Flag("Tip loading", initial = false)
 /** Merges drawn as rings, the default, or as solid commits like any other. */
 private val branchRingMerges = Knob.Flag("Ring merges", initial = true)
 
+/** An icon in the release commits' nodes, and in the merges'. */
+private val branchIcons = Knob.Flag("Icons", initial = false)
+
 /** How far a deploy has got: to the tip's parent, and on to the tip. */
 private val branchProgress = Knob.Choice("Progress", listOf("None", "Deployed", "Deploying the tip"))
 
 internal val BranchTimelineDemo = ComponentDemo(
     slug = "branch-timeline",
-    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchProgress),
+    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchIcons, branchProgress),
 ) {
     val commits = when (this[branchHistory]) {
         "Linear" -> linearHistory
@@ -542,11 +567,14 @@ internal val BranchTimelineDemo = ComponentDemo(
     val building = this[branchTipLoading]
     val featureLine = this[branchFeatureLine]
     val colourRelease = this[branchReleaseColour]
+    val icons = this[branchIcons]
     BranchTimeline(
         items = commits,
         key = { it.sha },
         parents = { it.parents },
         modifier = Modifier.fillMaxWidth(),
+        // Room either side of an icon's bigger node, off the first lane.
+        laneWidth = if (icons) TimelineDefaults.IconNodeSize + Theme.spacing.sm else BranchTimelineDefaults.LaneWidth,
         progress = when (this[branchProgress]) {
             "Deployed" -> BranchProgress(reached = deployed)
             "Deploying the tip" -> BranchProgress(reached = deployed, towards = tip.sha)
@@ -556,6 +584,12 @@ internal val BranchTimelineDemo = ComponentDemo(
         item(
             filled = if (ringMerges) filledByDefault else true,
             loading = building && commit === tip,
+            icon = when {
+                !icons -> null
+                commit.sha.startsWith("r") -> Tabler.Outline.Rocket
+                commit.parents.size > 1 -> Tabler.Outline.GitMerge
+                else -> null
+            },
             connector = if (commit.sha.startsWith("f")) featureLine else ConnectorStyle.Solid,
             connectorColour = if (colourRelease && commit.sha.startsWith("r")) release else Color.Unspecified,
             onClick = { echo("Opened ${commit.message}") },

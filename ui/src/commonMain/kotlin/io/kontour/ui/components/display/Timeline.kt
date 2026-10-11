@@ -33,7 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
@@ -140,6 +143,9 @@ object TimelineDefaults {
     /** A node's diameter: a [TimelineItem]'s, a [TimelineList] stop's and a [BranchTimeline] commit's. */
     val NodeSize: Dp get() = TimelineNodeSize
 
+    /** The diameter a node grows to, if it is smaller, to hold an `icon`. */
+    val IconNodeSize: Dp get() = TimelineIconNodeSize
+
     /**
      * The column the rail runs down, beside the content — a [TimelineList]'s
      * rail, and a [BranchTimeline]'s first lane.
@@ -230,6 +236,11 @@ fun Timeline(
  *   itinerary still runs on, and only the node says which part of it is in
  *   flight. **Say it in the words as well**: the node is drawn, not announced —
  *   the same rule [filled] carries — so put "in progress" in the item's own text.
+ * @param icon A small icon inside the dot — a train, a walk, a flag at the end.
+ *   The dot grows to [TimelineDefaults.IconNodeSize] to hold it, if [nodeSize]
+ *   is smaller, and the icon takes whichever of light or dark reads on a solid
+ *   dot, or the ring's colour inside a hollow one. Decorative, like the dot:
+ *   say what it means in the item's words. Not drawn while [loading].
  * @param nodeSize The dot's diameter.
  * @param gutterWidth The width of the column the node and connector run down,
  *   beside the content. Down a [Timeline] only; across a [HorizontalTimeline] the
@@ -261,12 +272,16 @@ fun TimelineItem(
     connectorColour: Color = Color.Unspecified,
     filled: Boolean = true,
     loading: Boolean = false,
+    icon: ImageVector? = null,
     nodeSize: Dp = TimelineDefaults.NodeSize,
     gutterWidth: Dp = TimelineDefaults.GutterWidth,
     connectorWidth: Dp = TimelineDefaults.ConnectorWidth,
     content: ListItemScope.() -> Unit,
 ) {
     val slots = listItemSlots(content)
+    val shown = icon.takeIf { !loading }
+    val dot = nodeSizeFor(nodeSize, shown)
+    val painter = shown?.let { rememberVectorPainter(it) }
     val context = LocalTimelineContext.current
     val colours = context?.colours ?: TimelineDefaults.colours()
     val progress = context?.progress
@@ -291,6 +306,7 @@ fun TimelineItem(
                 ringWidth = connectorWidth,
                 here = at?.here == true,
                 reached = at?.reached != false,
+                icon = shown,
             ),
             legs = listOf(
                 RailLeg(
@@ -305,7 +321,7 @@ fun TimelineItem(
         )
     }
     if (context?.axis == Orientation.Horizontal) {
-        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, nodeSize, connectorWidth) {
+        AcrossItem(modifier, slot, ::rail, phase, spinnerColour, loading, dot, connectorWidth, painter) {
             TimelineItemBody(slots, across = true)
         }
         return
@@ -340,7 +356,7 @@ fun TimelineItem(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = TimelineNodeGap),
-                    size = nodeSize,
+                    size = dot,
                     colour = spinnerColour,
                     // The same weight as the ring it stands in for.
                     //
@@ -356,7 +372,7 @@ fun TimelineItem(
                 )
             }
             Canvas(Modifier.fillMaxHeight().width(gutterWidth)) {
-                val nodeRadius = nodeSize.toPx() / 2f
+                val nodeRadius = dot.toPx() / 2f
                 // The gap above the node is its own measure, not the stroke's —
                 // a thick segment should not shove its dot down the gutter and
                 // out of line with the ones above it. The spinner above is the
@@ -371,6 +387,7 @@ fun TimelineItem(
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
                     highContrast = enhanced,
+                    icon = painter,
                 )
             }
         }
@@ -452,6 +469,7 @@ private fun AcrossItem(
     loading: Boolean,
     nodeSize: Dp,
     connectorWidth: Dp,
+    icon: Painter?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val band = nodeSize + TimelineNodeGap * 2
@@ -474,6 +492,7 @@ private fun AcrossItem(
                     nodeRadius = nodeRadius,
                     phase = phase.floatValue,
                     highContrast = enhanced,
+                    icon = icon,
                 )
             },
     ) {

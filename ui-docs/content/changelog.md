@@ -28,7 +28,7 @@ On `main`, and in the next release.
 
 ### Breaking
 
-- **`CalendarView` has two more views, `ThreeDays` and `Schedule`**, so a `when` that names every view needs a branch for each — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
+- **`CalendarView` has two more views, `ThreeDays` and `Schedule`**, so a `when` that names every view needs a branch for each — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip`, `TimelineItem`, a timeline's `item` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
 
 - **A date picker's days are decorated with one [`DayDecoration`](components/calendar-month.md#daydecoration)**, by `decorationFor`, in place of `markerFor`, `containerColourFor` and `annotationFor` and its `DayAnnotation`, on `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth` — see [Migrating](migrating.md#a-date-pickers-days-are-decorated-with-one-daydecoration). It has more than one dot, an icon beside the text, and `keepColours`, which keeps them on a chosen day, where they took its ink. `showDecorationLine = false` keeps the weeks their height for a calendar that only draws dots.
 
@@ -48,6 +48,8 @@ On `main`, and in the next release.
 
 - **An [event calendar](components/event-calendar.md) has a schedule**, `CalendarView.Schedule`: the days with something on, one under another with their events, under each month's name, scrolled through, today always among them and saying "Nothing planned" when it has nothing on. It is last in the switcher. New strings: `schedule`, `nothingPlanned`.
 - **An [event calendar](components/event-calendar.md)'s header too narrow for every view side by side offers them in a menu**, rather than leaving three days out.
+
+- **A timeline's node can hold an icon**: `icon = …` on a [`TimelineItem`](components/timeline.md), and on a [`TimelineList`](components/timeline-list.md) stop or a [`BranchTimeline`](components/branch-timeline.md) commit. The node grows to `TimelineDefaults.IconNodeSize` to hold it, and the icon reads on it — light or dark on a solid node, the ring's colour inside a hollow one.
 
 ### Changed
 
