@@ -64,6 +64,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -180,6 +181,11 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
+                // A layer of its own: it is drawn again on every frame of a
+                // drag, and drawn in the sheet's, it took the sheet's whole
+                // content with it — recorded again each frame of a move that
+                // should only translate it.
+                .graphicsLayer()
                 .drawBehind {
                     val thickness = size.height
                     val sag = bend() * HandleBend.toPx()
