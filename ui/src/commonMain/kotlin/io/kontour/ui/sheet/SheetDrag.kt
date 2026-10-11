@@ -88,6 +88,7 @@ internal fun Modifier.sheetDrag(
             var overSlop = 0f
             val tracker = VelocityTracker()
             tracker.addPosition(down.uptimeMillis, Offset.Zero)
+            var movedAt = down.uptimeMillis
             if (anchored.isAnimationRunning) {
                 // Caught on its way: held where it is, at once.
                 down.consume()
@@ -99,6 +100,7 @@ internal fun Modifier.sheetDrag(
                     // Something inside set off first, or the pointer let go: not the sheet's.
                     if (change.isConsumed || !change.pressed) return@awaitEachGesture
                     total += change.positionChange()
+                    movedAt = change.uptimeMillis
                     tracker.addPosition(change.uptimeMillis, Offset(0f, total.y))
                     if (abs(total.y) >= slop) {
                         change.consume()
@@ -130,6 +132,8 @@ internal fun Modifier.sheetDrag(
             }
             if (overSlop != 0f) deltas.trySend(overSlop)
             var lifted = false
+            var lastMoveAt = movedAt
+            var stoppedFor = 0L
             try {
                 while (true) {
                     val event = awaitPointerEvent()
@@ -146,16 +150,20 @@ internal fun Modifier.sheetDrag(
                         change.consume()
                         if (!cancelled) {
                             lifted = true
-                            // When it let go, as well as where: a finger that
-                            // stopped and then lifted threw nothing, where the
-                            // tracker, told only of the moves, read the last of them.
-                            tracker.addPosition(change.uptimeMillis, Offset(0f, travelled))
+                            // When it let go, as well as where: a finger still
+                            // for a moment before it lifted threw nothing, where
+                            // the tracker, told only of the moves, read the last
+                            // of them. Not as a sample — a still point at the end
+                            // of a quadratic fit bent it into a throw back the
+                            // other way — but by the time since the last move.
+                            stoppedFor = change.uptimeMillis - lastMoveAt
                         }
                         break
                     }
                     val dy = change.positionChange().y
                     change.consume()
                     if (dy != 0f) {
+                        lastMoveAt = change.uptimeMillis
                         travelled += dy
                         tracker.addPosition(change.uptimeMillis, Offset(0f, travelled))
                         deltas.trySend(dy)
@@ -168,7 +176,7 @@ internal fun Modifier.sheetDrag(
             }
             deltas.close()
             val most = viewConfiguration.maximumFlingVelocity
-            val velocity = if (lifted) tracker.calculateVelocity().y.coerceIn(-most, most) else 0f
+            val velocity = if (lifted && stoppedFor <= StoppedMillis) tracker.calculateVelocity().y.coerceIn(-most, most) else 0f
             interactions.tryEmit(if (lifted) DragInteraction.Stop(start) else DragInteraction.Cancel(start))
             scope.launch {
                 dragging.join()
@@ -195,6 +203,9 @@ internal fun Modifier.sheetDrag(
  * carousel's and starts being the sheet's.
  */
 internal const val SheetDragSlop = 1.75f
+
+/** A finger still this long before it lifted had stopped, and threw nothing: the platforms' own figure. */
+private const val StoppedMillis = 40L
 
 /** A mouse's slop against a finger's, as Compose's own draggables take it. */
 private const val MouseSlopRatio = 0.125f / 18f

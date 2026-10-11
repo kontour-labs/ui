@@ -88,7 +88,10 @@ rows at the top.
 **And any of them can reach the top of the window.** A sheet at `Full`, or at
 `Expanded` with content taller than the window, has its top edge on the window's,
 under the status bar, with its top corners the display's own. Its drag handle and
-header are padded below the status bar; the sheet itself is not moved down. It
+header are padded below the status bar, and 12dp further, so a finger on the
+handle is not partly in the bar — on Android the status bar takes every touch
+inside it, and a handle right under it could not be pulled down from. The sheet
+itself is not moved down. It
 used to stop 12dp short, with a strip of page showing above it. A floating sheet
 that does not become an edge sheet keeps its margin at the top as everywhere else.
 

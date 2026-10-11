@@ -74,6 +74,9 @@ class SheetSafeAreaTest {
     /** The inset under test, in pixels. 40dp at 2x, about a phone's status bar. */
     private val insetPx = 80f
 
+    /** Where the chrome of a sheet up under the inset starts: the inset, and the room left above the handle, 12dp. */
+    private val underBarPx = insetPx + 12 * density
+
     private class Measured(
         val sheetTop: Float,
         val contentTop: Float,
@@ -154,8 +157,9 @@ class SheetSafeAreaTest {
      * The sheet's own top edge is the window's, under the status bar — asked for
      * as *"when a sheet expands to the top of the screen, can we make the top of
      * it go all the way to the top of the screen"* — so the chrome owes the whole
-     * inset and the content lands exactly at the bottom of the inset band. Not at
-     * 0 (no inset at all, the defect first reported) and not below it.
+     * inset and the content lands a little below the inset band — 12dp, so a
+     * finger on the handle is not partly in the status bar, which on Android takes
+     * every touch inside it. Not at 0 (no inset at all, the defect first reported).
      */
     @Test
     fun aFullHeightSheetStartsItsChromeBelowTheInset() {
@@ -167,10 +171,10 @@ class SheetSafeAreaTest {
                 "stop at the safe zone",
         )
         assertEquals(
-            insetPx, sheet.contentTop,
-            "the chrome landed at ${sheet.contentTop} rather than at the bottom " +
-                "of the inset band. Below it is under the status bar, which is " +
-                "what was reported; above it is a gap of bare sheet.",
+            underBarPx, sheet.contentTop,
+            "the chrome landed at ${sheet.contentTop} rather than a handle's clearance below " +
+                "the inset band. Higher is under the status bar, which is what was reported, " +
+                "and where a finger on the handle lands partly in the bar; lower is a gap of bare sheet.",
         )
     }
 
@@ -186,7 +190,7 @@ class SheetSafeAreaTest {
         val sheet = measure(SheetDetent.Expanded)
 
         assertEquals(0f, sheet.sheetTop, "a sheet of content taller than the window stopped short of its top")
-        assertEquals(insetPx, sheet.contentTop, "its chrome is not at the bottom of the inset band")
+        assertEquals(underBarPx, sheet.contentTop, "its chrome is not a handle's clearance below the inset band")
         assertTrue(
             abs(sheet.contentBottom - canvasHeight) <= 1f,
             "its content column ends at ${sheet.contentBottom}, not at the window's bottom edge, $canvasHeight",

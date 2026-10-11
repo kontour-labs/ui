@@ -1480,8 +1480,7 @@ private fun BoxScope.SheetSurface(
                     // Where the content starts: under the handle, and under the
                     // status bar while the sheet is (see [sheetTopInset]).
                     val topEdge = sheetTop(state, floating, floatInsets, this@Layout, morph)
-                    val inset = windowInsets.getTop(this@Layout)
-                    val contentTop = (inset - topEdge).coerceIn(0, inset) + handle
+                    val contentTop = sheetTopShift(windowInsets.getTop(this@Layout), topEdge) + handle
                     // Under the handle and the top part: where a collapsed part
                     // comes to rest, and where a pinned part's room ends.
                     val slotTop = contentTop + (topBlock?.height ?: 0)
@@ -1716,7 +1715,7 @@ private fun SheetColumn(
                 val ceiling = if (fixedTop.isNaN() || container <= 0) {
                     window
                 } else {
-                    val top = maxOf(fixedTop.roundToInt(), windowInsets.getTop(this))
+                    val top = maxOf(fixedTop.roundToInt(), fullTopShift(windowInsets.getTop(this)))
                     minOf(window, (container - top).coerceAtLeast(1))
                 }
                 val room = when {
@@ -2649,8 +2648,7 @@ private fun Modifier.sheetTopInset(
     floatInsets: WindowInsets,
     morph: SheetEdgeMorph?,
 ): Modifier = layout { measurable, constraints ->
-    val inset = insets.getTop(this)
-    val top = (inset - sheetTop(state, floating, floatInsets, this, morph)).coerceIn(0, inset)
+    val top = sheetTopShift(insets.getTop(this), sheetTop(state, floating, floatInsets, this, morph))
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
     layout(placeable.width, height) {
@@ -2720,10 +2718,36 @@ private fun Density.sheetContentCeiling(
         // because the margin has already taken the window's edges into it.
         floatInsets.getTop(this) + floatInsets.getBottom(this)
     } else {
-        insets.getTop(this)
+        fullTopShift(insets.getTop(this))
     }
     return (container - reserved).coerceIn(1, container)
 }
+
+/**
+ * How far a sheet's content — its handle first — is moved down, with its top
+ * edge [top] px down the window and [inset] px of the window's top under a
+ * status bar: by as much of the inset as the sheet is under, and by up to
+ * [UnderBarClearance] more as it reaches the top.
+ *
+ * The clearance is for the handle. At full height it sat just under the status
+ * bar, its middle twelve dp below it, and on Android the status bar is a window
+ * of its own that takes every touch inside it: a fingertip aimed at the handle
+ * landed partly in the bar, and the sheet never heard it — *"if the sheet is
+ * full-height then i can't drag the handle down … i have to start the drag a
+ * little bit lower"*. In proportion to how far under the bar the sheet is, so
+ * the content does not jump as the sheet arrives; none where there is no inset.
+ */
+internal fun Density.sheetTopShift(inset: Int, top: Int): Int {
+    if (inset <= 0) return 0
+    val under = (inset - top).coerceIn(0, inset)
+    return under + (UnderBarClearance.toPx() * under / inset).roundToInt()
+}
+
+/** [sheetTopShift] for a sheet at the very top of the window. */
+internal fun Density.fullTopShift(inset: Int): Int = sheetTopShift(inset, 0)
+
+/** The room between a status bar and the handle of a sheet up under it. See [sheetTopShift]. */
+private val UnderBarClearance = 12.dp
 
 /** No padding at all, for a sheet that is already clear of every edge. */
 private val NoInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)

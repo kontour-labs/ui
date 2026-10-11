@@ -85,6 +85,11 @@ internal val PickUpHoldSlop: Dp = 24.dp
  *   vertical part of the first one.
  * @param onPutDown The pointer let go.
  * @param onCancel Something else took the pointer, or it went away.
+ * @param exclusive Whether, once picked up, the carry is this detector's alone:
+ *   each move taken on the initial pass, before anything inside the node hears
+ *   it, so nothing in it — a row's swipe actions — can claim a carry already
+ *   under way. For a reorderable row. Not for a node something above follows,
+ *   as an event calendar follows its carries, which takes the moves first.
  */
 internal suspend fun PointerInputScope.detectPickUp(
     axis: PickUpAxis,
@@ -96,6 +101,7 @@ internal suspend fun PointerInputScope.detectPickUp(
     onCarry: (PointerInputChange, Offset) -> Unit,
     onPutDown: () -> Unit,
     onCancel: () -> Unit,
+    exclusive: Boolean = false,
 ) {
     val budget = PickUpHoldSlop.toPx()
     awaitEachGesture {
@@ -174,6 +180,19 @@ internal suspend fun PointerInputScope.detectPickUp(
                 first.consume()
                 onPutDown()
                 break
+            }
+            if (exclusive && first != null && first.pressed) {
+                // Taken from above before it reached here: someone else's now.
+                if (first.isConsumed) {
+                    onCancel()
+                    break
+                }
+                val delta = first.positionChange()
+                if (delta != Offset.Zero) {
+                    first.consume()
+                    onCarry(first, delta)
+                }
+                continue
             }
             val event = awaitPointerEvent(PointerEventPass.Main)
             val change = event.changes.firstOrNull { it.id == down.id }

@@ -45,6 +45,13 @@ way.
 
 ## How it decides
 
+**In a row that can be reordered, it waits out the hold.** Inside a
+`ReorderableItem` on a touchscreen, where holding the row lifts it, a swipe is
+claimed only once the finger has gone 24dp sideways — the wander a hold allows —
+so a fingertip rolling as it presses does not swipe the row and stop it lifting.
+The row catches up with the finger as it claims. Once the row has lifted, its
+carry is its own: the swipe cannot take it.
+
 **Whose gesture it is, early and by direction.** A drag within 45° of sideways is
 the row's from a few pixels in; anything steeper is the list's. It used to wait for
 a full touch slop sideways while the list waited for one downwards, and whichever

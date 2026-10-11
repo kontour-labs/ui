@@ -18,6 +18,14 @@ internal expect val platformScrollFeel: ScrollFeel?
 internal expect val platformLosesRestedFlicks: Boolean
 
 /**
+ * Whether a finger landing on the home indicator is the system's from the start:
+ * iOS, which hands the app a swipe home until it has recognised it. Where it is
+ * true, the root of a `KontourTheme` keeps such a swipe from scrolling the app:
+ * see [io.kontour.ui.input.guardHomeIndicator].
+ */
+internal expect val platformGuardsHomeIndicator: Boolean
+
+/**
  * Whether a scroll event's delta is in pixels rather than in notches of a wheel.
  *
  * The web, and only the web: Compose hands on the DOM wheel event's own `deltaX`

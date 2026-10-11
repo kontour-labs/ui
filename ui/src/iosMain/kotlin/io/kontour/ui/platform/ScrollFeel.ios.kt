@@ -18,3 +18,5 @@ internal actual val platformLosesRestedFlicks: Boolean = true
 
 /** Notches, as Compose reports them for a pointer on an iPad. */
 internal actual val platformScrollDeltaInPixels: Boolean = false
+
+internal actual val platformGuardsHomeIndicator: Boolean = true

@@ -71,6 +71,10 @@ On `main`, and in the next release.
 
 ### Fixed
 
+- **A [bottom sheet](components/sheets.md) at full height can be dragged down by its handle on Android.** The handle sat just under the status bar, which on Android takes every touch inside it, so a fingertip aimed at the handle often landed partly in the bar and the sheet never heard it. The chrome of a sheet up under the status bar now starts 12dp below it.
+- **[Swipe actions](components/swipe-actions.md) in a [reorderable](components/reorderable-item.md) row no longer stop it being held and carried.** A fingertip rolling a few pixels sideways as it held the row was taken for a swipe, and the row never lifted. Inside a reorderable row a swipe waits for the finger to go 24dp across, and a row once lifted is carried alone.
+- **On iOS, a swipe out of the app from the home indicator no longer scrolls what is under it.** iOS hands the app the start of the swipe before it takes it over; a finger that lands on the home indicator now moves nothing in the app past touch slop, and a tap there still lands.
+
 - **A [bottom sheet](components/sheets.md) nudged a notch and then taken away by the system — the notification shade pulled down over it, focus gone elsewhere — stays where it was.** The cancel was read as a release, at the speed of the nudge, and could close a sheet moved a millimetre. So could a finger held still a moment before lifting: the throw was read from the moves alone, not from when the finger let go.
 
 - **A swipe across a carousel, a row of chips or a pager inside a [bottom sheet](components/sheets.md) is theirs up to about sixty degrees from across**, where the sheet took any swipe over thirty. The sheet's drag is its own now, not Compose's `anchoredDraggable`: a Compose draggable round a horizontal one takes every swipe over thirty degrees from it, however long its slop. It waits for 1.75 times the touch slop up or down, so a swipe mostly up or down still moves the sheet from over a carousel.
