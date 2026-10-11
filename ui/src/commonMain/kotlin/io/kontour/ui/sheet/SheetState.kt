@@ -951,10 +951,13 @@ class SheetState internal constructor(
     internal var anchorRebuilds: Int = 0
         private set
 
+    /** How many times the sheet's surface has composed: read by `SheetFramePressureTest`. */
+    internal var surfaceCompositions: Int = 0
+
     /**
      * How many times a floating sheet's shadow has been recorded: an increment
-     * in each of its pieces' layers, so the suite can ask whether a drag
-     * re-rasterises it. See `FloatingShadow`.
+     * where its tile is drawn, so the suite can ask whether a drag re-rasterises
+     * it. See `FloatingShadow`.
      */
     internal var shadowRecords: Int = 0
 

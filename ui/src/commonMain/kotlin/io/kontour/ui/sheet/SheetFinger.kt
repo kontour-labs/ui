@@ -101,17 +101,17 @@ internal class SheetFinger(
         liftedAt = at
     }
 
+    /** The gesture is over, however it ended: see [followSheetFinger]. */
+    fun gone() {
+        pressed = false
+    }
+
     /**
      * The pointer was taken away rather than lifted — the notification shade, a
      * focus change — so its last moves are not a throw. Without this a release
      * reported at no speed was given the finger's own, from the last tenth of a
      * second before the cancel, and a sheet nudged a notch could be thrown shut.
      */
-    /** The gesture is over, however it ended: see [followSheetFinger]. */
-    fun gone() {
-        pressed = false
-    }
-
     fun cancel() {
         pressed = false
         liftedAt = -1L

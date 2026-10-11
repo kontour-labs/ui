@@ -1,7 +1,9 @@
 package io.kontour.ui.demo
 
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
@@ -129,49 +131,58 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
 @Composable
 private fun MapGround() {
     val colours = Theme.colours
-    Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
-        drawRect(colours.surfaceSunken)
-        val w = size.width
-        val h = size.height
-        // A park, and the river along the south of the city.
-        drawRoundRect(
-            colours.success.container,
-            topLeft = Offset(w * 0.58f, h * 0.10f),
-            size = Size(w * 0.30f, h * 0.18f),
-            cornerRadius = CornerRadius(12.dp.toPx()),
-        )
-        val river = Path().apply {
-            moveTo(0f, h * 0.72f)
-            cubicTo(w * 0.3f, h * 0.64f, w * 0.55f, h * 0.86f, w, h * 0.74f)
-            lineTo(w, h * 0.86f)
-            cubicTo(w * 0.55f, h * 0.98f, w * 0.3f, h * 0.76f, 0f, h * 0.84f)
-            close()
-        }
-        drawPath(river, colours.info.container)
-        // Streets: a grid, a little off square, and two main roads across it.
-        val minor = 3.dp.toPx()
-        val major = 7.dp.toPx()
-        listOf(0.12f, 0.31f, 0.50f, 0.69f, 0.88f).forEach { x ->
-            drawLine(colours.surface, Offset(w * x, 0f), Offset(w * (x + 0.04f), h), minor)
-        }
-        listOf(0.08f, 0.22f, 0.36f, 0.50f, 0.64f).forEach { y ->
-            drawLine(colours.surface, Offset(0f, h * y), Offset(w, h * (y - 0.03f)), minor)
-        }
-        drawLine(colours.surface, Offset(0f, h * 0.43f), Offset(w, h * 0.30f), major, StrokeCap.Round)
-        drawLine(colours.surface, Offset(w * 0.40f, 0f), Offset(w * 0.47f, h), major, StrokeCap.Round)
-        // The line, and the station on it.
-        val line = Path().apply {
-            moveTo(w * 0.05f, h * 0.05f)
-            lineTo(w * 0.30f, h * 0.26f)
-            quadraticTo(w * 0.42f, h * 0.36f, w * 0.56f, h * 0.38f)
-            lineTo(w * 0.98f, h * 0.44f)
-        }
-        drawPath(line, colours.accent.solid, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
-        val station = Offset(w * 0.44f, h * 0.365f)
-        drawCircle(colours.surface, 9.dp.toPx(), station)
-        drawCircle(colours.accent.solid, 9.dp.toPx(), station, style = Stroke(3.dp.toPx()))
-    }
+    // In a layer of its own and drawn from a cache, so nothing the sheet over it
+    // does — moving, morphing, its shadow — makes the map draw again.
+    Spacer(
+        Modifier
+            .fillMaxSize()
+            .clearAndSetSemantics {}
+            .graphicsLayer()
+            .drawWithCache {
+                val w = size.width
+                val h = size.height
+                val river = Path().apply {
+                    moveTo(0f, h * 0.72f)
+                    cubicTo(w * 0.3f, h * 0.64f, w * 0.55f, h * 0.86f, w, h * 0.74f)
+                    lineTo(w, h * 0.86f)
+                    cubicTo(w * 0.55f, h * 0.98f, w * 0.3f, h * 0.76f, 0f, h * 0.84f)
+                    close()
+                }
+                val line = Path().apply {
+                    moveTo(w * 0.05f, h * 0.05f)
+                    lineTo(w * 0.30f, h * 0.26f)
+                    quadraticTo(w * 0.42f, h * 0.36f, w * 0.56f, h * 0.38f)
+                    lineTo(w * 0.98f, h * 0.44f)
+                }
+                val minor = 3.dp.toPx()
+                val major = 7.dp.toPx()
+                val station = Offset(w * 0.44f, h * 0.365f)
+                onDrawBehind {
+                    drawRect(colours.surfaceSunken)
+                    // A park, and the river along the south of the city.
+                    drawRoundRect(
+                        colours.success.container,
+                        topLeft = Offset(w * 0.58f, h * 0.10f),
+                        size = Size(w * 0.30f, h * 0.18f),
+                        cornerRadius = CornerRadius(12.dp.toPx()),
+                    )
+                    drawPath(river, colours.info.container)
+                    // Streets: a grid, a little off square, and two main roads across it.
+                    for (x in StreetsDown) drawLine(colours.surface, Offset(w * x, 0f), Offset(w * (x + 0.04f), h), minor)
+                    for (y in StreetsAcross) drawLine(colours.surface, Offset(0f, h * y), Offset(w, h * (y - 0.03f)), minor)
+                    drawLine(colours.surface, Offset(0f, h * 0.43f), Offset(w, h * 0.30f), major, StrokeCap.Round)
+                    drawLine(colours.surface, Offset(w * 0.40f, 0f), Offset(w * 0.47f, h), major, StrokeCap.Round)
+                    // The line, and the station on it.
+                    drawPath(line, colours.accent.solid, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
+                    drawCircle(colours.surface, 9.dp.toPx(), station)
+                    drawCircle(colours.accent.solid, 9.dp.toPx(), station, style = Stroke(3.dp.toPx()))
+                }
+            },
+    )
 }
+
+private val StreetsDown = floatArrayOf(0.12f, 0.31f, 0.50f, 0.69f, 0.88f)
+private val StreetsAcross = floatArrayOf(0.08f, 0.22f, 0.36f, 0.50f, 0.64f)
 
 /**
  * The stop's next departures, as the Transit app's board shows them: each with

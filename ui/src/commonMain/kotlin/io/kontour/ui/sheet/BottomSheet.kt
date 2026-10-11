@@ -71,6 +71,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.foundation.layout.Spacer
@@ -1274,16 +1277,36 @@ private fun BoxScope.SheetSurface(
     settleSpec: FiniteAnimationSpec<Float>,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
-    // How far into the edge sheet it is becoming, for the one thing that has to be
-    // decided in composition: the shape. Everything else the morph moves is read in
-    // the layout phase. `derivedStateOf`, so a drag recomposes this only while the
-    // fraction is changing — it is 0 all the way below the morph and 1 all the way
-    // above it, and a drag through either recomposes nothing.
-    val edgeness by remember(state, morph) {
-        derivedStateOf { if (morph == null) 0f else edgeness(state, morph) }
+    state.surfaceCompositions++
+    // Which end of the morph the sheet is at, or neither: the one thing about it
+    // that has to be decided in composition, since it picks the shape. How far
+    // between is read where the outline is made (see [MorphingShape]), and
+    // everything else the morph moves is read in layout. `derivedStateOf`, so a
+    // drag recomposes this only when it crosses into or out of the morph.
+    val stage by remember(state, morph) {
+        derivedStateOf {
+            val e = if (morph == null) 0f else edgeness(state, morph)
+            when {
+                e <= 0f -> MorphStage.Floating
+                e >= 1f -> MorphStage.Edge
+                else -> MorphStage.Between
+            }
+        }
     }
-    val drawnShape = remember(shape, expandedShape, edgeness) {
-        morphShape(shape, expandedShape, edgeness)
+    // **One shape for the whole of the morph, not one a frame.** A new shape each
+    // frame recomposed the surface and everything given the shape — its clip, its
+    // ground, its edge, its shadow — for a corner that had moved a fraction of a
+    // pixel. Between the ends this one works the corners out when its outline is
+    // made, and the outline is made again whenever the sheet's size changes,
+    // which through the morph is every frame it moves: the sides close in with
+    // it. At either end the shape is exactly the one asked for.
+    val morphing = remember(shape, expandedShape, state, morph) {
+        MorphingShape(shape, expandedShape) { if (morph == null) 0f else edgeness(state, morph) }
+    }
+    val drawnShape = when (stage) {
+        MorphStage.Floating -> shape
+        MorphStage.Edge -> expandedShape
+        MorphStage.Between -> morphing
     }
     // The room the parts near the top corners keep from them, for the roundest
     // corners this sheet will have: see [SheetCornerRoom].
@@ -1301,7 +1324,10 @@ private fun BoxScope.SheetSurface(
     val placedTall = remember(state) { mutableFloatStateOf(Float.NaN) }
     // A floating sheet's shadow is drawn behind it in pieces that never change
     // size, rather than by the surface, which does: see [FloatingShadow].
-    if (floating) FloatingShadow(state, shadow, drawnShape)
+    // The floating shape, not the morphing one: a blur of 6 to 28dp under a corner
+    // a few dp rounder or squarer looks the same, and a shadow that changes shape
+    // is blurred again. See [FloatingShadow].
+    if (floating) FloatingShadow(state, shadow, shape, opaque = containerColour.alpha >= 1f)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -2409,6 +2435,22 @@ private fun edgeness(state: SheetState, morph: SheetEdgeMorph?): Float {
     return state.edgeMorphFraction(morph, raw.toFloat())
 }
 
+/** Where a sheet is in its morph, as far as composition needs to know. */
+private enum class MorphStage { Floating, Between, Edge }
+
+/**
+ * [from] on its way to [to], as far as [fraction] says when its outline is made:
+ * one object for the whole of a morph. See `SheetSurface`.
+ */
+private class MorphingShape(
+    private val from: Shape,
+    private val to: Shape,
+    private val fraction: () -> Float,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        morphShape(from, to, fraction()).createOutline(size, layoutDirection, density)
+}
+
 /**
  * [shape] on its way to [expanded], [fraction] of the way there.
  *
@@ -2456,91 +2498,115 @@ private fun Modifier.floatingSides(
 }.consumeWindowInsets(floatInsets.only(WindowInsetsSides.Horizontal))
 
 /**
- * A floating sheet's shadow, drawn behind its surface in pieces that keep their
- * size while the sheet moves.
+ * A floating sheet's shadow, drawn behind its surface from one small tile.
  *
  * **The surface cannot carry it.** A floating sheet's bottom edge is seen, pinned
  * a margin off the window's, so the surface is exactly as tall as the sheet is
- * visible and changes height on every frame of a drag. A shadow drawn by a node
- * that changes size is rasterised again each time — two blurred layers, sixty
- * times a second — and that was most of a floating sheet's frame: measured on an
- * Android phone by an app that had to switch to edge sheets to get rid of it,
- * 25% janky frames dragging a floating sheet against 5% for an edge one, with a
- * 150ms p99.
+ * visible and changes height on every frame of a drag — and through its morph
+ * into an edge sheet, width too. A shadow drawn by a node that changes size is
+ * blurred again each time: two blurred layers, sixty times a second. That was
+ * most of a floating sheet's frame: measured on an Android phone by an app that
+ * had to switch to edge sheets to get rid of it, 25% janky frames dragging a
+ * floating sheet against 5% for an edge one, with a 150ms p99. Cutting it into
+ * pieces of constant size fixed the drag and not the morph, where the sheet
+ * widens — *"really stuttering and janky … especially when its corner radius is
+ * changing"* — and pieces wide enough to outlast the morph blurred half as much
+ * again on the frame the sheet opened.
  *
- * So it is two shadows of shapes that never change size. One is as tall as the
- * sheet at its tallest detent and hangs from the sheet's top edge; the other is [pieceHeight] tall and
- * stands on the pinned bottom. Each is cut where it is straight — halfway up the
- * bottom one, which is further from either end than a corner and the blur reach
- * — and along a straight side a shadow is the same at any height, so the two meet
- * without a seam. Each piece is a layer of its own, recorded once and then only
- * moved; the cut is the one thing redrawn, and it is a clip.
+ * So the shadow is blurred **once, for a box a little bigger than two corners**,
+ * and drawn at any size from that, nine-slice: each corner as it is, and each
+ * edge and the middle stretched from the straight run between the tile's corners
+ * — where a shadow is the same all along, so stretching it changes nothing. The
+ * tile is recorded once; a frame of a drag or a morph draws it nine times,
+ * clipped, and blurs nothing.
  *
- * A sheet shorter than the bottom piece has no straight run to cut along, and is
- * given one shadow its own size, as it always was.
+ * Under the floating shape rather than the morphing one: a 6 to 28dp blur under
+ * a corner a few dp rounder or squarer looks the same, and it keeps the tile
+ * still. A sheet shorter or narrower than two corners has no straight run to
+ * stretch, and is given a shadow its own size, as it always was.
  */
 @Composable
-private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Shape) {
+private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Shape, opaque: Boolean) {
     if (shadow.layers.isEmpty()) return
     val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
-    val pieceHeight = (FloatingShadowCorner + shadow.bleed) * 2
-    // Where the two pieces meet, from the sheet's top: written in layout, read
-    // in draw, so a frame of a drag redraws the clip and nothing else.
-    val cut = remember { mutableFloatStateOf(0f) }
+    val tile = rememberGraphicsLayer()
+    // The tile's side, written in layout and read in draw.
+    val tileSide = remember { mutableIntStateOf(0) }
     val whole = remember { mutableStateOf(false) }
-    // A piece's shadow, in a layer of its own so it is recorded once.
-    fun Modifier.piece() = graphicsLayer().drawBehind { state.shadowRecords++ }.then(raised)
+    val bleed = shadow.bleed
     Layout(
-        modifier = Modifier.matchParentSize(),
+        modifier = Modifier.matchParentSize().drawWithContent {
+            // The tile records itself here, and a sheet too small to slice draws
+            // its own shadow.
+            drawContent()
+            val t = tileSide.intValue.toFloat()
+            if (whole.value || t <= 0f) return@drawWithContent
+            val c = FloatingShadowCorner.roundToPx().toFloat()
+            val b = bleed.roundToPx().toFloat()
+            val m = t - 2f * (c + b)
+            val w = size.width
+            val h = size.height
+            // Across and down, how much the straight run is stretched.
+            val k = (w - 2f * c) / m
+            val q = (h - 2f * c) / m
+            val near = b + c
+            val far = t - b - c
+            fun slice(dx: Float, dy: Float, sx: Float, sy: Float, left: Float, top: Float, right: Float, bottom: Float) {
+                withTransform({
+                    translate(dx, dy)
+                    scale(sx, sy, pivot = Offset.Zero)
+                }) {
+                    clipRect(left, top, right, bottom) { drawLayer(tile) }
+                }
+            }
+            val across = c - near * k
+            val down = c - near * q
+            // Corners.
+            slice(-b, -b, 1f, 1f, 0f, 0f, near, near)
+            slice(w + b - t, -b, 1f, 1f, far, 0f, t, near)
+            slice(-b, h + b - t, 1f, 1f, 0f, far, near, t)
+            slice(w + b - t, h + b - t, 1f, 1f, far, far, t, t)
+            // Edges.
+            slice(across, -b, k, 1f, near, 0f, near + m, near)
+            slice(across, h + b - t, k, 1f, near, far, near + m, t)
+            slice(-b, down, 1f, q, 0f, near, near, near + m)
+            slice(w + b - t, down, 1f, q, far, near, t, near + m)
+            // And under the middle, only for a sheet whose ground lets it through:
+            // under an opaque one it is a whole sheet's area drawn for nothing.
+            if (!opaque) slice(across, down, k, q, near, near, near + m, near + m)
+        },
         content = {
-            // From the top: everything above the cut.
-            Box(
-                Modifier.drawWithContent {
-                    if (whole.value) return@drawWithContent
-                    clipRect(left = -size.width, top = -size.height, right = size.width * 2, bottom = cut.floatValue) {
-                        this@drawWithContent.drawContent()
-                    }
-                }
-            ) { Box(Modifier.fillMaxSize().piece()) }
-            // From the bottom: everything below it.
-            Box(
-                Modifier.drawWithContent {
-                    if (whole.value) return@drawWithContent
-                    clipRect(left = -size.width, top = size.height / 2f, right = size.width * 2, bottom = size.height * 3) {
-                        this@drawWithContent.drawContent()
-                    }
-                }
-            ) { Box(Modifier.fillMaxSize().piece()) }
-            // A sheet too short to cut: its own size.
+            // The tile: a box a little bigger than two corners, in a layer of its
+            // own so it draws once, recording itself rather than drawing.
+            Box(Modifier.graphicsLayer().drawWithContent { tile.record { this@drawWithContent.drawContent() } }) {
+                Box(Modifier.fillMaxSize().padding(bleed).drawBehind { state.shadowRecords++ }.then(raised))
+            }
+            // A sheet too small to slice: its own size.
             Box(Modifier.drawWithContent { if (whole.value) drawContent() }) {
-                Box(Modifier.fillMaxSize().piece())
+                Box(Modifier.fillMaxSize().graphicsLayer().drawBehind { state.shadowRecords++ }.then(raised))
             }
         },
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
-        val piece = pieceHeight.roundToPx()
-        // As tall as the sheet is at its tallest detent — a constant while it is
-        // dragged, as an edge sheet's surface is — and in steps above that, so
-        // a pull past the top re-records it a few times rather than each frame.
-        // Not the window's height: a blurred shadow that size is memory, and a
-        // tall window's was enough to run a test suite out of it.
-        val step = FloatingShadowStep.roundToPx().coerceAtLeast(1)
-        val tallest = maxOf(state.surfaceHeight.roundToInt(), height)
-        val tall = ((tallest + step - 1) / step) * step
-        val short = height < piece
-        whole.value = short
-        cut.floatValue = (height - piece / 2f)
-        val top = measurables[0].measure(Constraints.fixed(width, tall))
-        val bottom = measurables[1].measure(Constraints.fixed(width, piece))
-        val own = measurables[2].measure(Constraints.fixed(width, height))
+        val corner = FloatingShadowCorner.roundToPx()
+        val side = 2 * (corner + bleed.roundToPx()) + FloatingShadowRun.roundToPx()
+        tileSide.intValue = side
+        whole.value = width < 2 * corner + 1 || height < 2 * corner + 1
+        val tilePiece = measurables[0].measure(Constraints.fixed(side, side))
+        val own = measurables[1].measure(Constraints.fixed(width, height))
         layout(width, height) {
-            top.place(0, 0)
-            bottom.place(0, height - piece)
+            tilePiece.place(0, 0)
             own.place(0, 0)
         }
     }
 }
+
+/**
+ * The straight run the tile of [FloatingShadow] keeps between its corners, which
+ * its edges are stretched from: a few dp, so its sampling never reaches a corner.
+ */
+private val FloatingShadowRun = 8.dp
 
 /**
  * Generous for a floating sheet's corner: what the bottom piece of
@@ -2548,8 +2614,6 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
  */
 private val FloatingShadowCorner = 48.dp
 
-/** The steps a floating sheet's top shadow grows in, past its tallest detent. */
-private val FloatingShadowStep = 64.dp
 
 /**
  * A morphing sheet's content, as wide as the sheet as it grows: padded by as much

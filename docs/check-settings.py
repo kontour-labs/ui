@@ -332,6 +332,7 @@ MOVEMENT_ALLOWED = {
     "DialDrawing.kt:dialArcs": "rotates the canvas to draw an arc at its angle; nothing animates",
     "DialDrawing.kt:dialNeedle": "draws a needle at the value's angle; the value is the caller's",
     "Checkbox.kt:TriStateCheckbox": "scales the canvas to draw the mark at its size",
+    "BottomSheet.kt:slice": "stretches a floating sheet's shadow tile to the sheet's size; nothing animates",
     "Indication.kt:draw": "the press wash's scale, drawn inside the control's own bounds",
     # Small by construction: inside the control's own bounds, a few pixels.
     "IconButton.kt:IconButtonSurface": "an icon's own turn inside its button, as a toggle's state",
