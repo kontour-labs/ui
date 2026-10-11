@@ -475,6 +475,7 @@ jobs:
         if: needs.changes.result == 'success'
         run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.passed.outcome == 'success' && env.CHECKS == 'true'
         with:
           name: passed-checks-${{ needs.changes.outputs.checks-fp }}
@@ -483,6 +484,7 @@ jobs:
           # A re-run of this job writes it again.
           overwrite: true
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.passed.outcome == 'success' && env.LIBRARY == 'true'
         with:
           name: passed-library-${{ needs.changes.outputs.library-fp }}
@@ -490,6 +492,7 @@ jobs:
           retention-days: 90
           overwrite: true
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.passed.outcome == 'success' && env.CATALOG == 'true'
         with:
           name: passed-catalog-${{ needs.changes.outputs.catalog-fp }}
@@ -497,6 +500,7 @@ jobs:
           retention-days: 90
           overwrite: true
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.passed.outcome == 'success' && env.DOCS == 'true'
         with:
           name: passed-docs-${{ needs.changes.outputs.docs-fp }}
@@ -509,22 +513,24 @@ jobs:
       - name: Upload screenshot diffs
         if: failure()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: screenshot-diffs
           path: ui-catalog/build/screenshot-diffs/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: test-reports
           path: |
             ui/build/reports/tests/
             ui-catalog/build/reports/tests/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
   targets:
     name: Compile every target
@@ -614,6 +620,7 @@ jobs:
         if: needs.changes.result == 'success'
         run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: steps.passed.outcome == 'success'
         with:
           name: passed-targets-${{ needs.changes.outputs.targets-fp }}
@@ -625,11 +632,12 @@ jobs:
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: android-test-reports
           path: ui/build/reports/tests/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
   # Contact sheets, when somebody asks for them.
   #
@@ -665,13 +673,14 @@ jobs:
         run: ./gradlew --no-daemon :ui-docs:siteRenders
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: site-shots
           path: ui-docs/build/site-shots/
           if-no-files-found: error
           # 76 MB a run, and the point of them is that somebody scrolls through
-          # them while the change is fresh.
-          retention-days: 7
+          # them while the change is fresh: three days.
+          retention-days: 3
 
   # The documentation site, and the API reference it serves under `/api/`.
   #
@@ -696,6 +705,8 @@ jobs:
       actions: read
     outputs:
       name: ${{ steps.name.outputs.name }}
+      # Whether the upload below made it: `deploy` has nothing to fetch if not.
+      uploaded: ${{ steps.upload.outcome == 'success' }}
     steps:
       - uses: useblacksmith/checkout@v1
 
@@ -722,9 +733,13 @@ jobs:
       # The bundle an earlier run built from these same inputs, when there is
       # one: a release tag on `main`'s commit, which wants the reference
       # relabelled and nothing compiled. With the API tables it was built
-      # with, which the reference's links are checked against below.
-      - name: Fetch the bundle these inputs built
+      # with, which the reference's links are checked against below. One that
+      # cannot be fetched — expired since `changes` saw it, or storage having
+      # a bad minute — is built here instead, as if there had been none.
+      - id: bundle
+        name: Fetch the bundle these inputs built
         if: needs.changes.outputs.bundle-run != ''
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.changes.outputs.bundle-name }}
@@ -777,7 +792,7 @@ jobs:
       # `docs/generate-doc-pages.py`, which the Gradle task calls — so a
       # malformed page fails here rather than in a reader's browser.
       - name: Build the site
-        if: needs.changes.outputs.bundle-run == ''
+        if: steps.bundle.outcome != 'success'
         run: ./gradlew --no-daemon :ui-docs:wasmJsBrowserDistribution
 
       # What a reader downloads, against ceilings that only go down. Cheap — it
@@ -789,22 +804,23 @@ jobs:
       # a browser, and a timing taken on a shared runner would be a number to
       # ignore. This one is bytes, and bytes are the same everywhere.
       - name: Check the bundle size
-        if: needs.changes.outputs.bundle-run == ''
+        if: steps.bundle.outcome != 'success'
         run: python3 docs/check-bundle-size.py
 
-      # For a later run of the same inputs: see `changes`. A week, which is
-      # longer than a release has ever waited for its tag, and about as much
-      # as the site itself.
+      # For a later run of the same inputs: see `changes`. Three days, which is
+      # longer than a release has ever waited for its tag; one that waits
+      # longer builds the bundle again.
       - name: Keep the bundle
-        if: needs.changes.outputs.bundle-run == '' && needs.changes.outputs.bundle-name != ''
+        if: steps.bundle.outcome != 'success' && needs.changes.outputs.bundle-name != ''
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: ${{ needs.changes.outputs.bundle-name }}
           path: |
             ui-docs/build/dist/wasmJs/productionExecutable
             ui-docs/build/generated/apiTables/ApiTables.kt
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
           # A re-run of this job writes it again.
           overwrite: true
 
@@ -839,7 +855,16 @@ jobs:
       # on a private repository, and this is about forty megabytes a run. The
       # reference used to be uploaded again on its own for 90 days; it is
       # served at `/ui/api/` now.
-      - uses: actions/upload-artifact@v4
+      #
+      # **An upload that fails does not fail the job**, here or at any other
+      # upload in this file: artifact storage refusing a file is not a defect
+      # in the code, and a run that has passed every gate should say so. Here
+      # it is a warning, and `deploy` is skipped, having nothing to fetch; the
+      # next push that changes the site deploys it. A marker that fails to
+      # upload means its gate runs again next time.
+      - id: upload
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: ${{ steps.name.outputs.name }}
           path: dist
@@ -847,6 +872,12 @@ jobs:
           retention-days: 2
           # A re-run of this job writes it again.
           overwrite: true
+      - name: Say the site was not uploaded
+        if: steps.upload.outcome == 'failure'
+        run: |
+          msg="The site built but could not be uploaded as an artifact, so it is not deployed. Re-run this job, or push again, to deploy it."
+          echo "::warning title=Site not uploaded::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
 
   # Cloudflare Pages, Direct Upload, behind Cloudflare Access — see
   # `ui-docs/content/agents.md` for how an agent gets in.
@@ -874,7 +905,7 @@ jobs:
     if: >-
       ${{ !cancelled()
         && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-        && (needs.site.result == 'success'
+        && ((needs.site.result == 'success' && needs.site.outputs.uploaded == 'true')
           || (needs.site.result == 'skipped' && needs.changes.outputs.deploy == 'true'
             && needs.changes.outputs.site-run != '')) }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
