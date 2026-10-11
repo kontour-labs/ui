@@ -440,8 +440,15 @@ class SheetFlickTest {
         /** About 3600px/s — a brisk throw on a phone. */
         const val FlickPerFrame = 60f
 
-        /** About 7200px/s, 3600dp/s at this scene's density: a hard throw, past the sheet's skip speed. */
-        const val HardFlickPerFrame = 120f
+        /**
+         * A hard throw that carries the sheet past its middle on the way: from
+         * full height, a flick past the next detent is a throw past the skip
+         * speed or a drag past the detent, and this is the drag. 120px a frame
+         * passed by a pixel and a half, and stopped passing when the sheet's
+         * own drag began to wait a few dp longer for a carousel inside it.
+         * The skip speed itself is `SheetSettleTest`'s.
+         */
+        const val HardFlickPerFrame = 140f
 
         /**
          * The same travel spread over enough frames to be a haul, not a throw.

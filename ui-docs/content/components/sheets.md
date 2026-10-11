@@ -218,6 +218,15 @@ of its own, and the pixels it declines reach the sheet. Sideways is untouched: a
 sheet has no opinion about horizontal scroll, so a carousel in one keeps whatever
 bounce the platform gives it.
 
+**A swipe across a carousel in a sheet is the carousel's, as far as about sixty
+degrees from across.** The sheet waits for a finger to go 1.75 times the
+platform's touch slop up or down before it moves, and anything inside that sets
+off first — a carousel at its own slop across, a list at its own slop down — has
+the gesture. A swipe mostly up or down moves the sheet from anywhere on it, a
+carousel included. The sheet's drag is its own rather than Compose's
+`anchoredDraggable`: a Compose draggable waiting round a carousel takes every
+swipe over thirty degrees from it, however long it would have waited.
+
 This was reported from an iPhone, as two symptoms of one cause — a flick that had
 to be thrown harder than on Android, and a downward drag that *sometimes* pulled
 the list's content down instead of moving the sheet. Each platform installs a

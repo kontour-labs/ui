@@ -24,7 +24,6 @@ import androidx.compose.runtime.RememberObserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
-import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.interaction.DragInteraction
@@ -828,14 +827,15 @@ fun BottomSheet(
                         Modifier
                             .followSheetFinger(state.finger)
                             .nestedScroll(scrollConnection)
-                            .anchoredDraggable(
-                                state = state.anchoredState,
-                                orientation = SheetOrientation,
-                                flingBehavior = fling,
-                                interactionSource = dragInteractions,
+                            // Not `anchoredDraggable`: see `sheetDrag`, and
+                            // why a carousel inside could not have a swipe.
+                            .sheetDrag(
+                                state = state,
+                                fling = fling,
+                                interactions = dragInteractions,
                                 // Lets the sheet be pulled above its top detent
                                 // and springs it back — see `SheetOverscroll`.
-                                overscrollEffect = overscroll,
+                                overscroll = overscroll,
                             )
                     } else {
                         // The nested-scroll connection goes with the drag. Its
