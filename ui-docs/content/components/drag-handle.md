@@ -28,11 +28,6 @@ handle, which is why it is not marked decorative. It widens slightly on hover an
 under a press — the one hint a pointer user gets that a sheet is draggable at
 all.
 
-**It bows a little while its sheet moves**: its middle up to 2.5dp toward where
-the sheet is going, more the faster, and straight again once it stops, easing
-back without a wobble. It is the bar feeling the drag, and small enough to read
-as that rather than as something loose.
-
 **Its band is the content's top padding, and all of it.** In a sheet the handle
 sits in the middle of a 24dp band, `DragHandleDefaults.Target`, and nothing under
 it adds more: a `SheetHeader` or the sheet's `header` starts at the band's foot. The
@@ -69,5 +64,5 @@ At high contrast the bar is drawn in the enhanced scheme's colours at the same
 size; nothing else about it changes.
 
 Under reduced motion the bar still widens under a pointer or a finger, over a
-short tween with no overshoot. It does not bow. The expand and collapse actions put the sheet at
+short tween with no overshoot. The expand and collapse actions put the sheet at
 its new detent at once instead of sliding it there.

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
@@ -243,6 +244,19 @@ internal fun cutShape(base: CornerBasedShape, presentation: EventPresentation, c
             bottomEnd = if (clippedEnd) square else base.bottomEnd,
         )
     }
+}
+
+/**
+ * A bar across days [from] to [to] of a row of [cell]-wide days: in from each
+ * end by [gap], except at an end it runs on past — into the day or the week
+ * before or after, or off the page — where it runs to the edge, with no gap, so
+ * it meets the piece on the other side of the line and reads as one event.
+ * Square there too: see [cutShape].
+ */
+internal fun Modifier.barAcross(cell: Dp, from: Int, to: Int, continuesBefore: Boolean, continuesAfter: Boolean, gap: Dp): Modifier {
+    val before = if (continuesBefore) 0.dp else gap
+    val after = if (continuesAfter) 0.dp else gap
+    return padding(start = cell * from + before).width(cell * (to - from + 1) - before - after)
 }
 
 /** A ring [width] wide just outside [shape], round what this draws. */

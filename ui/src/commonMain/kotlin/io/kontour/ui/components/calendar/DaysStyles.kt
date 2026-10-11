@@ -171,8 +171,8 @@ private fun CondensedRows(
                         clippedEnd = shown.continuesAfter,
                         focusableOn = from.plus(shown.from, DateTimeUnit.DAY)..from.plus(shown.to, DateTimeUnit.DAY),
                         modifier = Modifier
-                            .padding(start = cell * shown.from + gap, top = gap / 2)
-                            .width(cell * (shown.to - shown.from + 1) - gap * 2)
+                            .padding(top = gap / 2)
+                            .barAcross(cell, shown.from, shown.to, shown.continuesBefore, shown.continuesAfter, gap)
                             .height(item - gap),
                     )
                 }

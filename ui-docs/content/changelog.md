@@ -50,7 +50,6 @@ On `main`, and in the next release.
 - **An [event calendar](components/event-calendar.md)'s header too narrow for every view side by side offers them in a menu**, rather than leaving three days out.
 
 - **An event in a busy day's list, opened from an [event calendar](components/event-calendar.md) month's "+N", can be carried out of it** onto any day of the month, by a finger or a mouse. The list follows the carry and closes once the event is put down.
-- **A sheet's [drag handle](components/drag-handle.md) bows a little while the sheet moves**, its middle up to 2.5dp toward where the sheet is going, and straightens once it stops. Not under reduced motion.
 - **A timeline can fold several stops into one row**: [`TimelineNodeGroup(count)`](components/timeline.md), and `nodeGroup(count)` in a [`TimelineList`](components/timeline-list.md) or a [`BranchTimeline`](components/branch-timeline.md) — "Show 10 past stops", its node up to three nodes bunched along the rail. It is one stop to the rail and to `progress`, whose halo goes round the whole stack.
 - **A timeline's node can hold an icon**: `icon = …` on a [`TimelineItem`](components/timeline.md), and on a [`TimelineList`](components/timeline-list.md) stop or a [`BranchTimeline`](components/branch-timeline.md) commit. The node grows to `TimelineDefaults.IconNodeSize` to hold it, and the icon reads on it — light or dark on a solid node, the ring's colour inside a hollow one.
 
@@ -68,7 +67,7 @@ On `main`, and in the next release.
 - **A [sheet header](components/sheet-header.md) can lead with a back button**: `SheetHeader(onBack = …)`, with `backLabel`, or `navigation` for something else in its place, as a [top bar](components/top-bar.md) takes them.
 - **A [bottom sheet](components/bottom-sheet.md)'s content fades out a little higher above a part pinned to its foot**, 24dp rather than 16dp, so the buttons read as standing over what scrolls behind them.
 
-- **An [event calendar](components/event-calendar.md)'s event that runs on past what a view shows is square on that side**, and rounded only where it really ends: a bar running into the week before or after, or off the page, and a block in the hours running past midnight.
+- **An [event calendar](components/event-calendar.md)'s event that runs on past what a view shows is square on that side, and runs through the line there**, so a bar across two weeks, or a block across midnight, reads as one event in two pieces. It is rounded, and stops short of the line, only where it really ends.
 
 ### Fixed
 

@@ -403,7 +403,6 @@ private fun MonthWeek(
         }
         for (placement in pack.placed) {
             val placed = placement.item
-            val span = placed.to - placed.from + 1
             EventChip(
                 event = placed.event,
                 presentation = if (placed.bar) EventPresentation.Bar else EventPresentation.Line,
@@ -412,9 +411,8 @@ private fun MonthWeek(
                 clippedEnd = placed.continuesAfter,
                 focusableOn = dayInWeek(weekStart, placed.from)..dayInWeek(weekStart, placed.to),
                 modifier = Modifier
-                    .padding(start = cell * placed.from + gap)
-                    .eventRow(dateLabel + gap / 2, placement.row, gap, itemPx)
-                    .width(cell * span - gap * 2),
+                    .barAcross(cell, placed.from, placed.to, placed.continuesBefore, placed.continuesAfter, gap)
+                    .eventRow(dateLabel + gap / 2, placement.row, gap, itemPx),
             )
         }
     }

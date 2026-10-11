@@ -568,8 +568,8 @@ private fun AllDayStrip(scope: CalendarScope, gutter: Dp, days: Int) {
                         clippedStart = placed.continuesBefore,
                         clippedEnd = placed.continuesAfter,
                         modifier = Modifier
-                            .padding(start = cell * placed.from + gap, top = item * placement.row + gap / 2)
-                            .width(cell * (placed.to - placed.from + 1) - gap * 2)
+                            .padding(top = item * placement.row + gap / 2)
+                            .barAcross(cell, placed.from, placed.to, placed.continuesBefore, placed.continuesAfter, gap)
                             .height(item - gap),
                     )
                 }
@@ -893,11 +893,15 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
             if (f == 0f) return x to w
             return (x + (gapPx / 2 - x) * f) to (w + (width - gapPx - w) * f)
         }
+        fun topGap(p: TimedPlacement) = if (p.clippedStart) 0f else gapPx / 2
+        fun footGap(p: TimedPlacement) = if (p.clippedEnd) 0f else gapPx / 2
         val placeables = measurables.mapIndexed { i, measurable ->
             val p = all[i]
             val w = across(p).second.roundToInt().coerceAtLeast(0)
             // Never past midnight: one in the day's last minutes is cut at its foot.
-            val h = (minOf(maxOf(minChipPx, (p.end - p.start) * perMinute), (MinutesPerDay - p.start) * perMinute) - gapPx).roundToInt().coerceAtLeast(0)
+            // Running on from the day before or into the next, it runs to the
+            // day's edge there, with no gap, so it meets its other piece.
+            val h = (minOf(maxOf(minChipPx, (p.end - p.start) * perMinute), (MinutesPerDay - p.start) * perMinute) - topGap(p) - footGap(p)).roundToInt().coerceAtLeast(0)
             measurable.measure(Constraints.fixed(w, h))
         }
         layout(width, height) {
@@ -906,7 +910,7 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                 val x = across(p).first
                 // Over the others while it is widened, and while it narrows
                 // back; one laid over another above it, and first to a press.
-                placeable.placeRelative(x.roundToInt(), (p.start * perMinute + gapPx / 2).roundToInt(), zIndex = if (p.event.id == wide) WidenedZ else p.depth.toFloat())
+                placeable.placeRelative(x.roundToInt(), (p.start * perMinute + topGap(p)).roundToInt(), zIndex = if (p.event.id == wide) WidenedZ else p.depth.toFloat())
             }
         }
     }
