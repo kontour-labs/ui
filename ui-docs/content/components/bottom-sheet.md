@@ -430,15 +430,14 @@ of your own. It used to follow the live position over that last 64dp, and a tall
 sheet opened floating and changed shape in its final frames — reported as the
 sheet "snapping" open near the top.
 
-**The content keeps its floating width while the sheet moves, and takes the
-whole width once it lands.** As the sheet widens by its side margins the surface
-grows out around the content and the content stays where it was: a line that
-wraps differently at each width changes the sheet's height, and its detents with
-it, while a finger is on it — the other half of the reported snap. Once the sheet
-rests at the top as an edge sheet, the content eases out to the edge sheet's own
-sides, the window's insets and nothing more, so an expanded sheet has no floating
-margin left inside it. Taken hold of again, it eases back to its floating width
-before the morph goes anywhere. Under reduced motion it changes over at once.
+**The content widens with the sheet as it fills to the sides.** Floating, the
+margin clears the window's insets and the content has the surface's whole width;
+as an edge sheet it is padded by the insets themselves, and nothing more, so an
+expanded sheet has no floating margin left inside it. On the way the padding is
+the insets times how far the morph has got, following the finger, and margin
+plus padding never falls short of the inset. A line of text that wraps
+differently at a new width can change the height of a sheet sized to its
+content as it does.
 
 ---
 
