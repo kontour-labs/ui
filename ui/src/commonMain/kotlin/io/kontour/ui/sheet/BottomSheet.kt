@@ -1282,6 +1282,15 @@ private fun BoxScope.SheetSurface(
     // corners this sheet will have: see [SheetCornerRoom].
     val room = rememberSheetCornerRoom(shape, expandedShape.takeIf { morph != null })
     val shadow = Theme.elevation.overlay
+    // **Read here as well as in the surface's layout**, so a change re-measures
+    // the surface. The anchors it comes from are set while the surface itself is
+    // being measured — by the slots below it — and a state written under a
+    // node's own measure does not ask that node to measure again. A modal sheet
+    // with a pinned part was measured once, before it had anchors, at no height
+    // at all, and stayed there: open, scrim and all, with nothing drawn. It
+    // changes when the anchors do and not as the sheet moves, so this recomposes
+    // as rarely as they change.
+    val surfaceTall = remember(state) { derivedStateOf { state.surfaceHeight } }.value
     // A floating sheet's shadow is drawn behind it in pieces that never change
     // size, rather than by the surface, which does: see [FloatingShadow].
     if (floating) FloatingShadow(state, shadow, drawnShape)
@@ -1358,7 +1367,7 @@ private fun BoxScope.SheetSurface(
                     // is what keeps that from reaching the caller's content.
                     floatingSurfaceHeight(state, floatInsets, this, window, morph)
                 } else {
-                    state.surfaceHeight
+                    surfaceTall
                         .coerceAtLeast(0f)
                         .roundToInt()
                         .coerceAtMost(constraints.maxHeight)
