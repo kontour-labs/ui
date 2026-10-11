@@ -62,12 +62,13 @@ class SiteGallerySettingsTest {
     /**
      * A grid of pixels from the gallery's content, as ARGB.
      *
-     * **The window matters and the first version of it was wrong.** At 1200dp
-     * the site keeps its documentation sidebar, which ends around x=660; a
-     * sample at 45% of the width lands in that sidebar, which is the *site's*
-     * shell and repaints with the site's theme whether or not the gallery hears
+     * **The window matters and the first version of it was wrong.** The site
+     * kept its documentation sidebar beside the gallery then, ending around
+     * x=660, and a sample at 45% of the width landed in it: the *site's* shell,
+     * which repaints with the site's theme whether or not the gallery hears
      * about it. That version passed with the wiring cut, which is the only
-     * reason it was found.
+     * reason it was found. The gallery has the width to itself now, but a
+     * sample anywhere near the site's shell is the same mistake waiting.
      *
      * So the window is the right-hand region, inset from the gallery's own top
      * bar and from the scrollbar that can appear at the far edge.

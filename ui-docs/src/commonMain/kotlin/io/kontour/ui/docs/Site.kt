@@ -145,7 +145,13 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
     // The library's own answer to "is there room beside the content", rather
     // than a `>= Medium` comparison written out at the call site. A threshold
     // spelled as a comparison is a threshold that drifts when somebody moves it.
-    val besideContent = windowSizeClass.width.hasRoomBeside
+    //
+    // Only for the pages that read as documentation. The icons page is a grid
+    // that wants the whole width, and the gallery brings its own navigation, so
+    // a permanent index beside either is a column of links to somewhere else.
+    // There it goes behind the menu button, as it does on a phone.
+    val besideContent = windowSizeClass.width.hasRoomBeside &&
+        route != Route.Icons && route != Route.Gallery
     val suite = rememberNavigationSuiteState()
     var settingsOpen by remember { mutableStateOf(false) }
 
