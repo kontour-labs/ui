@@ -1,21 +1,6 @@
 package io.kontour.ui.components.calendar
 
-import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.background
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.input.pointer.PointerId
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.runtime.rememberUpdatedState
-import io.kontour.ui.components.selection.SliderDefaults
-import io.kontour.ui.interaction.PickUpAxis
-import io.kontour.ui.interaction.detectPickUp
-import io.kontour.ui.theme.Tone
-import androidx.compose.runtime.LaunchedEffect
-import kotlin.math.roundToInt
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,30 +11,31 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.geometry.Rect
-import kotlinx.datetime.LocalDateTime
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -57,27 +43,46 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
-import kotlin.math.ceil
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.components.selection.SliderDefaults
 import io.kontour.ui.foundation.Text
+import io.kontour.ui.interaction.PickUpAxis
+import io.kontour.ui.interaction.detectPickUp
 import io.kontour.ui.interaction.pressable
 import io.kontour.ui.locale.DateStyle
 import io.kontour.ui.locale.ListStyle
 import io.kontour.ui.locale.NameWidth
 import io.kontour.ui.overlay.LocalOverlayHostOrNull
-import io.kontour.ui.overlay.Popover
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.OverlaySide
+import io.kontour.ui.overlay.PopoverDefaults
+import io.kontour.ui.overlay.PopoverImpl
+import io.kontour.ui.overlay.ScrimStyle
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.Tone
+import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.roundToInt
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.plus
 
 /**
@@ -192,6 +197,13 @@ internal fun MonthView(scope: CalendarScope) {
             val gap = Theme.spacing.xxs / 2
             val cell = maxWidth / DaysPerWeek
             val edit = scope.edit
+            // A day's "+N" opens its list here, over the month, rather than in
+            // its week: carried out of the list, an event is followed by the
+            // list, and a week scrolled away under the carry took its list —
+            // and the carry — with it.
+            var listing by remember { mutableStateOf<DayListing?>(null) }
+            val canList = LocalOverlayHostOrNull.current != null
+            val onList: ((LocalDate, Rect) -> Unit)? = if (canList) remember { { day, anchor -> listing = DayListing(day, anchor) } } else null
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -221,7 +233,7 @@ internal fun MonthView(scope: CalendarScope) {
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
-                            MonthWeek(scope, weekStart, events, item, itemPx, maxRows, cell, Modifier.fillMaxWidth().weekRow(rowPx))
+                            MonthWeek(scope, weekStart, events, item, itemPx, maxRows, cell, onList, Modifier.fillMaxWidth().weekRow(rowPx))
                         }
                     }
                     // Where a carried event would land, over the weeks on screen:
@@ -240,6 +252,7 @@ internal fun MonthView(scope: CalendarScope) {
                         rows = ghostRows,
                     )
                 }
+                DayList(scope, listing, placed, item) { listing = null }
             }
             EditScroll(scope, placed, list, byDays = true)
         }
@@ -328,6 +341,8 @@ private fun MonthWeek(
     maxRows: Int,
     /** A day's width. */
     cell: Dp,
+    /** Opens a day's list from its "+N", there: null where there is no host to show one in. */
+    onList: ((LocalDate, Rect) -> Unit)?,
     modifier: Modifier,
 ) {
     val dateLabel = dateLabelHeight()
@@ -375,7 +390,7 @@ private fun MonthWeek(
                     itemHeight = item,
                     itemPx = itemPx,
                     dateLabel = dateLabel,
-                    events = weekEvents,
+                    onList = onList,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
@@ -500,7 +515,7 @@ private fun DayBox(
     itemHeight: Dp,
     itemPx: () -> Float,
     dateLabel: Dp,
-    events: List<CalendarEvent>,
+    onList: ((LocalDate, Rect) -> Unit)?,
     modifier: Modifier,
 ) {
     val formats = scope.formats
@@ -513,8 +528,6 @@ private fun DayBox(
         listOfNotNull(formats.date(date, DateStyle.Full), if (count > 0) strings.eventCount(formats.quantity(count)) else null),
         ListStyle.Unit,
     )
-    var listing by remember { mutableStateOf(false) }
-    val canList = LocalOverlayHostOrNull.current != null
     Box(
         modifier
             .then(if (inMonth) Modifier else Modifier.background(colours.surfaceSunken))
@@ -567,34 +580,98 @@ private fun DayBox(
         if (more > 0) {
             // A row of the day's, as the events above it are.
             val gap = Theme.spacing.xxs / 2
+            val chip = remember { PlacedAt() }
             Box(Modifier.padding(start = gap, end = gap)) {
                 MoreChip(
                     count = more,
                     muted = !inMonth,
                     enabled = scope.enabled,
                     // The day's list where there is a host to show it in; the day itself where there is not.
-                    onClick = { if (canList) listing = true else scope.openDay(date) },
+                    onClick = {
+                        val anchor = chip.coordinates?.takeIf { it.isAttached }?.boundsInRoot()
+                        if (onList != null && anchor != null) onList(date, anchor) else scope.openDay(date)
+                    },
                     modifier = Modifier
                         .eventRow(dateLabel + gap / 2, moreRow, gap, itemPx)
                         .fillMaxWidth()
+                        .onGloballyPositioned { chip.coordinates = it }
                         // Reached by Tab with the day's events: from the cursor, on its day.
                         .focusProperties { canFocus = scope.state.date == date },
                 )
-                // Every event of the day, from its "+N".
-                if (canList) Popover(visible = listing, onDismissRequest = { listing = false }, title = { +formats.date(date, DateStyle.Long) }) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
-                        for (event in events.filter { it.coversDay(date) }.sortedBy { it.start }) {
-                            EventChip(
-                                event = event,
-                                presentation = if (event.allDay) EventPresentation.Bar else EventPresentation.Line,
-                                scope = scope,
-                                // A list of the day's events, not its days: nothing to drag an end across.
-                                clippedStart = true,
-                                clippedEnd = true,
-                                modifier = Modifier.fillMaxWidth().height(itemHeight),
-                            )
-                        }
-                    }
+            }
+        }
+    }
+}
+
+/** A day's list open from its "+N": which day, and the "+N" it came from, in the root. */
+internal class DayListing(val date: LocalDate, val anchor: Rect)
+
+/**
+ * Every event of a day, from its "+N", in a popover pointing at it — each one
+ * an event to open, and to carry out onto the month.
+ *
+ * Carried out, the list hides — at nothing, still there — and goes on
+ * following the pointer that took the event up ([followsCarry]), since that
+ * pointer is the list's and not the days'; put down, the list closes. Held
+ * still on a touchscreen, for the event's menu, it stays.
+ */
+@Composable
+private fun DayList(scope: CalendarScope, listing: DayListing?, month: PlacedAt, item: Dp, onDismiss: () -> Unit) {
+    // Kept for the exit: the list fades out from where it was.
+    var last by remember { mutableStateOf(listing) }
+    if (listing != null) last = listing
+    val shown = last ?: return
+    val edit = scope.edit
+    val formats = scope.formats
+    val handing = listing != null && edit.live && edit.pointer != null && edit.menu == null
+    var handed by remember { mutableStateOf(false) }
+    if (handing) handed = true
+    val dismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(handing) {
+        if (!handing && handed) {
+            handed = false
+            dismiss()
+        }
+    }
+    val date = shown.date
+    val origin = month.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero) ?: Offset.Zero
+    // Over the "+N" it came from, where that was when it was pressed: what the
+    // popover points at. Placed, not moved.
+    Box(
+        Modifier.layout { measurable, constraints ->
+            val placeable = measurable.measure(
+                Constraints.fixed(shown.anchor.width.roundToInt().coerceAtLeast(0), shown.anchor.height.roundToInt().coerceAtLeast(0)),
+            )
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                placeable.place((shown.anchor.left - origin.x).roundToInt(), (shown.anchor.top - origin.y).roundToInt())
+            }
+        },
+    ) {
+        PopoverImpl(
+            visible = listing != null,
+            onDismissRequest = onDismiss,
+            modifier = Modifier,
+            side = OverlaySide.Bottom,
+            alignment = OverlayAlignment.Centre,
+            scrim = ScrimStyle.Transparent,
+            showArrow = true,
+            maxWidth = PopoverDefaults.MaxWidth,
+            dismissOnScroll = true,
+            hidden = { handing },
+            title = { +formats.date(date, DateStyle.Long) },
+        ) {
+            Column(Modifier.followsCarry(scope), verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs)) {
+                for (event in scope.eventsBetween(date, date).filter { it.coversDay(date) }.sortedBy { it.start }) {
+                    EventChip(
+                        event = event,
+                        presentation = if (event.allDay) EventPresentation.Bar else EventPresentation.Line,
+                        scope = scope,
+                        // Square on the side it runs on past this day.
+                        clippedStart = event.start.date < date,
+                        clippedEnd = lastDayOf(event.start, event.end) > date,
+                        listedOn = date,
+                        modifier = Modifier.fillMaxWidth().height(item),
+                    )
                 }
             }
         }

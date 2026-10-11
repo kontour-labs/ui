@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,6 +100,10 @@ import io.kontour.ui.theme.toneColours
  *   jumped about. Null: the box's width.
  * @param stacked Whether it is laid over another event: ringed in the
  *   surface's colour, so where it starts over the one under it reads as two.
+ * @param listedOn The day whose list of events it is in, not on the days: a
+ *   month's day list. Carried from there it goes by days from that day, wherever
+ *   the list is over, keeps no line of a week, and has no ends to drag — the
+ *   list's day is not where it starts or stops.
  */
 @Composable
 internal fun EventChip(
@@ -113,11 +119,18 @@ internal fun EventChip(
     blockHeight: Dp? = null,
     contentWidth: (() -> Int)? = null,
     stacked: Boolean = false,
+    listedOn: LocalDate? = null,
 ) {
     val colours = toneColours(event.tone)
     // A block is a box of time, cornered like the library's other small boxes;
-    // a bar and a line are labels across days, and capsules as chips are.
-    val shape = if (presentation == EventPresentation.Block) Theme.shapes.extraSmall else Theme.shapes.control
+    // a bar and a line are labels across days, and capsules as chips are —
+    // square at an end that is not the event's own: see [cutShape].
+    val shape = cutShape(
+        if (presentation == EventPresentation.Block) Theme.shapes.extraSmall else Theme.shapes.control,
+        presentation,
+        clippedStart,
+        clippedEnd,
+    )
     val (fill, ink) = when (presentation) {
         EventPresentation.Block -> colours.container to colours.onContainer
         EventPresentation.Bar -> colours.solid to colours.onSolid
@@ -155,7 +168,7 @@ internal fun EventChip(
 
     Box(
         modifier
-            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn)),
+            .then(if (ghost) Modifier.clearAndSetSemantics { } else Modifier.eventControl(event, scope, byDays, presentation, focusableOn, listedOn)),
     ) {
         // Its ground and what is on it cut to its shape; its handles not, so
         // a block's grips can sit across its edges, clear of its title.
@@ -195,11 +208,40 @@ internal fun EventChip(
         // an end cut off by the edge of the week or the page: it is not the
         // event's end there.
         val edges = presentation != EventPresentation.Line
-        if (!ghost && edges && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
+        if (!ghost && listedOn == null && edges && scope.resizable(event) && (!scope.touch || edit.active == event.id)) {
             val bar = presentation == EventPresentation.Bar
             if (!clippedStart) ResizeHandle(event, scope, atStart = true, bar = bar) { fade.value }
             if (!clippedEnd) ResizeHandle(event, scope, atStart = false, bar = bar) { fade.value }
         }
+    }
+}
+
+/**
+ * An event's shape, square at an end the view cuts it off at rather than one it
+ * ends at — a bar running on into the week before or after, or off the page; a
+ * block running on past midnight — so a rounded end always means the event ends
+ * there, and a square one that it carries on.
+ *
+ * A bar's ends are its start and end sides, mirrored right to left with its
+ * corners; a block's, its top and its foot. A line has no ground to shape.
+ */
+internal fun cutShape(base: CornerBasedShape, presentation: EventPresentation, clippedStart: Boolean, clippedEnd: Boolean): CornerBasedShape {
+    if (presentation == EventPresentation.Line || (!clippedStart && !clippedEnd)) return base
+    val square = CornerSize(0)
+    return if (presentation == EventPresentation.Block) {
+        base.copy(
+            topStart = if (clippedStart) square else base.topStart,
+            topEnd = if (clippedStart) square else base.topEnd,
+            bottomEnd = if (clippedEnd) square else base.bottomEnd,
+            bottomStart = if (clippedEnd) square else base.bottomStart,
+        )
+    } else {
+        base.copy(
+            topStart = if (clippedStart) square else base.topStart,
+            bottomStart = if (clippedStart) square else base.bottomStart,
+            topEnd = if (clippedEnd) square else base.topEnd,
+            bottomEnd = if (clippedEnd) square else base.bottomEnd,
+        )
     }
 }
 
@@ -226,9 +268,12 @@ private fun Modifier.eventControl(
     byDays: Boolean,
     presentation: EventPresentation,
     focusableOn: ClosedRange<LocalDate>?,
+    listedOn: LocalDate?,
 ): Modifier {
-    // Whether it has edges to adjust, and whether they go by whole days.
-    val edges = presentation != EventPresentation.Line
+    val listed = listedOn != null
+    // Whether it has edges to adjust, and whether they go by whole days: not
+    // in a day's list, whose day is not where it starts or stops.
+    val edges = presentation != EventPresentation.Line && !listed
     val bar = presentation == EventPresentation.Bar
     val description = eventDescription(event, scope.formats, scope.strings)
     val click = scope.onEventClick
@@ -336,7 +381,7 @@ private fun Modifier.eventControl(
                                 scope.openMenu(root, current, edges = edges)
                                 return@detectPickUp
                             }
-                            scope.takeUp(current, root, byDays, top = coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch, edges = edges)
+                            scope.takeUp(current, root, byDays, top = if (listed) null else coordinates.localToRoot(Offset.Zero).y, pointer = taking, hold = isTouch, edges = edges, day = listedOn)
                             // A mouse is already on its way: the proposal follows it from here.
                             if (!isTouch) edit.move(coordinates.localToRoot(at))
                         },
@@ -585,10 +630,20 @@ internal fun gridLine(): Color = if (highContrast()) Theme.colours.outlineStrong
 /**
  * Takes [event] up at [root] — by whole days, or through the hours — for
  * [pointer] to carry, and on a touchscreen, where a finger held still took it,
- * felt and given its menu.
+ * felt and given its menu. [day] is the day it is taken from, where that is not
+ * the day under [root]: a day's list, open over other days.
  */
-internal fun CalendarScope.takeUp(event: CalendarEvent, root: Offset, byDays: Boolean, top: Float?, pointer: PointerId?, hold: Boolean, edges: Boolean = !byDays) {
-    if (byDays) edit.beginMoveByDays(event, root, top) else edit.beginMove(event, root)
+internal fun CalendarScope.takeUp(
+    event: CalendarEvent,
+    root: Offset,
+    byDays: Boolean,
+    top: Float?,
+    pointer: PointerId?,
+    hold: Boolean,
+    edges: Boolean = !byDays,
+    day: LocalDate? = null,
+) {
+    if (byDays) edit.beginMoveByDays(event, root, top, day) else edit.beginMove(event, root)
     if (!edit.live) return
     pointer?.let { edit.take(it, root, hold) }
     if (hold) {

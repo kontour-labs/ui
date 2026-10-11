@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -95,6 +96,29 @@ fun Popover(
     dismissOnScroll: Boolean = true,
     title: (@Composable ContentScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
+) = PopoverImpl(visible, onDismissRequest, modifier, side, alignment, scrim, showArrow, maxWidth, dismissOnScroll, hidden = { false }, title, content)
+
+/**
+ * A [Popover], and [hidden] while it says so: drawn at nothing and still there,
+ * so what is inside it goes on hearing a pointer it was pressed by. For an
+ * event calendar's day list, whose event carried out of it is followed by the
+ * list until it is put down — closed, the list would go, and the carry with it.
+ * Read as it is drawn.
+ */
+@Composable
+internal fun PopoverImpl(
+    visible: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier,
+    side: OverlaySide,
+    alignment: OverlayAlignment,
+    scrim: ScrimStyle,
+    showArrow: Boolean,
+    maxWidth: Dp,
+    dismissOnScroll: Boolean,
+    hidden: () -> Boolean,
+    title: (@Composable ContentScope.() -> Unit)?,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
     val colours = Theme.colours
@@ -109,6 +133,7 @@ fun Popover(
     // As with the anchor: read live rather than captured when the entry was
     // published, so a modifier change reaches a popover that is already open.
     val latestModifier by rememberUpdatedState(modifier)
+    val latestHidden by rememberUpdatedState(hidden)
     // Read here: the entry below is built in an effect, which has no theme.
     val closeLabel = Theme.strings.close
 
@@ -150,6 +175,7 @@ fun Popover(
                 content = {
                     AnchoredOverlayLayout(
                         anchorInRoot = { latestAnchor },
+                        modifier = Modifier.graphicsLayer { alpha = if (latestHidden()) 0f else 1f },
                         fromScale = 0.94f,
                         side = side,
                         alignment = alignment,

@@ -435,13 +435,21 @@ internal class EventEdit(
     /** Where in its day's box the pointer took hold, for the ghost's lean. */
     private var grabInDay = Offset.Zero
 
-    /** Takes [event] up to move by whole days, held at [root] over the day under it. */
-    fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null) {
-        val day = dayAt(root) ?: return
+    /**
+     * Takes [event] up to move by whole days, held at [root] over the day under
+     * it — or from [from], a day's list open over other days, as though held in
+     * the middle of that day.
+     */
+    fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null, from: LocalDate? = null) {
+        val day = from ?: dayAt(root) ?: return
         grabDay = day
         overDay = day
         val box = days.of(day)
-        grabInDay = box?.let { root - it.localToRoot(Offset.Zero) } ?: Offset.Zero
+        grabInDay = when {
+            box == null -> Offset.Zero
+            from != null -> Offset(box.size.width / 2f, box.size.height / 2f)
+            else -> root - box.localToRoot(Offset.Zero)
+        }
         grabInRow = if (top == null || box == null) null else top - box.localToRoot(Offset.Zero).y
         begin(EditKind.Move, event, event.start, event.end, byDays = true)
         lastPointer = root

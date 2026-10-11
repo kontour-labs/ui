@@ -1182,6 +1182,42 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
 }
 
 /**
+ * Follows a carry for a list of events that is not inside the calendar's days —
+ * a month's day list, open over them — as [carriesEdits] follows one for the
+ * days: an event taken up from the list is pressed in the list, and every move
+ * of that pointer goes to the list, not to the days under it, until it lets go.
+ * The list is hidden while it follows, not closed: closed, it would take the
+ * pointer with it.
+ */
+@Composable
+internal fun Modifier.followsCarry(scope: CalendarScope): Modifier {
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    val current by rememberUpdatedState(scope)
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(edit) {
+        val slop = io.kontour.ui.interaction.PickUpHoldSlop.toPx()
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: continue
+                val id = edit.pointer ?: continue
+                // A carry pressed somewhere else is the days' to follow.
+                val change = event.changes.firstOrNull { it.id == id } ?: continue
+                if (!change.pressed) {
+                    change.consume()
+                    current.letGo()
+                    continue
+                }
+                if (change.positionChanged()) {
+                    change.consume()
+                    edit.carry(coordinates.localToRoot(change.position), slop)
+                }
+            }
+        }
+    }
+}
+
+/**
  * The menu a hold or a secondary click opened: for empty time, a new event
  * where the edit in hand proposes it; for an event, its edges to adjust — a
  * block's in the hours, a bar's across its days, on a touchscreen, where they
