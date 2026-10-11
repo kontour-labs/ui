@@ -58,6 +58,19 @@ import io.kontour.ui.input.Cursor
 import io.kontour.ui.input.pointerCursor
 import io.kontour.ui.theme.Theme
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.flow.first
+import kotlin.math.exp
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlin.math.abs
 
 /**
  * The grab bar at the top of a sheet.
@@ -74,6 +87,10 @@ import kotlinx.coroutines.launch
  * gets that a sheet is draggable at all, and on touch the only acknowledgement
  * that the thing they just pressed is a control. It presses without consuming
  * anything, so the sheet's own drag still starts from the same touch.
+ *
+ * While its sheet moves it bows a little — its middle a couple of dp toward
+ * where the sheet is going, more the faster — and straightens once it stops:
+ * the bar feels the drag. Not under reduced motion.
  *
  * The bar is 4dp tall and the thing you can press is [DragHandleDefaults.Target],
  * which is not the same number and should not be: a 4dp target is unhittable,
@@ -105,6 +122,7 @@ fun DragHandle(
     )
 
     val expanded = state != null && state.currentDetent == state.detents.last()
+    val bend = rememberHandleBend(state)
 
     Box(
         modifier = modifier
@@ -162,10 +180,95 @@ fun DragHandle(
             Modifier
                 .width(width)
                 .height(4.dp)
-                .background(colour, Theme.shapes.capsule)
+                .drawBehind {
+                    val thickness = size.height
+                    val sag = bend() * HandleBend.toPx()
+                    if (abs(sag) < 0.05f) {
+                        drawRoundRect(colour, cornerRadius = CornerRadius(thickness / 2f))
+                    } else {
+                        // Its ends where they always are, its middle drawn on
+                        // toward where the sheet is going: a quadratic through
+                        // the middle at [sag], so the control is twice that.
+                        val y = thickness / 2f
+                        val path = Path().apply {
+                            moveTo(y, y)
+                            quadraticTo(size.width / 2f, y + sag * 2f, size.width - y, y)
+                        }
+                        drawPath(path, colour, style = Stroke(width = thickness, cap = StrokeCap.Round))
+                    }
+                }
         )
     }
 }
+
+/**
+ * How far a [DragHandle]'s middle is bowed, -1 to 1 of [HandleBend]: toward
+ * where its sheet is going, as fast as it is going — up while it is dragged or
+ * thrown up, down while it goes down — and back to straight once it stops,
+ * easing off with no wobble. Nothing under reduced motion, or outside a sheet.
+ *
+ * A frame loop that runs only while the sheet moves or the bow is easing off,
+ * and waits on the sheet's offset otherwise, so a sheet at rest asks for no
+ * frames. Not an animation restarted on each move: the next move arrived before
+ * its first frame, every frame, and it never moved. Read as the handle is drawn:
+ * a drag frame draws it again and composes nothing.
+ */
+@Composable
+private fun rememberHandleBend(state: SheetState?): () -> Float {
+    val bend = remember { mutableFloatStateOf(0f) }
+    val still = Theme.motion.reduceMotion
+    val fastest = with(LocalDensity.current) { HandleBendSpeed.toPx() }
+    LaunchedEffect(state, still, fastest) {
+        bend.floatValue = 0f
+        if (state == null || still) return@LaunchedEffect
+        while (true) {
+            // At rest: nothing until the sheet moves.
+            val from = state.offset
+            snapshotFlow { state.offset }.first { it != from && !it.isNaN() }
+            var last = state.offset
+            var lastTime = withFrameNanos { it }
+            var stillFrames = 0
+            // Following, then easing off; moving again while easing off follows again.
+            while (stillFrames < HandleRestFrames || abs(bend.floatValue) > HandleRest) {
+                val now = withFrameNanos { it }
+                val offset = state.offset
+                val seconds = (now - lastTime) / NanosPerSecond
+                if (seconds > 0f && !offset.isNaN() && !last.isNaN()) {
+                    val moved = offset != last
+                    stillFrames = if (moved) 0 else stillFrames + 1
+                    // Down the screen is a larger offset: a positive speed bows it down.
+                    val target = if (moved) ((offset - last) / seconds / fastest).coerceIn(-1f, 1f) else 0f
+                    val rate = if (moved) HandleFollowRate else HandleSettleRate
+                    bend.floatValue += (target - bend.floatValue) * (1f - exp(-rate * seconds))
+                }
+                last = offset
+                lastTime = now
+            }
+            bend.floatValue = 0f
+        }
+    }
+    return remember(bend) { { bend.floatValue } }
+}
+
+/** How far a [DragHandle]'s middle bows at most: a little, against a 36dp bar. */
+private val HandleBend: Dp = 2.5.dp
+
+/** How fast a sheet goes for its handle to bow all the way. */
+private val HandleBendSpeed: Dp = 1800.dp
+
+/** How quickly the bow follows the sheet, per second: into it within a few frames. */
+private const val HandleFollowRate = 20f
+
+/** How quickly it eases back to straight, per second: a little slower than it bent, and never past. */
+private const val HandleSettleRate = 9f
+
+/** Frames without a move before the sheet counts as stopped. */
+private const val HandleRestFrames = 2
+
+/** Close enough to straight to be straight. */
+private const val HandleRest = 0.01f
+
+private const val NanosPerSecond = 1_000_000_000f
 
 /** What a [DragHandle] takes by default. */
 object DragHandleDefaults {
