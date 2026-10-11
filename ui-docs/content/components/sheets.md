@@ -242,15 +242,15 @@ nested-scroll connection has the same exception: nothing would answer a list tha
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
 
-**One hard flick closes it; an ordinary one stops at the middle.** A release
-lands where the throw would have carried the sheet had it kept going for half a
-second — what iOS projects a release by — at the nearest detent to that. It goes
-past the next detent only when it is thrown at 5000dp/s or more: a hard throw
-closes a sheet with a middle detent in one, where it used to take one flick per
-detent, and an ordinary flick down from the top stops at the middle, which the
-projection alone carried straight past. A throw of the sheet itself, by its
-handle or its surface, counts from 300dp/s, as a flick of its content does, and
-always moves it at least one detent the way it was thrown.
+**A flick goes where it would carry the sheet, so it has to be meant.** A
+release lands at the detent nearest where the throw would have carried the sheet
+had it kept going for a fifth of a second. On a phone, a sheet at its middle
+detent closes from a deliberate flick, about 750dp/s after a 48dp drag, or from
+being hauled past half way; a twitch leaves it where it was. It goes past the
+next detent only when it is thrown at 5000dp/s or more, so an ordinary flick down
+from the top stops at the middle. Below 300dp/s a release settles by position.
+A throw used to be projected half a second, and any flick over the floor moved
+a whole detent, so a sheet went away on a finger moved by accident.
 
 **A short flick, or a finger rolling off the glass, is not a throw.** A release
 only counts as one if the finger's last run in one direction was at least 48dp,
@@ -262,8 +262,8 @@ is judged on the roll-off alone.
 
 **A sheet being pulled when the finger lets go owns the release**, as a sheet on
 an iPhone does. If the content has handed the drag to the sheet, the release
-belongs to the sheet: it carries on at the finger's speed, and it moves at least
-one detent the way it was thrown. That holds even when the gesture scrolled the
+belongs to the sheet: it carries on at the finger's speed, to where the throw
+carries it. That holds even when the gesture scrolled the
 list up to its top first. A release used to stop the sheet dead for a few frames
 and then ease it away from rest. A pull that followed a scroll was also read as
 the list's, and sprang back.

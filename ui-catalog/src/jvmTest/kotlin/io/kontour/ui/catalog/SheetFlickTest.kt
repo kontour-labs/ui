@@ -329,12 +329,37 @@ class SheetFlickTest {
     }
 
     /**
-     * A gentle flick of the sheet still moves it — to the next detent, not past
-     * it. Fifty-six dp of travel: gentle, but a flick meant to move the sheet.
+     * A flick that is not meant does not move the sheet, on a phone-sized
+     * window: past the distance gate and over the speed floor, but thrown no
+     * further than a finger does by accident — *"it has to feel intentional,
+     * not just like you accidentally moved your finger and boom, flicked"*. Any
+     * release over the floor used to move a whole detent.
      */
     @Test
-    fun aGentleFlickOfTheSheetGoesOneDetent() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 28f))
+    fun anAccidentalFlickDoesNotMoveIt() {
+        for (initial in listOf(SheetDetent.Expanded, SheetDetent.Half)) {
+            // 64dp at 480dp/s, and 80dp at 450dp/s.
+            for ((pace, steps) in listOf(16f to 8, 15f to 11)) {
+                assertEquals(
+                    initial,
+                    flungFromFull(pixelsPerFrame = pace, initial = initial, steps = steps, sceneHeight = PhoneHeight),
+                    "${(pace * steps / 2).toInt()}dp flicked down at ${(pace * 30).toInt()}dp/s moved the sheet off $initial",
+                )
+            }
+        }
+    }
+
+    /**
+     * A flick that is meant moves the sheet a detent: 80dp at about 1600dp/s
+     * takes a full-height sheet to the middle, and the middle one away.
+     */
+    @Test
+    fun anIntentionalFlickMovesIt() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 54f, steps = 3, sceneHeight = PhoneHeight))
+        assertEquals(
+            SheetDetent.Hidden,
+            flungFromFull(pixelsPerFrame = 54f, initial = SheetDetent.Half, steps = 3, sceneHeight = PhoneHeight),
+        )
     }
 
     /**
@@ -369,12 +394,13 @@ class SheetFlickTest {
         dismissible: Boolean = true,
         initial: SheetDetent = SheetDetent.Expanded,
         steps: Int = FlickSteps,
+        sceneHeight: Int = 900,
     ): SheetDetent {
         var state: SheetState? = null
         var settled: SheetDetent? = null
         var visible by mutableStateOf(true)
         var goTo by mutableStateOf<SheetDetent?>(null)
-        Scene(width = 600, height = 900) {
+        Scene(width = 600, height = sceneHeight) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 val sheet = rememberSheetState(
@@ -391,7 +417,8 @@ class SheetFlickTest {
                     state = sheet,
                     dismissible = dismissible,
                 ) {
-                    Box(Modifier.fillMaxWidth().height(600.dp).background(Color.LightGray))
+                    // As tall as the window on a phone, as a sheet of content usually is.
+                    Box(Modifier.fillMaxWidth().height(if (sceneHeight >= PhoneHeight) 1000.dp else 600.dp).background(Color.LightGray))
                 }
             }
         }.use { scene ->
@@ -402,7 +429,7 @@ class SheetFlickTest {
                 scene.frames(80)
             }
             assertEquals(initial, sheet.currentDetent, "the sheet did not start at $initial")
-            val from = Offset(300f, 500f)
+            val from = Offset(300f, sceneHeight - 400f)
             scene.press(from)
             repeat(steps) { step ->
                 scene.move(Offset(from.x, from.y + pixelsPerFrame * (step + 1)))
@@ -507,6 +534,9 @@ class SheetFlickTest {
          */
         const val CrawlRatio = 8
         const val CrawlPerFrame = FlickPerFrame / CrawlRatio
+
+        /** A phone's height at this density: 800dp, so its detents are as far apart as on one. */
+        const val PhoneHeight = 1600
 
         /** Short, because a flick is short. The travel is the pace, not the count. */
         const val FlickSteps = 4
