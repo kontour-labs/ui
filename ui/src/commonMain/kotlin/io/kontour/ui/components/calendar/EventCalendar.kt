@@ -566,8 +566,8 @@ object EventCalendarDefaults {
 
     /**
      * Every view, in the order the header's switcher offers them: a day, three
-     * days, a week, a month and a year. In a header narrower than a phone, the
-     * switcher leaves out three days unless it is the view on show.
+     * days, a week, a month, a year and the schedule. In a header too narrow
+     * for them side by side, the switcher offers them in a menu.
      */
     val Views: List<CalendarView> get() = DefaultViews
 

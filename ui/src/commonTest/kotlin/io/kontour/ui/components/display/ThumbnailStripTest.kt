@@ -116,9 +116,22 @@ class ThumbnailStripTest {
             for (page in 2..7) {
                 val middle = lefts[page] + thumbWidth(page, position, 28f, wide(page)) / 2f
                 if (middle !in 0f..400f) continue
-                assertEquals(page, pageAt(middle, 400f, position, 30f, wide, 2f, rtl = false), "at $position")
+                assertEquals(page, pageAt(middle, 400f, position, 30f, wide, 2f, rtl = false, pageCount = 10), "at $position")
             }
         }
+    }
+
+    /** Past the last thumbnail the strip is empty, and a press there goes nowhere. */
+    @Test
+    fun aPressPastTheLastThumbnailIsOnNothing() {
+        val wide = { _: Int -> 60f }
+        val position = 2f
+        val lefts = thumbLefts(0, 6, position, 400f, 28f, wide, 2f)
+        // Where a fourth page's thumbnail would be, in a strip of three.
+        val beyond = lefts[3] + thumbWidth(3, position, 28f, wide(3)) / 2f
+        assertTrue(beyond in 0f..400f, "the place past the end is off the strip, so this checks nothing")
+        assertEquals(null, pageAt(beyond, 400f, position, 30f, wide, 2f, rtl = false, pageCount = 3))
+        assertEquals(2, pageAt(lefts[2] + 5f, 400f, position, 30f, wide, 2f, rtl = false, pageCount = 3))
     }
 
     @Test

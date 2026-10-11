@@ -47,6 +47,10 @@ internal class SheetFinger(
     var pressed by mutableStateOf(false)
         private set
 
+    /** Whether the last gesture was taken away by the system rather than lifted: see [cancel]. */
+    var cancelled: Boolean = false
+        private set
+
     private val times = LongArray(Capacity)
     private val along = FloatArray(Capacity)
     private var count = 0
@@ -59,6 +63,7 @@ internal class SheetFinger(
 
     fun down(at: Long) {
         pressed = true
+        cancelled = false
         onDown()
         count = 0
         next = 0
@@ -114,6 +119,7 @@ internal class SheetFinger(
      */
     fun cancel() {
         pressed = false
+        cancelled = true
         liftedAt = -1L
         run = 0f
     }

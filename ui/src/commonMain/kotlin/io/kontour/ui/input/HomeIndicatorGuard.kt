@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -49,8 +50,12 @@ internal fun Modifier.guardBottomStrip(strip: () -> Float): Modifier =
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 for (change in event.changes) {
                     if (change.changedToDownIgnoreConsumed()) {
+                        // A finger only: the home swipe is a touch, and a
+                        // trackpad, mouse or pencil drag from the foot of an
+                        // iPad's window is the app's.
                         val tall = strip()
-                        if (tall > 0f && change.position.y >= size.height - tall) fromStrip[change.id] = Offset.Zero
+                        val touch = change.type == PointerType.Touch
+                        if (touch && tall > 0f && change.position.y >= size.height - tall) fromStrip[change.id] = Offset.Zero
                         continue
                     }
                     val gone = fromStrip[change.id] ?: continue

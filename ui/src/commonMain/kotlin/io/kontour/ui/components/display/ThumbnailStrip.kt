@@ -153,6 +153,12 @@ fun ThumbnailStrip(
         // There at once under reduced motion, as the carousel's own arrows are.
         scope.launch { if (reduceMotion) state.scrollToPage(target) else state.animateScrollToPage(target) }
     }
+    // **Read fresh by the gesture.** Its handler is kept across recompositions,
+    // so what it closed over stayed as it first was: a carousel whose pictures
+    // loaded in, or lost one, was scrubbed and tapped against its old count.
+    val latestCount by rememberUpdatedState(count)
+    val latestGoTo by rememberUpdatedState(::goTo)
+    val latestWideOf by rememberUpdatedState(wideOf)
 
     Layout(
         content = {
@@ -242,7 +248,7 @@ fun ThumbnailStrip(
                         change.consume()
                         // Dragged left, the next page comes to the middle.
                         val along = if (rtl) travelled else -travelled
-                        val target = (start + along / narrowPx).coerceIn(0f, (count - 1).coerceAtLeast(0).toFloat())
+                        val target = (start + along / narrowPx).coerceIn(0f, (latestCount - 1).coerceAtLeast(0).toFloat())
                         scrub.floatValue = target
                         ticker.at(target.roundToInt())
                         state.requestPageAt(target)
@@ -250,16 +256,16 @@ fun ThumbnailStrip(
                     if (!dragging) {
                         if (wandered > viewConfiguration.touchSlop) return@awaitEachGesture
                         // A press: the thumbnail under it.
-                        val page = pageAt(down.position.x, size.width.toFloat(), position(), narrowPx, wideOf, gap.toPx(), rtl)
-                        if (page != null) goTo(page)
+                        val page = pageAt(down.position.x, size.width.toFloat(), position(), narrowPx, latestWideOf, gap.toPx(), rtl, latestCount)
+                        if (page != null) latestGoTo(page)
                         return@awaitEachGesture
                     }
                     // Let go: on, a little way past where it was, to the nearest page.
                     val speed = velocity.calculateVelocity().x.let { if (rtl) it else -it } / narrowPx
-                    val landing = (scrub.floatValue + speed * ScrubCarry).roundToInt().coerceIn(0, (count - 1).coerceAtLeast(0))
+                    val landing = (scrub.floatValue + speed * ScrubCarry).roundToInt().coerceIn(0, (latestCount - 1).coerceAtLeast(0))
                     scrubbing.value = false
                     ticker.reset()
-                    goTo(landing)
+                    latestGoTo(landing)
                 }
             },
     ) { measurables, constraints ->
@@ -335,8 +341,20 @@ internal fun thumbLefts(first: Int, count: Int, position: Float, width: Float, n
     return lefts
 }
 
-/** The page whose thumbnail is under [x], in a strip [width] wide at [position]; null in a gap or past the ends. */
-internal fun pageAt(x: Float, width: Float, position: Float, pitch: Float, wide: (Int) -> Float, gap: Float, rtl: Boolean): Int? {
+/**
+ * The page whose thumbnail is under [x], in a strip [width] wide at [position]
+ * with [pageCount] pages; null in a gap or past the ends.
+ */
+internal fun pageAt(
+    x: Float,
+    width: Float,
+    position: Float,
+    pitch: Float,
+    wide: (Int) -> Float,
+    gap: Float,
+    rtl: Boolean,
+    pageCount: Int,
+): Int? {
     val reading = if (rtl) width - x else x
     val narrow = pitch - gap
     val near = position.roundToInt()
@@ -345,6 +363,8 @@ internal fun pageAt(x: Float, width: Float, position: Float, pitch: Float, wide:
     val lefts = thumbLefts(first, count, position, width, narrow, wide, gap)
     for (i in 0 until count) {
         val page = first + i
+        // Past the last page the strip is empty: a press there is on nothing.
+        if (page >= pageCount) return null
         val left = lefts[i]
         if (reading >= left && reading <= left + thumbWidth(page, position, narrow, wide(page))) return page
     }

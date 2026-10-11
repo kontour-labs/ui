@@ -131,6 +131,9 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.concentricWith
 import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
+import kotlin.math.abs
+import kotlin.math.ceil
+import io.kontour.ui.theme.cornerReaches
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.currentCoroutineContext
@@ -1251,8 +1254,25 @@ fun ModalBottomSheet(
             // there without standing in the way: the page answers from the
             // moment the sheet is closed, not from when it has landed.
             host.letGo(key)
-            if (state.isVisible) state.hide()
-            host.hide(key)
+            try {
+                // **Until it is gone, however it is caught on the way.** A finger
+                // on the sheet as the caller closes it — or a throw already under
+                // way — interrupts the slide down, and that used to skip the
+                // rest: the entry stayed, and the sheet stayed up after its
+                // caller had closed it. Caught, it waits for the finger to lift
+                // and goes again.
+                while (state.isVisible) {
+                    try {
+                        state.hide()
+                    } catch (caught: CancellationException) {
+                        currentCoroutineContext().ensureActive()
+                        snapshotFlow { state.finger.pressed }.first { !it }
+                        withFrameNanos { }
+                    }
+                }
+            } finally {
+                host.hide(key)
+            }
         }
     }
 }
@@ -2530,10 +2550,20 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
     if (shadow.layers.isEmpty()) return
     val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
     val tile = rememberGraphicsLayer()
-    // The tile's side, written in layout and read in draw.
+    // Written in layout and read in draw: the tile's side, how far a corner and
+    // its blur run along each edge, and the room round the box for the blur.
     val tileSide = remember { mutableIntStateOf(0) }
+    val cornerRun = remember { mutableFloatStateOf(0f) }
+    val pad = remember { mutableFloatStateOf(0f) }
     val whole = remember { mutableStateOf(false) }
-    val bleed = shadow.bleed
+    // On every side, whichever way a layer's offset points: `Shadow.bleed` takes
+    // the larger offset as it comes, so a shadow cast up or to the left would be
+    // cut off at the tile's edge.
+    val reach = remember(shadow) {
+        shadow.layers.maxOf { maxOf(abs(it.offsetX.value), abs(it.offsetY.value)) + it.blurRadius.value + it.spread.value }.dp
+    }
+    // How far a blur spreads a corner's curve along the edge past where it ends.
+    val blur = remember(shadow) { shadow.layers.maxOf { it.blurRadius.value + it.spread.value }.dp }
     Layout(
         modifier = Modifier.matchParentSize().drawWithContent {
             // The tile records itself here, and a sheet too small to slice draws
@@ -2541,8 +2571,8 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
             drawContent()
             val t = tileSide.intValue.toFloat()
             if (whole.value || t <= 0f) return@drawWithContent
-            val c = FloatingShadowCorner.roundToPx().toFloat()
-            val b = bleed.roundToPx().toFloat()
+            val c = cornerRun.floatValue
+            val b = pad.floatValue
             val m = t - 2f * (c + b)
             val w = size.width
             val h = size.height
@@ -2579,9 +2609,9 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
             // The tile: a box a little bigger than two corners, in a layer of its
             // own so it draws once, recording itself rather than drawing.
             Box(Modifier.graphicsLayer().drawWithContent { tile.record { this@drawWithContent.drawContent() } }) {
-                Box(Modifier.fillMaxSize().padding(bleed).drawBehind { state.shadowRecords++ }.then(raised))
+                Box(Modifier.fillMaxSize().padding(reach).drawBehind { state.shadowRecords++ }.then(raised))
             }
-            // A sheet too small to slice: its own size.
+            // A sheet too small to slice, or a shape that cannot be: its own size.
             Box(Modifier.drawWithContent { if (whole.value) drawContent() }) {
                 Box(Modifier.fillMaxSize().graphicsLayer().drawBehind { state.shadowRecords++ }.then(raised))
             }
@@ -2589,10 +2619,24 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
-        val corner = FloatingShadowCorner.roundToPx()
-        val side = 2 * (corner + bleed.roundToPx()) + FloatingShadowRun.roundToPx()
-        tileSide.intValue = side
-        whole.value = width < 2 * corner + 1 || height < 2 * corner + 1
+        val b = reach.roundToPx()
+        val run = FloatingShadowRun.roundToPx()
+        // **The corner as the sheet draws it, and its blur.** Past that along an
+        // edge the shadow is the same all the way, so that is where the tile's
+        // corners stop and its straight run starts.
+        val corner = sheetCornerRun(shape, Size(width.toFloat(), height.toFloat()), this, layoutDirection)
+        val c = corner?.let { ceil(it + blur.toPx()).toInt() } ?: 0
+        val side = 2 * (c + b) + run
+        val box = (side - 2 * b).toFloat()
+        // The tile's box draws the shape at its own size, so a corner that is a
+        // share of the size rather than a length comes out differently there:
+        // that shape, or one that is not a corner shape at all, is drawn whole.
+        val sameInTheTile = corner != null &&
+            abs((sheetCornerRun(shape, Size(box, box), this, layoutDirection) ?: -1f) - corner) < 0.5f
+        whole.value = !sameInTheTile || width < 2 * c + 1 || height < 2 * c + 1
+        tileSide.intValue = if (whole.value) 0 else side
+        cornerRun.floatValue = c.toFloat()
+        pad.floatValue = b.toFloat()
         val tilePiece = measurables[0].measure(Constraints.fixed(side, side))
         val own = measurables[1].measure(Constraints.fixed(width, height))
         layout(width, height) {
@@ -2603,17 +2647,25 @@ private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Sh
 }
 
 /**
+ * How far along its edges [shape]'s widest corner curves at [size], in pixels:
+ * the radius, or a squircle's longer reach. Null for a shape with no corners to
+ * measure.
+ */
+private fun sheetCornerRun(shape: Shape, size: Size, density: Density, direction: LayoutDirection): Float? {
+    if (shape !is CornerBasedShape) return null
+    val reaches = shape.cornerReaches(size, density, direction)
+    return maxOf(
+        maxOf(reaches.topLeft.x, reaches.topLeft.y, reaches.topRight.x),
+        maxOf(reaches.topRight.y, reaches.bottomLeft.x, reaches.bottomLeft.y),
+        maxOf(reaches.bottomRight.x, reaches.bottomRight.y),
+    )
+}
+
+/**
  * The straight run the tile of [FloatingShadow] keeps between its corners, which
  * its edges are stretched from: a few dp, so its sampling never reaches a corner.
  */
 private val FloatingShadowRun = 8.dp
-
-/**
- * Generous for a floating sheet's corner: what the bottom piece of
- * [FloatingShadow] keeps clear of on each side of its cut, with the blur's reach.
- */
-private val FloatingShadowCorner = 48.dp
-
 
 /**
  * A morphing sheet's content, as wide as the sheet as it grows: padded by as much
@@ -2863,7 +2915,13 @@ private fun FollowBack(state: SheetState, back: OverlayBackState, stillWanted: (
                 return@collect
             }
             if (from.isNaN()) from = state.offset
-            state.followBack(from, progress)
+            // Refused — something else is moving the sheet — is not the end of
+            // following: the next frame of the gesture tries again.
+            try {
+                state.followBack(from, progress)
+            } catch (caught: CancellationException) {
+                currentCoroutineContext().ensureActive()
+            }
         }
     }
     LaunchedEffect(state, back.cancels) {
@@ -2922,6 +2980,11 @@ private suspend fun snapshotOfHidden(
         .drop(1)
         .filter { it == true }
         .collect {
+            // **Still there a moment later.** A finger let go at the bottom with
+            // a throw back up lies there for the frame before its throw starts,
+            // and that is not a dismissal.
+            repeat(SheetDismissalFrames) { withFrameNanos { } }
+            if (state.restsHidden != true) return@collect
             onHidden()
             repeat(SheetDismissalFrames) { withFrameNanos { } }
             if (stillVisible()) {

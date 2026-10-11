@@ -173,7 +173,9 @@ class SquircleShape(
      */
     private fun geometryOf(corners: List<Corner>): Array<CornerGeometry> {
         val roomy = corners.all { corner ->
-            corner.radius == 0f || minOf(corner.budgetIn, corner.budgetOut) >= (1f + smoothing) * corner.radius
+            // `max(1, 1 + smoothing)`: the arc itself has to fit too, which for
+            // a smoothing below zero is the larger of the two.
+            corner.radius == 0f || minOf(corner.budgetIn, corner.budgetOut) >= maxOf(1f, 1f + smoothing) * corner.radius
         }
         if (!roomy) return Array(4) { geometry(corners[it]) }
         val tl = corners[0].radius

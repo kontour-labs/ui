@@ -746,7 +746,7 @@ class SheetState internal constructor(
      *
      * Fed from the drag's `MutableInteractionSource` rather than from a flag the
      * gesture sets, because that is the one place the distinction already
-     * exists: `anchoredDraggable` emits `DragInteraction.Start` for a finger and
+     * exists: the sheet's drag emits `DragInteraction.Start` for a finger and
      * nothing at all for an animation.
      *
      * Covers the sheet's own drag — the handle, the surface — and not a list
@@ -1199,16 +1199,12 @@ class SheetState internal constructor(
      * lands a detent away, past one only at [SheetSkipVelocity], and a soft one
      * where it started.
      *
-     * ### What it cannot fix
+     * ### The handle
      *
-     * The **handle's** fling still goes through `AnchoredDraggableDefaults`,
-     * which takes a positional threshold and a snap spec and no velocity
-     * parameter. Routing it through here would mean an `animateTo` inside the
-     * fling that the drag's own mutex is holding, which is a deadlock waiting to
-     * be found rather than a fix. Dragging the handle is the one gesture where
-     * the finger is on the sheet itself and the positional answer is the
-     * intuitive one, so the ceiling stays there and is documented on
-     * `BottomSheetDefaults`.
+     * The **handle's** throw is aimed the same way, by [detentFlungTo], but not
+     * through here: it lands by a snap fling that moves the sheet inside the
+     * drag it already holds. An `animateTo` inside that drag would wait on the
+     * drag's own mutex.
      */
     internal suspend fun settleWhereAimed(
         velocity: Float,

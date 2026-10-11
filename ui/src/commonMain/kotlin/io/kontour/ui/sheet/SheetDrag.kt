@@ -23,6 +23,9 @@ import kotlin.math.sign
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.NonCancellable
 
 /**
  * The sheet's own drag: a finger, or a mouse, on the sheet moves it up and down
@@ -45,10 +48,16 @@ import kotlinx.coroutines.launch
  * the sheet, from over a carousel too, a few dp later than it would have.
  *
  * Everything else is `anchoredDraggable`'s, and done the same way: the drag in
- * the state's own drag scope at the user's priority — so a finger catches a
- * settling sheet, as `startDragImmediately` did — the stretch past the ends
- * through [overscroll], the release through the same [fling] in the same scope,
- * and [interactions] told when a drag starts and stops.
+ * the state's own drag scope at the default priority — so a finger catches a
+ * settling sheet, as `startDragImmediately` did, and the app can still move the
+ * sheet while a finger is on it — the stretch past the ends through
+ * [overscroll], the release through the same [fling] in the same scope, and
+ * [interactions] told when a drag starts and stops.
+ *
+ * **The default priority, as Compose's own draggable takes it.** It was the
+ * user's, which no move the app makes can interrupt: a modal closed in code
+ * while a finger was on it — a timer, a back press — refused to go, and stayed
+ * up and draggable after its caller had closed it.
  */
 internal fun Modifier.sheetDrag(
     state: SheetState,
@@ -81,6 +90,23 @@ internal fun Modifier.sheetDrag(
     }
     coroutineScope {
         val scope = this
+        // **Ended from outside: settled where it is.** The drag and the throw run
+        // in this handler's scope, which a change of density, of motion or of
+        // anything else it is keyed on cancels mid-gesture. Foundation's drag
+        // settled then; this left the sheet between detents, with a target the
+        // anchors may have left behind that no later settle cleared. An
+        // interruption from inside — a new finger catching the throw — is not
+        // this, and is left alone.
+        suspend fun restIfEndedFromOutside() {
+            if (scope.isActive) return
+            withContext(NonCancellable) {
+                try {
+                    state.restAtNearest()
+                } catch (_: CancellationException) {
+                    // Something else is moving it, which settles it too.
+                }
+            }
+        }
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val slop = viewConfiguration.touchSlop * if (down.type == PointerType.Mouse) MouseSlopRatio else SheetDragSlop
@@ -119,19 +145,24 @@ internal fun Modifier.sheetDrag(
             interactions.tryEmit(start)
             val deltas = Channel<Float>(Channel.UNLIMITED)
             val dragging = scope.launch {
-                anchored.anchoredDrag(MutatePriority.UserInput) {
-                    for (delta in deltas) {
-                        if (overscroll == null) {
-                            dragTo(to(delta))
-                        } else {
-                            overscroll.applyToScroll(Offset(0f, delta), NestedScrollSource.UserInput) { available ->
-                                val next = to(available.y)
-                                val used = next - anchored.requireOffset()
-                                dragTo(next)
-                                Offset(0f, used)
+                try {
+                    anchored.anchoredDrag(MutatePriority.Default) {
+                        for (delta in deltas) {
+                            if (overscroll == null) {
+                                dragTo(to(delta))
+                            } else {
+                                overscroll.applyToScroll(Offset(0f, delta), NestedScrollSource.UserInput) { available ->
+                                    val next = to(available.y)
+                                    val used = next - anchored.requireOffset()
+                                    dragTo(next)
+                                    Offset(0f, used)
+                                }
                             }
                         }
                     }
+                } catch (ended: CancellationException) {
+                    restIfEndedFromOutside()
+                    throw ended
                 }
             }
             if (overSlop != 0f) deltas.trySend(overSlop)
@@ -150,7 +181,11 @@ internal fun Modifier.sheetDrag(
                         // the sheet goes to the nearest detent rather than being
                         // thrown at the speed of whatever moved last. Read as a
                         // release, a sheet nudged a notch at full height closed.
-                        val cancelled = change.isConsumed
+                        //
+                        // Read off the finger, which saw the up before anything
+                        // inside the sheet did: by this pass a bar inside it
+                        // that keeps its presses has consumed a real lift too.
+                        val cancelled = state.finger.cancelled
                         change.consume()
                         if (!cancelled) {
                             lifted = true
@@ -184,17 +219,26 @@ internal fun Modifier.sheetDrag(
             val velocity = if (lifted && stoppedFor <= StoppedMillis) tracker.calculateVelocity().y.coerceIn(-most, most) else 0f
             interactions.tryEmit(if (lifted) DragInteraction.Stop(start) else DragInteraction.Cancel(start))
             scope.launch {
-                dragging.join()
-                if (overscroll == null) {
-                    throwBy(velocity)
-                } else {
-                    overscroll.applyToFling(Velocity(0f, velocity)) { available ->
-                        val left = throwBy(available.y)
-                        val at = anchored.requireOffset()
-                        val anchors = anchored.anchors
-                        // Spent at an end, the rest goes to the stretch.
-                        if (at >= anchors.maxPosition() || at <= anchors.minPosition()) Velocity(0f, left) else available
+                try {
+                    dragging.join()
+                    // Taken over while the finger was on it — the app moved the
+                    // sheet, closing it say — so the release is not a throw:
+                    // throwing it would undo what the app did.
+                    if (dragging.isCancelled) return@launch
+                    if (overscroll == null) {
+                        throwBy(velocity)
+                    } else {
+                        overscroll.applyToFling(Velocity(0f, velocity)) { available ->
+                            val left = throwBy(available.y)
+                            val at = anchored.requireOffset()
+                            val anchors = anchored.anchors
+                            // Spent at an end, the rest goes to the stretch.
+                            if (at >= anchors.maxPosition() || at <= anchors.minPosition()) Velocity(0f, left) else available
+                        }
                     }
+                } catch (ended: CancellationException) {
+                    restIfEndedFromOutside()
+                    throw ended
                 }
             }
         }
