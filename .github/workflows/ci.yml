@@ -154,7 +154,7 @@ jobs:
   # nothing and runs the gate, which is the direction this must fail in.
   changes:
     name: Decide what to run
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     # Minutes, except on a tag that has to wait for `main`: see below.
     timeout-minutes: 45
     permissions:
@@ -179,7 +179,7 @@ jobs:
       site-run: ${{ steps.passed.outputs.site-run }}
       deploy: ${{ steps.deploy.outputs.deploy }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       # For the release the site would be labelled with: see `site`.
       - name: Fetch the release tags
@@ -319,7 +319,7 @@ jobs:
     name: Test
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.test == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     # The slow classes are most of an hour on their own.
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.full && 90 || 40 }}
     env:
@@ -330,7 +330,7 @@ jobs:
       # The catalog's `@Category(Slow::class)` classes, only when asked for.
       FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       # First, because they are seconds. They run for every tree that has not
       # passed them, and one of them is what holds the README's counts.
@@ -530,10 +530,10 @@ jobs:
     name: Compile every target
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.targets == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-java@v4
         with:
@@ -649,10 +649,10 @@ jobs:
   renders:
     name: Site contact sheets
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.renders }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-java@v4
         with:
@@ -686,7 +686,7 @@ jobs:
     name: Build the site
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.deploy == 'true' && needs.changes.outputs.site-run == '')) }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     permissions:
       contents: read
@@ -697,7 +697,7 @@ jobs:
     outputs:
       name: ${{ steps.name.outputs.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       # The release tags as refs, not their history: the API reference names the
       # latest release tag as its version (`kontourDocsVersion` in buildSrc)
@@ -877,7 +877,7 @@ jobs:
         && (needs.site.result == 'success'
           || (needs.site.result == 'skipped' && needs.changes.outputs.deploy == 'true'
             && needs.changes.outputs.site-run != '')) }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     permissions:
       # To download another run's artifact.
@@ -923,7 +923,7 @@ jobs:
     # of the resulting klib manifest, rather than by trusting the build to say
     # so. What still needs Xcode is linking a *framework*, and that happens in
     # the consuming app.
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     permissions:
       contents: read
@@ -938,7 +938,7 @@ jobs:
     env:
       GRADLE_BUILD_ACTION_CACHE_KEY_JOB: targets
     steps:
-      - uses: actions/checkout@v4
+      - uses: useblacksmith/checkout@v1
 
       - uses: actions/setup-java@v4
         with:
