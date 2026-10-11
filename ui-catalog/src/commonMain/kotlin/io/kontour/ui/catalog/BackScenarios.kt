@@ -2,6 +2,13 @@ package io.kontour.ui.catalog
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.semantics.Role
+import io.kontour.ui.catalog.apps.transit.DepartureListItem
+import io.kontour.ui.catalog.apps.transit.Mode
+import io.kontour.ui.catalog.apps.transit.departures
+import io.kontour.ui.components.selection.Checkbox
+import io.kontour.ui.components.selection.SelectionRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -378,10 +385,18 @@ private fun SheetScenario(dismissible: Boolean) {
         extra = { Actions { Action("Departures") { open = true } } },
     )
     ModalBottomSheet(visible = open, onDismissRequest = { open = false }, dismissible = dismissible) { safeArea ->
-        SheetHeader { +"Departures" }
-        Column(Modifier.padding(safeArea).padding(horizontal = Theme.spacing.md)) {
-            ListGroup {
-                for (time in listOf("12:04 · 950", "12:09 · 935", "12:12 · 37")) item(label = time)
+        SheetHeader {
+            +"Departures"
+            supporting { +"Perth Busport" }
+        }
+        Column(
+            Modifier.padding(safeArea).padding(horizontal = Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
+        ) {
+            // The buses on the Transit app's board, as its rows show them.
+            val buses = departures.filter { it.mode == Mode.Bus }.take(4)
+            buses.forEachIndexed { index, departure ->
+                DepartureListItem(departure, GroupPosition.of(index, buses.size), onClick = {})
             }
             if (!dismissible) {
                 Actions { Action("Done") { open = false } }
@@ -435,7 +450,9 @@ private fun SheetStack(
                 val close = closeEnclosingSheet() ?: onDone
                 FramePage(
                     "Departures", onBack = null, onClose = close,
-                    rows = listOf("950", "935").map { "12:04 · $it" to { backStack += ServiceRoute("Perth Busport", it) } },
+                    rows = listOf("950" to "Elizabeth Quay · 4 min", "935" to "Kings Park · 19 min").map { (route, rest) ->
+                        "$route to $rest" to { backStack += ServiceRoute("Perth Busport", route) }
+                    },
                 )
             }
             entry<ServiceRoute> { service ->
@@ -469,10 +486,23 @@ private fun SideSheetsScenario(dismissible: Boolean) {
         },
     )
     ModalSideSheet(visible = filters, onDismissRequest = { filters = false }, dismissible = dismissible) {
-        Column(Modifier.padding(Theme.spacing.md), verticalArrangement = Arrangement.spacedBy(Theme.spacing.md)) {
-            Text("Filters", style = Theme.typography.titleMedium)
-            ListGroup {
-                for (mode in listOf("Bus", "Train", "Ferry")) item(label = mode)
+        // The header's close button closes the sheet, dismissible or not.
+        SheetHeader { +"Filters" }
+        val shown = remember { mutableStateMapOf("Trains" to true, "Buses" to true) }
+        Column(
+            Modifier.padding(start = Theme.spacing.md, end = Theme.spacing.md, bottom = Theme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
+        ) {
+            shown.keys.toList().forEachIndexed { index, mode ->
+                SelectionRow(
+                    selected = shown[mode] == true,
+                    onSelectedChange = { shown[mode] = it },
+                    role = Role.Checkbox,
+                    position = GroupPosition.of(index, shown.size),
+                ) {
+                    +mode
+                    trailing { Checkbox(checked = shown[mode] == true, onCheckedChange = null) }
+                }
             }
             if (!dismissible) Actions { Action("Done") { filters = false } }
         }

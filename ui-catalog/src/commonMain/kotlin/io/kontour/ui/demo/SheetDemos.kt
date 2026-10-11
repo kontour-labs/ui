@@ -1,6 +1,35 @@
 package io.kontour.ui.demo
 
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.Train
+import io.kontour.ui.catalog.apps.transit.DepartureListItem
+import io.kontour.ui.catalog.apps.transit.Mode
+import io.kontour.ui.catalog.apps.transit.departures
+import io.kontour.ui.catalog.apps.transit.stops
+import io.kontour.ui.catalog.pageScroll
+import io.kontour.ui.components.display.Banner
+import io.kontour.ui.components.list.ListSection
+import io.kontour.ui.components.selection.ChipGroup
+import io.kontour.ui.components.selection.FilterChip
+import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.components.selection.Switch
+import io.kontour.ui.components.text.TextField
+import io.kontour.ui.theme.Tone
 import io.kontour.ui.sheet.SheetPartPin
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
@@ -13,6 +42,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,38 +112,89 @@ private fun Screen(content: @Composable BoxScope.() -> Unit) {
         containerColour = Theme.colours.surface,
     ) {
         OverlayHost(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().background(Theme.colours.surfaceSunken)) {
-                Text(
-                    text = "map",
-                    modifier = Modifier.align(Alignment.TopCenter).padding(Theme.spacing.lg),
-                    style = Theme.typography.eyebrow,
-                    colour = Theme.colours.contentSubtle,
-                )
+            Box(Modifier.fillMaxSize()) {
+                MapGround()
                 content()
             }
         }
     }
 }
 
+/**
+ * A street map for the sheets to sit over, as a transit or maps app's sheet
+ * does: blocks of streets, a park, the river, the line through the station and
+ * the station itself. Drawn in the theme's colours, so it reads in light and
+ * dark, and quiet enough that a sheet over it is the thing being shown.
+ */
 @Composable
-private fun Departures() {
+private fun MapGround() {
+    val colours = Theme.colours
+    Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
+        drawRect(colours.surfaceSunken)
+        val w = size.width
+        val h = size.height
+        // A park, and the river along the south of the city.
+        drawRoundRect(
+            colours.success.container,
+            topLeft = Offset(w * 0.58f, h * 0.10f),
+            size = Size(w * 0.30f, h * 0.18f),
+            cornerRadius = CornerRadius(12.dp.toPx()),
+        )
+        val river = Path().apply {
+            moveTo(0f, h * 0.72f)
+            cubicTo(w * 0.3f, h * 0.64f, w * 0.55f, h * 0.86f, w, h * 0.74f)
+            lineTo(w, h * 0.86f)
+            cubicTo(w * 0.55f, h * 0.98f, w * 0.3f, h * 0.76f, 0f, h * 0.84f)
+            close()
+        }
+        drawPath(river, colours.info.container)
+        // Streets: a grid, a little off square, and two main roads across it.
+        val minor = 3.dp.toPx()
+        val major = 7.dp.toPx()
+        listOf(0.12f, 0.31f, 0.50f, 0.69f, 0.88f).forEach { x ->
+            drawLine(colours.surface, Offset(w * x, 0f), Offset(w * (x + 0.04f), h), minor)
+        }
+        listOf(0.08f, 0.22f, 0.36f, 0.50f, 0.64f).forEach { y ->
+            drawLine(colours.surface, Offset(0f, h * y), Offset(w, h * (y - 0.03f)), minor)
+        }
+        drawLine(colours.surface, Offset(0f, h * 0.43f), Offset(w, h * 0.30f), major, StrokeCap.Round)
+        drawLine(colours.surface, Offset(w * 0.40f, 0f), Offset(w * 0.47f, h), major, StrokeCap.Round)
+        // The line, and the station on it.
+        val line = Path().apply {
+            moveTo(w * 0.05f, h * 0.05f)
+            lineTo(w * 0.30f, h * 0.26f)
+            quadraticTo(w * 0.42f, h * 0.36f, w * 0.56f, h * 0.38f)
+            lineTo(w * 0.98f, h * 0.44f)
+        }
+        drawPath(line, colours.accent.solid, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
+        val station = Offset(w * 0.44f, h * 0.365f)
+        drawCircle(colours.surface, 9.dp.toPx(), station)
+        drawCircle(colours.accent.solid, 9.dp.toPx(), station, style = Stroke(3.dp.toPx()))
+    }
+}
+
+/**
+ * The stop's next departures, as the Transit app's board shows them: each with
+ * its mode, platform or stand, minutes, and whether it is running to time.
+ */
+@Composable
+private fun Departures(onPick: (String) -> Unit) {
     Column(
         modifier = Modifier.padding(
-            start = Theme.spacing.md,
-            end = Theme.spacing.md,
-            bottom = Theme.spacing.lg,
+            start = BottomSheetDefaults.ContentPadding,
+            end = BottomSheetDefaults.ContentPadding,
+            bottom = BottomSheetDefaults.ContentPadding,
         ),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing),
     ) {
-        // Enough rows that the sheet's full height is a step above `Half` in the
-        // 520dp frame, which is the step the expand-to-edge morph runs across. Five
-        // left the content a few dp taller than `Half`, and the morph looked like a
-        // snap — which the sheet now guards against itself, but a demo of the step
-        // should have one.
-        repeat(8) { index ->
-            Text(
-                "${950 + index} to Elizabeth Quay — ${4 + index * 7} min",
-                style = Theme.typography.bodyMedium,
+        // All twelve, so the board is taller than the 520dp frame at every size
+        // and scrolls inside the sheet as a real one does — and the sheet's full
+        // height is a step above `Half`, which the expand-to-edge morph runs across.
+        departures.forEachIndexed { index, departure ->
+            DepartureListItem(
+                departure = departure,
+                position = GroupPosition.of(index, departures.size),
+                onClick = { onPick("${departure.route} to ${departure.towards}") },
             )
         }
     }
@@ -242,46 +323,65 @@ internal val BottomSheetDemo = ComponentDemo(
                     if (searchBar == SheetPartPin.Collapsed) {
                         item(key = "search") { sheetParts.part(pin = SheetPartPin.Collapsed, content = field) }
                     }
-                    itemsIndexed(PinnedStops) { index, stop ->
-                        ListItem(onClick = { echo(stop) }, position = GroupPosition.of(index, PinnedStops.size)) { +stop }
+                    // The network's stations, narrowed as the reader types.
+                    val typed = query.text.trim()
+                    val found = if (typed.isEmpty()) stops else stops.filter { it.name.contains(typed, ignoreCase = true) }
+                    itemsIndexed(found, key = { _, stop -> stop.name }) { index, stop ->
+                        ListItem(onClick = { echo(stop.name) }, position = GroupPosition.of(index, found.size)) {
+                            leading { +Tabler.Outline.Train }
+                            +stop.name
+                            supporting { +"Zone ${stop.zone} · ${stop.lines.joinToString { it.name }}" }
+                        }
                     }
                 }
                 return@BottomSheet
             }
-            // Always there: it is what the peek detent is peeking *at*.
-            part {
-                SheetHeader(
-                    modifier = Modifier.sheetPeekAnchor(),
-                    actions = {
-                        IconButton(
-                            icon = Tabler.Outline.Star,
-                            contentDescription = "Add to favourites",
-                            onClick = { echo("Favourited") },
-                        )
-                    },
-                ) {
-                    +"Perth Underground"
-                    supporting { +"Platform 2 · Joondalup line" }
+            // In a scroller, as the Transit app's planner is: the board is taller
+            // than the sheet at every size, and the parts are still the sheet's,
+            // named through its scope.
+            val sheetParts = this
+            Column(Modifier.pageScroll(barPadding = PaddingValues()).padding(padding)) {
+                // Always there: it is what the peek detent is peeking *at*.
+                sheetParts.part {
+                    SheetHeader(
+                        modifier = Modifier.sheetPeekAnchor(),
+                        actions = {
+                            IconButton(
+                                icon = Tabler.Outline.Star,
+                                contentDescription = "Add to favourites",
+                                onClick = { echo("Favourited") },
+                            )
+                        },
+                    ) {
+                        +"Perth Underground"
+                        supporting { +"Zone 1 · Trains and buses" }
+                    }
+                }
+                // And the board, below it. The peek is anchored to the header, so
+                // the board starts exactly at the sheet's edge — it is drawn, off
+                // the bottom of the window, and a drag uncovers it at the speed of
+                // the finger rather than announcing itself at a detent. `from` says
+                // which size it belongs to, which is what keeps a screen reader out
+                // of it until the sheet is that size.
+                sheetParts.part(from = SheetDetent.Half) {
+                    Column {
+                        Banner(
+                            tone = Tone.Warning,
+                            modifier = Modifier.padding(
+                                start = BottomSheetDefaults.ContentPadding,
+                                end = BottomSheetDefaults.ContentPadding,
+                                bottom = Theme.spacing.sm,
+                            ),
+                        ) {
+                            +"Mandurah line trains are running up to 3 minutes late."
+                        }
+                        Departures(onPick = ::echo)
+                    }
                 }
             }
-            // And the board, below it. The peek is anchored to the header, so the
-            // board starts exactly at the sheet's edge — it is drawn, off the
-            // bottom of the window, and a drag uncovers it at the speed of the
-            // finger rather than announcing itself at a detent. `from` says which
-            // size it belongs to, which is what keeps a screen reader out of it
-            // until the sheet is that size.
-            part(from = SheetDetent.Half) { Departures() }
         }
     }
 }
-
-/** Enough stops that the list scrolls behind the field at every size. */
-private val PinnedStops = listOf(
-    "Perth Underground", "Elizabeth Quay", "Esplanade", "McIver", "Claisebrook",
-    "East Perth", "Mount Lawley", "Maylands", "Meltham", "Bayswater",
-    "Ashfield", "Bassendean", "Success Hill", "Guildford", "East Guildford",
-    "Woodbridge", "Midland",
-)
 
 /**
  * Whether a press outside closes it.
@@ -334,24 +434,44 @@ internal val ModalBottomSheetDemo = ComponentDemo(
                 +"Rename favourite"
                 supporting { +"Perth Underground" }
             }
-            Column(
-                modifier = Modifier.padding(
-                    start = Theme.spacing.md,
-                    end = Theme.spacing.md,
-                    bottom = Theme.spacing.lg,
-                ),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
-            ) {
-                Text(
-                    "Give it a name you will recognise on the home screen.",
-                    style = Theme.typography.bodySmall,
-                    colour = Theme.colours.contentMuted,
-                )
-                Button(
-                    onClick = { open = false; echo("Saved") },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { +"Save" }
-            }
+            RenameFavourite(
+                onCancel = { open = false },
+                onSave = { name -> open = false; echo("Saved as $name") },
+            )
+        }
+    }
+}
+
+/**
+ * What a rename sheet holds: the name to change, prefilled with the one it has,
+ * and a way to save it or not. Save waits for a name that is not blank and not
+ * the one it already has.
+ */
+@Composable
+private fun RenameFavourite(onCancel: () -> Unit, onSave: (String) -> Unit) {
+    val name = rememberTextFieldState("Perth Underground")
+    val typed = name.text.trim().toString()
+    Column(
+        modifier = Modifier.padding(
+            start = BottomSheetDefaults.ContentPadding,
+            end = BottomSheetDefaults.ContentPadding,
+            bottom = BottomSheetDefaults.ContentPadding,
+        ),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+    ) {
+        TextField(
+            state = name,
+            label = "Name",
+            supporting = "Shown on your home screen and in alerts",
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+            Button(onClick = onCancel, variant = ButtonVariant.Secondary, modifier = Modifier.weight(1f)) { +"Cancel" }
+            Button(
+                onClick = { onSave(typed) },
+                enabled = typed.isNotEmpty() && typed != "Perth Underground",
+                modifier = Modifier.weight(1f),
+            ) { +"Save" }
         }
     }
 }
@@ -371,30 +491,38 @@ internal val SideSheetDemo = ComponentDemo(
     var open by remember { mutableStateOf(true) }
     val side = this[sheetSide]
     Screen {
-        // On the side the rail is not, so it stays pressable with the rail open —
-        // which is the difference from the modal sheet, and the thing to try.
-        Button(
-            onClick = { open = !open; echo(if (open) "Filters shown" else "Filters hidden") },
-            variant = ButtonVariant.Secondary,
-            size = ButtonSize.Small,
-            modifier = Modifier
-                .align(if (side == SheetSide.Start) Alignment.BottomEnd else Alignment.BottomStart)
-                .padding(Theme.spacing.md),
-        ) { +(if (open) "Hide" else "Filters") }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // On the side the rail is not, so it stays pressable with the rail open —
+            // which is the difference from the modal sheet, and the thing to try.
+            Button(
+                onClick = { open = !open; echo(if (open) "Filters shown" else "Filters hidden") },
+                variant = ButtonVariant.Secondary,
+                size = ButtonSize.Small,
+                modifier = Modifier
+                    .align(if (side == SheetSide.Start) Alignment.BottomEnd else Alignment.BottomStart)
+                    .padding(Theme.spacing.md),
+            ) { +(if (open) "Hide" else "Filters") }
 
-        SideSheet(
-            visible = open,
-            side = side,
-            width = 180.dp,
-            paneTitle = "Filters",
-        ) {
-            // No scrim and no back gesture: the app owns `visible`, so the header's
-            // close button is how the rail goes away.
-            SheetHeader(onClose = { open = false }) { +"Filters" }
-            FilterBody()
+            SideSheet(
+                visible = open,
+                side = side,
+                // As wide as the filters want, short of the button beside it: on a
+                // phone the page is narrow, and a rail over its only control would
+                // be the modal sheet by another name.
+                width = (maxWidth - RoomBesideTheRail).coerceIn(200.dp, 280.dp),
+                paneTitle = "Filters",
+            ) {
+                // No scrim and no back gesture: the app owns `visible`, so the header's
+                // close button is how the rail goes away.
+                SheetHeader(onClose = { open = false }) { +"Filters" }
+                FilterBody(onShow = { count -> echo("Showing $count departures") })
+            }
         }
     }
 }
+
+/** The page the non-modal rail leaves beside it: room for its button and the button's margin. */
+private val RoomBesideTheRail = 104.dp
 
 internal val ModalSideSheetDemo = ComponentDemo(
     slug = "modal-side-sheet",
@@ -414,31 +542,85 @@ internal val ModalSideSheetDemo = ComponentDemo(
             visible = open,
             onDismissRequest = { open = false },
             side = side,
-            width = 240.dp,
+            width = 300.dp,
             dismissible = dismissible,
             onBack = { open = false },
         ) {
             // The header's own close button is the way out when the scrim is
             // not one — `onClose` defaults to `closeEnclosingSheet()`.
             SheetHeader { +"Filters" }
-            FilterBody()
+            FilterBody(onShow = { count -> open = false; echo("Showing $count departures") })
         }
     }
 }
 
-/** What both side sheet demos hold. */
+/**
+ * What both side sheet demos hold: the filters a departure board has. Which
+ * modes, how far ahead, and step-free stops only, with the count they leave
+ * shown on the button as it changes.
+ */
 @Composable
-private fun FilterBody() {
+private fun FilterBody(onShow: (Int) -> Unit) {
+    var trains by remember { mutableStateOf(true) }
+    var buses by remember { mutableStateOf(true) }
+    var within by remember { mutableStateOf(1) }
+    var stepFree by remember { mutableStateOf(false) }
+    val minutes = listOf(15, 30, 60)[within]
+    val shown = departures.count { departure ->
+        (if (departure.mode == Mode.Train) trains else buses) &&
+            departure.minutes <= minutes &&
+            (!stepFree || stops.firstOrNull { it.name == departure.towards }?.accessible != false)
+    }
     Column(
-        modifier = Modifier.padding(horizontal = Theme.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(
+                start = BottomSheetDefaults.ContentPadding,
+                end = BottomSheetDefaults.ContentPadding,
+                bottom = BottomSheetDefaults.ContentPadding,
+            ),
+        verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
     ) {
-        Text("Only show routes that", style = Theme.typography.labelMedium)
-        Text(
-            "run in the next hour",
-            style = Theme.typography.bodySmall,
-            colour = Theme.colours.contentMuted,
-        )
+        ListSection(title = { +"Show" }) {
+            ChipGroup {
+                FilterChip(selected = trains, onSelectedChange = { trains = it }, selectedIcon = Tabler.Outline.Check) {
+                    +"Trains · ${departures.count { it.mode == Mode.Train }}"
+                }
+                FilterChip(selected = buses, onSelectedChange = { buses = it }, selectedIcon = Tabler.Outline.Check) {
+                    +"Buses · ${departures.count { it.mode == Mode.Bus }}"
+                }
+            }
+        }
+        ListSection(title = { +"Leaving within" }) {
+            SegmentedControl(
+                options = listOf("15 min", "30 min", "1 hr"),
+                selectedIndex = within,
+                onSelectedIndexChange = { within = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        SelectionRow(
+            selected = stepFree,
+            onSelectedChange = { stepFree = it },
+            role = Role.Switch,
+            position = GroupPosition.Only,
+        ) {
+            +"Step-free only"
+            trailing { Switch(checked = stepFree, onCheckedChange = null) }
+        }
+        // One above the other, as a narrow rail has room for them.
+        Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm)) {
+            Button(onClick = { onShow(shown) }, enabled = shown > 0, modifier = Modifier.fillMaxWidth()) {
+                +"Show $shown departures"
+            }
+            Button(
+                onClick = { trains = true; buses = true; within = 1; stepFree = false },
+                // Nothing to reset until something has changed.
+                enabled = !trains || !buses || within != 1 || stepFree,
+                variant = ButtonVariant.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            ) { +"Reset" }
+        }
     }
 }
 
@@ -462,22 +644,26 @@ internal val SheetHeaderDemo = ComponentDemo(
                 modifier = Modifier.align(Alignment.Center),
             ) { +"Open it again" }
         }
-        ModalBottomSheet(visible = open, onDismissRequest = { open = false }) {
-            SheetHeader(
-                style = style,
-                onBack = if (back) ({ echo("Back") }) else null,
-                actions = {
-                    IconButton(
-                        icon = Tabler.Outline.Star,
-                        contentDescription = "Add to favourites",
-                        onClick = { echo("Favourited") },
-                    )
-                },
-            ) {
-                +"Perth Underground"
-                supporting { +"Platform 2 · Joondalup line" }
+        ModalBottomSheet(visible = open, onDismissRequest = { open = false }) { padding ->
+            // Pinned under the handle, as a stop's sheet in a maps app has it,
+            // and the board scrolls under it.
+            part(pin = SheetPartPin.Top) {
+                SheetHeader(
+                    style = style,
+                    onBack = if (back) ({ echo("Back") }) else null,
+                    actions = {
+                        IconButton(
+                            icon = Tabler.Outline.Star,
+                            contentDescription = "Add to favourites",
+                            onClick = { echo("Favourited") },
+                        )
+                    },
+                ) {
+                    +"Perth Underground"
+                    supporting { +"Zone 1 · Trains and buses" }
+                }
             }
-            Departures()
+            Column(Modifier.pageScroll(barPadding = PaddingValues()).padding(padding)) { Departures(onPick = ::echo) }
         }
     }
 }

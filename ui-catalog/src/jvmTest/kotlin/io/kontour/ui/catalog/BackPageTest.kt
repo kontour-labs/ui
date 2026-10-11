@@ -72,12 +72,13 @@ class BackPageTest {
         onNodeWithText("Departures").performScrollTo().performClick()
         waitForIdle()
         onNodeWithText("Back goes to: the overlay on top").assertExists()
+        onNodeWithText("950 to Elizabeth Quay").assertExists()
 
         // A real back, from the gallery's own input, as the phone's gesture
         // arrives: it reaches into the frame.
         runOnUiThread { gallery.input.backCompleted() }
         waitForIdle()
-        onAllNodesWithText("12:04 · 950").fetchSemanticsNodes().let { check(it.isEmpty()) { "back did not close the sheet" } }
+        onAllNodesWithText("950 to Elizabeth Quay").fetchSemanticsNodes().let { check(it.isEmpty()) { "back did not close the sheet" } }
         onNodeWithText("Back goes to: nothing in the frame — it would go past it").assertExists()
     }
 

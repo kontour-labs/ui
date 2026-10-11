@@ -251,16 +251,31 @@ private fun DepartureRow(
         // the row it is rather than as a rounded card.
         shape = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical),
     ) {
-        ListItem(onClick = onClick, position = position, modifier = Modifier.fillMaxWidth()) {
-            leading { +iconFor(departure.mode) }
-            +"${departure.route} to ${departure.towards}"
-            supporting {
-                val platform = if (departure.mode == Mode.Train) "Platform ${departure.platform}" else departure.platform
-                +"$platform · ${if (departure.minutes == 0) "now" else "${departure.minutes} min"}${if (favourite) " · ★" else ""}"
-            }
-            trailing {
-                Tag(tone = departure.running.tone) { +departure.running.label }
-            }
+        DepartureListItem(departure, position, favourite, onClick)
+    }
+}
+
+/**
+ * One departure as a row: its mode, route and destination, where it leaves from
+ * and when, and whether it is running to time. The app's board, and the sheets
+ * in the component gallery, which show the same board a real app would.
+ */
+@Composable
+internal fun DepartureListItem(
+    departure: Departure,
+    position: GroupPosition,
+    favourite: Boolean = false,
+    onClick: () -> Unit,
+) {
+    ListItem(onClick = onClick, position = position, modifier = Modifier.fillMaxWidth()) {
+        leading { +iconFor(departure.mode) }
+        +"${departure.route} to ${departure.towards}"
+        supporting {
+            val platform = if (departure.mode == Mode.Train) "Platform ${departure.platform}" else departure.platform
+            +"$platform · ${if (departure.minutes == 0) "now" else "${departure.minutes} min"}${if (favourite) " · ★" else ""}"
+        }
+        trailing {
+            Tag(tone = departure.running.tone) { +departure.running.label }
         }
     }
 }
