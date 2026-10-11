@@ -642,7 +642,6 @@ internal fun DaysGhostLayer(
     }
     // As composed, for how many copies; placed from the edit as it is now.
     val composed = dayPieces(start, end, rowStart, weeks, days)
-    val placed = remember { PlacedAt() }
     val density = LocalDensity.current
     val slotPx = with(density) { slot.toPx() }
     val itemPx = with(density) { item.toPx() }
@@ -659,9 +658,7 @@ internal fun DaysGhostLayer(
             val presentation = if (event?.isTimed() == true) EventPresentation.Line else EventPresentation.Bar
             repeat(composed.size) { EventChip(event = shown, presentation = presentation, scope = scope, ghost = true) }
         },
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned { placed.coordinates = it },
+        modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
         val w = constraints.maxWidth
         val h = constraints.maxHeight
@@ -678,15 +675,14 @@ internal fun DaysGhostLayer(
         // Measured from the first row's top, which a scrolling month's is
         // above the layer's by however far it is scrolled into its week.
         val y = rowsTop + run {
-            val top = edit.grabTop
-            val page = placed.coordinates?.takeIf { it.isAttached }?.localToRoot(Offset.Zero)?.y
+            val inRow = edit.grabInRow
             if (line != null) {
                 // A line of its own, kept free for it.
                 line * itemPx + slotPx
-            } else if (event == null || top == null || page == null) {
+            } else if (event == null || inRow == null) {
                 slotPx
             } else {
-                (top - page - rowsTop).mod(rowHeight).coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
+                inRow.coerceIn(0f, (rowHeight - itemPx).coerceAtLeast(0f))
             }
         }
         // An end dragged: the bar where it is, but for that end, which

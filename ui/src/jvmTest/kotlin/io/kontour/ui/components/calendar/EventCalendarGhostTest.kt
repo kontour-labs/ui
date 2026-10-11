@@ -29,10 +29,12 @@ import io.kontour.ui.theme.toneColours
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.plus
 
 /**
  * The copy a carry draws, watched frame by frame at full motion — reported as
@@ -57,10 +59,10 @@ class EventCalendarGhostTest {
 
     private val trip = CalendarEvent(3, "Perth trip", startDate = LocalDate(2026, 10, 6), endDate = LocalDate(2026, 10, 6), tone = Tone.Danger)
 
-    private fun ComposeUiTest.calendar(view: CalendarView = CalendarView.Week): Probe {
+    private fun ComposeUiTest.calendar(view: CalendarView = CalendarView.Week, still: Boolean = false): Probe {
         val probe = Probe()
         setContent {
-            KontourTheme(darkTheme = false, reduceMotion = false) {
+            KontourTheme(darkTheme = false, reduceMotion = still) {
                 CompositionLocalProvider(LocalInputModality provides InputModality.Mouse) {
                     OverlayHost(Modifier.size(700.dp, 700.dp)) {
                         probe.formats = Theme.formats
@@ -121,6 +123,54 @@ class EventCalendarGhostTest {
         assertTrue(tops.last() > tops.first() + week, "the copy did not go down the weeks: $tops")
         onRoot().performMouseInput { release() }
         mainClock.autoAdvance = true
+    }
+
+    /**
+     * The month scrolled under a carry, the copy keeps the line of its week the
+     * event was taken from, under the finger.
+     *
+     * It kept the bar's top as a place on the screen and worked out its line
+     * from where the weeks were now, so once the weeks moved — the month
+     * scrolling at its edges, or into the next — the copy kept to a line off by
+     * however far they had gone, away from the finger holding it: reported as
+     * a carry across weeks that "stops following the finger and becomes offset".
+     */
+    @Test
+    fun aMonthScrolledUnderACarryKeepsTheCopyOnItsLine() = runComposeUiTest {
+        val probe = calendar(CalendarView.Month, still = true)
+        fun bar() = onNode(hasContentDescription(eventDescription(trip, probe.formats, probe.strings))).fetchSemanticsNode().boundsInRoot
+        val days = (0 until 120).map { LocalDate(2026, 9, 1).plus(it, DateTimeUnit.DAY) }
+        /** The top of the day's box the point is in. */
+        fun dayTopAt(point: Offset): Float = days.firstNotNullOf { date ->
+            onAllNodes(hasContentDescription(probe.formats.date(date, DateStyle.Full), substring = true) and hasClickAction())
+                .fetchSemanticsNodes().map { it.boundsInRoot }.filter { it.height > 40f }
+                .firstOrNull { it.contains(point) }?.top
+        }
+        fun copyInItsDay(): Float {
+            val top = ghostTop(probe) ?: error("no copy drawn")
+            val left = ghostLeft(probe, top.toInt()..top.toInt() + 4) ?: error("no copy drawn")
+            return top - dayTopAt(Offset(left + 3f, top + 3f))
+        }
+        val from = bar().center
+        onRoot().performMouseInput {
+            moveTo(from)
+            press()
+            repeat(4) { moveBy(Offset(2f, 0f)) }
+        }
+        waitForIdle()
+        val before = copyInItsDay()
+        // Held at the foot of the month, which scrolls on under the carry.
+        mainClock.autoAdvance = false
+        val steps = 20
+        repeat(steps) {
+            onRoot().performMouseInput { moveTo(Offset(from.x, from.y + (696f - from.y) * (it + 1) / steps)) }
+            mainClock.advanceTimeByFrame()
+        }
+        repeat(15) { mainClock.advanceTimeByFrame() }
+        val after = copyInItsDay()
+        onRoot().performMouseInput { release() }
+        mainClock.autoAdvance = true
+        assertTrue(abs(after - before) < 1.5f, "the month scrolled under the carry and the copy went from ${before}px down its day to ${after}px")
     }
 
     /** The ghost's left edge, from the leftmost column of its edge colour; null with none drawn. */
