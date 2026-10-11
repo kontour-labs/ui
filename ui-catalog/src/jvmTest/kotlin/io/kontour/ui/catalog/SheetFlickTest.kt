@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -327,10 +328,34 @@ class SheetFlickTest {
         assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame))
     }
 
-    /** A gentle flick of the sheet still moves it — to the next detent, not past it. */
+    /**
+     * A gentle flick of the sheet still moves it — to the next detent, not past
+     * it. Forty dp of travel: gentle, but a flick meant to move the sheet.
+     */
     @Test
     fun aGentleFlickOfTheSheetGoesOneDetent() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 8f))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 20f))
+    }
+
+    /**
+     * A short flick — a couple of millimetres on a phone, quick, past the
+     * sheet's slop so it does move — leaves the sheet where it was, at full
+     * height and at the middle. Reported from an Android phone as *"way too easy
+     * to flick the sheet closed … I shouldn't be able to close it with such
+     * little movement"*: the throw's minimum run was the drag's own slop, so any
+     * drag that started at all could throw.
+     */
+    @Test
+    fun aShortFlickLeavesTheSheetWhereItWas() {
+        for (initial in listOf(SheetDetent.Expanded, SheetDetent.Half)) {
+            for ((pace, steps) in listOf(10f to 4, 24f to 2, 12f to 4)) {
+                assertEquals(
+                    initial,
+                    flungFromFull(pixelsPerFrame = pace, initial = initial, steps = steps),
+                    "${(pace * steps / 2).toInt()}dp flicked down in $steps frames moved the sheet off $initial",
+                )
+            }
+        }
     }
 
     /**
@@ -338,10 +363,16 @@ class SheetFlickTest {
      * down its own surface — nothing scrollable in it, so the sheet's own drag
      * takes the gesture.
      */
-    private fun flungFromFull(pixelsPerFrame: Float, dismissible: Boolean = true): SheetDetent {
+    private fun flungFromFull(
+        pixelsPerFrame: Float,
+        dismissible: Boolean = true,
+        initial: SheetDetent = SheetDetent.Expanded,
+        steps: Int = FlickSteps,
+    ): SheetDetent {
         var state: SheetState? = null
         var settled: SheetDetent? = null
         var visible by mutableStateOf(true)
+        var goTo by mutableStateOf<SheetDetent?>(null)
         Scene(width = 600, height = 900) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
@@ -350,6 +381,9 @@ class SheetFlickTest {
                     initialDetent = SheetDetent.Expanded,
                 )
                 state = sheet
+                // A modal sheet opens at its top detent, so a flick from lower
+                // down moves it there first.
+                LaunchedEffect(goTo) { goTo?.let { sheet.animateTo(it) } }
                 ModalBottomSheet(
                     visible = visible,
                     onDismissRequest = { visible = false },
@@ -362,13 +396,18 @@ class SheetFlickTest {
         }.use { scene ->
             scene.frames(80)
             val sheet = requireNotNull(state)
+            if (initial != SheetDetent.Expanded) {
+                goTo = initial
+                scene.frames(80)
+            }
+            assertEquals(initial, sheet.currentDetent, "the sheet did not start at $initial")
             val from = Offset(300f, 500f)
             scene.press(from)
-            repeat(FlickSteps) { step ->
+            repeat(steps) { step ->
                 scene.move(Offset(from.x, from.y + pixelsPerFrame * (step + 1)))
                 scene.frame()
             }
-            scene.release(Offset(from.x, from.y + pixelsPerFrame * FlickSteps))
+            scene.release(Offset(from.x, from.y + pixelsPerFrame * steps))
             repeat(12) {
                 scene.frames(10)
                 if (sheet.currentDetent == SheetDetent.Hidden || !visible) settled = SheetDetent.Hidden

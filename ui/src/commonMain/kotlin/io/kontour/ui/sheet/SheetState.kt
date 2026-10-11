@@ -1772,14 +1772,17 @@ internal val SheetFlickVelocity: Dp = 300.dp
 
 /**
  * How far a finger has to run one way for its release to count as a throw of
- * the sheet: past touch slop, and a little more. See `SheetFinger.throwOf`.
+ * the sheet: about five millimetres on a phone. See `SheetFinger.throwOf`.
  *
- * Between two measured gestures, which is where it has to be. Twenty-four
- * pixels of roll-off at the scene's density — 12dp, most of it touch slop — must
- * leave a full-height sheet where it is; thirty-two pixels at the same speed —
- * 16dp, the gentlest flick the suite throws — must move it a detent.
+ * **Twice what it was.** It was 14dp, a little past touch slop, set between a
+ * roll-off off the glass that must not move a sheet and the gentlest flick the
+ * suite then threw. But the sheet's own drag takes a finger at 14dp too, so on a
+ * phone any drag that started at all threw the sheet a detent if it was moving
+ * when it lifted: a couple of millimetres' flick put a sheet away, reported as
+ * *"way too easy to flick the sheet closed"*. A flick meant to move a sheet runs
+ * well past this; a short one now lets the sheet settle where it is nearest.
  */
-internal val SheetMinThrow: Dp = 14.dp
+internal val SheetMinThrow: Dp = 32.dp
 
 /**
  * How fast a release of the sheet itself has to be to count as a flick: Compose's

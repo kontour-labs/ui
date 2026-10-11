@@ -71,7 +71,7 @@ internal class SheetFinger {
      * count as a flick and to move the sheet a detent — measured, a full-height
      * sheet let go after twenty-four pixels of roll-off fell to half. What a
      * roll-off does not have is distance: a deliberate flick of a sheet, even a
-     * gentle one, runs further than touch slop and a little more. And the run
+     * gentle one, runs a good few millimetres, `SheetMinThrow`. And the run
      * starts again where the finger turns, so a roll-off after pulling the sheet
      * up against its top is judged on its own few pixels, not on the pull.
      */
