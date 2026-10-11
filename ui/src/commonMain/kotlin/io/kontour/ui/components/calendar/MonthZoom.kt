@@ -46,6 +46,46 @@ internal fun itemLines(rowPx: Float, dateLabelPx: Float, linePx: Float, padPx: F
         floor((rowPx - dateLabelPx) / (lines * linePx + padPx * 2)) >= MinItemsPerDay
     } ?: 1
 
+/**
+ * How tall a month's event is, in px, with [rows] weeks in [viewportPx]: at a
+ * whole number of weeks, as many of [itemLines] as there is room for, and
+ * between two, part of the way from one's height to the other's — as far as
+ * the row is from one's height to the other's.
+ *
+ * So under two fingers an event grows and shrinks with its week rather than
+ * standing still until they let go and then jumping, and at rest it is the
+ * height it always was. [fewest] and [most] are the whole numbers of weeks the
+ * month rests at.
+ */
+internal fun monthItemPx(
+    rows: Float,
+    viewportPx: Float,
+    leastRowPx: Float,
+    dateLabelPx: Float,
+    linePx: Float,
+    padPx: Float,
+    fewest: Float,
+    most: Float,
+): Float {
+    fun at(r: Float) = itemLines(monthRowPx(viewportPx, r, leastRowPx), dateLabelPx, linePx, padPx) * linePx + padPx * 2
+    val hi = maxOf(fewest, most)
+    val r = rows.coerceIn(fewest, hi)
+    val r0 = floor(r)
+    val r1 = minOf(r0 + 1f, hi)
+    if (r1 <= r0) return at(r0)
+    val p0 = monthRowPx(viewportPx, r0, leastRowPx)
+    val p1 = monthRowPx(viewportPx, r1, leastRowPx)
+    val t = if (p0 == p1) 0f else ((monthRowPx(viewportPx, r, leastRowPx) - p1) / (p0 - p1)).coerceIn(0f, 1f)
+    return at(r1) + (at(r0) - at(r1)) * t
+}
+
+/** How many lines of an event fit in one [itemPx] tall: only a whole line's room gives it another. */
+internal fun itemContentLines(itemPx: Float, linePx: Float, padPx: Float): Int =
+    if (linePx <= 0f) 1 else floor((itemPx - padPx * 2) / linePx + LineSlack).toInt().coerceIn(1, MaxItemLines)
+
+/** Rounding's worth of a line, so an event exactly three lines tall has three. */
+private const val LineSlack = 0.001f
+
 /** The most lines a month's event is given. */
 private const val MaxItemLines = 3
 

@@ -158,19 +158,20 @@ internal fun MonthView(scope: CalendarScope) {
             val rowPx = { monthRowPx(viewportPx, rows(), leastRowPx) }
             val zooming = remember { mutableStateOf(false) }
             val inView by remember(viewportPx, most, leastRowPx) { derivedStateOf { wholeRows(viewportPx, rowPx()) } }
-            val linesNow by remember(viewportPx, most, leastRowPx, dateLabelPx, linePx, padPx) {
-                derivedStateOf { itemLines(rowPx(), dateLabelPx, linePx, padPx) }
+            // **An event's height follows the pinch**, read in layout as the rows
+            // are: part of the way from one resting height to the next as the
+            // rows are. It used to be held until the fingers let go — an event
+            // given its next line at once grew every event together — and then
+            // jumped. What is composed changes only as a whole line, or a whole
+            // event more, fits.
+            val itemPx = { monthItemPx(rows(), viewportPx, leastRowPx, dateLabelPx, linePx, padPx, MinMonthRows.toFloat(), most) }
+            val lines by remember(viewportPx, most, leastRowPx, dateLabelPx, linePx, padPx) {
+                derivedStateOf { itemContentLines(itemPx(), linePx, padPx) }
             }
-            // Held as they were while a pinch is under way: an event given another
-            // line mid-pinch grew every event at once, and the weeks jumped.
-            val heldLines = remember { IntArray(1) }
-            if (!zooming.value || heldLines[0] == 0) heldLines[0] = linesNow
-            val lines = heldLines[0]
             val item = itemHeight(lines)
-            val itemPx = with(density) { item.toPx() }
             // How many events a day has room for: a whole one more as a row grows.
-            val maxRows by remember(viewportPx, most, leastRowPx, dateLabelPx, itemPx) {
-                derivedStateOf { if (itemPx > 0f) floor((rowPx() - dateLabelPx) / itemPx).toInt().coerceAtLeast(0) else 0 }
+            val maxRows by remember(viewportPx, most, leastRowPx, dateLabelPx, linePx, padPx) {
+                derivedStateOf { itemPx().let { if (it > 0f) floor((rowPx() - dateLabelPx) / it).toInt().coerceAtLeast(0) else 0 } }
             }
             val list = rememberMonthList(scope, inView, rowPx, zooming)
             val snap = rememberWeekSnap(list)
@@ -220,7 +221,7 @@ internal fun MonthView(scope: CalendarScope) {
                             val events = byWeek.getOrPut(weekStart) {
                                 scope.eventsBetween(weekStart, weekStart.plus(DaysPerWeek - 1, DateTimeUnit.DAY))
                             }
-                            MonthWeek(scope, weekStart, events, item, maxRows, cell, Modifier.fillMaxWidth().weekRow(rowPx))
+                            MonthWeek(scope, weekStart, events, item, itemPx, maxRows, cell, Modifier.fillMaxWidth().weekRow(rowPx))
                         }
                     }
                     // Where a carried event would land, over the weeks on screen:
@@ -261,6 +262,19 @@ private fun Modifier.weekRow(rowPx: () -> Float): Modifier = layout { measurable
     val height = rowPx().roundToInt().coerceAtLeast(0)
     val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
     layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
+
+/**
+ * A month's event, or its day's "+N", in [row] of its day's events under [top]:
+ * an event's height, less [gap], read as it is laid out, so a pinch's frame
+ * moves and sizes it without composing it.
+ */
+private fun Modifier.eventRow(top: Dp, row: Int, gap: Dp, itemPx: () -> Float): Modifier = layout { measurable, constraints ->
+    val item = itemPx()
+    val y = (top.toPx() + item * row).roundToInt()
+    val height = (item - gap.toPx()).roundToInt().coerceAtLeast(0)
+    val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+    layout(placeable.width, y + placeable.height) { placeable.place(0, y) }
 }
 
 /** The weekday names over the month's columns: abbreviated, or a letter where they do not fit. */
@@ -308,6 +322,8 @@ private fun MonthWeek(
     weekStart: LocalDate,
     weekEvents: List<CalendarEvent>,
     item: Dp,
+    /** An event's height as the rows are laid out, which follows a pinch: see [monthItemPx]. */
+    itemPx: () -> Float,
     /** How many events a day has room for under its date. */
     maxRows: Int,
     /** A day's width. */
@@ -357,6 +373,7 @@ private fun MonthWeek(
                     more = if (pack.shownRows[column] < maxRows) pack.more[column] else 0,
                     moreRow = pack.shownRows[column],
                     itemHeight = item,
+                    itemPx = itemPx,
                     dateLabel = dateLabel,
                     events = weekEvents,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -380,9 +397,9 @@ private fun MonthWeek(
                 clippedEnd = placed.continuesAfter,
                 focusableOn = dayInWeek(weekStart, placed.from)..dayInWeek(weekStart, placed.to),
                 modifier = Modifier
-                    .padding(start = cell * placed.from + gap, top = dateLabel + item * placement.row + gap / 2)
-                    .width(cell * span - gap * 2)
-                    .height(item - gap),
+                    .padding(start = cell * placed.from + gap)
+                    .eventRow(dateLabel + gap / 2, placement.row, gap, itemPx)
+                    .width(cell * span - gap * 2),
             )
         }
     }
@@ -481,6 +498,7 @@ private fun DayBox(
     more: Int,
     moreRow: Int,
     itemHeight: Dp,
+    itemPx: () -> Float,
     dateLabel: Dp,
     events: List<CalendarEvent>,
     modifier: Modifier,
@@ -549,7 +567,7 @@ private fun DayBox(
         if (more > 0) {
             // A row of the day's, as the events above it are.
             val gap = Theme.spacing.xxs / 2
-            Box(Modifier.padding(start = gap, end = gap, top = dateLabel + itemHeight * moreRow + gap / 2)) {
+            Box(Modifier.padding(start = gap, end = gap)) {
                 MoreChip(
                     count = more,
                     muted = !inMonth,
@@ -557,8 +575,8 @@ private fun DayBox(
                     // The day's list where there is a host to show it in; the day itself where there is not.
                     onClick = { if (canList) listing = true else scope.openDay(date) },
                     modifier = Modifier
+                        .eventRow(dateLabel + gap / 2, moreRow, gap, itemPx)
                         .fillMaxWidth()
-                        .height(itemHeight - gap)
                         // Reached by Tab with the day's events: from the cursor, on its day.
                         .focusProperties { canFocus = scope.state.date == date },
                 )

@@ -257,6 +257,27 @@ class MonthScrollTest {
         assertEquals(3, itemLines(rowPx = 196f, dateLabelPx = 33f, linePx = 14f, padPx = 4f))
     }
 
+    @Test
+    fun anEventsHeightGoesFromOneRestingHeightToTheNextWithItsRow() {
+        val viewport = 600f
+        val least = 40f
+        fun item(rows: Float) = monthItemPx(rows, viewport, least, dateLabelPx = 33f, linePx = 14f, padPx = 4f, fewest = 3f, most = 6f)
+        fun rest(rows: Int) = itemLines(monthRowPx(viewport, rows.toFloat(), least), 33f, 14f, 4f) * 14f + 8f
+        for (r in 3..6) assertEquals(rest(r), item(r.toFloat()), 0.001f, "at $r weeks, at rest, an event is not the height it always was")
+        // Between two resting heights, and never backwards as the rows grow.
+        var previous = item(6f)
+        var r = 6f
+        while (r > 3f) {
+            r -= 0.05f
+            val now = item(r)
+            assertTrue(now >= previous - 0.001f, "fewer weeks, taller rows, and the event got shorter: $previous to $now at $r")
+            previous = now
+        }
+        assertEquals(1, itemContentLines(rest(6), 14f, 4f))
+        assertEquals(3, itemContentLines(3 * 14f + 8f, 14f, 4f))
+        assertEquals(2, itemContentLines(3 * 14f + 7f, 14f, 4f), "a line's room short of the third is two lines")
+    }
+
     private fun androidx.compose.ui.test.ComposeUiTest.zoomable(events: List<CalendarEvent> = emptyList()): Probe {
         val probe = Probe()
         setContent {
@@ -307,10 +328,11 @@ class MonthScrollTest {
     /**
      * Step by step through a spread, what is between the fingers stays there —
      * to within a pixel and a half every step, not only at the end — and the
-     * events keep their lines until the fingers let go, so no week jumps.
+     * events grow with their weeks as they go, a little each step, rather than
+     * standing still until the fingers let go and then jumping.
      */
     @Test
-    fun aPinchHoldsTheWeekUnderTheFingersEveryStepAndTheEventsStill() = runComposeUiTest {
+    fun aPinchHoldsTheWeekUnderTheFingersEveryStepAndTheEventsGrowWithIt() = runComposeUiTest {
         val review = CalendarEvent(1, "Design review", kotlinx.datetime.LocalDateTime(2026, 10, 14, 9, 0), kotlinx.datetime.LocalDateTime(2026, 10, 14, 10, 0), location = "Room 4")
         val probe = zoomable(listOf(review))
         val day = LocalDate(2026, 10, 14)
@@ -324,6 +346,9 @@ class MonthScrollTest {
             down(1, androidx.compose.ui.geometry.Offset(start.center.x, focus + 20f))
         }
         var worst = 0f
+        var last = chipBefore
+        var biggestStep = 0f
+        var shrank = false
         repeat(20) {
             onRoot().performTouchInput {
                 moveBy(0, androidx.compose.ui.geometry.Offset(0f, -6f))
@@ -333,12 +358,18 @@ class MonthScrollTest {
             val now = days(probe).getValue(day)
             val drift = abs(now.top + now.height * fraction - focus)
             if (it > 2) worst = maxOf(worst, drift)
+            val height = chip().height
+            biggestStep = maxOf(biggestStep, height - last)
+            if (height < last - 0.5f) shrank = true
+            last = height
         }
         val chipDuring = chip().height
         onRoot().performTouchInput { up(0); up(1) }
         waitForIdle()
         assertTrue(worst < 1.5f, "the point between the fingers drifted ${worst}px from them during the pinch")
-        assertEquals(chipBefore, chipDuring, 0.5f, "an event changed height mid-pinch")
+        assertTrue(chipDuring > chipBefore + 1f, "mid-pinch, spread apart, the event stayed ${chipDuring} tall, from $chipBefore")
+        assertTrue(!shrank, "spreading the fingers, the event got shorter on the way")
+        assertTrue(biggestStep < (chipDuring - chipBefore) / 2f, "the event grew ${biggestStep}px in one step of twenty, of ${chipDuring - chipBefore}: a jump, not a growth")
         assertTrue(chip().height > chipBefore + 1f, "let go zoomed in to ${probe.state.monthRows} weeks, the event is ${chip().height} tall, from $chipBefore")
     }
 
