@@ -128,9 +128,14 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.concentricWith
 import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -1147,7 +1152,9 @@ fun ModalBottomSheet(
         // what happens next — and a sheet then put back has to read as a change.
         snapshotFlow {
             when {
-                state.targetDetent != SheetDetent.Hidden -> SheetHold.Held
+                // A finger on it holds the page whatever the sheet is heading
+                // for: a sheet let go on a throw and then caught is held again.
+                state.targetDetent != SheetDetent.Hidden || state.finger.pressed -> SheetHold.Held
                 state.isMoving -> SheetHold.Away
                 else -> SheetHold.Landed
             }
@@ -2830,19 +2837,39 @@ private suspend fun snapshotOfHidden(
     stillVisible: () -> Boolean,
     onHidden: () -> Unit,
 ) {
-    snapshotFlow { state.currentDetent }
+    // **Where the sheet is, not what it last settled at.** The settled detent
+    // only moves when a settle completes, and a settle caught by a touch leaves
+    // it where it was — so a sheet caught as it opened, played with and flicked
+    // away went from "settled at Hidden" to "settled at Hidden", which is no
+    // change, and the caller was never told: *"the first time I flicked the
+    // display settings sheet away, I couldn't open it again"*. Lying at the
+    // bottom with nothing moving it and no finger on it is a dismissal however
+    // it got there.
+    snapshotFlow { state.restsHidden }
+        // Not yet measured: no answer either way.
+        .filterNotNull()
+        .distinctUntilChanged()
         // A sheet cannot be dismissed before it has opened, and `snapshotFlow`
-        // hands over the current value first — which for a sheet is `Hidden`,
-        // since that is where every one of them starts. Reported, that closes a
-        // sheet declared `visible = true` on the frame it appears: the caller is
-        // told to dismiss something the user has not seen yet, and `state.show()`
-        // has not run. Only a *transition* into `Hidden` is a dismissal.
+        // hands over the current value first — which for a sheet is lying at the
+        // bottom, since that is where every one of them starts. Reported, that
+        // closes a sheet declared `visible = true` on the frame it appears: the
+        // caller is told to dismiss something the user has not seen yet, and
+        // `state.show()` has not run. Only *arriving* at the bottom is a dismissal.
         .drop(1)
-        .filter { it == SheetDetent.Hidden }
+        .filter { it == true }
         .collect {
             onHidden()
             repeat(SheetDismissalFrames) { withFrameNanos { } }
-            if (stillVisible()) state.show()
+            if (stillVisible()) {
+                // Put back for a caller that declined. Caught on its way up, the
+                // rise is cancelled — and that must not end this watch, or no
+                // later dismissal is ever reported.
+                try {
+                    state.show()
+                } catch (caught: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                }
+            }
         }
 }
 

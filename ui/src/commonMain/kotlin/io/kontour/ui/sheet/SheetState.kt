@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import io.kontour.ui.interaction.RubberBand
 import io.kontour.ui.theme.Motion
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -1151,8 +1152,22 @@ class SheetState internal constructor(
      */
     private var releasedBySheet: Boolean = false
 
-    /** The finger on the sheet, for a release the platform reports as no throw at all. See [SheetFinger]. */
-    internal val finger = SheetFinger()
+    /**
+     * The finger on the sheet, for a release the platform reports as no throw at
+     * all (see [SheetFinger]), and for whether one is on it at all.
+     *
+     * **Each new finger starts the gesture's bookkeeping over.** What the last
+     * gesture noted — that its list scrolled, that the sheet answered its release
+     * — belongs to that gesture. A settle caught by a touch is cancelled inside
+     * the content's pre-fling, so the post-fling that clears those notes never
+     * ran, and the next release was taken as already answered: hauled to the
+     * bottom and let go, the sheet lay there, open as far as the caller knew,
+     * and could not be opened again.
+     */
+    internal val finger = SheetFinger(onDown = {
+        listScrolled = false
+        releasedBySheet = false
+    })
 
     /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
@@ -1261,6 +1276,46 @@ class SheetState internal constructor(
         val aimed = detentAimedAt(velocity, minVelocity) ?: return nearestAllowed(from)
         return aimed.takeIf { anchors.positionOf(it).let { at -> !at.isNaN() } }
     }
+
+    /**
+     * Settles at the nearest allowed detent where the sheet already is — the end
+     * of a throw of the sheet itself, which lands on an anchor through an
+     * untargeted drag. Foundation then records the settled detent only if the
+     * landing was exact, and a target that a change of anchors left behind
+     * mid-throw is never cleared; this is a targeted move of no distance that
+     * does both, so what the sheet reports is where it is.
+     */
+    internal suspend fun restAtNearest() {
+        val at = anchoredState.offset
+        if (at.isNaN()) return
+        val nearest = nearestAllowed(at) ?: return
+        anchoredState.anchoredDrag(targetValue = nearest) { anchors, latest ->
+            val to = anchors.positionOf(latest)
+            if (!to.isNaN()) dragTo(to)
+        }
+    }
+
+    /**
+     * Whether the sheet is lying at the bottom with nothing moving it: at the
+     * [SheetDetent.Hidden] anchor, no animation running, and no finger on it.
+     *
+     * What a modal sheet watches to learn it has been put away, rather than the
+     * settled detent, which only moves when a settle completes: a settle caught
+     * by a touch leaves it where it was, and a sheet whose settled detent never
+     * left Hidden was flicked shut without anything changing. Where the sheet
+     * is cannot be missed.
+     *
+     * Null before the sheet has been measured, which is neither: a sheet that
+     * gains its anchors at the bottom has not arrived there.
+     */
+    internal val restsHidden: Boolean?
+        get() {
+            val hidden = anchoredState.anchors.positionOf(SheetDetent.Hidden)
+            val at = anchoredState.offset
+            if (hidden.isNaN() || at.isNaN()) return null
+            if (finger.pressed || anchoredState.isAnimationRunning) return false
+            return abs(at - hidden) < 0.5f
+        }
 
     /**
      * Whether a flick may land on [detent]: an allowed one, and not
@@ -1444,7 +1499,14 @@ class SheetState internal constructor(
                 if (!restingAtADetent()) {
                     listScrolled = false
                     releasedBySheet = true
-                    settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity)
+                    try {
+                        settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity)
+                    } catch (caught: CancellationException) {
+                        // Caught by a finger: the post-fling that would clear
+                        // this never runs. See [finger].
+                        releasedBySheet = false
+                        throw caught
+                    }
                     releaseOvershoot(settleSpec)
                     return available
                 }

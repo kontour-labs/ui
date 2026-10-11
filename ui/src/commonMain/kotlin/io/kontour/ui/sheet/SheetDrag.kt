@@ -75,6 +75,8 @@ internal fun Modifier.sheetDrag(
             }
             with(fling) { left = scroll.performFling(velocity) }
         }
+        // Landed: say so, and where. See [SheetState.restAtNearest].
+        state.restAtNearest()
         return left
     }
     coroutineScope {
