@@ -203,7 +203,7 @@ safe area.
 
 **The content fades out under it the way it does under a floating
 [`NavBar`](nav-bar.md)**: the sheet's colour, solid from the part's middle down
-and thinning out over 16dp above it, so a row passing behind shows faintly above
+and thinning out over 24dp above it, so a row passing behind shows faintly above
 the field and is gone under it. What is in the part is drawn whole over that — a
 search field's own ground and its words. `fadeUnder = false` leaves the content
 as it is, showing round it. At high contrast a line marks the edge instead.
@@ -314,6 +314,18 @@ is two frames around one thing; tried on a phone, it did not feel right. Ask for
 at every size, or for `Floating` on a modal one. The side sheets are always flush
 to their edge.
 
+**A floating sheet costs about what an edge sheet does to drag.** Its bottom edge
+is seen, so its surface changes height on every frame it moves, and its shadow —
+two blurred layers — used to be drawn again with it each frame: an app measured
+25% janky frames dragging one on an Android phone, against 5% for an edge sheet,
+and switched to edge sheets to get rid of them. The shadow is blurred once now,
+round a small tile of the sheet's own shape, and drawn at any size by stretching
+the tile's straight middle between its corners, so it looks the same and is not
+blurred again as the sheet moves or grows. While a floating sheet takes on its
+expanded corners, its shape is one object that reads how far along it is, and a
+squircle corner's curve is worked out once per radius rather than per size: what
+a drag still redraws is the surface's colour and outline, not a blur.
+
 ```kotlin
 val search = rememberSheetState(
     // No `Hidden`, so there is nowhere to be swiped away to.
@@ -421,13 +433,14 @@ of your own. It used to follow the live position over that last 64dp, and a tall
 sheet opened floating and changed shape in its final frames — reported as the
 sheet "snapping" open near the top.
 
-**The content keeps its floating width.** As the sheet widens by its side margins
-the surface grows out around the content and the content stays where it was, so
-an expanded sheet's content sits a margin further in than an edge sheet's would.
-That is the price of not re-flowing in the middle of a drag: a line that wraps
-differently at each width changes the sheet's height, and its detents with it,
-while a finger is on it — the other half of the reported snap. It also means
-nothing is re-measured across the step.
+**The content widens with the sheet as it fills to the sides.** Floating, the
+margin clears the window's insets and the content has the surface's whole width;
+as an edge sheet it is padded by the insets themselves, and nothing more, so an
+expanded sheet has no floating margin left inside it. On the way the padding is
+the insets times how far the morph has got, following the finger, and margin
+plus padding never falls short of the inset. A line of text that wraps
+differently at a new width can change the height of a sheet sized to its
+content as it does.
 
 ---
 

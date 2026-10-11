@@ -1,8 +1,13 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.display.ThumbnailStrip
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -26,10 +31,14 @@ import io.kontour.icons.tabler.outline.AlertTriangle
 import io.kontour.icons.tabler.outline.Archive
 import io.kontour.icons.tabler.outline.Bus
 import io.kontour.icons.tabler.outline.Check
+import io.kontour.icons.tabler.outline.Flag2
+import io.kontour.icons.tabler.outline.GitMerge
+import io.kontour.icons.tabler.outline.Rocket
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.icons.tabler.outline.Star
 import io.kontour.icons.tabler.outline.Train
 import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Walk
 import io.kontour.icons.tabler.outline.X
 import io.kontour.ui.components.action.Button
 import io.kontour.ui.components.action.ButtonSize
@@ -89,7 +98,10 @@ import io.kontour.ui.components.display.Tag
 import io.kontour.ui.components.display.HorizontalTimeline
 import io.kontour.ui.components.display.Timeline
 import io.kontour.ui.components.display.BranchTimeline
+import io.kontour.ui.components.display.BranchTimelineDefaults
+import io.kontour.ui.components.display.TimelineDefaults
 import io.kontour.ui.components.display.TimelineItem
+import io.kontour.ui.components.display.TimelineNodeGroup
 import io.kontour.ui.components.display.TimelineLabelPlacement
 import io.kontour.ui.components.display.TimelineList
 import io.kontour.ui.components.display.TimelineListStyle
@@ -377,28 +389,42 @@ private val timelineProgress = Knob.Choice(
     listOf("None", "At Perth Station", "Walking", "On the bus", "Arrived"),
 )
 
+/** A small icon in some of the nodes: how the stop is left, and the end of the trip. */
+private val timelineIcons = Knob.Flag("Icons", initial = false)
+
+/** The bus's stops before the last as one node group, rather than not at all. */
+private val timelineGrouped = Knob.Flag("Stops between", initial = false)
+
 internal val TimelineDemo = ComponentDemo(
     slug = "timeline",
-    knobs = listOf(timelineConnector, timelineLoading, timelineAcross, timelineLabels, timelineEqualWidths, timelineProgress),
+    knobs = listOf(
+        timelineConnector, timelineLoading, timelineIcons, timelineGrouped, timelineAcross, timelineLabels, timelineEqualWidths,
+        timelineProgress,
+    ),
 ) {
     val walking = this[timelineLoading]
     val connector = this[timelineConnector]
+    val icons = this[timelineIcons]
+    val grouped = this[timelineGrouped]
     val stops: @Composable () -> Unit = {
-        TimelineItem {
+        TimelineItem(icon = if (icons) Tabler.Outline.Train else null) {
             +"Perth Station"
             supporting { +"08:12 — Platform 3" }
         }
-        TimelineItem(connector = connector, filled = false, loading = walking) {
+        TimelineItem(connector = connector, filled = false, loading = walking, icon = if (icons) Tabler.Outline.Walk else null) {
             // A leg rather than a stop, so only the quiet line — and in the
             // words as well as in the node, which is the rule the component's
             // own KDoc states: the spinner is not announced.
             supporting { +(if (walking) "Walking — 4 min" else "Walk 4 min") }
         }
-        TimelineItem {
+        TimelineItem(icon = if (icons) Tabler.Outline.Bus else null) {
             +"Elizabeth Quay"
             supporting { +"08:21 — Route 950" }
         }
-        TimelineItem(connector = ConnectorStyle.None) {
+        // The stops the bus calls at on the way, as one item: one node to
+        // progress, its halo round the whole stack.
+        if (grouped) TimelineNodeGroup(count = 4) { supporting { +"4 stops" } }
+        TimelineItem(connector = ConnectorStyle.None, icon = if (icons) Tabler.Outline.Flag2 else null) {
             +"Perth Busport"
             supporting { +"08:29 — Stand 24" }
         }
@@ -407,7 +433,7 @@ internal val TimelineDemo = ComponentDemo(
         "At Perth Station" -> 0f
         "Walking" -> 1.5f
         "On the bus" -> 2.4f
-        "Arrived" -> 3f
+        "Arrived" -> if (grouped) 4f else 3f
         else -> null
     }
     if (this[timelineAcross]) {
@@ -437,11 +463,25 @@ private val timelineListProgress = Knob.Choice("Progress", TripProgress.entries.
 /** The stop being waited on: a spinner where its node was, and the words say so. */
 private val timelineListLoading = Knob.Flag("Loading", initial = false)
 
+/** A small icon in some of the nodes, as the timeline demo has. */
+private val timelineListIcons = Knob.Flag("Icons", initial = false)
+
+/**
+ * A bus's whole route, the stops either side of the rider's folded into node
+ * groups that open when pressed.
+ */
+private val timelineListGroups = Knob.Flag("Fold stops", initial = false)
+
 internal val TimelineListDemo = ComponentDemo(
     slug = "timeline-list",
-    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading),
+    knobs = listOf(timelineListStyle, timelineListProgress, timelineListLoading, timelineListIcons, timelineListGroups),
 ) {
+    if (this[timelineListGroups]) {
+        FoldedRoute(this[timelineListStyle])
+        return@ComponentDemo
+    }
     val waiting = this[timelineListLoading]
+    val icons = this[timelineListIcons]
     // Every stop opens; none is picked. A stop list says where the trip goes,
     // and progress — not a selection — says where it has got to.
     TimelineList(
@@ -450,22 +490,58 @@ internal val TimelineListDemo = ComponentDemo(
         progress = this[timelineListProgress].stops,
         leadIn = ConnectorStyle.Dotted,
     ) {
-        item(nodeColour = Color(0xFF1B5E20), onClick = { echo("Opened Perth Station") }) {
+        item(nodeColour = Color(0xFF1B5E20), icon = if (icons) Tabler.Outline.Train else null, onClick = { echo("Opened Perth Station") }) {
             +"Perth Station"
             supporting { +"Platform 3 · Joondalup line" }
             trailing { Text("08:12", colour = Theme.colours.contentMuted) }
         }
-        item(connector = ConnectorStyle.Dashed, filled = false, loading = waiting, onClick = { echo("Opened the walk") }) {
+        item(
+            connector = ConnectorStyle.Dashed,
+            filled = false,
+            loading = waiting,
+            icon = if (icons) Tabler.Outline.Walk else null,
+            onClick = { echo("Opened the walk") },
+        ) {
             +if (waiting) "Finding your platform" else "Walk to Elizabeth Quay"
             supporting { +"4 min · 350 m" }
         }
-        item(nodeColour = Color(0xFF0D47A1), onClick = { echo("Opened Elizabeth Quay") }) {
+        item(nodeColour = Color(0xFF0D47A1), icon = if (icons) Tabler.Outline.Bus else null, onClick = { echo("Opened Elizabeth Quay") }) {
             overline { +"Route 950" }
             +"Elizabeth Quay"
             supporting { +"Stand C" }
             trailing { Text("08:21", colour = Theme.colours.contentMuted) }
         }
-        item("Perth Busport", supporting = "Stand 24", trailing = "08:29") { echo("Opened Perth Busport") }
+        item("Perth Busport", supporting = "Stand 24", trailing = "08:29", icon = if (icons) Tabler.Outline.Flag2 else null) {
+            echo("Opened Perth Busport")
+        }
+    }
+}
+
+/**
+ * A route of a dozen stops with the rider on at the third: the stops before it
+ * and after the one they get off at each one node group until pressed open.
+ */
+@Composable
+private fun FoldedRoute(style: TimelineListStyle) {
+    val past = listOf("Hospital Av", "Kings Park Rd", "Havelock St")
+    val ahead = listOf("Wellington St", "Perth Busport", "Beaufort St", "Walcott St")
+    var showPast by remember { mutableStateOf(false) }
+    var showAhead by remember { mutableStateOf(false) }
+    val boarded = if (showPast) past.size + 1 else 2
+    TimelineList(Modifier.fillMaxWidth(), style = style, progress = boarded.toFloat()) {
+        item("Shenton Park Station", trailing = "11:34 pm")
+        if (showPast) {
+            past.forEach { item(it, filled = false) }
+        } else {
+            nodeGroup("Show ${past.size} past stops", count = past.size, connector = ConnectorStyle.Dotted) { showPast = true }
+        }
+        item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+        if (showAhead) {
+            ahead.forEach { item(it, filled = false) }
+        } else {
+            nodeGroup("Show ${ahead.size} upcoming stops", count = ahead.size, connector = ConnectorStyle.Dotted) { showAhead = true }
+        }
+        item("Morley", supporting = "Stand 10", trailing = "12:19 am")
     }
 }
 
@@ -518,12 +594,15 @@ private val branchTipLoading = Knob.Flag("Tip loading", initial = false)
 /** Merges drawn as rings, the default, or as solid commits like any other. */
 private val branchRingMerges = Knob.Flag("Ring merges", initial = true)
 
+/** An icon in the release commits' nodes, and in the merges'. */
+private val branchIcons = Knob.Flag("Icons", initial = false)
+
 /** How far a deploy has got: to the tip's parent, and on to the tip. */
 private val branchProgress = Knob.Choice("Progress", listOf("None", "Deployed", "Deploying the tip"))
 
 internal val BranchTimelineDemo = ComponentDemo(
     slug = "branch-timeline",
-    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchProgress),
+    knobs = listOf(branchHistory, branchFeatureLine, branchReleaseColour, branchTipLoading, branchRingMerges, branchIcons, branchProgress),
 ) {
     val commits = when (this[branchHistory]) {
         "Linear" -> linearHistory
@@ -537,11 +616,14 @@ internal val BranchTimelineDemo = ComponentDemo(
     val building = this[branchTipLoading]
     val featureLine = this[branchFeatureLine]
     val colourRelease = this[branchReleaseColour]
+    val icons = this[branchIcons]
     BranchTimeline(
         items = commits,
         key = { it.sha },
         parents = { it.parents },
         modifier = Modifier.fillMaxWidth(),
+        // Room either side of an icon's bigger node, off the first lane.
+        laneWidth = if (icons) TimelineDefaults.IconNodeSize + Theme.spacing.sm else BranchTimelineDefaults.LaneWidth,
         progress = when (this[branchProgress]) {
             "Deployed" -> BranchProgress(reached = deployed)
             "Deploying the tip" -> BranchProgress(reached = deployed, towards = tip.sha)
@@ -551,6 +633,12 @@ internal val BranchTimelineDemo = ComponentDemo(
         item(
             filled = if (ringMerges) filledByDefault else true,
             loading = building && commit === tip,
+            icon = when {
+                !icons -> null
+                commit.sha.startsWith("r") -> Tabler.Outline.Rocket
+                commit.parents.size > 1 -> Tabler.Outline.GitMerge
+                else -> null
+            },
             connector = if (commit.sha.startsWith("f")) featureLine else ConnectorStyle.Solid,
             connectorColour = if (colourRelease && commit.sha.startsWith("r")) release else Color.Unspecified,
             onClick = { echo("Opened ${commit.message}") },
@@ -866,6 +954,41 @@ internal val PageIndicatorDemo = ComponentDemo(
         },
     )
 }
+
+/** A trip's photos, as tinted boxes: forty, enough to scrub through. */
+private val stripPhotos = (0 until 40).map { Color.hsv((it * 37f) % 360f, 0.45f, 0.85f) }
+
+/** Landscapes, portraits, a square, a sliver and a panorama, in turn. */
+private val stripShapes = listOf(1.5f, 0.75f, 1f, 0.25f, 16f / 9f, 3f, 0.8f, 4f / 3f)
+
+private val stripShaped = Knob.Flag("Photo shapes", initial = true)
+
+internal val ThumbnailStripDemo = ComponentDemo(slug = "thumbnail-strip", knobs = listOf(stripShaped)) {
+    val shaped = this[stripShaped]
+    val pages = rememberCarouselState { stripPhotos.size }
+    val shape = { page: Int -> stripShapes[page % stripShapes.size] }
+    Column(verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm), modifier = Modifier.fillMaxWidth()) {
+        Carousel(pages, contentDescription = "Trip photos", modifier = Modifier.height(ThumbnailStripDemoHeight)) { page ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .then(if (shaped) Modifier.fillMaxHeight().aspectRatio(shape(page), matchHeightConstraintsFirst = true) else Modifier.fillMaxSize())
+                        .background(stripPhotos[page]),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("${page + 1}", colour = Color.Black)
+                }
+            }
+        }
+        ThumbnailStrip(
+            pages,
+            thumbnailAspectRatio = if (shaped) shape else null,
+        ) { page -> Box(Modifier.fillMaxSize().background(stripPhotos[page])) }
+    }
+}
+
+/** Tall enough for a photo, short enough to see the strip under it. */
+private val ThumbnailStripDemoHeight = 220.dp
 
 private val kvDividers = Knob.Flag("Dividers")
 
@@ -1331,6 +1454,7 @@ internal val displayDemos = listOf(
     StatDemo,
     CarouselDemo,
     PageIndicatorDemo,
+    ThumbnailStripDemo,
     KeyValueListDemo,
     KbdDemo,
     GaugeDemo,

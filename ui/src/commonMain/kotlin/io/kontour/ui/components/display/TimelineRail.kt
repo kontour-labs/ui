@@ -36,6 +36,24 @@ internal val TimelineNodeSize: Dp = 12.dp
 /** The width of the column the rail runs down, beside the content. */
 internal val TimelineGutterWidth: Dp = 28.dp
 
+/**
+ * A node's diameter when it carries an icon: room for [TimelineNodeIconSize]
+ * inside a ring of the strong border width, and still inside the gutter.
+ */
+internal val TimelineIconNodeSize: Dp = 20.dp
+
+/** An icon inside a node. */
+internal val TimelineNodeIconSize: Dp = 12.dp
+
+/** The most nodes a node group bunches together, however many stops it stands for. */
+internal const val MaxGroupNodes: Int = 3
+
+/**
+ * How far apart a node group's nodes are along the rail, against a node's
+ * diameter: half, so each overlaps the next by as much as it shows.
+ */
+internal const val GroupStep: Float = 0.5f
+
 /** The space between a node and the line leaving it, and above the node. */
 internal val TimelineNodeGap: Dp = 2.dp
 

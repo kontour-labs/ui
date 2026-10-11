@@ -29,6 +29,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.delay
 
 /**
  * A sheet's chrome against the status bar.
@@ -172,6 +173,63 @@ class SheetSafeAreaTest {
                 "of the inset band. Below it is under the status bar, which is " +
                 "what was reported; above it is a gap of bare sheet.",
         )
+    }
+
+    /**
+     * The chrome never moves down while the sheet moves up to full height, and
+     * comes to rest at the foot of the inset.
+     *
+     * For a while the chrome was moved twelve dp further below the bar, in
+     * proportion to how far under it the sheet was. The extra grew as the sheet
+     * rose, so the content travelled down while the sheet's edge travelled up
+     * the last stretch: *"when the sheet settles at the top of the screen, the
+     * content dips just a bit. the handle doesn't sit as high as it used to"*.
+     */
+    @Test
+    fun theChromeDoesNotDipAsTheSheetArrives() {
+        val tops = mutableListOf<Float>()
+        var contentTop = Float.NaN
+        val scene = ImageComposeScene(width = 700, height = canvasHeight, density = Density(density)) {
+            // Motion on, so the sheet slides up under the bar frame by frame.
+            KontourTheme(darkTheme = false, reduceMotion = false) {
+                OverlayHost(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize()) {
+                        val sheet = rememberSheetState(
+                            detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Full),
+                            initialDetent = SheetDetent.Half,
+                        )
+                        LaunchedEffect(Unit) {
+                            delay(500)
+                            sheet.animateTo(SheetDetent.Full)
+                        }
+                        BottomSheet(
+                            sheet,
+                            presentation = SheetPresentation.Edge,
+                            dragHandle = null,
+                            windowInsets = WindowInsets(top = 40.dp),
+                        ) {
+                            Box(Modifier.onGloballyPositioned { contentTop = it.positionInRoot().y }) {
+                                Column { Box(Modifier.height(2000.dp)) { Text("body") } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            repeat(120) { frame ->
+                scene.render(16_000_000L * frame)
+                if (!contentTop.isNaN()) tops += contentTop
+            }
+        } finally {
+            scene.close()
+        }
+        val moving = tops.dropWhile { it == tops.first() }
+        assertTrue(moving.isNotEmpty(), "the sheet never moved towards full height")
+        moving.zipWithNext().forEach { (before, after) ->
+            assertTrue(after <= before + 0.5f, "the chrome moved down from $before to $after while the sheet rose: ${tops.distinct()}")
+        }
+        assertEquals(insetPx, tops.last(), "the chrome came to rest at ${tops.last()}, not at the foot of the inset")
     }
 
     /**

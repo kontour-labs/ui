@@ -1,5 +1,7 @@
 package io.kontour.ui.samples
 
+import io.kontour.icons.tabler.outline.Walk
+import io.kontour.icons.tabler.outline.Flag2
 import io.kontour.ui.components.display.ErrorState
 import io.kontour.ui.components.display.LoadingState
 import io.kontour.ui.components.display.StateSwitcher
@@ -50,6 +52,7 @@ import io.kontour.ui.components.display.AvatarGroup
 import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
+import io.kontour.ui.components.display.ThumbnailStrip
 import io.kontour.ui.components.display.Banner
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.display.Callout
@@ -293,6 +296,34 @@ fun CarouselWithIndicator(photos: List<String>) {
         Text(photos[page])
     }
     PageIndicator(carousel, onPageClick = { scope.launch { carousel.animateScrollToPage(it) } })
+}
+
+@Composable
+fun ThumbnailStripBasics(photoCount: Int, photo: @Composable (page: Int, modifier: Modifier) -> Unit) {
+    val pages = rememberCarouselState { photoCount }
+
+    Column {
+        Carousel(pages, contentDescription = "Trip photos") { page -> photo(page, Modifier.fillMaxWidth()) }
+        // Under the photos: dragged, it scrubs through them; a thumbnail pressed goes to it.
+        ThumbnailStrip(pages) { page -> photo(page, Modifier.fillMaxSize()) }
+    }
+}
+
+/** A photo of the caller's own, with the size it was taken at. */
+data class Photo(val url: String, val width: Int, val height: Int)
+
+@Composable
+fun ThumbnailStripShapes(photos: List<Photo>, photo: @Composable (Photo, Modifier) -> Unit) {
+    val pages = rememberCarouselState { photos.size }
+
+    Column {
+        Carousel(pages, contentDescription = "Trip photos") { page -> photo(photos[page], Modifier.fillMaxWidth()) }
+        // The current one widens to its photo's own shape.
+        ThumbnailStrip(
+            pages,
+            thumbnailAspectRatio = { page -> photos[page].width.toFloat() / photos[page].height },
+        ) { page -> photo(photos[page], Modifier.fillMaxSize()) }
+    }
 }
 
 @Composable
@@ -543,6 +574,30 @@ fun TimelineListBasics() {
         item("Elizabeth Quay", supporting = "Stand C", trailing = "08:21") {
             openStop("Elizabeth Quay")
         }
+    }
+}
+
+@Composable
+fun TimelineIcons() {
+    // An icon inside a node grows it to hold one; the stops without keep their dot.
+    TimelineList {
+        item("Perth Station", trailing = "08:12", icon = Tabler.Outline.Train)
+        item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false, icon = Tabler.Outline.Walk)
+        item("Elizabeth Quay", trailing = "08:21")
+        item("Perth Busport", trailing = "08:29", icon = Tabler.Outline.Flag2)
+    }
+}
+
+@Composable
+fun TimelineNodeGroupBasics(onShowPast: () -> Unit, onShowUpcoming: () -> Unit) {
+    // Each group is one row for the stops it folds away: one node to progress,
+    // one tap to open them.
+    TimelineList(progress = 2f) {
+        item("Hospital Av", trailing = "11:34 pm")
+        nodeGroup("Show 10 past stops", count = 10, connector = ConnectorStyle.Dotted, onClick = onShowPast)
+        item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+        nodeGroup("Show 38 upcoming stops", count = 38, connector = ConnectorStyle.Dotted, onClick = onShowUpcoming)
+        item("Morley", supporting = "Stand 10", trailing = "12:19 am")
     }
 }
 

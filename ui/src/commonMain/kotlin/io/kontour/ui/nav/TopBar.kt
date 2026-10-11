@@ -71,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
@@ -335,7 +336,7 @@ fun TopBar(
                         .heightIn(min = TopBarDefaults.Height)
                         .padding(horizontal = Theme.spacing.xs),
                     centred = style == TopBarStyle.Centred,
-                    leading = { Leading(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, navigation) },
                     title = {
                         // Centred when the bar could centre it and started when it
                         // could not — see `CentredBarTitle` — so a Centred bar
@@ -362,7 +363,7 @@ fun TopBar(
                     // had: a bar with nothing to put on that line was drawing
                     // 56dp of nothing above its own title.
                     hasControls = onBack != null || navigation != null || actions != null,
-                    leading = { Leading(onBack, backLabel, navigation) },
+                    leading = { BarNavigation(onBack, backLabel, navigation) },
                     actions = actions,
                     slots = slots,
                     minExpanded = floor,
@@ -448,7 +449,13 @@ private fun HeroBar(
     }
     val dotsReserve = if (dotCount < 2) 0.dp else dotsWidth + HeroDotsGap
     val insetTop = with(LocalDensity.current) { windowInsets.getTop(this).toDp() }
-    val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - progress() } }
+    // Through the latest `progress`, not the first: a `remember`ed lambda keeps
+    // what it closed over, and the first composition's closed over the
+    // `collapseProgress` of that frame. A screen come back to is composed again
+    // part-way down, so the discs behind the actions stayed at that frame's
+    // opacity — or none — however far the reader then scrolled.
+    val latestProgress by rememberUpdatedState(progress)
+    val backing = remember(containerColour) { HeroBacking(containerColour) { 1f - latestProgress() } }
     val solid = highContrast()
     val reduce = Theme.motion.reduceMotion
     val rise = HeroFadeRise
@@ -521,7 +528,7 @@ private fun HeroBar(
                                 progress = progress,
                                 onMeasured = { shrink, travel -> collapseState?.measured(shrink, travel) },
                                 hasControls = onBack != null || navigation != null || actions != null,
-                                leading = { Leading(onBack, backLabel, navigation) },
+                                leading = { BarNavigation(onBack, backLabel, navigation) },
                                 actions = actions,
                                 slots = slots,
                                 minExpanded = (open - insetTop).coerceAtLeast(0.dp),
@@ -1415,8 +1422,13 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
         }
     }
 
+/**
+ * A bar's leading navigation: [navigation] if there is one, otherwise a back
+ * button for [onBack], otherwise nothing. A [TopBar]'s, and a
+ * [SheetHeader][io.kontour.ui.sheet.SheetHeader]'s, so the two read the same.
+ */
 @Composable
-private fun Leading(
+internal fun BarNavigation(
     onBack: (() -> Unit)?,
     backLabel: String,
     navigation: (@Composable () -> Unit)?,

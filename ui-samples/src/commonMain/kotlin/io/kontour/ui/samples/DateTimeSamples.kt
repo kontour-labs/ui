@@ -24,7 +24,7 @@ import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.FieldPicker
-import io.kontour.ui.components.datetime.DayAnnotation
+import io.kontour.ui.components.datetime.DayDecoration
 import androidx.compose.ui.graphics.Color
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -68,28 +68,37 @@ fun DateRangePickerBasics() {
 }
 
 @Composable
-fun DatePickerAnnotated() {
+fun DatePickerDecorated() {
     var travelDate by remember { mutableStateOf<LocalDate?>(null) }
     val fares = remember { mapOf(LocalDate(2026, 6, 15) to 42.0, LocalDate(2026, 6, 16) to 38.0) }
     val holidays = remember { setOf(LocalDate(2026, 6, 8)) }
+    val booked = remember { setOf(LocalDate(2026, 6, 16)) }
     val formats = Theme.formats
     val cheap = Theme.colours.success.solid
     val holiday = Theme.colours.warning.container
+    val trip = Theme.colours.info.solid
 
     DatePicker(
         value = travelDate,
         onValueChange = { travelDate = it },
         today = LocalDate(2026, 6, 12),
-        // A public holiday in a colour of its own; the chosen day is drawn
-        // over it.
-        containerColourFor = { if (it in holidays) holiday else null },
-        // The fare under each day that has one, the cheapest in green, and
-        // said in words after the date.
-        annotationFor = { day ->
-            fares[day]?.let { fare ->
-                DayAnnotation(
-                    text = formats.currency(fare, "AUD"),
-                    colour = if (fare < 40.0) cheap else Color.Unspecified,
+        decorationFor = { day ->
+            val fare = fares[day]
+            if (fare == null && day !in holidays && day !in booked) {
+                null
+            } else {
+                DayDecoration(
+                    // The fare under the day, the cheapest in green, and said in
+                    // words after the date.
+                    text = fare?.let { formats.currency(it, "AUD") },
+                    textColour = if (fare != null && fare < 40.0) cheap else Color.Unspecified,
+                    // A dot for a trip already booked.
+                    dots = if (day in booked) listOf(trip) else emptyList(),
+                    // A public holiday in a colour of its own; the chosen day is
+                    // drawn over it.
+                    containerColour = if (day in holidays) holiday else Color.Unspecified,
+                    // Green and blue on the chosen day too, not its ink.
+                    keepColours = true,
                 )
             }
         },

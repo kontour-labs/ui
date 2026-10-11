@@ -172,6 +172,12 @@ internal enum class DragClaim {
  * @param accepts Whether a gesture starting here belongs to this node at all.
  *   See [ownedDrag]; a horizontal owner rarely needs it, because the thing it is
  *   racing usually scrolls the other way.
+ * @param holdable Whether what is under the press could be held to pick it up
+ *   — a reorderable row — in which case a [DragClaim.Direction] waits for the
+ *   finger to go past the hold's own wander, [PickUpHoldSlop], before it claims.
+ *   A fingertip rolling as it presses travels further than a touch slop in half
+ *   a second, and a row's swipe took that roll for a swipe and the row never
+ *   lifted. Read once, at the press.
  * @param patientAt Whether a [DragClaim.Direction] starting here waits for the
  *   whole touch slop rather than [DirectionDecisionShare] of it. For a press on
  *   something a finger can hold to pick up: a held finger wanders a few pixels
@@ -186,6 +192,7 @@ internal fun Modifier.horizontalDragOwning(
     claimsOn: DragClaim = DragClaim.Press,
     accepts: (Offset) -> Boolean = { true },
     patientAt: (Offset) -> Boolean = { false },
+    holdable: () -> Boolean = { false },
     onStart: (Offset) -> Unit,
     onDelta: (Float) -> Unit,
     onEnd: () -> Unit,
@@ -202,6 +209,7 @@ internal fun Modifier.horizontalDragOwning(
         onRelease = { velocity -> currentRelease(velocity.x) },
         along = Axis.Horizontal,
         patientAt = patientAt,
+        holdable = holdable,
     ) { delta ->
         if (delta.x != 0f) currentDelta(delta.x)
     }
@@ -410,9 +418,11 @@ private fun Modifier.ownedDrag(
     onRelease: (Offset) -> Unit = {},
     along: Axis = Axis.Both,
     patientAt: (Offset) -> Boolean = { false },
+    holdable: () -> Boolean = { false },
     onDelta: (Offset) -> Unit,
 ): Modifier {
     val currentPatient by rememberUpdatedState(patientAt)
+    val currentHoldable by rememberUpdatedState(holdable)
     val currentStart by rememberUpdatedState(onStart)
     val currentDelta by rememberUpdatedState(onDelta)
     val currentEnd by rememberUpdatedState(onEnd)
@@ -467,7 +477,11 @@ private fun Modifier.ownedDrag(
             val velocity = VelocityTracker()
             // What a `Direction` claim has seen while it was still deciding.
             var gathered = Offset.Zero
-            val decideAt = viewConfiguration.touchSlop * if (currentPatient(down.position)) 1f else DirectionDecisionShare
+            val decideAt = when {
+                currentHoldable() -> maxOf(viewConfiguration.touchSlop, PickUpHoldSlop.toPx())
+                currentPatient(down.position) -> viewConfiguration.touchSlop
+                else -> viewConfiguration.touchSlop * DirectionDecisionShare
+            }
             try {
                 while (true) {
                     val event = awaitPointerEvent()

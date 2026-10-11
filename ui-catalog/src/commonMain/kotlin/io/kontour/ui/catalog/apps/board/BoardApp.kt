@@ -20,6 +20,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import io.kontour.ui.components.selection.SegmentedControl
+import io.kontour.ui.components.text.TextArea
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -254,7 +259,10 @@ private fun Archive(board: BoardState, onArchived: (Task) -> Unit) {
     }
 }
 
-/** A card opened: its files, and the way to archive it without carrying it. */
+/**
+ * A card opened: where it is on the board, its notes, its files, and the way to
+ * archive it without carrying it — what a task sheet in a real board app holds.
+ */
 @Composable
 private fun TaskSheet(
     board: BoardState,
@@ -265,21 +273,46 @@ private fun TaskSheet(
 ) {
     ModalBottomSheet(visible = visible && task != null, onDismissRequest = onDismiss, paneTitle = task?.title) { padding ->
         if (task == null) return@ModalBottomSheet
+        val lane = board.laneOf(task.id)
         Column(
             Modifier.pageScroll(barPadding = PaddingValues()).padding(padding),
             verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
         ) {
             SheetHeader {
                 +task.title
-                board.laneOf(task.id)?.let { lane -> supporting { +lane.title } }
+                lane?.let { supporting { +it.title } }
             }
             Column(
-                Modifier.padding(horizontal = Theme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                Modifier.padding(start = Theme.spacing.md, end = Theme.spacing.md, bottom = Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
             ) {
+                if (lane != null) {
+                    // The columns as a choice, so a card moves without being carried:
+                    // a full one turns it away, as a drop on it does.
+                    SegmentedControl(
+                        options = board.lanes.map { it.title },
+                        selectedIndex = board.lanes.indexOf(lane),
+                        onSelectedIndexChange = { board.moveTo(task, board.lanes[it]) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    board.lanes.firstOrNull { it !== lane && !it.takes(task) }?.let { full ->
+                        Text(
+                            "${full.title} is full: ${full.tasks.size} of ${full.limit}.",
+                            style = Theme.typography.bodySmall,
+                            colour = Theme.colours.contentMuted,
+                        )
+                    }
+                }
+                val notes = key(task.id) { rememberTextFieldState(task.notes) }
+                LaunchedEffect(task.id) {
+                    snapshotFlow { notes.text.toString() }.collect { text ->
+                        board.task(task.id)?.takeIf { it.notes != text }?.let { board.update(it.copy(notes = text)) }
+                    }
+                }
+                TextArea(state = notes, label = "Notes", placeholder = "What needs doing", modifier = Modifier.fillMaxWidth())
                 FileField(
                     files = task.attachments,
-                    onFilesChange = { board.update(task.copy(attachments = it)) },
+                    onFilesChange = { files -> board.task(task.id)?.let { board.update(it.copy(attachments = files)) } },
                     label = "Attachments",
                     supporting = "Or drop files on a column to make a card of them",
                     multiple = true,

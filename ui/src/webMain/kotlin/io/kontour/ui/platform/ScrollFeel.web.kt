@@ -10,3 +10,5 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 
 /** CSS pixels: the DOM wheel event's own deltas. */
 internal actual val platformScrollDeltaInPixels: Boolean = true
+
+internal actual val platformGuardsHomeIndicator: Boolean = false

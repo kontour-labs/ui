@@ -114,6 +114,7 @@ class TimelineListTest {
         nodeColour = Color.Unspecified,
         filled = true,
         loading = false,
+        icon = null,
         connector = connector,
         connectorColour = colour,
         connectorWidth = Dp.Unspecified,

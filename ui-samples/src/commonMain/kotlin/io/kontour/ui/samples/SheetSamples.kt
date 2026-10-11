@@ -168,6 +168,15 @@ fun SheetHeaderBasics() {
 }
 
 @Composable
+fun SheetHeaderBack() {
+    // One sheet, two steps: the list, then one of its items.
+    var stop by remember { mutableStateOf<String?>(null) }
+    SheetHeader(onBack = if (stop != null) ({ stop = null }) else null) {
+        +(stop ?: "Stops nearby")
+    }
+}
+
+@Composable
 fun DragHandleBasics() {
     val sheet = rememberSheetState(
         detents = listOf(SheetDetent.peek(140.dp), SheetDetent.Expanded),

@@ -10,3 +10,5 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 
 /** Notches: AWT's wheel rotation. A Mac trackpad arrives as a pan instead. */
 internal actual val platformScrollDeltaInPixels: Boolean = false
+
+internal actual val platformGuardsHomeIndicator: Boolean = false

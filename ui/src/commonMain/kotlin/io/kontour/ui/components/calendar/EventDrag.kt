@@ -175,8 +175,17 @@ internal class EventEdit(
 
     private val visible: ClosedRange<LocalDate>? get() = shown()
 
-    /** The top, in the root, of the bar taken up by days: which line of its row the ghost keeps to. */
-    var grabTop: Float? = null
+    /**
+     * How far down its day's box the bar taken up by days was: which line of its
+     * row the ghost keeps to.
+     *
+     * Kept against the box rather than the screen. It was the bar's top in the
+     * root, and the ghost worked its line out from where its rows were *now* —
+     * so once the month scrolled under the carry, at its edges or into the next
+     * month, the line it kept to was off by however far the weeks had moved,
+     * and the copy drifted away from the finger holding it.
+     */
+    var grabInRow: Float? = null
         private set
 
     /** The minutes a step is: the calendar's `snap`. */
@@ -426,13 +435,22 @@ internal class EventEdit(
     /** Where in its day's box the pointer took hold, for the ghost's lean. */
     private var grabInDay = Offset.Zero
 
-    /** Takes [event] up to move by whole days, held at [root] over the day under it. */
-    fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null) {
-        val day = dayAt(root) ?: return
+    /**
+     * Takes [event] up to move by whole days, held at [root] over the day under
+     * it — or from [from], a day's list open over other days, as though held in
+     * the middle of that day.
+     */
+    fun beginMoveByDays(event: CalendarEvent, root: Offset, top: Float? = null, from: LocalDate? = null) {
+        val day = from ?: dayAt(root) ?: return
         grabDay = day
         overDay = day
-        grabInDay = days.of(day)?.let { root - it.localToRoot(Offset.Zero) } ?: Offset.Zero
-        grabTop = top
+        val box = days.of(day)
+        grabInDay = when {
+            box == null -> Offset.Zero
+            from != null -> Offset(box.size.width / 2f, box.size.height / 2f)
+            else -> root - box.localToRoot(Offset.Zero)
+        }
+        grabInRow = if (top == null || box == null) null else top - box.localToRoot(Offset.Zero).y
         begin(EditKind.Move, event, event.start, event.end, byDays = true)
         lastPointer = root
     }
@@ -484,7 +502,7 @@ internal class EventEdit(
             grabDay = day
             overDay = day
             grabInDay = root - box.localToRoot(Offset.Zero)
-            grabTop = top
+            grabInRow = top?.let { it - box.localToRoot(Offset.Zero).y }
         }
         begin(if (atStart) EditKind.ResizeStart else EditKind.ResizeEnd, event, event.start, event.end, byDays = byDays)
         lastPointer = root
@@ -516,7 +534,7 @@ internal class EventEdit(
         val day = dayAt(root) ?: return
         grabDay = day
         overDay = day
-        grabTop = null
+        grabInRow = null
         begin(EditKind.Create, null, day.atMidnight, day.atMidnight.plusMinutes(MinutesPerDay.toLong()), byDays = true)
         lastPointer = root
     }
@@ -726,7 +744,7 @@ internal class EventEdit(
         pointer = null
         byHold = false
         travelled = false
-        grabTop = null
+        grabInRow = null
         lean = Offset.Zero
         edgeOffset = Offset.Zero
         steps.reset()

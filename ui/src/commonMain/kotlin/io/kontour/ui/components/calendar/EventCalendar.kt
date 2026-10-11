@@ -1,5 +1,11 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.ui.semantics.onClick
+import io.kontour.ui.overlay.OverlayAlignment
+import io.kontour.ui.overlay.DropdownMenu
+import io.kontour.ui.components.action.ButtonSize
+import io.kontour.ui.components.action.ButtonVariant
+import io.kontour.ui.components.action.Button
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -129,7 +135,10 @@ import kotlinx.datetime.toLocalDateTime
  * ### Moving about
  *
  * The header steps a period back and on, goes to today, and switches the view.
- * A sideways swipe steps too, in every view but the year. A day's number, in the
+ * A sideways swipe steps too, in the day, three-day and week views; the month
+ * scrolls up and down through its weeks instead, and the year through the
+ * years, each about the month or year most on screen.
+ * A day's number, in the
  * month and in a week's heading, opens that day; a month's name in the year
  * opens that month, and a day in it its day.
  *
@@ -164,8 +173,9 @@ import kotlinx.datetime.toLocalDateTime
  * @param onEventMove An event carried to another time or day — held and
  *   dragged, dragged with a mouse, picked up with Space and moved with the
  *   arrows, or moved by a screen reader's actions — with where it would start
- *   and end. Its length is kept. Held at either side of the days, a carry pages
- *   on to the week or month there and goes on. Null, or an event not
+ *   and end. Its length is kept. Held at either side of a day or week, a carry
+ *   pages on to the one there and goes on; near the top or the foot of a
+ *   month, the weeks scroll with it. Null, or an event not
  *   [CalendarEvent.editable]: it stays where it is.
  * @param onEventResize An event's start or end dragged — by its edge, or with
  *   Shift and the arrows — with its new times, never shorter than [snap]. With
@@ -189,6 +199,18 @@ import kotlinx.datetime.toLocalDateTime
  * @param snap The step every edit moves in: a quarter-hour by default. A whole
  *   number of minutes that divides a day.
  * @param hourHeight How tall an hour is in the day and week views.
+ * @param daysStyle How the three-day and week views lay their days out: the
+ *   hours with the all-day events above them, or every event stacked with no
+ *   hours. The day view always has its hours.
+ * @param views The views the calendar offers: its switcher's, in its order,
+ *   and the only ones it can be in. A day pressed in a calendar without its day
+ *   view opens the nearest view it has — three days, or the week — and a state
+ *   in a view not offered is moved to the nearest that is. At least one.
+ * @param showTimedEvents Off, the calendar shows only all-day events and
+ *   those a day or longer — a plan of trips and leave rather than of meetings —
+ *   and the day, three-day and week views stack them with no hours, as
+ *   [CalendarDaysStyle.Condensed] does, since there is nothing to put in the
+ *   hours.
  * @param formats How dates, times and numbers are written: the theme's.
  * @param header Above the calendar: by default [EventCalendarDefaults.Header],
  *   with the title, the arrows, today and the view switcher. Null for none — an
@@ -214,6 +236,9 @@ fun EventCalendar(
     onEventDelete: ((event: CalendarEvent) -> Unit)? = null,
     snap: Duration = EventCalendarDefaults.Snap,
     hourHeight: Dp = EventCalendarDefaults.HourHeight,
+    daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
+    showTimedEvents: Boolean = true,
+    views: List<CalendarView> = EventCalendarDefaults.Views,
     formats: LocaleFormats = Theme.formats,
     eventMenu: (@Composable EventMenuScope.(event: CalendarEvent) -> Unit)? = EventCalendarDefaults.EventMenu,
     emptyMenu: (@Composable EmptyMenuScope.(start: LocalDateTime, end: LocalDateTime) -> Unit)? = EventCalendarDefaults.EmptyMenu,
@@ -226,6 +251,11 @@ fun EventCalendar(
         "EventCalendar: `snap` is $snap, and every edit moves in whole steps of it through a day — give it a whole " +
             "number of minutes that divides a day: 5, 10, 15, 30 or 60 minutes."
     }
+    require(views.isNotEmpty()) { "EventCalendar: `views` is empty, and a calendar has to show something. Give it at least one view." }
+    // Before anything reads the view: a state in a view not offered moves to
+    // the nearest that is, rather than drawing one frame of it.
+    if (state.allowedViews != views) state.allowedViews = views
+    if (state.view !in views) state.show(state.offered(state.view) ?: views.first())
     val today = now?.date
     SideEffect { state.today = today }
     val pager = rememberCalendarPager(state)
@@ -235,9 +265,11 @@ fun EventCalendar(
     val modality = LocalInputModality.current
     val cursorInteractions = remember { MutableInteractionSource() }
     val cursorShown = rememberFocusRingVisible(cursorInteractions)
+    // The one place events are filtered: everything below finds them here.
+    val shown = if (showTimedEvents) events else remember(events) { events.filterNot { it.isTimed() } }
     val scope = CalendarScope(
         state = state,
-        events = events,
+        events = shown,
         enabled = enabled,
         now = now,
         onEventClick = onEventClick,
@@ -260,6 +292,8 @@ fun EventCalendar(
         menus = LocalOverlayHostOrNull.current != null,
         eventMenu = eventMenu,
         emptyMenu = emptyMenu,
+        daysStyle = if (showTimedEvents) daysStyle else CalendarDaysStyle.Condensed,
+        showsTimed = showTimedEvents,
     )
     // The days a pointer's day can be: the ones on show, not a page sliding away.
     SideEffect { edit.shown = { state.visibleDates } }
@@ -297,8 +331,9 @@ fun EventCalendar(
                 header?.invoke(state)
                 when (state.view) {
                     CalendarView.Month -> MonthView(scope)
-                    CalendarView.Day, CalendarView.Week -> TimeView(scope)
+                    CalendarView.Day, CalendarView.Week, CalendarView.ThreeDays -> TimeView(scope)
                     CalendarView.Year -> YearView(scope)
+                    CalendarView.Schedule -> ScheduleView(scope)
                 }
             }
             // What an edit did, read out: "Stand-up moved to Tuesday, 9:15 – 9:30".
@@ -345,6 +380,9 @@ internal class CalendarScope(
     val menus: Boolean,
     val eventMenu: (@Composable EventMenuScope.(CalendarEvent) -> Unit)?,
     val emptyMenu: (@Composable EmptyMenuScope.(LocalDateTime, LocalDateTime) -> Unit)?,
+    val daysStyle: CalendarDaysStyle = CalendarDaysStyle.Hours,
+    /** Whether timed events are shown at all: without them, a day on its own is stacked too. */
+    val showsTimed: Boolean = true,
 ) {
     /** Whether [event] can be carried. */
     fun movable(event: CalendarEvent): Boolean = enabled && onEventMove != null && event.editable
@@ -510,17 +548,28 @@ object EventCalendarDefaults {
      * The calendar's header: the period's title, back and on, today, and the
      * view switcher. On a narrow window the switcher takes a row of its own.
      *
-     * @param views The views the switcher offers, in its order. One view, or
-     *   none, and there is no switcher.
+     * @param views The views the switcher offers, in its order — of those the
+     *   calendar offers, its `views`. One view, or none, and there is no
+     *   switcher.
+     * @param switcher How the views are offered: side by side, or in a menu
+     *   from a button that names the one on show. See [CalendarSwitcher].
      */
     @Composable
     fun Header(
         state: EventCalendarState,
         modifier: Modifier = Modifier,
-        views: List<CalendarView> = CalendarView.entries,
+        views: List<CalendarView> = Views,
+        switcher: CalendarSwitcher = CalendarSwitcher.Segmented,
     ) {
-        CalendarHeader(state, modifier, views)
+        CalendarHeader(state, modifier, views, switcher)
     }
+
+    /**
+     * Every view, in the order the header's switcher offers them: a day, three
+     * days, a week, a month, a year and the schedule. In a header too narrow
+     * for them side by side, the switcher offers them in a menu.
+     */
+    val Views: List<CalendarView> get() = DefaultViews
 
     /**
      * What an event shows inside its box, bar or line: its title, and its time
@@ -591,6 +640,8 @@ internal fun viewName(view: CalendarView): String {
         CalendarView.Week -> strings.week
         CalendarView.Month -> strings.month
         CalendarView.Year -> strings.year
+        CalendarView.ThreeDays -> strings.threeDays
+        CalendarView.Schedule -> strings.schedule
     }
 }
 
@@ -601,31 +652,47 @@ internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, time
         // Long rather than full: the weekday is under it, over the day's hours,
         // and the full date did not fit a phone's header beside its arrows.
         CalendarView.Day -> formats.date(state.date, DateStyle.Long)
-        CalendarView.Week -> {
+        CalendarView.Week, CalendarView.ThreeDays -> {
             val first = formats.monthAndYear(dates.start)
             val last = formats.monthAndYear(dates.endInclusive)
             if (first == last) first else timeRange(first, last)
         }
-        CalendarView.Month -> formats.monthAndYear(state.date)
+        CalendarView.Month, CalendarView.Schedule -> formats.monthAndYear(state.date)
         CalendarView.Year -> formats.digits(state.date.year.toLong())
     }
 }
 
 @Composable
-private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views: List<CalendarView>) {
+private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, asked: List<CalendarView>, asStyle: CalendarSwitcher) {
+    // Only what the calendar offers, whatever the header was asked for.
+    val views = asked.filter { it in state.allowedViews }
     val strings = Theme.strings
     val formats = Theme.formats
     val (back, on) = when (state.view) {
         CalendarView.Day -> strings.previousDay to strings.nextDay
-        CalendarView.Week -> strings.previousWeek to strings.nextWeek
-        CalendarView.Month -> strings.previousMonth to strings.nextMonth
+        CalendarView.Week -> if (state.weekCount == 1) strings.previousWeek to strings.nextWeek else strings.previousDays to strings.nextDays
+        CalendarView.Month, CalendarView.Schedule -> strings.previousMonth to strings.nextMonth
         CalendarView.Year -> strings.previousYear to strings.nextYear
+        CalendarView.ThreeDays -> strings.previousDays to strings.nextDays
     }
     val title = periodTitle(state, formats, strings.timeRange)
     val names = views.associateWith { viewName(it) }
 
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val oneRow = constraints.hasBoundedWidth && maxWidth >= HeaderOneRowWidth
+        // Too narrow for every view side by side — six of them on a phone —
+        // the views are offered in a menu instead. Squeezed, a segmented
+        // control stacks its segments in a column; it used to leave three days
+        // out to fit five, and a sixth does not fit at all.
+        // A menu needs an overlay host to open in; a calendar without one
+        // keeps its segments, as its other menus go without.
+        val canMenu = LocalOverlayHostOrNull.current != null
+        val style = when {
+            !canMenu -> CalendarSwitcher.Segmented
+            asStyle == CalendarSwitcher.Segmented && constraints.hasBoundedWidth && maxWidth < MinSegmentWidth * views.size ->
+                CalendarSwitcher.Dropdown
+            else -> asStyle
+        }
         val titleText = @Composable { titleModifier: Modifier ->
             Text(
                 text = title,
@@ -654,7 +721,9 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
             }
         }
         val switcher = @Composable { switcherModifier: Modifier ->
-            if (views.size > 1) {
+            if (views.size > 1 && style == CalendarSwitcher.Dropdown) {
+                ViewMenu(state, views, names)
+            } else if (views.size > 1) {
                 SegmentedControl(
                     value = state.view,
                     options = views,
@@ -664,7 +733,19 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
                 )
             }
         }
-        if (oneRow) {
+        // A menu's button is narrow enough to sit beside the arrows on a
+        // phone — but not on a narrower box, where it left the title none.
+        if (style == CalendarSwitcher.Dropdown && (!constraints.hasBoundedWidth || maxWidth >= DropdownOneRowWidth)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                modifier = Modifier.padding(bottom = Theme.spacing.sm),
+            ) {
+                titleText(Modifier.weight(1f))
+                arrows()
+                switcher(Modifier)
+            }
+        } else if (oneRow) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
@@ -684,17 +765,52 @@ private fun CalendarHeader(state: EventCalendarState, modifier: Modifier, views:
                     titleText(Modifier.weight(1f))
                     arrows()
                 }
-                switcher(Modifier.fillMaxWidth())
+                switcher(if (style == CalendarSwitcher.Dropdown) Modifier else Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+/**
+ * The views as a button naming the one on show, which opens a menu of them with
+ * that one ticked: [CalendarSwitcher.Dropdown].
+ */
+@Composable
+private fun ViewMenu(state: EventCalendarState, views: List<CalendarView>, names: Map<CalendarView, String>) {
+    var open by remember { mutableStateOf(false) }
+    val strings = Theme.strings
+    Box {
+        Button(
+            onClick = { open = true },
+            variant = ButtonVariant.Secondary,
+            size = ButtonSize.Small,
+            // Read as the view on show, and what pressing it does.
+            modifier = Modifier.semantics { onClick(label = strings.chooseView) { open = true; true } },
+        ) {
+            +names.getValue(state.view)
+            +SystemIcons.ChevronDown
+        }
+        DropdownMenu(visible = open, onDismissRequest = { open = false }, alignment = OverlayAlignment.End) {
+            for (view in views) {
+                item(label = names.getValue(view), selected = view == state.view) { state.show(view) }
             }
         }
     }
 }
 
 /** Wide enough for the title, the arrows and the switcher on one line. */
-private val HeaderOneRowWidth = 600.dp
+private val HeaderOneRowWidth = 760.dp
 
-/** The switcher's width beside the title: four short words with room round them. */
-private val HeaderSwitcherWidth = 320.dp
+/** The switcher's width beside the title: six short words with room round them. */
+private val HeaderSwitcherWidth = 480.dp
+
+/** Wide enough for the title, the arrows and a menu's button on one line. */
+private val DropdownOneRowWidth = 380.dp
+
+/** The least a segment of the switcher takes, its word and room round it: narrower than this for every view, a menu instead. */
+private val MinSegmentWidth = 72.dp
+
+private val DefaultViews = listOf(CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week, CalendarView.Month, CalendarView.Year, CalendarView.Schedule)
 
 @Composable
 private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresentation) {
@@ -703,8 +819,10 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
     val type = Theme.typography
     when (presentation) {
         EventPresentation.Block -> {
-            // The title as many lines as the block is tall, up to two, so a
-            // half-hour block does not cut its second line through the middle.
+            // The title as many lines as the block is tall, so a half-hour
+            // block does not cut its second line through the middle, and a
+            // narrow one wraps a long title — a word broken where it must be
+            // — rather than give up all but three letters of it to "…".
             val vertical = Theme.spacing.xxs
             val titleLine = with(LocalDensity.current) { type.labelMedium.lineHeight.toDp() }
             val height = LocalBlockHeight.current
@@ -712,51 +830,38 @@ private fun DefaultEventContent(event: CalendarEvent, presentation: EventPresent
             // Its title in the small type, in the middle of what there is.
             if (height != null && height < titleLine + vertical * 2) {
                 val smallLine = with(LocalDensity.current) { type.labelSmall.lineHeight.toDp() }
+                val small = calendarItemStyle()
                 WholeLines(vertical = ((height - smallLine) / 2).coerceIn(0.dp, vertical), inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
-                    Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    LeadBefore(event.icon?.let { { ItemIcon(it, small) } }, smallLine, minTitlePx(small, LocalDensity.current), Theme.spacing.xxs) {
+                        FadingText(event.title, small)
+                    }
                 }
                 return
             }
             val titleLines = if (height != null && titleLine > 0.dp) {
-                floor((height - vertical * 2) / titleLine).toInt().coerceIn(1, BlockTitleLines)
+                floor((height - vertical * 2) / titleLine).toInt().coerceAtLeast(1)
             } else {
-                BlockTitleLines
+                Int.MAX_VALUE
             }
             WholeLines(vertical = vertical, inset = Theme.spacing.xs, narrowInset = Theme.spacing.xxs) {
-                Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
-                Text(
-                    strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)),
-                    style = type.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                event.location?.let { Text(it, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                // One line fades out where it is cut, as a month's do: "DR-…" was
+                // a letter given up to say there was more.
+                // Its icon before the title's first line, the title's lines after it.
+                LeadBefore(event.icon?.let { { ItemIcon(it, type.labelMedium) } }, titleLine, minTitlePx(type.labelMedium, LocalDensity.current), Theme.spacing.xxs) {
+                    if (titleLines == 1) {
+                        FadingText(event.title, type.labelMedium)
+                    } else {
+                        Text(event.title, style = type.labelMedium, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                FadingText(strings.timeRange(formats.time(event.start.time), formats.time(event.end.time)), type.labelSmall)
+                event.location?.let { FadingText(it, type.labelSmall) }
             }
         }
-        EventPresentation.Bar -> Text(
-            event.title,
-            style = type.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = Theme.spacing.xs),
-        )
-        EventPresentation.Line -> Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
-            modifier = Modifier.padding(horizontal = Theme.spacing.xxs),
-        ) {
-            Box(Modifier.size(Theme.spacing.xs).background(toneColours(event.tone).solid, Theme.shapes.capsule))
-            Text(formats.time(event.start.time), style = type.labelSmall, colour = Theme.colours.contentMuted, maxLines = 1)
-            Text(event.title, style = type.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        EventPresentation.Bar -> EventBar(event, LocalItemLines.current)
+        EventPresentation.Line -> EventLine(event, LocalItemLines.current)
     }
 }
-
-/** At most this many lines of a block's title. */
-private const val BlockTitleLines = 2
-
-/** Below this a block's text is inset by less. */
-private val NarrowBlockWidth = 56.dp
 
 /**
  * How tall the block being drawn is, for its default content to fit its title
@@ -766,16 +871,22 @@ private val NarrowBlockWidth = 56.dp
 internal val LocalBlockHeight = compositionLocalOf<Dp?> { null }
 
 /**
+ * How many lines a month's event has room for: 1 at a whole month to the
+ * screen, up to 3 zoomed in, for its title, its time and where it is.
+ */
+internal val LocalItemLines = compositionLocalOf { 1 }
+
+/**
  * Lines one under another, as many as fit whole: the first always, the rest
  * only where all of each is inside the height — never one cut in half. Inset
  * by [inset] either side, or by [narrowInset] in a block narrower than
- * [NarrowBlockWidth]: a week's narrow column keeps its few letters for the
+ * [NarrowItemWidth]: a week's narrow column keeps its few letters for the
  * title, not for the margin.
  */
 @Composable
 private fun WholeLines(vertical: Dp, inset: Dp, narrowInset: Dp, content: @Composable () -> Unit) {
     Layout(content) { measurables, constraints ->
-        val side = (if (constraints.maxWidth < NarrowBlockWidth.roundToPx()) narrowInset else inset).roundToPx()
+        val side = (if (constraints.maxWidth < NarrowItemWidth.roundToPx()) narrowInset else inset).roundToPx()
         val top = vertical.roundToPx()
         val room = (constraints.maxHeight - top * 2).coerceAtLeast(0)
         val lineConstraints = Constraints(maxWidth = (constraints.maxWidth - side * 2).coerceAtLeast(0))
@@ -857,7 +968,9 @@ internal fun rememberCalendarPager(state: EventCalendarState): CalendarPager {
     val motion = Theme.motion
     val scope = rememberCoroutineScope()
     val view = state.view
-    val periods = remember(view) { PeriodPager(state.period) }
+    // A new pager, a cut, for another view — or the same one counted afresh:
+    // three days, or several weeks, from another day.
+    val periods = remember(view, state.periods) { PeriodPager(state.period) }
     val ticker = rememberDetentTicker(FeedbackIntent.Snap)
     val flickPx = with(LocalDensity.current) { MonthFlick.toPx() }
     val stiffness = motion.springSnappy.stiffness
@@ -1054,6 +1167,42 @@ private fun Modifier.carriesEdits(scope: CalendarScope): Modifier {
                     edit.cancel()
                     continue
                 }
+                if (!change.pressed) {
+                    change.consume()
+                    current.letGo()
+                    continue
+                }
+                if (change.positionChanged()) {
+                    change.consume()
+                    edit.carry(coordinates.localToRoot(change.position), slop)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Follows a carry for a list of events that is not inside the calendar's days —
+ * a month's day list, open over them — as [carriesEdits] follows one for the
+ * days: an event taken up from the list is pressed in the list, and every move
+ * of that pointer goes to the list, not to the days under it, until it lets go.
+ * The list is hidden while it follows, not closed: closed, it would take the
+ * pointer with it.
+ */
+@Composable
+internal fun Modifier.followsCarry(scope: CalendarScope): Modifier {
+    val edit = scope.edit
+    val placed = remember { PlacedAt() }
+    val current by rememberUpdatedState(scope)
+    return onGloballyPositioned { placed.coordinates = it }.pointerInput(edit) {
+        val slop = io.kontour.ui.interaction.PickUpHoldSlop.toPx()
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val coordinates = placed.coordinates?.takeIf { it.isAttached } ?: continue
+                val id = edit.pointer ?: continue
+                // A carry pressed somewhere else is the days' to follow.
+                val change = event.changes.firstOrNull { it.id == id } ?: continue
                 if (!change.pressed) {
                     change.consume()
                     current.letGo()

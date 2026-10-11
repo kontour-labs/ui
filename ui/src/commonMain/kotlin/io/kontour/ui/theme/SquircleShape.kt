@@ -139,22 +139,62 @@ class SquircleShape(
     ): Path {
         val corners = corners(size, topLeft, topRight, bottomRight, bottomLeft)
         val path = Path()
-        val params = corners.map { params(it) }
+        val geometry = geometryOf(corners)
 
         // Start on the top edge, just past whatever the top-left corner consumes,
         // then run clockwise. Each corner ends exactly where the next one starts,
         // so the only explicit line is the one closing each edge.
         val first = corners[0]
         path.moveTo(
-            first.point.x + first.outgoing.x * params[0].outgoing.p,
-            first.point.y + first.outgoing.y * params[0].outgoing.p,
+            first.point.x + first.outgoing.x * geometry[0].params.outgoing.p,
+            first.point.y + first.outgoing.y * geometry[0].params.outgoing.p,
         )
 
-        for (i in 1..3) appendCorner(path, corners[i], params[i])
+        for (i in 1..3) appendCorner(path, corners[i], geometry[i])
         // Corner 0 is the one we started inside, so it closes the ring.
-        appendCorner(path, corners[0], params[0])
+        appendCorner(path, corners[0], geometry[0])
         path.close()
         return path
+    }
+
+    /**
+     * The four corners' curves — everything about them that takes trigonometry —
+     * from [SquircleCorners] when the size does not bear on them.
+     *
+     * **A corner with room on both its edges is the same at every size.** Its
+     * radius is its own, both its sides are smoothed in full, and its reach is
+     * `(1 + smoothing)` times the radius: nothing in it reads the size until the
+     * edges get short enough to clamp it. So a sheet, whose height changes on
+     * every frame it is dragged and whose path was rebuilt from scratch each
+     * time — forty-odd sines, cosines and tangents a frame, reported as a
+     * floating sheet that *"really stutters"* — works its corners out once per
+     * radius and only places them after that. A corner that is clamped is worked
+     * out as it always was.
+     */
+    private fun geometryOf(corners: List<Corner>): Array<CornerGeometry> {
+        val roomy = corners.all { corner ->
+            // `max(1, 1 + smoothing)`: the arc itself has to fit too, which for
+            // a smoothing below zero is the larger of the two.
+            corner.radius == 0f || minOf(corner.budgetIn, corner.budgetOut) >= maxOf(1f, 1f + smoothing) * corner.radius
+        }
+        if (!roomy) return Array(4) { geometry(corners[it]) }
+        val tl = corners[0].radius
+        val tr = corners[1].radius
+        val br = corners[2].radius
+        val bl = corners[3].radius
+        SquircleCorners.find(tl, tr, br, bl, smoothing)?.let { return it }
+        return Array(4) { geometry(corners[it]) }.also { SquircleCorners.put(tl, tr, br, bl, smoothing, it) }
+    }
+
+    /** One corner's curve, worked out. */
+    private fun geometry(corner: Corner): CornerGeometry {
+        SquircleCornerCount.computed++
+        val param = params(corner)
+        if (param.radius <= 0f) return CornerGeometry.Square
+        val v = corner.outgoing
+        val sweepStart = atan2(-v.y.toDouble(), -v.x.toDouble()) * RAD + param.arcStartDegrees
+        val arcEndAngle = (sweepStart + param.arcDegrees) * DEG
+        return CornerGeometry(param, sweepStart.toFloat(), cos(arcEndAngle).toFloat(), sin(arcEndAngle).toFloat())
     }
 
     /**
@@ -318,7 +358,8 @@ class SquircleShape(
         return CornerSide(a = 2f * b, b = b, c = c, offset = offset, p = p, projection = projection)
     }
 
-    private fun appendCorner(path: Path, corner: Corner, param: CornerParams) {
+    private fun appendCorner(path: Path, corner: Corner, geometry: CornerGeometry) {
+        val param = geometry.params
         val point = corner.point
         val u = corner.incoming
         val v = corner.outgoing
@@ -352,7 +393,7 @@ class SquircleShape(
             point.x - u.x * param.radius + v.x * param.radius,
             point.y - u.y * param.radius + v.y * param.radius,
         )
-        val sweepStart = atan2(-v.y.toDouble(), -v.x.toDouble()) * RAD + param.arcStartDegrees
+        val sweepStart = geometry.sweepStart
         path.arcTo(
             rect = Rect(
                 centre.x - param.radius,
@@ -360,17 +401,16 @@ class SquircleShape(
                 centre.x + param.radius,
                 centre.y + param.radius,
             ),
-            startAngleDegrees = sweepStart.toFloat(),
+            startAngleDegrees = sweepStart,
             sweepAngleDegrees = param.arcDegrees,
             forceMoveTo = false,
         )
 
         // Where the arc actually finished, rather than where the maths says it
         // should have — the mirrored blend is relative to it.
-        val arcEndAngle = (sweepStart + param.arcDegrees) * DEG
         val end = Offset(
-            centre.x + param.radius * cos(arcEndAngle).toFloat(),
-            centre.y + param.radius * sin(arcEndAngle).toFloat(),
+            centre.x + param.radius * geometry.endCos,
+            centre.y + param.radius * geometry.endSin,
         )
 
         // The same three mirrored, anchored on `end` and using the outgoing
@@ -558,6 +598,84 @@ private class CornerParams(
     }
 }
 
+/**
+ * A corner's curve with the trigonometry done: its sides and arc, where the arc
+ * starts, and the direction from its centre to where it ends. Relative to the
+ * corner, so the same one is placed at any size.
+ */
+private class CornerGeometry(
+    val params: CornerParams,
+    val sweepStart: Float,
+    val endCos: Float,
+    val endSin: Float,
+) {
+    companion object {
+        val Square = CornerGeometry(CornerParams.Square, 0f, 0f, 0f)
+    }
+}
+
+/** How many squircle corners have been worked out in this process, for a test to count. */
+internal object SquircleCornerCount {
+    var computed: Int = 0
+}
+
+/** Empties both squircle caches, so a test can compare a path built from scratch. */
+internal fun clearSquircleCaches() {
+    SquircleCorners.clear()
+    SquirclePaths.clear()
+}
+
+private class CachedCorners(
+    val topLeft: Float,
+    val topRight: Float,
+    val bottomRight: Float,
+    val bottomLeft: Float,
+    val smoothing: Float,
+    val corners: Array<CornerGeometry>,
+)
+
+/**
+ * Corner curves worked out lately, by their radii and smoothing alone: see
+ * `SquircleShape.geometryOf`. Direct-mapped and unsynchronised for the reasons
+ * [SquirclePaths] gives.
+ */
+private object SquircleCorners {
+    private const val Capacity = 64
+
+    private val entries = arrayOfNulls<CachedCorners>(Capacity)
+
+    fun clear() = entries.fill(null)
+
+    fun find(topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float, smoothing: Float): Array<CornerGeometry>? {
+        val entry = entries[slot(topLeft, topRight, bottomRight, bottomLeft, smoothing)] ?: return null
+        return entry.corners.takeIf {
+            entry.topLeft == topLeft && entry.topRight == topRight && entry.bottomRight == bottomRight &&
+                entry.bottomLeft == bottomLeft && entry.smoothing == smoothing
+        }
+    }
+
+    fun put(
+        topLeft: Float,
+        topRight: Float,
+        bottomRight: Float,
+        bottomLeft: Float,
+        smoothing: Float,
+        corners: Array<CornerGeometry>,
+    ) {
+        entries[slot(topLeft, topRight, bottomRight, bottomLeft, smoothing)] =
+            CachedCorners(topLeft, topRight, bottomRight, bottomLeft, smoothing, corners)
+    }
+
+    private fun slot(topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float, smoothing: Float): Int {
+        var hash = topLeft.toRawBits()
+        hash = hash * 31 + topRight.toRawBits()
+        hash = hash * 31 + bottomRight.toRawBits()
+        hash = hash * 31 + bottomLeft.toRawBits()
+        hash = hash * 31 + smoothing.toRawBits()
+        return (hash xor (hash ushr 16)) and (Capacity - 1)
+    }
+}
+
 private class CachedPath(
     private val size: Size,
     private val topLeft: Float,
@@ -640,6 +758,8 @@ private object SquirclePaths {
     private const val Capacity = 128
 
     private val entries = arrayOfNulls<CachedPath>(Capacity)
+
+    fun clear() = entries.fill(null)
 
     fun find(
         size: Size,

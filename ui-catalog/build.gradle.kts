@@ -166,12 +166,18 @@ tasks.withType<Test>().configureEach {
  * `maxHeapSize` is stated for the same reason — the default is small enough that
  * a fork rendering 1440x1400 can spend its time collecting garbage.
  *
+ * 1.5g, from 1g: a fork that drew the phone pages — 720x26000, a few copies of
+ * each — and a sweep over every component in turn ran out of heap, depending on
+ * which classes it was dealt. Between tests a fork holds tens of megabytes; it
+ * is one test's peak that reached the ceiling. Four of them are 6g, which a
+ * standard runner's 16g holds with room to spare.
+ *
  * Note this distributes **classes**. A single test class is a single fork
  * however long it runs, which is why `SiteRenderTest` is four classes.
  */
 tasks.withType<Test>().configureEach {
     maxParallelForks = minOf(4, Runtime.getRuntime().availableProcessors())
-    maxHeapSize = "1g"
+    maxHeapSize = "1536m"
 }
 
 // ---------------------------------------------------------------------------

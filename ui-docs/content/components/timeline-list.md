@@ -47,6 +47,53 @@ rail is unbroken whatever the rows' heights, and a list built lazily draws
 exactly the same as one built all at once. The dots and dashes are spaced so the
 two halves meet with one whole gap between them, rather than two marks touching.
 
+**`icon` puts a small icon inside a stop's node**: how the stop is left, a
+transfer, the end of the trip. The node grows to `TimelineDefaults.IconNodeSize`
+to hold it, and only that one: the stops without keep their dot. On a solid node
+the icon takes whichever of light or dark reads on it, so a route colour straight
+from a feed stays legible; inside a ring it takes the ring's colour. A `loading`
+stop shows its spinner and no icon.
+
+<!--sample:TimelineIcons-->
+```kotlin
+// An icon inside a node grows it to hold one; the stops without keep their dot.
+TimelineList {
+    item("Perth Station", trailing = "08:12", icon = Tabler.Outline.Train)
+    item("Walk 4 min", connector = ConnectorStyle.Dashed, filled = false, icon = Tabler.Outline.Walk)
+    item("Elizabeth Quay", trailing = "08:21")
+    item("Perth Busport", trailing = "08:29", icon = Tabler.Outline.Flag2)
+}
+```
+
+## Node groups
+
+**`nodeGroup(count)` is one row standing for several stops**: the stretch of a
+route nobody needs to see stop by stop, folded away until it is pressed open.
+Its node is a few nodes bunched along the rail, overlapping — up to three,
+however many stops it stands for — the last whole and each before it cut back
+where the next covers it, so it reads the same on the page or on grouped rows.
+They are rings unless `filled` says otherwise.
+
+<!--sample:TimelineNodeGroupBasics-->
+```kotlin
+// Each group is one row for the stops it folds away: one node to progress,
+// one tap to open them.
+TimelineList(progress = 2f) {
+    item("Hospital Av", trailing = "11:34 pm")
+    nodeGroup("Show 10 past stops", count = 10, connector = ConnectorStyle.Dotted, onClick = onShowPast)
+    item("Elizabeth Quay Bus Station", supporting = "Stand A6", trailing = "11:47 pm")
+    nodeGroup("Show 38 upcoming stops", count = 38, connector = ConnectorStyle.Dotted, onClick = onShowUpcoming)
+    item("Morley", supporting = "Stand 10", trailing = "12:19 am")
+}
+```
+
+To the rail a group is a stop: its `connector` is the leg after it, and the
+legs either side clear the whole stack. To `progress` it is one stop too — put
+a journey that is somewhere among the stops it folds at the group's row, and
+the halo goes round the whole stack. Opening it is the caller's: replace the
+group with its stops, and the progress with the count to the stop the journey
+is at.
+
 **The node sits on the middle of the label's first line.** An `overline` above
 the label, such as a route number, does not move it, and neither does a second
 line below it.
@@ -102,8 +149,9 @@ trailing value. When it has an `onClick` it is a button, or whatever its `role`
 says, and a selected stop announces as selected. A disabled list disables every
 row, and the rows stay in the reading order.
 
-The rail, the nodes, the progress colour and the ring round the current stop are
-drawn, not announced. The words have to carry the journey. Write "Departed
+The rail, the nodes and their icons, a node group's stack, the progress colour
+and the ring round the current stop are drawn, not announced. A group's row has
+to say how many stops it stands for in its words — "Show 10 past stops". The words have to carry the journey. Write "Departed
 08:12", "Next stop", or "Walk 4 min, in progress" in the rows themselves. A
 `loading` stop's spinner says nothing to a screen reader, so its row should say
 what is being waited for.

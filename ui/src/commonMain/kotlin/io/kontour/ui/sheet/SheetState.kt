@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import io.kontour.ui.interaction.RubberBand
 import io.kontour.ui.theme.Motion
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -745,7 +746,7 @@ class SheetState internal constructor(
      *
      * Fed from the drag's `MutableInteractionSource` rather than from a flag the
      * gesture sets, because that is the one place the distinction already
-     * exists: `anchoredDraggable` emits `DragInteraction.Start` for a finger and
+     * exists: the sheet's drag emits `DragInteraction.Start` for a finger and
      * nothing at all for an animation.
      *
      * Covers the sheet's own drag — the handle, the surface — and not a list
@@ -950,6 +951,16 @@ class SheetState internal constructor(
     internal var anchorRebuilds: Int = 0
         private set
 
+    /** How many times the sheet's surface has composed: read by `SheetFramePressureTest`. */
+    internal var surfaceCompositions: Int = 0
+
+    /**
+     * How many times a floating sheet's shadow has been recorded: an increment
+     * where its tile is drawn, so the suite can ask whether a drag re-rasterises
+     * it. See `FloatingShadow`.
+     */
+    internal var shadowRecords: Int = 0
+
     /**
      * The measurements the current anchors were built from, in whole pixels.
      *
@@ -1144,8 +1155,22 @@ class SheetState internal constructor(
      */
     private var releasedBySheet: Boolean = false
 
-    /** The finger on the sheet, for a release the platform reports as no throw at all. See [SheetFinger]. */
-    internal val finger = SheetFinger()
+    /**
+     * The finger on the sheet, for a release the platform reports as no throw at
+     * all (see [SheetFinger]), and for whether one is on it at all.
+     *
+     * **Each new finger starts the gesture's bookkeeping over.** What the last
+     * gesture noted — that its list scrolled, that the sheet answered its release
+     * — belongs to that gesture. A settle caught by a touch is cancelled inside
+     * the content's pre-fling, so the post-fling that clears those notes never
+     * ran, and the next release was taken as already answered: hauled to the
+     * bottom and let go, the sheet lay there, open as far as the caller knew,
+     * and could not be opened again.
+     */
+    internal val finger = SheetFinger(onDown = {
+        listScrolled = false
+        releasedBySheet = false
+    })
 
     /**
      * Settles at the detent a flick was **aimed at**, not the one it was nearest
@@ -1168,31 +1193,26 @@ class SheetState internal constructor(
      *
      * ### Why the decay and not a threshold
      *
-     * A velocity threshold gives "one detent per flick, however hard", which is
-     * what the handle's own `flingBehavior` already does above Compose's
-     * 125dp/s — and is the behaviour that cannot skip a middle detent on a
-     * three-detent sheet. A projection has no such ceiling: a hard throw lands
-     * past everything and closes the sheet outright, a soft one lands next door.
+     * A velocity threshold gives "one detent per flick, however hard or soft",
+     * which cannot skip a middle detent on a three-detent sheet and moves a whole
+     * detent on a twitch. A projection is continuous in the throw: a hard one
+     * lands a detent away, past one only at [SheetSkipVelocity], and a soft one
+     * where it started.
      *
-     * ### What it cannot fix
+     * ### The handle
      *
-     * The **handle's** fling still goes through `AnchoredDraggableDefaults`,
-     * which takes a positional threshold and a snap spec and no velocity
-     * parameter. Routing it through here would mean an `animateTo` inside the
-     * fling that the drag's own mutex is holding, which is a deadlock waiting to
-     * be found rather than a fix. Dragging the handle is the one gesture where
-     * the finger is on the sheet itself and the positional answer is the
-     * intuitive one, so the ceiling stays there and is documented on
-     * `BottomSheetDefaults`.
+     * The **handle's** throw is aimed the same way, by [detentFlungTo], but not
+     * through here: it lands by a snap fling that moves the sheet inside the
+     * drag it already holds. An `animateTo` inside that drag would wait on the
+     * drag's own mutex.
      */
     internal suspend fun settleWhereAimed(
         velocity: Float,
         spec: AnimationSpec<Float>,
         minVelocity: Float,
-        atLeastOne: Boolean = false,
     ) {
         val from = anchoredState.offset
-        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne) ?: (if (from.isNaN()) null else nearestAllowed(from))
+        val aimed = detentAimedAt(velocity, minVelocity) ?: (if (from.isNaN()) null else nearestAllowed(from))
         if (aimed == null) anchoredState.settle(spec) else carryTo(aimed, velocity, spec)
     }
 
@@ -1238,17 +1258,63 @@ class SheetState internal constructor(
 
     /**
      * Where a release of the sheet itself — its handle, its surface — settles:
-     * the detent [detentAimedAt] projects it to, and at least the next one in the
-     * direction of the throw, since the finger was on the sheet and a flick of it
-     * is always meant. Below [minVelocity] the nearest allowed detent.
+     * the detent [detentAimedAt] projects it to, and below [minVelocity] the
+     * nearest allowed one.
+     *
+     * **Not "at least the next detent".** It was, on the grounds that the finger
+     * was on the sheet and a flick of it is always meant: any release over the
+     * floor moved a whole detent, however little it was thrown, so a sheet at its
+     * lowest detent closed on a twitch — *"it has to feel intentional, not just
+     * like you accidentally moved your finger and boom, flicked"*. A throw now
+     * goes where it would carry the sheet, as a throw of the content does.
      */
     internal fun detentFlungTo(velocity: Float, minVelocity: Float): SheetDetent? {
         val from = anchoredState.offset
         if (from.isNaN()) return null
         val anchors = anchoredState.anchors
-        val aimed = detentAimedAt(velocity, minVelocity, atLeastOne = true) ?: return nearestAllowed(from)
+        val aimed = detentAimedAt(velocity, minVelocity) ?: return nearestAllowed(from)
         return aimed.takeIf { anchors.positionOf(it).let { at -> !at.isNaN() } }
     }
+
+    /**
+     * Settles at the nearest allowed detent where the sheet already is — the end
+     * of a throw of the sheet itself, which lands on an anchor through an
+     * untargeted drag. Foundation then records the settled detent only if the
+     * landing was exact, and a target that a change of anchors left behind
+     * mid-throw is never cleared; this is a targeted move of no distance that
+     * does both, so what the sheet reports is where it is.
+     */
+    internal suspend fun restAtNearest() {
+        val at = anchoredState.offset
+        if (at.isNaN()) return
+        val nearest = nearestAllowed(at) ?: return
+        anchoredState.anchoredDrag(targetValue = nearest) { anchors, latest ->
+            val to = anchors.positionOf(latest)
+            if (!to.isNaN()) dragTo(to)
+        }
+    }
+
+    /**
+     * Whether the sheet is lying at the bottom with nothing moving it: at the
+     * [SheetDetent.Hidden] anchor, no animation running, and no finger on it.
+     *
+     * What a modal sheet watches to learn it has been put away, rather than the
+     * settled detent, which only moves when a settle completes: a settle caught
+     * by a touch leaves it where it was, and a sheet whose settled detent never
+     * left Hidden was flicked shut without anything changing. Where the sheet
+     * is cannot be missed.
+     *
+     * Null before the sheet has been measured, which is neither: a sheet that
+     * gains its anchors at the bottom has not arrived there.
+     */
+    internal val restsHidden: Boolean?
+        get() {
+            val hidden = anchoredState.anchors.positionOf(SheetDetent.Hidden)
+            val at = anchoredState.offset
+            if (hidden.isNaN() || at.isNaN()) return null
+            if (finger.pressed || anchoredState.isAnimationRunning) return false
+            return abs(at - hidden) < 0.5f
+        }
 
     /**
      * Whether a flick may land on [detent]: an allowed one, and not
@@ -1309,20 +1375,20 @@ class SheetState internal constructor(
      * `SheetFlickTest`, 450px/s was enough once the finger had carried the sheet
      * 40% of the way, against the ~1260px/s the same sheet needs from rest.
      */
-    internal fun detentAimedAt(velocity: Float, minVelocity: Float, atLeastOne: Boolean = false): SheetDetent? {
+    internal fun detentAimedAt(velocity: Float, minVelocity: Float): SheetDetent? {
         val from = anchoredState.offset
         val anchors = anchoredState.anchors
         if (from.isNaN() || anchors.size == 0) return null
         if (abs(velocity) < minVelocity) return null
 
-        // Where a thrown thing on iOS comes to rest: the throw carried on for
-        // half a second more. Continuous in the throw — a hard one lands past
-        // everything and closes the sheet, a soft one next door or not at all.
+        // Where the throw would carry the sheet: kept up for a fifth of a second
+        // more (see [SheetProjectionSeconds]). Continuous in the throw — a hard
+        // one goes a detent, a soft one nowhere.
         val projected = from + velocity * SheetProjectionSeconds
         var aimed: SheetDetent? = null
         var aimedAt = Float.NaN
         var best = Float.MAX_VALUE
-        // The next detent the throw is heading for, for a throw of the sheet itself.
+        // The next detent the throw is heading for, which an ordinary throw stops at.
         var next: SheetDetent? = null
         var nextAt = Float.NaN
         for (index in 0 until anchors.size) {
@@ -1342,7 +1408,10 @@ class SheetState internal constructor(
                 nextAt = at
             }
         }
-        if (atLeastOne && next != null && (aimed == null || (aimedAt - nextAt) * sign(velocity) < 0f)) return next
+        // Past the next detent only on a throw meant to go past it: see
+        // [SheetSkipVelocity]. Under it, a flick from the top stops at the middle.
+        val skip = with(anchorDensity ?: Density(1f)) { SheetSkipVelocity.toPx() }
+        if (next != null && aimed != null && abs(velocity) < skip && (aimedAt - nextAt) * sign(velocity) > 0f) return next
         return aimed
     }
 
@@ -1425,12 +1494,18 @@ class SheetState internal constructor(
                 // natural way to put a sheet away on an iPhone, had the flick
                 // ignored and the sheet spring back.
                 //
-                // At least one detent, as for a throw of the handle: the finger
-                // was on the sheet, moving it, and a flick of it is meant.
+                // Where the throw carries it, as for a throw of the handle.
                 if (!restingAtADetent()) {
                     listScrolled = false
                     releasedBySheet = true
-                    settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity, atLeastOne = true)
+                    try {
+                        settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity)
+                    } catch (caught: CancellationException) {
+                        // Caught by a finger: the post-fling that would clear
+                        // this never runs. See [finger].
+                        releasedBySheet = false
+                        throw caught
+                    }
                     releaseOvershoot(settleSpec)
                     return available
                 }
@@ -1507,7 +1582,11 @@ class SheetState internal constructor(
                 if (wasTheList) {
                     anchoredState.settle(settleSpec)
                 } else {
-                    settleWhereAimed(available.y, settleSpec, flickVelocity)
+                    // Past the same distance gate as every other release: a
+                    // twitch on a list already at its top, which never moved
+                    // the sheet, was projected straight through and could put
+                    // the sheet away.
+                    settleWhereAimed(finger.throwOf(available.y, minThrow), settleSpec, flickVelocity)
                 }
                 // **And the stretch this path opened has to come back.** A drag
                 // on the *content* reaches `stretchDown` through `onPostScroll`
@@ -1720,15 +1799,21 @@ private fun List<SheetDetent>.firstDetent(): SheetDetent =
 
 /**
  * How far a throw carries a sheet past where the finger let go of it: the throw
- * kept up for this long.
+ * kept up for this long. The detent nearest where that lands is where it goes.
  *
- * Half a second is UIKit's own — what `UIScrollView`'s normal deceleration rate
- * comes to, and what a sheet on iOS projects a release by to decide where it
- * lands. It replaced an exponential decay that carried a 3000px/s throw about
- * 700px, and closing a sheet by flicking was reported as taking "too much
- * effort": the same throw now carries 1500px.
+ * **A fifth of a second, so a flick has to be meant.** It was half a second,
+ * UIKit's deceleration, after closing a sheet by flicking was reported as taking
+ * *"too much effort"* — but that report came from a velocity tracker that read
+ * many flicks as no speed at all, which `SheetFinger` has since answered. At half
+ * a second every 100dp/s carried the sheet 50dp, and together with a rule that
+ * any flick moved at least a detent, a sheet went away on a twitch: *"it has to
+ * feel intentional, not just like you accidentally moved your finger and boom,
+ * flicked"*. Now, on a phone, a sheet at its middle detent closes from a 48dp
+ * drag thrown at about 750dp/s — a deliberate flick — or from being hauled past
+ * half way. Material's own sheet projects a release a tenth of a second to
+ * decide whether it hides.
  */
-internal const val SheetProjectionSeconds: Float = 0.5f
+internal const val SheetProjectionSeconds: Float = 0.2f
 
 /**
  * How fast a gesture on a sheet's **content** has to be leaving the glass to
@@ -1748,9 +1833,8 @@ internal const val SheetProjectionSeconds: Float = 0.5f
  * the way, is still under it; a real flick is well over. A number to tune on a
  * device, which the catalog's diagnostics page is for.
  *
- * Content only. A throw of the sheet itself — its handle, its surface — has
- * [SheetHandleFlickVelocity], a quarter of this, because nothing else can have
- * been meant by it.
+ * A throw of the sheet itself — its handle, its surface — has
+ * [SheetHandleFlickVelocity], the same speed.
  *
  * Here rather than on `BottomSheetDefaults`, like the other numbers here: it is a
  * fact about how a hand moves, not a number a brand restyles, and the literals
@@ -1761,22 +1845,49 @@ internal val SheetFlickVelocity: Dp = 300.dp
 
 /**
  * How far a finger has to run one way for its release to count as a throw of
- * the sheet: past touch slop, and a little more. See `SheetFinger.throwOf`.
+ * the sheet: about seven and a half millimetres on a phone. See
+ * `SheetFinger.throwOf`.
  *
- * Between two measured gestures, which is where it has to be. Twenty-four
- * pixels of roll-off at the scene's density — 12dp, most of it touch slop — must
- * leave a full-height sheet where it is; thirty-two pixels at the same speed —
- * 16dp, the gentlest flick the suite throws — must move it a detent.
+ * It was 14dp, a little past touch slop, set between a roll-off off the glass
+ * that must not move a sheet and the gentlest flick the suite then threw. But
+ * the sheet's own drag takes a finger at 14dp too, so on a phone any drag that
+ * started at all threw the sheet a detent if it was moving when it lifted: a
+ * couple of millimetres' flick put a sheet away, reported as *"way too easy to
+ * flick the sheet closed"*. 32dp was *"still a bit too easy"*. A flick meant
+ * to move a sheet runs well past this; a shorter one lets the sheet settle
+ * where it is nearest.
  */
-internal val SheetMinThrow: Dp = 14.dp
+internal val SheetMinThrow: Dp = 48.dp
 
 /**
- * How fast a release of the sheet itself has to be to count as a flick: Compose's
- * own bar for a fling, `AnchoredDraggableMinFlingVelocity`. Above it the sheet
- * moves at least a detent the way it was thrown, and as many as the throw
- * projects to; below it, the nearest detent.
+ * How fast a release of the sheet itself has to be to count as a flick. Above
+ * it the sheet goes to the detent nearest where the throw projects (see
+ * [SheetProjectionSeconds]); below it, the nearest detent.
+ *
+ * The same as [SheetFlickVelocity] for a gesture on the content. It was
+ * Compose's own bar for a fling, 125dp/s, a quarter of that, on the grounds
+ * that nothing but a throw could be meant by moving the sheet itself; but at
+ * that speed any release faster than a crawl moved a whole detent, and a sheet
+ * flicked closed too easily.
  */
-internal val SheetHandleFlickVelocity: Dp = 125.dp
+internal val SheetHandleFlickVelocity: Dp = 300.dp
+
+/**
+ * How fast a throw has to be to go past the next detent rather than stop there.
+ *
+ * Under it the projection still decides whether a flick moves the sheet at all,
+ * but it moves one detent at most. Without it, the half second of projection took
+ * an ordinary flick down from the top straight past the middle detent and
+ * closed the sheet: from full height the middle is a short way off, and an easy
+ * 2000px/s carries a thousand pixels on. Reported as "really easy to flick a
+ * sheet past its middle detent".
+ *
+ * **5000dp/s, from 2500.** At 2500 it was still "quite sensitive to flicks for
+ * travelling multiple detents", tried on a phone: an ordinary flick there is
+ * two to four thousand dp a second, so half of them were over it. A hard,
+ * deliberate throw is six thousand and more, and still closes the sheet in one.
+ */
+internal val SheetSkipVelocity: Dp = 5000.dp
 
 /** How much of the way to hidden a whole back gesture takes a sheet: nearly all. */
 private const val BackTravel = 0.95f

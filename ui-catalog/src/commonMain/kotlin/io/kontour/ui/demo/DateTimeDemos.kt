@@ -9,7 +9,10 @@ import kotlinx.datetime.DateTimeUnit
 import io.kontour.ui.theme.Tone
 import io.kontour.ui.components.calendar.rememberEventCalendarState
 import io.kontour.ui.components.calendar.EventCalendar
+import io.kontour.ui.components.calendar.EventCalendarDefaults
 import io.kontour.ui.components.calendar.CalendarView
+import io.kontour.ui.components.calendar.CalendarDaysStyle
+import io.kontour.ui.components.calendar.CalendarSwitcher
 import io.kontour.ui.components.calendar.CalendarEvent
 import io.kontour.ui.theme.ProvideTokens
 import io.kontour.ui.locale.HourCycle
@@ -32,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Plane
+import io.kontour.icons.tabler.outline.User
+import io.kontour.icons.tabler.outline.Map
 import io.kontour.icons.tabler.outline.ChevronDown
 import io.kontour.ui.components.datetime.ActivityCalendar
 import io.kontour.ui.components.datetime.ActivityLegend
@@ -42,7 +47,7 @@ import io.kontour.ui.components.datetime.CalendarMonth
 import io.kontour.ui.components.datetime.DateField
 import io.kontour.ui.components.datetime.DatePicker
 import io.kontour.ui.components.datetime.FieldPicker
-import io.kontour.ui.components.datetime.DayAnnotation
+import io.kontour.ui.components.datetime.DayDecoration
 import io.kontour.ui.components.datetime.DateTimeField
 import io.kontour.ui.components.datetime.DateRangePicker
 import io.kontour.ui.components.datetime.DateTimePicker
@@ -70,31 +75,46 @@ import androidx.compose.ui.graphics.Color
  */
 private val Today = LocalDate(2026, 6, 12)
 
-/** Fares under the days and a holiday in its own colour: `annotationFor` and `containerColourFor`. */
+/** Fares under the days, a holiday in its own colour and dots for trips booked: `decorationFor`. */
 private val fares = Knob.Flag("Fares")
+
+/** Whether the decorations keep their colours on the chosen days: `keepColours`. */
+private val keepColours = Knob.Flag("Keep colours")
 
 /** A fare for most days from [Today] on, a little cheaper midweek; none before. */
 private fun demoFare(day: LocalDate): Double? =
     if (day < Today || day.day % 7 == 0) null else 30.0 + (day.day * 7) % 25 - if (day.dayOfWeek.ordinal in 1..3) 6 else 0
 
 @Composable
-private fun demoDayLooks(on: Boolean): Pair<((LocalDate) -> Color?)?, ((LocalDate) -> DayAnnotation?)?> {
-    if (!on) return null to null
+private fun demoDecorations(on: Boolean, keep: Boolean): ((LocalDate) -> DayDecoration?)? {
+    if (!on) return null
     val formats = Theme.formats
     val cheap = Theme.colours.success.solid
     val holiday = Theme.colours.warning.container
-    return { day: LocalDate -> if (day == LocalDate(2026, 6, 8)) holiday else null } to { day: LocalDate ->
-        demoFare(day)?.let { fare ->
-            DayAnnotation(
-                text = formats.currency(fare, "AUD").substringBefore('.'),
-                colour = if (fare < 30.0) cheap else Color.Unspecified,
+    val booked = Theme.colours.info.solid
+    return { day: LocalDate ->
+        val fare = demoFare(day)
+        val isHoliday = day == LocalDate(2026, 6, 8)
+        // A trip already booked on these: a dot, and a plane on the first.
+        val trip = day.day == 15 || day.day == 19
+        if (fare == null && !isHoliday && !trip) {
+            null
+        } else {
+            DayDecoration(
+                text = fare?.let { formats.currency(it, "AUD").substringBefore('.') },
+                textColour = if (fare != null && fare < 30.0) cheap else Color.Unspecified,
+                icon = if (day.day == 15) Tabler.Outline.Plane else null,
+                iconColour = booked,
+                dots = if (trip) listOf(booked) else emptyList(),
+                containerColour = if (isHoliday) holiday else Color.Unspecified,
+                keepColours = keep,
             )
         }
     }
 }
 
-internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf(fares)) {
-    val (colourFor, annotationFor) = demoDayLooks(this[fares])
+internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf(fares, keepColours)) {
+    val decorationFor = demoDecorations(this[fares], this[keepColours])
     var depart by remember { mutableStateOf(LocalDate(2026, 6, 18)) }
     Column(
         Modifier.fillMaxWidth(),
@@ -114,15 +134,14 @@ internal val DatePickerDemo = ComponentDemo(slug = "date-picker", knobs = listOf
             // happens to be a button, which on a touch screen has no hover to
             // discover it with.
             chooserIcon = Tabler.Outline.ChevronDown,
-            containerColourFor = colourFor,
-            annotationFor = annotationFor,
+            decorationFor = decorationFor,
         )
         Text("$depart", style = Theme.typography.labelSmall, colour = Theme.colours.contentMuted)
     }
 }
 
-internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", knobs = listOf(fares)) {
-    val (colourFor, annotationFor) = demoDayLooks(this[fares])
+internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", knobs = listOf(fares, keepColours)) {
+    val decorationFor = demoDecorations(this[fares], this[keepColours])
     var range by remember {
         mutableStateOf<Pair<LocalDate, LocalDate?>>(
             LocalDate(2026, 6, 9) to LocalDate(2026, 6, 21),
@@ -136,8 +155,7 @@ internal val DateRangePickerDemo = ComponentDemo(slug = "date-range-picker", kno
         // In the middle of a card wider than the picker's 308dp.
         modifier = Modifier.fillMaxWidth().wrapContentWidth(),
         chooserIcon = Tabler.Outline.ChevronDown,
-        containerColourFor = colourFor,
-        annotationFor = annotationFor,
+        decorationFor = decorationFor,
     )
 }
 
@@ -463,7 +481,22 @@ internal val ActivityCalendarDemo = ComponentDemo(
 }
 
 /** The view the event calendar opens in; its own switcher changes it too. */
-private val eventCalendarView = Knob.Choice("View", CalendarView.entries.toList(), initial = CalendarView.Month)
+private val eventCalendarView = Knob.Choice("View", EventCalendarDefaults.Views, initial = CalendarView.Month)
+
+/** How many weeks the week view shows side by side. */
+private val eventCalendarWeeks = Knob.Choice("Weeks", listOf(1, 2, 3), initial = 1)
+
+/** How the three-day and week views lay their days out. */
+private val eventCalendarDays = Knob.Choice("Days", CalendarDaysStyle.entries.toList(), initial = CalendarDaysStyle.Hours)
+
+/** Off, only the all-day events and those a day or longer. */
+private val eventCalendarTimed = Knob.Flag("Timed events", initial = true)
+
+/** How the header offers the views. */
+private val eventCalendarSwitcher = Knob.Choice("Switcher", CalendarSwitcher.entries.toList(), initial = CalendarSwitcher.Segmented)
+
+/** Off, the calendar has no day view: a day opened shows its week. */
+private val eventCalendarDayView = Knob.Flag("Day view", initial = true)
 
 /** A fortnight of a working life, round the demo's today. */
 internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
@@ -472,23 +505,27 @@ internal fun demoCalendarEvents(today: LocalDate): List<CalendarEvent> {
         CalendarEvent(1, "Stand-up", at(0, 9), at(0, 9, 15)),
         CalendarEvent(2, "Design review", at(0, 9), at(0, 10, 30), tone = Tone.Info, location = "Room 4"),
         CalendarEvent(3, "Planning", at(0, 10), at(0, 11)),
-        CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success),
+        CalendarEvent(4, "Lunch with Sam", at(0, 12), at(0, 13), tone = Tone.Success, icon = Tabler.Outline.User),
         CalendarEvent(5, "Gym", at(0, 18), at(0, 19), tone = Tone.Neutral),
-        CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning),
+        CalendarEvent(6, "Perth trip", startDate = today.minus(1, DateTimeUnit.DAY), endDate = today.plus(2, DateTimeUnit.DAY), tone = Tone.Warning, icon = Tabler.Outline.Map),
         CalendarEvent(7, "Dentist", at(1, 15, 30), at(1, 16), tone = Tone.Danger),
         CalendarEvent(8, "Stand-up", at(1, 9), at(1, 9, 15)),
         CalendarEvent(9, "Release", startDate = today.plus(6, DateTimeUnit.DAY), tone = Tone.Accent),
-        CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info),
+        CalendarEvent(10, "Flight to Sydney", at(7, 22), at(8, 6), tone = Tone.Info, icon = Tabler.Outline.Plane),
         CalendarEvent(11, "Retro", at(-2, 14), at(-2, 15)),
         CalendarEvent(12, "Public holiday", startDate = today.plus(12, DateTimeUnit.DAY), tone = Tone.Warning, editable = false),
     )
 }
 
-internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView)) {
+internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = listOf(eventCalendarView, eventCalendarWeeks, eventCalendarDays, eventCalendarTimed, eventCalendarSwitcher, eventCalendarDayView)) {
+    val switcher = this[eventCalendarSwitcher]
+    val views = if (this[eventCalendarDayView]) EventCalendarDefaults.Views else EventCalendarDefaults.Views - CalendarView.Day
     val today = LocalDate(2026, 10, 14)
     val view = this[eventCalendarView]
+    val weeks = this[eventCalendarWeeks]
     val calendar = rememberEventCalendarState(initialDate = today, initialView = view)
     LaunchedEffect(view) { calendar.show(view) }
+    LaunchedEffect(weeks) { calendar.showWeeks(weeks) }
     // The demo keeps its events, as an app does, and takes the calendar's edits.
     var events by remember { mutableStateOf(demoCalendarEvents(today)) }
     var made by remember { mutableIntStateOf(100) }
@@ -529,6 +566,10 @@ internal val EventCalendarDemo = ComponentDemo(slug = "event-calendar", knobs = 
             events = events.filterNot { it.id == event.id }
             echo("${event.title} deleted")
         },
+        daysStyle = this[eventCalendarDays],
+        showTimedEvents = this[eventCalendarTimed],
+        views = views,
+        header = { EventCalendarDefaults.Header(it, switcher = switcher) },
         modifier = Modifier.fillMaxWidth().height(EventCalendarDemoHeight),
     )
 }

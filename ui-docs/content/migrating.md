@@ -15,6 +15,134 @@ from the version the app is on.
 
 ---
 
+## 0.4.3 to 0.4.4
+
+From 0.4.3 to 0.4.4, released on 11 October 2026. Three days and a schedule
+join `CalendarView`, a date picker's day decorations become one
+`DayDecoration`, a few arguments passed by position need naming, and anything
+built against 0.4.3 has to be rebuilt. An event calendar's month and year
+scroll rather than page, a bottom sheet moves only on a flick that is meant,
+and several views look different enough to check.
+
+### Before you start
+
+- **Move all three modules at once**: `kontour = "0.4.4"`, and rebuild anything
+  compiled against 0.4.3 — `EventCalendar`, `EventCalendarDefaults.Header`,
+  `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`,
+  `TimelineItem`, a timeline's `item` and `Strings` have new parameters.
+
+### A `when` over `CalendarView` has two more branches
+
+`CalendarView.ThreeDays` and `CalendarView.Schedule` are new, so a `when` that
+names every view no longer compiles. Give each a branch, or put three days with
+the day and the week:
+
+```diff
+  when (view) {
+-     CalendarView.Day, CalendarView.Week -> showHours()
++     CalendarView.Day, CalendarView.ThreeDays, CalendarView.Week -> showHours()
+      CalendarView.Month -> showMonth()
+      CalendarView.Year -> showYear()
++     CalendarView.Schedule -> showList()
+  }
+```
+
+`EventCalendarDefaults.Views` has both, three days between the day and the
+week and the schedule last. To keep the calendar as it was, give it the views:
+`EventCalendar(views = listOf(Day, Week, Month, Year))`.
+
+### A date picker's days are decorated with one `DayDecoration`
+
+`markerFor`, `containerColourFor` and `annotationFor`, and `DayAnnotation`, are
+gone from `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth`.
+One `decorationFor` takes their place, giving a day a
+[`DayDecoration`](components/calendar-month.md#daydecoration) with all three in it,
+more than one dot, an icon, and the choice to keep its colours on a chosen day:
+
+```diff
+  DatePicker(
+      value = date,
+      onValueChange = { date = it },
+-     markerFor = { day -> if (day in booked) trip else null },
+-     containerColourFor = { day -> if (day in holidays) holiday else null },
+-     annotationFor = { day -> fares[day]?.let { DayAnnotation(it.label, colour = cheap) } },
++     decorationFor = { day ->
++         DayDecoration(
++             dots = if (day in booked) listOf(trip) else emptyList(),
++             containerColour = if (day in holidays) holiday else Color.Unspecified,
++             text = fares[day]?.label,
++             textColour = cheap,
++         )
++     },
+  )
+```
+
+A `DayAnnotation`'s `colour` is `textColour` now. A calendar given only dots, as
+`markerFor` was, says `showDecorationLine = false`: without it the weeks are a
+line taller to make room for text, as they were with `annotationFor`.
+
+### A few arguments passed by position need naming
+
+```diff
+- TimelineItem(TimelineConnector.Solid, Modifier, false, 16.dp) { +"Left the depot" }
++ TimelineItem(TimelineConnector.Solid, Modifier, false, nodeSize = 16.dp) { +"Left the depot" }
+```
+
+The same for:
+
+- a `TimelineItem`'s arguments after `loading`, where `icon` is new;
+- a timeline `item`'s `connector` and after, also after a new `icon`;
+- `ToastHost`'s `windowInsets`, after a new `countdown`;
+- `SheetHeader`'s `actions`, after `onBack`, `backLabel` and `navigation`;
+- `EventCalendar`'s `formats` and after, after `daysStyle`, `showTimedEvents`
+  and `views`;
+- the date pickers' and `CalendarMonth`'s arguments after `isDateSelectable`,
+  where `decorationFor` and `showDecorationLine` take the place of three.
+
+Each fails to compile rather than meaning something else. Name the argument.
+
+### Check
+
+- **An event calendar offers six views.** `EventCalendarDefaults.Views` has
+  three days and the schedule, and a header too narrow for every view side by
+  side offers them in a menu. Pass `views` to keep the four it had.
+- **A decoration in the band of a range keeps its colours.** A day annotation
+  between a range's ends took the band's ink; a decoration keeps its own there.
+  On the range's ends, and on a chosen day, it still takes the fill's ink unless
+  `keepColours` is set.
+- **Today's ring is a circle inside a range**, not the width of the day.
+- **An event calendar's month scrolls up and down** by the week, and holds six
+  weeks whatever the month. A month's `visibleDates` covers the weeks on
+  screen, which can be one more than the month's own. An app that loads events
+  by `visibleDates` needs no change.
+- **Overlapping events in the hours** are laid over each other when one starts
+  below the other's title, rather than side by side.
+- **Event titles** are in a slightly smaller type, and fade out where they are
+  cut rather than ending in "…". A busy day's "+N" is a row of its own.
+- **The edge arrow, carrying an event with a mouse,** is level with the pointer.
+- **An event calendar's year scrolls up and down** through the years, and a
+  screen reader reaches its months, not each of its days.
+- **A toast's clock stops while a mouse rests on it.** A test that hovers a
+  toast and waits for it to go needs to move the pointer away first.
+- **A bottom sheet moves only on a flick that is meant**: once the finger has
+  run about 48dp one way at 300dp/s or more, to the detent nearest where the
+  throw carries it, and past the next detent only at 5000dp/s. A small quick
+  flick that used to move it a detent now settles where it is nearest. A test
+  that flicks a sheet a short way to move it needs a longer or faster flick.
+- **A bottom sheet waits a little longer before a vertical drag is its own**,
+  1.75 times the touch slop, and a swipe across a carousel, chips or a pager
+  inside it is theirs up to about sixty degrees from across.
+- **A modal bottom sheet put away by a gesture always calls
+  `onDismissRequest`**, including after it was caught as it opened or settled,
+  where before it could be put away without the call.
+- **A floating bottom sheet's content widens with it** as it fills to the
+  sides, and a part pinned to a sheet's foot has the content fade out 24dp above
+  it rather than 16dp.
+- **Swipe actions in a reorderable row** wait for the finger to go 24dp across,
+  and a row held to pick up and let go where it was no longer also taps.
+
+---
+
 ## 0.4.2 to 0.4.3
 
 From 0.4.2 to 0.4.3, released on 8 October 2026. A sheet's `pinned { }` becomes a `part` with a `pin`, the

@@ -428,6 +428,8 @@ fun SwipeActions(
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
+    // In a row held to reorder it: see `horizontalDragOwning`'s `holdable`.
+    val heldToPickUp = LocalHeldToPickUp.current
     // Named in the message along with the parameter, which is the house rule the
     // degenerate-input sweep settled on: a precondition that says only "3" leaves
     // the reader to find out which of two lists it meant.
@@ -808,6 +810,7 @@ fun SwipeActions(
                 interactionSource = null,
                 scope = scope,
                 claimsOn = DragClaim.Direction,
+                holdable = heldToPickUp,
                 onStart = {
                     settling?.cancel()
                     pointOfNoReturn.reset()

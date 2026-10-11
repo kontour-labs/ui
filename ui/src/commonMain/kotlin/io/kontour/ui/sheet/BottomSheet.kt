@@ -1,5 +1,8 @@
 package io.kontour.ui.sheet
 
+import io.kontour.ui.foundation.elevation
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import kotlinx.coroutines.flow.collectLatest
@@ -7,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import io.kontour.ui.nav.easedFade
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.geometry.Size
@@ -20,7 +24,6 @@ import androidx.compose.runtime.RememberObserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
-import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.snapFlingBehavior
 import androidx.compose.foundation.interaction.DragInteraction
@@ -68,6 +71,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.foundation.layout.Spacer
@@ -125,9 +131,17 @@ import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.concentricWith
 import io.kontour.ui.theme.lerpCorners
 import kotlin.math.roundToInt
+import kotlin.math.abs
+import kotlin.math.ceil
+import io.kontour.ui.theme.cornerReaches
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -710,11 +724,11 @@ fun BottomSheet(
         state.nestedScrollConnection(settleSpec, flickVelocity, minThrow)
     }
 
-    // **One flick closes it.** A throw of the sheet itself lands where it was
-    // aimed — projected half a second on, as iOS does — and at least a detent
-    // along; a hard one skips the rest. It used to be Compose's own rule, one
-    // detent per flick however hard, so a sheet at full height with a middle
-    // detent took two flicks to close — reported as taking "too much effort".
+    // **Where it was thrown.** A throw of the sheet itself lands at the detent
+    // nearest where it would carry the sheet (see `SheetProjectionSeconds`), and
+    // past the next one only at the skip speed. It was Compose's rule first, one
+    // detent per flick however hard, then "at least a detent" — and both moved a
+    // whole detent on a twitch.
     // Foundation's own snapping fling, which is what Compose's default is built
     // from, so it moves the sheet inside the drag it already holds.
     val handleFlick = with(density) { SheetHandleFlickVelocity.toPx() }
@@ -824,14 +838,15 @@ fun BottomSheet(
                         Modifier
                             .followSheetFinger(state.finger)
                             .nestedScroll(scrollConnection)
-                            .anchoredDraggable(
-                                state = state.anchoredState,
-                                orientation = SheetOrientation,
-                                flingBehavior = fling,
-                                interactionSource = dragInteractions,
+                            // Not `anchoredDraggable`: see `sheetDrag`, and
+                            // why a carousel inside could not have a swipe.
+                            .sheetDrag(
+                                state = state,
+                                fling = fling,
+                                interactions = dragInteractions,
                                 // Lets the sheet be pulled above its top detent
                                 // and springs it back — see `SheetOverscroll`.
-                                overscrollEffect = overscroll,
+                                overscroll = overscroll,
                             )
                     } else {
                         // The nested-scroll connection goes with the drag. Its
@@ -1143,7 +1158,9 @@ fun ModalBottomSheet(
         // what happens next — and a sheet then put back has to read as a change.
         snapshotFlow {
             when {
-                state.targetDetent != SheetDetent.Hidden -> SheetHold.Held
+                // A finger on it holds the page whatever the sheet is heading
+                // for: a sheet let go on a throw and then caught is held again.
+                state.targetDetent != SheetDetent.Hidden || state.finger.pressed -> SheetHold.Held
                 state.isMoving -> SheetHold.Away
                 else -> SheetHold.Landed
             }
@@ -1237,8 +1254,25 @@ fun ModalBottomSheet(
             // there without standing in the way: the page answers from the
             // moment the sheet is closed, not from when it has landed.
             host.letGo(key)
-            if (state.isVisible) state.hide()
-            host.hide(key)
+            try {
+                // **Until it is gone, however it is caught on the way.** A finger
+                // on the sheet as the caller closes it — or a throw already under
+                // way — interrupts the slide down, and that used to skip the
+                // rest: the entry stayed, and the sheet stayed up after its
+                // caller had closed it. Caught, it waits for the finger to lift
+                // and goes again.
+                while (state.isVisible) {
+                    try {
+                        state.hide()
+                    } catch (caught: CancellationException) {
+                        currentCoroutineContext().ensureActive()
+                        snapshotFlow { state.finger.pressed }.first { !it }
+                        withFrameNanos { }
+                    }
+                }
+            } finally {
+                host.hide(key)
+            }
         }
     }
 }
@@ -1263,20 +1297,57 @@ private fun BoxScope.SheetSurface(
     settleSpec: FiniteAnimationSpec<Float>,
     content: @Composable SheetContentScope.(PaddingValues) -> Unit,
 ) {
-    // How far into the edge sheet it is becoming, for the one thing that has to be
-    // decided in composition: the shape. Everything else the morph moves is read in
-    // the layout phase. `derivedStateOf`, so a drag recomposes this only while the
-    // fraction is changing — it is 0 all the way below the morph and 1 all the way
-    // above it, and a drag through either recomposes nothing.
-    val edgeness by remember(state, morph) {
-        derivedStateOf { if (morph == null) 0f else edgeness(state, morph) }
+    state.surfaceCompositions++
+    // Which end of the morph the sheet is at, or neither: the one thing about it
+    // that has to be decided in composition, since it picks the shape. How far
+    // between is read where the outline is made (see [MorphingShape]), and
+    // everything else the morph moves is read in layout. `derivedStateOf`, so a
+    // drag recomposes this only when it crosses into or out of the morph.
+    val stage by remember(state, morph) {
+        derivedStateOf {
+            val e = if (morph == null) 0f else edgeness(state, morph)
+            when {
+                e <= 0f -> MorphStage.Floating
+                e >= 1f -> MorphStage.Edge
+                else -> MorphStage.Between
+            }
+        }
     }
-    val drawnShape = remember(shape, expandedShape, edgeness) {
-        morphShape(shape, expandedShape, edgeness)
+    // **One shape for the whole of the morph, not one a frame.** A new shape each
+    // frame recomposed the surface and everything given the shape — its clip, its
+    // ground, its edge, its shadow — for a corner that had moved a fraction of a
+    // pixel. Between the ends this one works the corners out when its outline is
+    // made, and the outline is made again whenever the sheet's size changes,
+    // which through the morph is every frame it moves: the sides close in with
+    // it. At either end the shape is exactly the one asked for.
+    val morphing = remember(shape, expandedShape, state, morph) {
+        MorphingShape(shape, expandedShape) { if (morph == null) 0f else edgeness(state, morph) }
+    }
+    val drawnShape = when (stage) {
+        MorphStage.Floating -> shape
+        MorphStage.Edge -> expandedShape
+        MorphStage.Between -> morphing
     }
     // The room the parts near the top corners keep from them, for the roundest
     // corners this sheet will have: see [SheetCornerRoom].
     val room = rememberSheetCornerRoom(shape, expandedShape.takeIf { morph != null })
+    val shadow = Theme.elevation.overlay
+    // **The height the surface was last placed at, handed back to its layout.**
+    // The anchors that height comes from are set while the surface itself is
+    // being measured — by the slots below it — and a state written under a
+    // node's own measure does not ask that node to measure again. A modal sheet
+    // with a pinned part was measured once, before it had anchors, at no height
+    // at all, and stayed there: open, scrim and all, with nothing drawn. Written
+    // once the surface is placed, outside its measure, this does ask: the layout
+    // reads it, so a height that moved under the measure measures again. A
+    // layout pass, not a recomposition, and only when the anchors change.
+    val placedTall = remember(state) { mutableFloatStateOf(Float.NaN) }
+    // A floating sheet's shadow is drawn behind it in pieces that never change
+    // size, rather than by the surface, which does: see [FloatingShadow].
+    // The floating shape, not the morphing one: a blur of 6 to 28dp under a corner
+    // a few dp rounder or squarer looks the same, and a shadow that changes shape
+    // is blurred again. See [FloatingShadow].
+    if (floating) FloatingShadow(state, shadow, shape, opaque = containerColour.alpha >= 1f)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1350,6 +1421,8 @@ private fun BoxScope.SheetSurface(
                     // is what keeps that from reaching the caller's content.
                     floatingSurfaceHeight(state, floatInsets, this, window, morph)
                 } else {
+                    // Read so a change after this measure measures again: see `placedTall`.
+                    placedTall.floatValue
                     state.surfaceHeight
                         .coerceAtLeast(0f)
                         .roundToInt()
@@ -1364,12 +1437,13 @@ private fun BoxScope.SheetSurface(
                 state.sheetCoordinates = coordinates
                 state.measurePeek()
                 state.updateAnchors(density)
+                placedTall.floatValue = state.surfaceHeight
             },
         shape = drawnShape,
         containerColour = containerColour,
         contentColour = contentColour,
         border = contrastEdge(),
-        shadow = Theme.elevation.overlay,
+        shadow = if (floating) Shadow.None else shadow,
     ) {
         CompositionLocalProvider(LocalSheetState provides state) {
             val pins = remember(state) { SheetPins() }
@@ -1401,7 +1475,7 @@ private fun BoxScope.SheetSurface(
                 Modifier.windowInsetsPadding(windowInsets.only(WindowInsetsSides.Horizontal))
             } else {
                 Modifier
-                    .keepsTheFloatingWidth(state, floatInsets, morph)
+                    .fillsWithTheSheet(state, windowInsets, morph)
                     .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
             }
             // **The column first.** The parts in the content hand the sheet
@@ -1472,8 +1546,7 @@ private fun BoxScope.SheetSurface(
                     // Where the content starts: under the handle, and under the
                     // status bar while the sheet is (see [sheetTopInset]).
                     val topEdge = sheetTop(state, floating, floatInsets, this@Layout, morph)
-                    val inset = windowInsets.getTop(this@Layout)
-                    val contentTop = (inset - topEdge).coerceIn(0, inset) + handle
+                    val contentTop = sheetTopShift(windowInsets.getTop(this@Layout), topEdge) + handle
                     // Under the handle and the top part: where a collapsed part
                     // comes to rest, and where a pinned part's room ends.
                     val slotTop = contentTop + (topBlock?.height ?: 0)
@@ -1708,7 +1781,7 @@ private fun SheetColumn(
                 val ceiling = if (fixedTop.isNaN() || container <= 0) {
                     window
                 } else {
-                    val top = maxOf(fixedTop.roundToInt(), windowInsets.getTop(this))
+                    val top = maxOf(fixedTop.roundToInt(), fullTopShift(windowInsets.getTop(this)))
                     minOf(window, (container - top).coerceAtLeast(1))
                 }
                 val room = when {
@@ -1754,7 +1827,7 @@ private fun SheetColumn(
                     // and all of them once it is an edge sheet. Margin plus
                     // padding never falls short of the inset on the way.
                     Modifier
-                        .keepsTheFloatingWidth(state, floatInsets, morph)
+                        .fillsWithTheSheet(state, windowInsets, morph)
                         .consumeWindowInsets(windowInsets.only(WindowInsetsSides.Horizontal))
                 }
             )
@@ -2109,10 +2182,9 @@ private class BottomOf(private val safeArea: PaddingValues) : PaddingValues {
  * Under a top part, solid where the slot is and thinning out over its inner
  * [FadeUnderInside], gone [FadeUnderOutside] past it — what a
  * [TopBar][io.kontour.ui.nav.TopBar]'s `fadeUnder` draws over a page. Under a
- * bottom part, what a floating [NavBar][io.kontour.ui.nav.NavBar] draws: solid
- * from the part's middle down, thinning out over [FadeAboveBottom] above it —
- * asked for as content that *"should fade underneath the search bar, exactly
- * the same as how nav currently forces it"*.
+ * bottom part, as a floating [NavBar][io.kontour.ui.nav.NavBar] does: solid
+ * from the part's middle down, thinning out over [FadeAboveBottom] above it,
+ * which reaches a little higher than the bar's own.
  *
  * Behind the slot's own content, so a search field's ground and its words are
  * drawn whole over it; only what passes behind fades. At high contrast a line
@@ -2143,7 +2215,7 @@ private fun Modifier.slotGround(ground: Color, fade: Boolean, contentBelow: Bool
                 )
             } else {
                 // A bottom part: solid from its middle down, thinning out
-                // upwards to [FadeAboveBottom] above it, as a navigation bar.
+                // upwards to [FadeAboveBottom] above it.
                 val to = size.height / 2f
                 val above = FadeAboveBottom.toPx()
                 drawRect(ground, topLeft = Offset(0f, to), size = Size(size.width, size.height - to))
@@ -2162,8 +2234,12 @@ private val FadeUnderInside = 12.dp
 /** How far past a top part the fade reaches, so it has no line. */
 private val FadeUnderOutside = 4.dp
 
-/** How far above a bottom part the fade reaches: a floating navigation bar's. */
-private val FadeAboveBottom = 16.dp
+/**
+ * How far above a bottom part the fade reaches. A floating navigation bar's
+ * 16dp started too low under a sheet's buttons: content still read clearly
+ * right up to their edge, so the part looked laid on top rather than pinned.
+ */
+private val FadeAboveBottom = 24.dp
 
 /**
  * A sheet's header: laid out as the content is, under the handle and in from
@@ -2379,6 +2455,22 @@ private fun edgeness(state: SheetState, morph: SheetEdgeMorph?): Float {
     return state.edgeMorphFraction(morph, raw.toFloat())
 }
 
+/** Where a sheet is in its morph, as far as composition needs to know. */
+private enum class MorphStage { Floating, Between, Edge }
+
+/**
+ * [from] on its way to [to], as far as [fraction] says when its outline is made:
+ * one object for the whole of a morph. See `SheetSurface`.
+ */
+private class MorphingShape(
+    private val from: Shape,
+    private val to: Shape,
+    private val fraction: () -> Float,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        morphShape(from, to, fraction()).createOutline(size, layoutDirection, density)
+}
+
 /**
  * [shape] on its way to [expanded], [fraction] of the way there.
  *
@@ -2426,29 +2518,179 @@ private fun Modifier.floatingSides(
 }.consumeWindowInsets(floatInsets.only(WindowInsetsSides.Horizontal))
 
 /**
- * A morphing sheet's content, held at the width it had while the sheet floated.
+ * A floating sheet's shadow, drawn behind its surface from one small tile.
  *
- * The surface grows around it: the padding on each side is exactly what the surface
- * has grown by there, so the content stands still while the margins close up. It
- * used to reflow at every width the morph passed through, and content whose height
- * depends on its width — a line of text that wraps — changed the sheet's height,
- * and the anchors with it, in the middle of a drag. That was half of the reported
- * "snap" near the top.
+ * **The surface cannot carry it.** A floating sheet's bottom edge is seen, pinned
+ * a margin off the window's, so the surface is exactly as tall as the sheet is
+ * visible and changes height on every frame of a drag — and through its morph
+ * into an edge sheet, width too. A shadow drawn by a node that changes size is
+ * blurred again each time: two blurred layers, sixty times a second. That was
+ * most of a floating sheet's frame: measured on an Android phone by an app that
+ * had to switch to edge sheets to get rid of it, 25% janky frames dragging a
+ * floating sheet against 5% for an edge one, with a 150ms p99. Cutting it into
+ * pieces of constant size fixed the drag and not the morph, where the sheet
+ * widens — *"really stuttering and janky … especially when its corner radius is
+ * changing"* — and pieces wide enough to outlast the morph blurred half as much
+ * again on the frame the sheet opened.
  *
- * The same rounding as [floatingSides], so surface and content agree to the pixel.
- * The floating margin is at least the window's inset on each side, so the content
- * is clear of a cutout at every fraction without asking the insets again.
+ * So the shadow is blurred **once, for a box a little bigger than two corners**,
+ * and drawn at any size from that, nine-slice: each corner as it is, and each
+ * edge and the middle stretched from the straight run between the tile's corners
+ * — where a shadow is the same all along, so stretching it changes nothing. The
+ * tile is recorded once; a frame of a drag or a morph draws it nine times,
+ * clipped, and blurs nothing.
+ *
+ * Under the floating shape rather than the morphing one: a 6 to 28dp blur under
+ * a corner a few dp rounder or squarer looks the same, and it keeps the tile
+ * still. A sheet shorter or narrower than two corners has no straight run to
+ * stretch, and is given a shadow its own size, as it always was.
  */
-private fun Modifier.keepsTheFloatingWidth(
+@Composable
+private fun BoxScope.FloatingShadow(state: SheetState, shadow: Shadow, shape: Shape, opaque: Boolean) {
+    if (shadow.layers.isEmpty()) return
+    val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
+    val tile = rememberGraphicsLayer()
+    // Written in layout and read in draw: the tile's side, how far a corner and
+    // its blur run along each edge, and the room round the box for the blur.
+    val tileSide = remember { mutableIntStateOf(0) }
+    val cornerRun = remember { mutableFloatStateOf(0f) }
+    val pad = remember { mutableFloatStateOf(0f) }
+    val whole = remember { mutableStateOf(false) }
+    // On every side, whichever way a layer's offset points: `Shadow.bleed` takes
+    // the larger offset as it comes, so a shadow cast up or to the left would be
+    // cut off at the tile's edge.
+    val reach = remember(shadow) {
+        shadow.layers.maxOf { maxOf(abs(it.offsetX.value), abs(it.offsetY.value)) + it.blurRadius.value + it.spread.value }.dp
+    }
+    // How far a blur spreads a corner's curve along the edge past where it ends.
+    val blur = remember(shadow) { shadow.layers.maxOf { it.blurRadius.value + it.spread.value }.dp }
+    Layout(
+        modifier = Modifier.matchParentSize().drawWithContent {
+            // The tile records itself here, and a sheet too small to slice draws
+            // its own shadow.
+            drawContent()
+            val t = tileSide.intValue.toFloat()
+            if (whole.value || t <= 0f) return@drawWithContent
+            val c = cornerRun.floatValue
+            val b = pad.floatValue
+            val m = t - 2f * (c + b)
+            val w = size.width
+            val h = size.height
+            // Across and down, how much the straight run is stretched.
+            val k = (w - 2f * c) / m
+            val q = (h - 2f * c) / m
+            val near = b + c
+            val far = t - b - c
+            fun slice(dx: Float, dy: Float, sx: Float, sy: Float, left: Float, top: Float, right: Float, bottom: Float) {
+                withTransform({
+                    translate(dx, dy)
+                    scale(sx, sy, pivot = Offset.Zero)
+                }) {
+                    clipRect(left, top, right, bottom) { drawLayer(tile) }
+                }
+            }
+            val across = c - near * k
+            val down = c - near * q
+            // Corners.
+            slice(-b, -b, 1f, 1f, 0f, 0f, near, near)
+            slice(w + b - t, -b, 1f, 1f, far, 0f, t, near)
+            slice(-b, h + b - t, 1f, 1f, 0f, far, near, t)
+            slice(w + b - t, h + b - t, 1f, 1f, far, far, t, t)
+            // Edges.
+            slice(across, -b, k, 1f, near, 0f, near + m, near)
+            slice(across, h + b - t, k, 1f, near, far, near + m, t)
+            slice(-b, down, 1f, q, 0f, near, near, near + m)
+            slice(w + b - t, down, 1f, q, far, near, t, near + m)
+            // And under the middle, only for a sheet whose ground lets it through:
+            // under an opaque one it is a whole sheet's area drawn for nothing.
+            if (!opaque) slice(across, down, k, q, near, near, near + m, near + m)
+        },
+        content = {
+            // The tile: a box a little bigger than two corners, in a layer of its
+            // own so it draws once, recording itself rather than drawing.
+            Box(Modifier.graphicsLayer().drawWithContent { tile.record { this@drawWithContent.drawContent() } }) {
+                Box(Modifier.fillMaxSize().padding(reach).drawBehind { state.shadowRecords++ }.then(raised))
+            }
+            // A sheet too small to slice, or a shape that cannot be: its own size.
+            Box(Modifier.drawWithContent { if (whole.value) drawContent() }) {
+                Box(Modifier.fillMaxSize().graphicsLayer().drawBehind { state.shadowRecords++ }.then(raised))
+            }
+        },
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val b = reach.roundToPx()
+        val run = FloatingShadowRun.roundToPx()
+        // **The corner as the sheet draws it, and its blur.** Past that along an
+        // edge the shadow is the same all the way, so that is where the tile's
+        // corners stop and its straight run starts.
+        val corner = sheetCornerRun(shape, Size(width.toFloat(), height.toFloat()), this, layoutDirection)
+        val c = corner?.let { ceil(it + blur.toPx()).toInt() } ?: 0
+        val side = 2 * (c + b) + run
+        val box = (side - 2 * b).toFloat()
+        // The tile's box draws the shape at its own size, so a corner that is a
+        // share of the size rather than a length comes out differently there:
+        // that shape, or one that is not a corner shape at all, is drawn whole.
+        val sameInTheTile = corner != null &&
+            abs((sheetCornerRun(shape, Size(box, box), this, layoutDirection) ?: -1f) - corner) < 0.5f
+        whole.value = !sameInTheTile || width < 2 * c + 1 || height < 2 * c + 1
+        tileSide.intValue = if (whole.value) 0 else side
+        cornerRun.floatValue = c.toFloat()
+        pad.floatValue = b.toFloat()
+        val tilePiece = measurables[0].measure(Constraints.fixed(side, side))
+        val own = measurables[1].measure(Constraints.fixed(width, height))
+        layout(width, height) {
+            tilePiece.place(0, 0)
+            own.place(0, 0)
+        }
+    }
+}
+
+/**
+ * How far along its edges [shape]'s widest corner curves at [size], in pixels:
+ * the radius, or a squircle's longer reach. Null for a shape with no corners to
+ * measure.
+ */
+private fun sheetCornerRun(shape: Shape, size: Size, density: Density, direction: LayoutDirection): Float? {
+    if (shape !is CornerBasedShape) return null
+    val reaches = shape.cornerReaches(size, density, direction)
+    return maxOf(
+        maxOf(reaches.topLeft.x, reaches.topLeft.y, reaches.topRight.x),
+        maxOf(reaches.topRight.y, reaches.bottomLeft.x, reaches.bottomLeft.y),
+        maxOf(reaches.bottomRight.x, reaches.bottomRight.y),
+    )
+}
+
+/**
+ * The straight run the tile of [FloatingShadow] keeps between its corners, which
+ * its edges are stretched from: a few dp, so its sampling never reaches a corner.
+ */
+private val FloatingShadowRun = 8.dp
+
+/**
+ * A morphing sheet's content, as wide as the sheet as it grows: padded by as much
+ * of the window's side insets as its margin no longer clears.
+ *
+ * Floating, the margin clears the insets and the content has the surface's whole
+ * width; as an edge sheet, it is padded by the insets themselves. On the way the
+ * padding is the insets times how far the morph has got, so the content widens
+ * with the surface as it fills to the sides rather than after it has landed —
+ * and margin plus padding never falls short of the inset, since the floating
+ * margin is at least the inset on each side.
+ *
+ * It was once held at its floating width through the morph, and later widened
+ * only once the sheet had come to rest at the top; both left the content
+ * standing still inside a surface visibly growing past it. Read in layout, so a
+ * frame of the morph re-lays the content out without recomposing it.
+ */
+private fun Modifier.fillsWithTheSheet(
     state: SheetState,
-    floatInsets: WindowInsets,
+    windowInsets: WindowInsets,
     morph: SheetEdgeMorph?,
 ): Modifier = layout { measurable, constraints ->
-    val kept = 1f - edgeness(state, morph)
-    val leftMargin = floatInsets.getLeft(this, layoutDirection)
-    val rightMargin = floatInsets.getRight(this, layoutDirection)
-    val left = (leftMargin - (leftMargin * kept).roundToInt()).coerceAtLeast(0)
-    val right = (rightMargin - (rightMargin * kept).roundToInt()).coerceAtLeast(0)
+    val e = edgeness(state, morph).coerceIn(0f, 1f)
+    val left = (windowInsets.getLeft(this, layoutDirection) * e).roundToInt()
+    val right = (windowInsets.getRight(this, layoutDirection) * e).roundToInt()
     val placeable = measurable.measure(constraints.offset(horizontal = -(left + right)))
     layout(
         constraints.constrainWidth(placeable.width + left + right),
@@ -2542,8 +2784,7 @@ private fun Modifier.sheetTopInset(
     floatInsets: WindowInsets,
     morph: SheetEdgeMorph?,
 ): Modifier = layout { measurable, constraints ->
-    val inset = insets.getTop(this)
-    val top = (inset - sheetTop(state, floating, floatInsets, this, morph)).coerceIn(0, inset)
+    val top = sheetTopShift(insets.getTop(this), sheetTop(state, floating, floatInsets, this, morph))
     val placeable = measurable.measure(constraints.offset(vertical = -top))
     val height = (placeable.height + top).coerceAtMost(constraints.maxHeight)
     layout(placeable.width, height) {
@@ -2613,10 +2854,28 @@ private fun Density.sheetContentCeiling(
         // because the margin has already taken the window's edges into it.
         floatInsets.getTop(this) + floatInsets.getBottom(this)
     } else {
-        insets.getTop(this)
+        fullTopShift(insets.getTop(this))
     }
     return (container - reserved).coerceIn(1, container)
 }
+
+/**
+ * How far a sheet's content — its handle first — is moved down, with its top
+ * edge [top] px down the window and [inset] px of the window's top under a
+ * status bar: by as much of the inset as the sheet is under, so the content
+ * stops at the foot of the bar while the sheet slides on up beneath it.
+ *
+ * **Nothing more than the inset.** For a while it added twelve dp, in
+ * proportion to how far under the bar the sheet was, so a fingertip on the
+ * handle of a full-height sheet stayed out of Android's status bar. But the
+ * extra grew while the sheet rose, so the content moved *down* as the sheet
+ * moved up the last stretch — *"the content dips just a bit"* — and the handle
+ * no longer sat as high as it had.
+ */
+internal fun Density.sheetTopShift(inset: Int, top: Int): Int = (inset - top).coerceIn(0, inset.coerceAtLeast(0))
+
+/** [sheetTopShift] for a sheet at the very top of the window. */
+internal fun Density.fullTopShift(inset: Int): Int = sheetTopShift(inset, 0)
 
 /** No padding at all, for a sheet that is already clear of every edge. */
 private val NoInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
@@ -2656,7 +2915,13 @@ private fun FollowBack(state: SheetState, back: OverlayBackState, stillWanted: (
                 return@collect
             }
             if (from.isNaN()) from = state.offset
-            state.followBack(from, progress)
+            // Refused — something else is moving the sheet — is not the end of
+            // following: the next frame of the gesture tries again.
+            try {
+                state.followBack(from, progress)
+            } catch (caught: CancellationException) {
+                currentCoroutineContext().ensureActive()
+            }
         }
     }
     LaunchedEffect(state, back.cancels) {
@@ -2694,19 +2959,44 @@ private suspend fun snapshotOfHidden(
     stillVisible: () -> Boolean,
     onHidden: () -> Unit,
 ) {
-    snapshotFlow { state.currentDetent }
+    // **Where the sheet is, not what it last settled at.** The settled detent
+    // only moves when a settle completes, and a settle caught by a touch leaves
+    // it where it was — so a sheet caught as it opened, played with and flicked
+    // away went from "settled at Hidden" to "settled at Hidden", which is no
+    // change, and the caller was never told: *"the first time I flicked the
+    // display settings sheet away, I couldn't open it again"*. Lying at the
+    // bottom with nothing moving it and no finger on it is a dismissal however
+    // it got there.
+    snapshotFlow { state.restsHidden }
+        // Not yet measured: no answer either way.
+        .filterNotNull()
+        .distinctUntilChanged()
         // A sheet cannot be dismissed before it has opened, and `snapshotFlow`
-        // hands over the current value first — which for a sheet is `Hidden`,
-        // since that is where every one of them starts. Reported, that closes a
-        // sheet declared `visible = true` on the frame it appears: the caller is
-        // told to dismiss something the user has not seen yet, and `state.show()`
-        // has not run. Only a *transition* into `Hidden` is a dismissal.
+        // hands over the current value first — which for a sheet is lying at the
+        // bottom, since that is where every one of them starts. Reported, that
+        // closes a sheet declared `visible = true` on the frame it appears: the
+        // caller is told to dismiss something the user has not seen yet, and
+        // `state.show()` has not run. Only *arriving* at the bottom is a dismissal.
         .drop(1)
-        .filter { it == SheetDetent.Hidden }
+        .filter { it == true }
         .collect {
+            // **Still there a moment later.** A finger let go at the bottom with
+            // a throw back up lies there for the frame before its throw starts,
+            // and that is not a dismissal.
+            repeat(SheetDismissalFrames) { withFrameNanos { } }
+            if (state.restsHidden != true) return@collect
             onHidden()
             repeat(SheetDismissalFrames) { withFrameNanos { } }
-            if (stillVisible()) state.show()
+            if (stillVisible()) {
+                // Put back for a caller that declined. Caught on its way up, the
+                // rise is cancelled — and that must not end this watch, or no
+                // later dismissal is ever reported.
+                try {
+                    state.show()
+                } catch (caught: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                }
+            }
         }
 }
 

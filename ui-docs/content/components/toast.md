@@ -1,6 +1,6 @@
 # `Toast`
 
-*Also on this page: `ToastHost`.*
+*Also on this page: `ToastHost`, `ToastCountdown`.*
 
 Confirmation of something the user just did. Raised through a
 `ToastHostState`, drawn by a `ToastHost`.
@@ -63,6 +63,18 @@ scales with whatever the caller asked for and keeps the extra time
 restart would put a stack of four back to taking four full durations to clear,
 which is the queue this host was rewritten to stop being, and a toast promoted
 with plenty of time left is untouched either way.
+
+**A countdown shows the time left**, with `ToastHost(countdown = …)`:
+`ToastCountdown.Wipe` washes the front toast's background in its own ink from
+the start edge and draws it back as the time runs out, and `ToastCountdown.Bar`
+draws a thin bar along its foot that shortens the same way. Both stand still
+whenever the clock does — a finger holding the stack, or a mouse's pointer
+resting on the toast, which stops every toast's clock as a finger does — and a
+pinned toast has none. `ToastCountdown.None`, the default, draws nothing.
+
+```kotlin
+ToastHost(toasts, countdown = ToastCountdown.Bar)
+```
 
 **A pill behind the card shrinks and fades away; the front card slides.** The
 card leaves toward the edge it arrived from, which is legible because it is the

@@ -2,6 +2,9 @@ package io.kontour.ui.sheet
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -32,7 +35,22 @@ import kotlin.math.abs
  * the last tenth of a second of the finger's own path, across any gap in it.
  * A finger that stopped before it lifted is still a finger that stopped.
  */
-internal class SheetFinger {
+internal class SheetFinger(
+    /** Told of each new finger on the sheet, before anything inside it sees it. */
+    private val onDown: () -> Unit = {},
+) {
+    /**
+     * Whether a finger is on the sheet now. A state, so the modal sheet can wait
+     * for it to lift before calling a sheet at the bottom dismissed, and can hold
+     * the page again the moment the sheet is caught.
+     */
+    var pressed by mutableStateOf(false)
+        private set
+
+    /** Whether the last gesture was taken away by the system rather than lifted: see [cancel]. */
+    var cancelled: Boolean = false
+        private set
+
     private val times = LongArray(Capacity)
     private val along = FloatArray(Capacity)
     private var count = 0
@@ -44,6 +62,9 @@ internal class SheetFinger {
     private var liftedAt = -1L
 
     fun down(at: Long) {
+        pressed = true
+        cancelled = false
+        onDown()
         count = 0
         next = 0
         travelled = 0f
@@ -71,7 +92,7 @@ internal class SheetFinger {
      * count as a flick and to move the sheet a detent — measured, a full-height
      * sheet let go after twenty-four pixels of roll-off fell to half. What a
      * roll-off does not have is distance: a deliberate flick of a sheet, even a
-     * gentle one, runs further than touch slop and a little more. And the run
+     * gentle one, runs a good few millimetres, `SheetMinThrow`. And the run
      * starts again where the finger turns, so a roll-off after pulling the sheet
      * up against its top is judged on its own few pixels, not on the pull.
      */
@@ -81,7 +102,26 @@ internal class SheetFinger {
     }
 
     fun lift(at: Long) {
+        pressed = false
         liftedAt = at
+    }
+
+    /** The gesture is over, however it ended: see [followSheetFinger]. */
+    fun gone() {
+        pressed = false
+    }
+
+    /**
+     * The pointer was taken away rather than lifted — the notification shade, a
+     * focus change — so its last moves are not a throw. Without this a release
+     * reported at no speed was given the finger's own, from the last tenth of a
+     * second before the cancel, and a sheet nudged a notch could be thrown shut.
+     */
+    fun cancel() {
+        pressed = false
+        cancelled = true
+        liftedAt = -1L
+        run = 0f
     }
 
     /**
@@ -143,15 +183,24 @@ internal fun Modifier.followSheetFinger(finger: SheetFinger): Modifier =
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             finger.down(down.uptimeMillis)
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (change.changedToUpIgnoreConsumed()) {
-                    finger.lift(change.uptimeMillis)
-                    break
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (change.changedToUpIgnoreConsumed()) {
+                        // Already consumed before the sheet has seen it at all: a
+                        // cancel, which Compose sends as a consumed up — the system
+                        // took the pointer. Not a lift, so not a throw: see [SheetFinger.cancel].
+                        if (change.isConsumed) finger.cancel() else finger.lift(change.uptimeMillis)
+                        break
+                    }
+                    val dy = change.positionChangeIgnoreConsumed().y
+                    if (dy != 0f) finger.move(change.uptimeMillis, dy)
                 }
-                val dy = change.positionChangeIgnoreConsumed().y
-                if (dy != 0f) finger.move(change.uptimeMillis, dy)
+            } finally {
+                // However the gesture ended — the pointer gone, the sheet torn
+                // down mid-press — no finger is on it now.
+                finger.gone()
             }
         }
     }

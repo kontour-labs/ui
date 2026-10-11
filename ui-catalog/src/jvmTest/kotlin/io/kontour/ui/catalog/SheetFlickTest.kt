@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -298,26 +299,89 @@ class SheetFlickTest {
     }
 
     /**
-     * One flick of the sheet itself closes it from full height, past a middle
-     * detent — reported from a phone as taking "too much effort to flick closed".
-     * It was Compose's own rule, one detent per flick however hard, so a sheet
-     * with a half-way detent took two.
+     * One hard flick of the sheet itself closes it from full height, past a
+     * middle detent — reported from a phone as taking "too much effort to flick
+     * closed". It was Compose's own rule, one detent per flick however hard, so a
+     * sheet with a half-way detent took two.
+     *
+     * Hard, not brisk: a brisk one, [FlickPerFrame], stops at the middle now.
      */
     @Test
     fun oneHardFlickOfTheSheetClosesItPastTheMiddle() {
-        assertEquals(SheetDetent.Hidden, flungFromFull(pixelsPerFrame = FlickPerFrame))
+        assertEquals(SheetDetent.Hidden, flungFromFull(pixelsPerFrame = HardFlickPerFrame))
     }
 
     /** And not one that may not be put away by hand, however hard it is thrown. */
     @Test
     fun aHardFlickDoesNotCloseASheetThatMustBeAnswered() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame, dismissible = false))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = HardFlickPerFrame, dismissible = false))
     }
 
-    /** A gentle flick of the sheet still moves it — to the next detent, not past it. */
+    /**
+     * An ordinary flick down from the top stops at the middle. Its projection
+     * reaches past the middle, and it used to close the sheet: reported as
+     * "really easy to flick a sheet past its middle detent".
+     */
     @Test
-    fun aGentleFlickOfTheSheetGoesOneDetent() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 8f))
+    fun anOrdinaryFlickFromTheTopStopsAtTheMiddle() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 25f))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = FlickPerFrame))
+    }
+
+    /**
+     * A flick that is not meant does not move the sheet, on a phone-sized
+     * window: past the distance gate and over the speed floor, but thrown no
+     * further than a finger does by accident — *"it has to feel intentional,
+     * not just like you accidentally moved your finger and boom, flicked"*. Any
+     * release over the floor used to move a whole detent.
+     */
+    @Test
+    fun anAccidentalFlickDoesNotMoveIt() {
+        for (initial in listOf(SheetDetent.Expanded, SheetDetent.Half)) {
+            // 64dp at 480dp/s, and 80dp at 450dp/s.
+            for ((pace, steps) in listOf(16f to 8, 15f to 11)) {
+                assertEquals(
+                    initial,
+                    flungFromFull(pixelsPerFrame = pace, initial = initial, steps = steps, sceneHeight = PhoneHeight),
+                    "${(pace * steps / 2).toInt()}dp flicked down at ${(pace * 30).toInt()}dp/s moved the sheet off $initial",
+                )
+            }
+        }
+    }
+
+    /**
+     * A flick that is meant moves the sheet a detent: 80dp at about 1600dp/s
+     * takes a full-height sheet to the middle, and the middle one away.
+     */
+    @Test
+    fun anIntentionalFlickMovesIt() {
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 54f, steps = 3, sceneHeight = PhoneHeight))
+        assertEquals(
+            SheetDetent.Hidden,
+            flungFromFull(pixelsPerFrame = 54f, initial = SheetDetent.Half, steps = 3, sceneHeight = PhoneHeight),
+        )
+    }
+
+    /**
+     * A short flick — up to about six millimetres on a phone, quick, past the
+     * sheet's slop so it does move — leaves the sheet where it was, at full
+     * height and at the middle. Reported from an Android phone as *"way too easy
+     * to flick the sheet closed … I shouldn't be able to close it with such
+     * little movement"*: the throw's minimum run was the drag's own slop, so any
+     * drag that started at all could throw. Then, at 32dp, *"still a bit too
+     * easy"*.
+     */
+    @Test
+    fun aShortFlickLeavesTheSheetWhereItWas() {
+        for (initial in listOf(SheetDetent.Expanded, SheetDetent.Half)) {
+            for ((pace, steps) in listOf(10f to 4, 24f to 2, 18f to 4, 36f to 2, 20f to 4)) {
+                assertEquals(
+                    initial,
+                    flungFromFull(pixelsPerFrame = pace, initial = initial, steps = steps),
+                    "${(pace * steps / 2).toInt()}dp flicked down in $steps frames moved the sheet off $initial",
+                )
+            }
+        }
     }
 
     /**
@@ -325,11 +389,18 @@ class SheetFlickTest {
      * down its own surface — nothing scrollable in it, so the sheet's own drag
      * takes the gesture.
      */
-    private fun flungFromFull(pixelsPerFrame: Float, dismissible: Boolean = true): SheetDetent {
+    private fun flungFromFull(
+        pixelsPerFrame: Float,
+        dismissible: Boolean = true,
+        initial: SheetDetent = SheetDetent.Expanded,
+        steps: Int = FlickSteps,
+        sceneHeight: Int = 900,
+    ): SheetDetent {
         var state: SheetState? = null
         var settled: SheetDetent? = null
         var visible by mutableStateOf(true)
-        Scene(width = 600, height = 900) {
+        var goTo by mutableStateOf<SheetDetent?>(null)
+        Scene(width = 600, height = sceneHeight) {
             OverlayHost(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().background(Color.White))
                 val sheet = rememberSheetState(
@@ -337,25 +408,34 @@ class SheetFlickTest {
                     initialDetent = SheetDetent.Expanded,
                 )
                 state = sheet
+                // A modal sheet opens at its top detent, so a flick from lower
+                // down moves it there first.
+                LaunchedEffect(goTo) { goTo?.let { sheet.animateTo(it) } }
                 ModalBottomSheet(
                     visible = visible,
                     onDismissRequest = { visible = false },
                     state = sheet,
                     dismissible = dismissible,
                 ) {
-                    Box(Modifier.fillMaxWidth().height(600.dp).background(Color.LightGray))
+                    // As tall as the window on a phone, as a sheet of content usually is.
+                    Box(Modifier.fillMaxWidth().height(if (sceneHeight >= PhoneHeight) 1000.dp else 600.dp).background(Color.LightGray))
                 }
             }
         }.use { scene ->
             scene.frames(80)
             val sheet = requireNotNull(state)
-            val from = Offset(300f, 500f)
+            if (initial != SheetDetent.Expanded) {
+                goTo = initial
+                scene.frames(80)
+            }
+            assertEquals(initial, sheet.currentDetent, "the sheet did not start at $initial")
+            val from = Offset(300f, sceneHeight - 400f)
             scene.press(from)
-            repeat(FlickSteps) { step ->
+            repeat(steps) { step ->
                 scene.move(Offset(from.x, from.y + pixelsPerFrame * (step + 1)))
                 scene.frame()
             }
-            scene.release(Offset(from.x, from.y + pixelsPerFrame * FlickSteps))
+            scene.release(Offset(from.x, from.y + pixelsPerFrame * steps))
             repeat(12) {
                 scene.frames(10)
                 if (sheet.currentDetent == SheetDetent.Hidden || !visible) settled = SheetDetent.Hidden
@@ -428,6 +508,16 @@ class SheetFlickTest {
         const val FlickPerFrame = 60f
 
         /**
+         * A hard throw that carries the sheet past its middle on the way: from
+         * full height, a flick past the next detent is a throw past the skip
+         * speed or a drag past the detent, and this is the drag. 120px a frame
+         * passed by a pixel and a half, and stopped passing when the sheet's
+         * own drag began to wait a few dp longer for a carousel inside it.
+         * The skip speed itself is `SheetSettleTest`'s.
+         */
+        const val HardFlickPerFrame = 140f
+
+        /**
          * The same travel spread over enough frames to be a haul, not a throw.
          *
          * **Eight, which is 450px/s, and it is back to eight deliberately.** It
@@ -444,6 +534,9 @@ class SheetFlickTest {
          */
         const val CrawlRatio = 8
         const val CrawlPerFrame = FlickPerFrame / CrawlRatio
+
+        /** A phone's height at this density: 800dp, so its detents are as far apart as on one. */
+        const val PhoneHeight = 1600
 
         /** Short, because a flick is short. The travel is the pace, not the count. */
         const val FlickSteps = 4

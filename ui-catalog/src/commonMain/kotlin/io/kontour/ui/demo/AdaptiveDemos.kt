@@ -1,5 +1,6 @@
 package io.kontour.ui.demo
 
+import io.kontour.ui.components.display.Stat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -507,11 +508,30 @@ private fun SupportingPaneDemoBody() {
                 }
             },
             supporting = {
-                Column(Modifier.padding(Theme.spacing.md)) {
-                    Text("Conditions", style = Theme.typography.labelMedium)
+                // What the run was driven in, as a logging app shows it beside
+                // the run: a heading, the readings that matter, and a note.
+                Column(
+                    Modifier.padding(Theme.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
+                ) {
+                    Text("Conditions", style = Theme.typography.titleSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg)) {
+                        Stat {
+                            value("24 °C")
+                            +"Air"
+                        }
+                        Stat {
+                            value("31 °C")
+                            +"Road"
+                        }
+                        Stat {
+                            value("12 km/h")
+                            +"Wind, E"
+                        }
+                    }
                     Text(
-                        "24 °C, dry. Two of the four markers fell inside a " +
-                            "rain radius on the previous run.",
+                        "Dry. Two of the four markers fell inside a rain radius " +
+                            "on the previous run.",
                         style = Theme.typography.bodySmall,
                         colour = Theme.colours.contentMuted,
                     )

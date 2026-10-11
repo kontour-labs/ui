@@ -10,3 +10,5 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 
 /** Notches: a motion event's scroll axes. */
 internal actual val platformScrollDeltaInPixels: Boolean = false
+
+internal actual val platformGuardsHomeIndicator: Boolean = false

@@ -1,6 +1,6 @@
 # `Timeline`
 
-*Also on this page: `TimelineItem`, `HorizontalTimeline`, `TimelineColours`, `TimelineLabelPlacement`.*
+*Also on this page: `TimelineItem`, `TimelineNodeGroup`, `HorizontalTimeline`, `TimelineColours`, `TimelineLabelPlacement`.*
 
 <!--sample:TimelineBasics-->
 ```kotlin
@@ -62,6 +62,21 @@ going, **and it is drawn at `connectorWidth`** so it is the same weight as the
 hollow dot it replaces. `Spinner` otherwise derives its stroke from its size,
 which at a 12dp node is 1.5dp against the ring's 2dp: a step going into progress
 got visibly thinner and the rail around it did not.
+
+**`icon` puts a small icon inside the dot** — a train, a walk, a flag at the end.
+The dot grows to `TimelineDefaults.IconNodeSize` to hold it, if `nodeSize` is
+smaller, and only that item's: the rest keep theirs, and the rail still clears
+each by the same gap. On a solid dot the icon takes whichever of light or dark
+reads on it; inside a hollow one, the ring's colour. A `loading` item shows its
+spinner and no icon. It is drawn, not announced, as the dot is, so say what it
+means in the item's words. Across a `HorizontalTimeline` it is the same.
+
+**`TimelineNodeGroup(count)` is one item standing for several stops**: its node
+a few nodes bunched along the rail, up to three however many it stands for, and
+its words saying how many — "Show 10 past stops". It is one item to the rail and
+to `progress`, whose halo goes round the whole stack, and it takes the same
+content and connector as a `TimelineItem`. Across a `HorizontalTimeline` the
+stack runs across. A `TimelineList` has the same as `nodeGroup`.
 
 ## Progress
 

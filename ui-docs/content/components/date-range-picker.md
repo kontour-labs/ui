@@ -60,6 +60,14 @@ back to today and flashes the day, as on
 same reason — a range six months out is six taps away otherwise, in each
 direction.
 
+## Decorations in a range
+
+`decorationFor` and `showDecorationLine` are a [`DatePicker`](date-picker.md#what-the-app-has-to-say-about-a-day)'s.
+In the band between the range's ends a decoration keeps its colours — a fare in
+green is still green — and on the ends it takes their ink, unless it keeps its
+colours there too with `keepColours`. They used to go to the band's ink, which
+read as grey. Today's ring stays a circle inside the band.
+
 ## Dragging across months
 
 **A drag carries on across a month border.** Page with the header's arrows using

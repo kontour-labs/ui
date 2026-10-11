@@ -6,8 +6,13 @@ import io.kontour.ui.dragdrop.DragType
 import io.kontour.ui.dragdrop.DropEvent
 import io.kontour.ui.files.PickedFile
 
-/** A card on the board: a piece of work, and what is attached to it. */
-internal data class Task(val id: Int, val title: String, val attachments: List<PickedFile> = emptyList())
+/** A card on the board: a piece of work, its notes, and what is attached to it. */
+internal data class Task(
+    val id: Int,
+    val title: String,
+    val attachments: List<PickedFile> = emptyList(),
+    val notes: String = "",
+)
 
 /**
  * A column of the board. [limit] is how much work it holds at once — Doing's
@@ -69,6 +74,14 @@ internal class BoardState(lanes: List<Lane>) {
         archived.clear()
     }
 
+    /** [task] to the end of [to], from the sheet rather than by carrying it; nothing if [to] is full. */
+    fun moveTo(task: Task, to: Lane) {
+        val from = laneOf(task.id) ?: return
+        if (from === to || !to.takes(task)) return
+        from.tasks.removeAll { it.id == task.id }
+        to.tasks.add(task)
+    }
+
     fun update(task: Task) {
         val lane = laneOf(task.id) ?: return
         lane.tasks[lane.tasks.indexOfFirst { it.id == task.id }] = task
@@ -80,19 +93,19 @@ internal class BoardState(lanes: List<Lane>) {
                 Lane(
                     "todo", "To do",
                     tasks = listOf(
-                        Task(1, "Refresh the 960 timetable"),
-                        Task(2, "Fares page for the new zones"),
-                        Task(3, "Signage at Elizabeth Quay"),
+                        Task(1, "Refresh the 960 timetable", notes = "New weekday times from 3 March. Check the Mirrabooka connections."),
+                        Task(2, "Fares page for the new zones", notes = "Two zones now cover the whole network. Update the calculator and the PDF."),
+                        Task(3, "Signage at Elizabeth Quay", notes = "Platform 1 wayfinding still points to the old bus stands."),
                     ),
                 ),
                 Lane(
                     "doing", "Doing", limit = 3,
                     tasks = listOf(
-                        Task(4, "Wi-Fi on the Joondalup line"),
-                        Task(5, "Step-free map of Perth Underground"),
+                        Task(4, "Wi-Fi on the Joondalup line", notes = "Trial on two railcars first. Measure drop-outs in the tunnel."),
+                        Task(5, "Step-free map of Perth Underground", notes = "Lifts, ramps and the long way round from each entrance."),
                     ),
                 ),
-                Lane("done", "Done", tasks = listOf(Task(6, "Night bus survey"))),
+                Lane("done", "Done", tasks = listOf(Task(6, "Night bus survey", notes = "1,240 responses. Summary sent to planning."))),
             ),
         )
     }

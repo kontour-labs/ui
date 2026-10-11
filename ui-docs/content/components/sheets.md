@@ -43,11 +43,12 @@ Box(Modifier.fillMaxSize()) {
 }
 ```
 
-Built on foundation's `AnchoredDraggableState`, which already handles the drag,
-the fling and the settle. What `SheetState` adds is the part that is actually
-specific to sheets: turning detents into anchor positions as the container and
-content resize, and handing scroll off between the sheet and whatever scrolls
-inside it.
+Built on foundation's `AnchoredDraggableState`, which holds where the sheet is
+and animates it between anchors. The drag and the throw are the sheet's own, so
+that a flick is read as below. What `SheetState` adds is the part that is
+actually specific to sheets: turning detents into anchor positions as the
+container and content resize, reading a release, and handing scroll off between
+the sheet and whatever scrolls inside it.
 
 ### Detents are values, not an enum
 
@@ -218,6 +219,15 @@ of its own, and the pixels it declines reach the sheet. Sideways is untouched: a
 sheet has no opinion about horizontal scroll, so a carousel in one keeps whatever
 bounce the platform gives it.
 
+**A swipe across a carousel in a sheet is the carousel's, as far as about sixty
+degrees from across.** The sheet waits for a finger to go 1.75 times the
+platform's touch slop up or down before it moves, and anything inside that sets
+off first — a carousel at its own slop across, a list at its own slop down — has
+the gesture. A swipe mostly up or down moves the sheet from anywhere on it, a
+carousel included. The sheet's drag is its own rather than Compose's
+`anchoredDraggable`: a Compose draggable waiting round a carousel takes every
+swipe over thirty degrees from it, however long it would have waited.
+
 This was reported from an iPhone, as two symptoms of one cause — a flick that had
 to be thrown harder than on Android, and a downward drag that *sometimes* pulled
 the list's content down instead of moving the sheet. Each platform installs a
@@ -233,24 +243,28 @@ nested-scroll connection has the same exception: nothing would answer a list tha
 has reached its top, and a list that stops dead is a boundary the finger cannot
 feel.
 
-**One flick closes it.** A release lands where the throw would have carried
-the sheet had it kept going for half a second — what iOS projects a release by —
-at the nearest detent to that, so a hard throw goes past a middle detent and
-closes the sheet in one, where it used to take one flick per detent. A throw of
-the sheet itself, by its handle or its surface, counts from 125dp/s and always
-moves it at least one detent the way it was thrown.
+**A flick goes where it would carry the sheet, so it has to be meant.** A
+release lands at the detent nearest where the throw would have carried the sheet
+had it kept going for a fifth of a second. On a phone, a sheet at its middle
+detent closes from a deliberate flick, about 750dp/s after a 48dp drag, or from
+being hauled past half way; a twitch leaves it where it was. It goes past the
+next detent only when it is thrown at 5000dp/s or more, so an ordinary flick down
+from the top stops at the middle. Below 300dp/s a release settles by position.
+A throw used to be projected half a second, and any flick over the floor moved
+a whole detent, so a sheet went away on a finger moved by accident.
 
-**A finger rolling off the glass is not a throw.** A release only counts as one
-if the finger's last run in one direction was at least 14dp, a little past touch
-slop. A finger that leaves with a few pixels of travel at a few hundred pixels a
-second would otherwise move a full-height sheet a detent. The run starts again
+**A short flick, or a finger rolling off the glass, is not a throw.** A release
+only counts as one if the finger's last run in one direction was at least 48dp,
+about seven and a half millimetres on a phone. A flick of a couple of millimetres
+is still fast, and would otherwise move a sheet a detent, which from its lowest
+one puts it away. The run starts again
 where the finger turns, so a roll-off after pulling a sheet up against its top
 is judged on the roll-off alone.
 
 **A sheet being pulled when the finger lets go owns the release**, as a sheet on
 an iPhone does. If the content has handed the drag to the sheet, the release
-belongs to the sheet: it carries on at the finger's speed, and it moves at least
-one detent the way it was thrown. That holds even when the gesture scrolled the
+belongs to the sheet: it carries on at the finger's speed, to where the throw
+carries it. That holds even when the gesture scrolled the
 list up to its top first. A release used to stop the sheet dead for a few frames
 and then ease it away from rest. A pull that followed a scroll was also read as
 the list's, and sprang back.
@@ -263,11 +277,10 @@ finger was still moving as it lifted, the sheet reads the throw off the last ten
 of a second of the finger's own path. A finger that stopped before lifting still
 settles by position.
 
-**A flick from the content has to be firmer.** Below 300dp/s, a release settles
-by position. A fling the list spent on itself does not move the sheet at all: a
-reader who scrolled the list and let go was moving the list, and its leftovers
-are not a request. The floor was 500dp/s, and closing a sheet was reported as
-taking too much effort; both numbers are for tuning on a device.
+**A flick from the content is read as one on the handle is**, by where it would
+carry the sheet, with the same 300dp/s floor and the same 48dp run. A fling the
+list spent on itself does not move the sheet at all: a reader who scrolled the
+list and let go was moving the list, and its leftovers are not a request.
 
 **A sheet thrown away gives the page back as it goes.** The scrim stops taking
 taps, and the page is readable again, from the moment the sheet is let go on its

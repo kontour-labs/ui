@@ -157,17 +157,18 @@ class SheetFramePressureTest {
      * it back to 0: the content is rasterised once and composited, and only the
      * surface's background and shadow redraw.
      *
-     * The surface's own re-record is not counted here and is not free: it is one
-     * node with two blurred `dropShadow` layers, re-rasterised per frame of a
-     * drag. `countPhases` cannot be put on it from a test — it is private — so
-     * this measures what it can and the rest is written down rather than
-     * asserted. It is the price of the presentation, paid only by callers who
-     * ask for it.
+     * **Nor its shadow.** The surface used to draw it, two blurred `dropShadow`
+     * layers re-rasterised on every frame of a drag because the surface changes
+     * height on every frame — most of a floating sheet's frame on a phone, where
+     * an app measured 25% janky frames dragging one against 5% for an edge
+     * sheet. It is drawn behind the surface now, in pieces that keep their size,
+     * so a drag records it no more than an edge sheet's: see `FloatingShadow`.
      */
     @Test
     fun aFloatingSheetStillCostsItsContentNothingToMove() {
         var frames = 0
         var travelled = 0f
+        var shadowRecords = 0
         val counts = PhaseCounts()
 
         runComposeUiTest {
@@ -189,6 +190,7 @@ class SheetFramePressureTest {
             visible = true
             repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
             counts.reset()
+            val recordedBefore = sheet.shadowRecords
 
             val startedAt = sheet.offset
             repeat(DraggedFrames) { step ->
@@ -197,6 +199,7 @@ class SheetFramePressureTest {
                 frames++
             }
             travelled = abs(sheet.offset - startedAt)
+            shadowRecords = sheet.shadowRecords - recordedBefore
         }
 
         assertTrue(
@@ -207,6 +210,7 @@ class SheetFramePressureTest {
 
         assertBudget("measured", counts.measures, frames)
         assertBudget("drawn", counts.draws, frames)
+        assertBudget("shadow recorded", shadowRecords, frames)
     }
 
     /**
@@ -256,6 +260,66 @@ class SheetFramePressureTest {
             counts.measures <= frames && counts.draws <= frames,
             "a morphing sheet's content was measured ${counts.measures} times and drawn " +
                 "${counts.draws} times over $frames frames — more than once a frame",
+        )
+    }
+
+    /**
+     * And the rest of the sheet does not pay for the morph each frame: its shadow
+     * is recorded once, not blurred again at every new width and corner, and its
+     * surface does not recompose for a corner that has moved a fraction of a
+     * pixel.
+     *
+     * Reported from a phone as a floating sheet that *"really stutters … over the
+     * fake map, especially when its corner radius is changing"*. Each frame of
+     * the morph built a new shape, which recomposed the surface and its shadow,
+     * and the shadow's pieces were as wide as the sheet, which widens through the
+     * morph: four blurs a frame, one of them the height of the tallest detent.
+     */
+    @Test
+    fun aMorphingSheetsShadowAndSurfaceAreNotRebuiltEachFrame() {
+        var frames = 0
+        var shadowRecords = 0
+        var compositions = 0
+        var morphedFrom = 0f
+        var morphedTo = 0f
+
+        runComposeUiTest {
+            var visible by mutableStateOf(false)
+            lateinit var sheet: SheetState
+
+            setContent {
+                Harness(visible, SheetPresentation.Floating) { state ->
+                    sheet = state
+                    Body(PhaseCounts())
+                }
+            }
+            waitForIdle()
+
+            mainClock.autoAdvance = false
+            visible = true
+            repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
+            val morph = SheetEdgeMorph()
+            morphedFrom = sheet.edgeMorphFraction(morph, sheet.offset)
+            val recordedBefore = sheet.shadowRecords
+            val composedBefore = sheet.surfaceCompositions
+            repeat(DraggedFrames) { step ->
+                sheet.anchoredState.dispatchRawDelta(if (step % 2 == 0) -6f else -4f)
+                mainClock.advanceTimeByFrame()
+                frames++
+            }
+            morphedTo = sheet.edgeMorphFraction(morph, sheet.offset)
+            shadowRecords = sheet.shadowRecords - recordedBefore
+            compositions = sheet.surfaceCompositions - composedBefore
+        }
+
+        assertTrue(
+            morphedTo - morphedFrom > 0.2f,
+            "the drag went from ${morphedFrom} to ${morphedTo} of the way through the morph, so this measured no morph",
+        )
+        assertBudget("shadow recorded", shadowRecords, frames)
+        assertTrue(
+            compositions <= 2,
+            "the sheet's surface composed $compositions times over $frames frames of morphing",
         )
     }
 

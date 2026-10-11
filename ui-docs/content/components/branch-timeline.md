@@ -47,12 +47,19 @@ The builder declares each commit's row with `item`, **the same `item` a
 
 - **`onClick`, `selected`, `enabled`, `role`**: the row is a `ListItem`, and
   presses, selects and reads like one.
-- **`nodeColour`, `filled`, `loading`**: the node's colour, a ring rather than
-  a dot, and a spinner in its place while the commit is being built or checked.
+- **`nodeColour`, `filled`, `loading`, `icon`**: the node's colour, a ring
+  rather than a dot, a spinner in its place while the commit is being built or
+  checked, and a small icon inside it — a release, a merge. A node with an icon
+  is `TimelineDefaults.IconNodeSize` across, which fills a default lane; give
+  the timeline a wider `laneWidth` if commits off the first lane have them.
 - **`connector`, `connectorColour`, `connectorWidth`**: how the commit's lines
   down to its parents are drawn, in every row they pass. A dashed line for a
   branch that only exists locally, a dotted one for work nobody has committed
   to, or a release branch's commits all in one colour.
+
+**`nodeGroup(count)` stands for several commits in one row** — "12 more
+commits" — its node a few nodes bunched down the lane, as a `TimelineList`'s
+does. The commit's `parents` still say where its lines go.
 
 **A merge is a ring unless it says otherwise.** `filled` defaults to the
 scope's `filledByDefault`, which is false for a commit with more than one

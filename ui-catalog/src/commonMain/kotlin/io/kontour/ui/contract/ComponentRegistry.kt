@@ -132,6 +132,7 @@ import io.kontour.ui.components.display.KbdIcons
 import io.kontour.ui.components.display.KeyValueList
 import io.kontour.ui.components.display.LinearProgress
 import io.kontour.ui.components.display.PageIndicator
+import io.kontour.ui.components.display.ThumbnailStrip
 import io.kontour.ui.components.display.PageIndicatorStyle
 import io.kontour.ui.components.display.Spinner
 import io.kontour.ui.components.display.Stat
@@ -2825,6 +2826,16 @@ val componentRegistry: List<ComponentSpec> = buildList {
         ComponentSpec("PageIndicator", role = null, underContract = false) { modifier, _, _ ->
             val carousel = rememberCarouselState { 5 }
             PageIndicator(state = carousel, modifier = modifier, onPageClick = {})
+        }
+    )
+
+    add(
+        ComponentSpec("ThumbnailStrip", role = null, underContract = false) { modifier, _, _ ->
+            val carousel = rememberCarouselState { 12 }
+            val tones = listOf(Theme.colours.info.solid, Theme.colours.success.solid, Theme.colours.warning.solid, Theme.colours.accent.solid)
+            ThumbnailStrip(state = carousel, modifier = modifier.width(SpecimenProseWidth)) { page ->
+                Box(Modifier.fillMaxSize().background(tones[page % tones.size]))
+            }
         }
     )
 }

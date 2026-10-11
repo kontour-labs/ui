@@ -10,6 +10,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,11 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
      * @param filled A solid node for a stop; a ring for a point passed through.
      * @param loading A spinner in place of the node, for the one being waited
      *   on. Drawn, not announced: say "in progress" in the row's words too.
+     * @param icon A small icon inside the node — a train, a walk, a flag at the
+     *   end. The node grows to [TimelineDefaults.IconNodeSize] to hold it, and
+     *   the icon takes whichever of light or dark reads on a solid node, or the
+     *   ring's colour inside a hollow one. Decorative, like the node: say what
+     *   it means in the row's words. Not drawn while [loading].
      * @param connector How this row joins the next — the leg after it, or in a
      *   history, the lines down to its parents.
      * @param connectorColour The leg's colour. Unspecified takes the timeline's.
@@ -79,6 +85,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         nodeColour: Color = Color.Unspecified,
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
+        icon: ImageVector? = null,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         connectorColour: Color = Color.Unspecified,
         connectorWidth: Dp = Dp.Unspecified,
@@ -88,9 +95,68 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         content: ListItemScope.() -> Unit,
     ) {
         stops += TimelineStop(
-            nodeColour, filled, loading, connector, connectorColour, connectorWidth,
+            nodeColour, filled, loading, icon, connector, connectorColour, connectorWidth,
             enabled, selected, role, onClick, content,
         )
+    }
+
+    /**
+     * One row that stands for several stops — "Show 10 past stops", the stretch
+     * of a trip nobody needs to see stop by stop — its node a few nodes bunched
+     * along the rail, overlapping. One row, one label and one tap, to the rail
+     * and to progress alike: put a journey that is somewhere among the stops it
+     * stands for at this row, and the halo goes round the whole stack.
+     *
+     * Its legs are a stop's: the one after it is [connector], and the one
+     * before it the row before's.
+     *
+     * @param count How many stops the row stands for. Up to three nodes are
+     *   drawn, however many it is; the number is drawn, not announced, so say it
+     *   in the row's words.
+     * @param filled Solid nodes rather than rings. Rings by default, for stops
+     *   passed over.
+     */
+    fun nodeGroup(
+        count: Int,
+        enabled: Boolean = true,
+        nodeColour: Color = Color.Unspecified,
+        filled: Boolean = false,
+        connector: ConnectorStyle = ConnectorStyle.Solid,
+        connectorColour: Color = Color.Unspecified,
+        connectorWidth: Dp = Dp.Unspecified,
+        role: Role = Role.Button,
+        onClick: (() -> Unit)? = null,
+        content: ListItemScope.() -> Unit,
+    ) {
+        require(count >= 1) { "A node group stands for at least one stop, not $count" }
+        stops += TimelineStop(
+            nodeColour, filled, loading = false, icon = null, connector, connectorColour, connectorWidth,
+            enabled, selected = false, role, onClick, content, stack = count.coerceAtMost(MaxGroupNodes),
+        )
+    }
+
+    /** One row that stands for several stops, as text: "Show 10 past stops". */
+    fun nodeGroup(
+        label: String,
+        count: Int,
+        supporting: String? = null,
+        trailing: String? = null,
+        nodeColour: Color = Color.Unspecified,
+        filled: Boolean = false,
+        connector: ConnectorStyle = ConnectorStyle.Solid,
+        onClick: (() -> Unit)? = null,
+    ) {
+        nodeGroup(
+            count = count,
+            nodeColour = nodeColour,
+            filled = filled,
+            connector = connector,
+            onClick = onClick,
+        ) {
+            +label
+            if (supporting != null) supporting { +supporting }
+            if (trailing != null) trailing { +trailing }
+        }
     }
 
     /**
@@ -104,6 +170,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
         nodeColour: Color = Color.Unspecified,
         filled: Boolean = filledByDefault,
         loading: Boolean = false,
+        icon: ImageVector? = null,
         connector: ConnectorStyle = ConnectorStyle.Solid,
         onClick: (() -> Unit)? = null,
     ) {
@@ -111,6 +178,7 @@ abstract class TimelineRowScope internal constructor(val filledByDefault: Boolea
             nodeColour = nodeColour,
             filled = filled,
             loading = loading,
+            icon = icon,
             connector = connector,
             onClick = onClick,
         ) {
@@ -339,6 +407,8 @@ internal fun TimelineRow.rail(
             ringWidth = stop.connectorWidth.takeOrElse { defaultWidth },
             here = here?.here == true,
             reached = here?.reached != false,
+            icon = stop.icon.takeIf { !stop.loading },
+            stack = stop.stack,
         ),
         legs = listOfNotNull(
             above?.leg(LegAt.Start, index - 1, from = 1f),

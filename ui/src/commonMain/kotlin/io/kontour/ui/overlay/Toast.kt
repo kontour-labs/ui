@@ -1,5 +1,16 @@
 package io.kontour.ui.overlay
 
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.runtime.withFrameMillis
+import kotlin.time.TimeMark
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.union
 import androidx.compose.ui.layout.findRootCoordinates
@@ -151,6 +162,19 @@ internal class Toast(
      * in one frame, after it had gone.
      */
     internal var leftFrom by mutableStateOf(Offset.Zero)
+
+    /** What was left of its time, in milliseconds, when its clock last started or stopped. */
+    internal var leftMillis by mutableLongStateOf(durationMillis)
+
+    /** When its clock last started, while it runs; null while it is stopped. */
+    internal var runningSince: TimeMark? by mutableStateOf(null)
+
+    /** How much of its time is left, 1 to 0, as of now: what a countdown draws. */
+    internal fun remaining(): Float {
+        if (durationMillis <= 0) return 1f
+        val spent = runningSince?.elapsedNow()?.inWholeMilliseconds ?: 0L
+        return ((leftMillis - spent).toFloat() / durationMillis).coerceIn(0f, 1f)
+    }
 }
 
 /**
@@ -329,6 +353,28 @@ class ToastHostState {
 /** Remembers a [ToastHostState], the queue a [ToastHost] shows. */
 @Composable
 fun rememberToastHostState(): ToastHostState = remember { ToastHostState() }
+
+/**
+ * How a toast shows the time it has left, if at all.
+ *
+ * A toast that leaves by itself gives the reader no warning, and one with an
+ * action is gone before a slow reader reaches for it. A countdown says how
+ * long there is, and freezes while the toast is held or the pointer rests on
+ * it — which is when its clock stops. A pinned toast has no countdown.
+ */
+enum class ToastCountdown {
+    /** None: the toast leaves when its time is up, unannounced. */
+    None,
+
+    /**
+     * Its background, washed in its own ink from the start edge and drawn
+     * back toward it as the time runs out.
+     */
+    Wipe,
+
+    /** A thin bar along its foot, shortening toward the start as the time runs out. */
+    Bar,
+}
 
 /**
  * Which edge a stack of toasts is anchored to.
@@ -648,6 +694,9 @@ object ToastDefaults {
  * @param showDismiss Puts a close control on every toast. Off by default, because
  *   a toast that dismisses itself in four seconds does not need one — turn it on
  *   where toasts are pinned, or where they carry an action worth reading twice.
+ * @param countdown Shows the front toast's time left: a wash across its
+ *   background or a bar along its foot, each drawn back as the time runs out
+ *   and still while the clock is. None by default.
  */
 @Composable
 fun ToastHost(
@@ -669,6 +718,7 @@ fun ToastHost(
     maxVisible: Int = ToastDefaults.MaxVisible,
     showDismiss: Boolean = false,
     dismissLabel: String = Theme.strings.dismiss,
+    countdown: ToastCountdown = ToastCountdown.None,
     /**
      * What a toast keeps clear of. The gesture bar, the cutout and the keyboard —
      * a confirmation of what the user just typed, hidden behind the keyboard they
@@ -706,6 +756,7 @@ fun ToastHost(
             showClose = showDismiss,
             closeLabel = dismissLabel,
             windowInsets = windowInsets,
+            countdown = countdown,
         )
     )
 
@@ -895,6 +946,7 @@ private data class ToastHostConfig(
     val showClose: Boolean,
     val closeLabel: String,
     val windowInsets: WindowInsets,
+    val countdown: ToastCountdown,
 )
 
 @Composable
@@ -1000,6 +1052,13 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
      */
     val held = remember { mutableStateOf(false) }
 
+    /**
+     * Whether a mouse's pointer is resting on the front card: its clock stops,
+     * as a finger's does, so a countdown never runs out under the pointer
+     * reading it.
+     */
+    val hovered = remember { mutableStateOf(false) }
+
     val frontId = visible.lastOrNull()?.id
     val settle = remember(stackScope, pull) { PullSettle(stackScope, pull) }
     LaunchedEffect(frontId) {
@@ -1009,6 +1068,8 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
         // A card dismissed mid-gesture never reaches its own release handler, and a
         // stuck flag here would stop every clock in the stack for good.
         held.value = false
+        // The pointer was on the card that has gone, not on this one.
+        hovered.value = false
     }
 
     // Every toast runs its clock, including the ones with no room to be drawn.
@@ -1063,21 +1124,27 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     // stack is one object — the others are in the queue behind a
                     // card that is not going anywhere, and expiring on schedule
                     // would empty the queue the reader is holding open.
-                    if (held.value) {
-                        snapshotFlow { held.value }.first { !it }
+                    if (held.value || hovered.value) {
+                        toast.leftMillis = left
+                        toast.runningSince = null
+                        snapshotFlow { held.value || hovered.value }.first { !it }
                         continue
                     }
                     val mark = TimeSource.Monotonic.markNow()
+                    toast.leftMillis = left
+                    toast.runningSince = mark
                     // Any of the three things that can interrupt the wait, together:
                     // this toast reaches the front, the user sends another one away
                     // by hand, or a finger arrives on the stack.
                     val moved = withinOrNull(left) {
-                        snapshotFlow { Triple(atFront, state.clears, held.value) }
+                        snapshotFlow { Triple(atFront, state.clears, held.value || hovered.value) }
                             .first { (nowFront, nowClears, nowHeld) ->
                                 nowFront != front || nowClears != clears || nowHeld
                             }
                     }
                     left -= mark.elapsedNow().inWholeMilliseconds
+                    toast.leftMillis = left.coerceAtLeast(0)
+                    toast.runningSince = null
                     if (moved == null) break
                     val (nowFront, nowClears, _) = moved
                     if (nowClears != clears) {
@@ -1114,7 +1181,7 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     val since = state.lastExpiry?.elapsedNow()?.inWholeMilliseconds
                     if (since != null && since < ToastStagger) delay(ToastStagger - since)
                     // A finger that arrived during the wait holds this one too.
-                    if (held.value) snapshotFlow { held.value }.first { !it }
+                    if (held.value || hovered.value) snapshotFlow { held.value || hovered.value }.first { !it }
                     state.lastExpiry = TimeSource.Monotonic.markNow()
                     // `expire`, not `dismiss`: running out of time is the stack
                     // working, and must not read as the user clearing one.
@@ -1152,6 +1219,8 @@ private fun ToastStack(state: ToastHostState, config: ToastHostConfig) {
                     pull = pull,
                     settle = settle,
                     held = held,
+                    hovered = hovered,
+                    countdown = config.countdown,
                     scope = stackScope,
                     modifier = config.modifier,
                 )
@@ -1192,6 +1261,9 @@ private fun ToastCard(
     settle: PullSettle,
     /** Set while a finger is on this card. See `ToastStack`, which owns it. */
     held: MutableState<Boolean>,
+    /** Whether a mouse's pointer rests on the front card: see `ToastStack`. */
+    hovered: MutableState<Boolean>,
+    countdown: ToastCountdown,
     /** The stack's scope — see the settle in the gesture below. */
     scope: CoroutineScope,
     modifier: Modifier,
@@ -1389,7 +1461,10 @@ private fun ToastCard(
             depth = depth,
             showClose = showClose && depth == 0,
             closeLabel = closeLabel,
+            countdown = countdown,
             modifier = modifier
+                // A mouse resting on the front card stops the clocks.
+                .then(if (depth == 0) Modifier.pointerHovers(hovered) else Modifier)
                 // The gesture is the outermost thing, above the padding — and
                 // that is the point. Below it the swipe area was exactly the
                 // visible pill and the 16dp ring around it was dead space, on a
@@ -1574,6 +1649,7 @@ private fun ToastSurface(
     toast: Toast,
     showClose: Boolean,
     closeLabel: String,
+    countdown: ToastCountdown,
     /** Zero is the front one. Anything behind it is drawn as a bare pill. */
     depth: Int,
     modifier: Modifier,
@@ -1714,7 +1790,7 @@ private fun ToastSurface(
         }
         CompositionLocalProvider(LocalTouchTargetOwnedByParent provides hasControls) {
         Row(
-            modifier = reserved.padding(
+            modifier = reserved.countdownDrawn(toast, countdown, content).padding(
                 start = Theme.spacing.md,
                 end = if (hasControls) Theme.spacing.xs else Theme.spacing.md,
                 top = Theme.spacing.xs,
@@ -1786,6 +1862,72 @@ private fun ToastSurface(
  * four is gone within a second of the first leaving.
  */
 private const val ToastStagger = 250L
+
+/**
+ * [toast]'s time left, drawn as [countdown] says in its own [ink]: read from
+ * its clock each frame and drawn, so it recomposes nothing as it runs, and
+ * stands still while the clock does. Nothing for a pinned toast.
+ */
+@Composable
+private fun Modifier.countdownDrawn(toast: Toast, countdown: ToastCountdown, ink: Color): Modifier {
+    if (countdown == ToastCountdown.None || toast.durationMillis <= 0) return this
+    val left = remember(toast) { mutableFloatStateOf(toast.remaining()) }
+    LaunchedEffect(toast) {
+        while (true) {
+            withFrameMillis { }
+            left.floatValue = toast.remaining()
+        }
+    }
+    val wash = ink.copy(alpha = CountdownWash)
+    val bar = ink.copy(alpha = CountdownBarInk)
+    return drawWithContent {
+        val share = left.floatValue
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        if (countdown == ToastCountdown.Wipe) {
+            val width = size.width * share
+            drawRect(wash, topLeft = Offset(if (rtl) size.width - width else 0f, 0f), size = Size(width, size.height))
+        }
+        drawContent()
+        if (countdown == ToastCountdown.Bar) {
+            // Along the flat of the capsule's foot, clear of its round ends.
+            val height = CountdownBarHeight.toPx()
+            val inset = size.height / 2f
+            val track = (size.width - inset * 2f).coerceAtLeast(0f)
+            val width = track * share
+            if (width <= 0f) return@drawWithContent
+            val left = if (rtl) size.width - inset - width else inset
+            drawRoundRect(
+                bar,
+                topLeft = Offset(left, size.height - height * 2f),
+                size = Size(width, height),
+                cornerRadius = CornerRadius(height / 2f),
+            )
+        }
+    }
+}
+
+/** How strong a countdown's wash is, of the toast's ink. */
+private const val CountdownWash = 0.16f
+
+/** How strong a countdown's bar is, of the toast's ink. */
+private const val CountdownBarInk = 0.7f
+
+/** How thick a countdown's bar is. */
+private val CountdownBarHeight = 3.dp
+
+/** Tells [hovered] whether a mouse's pointer is on this. A finger's comings and goings are not hovering. */
+private fun Modifier.pointerHovers(hovered: MutableState<Boolean>): Modifier = pointerInput(hovered) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.changes.firstOrNull()?.type != PointerType.Mouse) continue
+            when (event.type) {
+                PointerEventType.Enter -> hovered.value = true
+                PointerEventType.Exit -> hovered.value = false
+            }
+        }
+    }
+}
 
 /**
  * A leaving card's fade, held back so it is still nearly opaque while it gets

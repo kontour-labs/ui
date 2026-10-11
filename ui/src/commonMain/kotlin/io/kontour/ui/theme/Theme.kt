@@ -35,6 +35,8 @@ import io.kontour.ui.locale.rememberLocaleFormats
 import io.kontour.ui.motion.FingerTrail
 import io.kontour.ui.motion.catchRestedFlicks
 import io.kontour.ui.platform.platformLosesRestedFlicks
+import io.kontour.ui.platform.platformGuardsHomeIndicator
+import io.kontour.ui.input.guardHomeIndicator
 import io.kontour.ui.platform.platformPrefersHighContrast
 import io.kontour.ui.platform.platformPrefersReducedMotion
 import io.kontour.ui.platform.InstallKeyboardPrimer
@@ -443,6 +445,7 @@ private fun ThemeContent(alreadyTracking: Boolean, content: @Composable () -> Un
                 Modifier
                     .trackInputModality(modality)
                     .then(if (platformLosesRestedFlicks) Modifier.catchRestedFlicks(trail) else Modifier)
+                    .then(if (platformGuardsHomeIndicator) Modifier.guardHomeIndicator() else Modifier)
             ) {
                 content()
             }

@@ -128,11 +128,14 @@ class SheetSettleTest {
     }
 
     /**
-     * A flick of the sheet itself goes at least a detent the way it was thrown,
-     * and as far as it projects to; below the handle's floor, to the nearest.
+     * A flick of the sheet itself goes where it would carry the sheet, and past
+     * the next detent only when it is thrown hard; below the floor, to the
+     * nearest. It used to go at least a detent on any flick over the floor, so a
+     * twitch moved a sheet — *"it has to feel intentional"*. An ordinary flick
+     * from the top used to project past the middle and close the sheet.
      */
     @Test
-    fun aFlickOfTheSheetGoesAtLeastADetentAndAsFarAsItIsThrown() {
+    fun aFlickOfTheSheetGoesWhereItIsThrownAndOnlyAHardOneGoesPastTheNext() {
         val state = SheetState(
             detents = listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded),
             initialDetent = SheetDetent.Expanded,
@@ -149,9 +152,14 @@ class SheetSettleTest {
             SheetDetent.Expanded,
         )
         val handle = with(Density(1f)) { SheetHandleFlickVelocity.toPx() }
-        assertEquals(SheetDetent.Half, state.detentFlungTo(200f, handle), "a gentle flick down goes one detent")
-        assertEquals(SheetDetent.Hidden, state.detentFlungTo(2000f, handle), "a hard one closes it past the middle")
-        assertEquals(SheetDetent.Expanded, state.detentFlungTo(60f, handle), "under the floor it stays where it is nearest")
+        assertEquals(SheetDetent.Expanded, state.detentFlungTo(400f, handle), "a twitch down, projected 80px, stays where it is")
+        assertEquals(SheetDetent.Expanded, state.detentFlungTo(700f, handle), "a soft flick projected 140px, short of half way to the middle, stays")
+        assertEquals(SheetDetent.Half, state.detentFlungTo(1000f, handle), "a real flick down, projected 200px, goes one detent")
+        assertEquals(SheetDetent.Half, state.detentFlungTo(2000f, handle), "an ordinary flick down from the top stops at the middle")
+        assertEquals(SheetDetent.Half, state.detentFlungTo(4000f, handle), "a brisk flick down from the top, a phone's ordinary one, stops at the middle")
+        val skip = with(Density(1f)) { SheetSkipVelocity.toPx() }
+        assertEquals(SheetDetent.Hidden, state.detentFlungTo(skip + 500f, handle), "a hard one closes it past the middle")
+        assertEquals(SheetDetent.Expanded, state.detentFlungTo(200f, handle), "under the floor it stays where it is nearest")
         assertEquals(SheetDetent.Expanded, state.detentFlungTo(-2000f, handle), "up from the top it stays at the top")
     }
 

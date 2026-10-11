@@ -20,7 +20,7 @@ DateTimePicker(
 )
 ```
 
-The calendar's parameters — `today`, `isDateSelectable`, `markerFor`, the icons,
+The calendar's parameters — `today`, `isDateSelectable`, `decorationFor`, the icons,
 `navigation` and `firstDayOfWeek` — mean what they mean on the `DatePicker`, and
 `minuteStep` what it means on the `TimePicker`. The clock, 12-hour or 24, comes
 from [`LocaleFormats`](locale-formats.md) as the time picker's does.

@@ -414,20 +414,18 @@ fun DatePicker(
     enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
-    /** Draws a dot under a day: for "this day has departures", or a trip already booked. */
-    markerFor: ((LocalDate) -> Color?)? = null,
     /**
-     * A day's own colour: its circle filled with it, and its number in the ink
-     * that reads on it — a public holiday, a day sold out, how busy each day is.
-     * The chosen day is drawn over it. See [CalendarMonth].
+     * What to draw on a day besides its number: dots under it, a few
+     * characters and an icon — a fare, a count — and a colour of its own, each
+     * of which can keep its colour on the chosen day. See [DayDecoration].
      */
-    containerColourFor: ((LocalDate) -> Color?)? = null,
+    decorationFor: ((LocalDate) -> DayDecoration?)? = null,
     /**
-     * A few characters under a day's number — a fare, a count — and the colour
-     * they are in: see [DayAnnotation]. Given at all, every week is a line
-     * taller, in every month, so the picker does not change height as it pages.
+     * A line under the numbers for decorations' text and icons, every week a
+     * line taller so the picker does not change height as it pages. On
+     * whenever there are decorations; off for a picker that only draws dots.
      */
-    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
+    showDecorationLine: Boolean = decorationFor != null,
     /**
      * The glyphs on the buttons either side of the month, back and on.
      *
@@ -506,9 +504,8 @@ fun DatePicker(
             enabled = enabled,
             isDateSelectable = isDateSelectable,
             today = today,
-            markerFor = markerFor,
-            containerColourFor = containerColourFor,
-            annotationFor = annotationFor,
+            decorationFor = decorationFor,
+            showDecorationLine = showDecorationLine,
             formats = formats,
             firstDayOfWeek = firstDayOfWeek,
         )
@@ -544,15 +541,14 @@ fun DateRangePicker(
     enabled: Boolean = true,
     today: LocalDate? = null,
     isDateSelectable: (LocalDate) -> Boolean = { true },
-    /** Draws a dot under a day, as a [DatePicker]'s does. */
-    markerFor: ((LocalDate) -> Color?)? = null,
     /**
-     * A day's own colour, as a [DatePicker]'s: the range is drawn over it, so a
-     * fortnight across a holiday still reads as one band.
+     * What to draw on a day besides its number, as a [DatePicker]'s: see
+     * [DayDecoration]. In the band of the range a decoration keeps its colours;
+     * on its ends, as on a chosen day, it takes their ink unless it keeps them.
      */
-    containerColourFor: ((LocalDate) -> Color?)? = null,
-    /** A few characters under a day's number, as a [DatePicker]'s: see [DayAnnotation]. */
-    annotationFor: ((LocalDate) -> DayAnnotation?)? = null,
+    decorationFor: ((LocalDate) -> DayDecoration?)? = null,
+    /** See [DatePicker]. */
+    showDecorationLine: Boolean = decorationFor != null,
     /** See [DatePicker]. */
     previousIcon: ImageVector? = SystemIcons.ChevronBack,
     nextIcon: ImageVector? = SystemIcons.ChevronForward,
@@ -646,9 +642,8 @@ fun DateRangePicker(
             enabled = enabled,
             isDateSelectable = isDateSelectable,
             today = today,
-            markerFor = markerFor,
-            containerColourFor = containerColourFor,
-            annotationFor = annotationFor,
+            decorationFor = decorationFor,
+            showDecorationLine = showDecorationLine,
             rangePositionOf = { date -> rangePosition(date, start, end) },
             // Dragged out in one gesture, in either direction, by the drag held
             // above — which every month in the pager draws from.

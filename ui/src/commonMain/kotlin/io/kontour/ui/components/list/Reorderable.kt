@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -513,7 +515,11 @@ fun LazyItemScope.ReorderableItem(
                             alpha = raised,
                         )
                     }
-            ) { content() }
+            ) {
+                // A row held to lift it: swipe actions inside wait out a held
+                // fingertip's wander before they take it for a swipe.
+                CompositionLocalProvider(LocalHeldToPickUp provides { enabled && !pointerImmediate }) { content() }
+            }
             ReorderGripSlot(
                 icon = handleIcon,
                 side = ReorderHandleSide.End,
@@ -724,9 +730,19 @@ private fun Modifier.reorderDrag(
             onCarry = onDrag,
             onPutDown = onEnd,
             onCancel = { if (owned) { owned = false; state.stop() } },
+            // Once lifted, the row's alone: its own swipe actions, inside it,
+            // cannot take the carry. See `SwipeReorderTest`.
+            exclusive = true,
         )
     }
 }
+
+/**
+ * Whether the row something is in can be held to pick it up — a reorderable row
+ * on a touchscreen — read when a press lands. For swipe actions inside one,
+ * which wait out a held fingertip's wander before claiming a swipe.
+ */
+internal val LocalHeldToPickUp = staticCompositionLocalOf<() -> Boolean> { { false } }
 
 /**
  * How far the dragged row lifts off the list.

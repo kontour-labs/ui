@@ -172,23 +172,6 @@ class EventCalendarTest {
     }
 
     @Test
-    fun theYearOpensAtTheMonthItIsOnWithEveryMonthInViewFilledIn() = runComposeUiTest {
-        val probe = calendar(view = CalendarView.Year)
-        fun day(date: LocalDate) = onNode(
-            androidx.compose.ui.test.SemanticsMatcher.expectValue(
-                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
-                probe.formats.date(date, DateStyle.Full),
-            ),
-        )
-        // October's row first: January is scrolled past, not shown above it.
-        onNode(hasText(probe.formats.monthName(kotlinx.datetime.Month.OCTOBER, io.kontour.ui.locale.NameWidth.Wide))).assertExists()
-        onNode(hasText(probe.formats.monthName(kotlinx.datetime.Month.JANUARY, io.kontour.ui.locale.NameWidth.Wide))).assertDoesNotExist()
-        // And its days there, and those of the month beside it, filled in a frame apart.
-        day(today).assertExists()
-        day(LocalDate(2026, 9, 1)).assertExists()
-    }
-
-    @Test
     fun anEmptyTimePressedIsTheQuarterHourItIsIn() = runComposeUiTest {
         val pressed = mutableListOf<LocalDateTime>()
         val probe = calendar(view = CalendarView.Day, events = emptyList(), onTimeClick = { pressed += it })
@@ -212,12 +195,41 @@ class EventCalendarTest {
         assertEquals(LocalDate(2026, 2, 28), probe.state.date)
     }
 
+    /**
+     * A month's visible dates are its whole weeks and whatever weeks are
+     * scrolled into view beside them: six rows, so October's five and the
+     * first week of November under them, which an app loads events for too.
+     */
     @Test
-    fun theVisibleDatesOfAMonthAreItsWholeWeeks() = runComposeUiTest {
+    fun theVisibleDatesOfAMonthAreTheWeeksOnScreen() = runComposeUiTest {
         val probe = calendar()
         val dates = probe.state.visibleDates
         assertEquals(LocalDate(2026, 9, 28), dates.start)
-        assertEquals(LocalDate(2026, 11, 1), dates.endInclusive)
+        assertEquals(LocalDate(2026, 11, 8), dates.endInclusive)
+    }
+
+    /**
+     * An event that starts below another's title is laid over it, most of
+     * the day wide, as Google's calendar does: asked for as *"if the text
+     * doesn't overlap, then the event partially overlaps"*. A lane each made
+     * a week's three overlapping meetings a letter wide apiece. Where they
+     * overlap, a press is the later one's: it is the one on top.
+     */
+    @Test
+    fun anEventStartingBelowAnothersTitleIsLaidOverIt() = runComposeUiTest {
+        val review = CalendarEvent(10, "Design review", LocalDateTime(2026, 10, 14, 9, 0), LocalDateTime(2026, 10, 14, 11, 0))
+        val planning = CalendarEvent(11, "Planning", LocalDateTime(2026, 10, 14, 10, 0), LocalDateTime(2026, 10, 14, 10, 30))
+        val clicked = mutableListOf<CalendarEvent>()
+        val probe = calendar(view = CalendarView.Day, events = listOf(review, planning), onEventClick = { clicked += it })
+        val under = onNode(hasContentDescription(eventDescription(review, probe.formats, probe.strings))).fetchSemanticsNode().boundsInRoot
+        val over = onNode(hasContentDescription(eventDescription(planning, probe.formats, probe.strings))).fetchSemanticsNode().boundsInRoot
+        assertTrue(over.left > under.left, "the later event is not in from the one it is over: $over, $under")
+        assertTrue(over.left < under.right, "the later event is beside the other, not over it: $over, $under")
+        assertTrue(over.width > under.width * 0.6f, "the later event is ${over.width}px of the day's ${under.width}px")
+        assertTrue(over.top < under.bottom, "the fixture does not overlap")
+        onRoot().performTouchInput { click(Offset(over.left + 8f, over.top + 8f)) }
+        waitForIdle()
+        assertEquals(listOf(planning), clicked, "a press where they overlap went to the event underneath")
     }
 
     @Test

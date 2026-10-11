@@ -12,9 +12,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,7 @@ import io.kontour.ui.overlay.OverlayHost
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -82,6 +85,40 @@ class SheetHeaderInsetTest {
         }
     }
 
+    /**
+     * A back button leads the header as a top bar's does: its icon as far in from
+     * its side as the close button's from the other, the title after it, and a
+     * large title still in line with what it heads.
+     */
+    @Test
+    fun aBackButtonLeadsTheHeader() {
+        for (style in listOf(SheetHeaderStyle.Small, SheetHeaderStyle.Large)) runComposeUiTest {
+            var backs = 0
+            mainClock.autoAdvance = false
+            setContent { Harness(style, onBack = { backs++ }) {} }
+            settle()
+            val body = onNodeWithTag(Body).getBoundsInRoot()
+            val back = onNodeWithContentDescription("Back").getBoundsInRoot()
+            val title = onNodeWithText(Title, useUnmergedTree = true).getBoundsInRoot()
+            // As far in from its side as the close button's icon is from the other.
+            val close = onNodeWithContentDescription("Close").getBoundsInRoot()
+            near(
+                body.right - (close.right - (close.right - close.left - Icon) / 2),
+                back.left + (back.right - back.left - Icon) / 2 - body.left,
+                "$style: the back icon from the sheet's side, against the close icon from the other",
+            )
+            near(close.top, back.top, "$style: the back button against the close button, vertically")
+            if (style == SheetHeaderStyle.Large) {
+                near(Inset, title.left - body.left, "$style: the large title from the sheet's side")
+            } else {
+                assertTrue(title.left >= back.right, "$style: the title at ${title.left} is not after the back button, which ends at ${back.right}")
+            }
+            onNodeWithContentDescription("Back").performClick()
+            mainClock.advanceTimeByFrame()
+            assertEquals(1, backs, "$style: the back button did not call onBack")
+        }
+    }
+
     private fun ComposeUiTest.settle() {
         repeat(90) { mainClock.advanceTimeByFrame() }
     }
@@ -91,7 +128,7 @@ class SheetHeaderInsetTest {
     }
 
     @Composable
-    private fun Harness(style: SheetHeaderStyle, onState: (SheetState) -> Unit) {
+    private fun Harness(style: SheetHeaderStyle, onBack: (() -> Unit)? = null, onState: (SheetState) -> Unit) {
         KontourTheme(reduceMotion = true) {
             Box(Modifier.fillMaxSize().background(Color.White)) {
                 OverlayHost(Modifier.fillMaxSize()) {
@@ -104,7 +141,7 @@ class SheetHeaderInsetTest {
                     )
                     onState(state)
                     BottomSheet(state = state, presentation = SheetPresentation.Edge) {
-                        SheetHeader(modifier = Modifier.sheetPeekAnchor(), style = style) { +Title }
+                        SheetHeader(modifier = Modifier.sheetPeekAnchor(), style = style, onBack = onBack) { +Title }
                         Box(Modifier.fillMaxWidth().height(400.dp).testTag(Body))
                     }
                 }

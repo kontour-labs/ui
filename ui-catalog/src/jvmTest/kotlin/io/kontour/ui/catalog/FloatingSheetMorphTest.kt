@@ -307,15 +307,16 @@ class FloatingSheetMorphTest {
     }
 
     /**
-     * The content stays still while the surface grows around it.
+     * The content widens with the surface as the sheet fills to the sides, rather
+     * than waiting for it to land.
      *
-     * It used to reflow at every width the morph passed through, and content whose
-     * height depends on its width — a line of text that wraps — changed the sheet's
-     * height, and with it the anchors, in the middle of the drag: the other half of
-     * the reported snap.
+     * It was held at its floating width through the morph, so the surface grew
+     * past content standing still; then it widened only once the sheet had come
+     * to rest at the top. Asked for instead: the side padding easing away as the
+     * sheet fills, under the finger.
      */
     @Test
-    fun theContentKeepsItsWidthThroughTheMorph() {
+    fun theContentWidensWithTheSheetAsItFills() {
         fun widthAt(at: SheetDetent, held: Boolean): Float {
             var width = -1f
             Scene(width = 600, height = 900) {
@@ -327,7 +328,8 @@ class FloatingSheetMorphTest {
                 if (held) {
                     val top = settled.topOfTheSheet()
                     val handle = Offset(300f, top + 16f)
-                    scene.drag(from = handle, to = handle - Offset(0f, (top - 24f) / 2f + 36f), steps = 24, release = false)
+                    val by = -((top - 24f) / 2f + 36f)
+                    scene.drag(from = handle, to = handle + Offset(0f, by), steps = 24, release = false)
                     scene.frames(10)
                 }
             }
@@ -335,12 +337,10 @@ class FloatingSheetMorphTest {
         }
         val floating = widthAt(SheetDetent.Half, held = false)
         val halfway = widthAt(SheetDetent.Half, held = true)
-        val expanded = widthAt(SheetDetent.Expanded, held = false)
-        assertTrue(
-            floating == halfway && halfway == expanded,
-            "the content was $floating wide floating, $halfway halfway through the morph and $expanded " +
-                "expanded — it reflowed as the sheet widened",
-        )
+        val landed = widthAt(SheetDetent.Expanded, held = false)
+        assertTrue(floating < halfway, "halfway through the morph, still held, the content was $halfway wide: no wider than floating, $floating")
+        assertTrue(halfway < landed, "halfway through the morph the content was $halfway wide, as wide as landed, $landed")
+        assertEquals(600f, landed, "landed at the top, the content was $landed wide in a 600px window: the floating margin stayed")
     }
 
     /**
