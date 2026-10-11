@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -99,6 +100,7 @@ internal fun Modifier.sheetDrag(
                     val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
                     // Something inside set off first, or the pointer let go: not the sheet's.
                     if (change.isConsumed || !change.pressed) return@awaitEachGesture
+                    tracker.addHistory(change, total.y)
                     total += change.positionChange()
                     movedAt = change.uptimeMillis
                     tracker.addPosition(change.uptimeMillis, Offset(0f, total.y))
@@ -164,6 +166,7 @@ internal fun Modifier.sheetDrag(
                     change.consume()
                     if (dy != 0f) {
                         lastMoveAt = change.uptimeMillis
+                        tracker.addHistory(change, travelled)
                         travelled += dy
                         tracker.addPosition(change.uptimeMillis, Offset(0f, travelled))
                         deltas.trySend(dy)
@@ -193,6 +196,22 @@ internal fun Modifier.sheetDrag(
                 }
             }
         }
+    }
+}
+
+/**
+ * The touches [change] batched up since the last event — Android reports several
+ * a frame — as positions along the drag, from [before], where the drag stood at
+ * the last event: what Compose's own draggables hand their tracker. Fitted to one
+ * point a frame, a short flick has few points and the fit overshoots at its end.
+ *
+ * Each from the change's previous position rather than as a position in the
+ * sheet, which moves under the finger between events; both are in the node's
+ * coordinates as they are now.
+ */
+private fun VelocityTracker.addHistory(change: PointerInputChange, before: Float) {
+    change.historical.forEach { past ->
+        addPosition(past.uptimeMillis, Offset(0f, before + past.position.y - change.previousPosition.y))
     }
 }
 

@@ -1176,8 +1176,8 @@ class SheetState internal constructor(
      * ### Why the decay and not a threshold
      *
      * A velocity threshold gives "one detent per flick, however hard", which is
-     * what the handle's own `flingBehavior` already does above Compose's
-     * 125dp/s — and is the behaviour that cannot skip a middle detent on a
+     * what the handle's own `flingBehavior` already does above
+     * [SheetHandleFlickVelocity] — and is the behaviour that cannot skip a middle detent on a
      * three-detent sheet. A projection has no such ceiling: a hard throw lands
      * past everything and closes the sheet outright, a soft one lands next door.
      *
@@ -1759,9 +1759,8 @@ internal const val SheetProjectionSeconds: Float = 0.5f
  * the way, is still under it; a real flick is well over. A number to tune on a
  * device, which the catalog's diagnostics page is for.
  *
- * Content only. A throw of the sheet itself — its handle, its surface — has
- * [SheetHandleFlickVelocity], a quarter of this, because nothing else can have
- * been meant by it.
+ * A throw of the sheet itself — its handle, its surface — has
+ * [SheetHandleFlickVelocity], the same speed.
  *
  * Here rather than on `BottomSheetDefaults`, like the other numbers here: it is a
  * fact about how a hand moves, not a number a brand restyles, and the literals
@@ -1772,25 +1771,32 @@ internal val SheetFlickVelocity: Dp = 300.dp
 
 /**
  * How far a finger has to run one way for its release to count as a throw of
- * the sheet: about five millimetres on a phone. See `SheetFinger.throwOf`.
+ * the sheet: about seven and a half millimetres on a phone. See
+ * `SheetFinger.throwOf`.
  *
- * **Twice what it was.** It was 14dp, a little past touch slop, set between a
- * roll-off off the glass that must not move a sheet and the gentlest flick the
- * suite then threw. But the sheet's own drag takes a finger at 14dp too, so on a
- * phone any drag that started at all threw the sheet a detent if it was moving
- * when it lifted: a couple of millimetres' flick put a sheet away, reported as
- * *"way too easy to flick the sheet closed"*. A flick meant to move a sheet runs
- * well past this; a short one now lets the sheet settle where it is nearest.
+ * It was 14dp, a little past touch slop, set between a roll-off off the glass
+ * that must not move a sheet and the gentlest flick the suite then threw. But
+ * the sheet's own drag takes a finger at 14dp too, so on a phone any drag that
+ * started at all threw the sheet a detent if it was moving when it lifted: a
+ * couple of millimetres' flick put a sheet away, reported as *"way too easy to
+ * flick the sheet closed"*. 32dp was *"still a bit too easy"*. A flick meant
+ * to move a sheet runs well past this; a shorter one lets the sheet settle
+ * where it is nearest.
  */
-internal val SheetMinThrow: Dp = 32.dp
+internal val SheetMinThrow: Dp = 48.dp
 
 /**
- * How fast a release of the sheet itself has to be to count as a flick: Compose's
- * own bar for a fling, `AnchoredDraggableMinFlingVelocity`. Above it the sheet
- * moves at least a detent the way it was thrown, and as many as the throw
- * projects to; below it, the nearest detent.
+ * How fast a release of the sheet itself has to be to count as a flick. Above
+ * it the sheet moves at least a detent the way it was thrown, and as many as
+ * the throw projects to; below it, the nearest detent.
+ *
+ * The same as [SheetFlickVelocity] for a gesture on the content. It was
+ * Compose's own bar for a fling, 125dp/s, a quarter of that, on the grounds
+ * that nothing but a throw could be meant by moving the sheet itself; but at
+ * that speed any release faster than a crawl moved a whole detent, and a sheet
+ * flicked closed too easily.
  */
-internal val SheetHandleFlickVelocity: Dp = 125.dp
+internal val SheetHandleFlickVelocity: Dp = 300.dp
 
 /**
  * How fast a throw has to be to go past the next detent rather than stop there.

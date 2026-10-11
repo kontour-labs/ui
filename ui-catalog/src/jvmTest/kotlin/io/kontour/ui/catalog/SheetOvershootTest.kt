@@ -182,7 +182,8 @@ class SheetOvershootTest {
 
         val afterPull = dragAndRollOff(detents, up = true, rollOffSteps = 3)
         val rollOffAlone = dragAndRollOff(detents, up = false, rollOffSteps = 3)
-        val realDragDown = dragAndRollOff(detents, up = false, rollOffSteps = 24)
+        // A real flick down: 384px at 960px/s, past the throw's run and speed.
+        val realDragDown = dragAndRollOff(detents, up = false, rollOffSteps = 24, step = RollOffStep * 2)
 
         assertEquals(
             SheetDetent.Full, rollOffAlone,
@@ -199,7 +200,7 @@ class SheetOvershootTest {
         )
         assertTrue(
             realDragDown != SheetDetent.Full,
-            "a ${RollOffStep.toInt() * 24}px drag downward left the sheet at " +
+            "a ${RollOffStep.toInt() * 48}px flick downward left the sheet at " +
                 "$realDragDown — absorbing the upward pull has made a full-height " +
                 "sheet undraggable, which is worse than the defect",
         )
@@ -207,7 +208,7 @@ class SheetOvershootTest {
 
     /**
      * Optionally drags the sheet up against its stop, then travels back down
-     * [rollOffSteps] × [RollOffStep] pixels a frame at a time before releasing.
+     * [rollOffSteps] × [step] pixels a frame at a time before releasing.
      *
      * A frame per move, so the velocity tracker sees the travel as a gesture
      * rather than as one teleport. `ModalBottomSheet` over a host, because that
@@ -219,6 +220,7 @@ class SheetOvershootTest {
         detents: List<SheetDetent>,
         up: Boolean,
         rollOffSteps: Int,
+        step: Float = RollOffStep,
     ): SheetDetent {
         var state: SheetState? = null
 
@@ -244,10 +246,10 @@ class SheetOvershootTest {
             }
             val from = if (up) 60f else start
             repeat(rollOffSteps) { i ->
-                scene.move(Offset(300f, from + (i + 1) * RollOffStep))
+                scene.move(Offset(300f, from + (i + 1) * step))
                 scene.frame()
             }
-            scene.release(Offset(300f, from + rollOffSteps * RollOffStep))
+            scene.release(Offset(300f, from + rollOffSteps * step))
             scene.frames(80)
         }
 

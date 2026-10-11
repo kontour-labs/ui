@@ -2726,28 +2726,20 @@ private fun Density.sheetContentCeiling(
 /**
  * How far a sheet's content — its handle first — is moved down, with its top
  * edge [top] px down the window and [inset] px of the window's top under a
- * status bar: by as much of the inset as the sheet is under, and by up to
- * [UnderBarClearance] more as it reaches the top.
+ * status bar: by as much of the inset as the sheet is under, so the content
+ * stops at the foot of the bar while the sheet slides on up beneath it.
  *
- * The clearance is for the handle. At full height it sat just under the status
- * bar, its middle twelve dp below it, and on Android the status bar is a window
- * of its own that takes every touch inside it: a fingertip aimed at the handle
- * landed partly in the bar, and the sheet never heard it — *"if the sheet is
- * full-height then i can't drag the handle down … i have to start the drag a
- * little bit lower"*. In proportion to how far under the bar the sheet is, so
- * the content does not jump as the sheet arrives; none where there is no inset.
+ * **Nothing more than the inset.** For a while it added twelve dp, in
+ * proportion to how far under the bar the sheet was, so a fingertip on the
+ * handle of a full-height sheet stayed out of Android's status bar. But the
+ * extra grew while the sheet rose, so the content moved *down* as the sheet
+ * moved up the last stretch — *"the content dips just a bit"* — and the handle
+ * no longer sat as high as it had.
  */
-internal fun Density.sheetTopShift(inset: Int, top: Int): Int {
-    if (inset <= 0) return 0
-    val under = (inset - top).coerceIn(0, inset)
-    return under + (UnderBarClearance.toPx() * under / inset).roundToInt()
-}
+internal fun Density.sheetTopShift(inset: Int, top: Int): Int = (inset - top).coerceIn(0, inset.coerceAtLeast(0))
 
 /** [sheetTopShift] for a sheet at the very top of the window. */
 internal fun Density.fullTopShift(inset: Int): Int = sheetTopShift(inset, 0)
-
-/** The room between a status bar and the handle of a sheet up under it. See [sheetTopShift]. */
-private val UnderBarClearance = 12.dp
 
 /** No padding at all, for a sheet that is already clear of every edge. */
 private val NoInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)

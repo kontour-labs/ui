@@ -330,25 +330,26 @@ class SheetFlickTest {
 
     /**
      * A gentle flick of the sheet still moves it — to the next detent, not past
-     * it. Forty dp of travel: gentle, but a flick meant to move the sheet.
+     * it. Fifty-six dp of travel: gentle, but a flick meant to move the sheet.
      */
     @Test
     fun aGentleFlickOfTheSheetGoesOneDetent() {
-        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 20f))
+        assertEquals(SheetDetent.Half, flungFromFull(pixelsPerFrame = 28f))
     }
 
     /**
-     * A short flick — a couple of millimetres on a phone, quick, past the
+     * A short flick — up to about six millimetres on a phone, quick, past the
      * sheet's slop so it does move — leaves the sheet where it was, at full
      * height and at the middle. Reported from an Android phone as *"way too easy
      * to flick the sheet closed … I shouldn't be able to close it with such
      * little movement"*: the throw's minimum run was the drag's own slop, so any
-     * drag that started at all could throw.
+     * drag that started at all could throw. Then, at 32dp, *"still a bit too
+     * easy"*.
      */
     @Test
     fun aShortFlickLeavesTheSheetWhereItWas() {
         for (initial in listOf(SheetDetent.Expanded, SheetDetent.Half)) {
-            for ((pace, steps) in listOf(10f to 4, 24f to 2, 12f to 4)) {
+            for ((pace, steps) in listOf(10f to 4, 24f to 2, 18f to 4, 36f to 2, 20f to 4)) {
                 assertEquals(
                     initial,
                     flungFromFull(pixelsPerFrame = pace, initial = initial, steps = steps),

@@ -88,10 +88,7 @@ rows at the top.
 **And any of them can reach the top of the window.** A sheet at `Full`, or at
 `Expanded` with content taller than the window, has its top edge on the window's,
 under the status bar, with its top corners the display's own. Its drag handle and
-header are padded below the status bar, and 12dp further, so a finger on the
-handle is not partly in the bar — on Android the status bar takes every touch
-inside it, and a handle right under it could not be pulled down from. The sheet
-itself is not moved down. It
+header are padded below the status bar; the sheet itself is not moved down. It
 used to stop 12dp short, with a strip of page showing above it. A floating sheet
 that does not become an edge sheet keeps its margin at the top as everywhere else.
 
@@ -252,13 +249,14 @@ past the next detent only when it is thrown at 5000dp/s or more: a hard throw
 closes a sheet with a middle detent in one, where it used to take one flick per
 detent, and an ordinary flick down from the top stops at the middle, which the
 projection alone carried straight past. A throw of the sheet itself, by its
-handle or its surface, counts from 125dp/s and always moves it at least one
-detent the way it was thrown.
+handle or its surface, counts from 300dp/s, as a flick of its content does, and
+always moves it at least one detent the way it was thrown.
 
-**A finger rolling off the glass is not a throw.** A release only counts as one
-if the finger's last run in one direction was at least 14dp, a little past touch
-slop. A finger that leaves with a few pixels of travel at a few hundred pixels a
-second would otherwise move a full-height sheet a detent. The run starts again
+**A short flick, or a finger rolling off the glass, is not a throw.** A release
+only counts as one if the finger's last run in one direction was at least 48dp,
+about seven and a half millimetres on a phone. A flick of a couple of millimetres
+is still fast, and would otherwise move a sheet a detent, which from its lowest
+one puts it away. The run starts again
 where the finger turns, so a roll-off after pulling a sheet up against its top
 is judged on the roll-off alone.
 
