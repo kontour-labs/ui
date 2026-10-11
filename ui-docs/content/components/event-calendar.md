@@ -1,6 +1,6 @@
 # `EventCalendar`
 
-*Also on this page: `EventCalendarState`, `rememberEventCalendarState`, `CalendarEvent`, `CalendarView`, `EventPresentation`, `EventCalendarDefaults`.*
+*Also on this page: `EventCalendarState`, `rememberEventCalendarState`, `CalendarEvent`, `CalendarView`, `EventPresentation`, `CalendarDaysStyle`, `CalendarSwitcher`, `EventCalendarDefaults`.*
 
 <!--sample:EventCalendarBasics-->
 ```kotlin
@@ -18,8 +18,9 @@ EventCalendar(
 )
 ```
 
-`EventCalendar` is a calendar for showing what is on: a day's or a week's
-hours, a month of day boxes, or a year of small months. It was asked for as
+`EventCalendar` is a calendar for showing what is on: a day's, three days' or a
+week's hours, a month of day boxes, a year of small months, or a schedule of
+the days with something on. It was asked for as
 *"a proper calendar component … not like a date picker, but more of a calendar
 that has boxes for each day of the month, designed to show events"*.
 
@@ -233,9 +234,8 @@ and the Delete key on a focused event does the same.
 A month's box is read as its date and how many events it has. Its "+N" is
 read as "3 more events". In the year, each month is one stop, read as its
 month and year and how many of its days are busy, and opened as a button; its
-days are reached in the month it opens. The split's divider is read as
-"Resize panes", a range a screen reader sets. The header's title is read out whenever the period
-changes, whichever way it changed. The weekday names over the columns are
+days are reached in the month it opens. The header's title is read out
+whenever the period changes, whichever way it changed. The weekday names over the columns are
 hidden from screen readers, since each day already says its own date. Dates,
 times, weekday and month names all come from `Theme.formats`, in the reader's
 language, and every word comes from the theme's strings.
@@ -285,5 +285,5 @@ well into the next one, so a finger resting on the line between two days
 does not flick the event back and forth.
 
 Under reduced motion the swipe and the header's arrows change the period in
-place, without sliding, and a month's arrows jump to the month rather than
-scrolling there.
+place, without sliding, a month's arrows jump to the month rather than
+scrolling there, and a month let go after a pinch settles on its week at once.

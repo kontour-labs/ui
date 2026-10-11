@@ -1,6 +1,6 @@
 # `Toast`
 
-*Also on this page: `ToastHost`.*
+*Also on this page: `ToastHost`, `ToastCountdown`.*
 
 Confirmation of something the user just did. Raised through a
 `ToastHostState`, drawn by a `ToastHost`.

@@ -17,17 +17,18 @@ from the version the app is on.
 
 ## 0.4.3 to 0.4.4
 
-Not released yet: what is on `main`. A view of three days joins `CalendarView`,
-a date picker's day decorations become one `DayDecoration`, and anything built
-against 0.4.3 has to be rebuilt. An event calendar's month
-scrolls rather than pages, and several of its views look different enough to
-check.
+From 0.4.3 to 0.4.4, released on 11 October 2026. Three days and a schedule
+join `CalendarView`, a date picker's day decorations become one
+`DayDecoration`, a few arguments passed by position need naming, and anything
+built against 0.4.3 has to be rebuilt. An event calendar's month and year
+scroll rather than page, a bottom sheet moves only on a flick that is meant,
+and several views look different enough to check.
 
 ### Before you start
 
 - **Move all three modules at once**: `kontour = "0.4.4"`, and rebuild anything
-  compiled against 0.4.3 — `EventCalendar`, `CalendarEvent`,
-  `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip`,
+  compiled against 0.4.3 — `EventCalendar`, `EventCalendarDefaults.Header`,
+  `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`,
   `TimelineItem`, a timeline's `item` and `Strings` have new parameters.
 
 ### A `when` over `CalendarView` has two more branches
@@ -80,8 +81,31 @@ A `DayAnnotation`'s `colour` is `textColour` now. A calendar given only dots, as
 `markerFor` was, says `showDecorationLine = false`: without it the weeks are a
 line taller to make room for text, as they were with `annotationFor`.
 
+### A few arguments passed by position need naming
+
+```diff
+- TimelineItem(TimelineConnector.Solid, Modifier, false, 16.dp) { +"Left the depot" }
++ TimelineItem(TimelineConnector.Solid, Modifier, false, nodeSize = 16.dp) { +"Left the depot" }
+```
+
+The same for:
+
+- a `TimelineItem`'s arguments after `loading`, where `icon` is new;
+- a timeline `item`'s `connector` and after, also after a new `icon`;
+- `ToastHost`'s `windowInsets`, after a new `countdown`;
+- `SheetHeader`'s `actions`, after `onBack`, `backLabel` and `navigation`;
+- `EventCalendar`'s `formats` and after, after `daysStyle`, `showTimedEvents`
+  and `views`;
+- the date pickers' and `CalendarMonth`'s arguments after `isDateSelectable`,
+  where `decorationFor` and `showDecorationLine` take the place of three.
+
+Each fails to compile rather than meaning something else. Name the argument.
+
 ### Check
 
+- **An event calendar offers six views.** `EventCalendarDefaults.Views` has
+  three days and the schedule, and a header too narrow for every view side by
+  side offers them in a menu. Pass `views` to keep the four it had.
 - **A decoration in the band of a range keeps its colours.** A day annotation
   between a range's ends took the band's ink; a decoration keeps its own there.
   On the range's ends, and on a chosen day, it still takes the fill's ink unless
@@ -100,6 +124,22 @@ line taller to make room for text, as they were with `annotationFor`.
   screen reader reaches its months, not each of its days.
 - **A toast's clock stops while a mouse rests on it.** A test that hovers a
   toast and waits for it to go needs to move the pointer away first.
+- **A bottom sheet moves only on a flick that is meant**: once the finger has
+  run about 48dp one way at 300dp/s or more, to the detent nearest where the
+  throw carries it, and past the next detent only at 5000dp/s. A small quick
+  flick that used to move it a detent now settles where it is nearest. A test
+  that flicks a sheet a short way to move it needs a longer or faster flick.
+- **A bottom sheet waits a little longer before a vertical drag is its own**,
+  1.75 times the touch slop, and a swipe across a carousel, chips or a pager
+  inside it is theirs up to about sixty degrees from across.
+- **A modal bottom sheet put away by a gesture always calls
+  `onDismissRequest`**, including after it was caught as it opened or settled,
+  where before it could be put away without the call.
+- **A floating bottom sheet's content widens with it** as it fills to the
+  sides, and a part pinned to a sheet's foot has the content fade out 24dp above
+  it rather than 16dp.
+- **Swipe actions in a reorderable row** wait for the finger to go 24dp across,
+  and a row held to pick up and let go where it was no longer also taps.
 
 ---
 

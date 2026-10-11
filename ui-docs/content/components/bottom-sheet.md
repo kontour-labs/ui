@@ -203,7 +203,7 @@ safe area.
 
 **The content fades out under it the way it does under a floating
 [`NavBar`](nav-bar.md)**: the sheet's colour, solid from the part's middle down
-and thinning out over 16dp above it, so a row passing behind shows faintly above
+and thinning out over 24dp above it, so a row passing behind shows faintly above
 the field and is gone under it. What is in the part is drawn whole over that — a
 search field's own ground and its words. `fadeUnder = false` leaves the content
 as it is, showing round it. At high contrast a line marks the edge instead.
@@ -318,10 +318,13 @@ to their edge.
 is seen, so its surface changes height on every frame it moves, and its shadow —
 two blurred layers — used to be drawn again with it each frame: an app measured
 25% janky frames dragging one on an Android phone, against 5% for an edge sheet,
-and switched to edge sheets to get rid of them. The shadow is drawn behind the
-surface now in pieces that keep their size and only move, cut where the sides
-are straight, so it looks the same and is drawn once. What a drag still redraws
-is the surface's own colour and outline, which is a shape, not a blur.
+and switched to edge sheets to get rid of them. The shadow is blurred once now,
+round a small tile of the sheet's own shape, and drawn at any size by stretching
+the tile's straight middle between its corners, so it looks the same and is not
+blurred again as the sheet moves or grows. While a floating sheet takes on its
+expanded corners, its shape is one object that reads how far along it is, and a
+squircle corner's curve is worked out once per radius rather than per size: what
+a drag still redraws is the surface's colour and outline, not a blur.
 
 ```kotlin
 val search = rememberSheetState(

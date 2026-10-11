@@ -24,71 +24,258 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release.
+On `main`, and in the next release. Nothing yet.
+
+---
+
+## 0.4.4 — 11 October 2026
+
+An event calendar that scrolls through its months and years, zooms its month
+under two fingers, and shows three days, several weeks at once or a schedule,
+with icons on its events and a header that fits a phone. A filmstrip for a
+carousel, a countdown on a toast, icons and folded stops on a timeline, and a
+back button in a sheet header. Sheets that move only on a flick that is meant,
+let a carousel inside them have its swipe, always report being put away, and
+drag a floating sheet without stutter.
+
+A date picker's days are decorated with one `DayDecoration`, `CalendarView` has
+two more views, a few arguments passed by position need naming, and anything
+built against 0.4.3 has to be recompiled — see **Breaking**, and
+[Migrating](migrating.md#043-to-044). Several things look or behave differently
+without any change: an event calendar offers six views, in a menu where its
+header is narrow; its month and year scroll up and down rather than paging; its
+overlapping events lie over each other; a bottom sheet moves only on a
+deliberate flick, one detent unless it is thrown hard, and lets a swipe across
+something inside it be that thing's; and swipe actions in a reorderable row wait
+for the finger to go 24dp across.
 
 ### Breaking
 
-- **`CalendarView` has two more views, `ThreeDays` and `Schedule`**, so a `when` that names every view needs a branch for each — see [Migrating](migrating.md#043-to-044). `EventCalendar`, `CalendarEvent`, `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `ThumbnailStrip`, `TimelineItem`, a timeline's `item` and `Strings` have new parameters, so anything built against 0.4.3 has to be recompiled.
-
-- **A date picker's days are decorated with one [`DayDecoration`](components/calendar-month.md#daydecoration)**, by `decorationFor`, in place of `markerFor`, `containerColourFor` and `annotationFor` and its `DayAnnotation`, on `DatePicker`, `DateRangePicker`, `DateTimePicker` and `CalendarMonth` — see [Migrating](migrating.md#a-date-pickers-days-are-decorated-with-one-daydecoration). It has more than one dot, an icon beside the text, and `keepColours`, which keeps them on a chosen day, where they took its ink. `showDecorationLine = false` keeps the weeks their height for a calendar that only draws dots.
-
-### Added
-
-- **[`ThumbnailStrip`](components/thumbnail-strip.md)**: a carousel's pages as a photo app's filmstrip, the current one wide in the middle — its photo's own shape, with `thumbnailAspectRatio`, between a thumbnail's width and a panorama's, and a photo narrower than a thumbnail shown whole between black bars. Dragged, it scrubs through the pages with the carousel following; a thumbnail pressed, an arrow key or a screen reader's action goes to its page. It shares the carousel's `CarouselState`, and composes only the thumbnails on screen.
-- **A [toast](components/toast.md) can show the time it has left**: `ToastHost(countdown = ToastCountdown.Wipe)` washes its background and draws it back as the time runs out, and `ToastCountdown.Bar` draws a bar along its foot that shortens. Both stand still while the toast's clock does.
-- **An [event calendar](components/event-calendar.md) shows three days**, `CalendarView.ThreeDays`: their hours side by side, from the day it was switched to, stepped and swiped three days at a time. The header's switcher offers it between the day and the week; `EventCalendarDefaults.Views` is the switcher's order. New strings: `threeDays`, `previousDays`, `nextDays`.
-- **An [event calendar](components/event-calendar.md)'s three-day and week views can do without their hours**, `daysStyle = CalendarDaysStyle.Condensed`: each day's events stacked in a list down the days, a line at each day's edge. `CalendarDaysStyle.Hours`, the default, is as before, and the day view always has its hours.
-- **An [event calendar](components/event-calendar.md)'s week view shows several weeks at once**: `state.showWeeks(count)`, 1 to 6, or `rememberEventCalendarState(initialWeekCount = …)`, from the week the date is in. Steps and swipes go by as many weeks. `state.weekCount` says how many; it is kept with the state.
-- **An [event calendar](components/event-calendar.md)'s month zooms**: two fingers spread show fewer weeks, each taller, down to three to the box; pinched, more, up to six. Ctrl or Cmd with the wheel, or with plus and minus, steps a week, and a screen reader has Zoom in and Zoom out. Zoomed in, an event shows its time and where it is on lines of their own. The zoom is kept with the state. New strings: `zoomIn`, `zoomOut`.
-
-- **An [event calendar](components/event-calendar.md)'s events can have an icon**: `CalendarEvent(icon = …)`, before the title in a block or a bar and in place of the dot in a line, given up before the title where a day is narrow.
-- **An [event calendar](components/event-calendar.md) can show only all-day and multi-day events**: `showTimedEvents = false`. Its days are stacked with no hours, the day view's too.
-
-- **An [event calendar](components/event-calendar.md) can leave views out**: `EventCalendar(views = …)`. The switcher offers only those, and a day opened without a day view opens the nearest view there is. **Its header can offer the views in a menu**: `EventCalendarDefaults.Header(state, switcher = CalendarSwitcher.Dropdown)`. New string: `chooseView`.
-
-- **An [event calendar](components/event-calendar.md) has a schedule**, `CalendarView.Schedule`: the days with something on, one under another with their events, under each month's name, scrolled through, today always among them and saying "Nothing planned" when it has nothing on. It is last in the switcher. New strings: `schedule`, `nothingPlanned`.
-- **An [event calendar](components/event-calendar.md)'s header too narrow for every view side by side offers them in a menu**, rather than leaving three days out.
-
-- **An event in a busy day's list, opened from an [event calendar](components/event-calendar.md) month's "+N", can be carried out of it** onto any day of the month, by a finger or a mouse. The list follows the carry and closes once the event is put down.
-- **A timeline can fold several stops into one row**: [`TimelineNodeGroup(count)`](components/timeline.md), and `nodeGroup(count)` in a [`TimelineList`](components/timeline-list.md) or a [`BranchTimeline`](components/branch-timeline.md) — "Show 10 past stops", its node up to three nodes bunched along the rail. It is one stop to the rail and to `progress`, whose halo goes round the whole stack.
-- **A timeline's node can hold an icon**: `icon = …` on a [`TimelineItem`](components/timeline.md), and on a [`TimelineList`](components/timeline-list.md) stop or a [`BranchTimeline`](components/branch-timeline.md) commit. The node grows to `TimelineDefaults.IconNodeSize` to hold it, and the icon reads on it — light or dark on a solid node, the ring's colour inside a hollow one.
+- **`CalendarView` has two more views, `ThreeDays` and `Schedule`**, so a `when`
+  that names every view needs a branch for each — see
+  [Migrating](migrating.md#a-when-over-calendarview-has-two-more-branches).
+  `EventCalendar`, `EventCalendarDefaults.Header`, `CalendarEvent`,
+  `rememberEventCalendarState`, `ToastHost`, `SheetHeader`, `TimelineItem`, a
+  timeline's `item` and `Strings` have new parameters, so anything built against
+  0.4.3 has to be recompiled.
+- **A date picker's days are decorated with one
+  [`DayDecoration`](components/calendar-month.md#daydecoration)**, by
+  `decorationFor`, in place of `markerFor`, `containerColourFor` and
+  `annotationFor` and its `DayAnnotation`, on `DatePicker`, `DateRangePicker`,
+  `DateTimePicker` and `CalendarMonth` — see
+  [Migrating](migrating.md#a-date-pickers-days-are-decorated-with-one-daydecoration).
+  It has more than one dot, an icon beside the text, and `keepColours`, which
+  keeps them on a chosen day, where they took its ink. `showDecorationLine =
+  false` keeps the weeks their height for a calendar that only draws dots.
+- **A few arguments passed by position need naming**, where a new parameter now
+  comes before them: a `TimelineItem`'s `nodeSize` and those after it, a
+  timeline `item`'s `connector` and after, `ToastHost`'s `windowInsets`,
+  `SheetHeader`'s `actions`, `EventCalendar`'s `formats` and after, and the
+  arguments after `isDateSelectable` on the date pickers and `CalendarMonth` —
+  see [Migrating](migrating.md#a-few-arguments-passed-by-position-need-naming).
+  Named arguments, which every example uses, are unaffected.
 
 ### Changed
 
-- **A [toast](components/toast.md)'s clock stops while a mouse's pointer rests on it**, as it already did while a finger held the stack, so one being read is not taken away.
-- **An [event calendar](components/event-calendar.md)'s year scrolls up and down through the years**, each year's months under its number, instead of paging sideways a year at a time; the year most on screen is the one the title and the state are about. Its months are drawn whole, so every month on screen is there at once — they came in one after another. A screen reader reaches each month as one stop, read with how many of its days are busy, and its days in the month it opens; before, each day was a stop.
-- **An [event calendar](components/event-calendar.md)'s month scrolls up and down by the week**, as Apple's calendar does, instead of paging sideways a month at a time. Every row is the same height — six weeks to the box — so the weeks sit under each other from one month into the next, and a scroll or a fling settles with a week at the top. The month most on screen is the one the title, the state's `date` and the quieter days are about; the header's arrows, Page Up and Page Down and `state.step` scroll to that month's first week. An event carried near the top or the foot scrolls the weeks with it, as the hours do, in place of the arrow at the side. `visibleDates` in the month also covers any weeks either side scrolled into view.
-- **An [event calendar](components/event-calendar.md)'s overlapping events are laid over each other** in the day and week views when one starts below the other's title, as Google's calendar does: a little in from its start edge, ringed, and most of the day wide. Before, each took a lane of its own, and three in a week's narrow day were a letter wide apiece. Events that start together still go side by side.
-- **An [event calendar](components/event-calendar.md)'s titles show more of themselves.** A month's line is in a slightly smaller type, and in a narrow day gives up its time, then its dot, before its title. A title cut short fades out instead of ending in "…". In the hours a title wraps over every line its event is tall, not two. A busy day's "+N" is a row the size of its events, in line with them, rather than text under them; in the week's all-day strip too.
-- **An [event calendar](components/event-calendar.md)'s arrow at the side of the days is level with a mouse's pointer** while an event is carried. It was 40dp above it, which is for a fingertip; under a finger it still is.
-- **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline` and `-filled`, which the library's own icons are drawn from.
-- **A floating [bottom sheet](components/bottom-sheet.md) costs far less to drag, through its morph into an edge sheet most of all.** Its shadow is blurred once, for a small tile, and drawn at any size from that, rather than blurred again on every frame the sheet changed size or its corners changed; its surface no longer recomposes for each step of its corners; and a squircle works out its corners once per radius rather than at every size, so a shape that changes height every frame no longer does forty-odd trigonometric calls a frame.
-- **A [modal bottom sheet](components/bottom-sheet.md) flicked or dragged away is always reported as dismissed**, so it opens again next time. It was reported only when a settle completed, and a sheet caught by a touch as it opened or settled could be put away without one: the caller still had it open, and could not open it again.
-- **A [modal bottom sheet](components/bottom-sheet.md) with a part pinned to its top is drawn.** It opened, with the scrim over the page, and showed nothing: its surface was measured once, before the sheet had settled its detents, at no height, and never again.
-- **A [bottom sheet](components/sheets.md) moves only on a flick that is meant.** A release goes to the detent nearest where its throw would carry the sheet, projected a fifth of a second, and counts as a throw only after the finger has run about seven and a half millimetres (48dp) one way at 300dp/s or more. Any flick over the floor used to move a whole detent, projected half a second, so a sheet went away on a finger moved by accident.
-- **A [bottom sheet](components/sheets.md)'s ordinary flick down from the top stops at its middle detent.** A flick goes past the next detent only at 5000dp/s or more — harder than an ordinary flick on a phone — so a hard throw still closes it in one; the half second the release is projected by had carried an ordinary one straight past the middle.
-- **A floating [bottom sheet](components/bottom-sheet.md)'s content widens with it as it fills to the sides**, to the whole width of the edge sheet it becomes at the top. It was held at its floating width, so the surface grew past it and an expanded sheet kept a floating margin inside its sides.
-- **A [sheet header](components/sheet-header.md) can lead with a back button**: `SheetHeader(onBack = …)`, with `backLabel`, or `navigation` for something else in its place, as a [top bar](components/top-bar.md) takes them.
-- **A [bottom sheet](components/bottom-sheet.md)'s content fades out a little higher above a part pinned to its foot**, 24dp rather than 16dp, so the buttons read as standing over what scrolls behind them.
+- **An [event calendar](components/event-calendar.md) offers six views**:
+  `EventCalendarDefaults.Views` gains three days and the schedule, so an
+  existing calendar's switcher has them too, and a header too narrow for every
+  view side by side offers them in a menu. Pass `views` to keep the four it had.
+- **An [event calendar](components/event-calendar.md)'s year scrolls up and down
+  through the years**, each year's months under its number, instead of paging
+  sideways a year at a time; the year most on screen is the one the title and
+  the state are about. Its months are drawn whole, so every month on screen is
+  there at once — they came in one after another. A screen reader reaches each
+  month as one stop, read with how many of its days are busy, and its days in
+  the month it opens; before, each day was a stop.
+- **An [event calendar](components/event-calendar.md)'s month scrolls up and
+  down by the week**, as Apple's calendar does, instead of paging sideways a
+  month at a time. Every row is the same height — six weeks to the box — so the
+  weeks sit under each other from one month into the next, and a scroll or a
+  fling settles with a week at the top. The month most on screen is the one the
+  title, the state's `date` and the quieter days are about; the header's arrows,
+  Page Up and Page Down and `state.step` scroll to that month's first week. An
+  event carried near the top or the foot scrolls the weeks with it, staying
+  under the finger, as the hours do, in place of the arrow at the side.
+  `visibleDates` in the month also covers any weeks either side scrolled into
+  view.
+- **An [event calendar](components/event-calendar.md)'s overlapping events are
+  laid over each other** in the day and week views when one starts below the
+  other's title, as Google's calendar does: a little in from its start edge,
+  ringed, and most of the day wide. Before, each took a lane of its own, and
+  three in a week's narrow day were a letter wide apiece. Events that start
+  together still go side by side.
+- **An [event calendar](components/event-calendar.md)'s titles show more of
+  themselves.** A month's line is in a slightly smaller type, and in a narrow
+  day gives up its time, then its dot, before its title. A title cut short fades
+  out instead of ending in "…". In the hours a title wraps over every line its
+  event is tall, not two. A busy day's "+N" is a row the size of its events, in
+  line with them, rather than text under them; in the week's all-day strip too.
+- **An [event calendar](components/event-calendar.md)'s event that runs on past
+  what a view shows is square on that side, and runs through the line there**,
+  so a bar across two weeks, or a block across midnight, reads as one event in
+  two pieces. It is rounded, and stops short of the line, only where it really
+  ends.
+- **An [event calendar](components/event-calendar.md)'s arrow at the side of the
+  days is level with a mouse's pointer** while an event is carried. It was 40dp
+  above it, which is for a fingertip; under a finger it still is.
+- **A [bottom sheet](components/sheets.md) moves only on a flick that is
+  meant.** A release goes to the detent nearest where its throw would carry the
+  sheet, projected a fifth of a second, and past the next detent only at
+  5000dp/s or more — so an ordinary flick down from the top stops at the middle,
+  and a hard one still closes it in one. It counts as a throw only once the
+  finger has run about seven and a half millimetres (48dp) one way, at 300dp/s
+  or more; a throw of the sheet itself, by its handle or its surface, counted
+  from 125dp/s. Any flick over the floor used to move a whole detent, projected
+  half a second, so a sheet went away on a finger moved by accident and an
+  ordinary flick from the top went straight past the middle.
+- **A floating [bottom sheet](components/bottom-sheet.md)'s content widens with
+  it as it fills to the sides**, to the whole width of the edge sheet it becomes
+  at the top. It was held at its floating width, so the surface grew past it and
+  an expanded sheet kept a floating margin inside its sides.
+- **A [bottom sheet](components/bottom-sheet.md)'s content fades out a little
+  higher above a part pinned to its foot**, 24dp rather than 16dp, so the
+  buttons read as standing over what scrolls behind them.
+- **A [toast](components/toast.md)'s clock stops while a mouse's pointer rests
+  on it**, as it already did while a finger held the stack, so one being read is
+  not taken away.
 
-- **An [event calendar](components/event-calendar.md)'s event that runs on past what a view shows is square on that side, and runs through the line there**, so a bar across two weeks, or a block across midnight, reads as one event in two pieces. It is rounded, and stops short of the line, only where it really ends.
+### Added
+
+- **[`ThumbnailStrip`](components/thumbnail-strip.md)**: a carousel's pages as a
+  photo app's filmstrip, the current one wide in the middle — its photo's own
+  shape, with `thumbnailAspectRatio`, between a thumbnail's width and a
+  panorama's, and a photo narrower than a thumbnail shown whole between black
+  bars. Dragged, it scrubs through the pages with the carousel following; a
+  thumbnail pressed, an arrow key or a screen reader's action goes to its page.
+  It shares the carousel's `CarouselState`, and composes only the thumbnails on
+  screen.
+- **A [toast](components/toast.md) can show the time it has left**:
+  `ToastHost(countdown = ToastCountdown.Wipe)` washes its background and draws
+  it back as the time runs out, and `ToastCountdown.Bar` draws a bar along its
+  foot that shortens. Both stand still while the toast's clock does.
+- **An [event calendar](components/event-calendar.md) shows three days**,
+  `CalendarView.ThreeDays`: their hours side by side, from the day it was
+  switched to, stepped and swiped three days at a time. The header's switcher
+  offers it between the day and the week; `EventCalendarDefaults.Views` is the
+  switcher's order. New strings: `threeDays`, `previousDays`, `nextDays`.
+- **An [event calendar](components/event-calendar.md) has a schedule**,
+  `CalendarView.Schedule`: the days with something on, one under another with
+  their events, under each month's name, scrolled through, today always among
+  them and saying "Nothing planned" when it has nothing on. It is last in the
+  switcher. New strings: `schedule`, `nothingPlanned`.
+- **An [event calendar](components/event-calendar.md)'s three-day and week views
+  can do without their hours**, `daysStyle = CalendarDaysStyle.Condensed`: each
+  day's events stacked in a list down the days, a line at each day's edge.
+  `CalendarDaysStyle.Hours`, the default, is as before, and the day view always
+  has its hours.
+- **An [event calendar](components/event-calendar.md)'s week view shows several
+  weeks at once**: `state.showWeeks(count)`, 1 to 6, or
+  `rememberEventCalendarState(initialWeekCount = …)`, from the week the date is
+  in. Steps and swipes go by as many weeks. `state.weekCount` says how many; it
+  is kept with the state.
+- **An [event calendar](components/event-calendar.md)'s month zooms**: two
+  fingers spread show fewer weeks, each taller, down to three to the box;
+  pinched, more, up to six. The day between the fingers stays under them and the
+  events grow and shrink with their weeks as the fingers move. Ctrl or Cmd with
+  the wheel, or with plus and minus, steps a week, and a screen reader has Zoom
+  in and Zoom out; under reduced motion it settles at once. Zoomed in, an event
+  shows its time and where it is on lines of their own. The zoom is kept with
+  the state. New strings: `zoomIn`, `zoomOut`.
+- **An [event calendar](components/event-calendar.md)'s events can have an
+  icon**: `CalendarEvent(icon = …)`, before the title in a block or a bar and in
+  place of the dot in a line, given up before the title where a day is narrow.
+- **An [event calendar](components/event-calendar.md) can show only all-day and
+  multi-day events**: `showTimedEvents = false`. Its days are stacked with no
+  hours, the day view's too.
+- **An [event calendar](components/event-calendar.md) can leave views out**:
+  `EventCalendar(views = …)`. The switcher offers only those, and a day opened
+  without a day view opens the nearest view there is. **Its header can offer the
+  views in a menu**: `EventCalendarDefaults.Header(state, switcher =
+  CalendarSwitcher.Dropdown)`, which it does by itself where it is too narrow
+  for them side by side. New string: `chooseView`.
+- **An event in a busy day's list, opened from an [event
+  calendar](components/event-calendar.md) month's "+N", can be carried out of
+  it** onto any day of the month, by a finger or a mouse. The list follows the
+  carry and closes once the event is put down.
+- **A timeline can fold several stops into one row**:
+  [`TimelineNodeGroup(count)`](components/timeline.md), and `nodeGroup(count)`
+  in a [`TimelineList`](components/timeline-list.md) or a
+  [`BranchTimeline`](components/branch-timeline.md) — "Show 10 past stops", its
+  node up to three nodes bunched along the rail. It is one stop to the rail and
+  to `progress`, whose halo goes round the whole stack.
+- **A timeline's node can hold an icon**: `icon = …` on a
+  [`TimelineItem`](components/timeline.md), and on a
+  [`TimelineList`](components/timeline-list.md) stop or a
+  [`BranchTimeline`](components/branch-timeline.md) commit. The node grows to
+  `TimelineDefaults.IconNodeSize` to hold it, and the icon reads on it — light
+  or dark on a solid node, the ring's colour inside a hollow one.
+- **A [sheet header](components/sheet-header.md) can lead with a back button**:
+  `SheetHeader(onBack = …)`, with `backLabel`, or `navigation` for something
+  else in its place, as a [top bar](components/top-bar.md) takes them.
 
 ### Fixed
 
-- **[Swipe actions](components/swipe-actions.md) in a [reorderable](components/reorderable-item.md) row no longer stop it being held and carried.** A fingertip rolling a few pixels sideways as it held the row was taken for a swipe, and the row never lifted. Inside a reorderable row a swipe waits for the finger to go 24dp across, and a row once lifted is carried alone.
-- **On iOS, a swipe out of the app from the home indicator no longer scrolls what is under it.** iOS hands the app the start of the swipe before it takes it over; a finger that lands on the home indicator now moves nothing in the app past touch slop, and a tap there still lands.
+- **A floating [bottom sheet](components/bottom-sheet.md) no longer stutters as
+  it is dragged**, through its morph into an edge sheet most of all. Its two
+  blurred shadow layers were rasterised again on every frame its size or its
+  corners changed — measured on an Android phone at 25% janky frames and a 150ms
+  p99, against 5% for an edge sheet. The shadow is now blurred once, for a small
+  tile, and drawn at any size from that, and looks the same; the surface no
+  longer recomposes for each step of its corners; and a squircle works its
+  corners out once per radius rather than at every size.
+- **A [modal bottom sheet](components/bottom-sheet.md) flicked or dragged away
+  is always reported as dismissed**, so it opens again next time. It was
+  reported only when a settle completed, and a sheet caught by a touch as it
+  opened or settled could be put away without one: the caller still had it open,
+  and could not open it again. A sheet the caller closes while a finger is on it
+  goes when the finger lifts, where it stayed up; and a finger on a sheet thrown
+  away holds the page again.
+- **A [modal bottom sheet](components/bottom-sheet.md) with a part pinned to its
+  top is drawn.** It opened, with the scrim over the page, and showed nothing:
+  its surface was measured once, before the sheet had settled its detents, at no
+  height, and never again.
+- **A swipe across a carousel, a row of chips or a pager inside a [bottom
+  sheet](components/sheets.md) is theirs up to about sixty degrees from
+  across**, where the sheet took any swipe over thirty. The sheet's drag is its
+  own now, not Compose's `anchoredDraggable`: a Compose draggable round a
+  horizontal one takes every swipe over thirty degrees from it, however long its
+  slop. It waits for 1.75 times the touch slop up or down, so a swipe mostly up
+  or down still moves the sheet from over a carousel.
+- **A [bottom sheet](components/sheets.md) nudged a notch and then taken away by
+  the system — the notification shade pulled down over it, focus gone elsewhere
+  — stays where it was.** The cancel was read as a release, at the speed of the
+  nudge, and could close a sheet moved a millimetre. So could a finger held
+  still a moment before lifting: the throw was read from the moves alone, not
+  from when the finger let go.
+- **[Swipe actions](components/swipe-actions.md) in a
+  [reorderable](components/reorderable-item.md) row no longer stop it being held
+  and carried.** A fingertip rolling a few pixels sideways as it held the row
+  was taken for a swipe, and the row never lifted. Inside a reorderable row a
+  swipe waits for the finger to go 24dp across, and a row once lifted is carried
+  alone.
+- **Something picked up with a long press and let go where it was is not also
+  tapped.** A [reorderable](components/reorderable-item.md) row or a [drag
+  source](drag-and-drop.md) with its own click, held until it lifted and let go
+  without moving, also clicked; moved first, it did not, so it happened only
+  sometimes.
+- **On iOS, a swipe out of the app from the home indicator no longer scrolls
+  what is under it.** iOS hands the app the start of the swipe before it takes
+  it over; a finger that lands on the home indicator now moves nothing in the
+  app past touch slop, and a tap there still lands. A trackpad, mouse or pencil
+  is left alone.
+- **A decoration on a day in the band of a [date
+  range](components/date-range-picker.md) keeps its colours.** It took the
+  band's ink, which read as grey.
+- **Today's ring stays a circle inside a [date
+  range](components/date-range-picker.md).** It was the outline of the band's
+  square day, and drew a pill the width of it.
+- **The discs behind a hero [top bar](components/top-bar.md)'s actions follow
+  the collapse after the screen is come back to.** A screen left part-way down
+  its scroll and navigated back to kept the discs as faint as they were when it
+  was left, or gone, however far back up it was scrolled.
 
-- **A [bottom sheet](components/sheets.md) nudged a notch and then taken away by the system — the notification shade pulled down over it, focus gone elsewhere — stays where it was.** The cancel was read as a release, at the speed of the nudge, and could close a sheet moved a millimetre. So could a finger held still a moment before lifting: the throw was read from the moves alone, not from when the finger let go.
-
-- **A swipe across a carousel, a row of chips or a pager inside a [bottom sheet](components/sheets.md) is theirs up to about sixty degrees from across**, where the sheet took any swipe over thirty. The sheet's drag is its own now, not Compose's `anchoredDraggable`: a Compose draggable round a horizontal one takes every swipe over thirty degrees from it, however long its slop. It waits for 1.75 times the touch slop up or down, so a swipe mostly up or down still moves the sheet from over a carousel.
-
-- **An [event calendar](components/event-calendar.md)'s month zooms smoothly under two fingers.** The week between them moved in steps of several pixels — its place was worked out in a float, a sixteenth of a row's precision that far into the list — every week and event was composed again each frame, the events' lines changed mid-pinch, and the month's settling on a week could start under the fingers. Now the day between the fingers stays there to the pixel, the weeks pan as the fingers move together, and the events grow and shrink with their weeks as they go, a line more or fewer as there is room for a whole one, rather than all at once when the fingers let go.
-- **A floating [bottom sheet](components/bottom-sheet.md) no longer draws its shadow again on every frame it is dragged.** Its surface changes height as it moves, and its two blurred shadow layers were rasterised again with it each frame: measured on an Android phone at 25% janky frames and a 150ms p99, against 5% for an edge sheet. The shadow is drawn behind it in pieces that keep their size and only move, and looks the same.
-- **A decoration on a day in the band of a [date range](components/date-range-picker.md) keeps its colours.** It took the band's ink, which read as grey.
-- **An event carried up or down an [event calendar](components/event-calendar.md)'s month stays under the finger as the weeks scroll.** Its copy kept to the line of its week the event was taken from by where that line had been on the screen, so once the month scrolled under the carry — at its edges, or on into the next month — it was off by however far the weeks had moved.
-- **Today's ring stays a circle inside a [date range](components/date-range-picker.md).** It was the outline of the band's square day, and drew a pill the width of it.
-- **Something picked up with a long press and let go where it was is not also tapped.** A [reorderable](components/reorderable-item.md) row or a [drag source](drag-and-drop.md) with its own click, held until it lifted and let go without moving, also clicked; moved first, it did not, so it happened only sometimes.
-- **The discs behind a hero [top bar](components/top-bar.md)'s actions follow the collapse after the screen is come back to.** A screen left part-way down its scroll and navigated back to kept the discs as faint as they were when it was left, or gone, however far back up it was scrolled.
+---
 
 ## 0.4.3 — 8 October 2026
 
@@ -278,6 +465,9 @@ button, a large top bar finishes the way the finger was going, and a
 - **The JVM artifacts are Java 11 bytecode.** `:ui` and `:ui-nav3` were the
   toolchain's Java 25, and with the builders inline, an app using them had to
   compile for Java 25 too.
+
+- **The icons are Tabler 3.49.0**, from 3.48.0: `io.kontour:tabler-icons-outline`
+  and `-filled`, which the library's own icons are drawn from.
 
 ### Added
 

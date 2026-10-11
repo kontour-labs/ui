@@ -43,11 +43,12 @@ Box(Modifier.fillMaxSize()) {
 }
 ```
 
-Built on foundation's `AnchoredDraggableState`, which already handles the drag,
-the fling and the settle. What `SheetState` adds is the part that is actually
-specific to sheets: turning detents into anchor positions as the container and
-content resize, and handing scroll off between the sheet and whatever scrolls
-inside it.
+Built on foundation's `AnchoredDraggableState`, which holds where the sheet is
+and animates it between anchors. The drag and the throw are the sheet's own, so
+that a flick is read as below. What `SheetState` adds is the part that is
+actually specific to sheets: turning detents into anchor positions as the
+container and content resize, reading a release, and handing scroll off between
+the sheet and whatever scrolls inside it.
 
 ### Detents are values, not an enum
 
@@ -276,11 +277,10 @@ finger was still moving as it lifted, the sheet reads the throw off the last ten
 of a second of the finger's own path. A finger that stopped before lifting still
 settles by position.
 
-**A flick from the content has to be firmer.** Below 300dp/s, a release settles
-by position. A fling the list spent on itself does not move the sheet at all: a
-reader who scrolled the list and let go was moving the list, and its leftovers
-are not a request. The floor was 500dp/s, and closing a sheet was reported as
-taking too much effort; both numbers are for tuning on a device.
+**A flick from the content is read as one on the handle is**, by where it would
+carry the sheet, with the same 300dp/s floor and the same 48dp run. A fling the
+list spent on itself does not move the sheet at all: a reader who scrolled the
+list and let go was moving the list, and its leftovers are not a request.
 
 **A sheet thrown away gives the page back as it goes.** The scrim stops taking
 taps, and the page is readable again, from the moment the sheet is let go on its
