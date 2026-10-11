@@ -146,12 +146,11 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
     // than a `>= Medium` comparison written out at the call site. A threshold
     // spelled as a comparison is a threshold that drifts when somebody moves it.
     //
-    // Only for the pages that read as documentation. The icons page is a grid
-    // that wants the whole width, and the gallery brings its own navigation, so
-    // a permanent index beside either is a column of links to somewhere else.
-    // There it goes behind the menu button, as it does on a phone.
-    val besideContent = windowSizeClass.width.hasRoomBeside &&
-        route != Route.Icons && route != Route.Gallery
+    // The index is the documentation's, and only its pages have it. The icons
+    // page is a grid that wants the whole width, and the gallery brings its own
+    // navigation; the top bar's buttons are the way between them and the docs.
+    val docs = route == Route.Home || route is Route.Doc
+    val besideContent = docs && windowSizeClass.width.hasRoomBeside
     val suite = rememberNavigationSuiteState()
     var settingsOpen by remember { mutableStateOf(false) }
 
@@ -177,7 +176,7 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
     Scaffold(
         topBar = {
             TopBar(
-                navigation = if (besideContent) {
+                navigation = if (!docs || besideContent) {
                     null
                 } else {
                     {
@@ -272,17 +271,21 @@ private fun Shell(settings: CatalogSettings, systemDark: Boolean, route: Route) 
         // behind the menu button. It used to be nothing at all under 600dp, so
         // a reader who arrived on a page from a search engine had no route to
         // any other page in the site.
-        NavigationSuiteScaffold(
-            destinations = { indexItems(route) },
-            modifier = Modifier.fillMaxSize().padding(padding),
-            state = suite,
-            type = if (besideContent) NavigationSuiteType.ExpandedRail else NavigationSuiteType.ModalRail,
-            railExpandedWidth = IndexWidth,
-            header = { IndexSearchHeader() },
-        ) {
-            Row(Modifier.fillMaxSize()) {
-                if (besideContent) VerticalDivider(Modifier.fillMaxHeight())
-                Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
+        if (!docs) {
+            Box(Modifier.fillMaxSize().padding(padding)) { Content(route, settings) }
+        } else {
+            NavigationSuiteScaffold(
+                destinations = { indexItems(route) },
+                modifier = Modifier.fillMaxSize().padding(padding),
+                state = suite,
+                type = if (besideContent) NavigationSuiteType.ExpandedRail else NavigationSuiteType.ModalRail,
+                railExpandedWidth = IndexWidth,
+                header = { IndexSearchHeader() },
+            ) {
+                Row(Modifier.fillMaxSize()) {
+                    if (besideContent) VerticalDivider(Modifier.fillMaxHeight())
+                    Box(Modifier.weight(1f).fillMaxHeight()) { Content(route, settings) }
+                }
             }
         }
     }
