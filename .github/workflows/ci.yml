@@ -168,14 +168,14 @@ jobs:
       docs: ${{ steps.passed.outputs.docs }}
       targets: ${{ steps.passed.outputs.targets }}
       test: ${{ steps.passed.outputs.test }}
-      checks-fp: ${{ steps.passed.outputs.checks-fp }}
-      library-fp: ${{ steps.passed.outputs.library-fp }}
-      catalog-fp: ${{ steps.passed.outputs.catalog-fp }}
-      docs-fp: ${{ steps.passed.outputs.docs-fp }}
-      targets-fp: ${{ steps.passed.outputs.targets-fp }}
-      bundle-name: ${{ steps.passed.outputs.bundle-name }}
+      checks-fp: ${{ steps.keys.outputs.checks-fp }}
+      library-fp: ${{ steps.keys.outputs.library-fp }}
+      catalog-fp: ${{ steps.keys.outputs.catalog-fp }}
+      docs-fp: ${{ steps.keys.outputs.docs-fp }}
+      targets-fp: ${{ steps.keys.outputs.targets-fp }}
+      bundle-name: ${{ steps.keys.outputs.bundle-name }}
       bundle-run: ${{ steps.passed.outputs.bundle-run }}
-      site-name: ${{ steps.passed.outputs.site-name }}
+      site-name: ${{ steps.keys.outputs.site-name }}
       site-run: ${{ steps.passed.outputs.site-run }}
       deploy: ${{ steps.deploy.outputs.deploy }}
     steps:
@@ -208,8 +208,8 @@ jobs:
             sleep 30
           done
 
-      - id: passed
-        name: Look for what has passed already
+      - id: keys
+        name: Name what this tree would have passed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -238,19 +238,70 @@ jobs:
             [targets]=$(fingerprint ui ui-nav3 haptics ui-catalog showcase docs/check-xcode-host.py)
           )
 
-          # The run that left the newest live artifact of this name, or nothing.
-          left() {
-            [ "$EVENT" = workflow_dispatch ] && return 0
-            gh api "repos/$REPO/actions/artifacts?name=$1&per_page=5" \
-              --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty' 2>/dev/null
-          }
+          for gate in checks library catalog docs targets; do out "$gate-fp=${fp[$gate]}"; done
+          out "bundle-name=bundle-${fp[docs]}"
+          out "site-name=site-${fp[docs]}-$(.github/docs-release.sh)"
 
+      # Each marker, the bundle and the site are entries in the runners' cache —
+      # Blacksmith's, which is free and is not GitHub's storage — looked up
+      # without being downloaded. They were artifacts, and artifacts share one
+      # storage quota with the published packages: when it filled, nothing
+      # could be uploaded, and the site had no way to reach `deploy`. A manual
+      # run looks nothing up, because asking is the point of it.
+      - id: hit-checks
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: passed.txt, key: "passed-checks-${{ steps.keys.outputs.checks-fp }}", lookup-only: true }
+      - id: hit-library
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: passed.txt, key: "passed-library-${{ steps.keys.outputs.library-fp }}", lookup-only: true }
+      - id: hit-catalog
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: passed.txt, key: "passed-catalog-${{ steps.keys.outputs.catalog-fp }}", lookup-only: true }
+      - id: hit-docs
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: passed.txt, key: "passed-docs-${{ steps.keys.outputs.docs-fp }}", lookup-only: true }
+      - id: hit-targets
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: passed.txt, key: "passed-targets-${{ steps.keys.outputs.targets-fp }}", lookup-only: true }
+      - id: hit-bundle
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ui-docs/build/dist/wasmJs/productionExecutable
+            ui-docs/build/generated/apiTables/ApiTables.kt
+          key: ${{ steps.keys.outputs.bundle-name }}
+          lookup-only: true
+      - id: hit-site
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with: { path: dist, key: "${{ steps.keys.outputs.site-name }}", lookup-only: true }
+
+      - id: passed
+        name: Look for what has passed already
+        env:
+          CHECKS: ${{ steps.hit-checks.outputs.cache-hit }}
+          LIBRARY: ${{ steps.hit-library.outputs.cache-hit }}
+          CATALOG: ${{ steps.hit-catalog.outputs.cache-hit }}
+          DOCS: ${{ steps.hit-docs.outputs.cache-hit }}
+          TARGETS: ${{ steps.hit-targets.outputs.cache-hit }}
+          BUNDLE: ${{ steps.hit-bundle.outputs.cache-hit }}
+          SITE: ${{ steps.hit-site.outputs.cache-hit }}
+        run: |
+          set -uo pipefail
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          out() { echo "$1" >> "$GITHUB_OUTPUT"; }
+          declare -A hit=([checks]=$CHECKS [library]=$LIBRARY [catalog]=$CATALOG [docs]=$DOCS [targets]=$TARGETS)
           test=false
           for gate in checks library catalog docs targets; do
-            out "$gate-fp=${fp[$gate]}"
-            if run=$(left "passed-$gate-${fp[$gate]}") && [ -n "$run" ]; then
+            if [ "${hit[$gate]}" = true ]; then
               out "$gate=false"
-              say "\`$gate\` passed for these inputs in run $run: not running it again."
+              say "\`$gate\` has passed for these inputs: not running it again."
             else
               out "$gate=true"
               say "\`$gate\` has not passed for these inputs: running it."
@@ -258,19 +309,13 @@ jobs:
             fi
           done
           out "test=$test"
-
-          release=$(.github/docs-release.sh)
-          bundle="bundle-${fp[docs]}"
-          out "bundle-name=$bundle"
-          if run=$(left "$bundle") && [ -n "$run" ]; then
-            out "bundle-run=$run"
-            say "Run $run built the site's bundle for these inputs: laying the site out round it."
+          if [ "$BUNDLE" = true ]; then
+            out "bundle-run=cache"
+            say "The site's bundle for these inputs is built: laying the site out round it."
           fi
-          site="site-${fp[docs]}-$release"
-          if run=$(left "$site") && [ -n "$run" ]; then
-            out "site-name=$site"
-            out "site-run=$run"
-            say "Run $run built the site for these inputs as $release: deploying that."
+          if [ "$SITE" = true ]; then
+            out "site-run=cache"
+            say "The site for these inputs and this release is built: deploying that."
           fi
 
       # Whether the site that is live is out of date. Only a push to `main`
@@ -467,46 +512,28 @@ jobs:
       # The markers `changes` looks for, one for each gate this job ran: these
       # inputs passed it. Only once everything above has passed, and only
       # with fingerprints to name them by — a `changes` that failed ran
-      # everything and vouches for nothing. Ninety days, the most a private
-      # repository keeps an artifact: a gate whose inputs stay the same
-      # longer than that is run once more.
+      # everything and vouches for nothing. Cache entries, not artifacts: see
+      # `changes`. One unused for a week is evicted, and its gate runs again.
       - id: passed
         name: Mark what passed
         if: needs.changes.result == 'success'
         run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/cache/save@v4
         continue-on-error: true
         if: steps.passed.outcome == 'success' && env.CHECKS == 'true'
-        with:
-          name: passed-checks-${{ needs.changes.outputs.checks-fp }}
-          path: passed.txt
-          retention-days: 90
-          # A re-run of this job writes it again.
-          overwrite: true
-      - uses: actions/upload-artifact@v4
+        with: { path: passed.txt, key: "passed-checks-${{ needs.changes.outputs.checks-fp }}" }
+      - uses: actions/cache/save@v4
         continue-on-error: true
         if: steps.passed.outcome == 'success' && env.LIBRARY == 'true'
-        with:
-          name: passed-library-${{ needs.changes.outputs.library-fp }}
-          path: passed.txt
-          retention-days: 90
-          overwrite: true
-      - uses: actions/upload-artifact@v4
+        with: { path: passed.txt, key: "passed-library-${{ needs.changes.outputs.library-fp }}" }
+      - uses: actions/cache/save@v4
         continue-on-error: true
         if: steps.passed.outcome == 'success' && env.CATALOG == 'true'
-        with:
-          name: passed-catalog-${{ needs.changes.outputs.catalog-fp }}
-          path: passed.txt
-          retention-days: 90
-          overwrite: true
-      - uses: actions/upload-artifact@v4
+        with: { path: passed.txt, key: "passed-catalog-${{ needs.changes.outputs.catalog-fp }}" }
+      - uses: actions/cache/save@v4
         continue-on-error: true
         if: steps.passed.outcome == 'success' && env.DOCS == 'true'
-        with:
-          name: passed-docs-${{ needs.changes.outputs.docs-fp }}
-          path: passed.txt
-          retention-days: 90
-          overwrite: true
+        with: { path: passed.txt, key: "passed-docs-${{ needs.changes.outputs.docs-fp }}" }
 
       # Without this a golden failure is a percentage in a log. With it you can
       # download the render and the highlighted diff and see what moved.
@@ -518,19 +545,13 @@ jobs:
           name: screenshot-diffs
           path: ui-catalog/build/screenshot-diffs/
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
 
-      - name: Upload test reports
+      # The failures themselves, written into the run's summary, where they
+      # can be read without downloading anything and cost no storage.
+      - name: Say what failed
         if: failure()
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: test-reports
-          path: |
-            ui/build/reports/tests/
-            ui-catalog/build/reports/tests/
-          if-no-files-found: ignore
-          retention-days: 3
+        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
 
   targets:
     name: Compile every target
@@ -619,25 +640,14 @@ jobs:
         name: Mark what passed
         if: needs.changes.result == 'success'
         run: echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > passed.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/cache/save@v4
         continue-on-error: true
         if: steps.passed.outcome == 'success'
-        with:
-          name: passed-targets-${{ needs.changes.outputs.targets-fp }}
-          path: passed.txt
-          retention-days: 90
-          # A re-run of this job writes it again.
-          overwrite: true
+        with: { path: passed.txt, key: "passed-targets-${{ needs.changes.outputs.targets-fp }}" }
 
-      - name: Upload test reports
+      - name: Say what failed
         if: failure()
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: android-test-reports
-          path: ui/build/reports/tests/
-          if-no-files-found: ignore
-          retention-days: 3
+        run: python3 .github/failed-tests.py >> "$GITHUB_STEP_SUMMARY"
 
   # Contact sheets, when somebody asks for them.
   #
@@ -679,8 +689,8 @@ jobs:
           path: ui-docs/build/site-shots/
           if-no-files-found: error
           # 76 MB a run, and the point of them is that somebody scrolls through
-          # them while the change is fresh: three days.
-          retention-days: 3
+          # them while the change is fresh: a day.
+          retention-days: 1
 
   # The documentation site, and the API reference it serves under `/api/`.
   #
@@ -740,12 +750,12 @@ jobs:
         name: Fetch the bundle these inputs built
         if: needs.changes.outputs.bundle-run != ''
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/cache/restore@v4
         with:
-          name: ${{ needs.changes.outputs.bundle-name }}
-          run-id: ${{ needs.changes.outputs.bundle-run }}
-          github-token: ${{ github.token }}
-          path: ui-docs/build
+          path: |
+            ui-docs/build/dist/wasmJs/productionExecutable
+            ui-docs/build/generated/apiTables/ApiTables.kt
+          key: ${{ needs.changes.outputs.bundle-name }}
 
       - uses: actions/setup-java@v4
         with:
@@ -792,7 +802,7 @@ jobs:
       # `docs/generate-doc-pages.py`, which the Gradle task calls — so a
       # malformed page fails here rather than in a reader's browser.
       - name: Build the site
-        if: steps.bundle.outcome != 'success'
+        if: steps.bundle.outputs.cache-hit != 'true'
         run: ./gradlew --no-daemon :ui-docs:wasmJsBrowserDistribution
 
       # What a reader downloads, against ceilings that only go down. Cheap — it
@@ -804,25 +814,20 @@ jobs:
       # a browser, and a timing taken on a shared runner would be a number to
       # ignore. This one is bytes, and bytes are the same everywhere.
       - name: Check the bundle size
-        if: steps.bundle.outcome != 'success'
+        if: steps.bundle.outputs.cache-hit != 'true'
         run: python3 docs/check-bundle-size.py
 
-      # For a later run of the same inputs: see `changes`. Three days, which is
-      # longer than a release has ever waited for its tag; one that waits
-      # longer builds the bundle again.
+      # For a later run of the same inputs, in the runners' cache: see
+      # `changes`. One unused for a week is evicted, and built again.
       - name: Keep the bundle
-        if: steps.bundle.outcome != 'success' && needs.changes.outputs.bundle-name != ''
-        uses: actions/upload-artifact@v4
+        if: steps.bundle.outputs.cache-hit != 'true' && needs.changes.outputs.bundle-name != ''
+        uses: actions/cache/save@v4
         continue-on-error: true
         with:
-          name: ${{ needs.changes.outputs.bundle-name }}
           path: |
             ui-docs/build/dist/wasmJs/productionExecutable
             ui-docs/build/generated/apiTables/ApiTables.kt
-          if-no-files-found: error
-          retention-days: 3
-          # A re-run of this job writes it again.
-          overwrite: true
+          key: ${{ needs.changes.outputs.bundle-name }}
 
       # A gate, not a report: `failOnWarning` is on, so a malformed `@param` or a
       # `[Link]` to a symbol that no longer exists fails the build. That is a
@@ -849,33 +854,28 @@ jobs:
       - name: Lay the site out
         run: python3 docs/lay-out-site.py --out site --api ui/build/dokka/html --deploy dist
 
-      # Two days: `deploy` reads it minutes later, and so does the push to
-      # `main` that merges a branch checked by hand the day before, which
-      # deploys this rather than building it again. Artifact storage is billed
-      # on a private repository, and this is about forty megabytes a run. The
-      # reference used to be uploaded again on its own for 90 days; it is
-      # served at `/ui/api/` now.
+      # Into the runners' cache, which `deploy` reads minutes later, and so
+      # does a tag on the same commit, which deploys this rather than building
+      # it again. It was an artifact, about forty megabytes a run in storage
+      # shared with the packages — and when that storage was full, the site
+      # never reached `deploy` at all. The cache is Blacksmith's, and free.
       #
-      # **An upload that fails does not fail the job**, here or at any other
-      # upload in this file: artifact storage refusing a file is not a defect
-      # in the code, and a run that has passed every gate should say so. Here
-      # it is a warning, and `deploy` is skipped, having nothing to fetch; the
-      # next push that changes the site deploys it. A marker that fails to
-      # upload means its gate runs again next time.
+      # **A save that fails does not fail the job**, here or anywhere else in
+      # this file: storage refusing a file is not a defect in the code, and a
+      # run that has passed every gate should say so. Here it is a warning, and
+      # `deploy` is skipped, having nothing to fetch; the next push that
+      # changes the site deploys it. A marker that is not saved means its gate
+      # runs again next time.
       - id: upload
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         continue-on-error: true
         with:
-          name: ${{ steps.name.outputs.name }}
           path: dist
-          if-no-files-found: error
-          retention-days: 2
-          # A re-run of this job writes it again.
-          overwrite: true
+          key: ${{ steps.name.outputs.name }}
       - name: Say the site was not uploaded
         if: steps.upload.outcome == 'failure'
         run: |
-          msg="The site built but could not be uploaded as an artifact, so it is not deployed. Re-run this job, or push again, to deploy it."
+          msg="The site built but could not be saved to the cache, so it is not deployed. Re-run this job, or push again, to deploy it."
           echo "::warning title=Site not uploaded::$msg"
           echo "$msg" >> "$GITHUB_STEP_SUMMARY"
 
@@ -911,15 +911,13 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     permissions:
-      # To download another run's artifact.
-      actions: read
+      contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/cache/restore@v4
         with:
-          name: ${{ needs.site.result == 'success' && needs.site.outputs.name || needs.changes.outputs.site-name }}
-          run-id: ${{ needs.site.result == 'success' && github.run_id || needs.changes.outputs.site-run }}
-          github-token: ${{ github.token }}
           path: dist
+          key: ${{ needs.site.result == 'success' && needs.site.outputs.name || needs.changes.outputs.site-name }}
+          fail-on-cache-miss: true
 
       - uses: cloudflare/wrangler-action@v3
         with:
