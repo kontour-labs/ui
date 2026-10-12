@@ -97,8 +97,9 @@ internal const val MinMonthRows = 3
 
 /**
  * A month's zoom: how many weeks it shows, and the list kept still under the
- * fingers, or the pointer, as that changes. [rows] is read and written through
- * the state; [viewportPx] and the limits are as the month last laid out.
+ * fingers, or the pointer, as that changes. The weeks shown are the state's
+ * `monthRows`, read and written there; [viewportPx] and the limits are as the
+ * month last laid out.
  */
 @Stable
 internal class MonthZoom(
