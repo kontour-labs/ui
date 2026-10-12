@@ -75,9 +75,9 @@ cannot reach another workflow's artifacts. Dokka lives in the `site` job now —
 the one that publishes it under `/api/`.
 
 **It runs on pushes to `main`, on `v*` tags, and by hand — never on a pull
-request or a push to another branch.** The repository is private, so every
-minute is billed, and a pull request's run was 17 minutes of `test` alone on
-the 4-core runner public repositories get. A branch that wants the checks
+request or a push to another branch.** Every minute is on Blacksmith's metered
+runners, and a pull request's run was 17 minutes of `test` alone on a 4-core
+runner. A branch that wants the checks
 before it lands asks for them: Actions → CI → Run workflow, on that branch.
 That run is the whole suite and never deploys. Branch protection must not
 require status checks, or every merge waits for one that never starts.
@@ -167,7 +167,8 @@ the SHA-1 and MD5 a Maven client checks. Neither change has met a release yet.
 
 #### Memory
 
-A private repository's runner has two cores and 7 GB. `test` compiles, then
+A GitHub-hosted runner for a private repository had two cores and 7 GB, which is
+what this was measured on. `test` compiles, then
 stops the Kotlin daemon, then tests, in two Gradle invocations, because run as
 one the Kotlin daemon (2.8 GB once it has compiled `:ui`), Gradle (2.3 GB with
 Kotlin/Native running inside it, for the ABI check) and the test forks with

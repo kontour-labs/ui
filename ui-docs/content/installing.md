@@ -3,12 +3,13 @@
 Getting Kontour UI into an app: which modules there are, what each needs, and
 getting them to resolve on a laptop and in CI.
 
-Everything is published to **GitHub Packages** from `kontour-labs/ui`, under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The packages
-are public, but that registry authenticates *every* request, including the ones
-that come back 404, so there is no anonymous read and no way to try it without a
-credential first — any GitHub account's token will do. Much of this page is
-about that credential.
+Kontour UI is open source, under the [Apache License
+2.0](https://www.apache.org/licenses/LICENSE-2.0), and published to **GitHub
+Packages** from [`kontour-labs/ui`](https://github.com/kontour-labs/ui). The
+packages are public, but GitHub's Maven registry asks for a token on every
+download, even of a public package, so the one thing to set up first is a
+GitHub token: any account's, with one scope. [The token](#the-token) has the
+how, for a laptop and for CI.
 
 ## The modules
 
@@ -70,9 +71,9 @@ Android; most projects have it already.
 
 **`content { includeGroup("io.kontour") }` is not tidiness.** Without it Gradle
 will try this repository for every dependency in your build — several hundred
-credentialed requests, all of which 404, and all of which fail outright for
-anyone whose token is missing or wrong. Scoped, the only thing that can fail
-here is the design system, which is what makes the error mean something.
+requests, all of which 404, and all of which fail outright for anyone whose
+token is missing or wrong. Scoped, the only thing that can fail here is the
+design system, which is what makes the error mean something.
 
 ## Adding the modules
 
@@ -135,9 +136,9 @@ a dialog drawing nowhere, is a bug that looks like a missing feature.
 set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
 `io.kontour:tabler-icons-outline` and `-filled`, every icon of the release, with
 `Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
-few system icons from it, so it comes with the library, from the repository
-below: GitHub Packages serves everything Kontour Labs publishes from the one
-URL. Any `ImageVector` works. The site's Icons page, in its top bar, searches
+few system icons from it, so it comes with the library, from the same
+repository above: GitHub Packages serves everything Kontour Labs publishes from
+the one URL, and the icons are public too. Any `ImageVector` works. The site's Icons page, in its top bar, searches
 every one of them — by name, by what Tabler tags it with, and by the everyday
 word for it — and copies the property and its import.
 
@@ -247,6 +248,10 @@ haptics.play(HapticEffect.Selection(fine = true))
 
 ## The token
 
+GitHub's Maven registry will not serve a download without a token, even of a
+public package. Any GitHub account can make one; it needs nothing of this
+repository and no invitation.
+
 A **classic** personal access token with the `read:packages` scope, and nothing
 else. Create it at **Settings → Developer settings → Personal access tokens →
 Tokens (classic)**.
@@ -254,10 +259,6 @@ Tokens (classic)**.
 > **Fine-grained tokens do not work.** They cannot read GitHub Packages at the
 > time of writing, whatever permissions you give them. If you are looking at a
 > permissions matrix that has no "Packages" row, that is the wrong kind of token.
-
-The account that owns the token needs read access to `kontour-labs/ui` — the
-packages inherit the repository's access, so someone who cannot see the repo
-cannot see its packages either. One token reads all three modules.
 
 ### On a laptop
 
@@ -270,15 +271,10 @@ gpr.key=ghp_…
 
 ### In CI
 
-Store the same pair as secrets in the *consuming* repository (or as organisation
-secrets, if you are on a plan that offers them for private repositories) and put
+Store the same pair as secrets in the repository that builds the app, and put
 them in the environment of any step that resolves dependencies:
 
 ```yaml
-permissions:
-  contents: read
-  # No `packages: read` — see below for why it would not help.
-
 steps:
   - name: Test
     env:
@@ -287,36 +283,10 @@ steps:
     run: ./gradlew test
 ```
 
----
-
-## Why the workflow's own token will not do
-
-This is the part that wastes an afternoon, so it is worth stating plainly.
-
-**`secrets.GITHUB_TOKEN` cannot read these packages from another repository,
-and no permissions block changes that.** A workflow's own token is scoped to the
-repository it runs in: it reads *that* repository's packages and no others.
-
-GitHub does have a per-package grant that would widen it — **Manage Actions
-access**, where you name other repositories that may read the package. It only
-exists for **container** packages (`ghcr.io`). A Maven package has no such
-screen: its access is inherited from the repository that published it and cannot
-be extended. If you go looking for that setting on a Maven package you will not
-find it, because it is not there.
-
-So a consumer in another repository needs a credential belonging to an
-**account** rather than to a workflow. Options, in the order most people should
-consider them:
-
-| | |
-|---|---|
-| **Classic PAT in a secret** | What `kontour-labs/anyways` does. Least setup, definitely works. Tied to whoever created it, and needs rotating when it expires |
-| **Machine-user PAT** | The same, on a dedicated bot account added to the org. No individual's credentials in CI, at the cost of a seat |
-| **GitHub App token** | An org-owned app with `packages: read`, installed on both repositories, minting a short-lived token per run via `actions/create-github-app-token`. Cleanest and self-expiring; the most setup |
-
-Publishing *to* the registry is different and simpler: the release workflow lives
-in this repository, so its own `GITHUB_TOKEN` with `packages: write` is enough.
-Only reading from elsewhere needs an account credential.
+A workflow's own `GITHUB_TOKEN` is not the one to use: it is scoped to the
+repository the workflow runs in, and GitHub's Maven registry gives it that
+repository's packages and no others. A classic token on a bot account keeps a
+person's credential out of CI, if that matters to you.
 
 ---
 
@@ -325,28 +295,27 @@ Only reading from elsewhere needs an account credential.
 | What you see | What it is |
 |---|---|
 | `401 Unauthorized` on an `io.kontour` artifact | No credential, or one without `read:packages`. A fine-grained token looks exactly like this |
-| `401` in CI while your laptop works | The workflow is still using `secrets.GITHUB_TOKEN`, or the secrets are not in that step's `env` |
-| `404 Not Found` on a version | That version was never published. `Packages` on the repository lists what exists, per module |
+| `401` in CI while your laptop works | The workflow is using `secrets.GITHUB_TOKEN`, or the secrets are not in that step's `env` |
+| `404 Not Found` on a version | That version was never published. [The repository's packages](https://github.com/orgs/kontour-labs/packages?repo_name=ui) list what exists, per module |
 | Hundreds of failing requests for unrelated dependencies | The `content { includeGroup(…) }` filter is missing |
 | AndroidX artifacts will not resolve | `google()` is missing from the repositories |
 | Resolution succeeds but the classes are missing on one platform | A variant did not publish. Each module should have seven per version: the module itself, and one each for `-android`, `-iosarm64`, `-iossimulatorarm64`, `-js`, `-jvm`, `-wasm-js` |
 | `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.1 |
 | "No KontourTheme found" or "No OverlayHost found" | The root wrappers under [Setting up `:ui`](#setting-up-ui) are missing, or the screen is composed outside them — a separate window, a dialog of the platform's own |
 
-## Working without a token
+## Building from source
 
-A consumer that has this repository checked out beside it can substitute the
-sources for the published artifacts and skip the registry entirely. That is what
-`anyways` does under `-Pkontour.ui.local=true`; the pattern is a conditional
-`includeBuild`, which swaps all three modules at once:
+An app with this repository checked out beside it can build against the sources
+instead of the published artifacts, and skip the registry and the token
+entirely. A conditional `includeBuild` swaps all three modules at once:
 
 ```kotlin
+// settings.gradle.kts
 if (providers.gradleProperty("kontour.ui.local").orNull.toBoolean()) {
-    includeBuild("../../ui")
+    includeBuild("../ui")
 }
 ```
 
-Useful when changing the library and the app together, and a reasonable fallback
-for someone who cannot get a token. It should stay off by default: the published
-artifacts have to be what CI builds and what a fresh clone gets, or they are only
-ever exercised by the release job.
+Run with `-Pkontour.ui.local=true` to use it. Useful when changing the library
+and the app together. Keep it off by default, so that CI and a fresh clone build
+against the same published artifacts everyone else gets.

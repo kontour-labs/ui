@@ -26,9 +26,9 @@
 # ### When it runs
 #
 # Pushes to `main`, `v*` tags, and by hand. **Not** on pull requests or on
-# pushes to any other branch. The repository is private, so every minute here
-# is billed, and a pull request's run was about 17 minutes of `test` alone on a
-# public 4-core runner — more on the 2-core runners a private repository gets.
+# pushes to any other branch. Every minute here is on Blacksmith's metered
+# runners, and a pull request's run was about 17 minutes of `test` alone on a
+# 4-core runner.
 # A branch that wants the checks before it merges asks for them: Actions → CI →
 # Run workflow, on that branch, with **full** ticked for the catalog's slow
 # classes. That run never deploys.

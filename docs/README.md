@@ -70,8 +70,7 @@ Two halves, split by who is reading.
 **[docs.kontour.io/ui](https://docs.kontour.io/ui/)** — every component with a
 demo you can operate, a compiled example, a generated parameter table, and the
 guides: installing, tokens, theming, accessibility, the `+` vocabulary, overlays
-and sheets. Private, behind Cloudflare Access: people sign in with GitHub, and
-agents read the Markdown mirror at `/ui/llms.txt` with a service token
+and sheets. Public; agents read the Markdown mirror at `/ui/llms.txt`
 ([`agents.md`](../ui-docs/content/agents.md)).
 
 The source is [`ui-docs/content/`](../ui-docs/content), and it is markdown that

@@ -19,9 +19,9 @@ KontourTheme {
 
 ### **[docs.kontour.io/ui](https://docs.kontour.io/ui/)**
 
-The documentation site: every component running, not pictured. It is private —
-sign in with a GitHub account in the kontour-labs organisation; an agent reads
-the same pages as Markdown with a service token, as
+The documentation site: every component running, not pictured. An agent reads
+the same pages as Markdown, starting from
+[`llms.txt`](https://docs.kontour.io/ui/llms.txt), as
 [`agents.md`](ui-docs/content/agents.md) describes. Its source is
 [`ui-docs/content/`](ui-docs/content), which reads on GitHub too —
 [components](ui-docs/content/components.md) ·
@@ -42,14 +42,23 @@ Adding to the library instead? [`docs/`](docs/README.md) is the other half:
 ## Installing
 
 Published to GitHub Packages. The packages are public, but GitHub's Maven
-registry asks for a credential on every download, so it needs a **classic**
-personal access token with `read:packages` — any GitHub account's will do; the
-fine-grained kind cannot read packages at the time of writing.
+registry asks for a token on every download, even of a public package: make a
+**classic** personal access token with only the `read:packages` scope, on any
+GitHub account (the fine-grained kind cannot read packages), and put it in
+`~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=your-github-username
+gpr.key=ghp_…
+```
 
 ```kotlin
 // settings.gradle.kts
 maven("https://maven.pkg.github.com/kontour-labs/ui") {
-    credentials { /* gpr.user / gpr.key */ }
+    credentials {
+        username = providers.gradleProperty("gpr.user").orNull
+        password = providers.gradleProperty("gpr.key").orNull
+    }
     content { includeGroup("io.kontour") }
 }
 
@@ -66,9 +75,8 @@ be used on its own, with no Compose in it: see
 [`installing.md`](ui-docs/content/installing.md) has the whole of it: the three
 modules and the setup each needs on each platform, why
 `content { includeGroup }` is not tidiness but the difference between a working
-build and every dependency failing first, why a workflow in another repository
-cannot use its own `GITHUB_TOKEN` at any permission level, where the token goes,
-and what each failure mode looks like.
+build and every dependency failing first, the token in CI, and what each failure
+mode looks like.
 
 **One thing worth knowing before you start.** This publishes against Compose
 Multiplatform **1.12.1**. 1.12 is the floor, deliberately:

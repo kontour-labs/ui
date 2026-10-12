@@ -24,7 +24,15 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+### Changed
+
+- **The documentation is public.** [docs.kontour.io/ui](https://docs.kontour.io/ui/)
+  needs no sign-in, and an agent fetches `llms.txt` and the Markdown with no
+  headers: [Agents](agents.md) has the new `CLAUDE.md` snippet, without the
+  service token. [Installing](installing.md) is written for anyone installing
+  from the public packages.
 
 ---
 

@@ -105,11 +105,11 @@ private fun Install() {
             item("Repository", "maven.pkg.github.com/kontour-labs/ui")
         }
         Text(
-            "It is published privately through GitHub Packages, so the repository " +
-                "needs a classic personal access token with read:packages — in CI " +
-                "too, because a workflow's own token cannot read another " +
-                "repository's Maven packages. Versions are tags: v0.2.0 publishes " +
-                "0.2.0, and anything untagged is a snapshot.",
+            "Open source, under the Apache License 2.0, and published through GitHub " +
+                "Packages. The packages are public, but GitHub's Maven registry asks " +
+                "for a token on every download: a classic personal access token with " +
+                "read:packages, from any GitHub account. Versions are tags: v0.4.4 " +
+                "publishes 0.4.4, and anything untagged is a snapshot.",
             style = Theme.typography.bodyMedium,
             colour = Theme.colours.contentMuted,
         )
