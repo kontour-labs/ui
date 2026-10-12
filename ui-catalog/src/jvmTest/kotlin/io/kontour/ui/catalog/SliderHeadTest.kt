@@ -192,12 +192,22 @@ class SliderHeadTest {
             scene.press(at)
             held = scene.frames(20).darkInkAbove(bounds, at.x)
             scene.release(at)
+            val released = System.nanoTime()
             // Frames are 16ms apart: a quarter of a second, then a second.
             lingering = scene.frames(15).darkInkAbove(bounds, at.x)
+            // The linger is a `delay`, on the wall clock, and the frames are
+            // not: a fast machine renders the second's frames in less than the
+            // half second, and the label is still up — as it was on CI. So the
+            // half second passes on the wall clock first.
+            val waited = (System.nanoTime() - released) / 1_000_000
+            if (waited < LingerWallMillis) Thread.sleep(LingerWallMillis - waited)
             gone = scene.frames(47).darkInkAbove(bounds, at.x)
         }
         return Triple(held, lingering, gone)
     }
+
+    /** Comfortably past the label's half-second linger, on the wall clock. */
+    private val LingerWallMillis = 700L
 
     /** Dark pixels in the 60px band above [bounds], within 80px of [x]. */
     private fun BufferedImage.darkInkAbove(bounds: Rect, x: Float): Int {
