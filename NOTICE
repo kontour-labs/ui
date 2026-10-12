@@ -1,0 +1,22 @@
+Kontour UI
+Copyright 2026 Kontour Labs
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes the following third-party material, each under its own licence:
+
+- Outfit. Copyright 2021 The Outfit Project Authors
+  (https://github.com/Outfitio/Outfit-Fonts). Under the SIL Open Font License
+  1.1; bundled in io.kontour:ui. See ui/licenses/Outfit-OFL.txt.
+
+- JetBrains Mono. Copyright 2020 The JetBrains Mono Project Authors
+  (https://github.com/JetBrains/JetBrainsMono). Under the SIL Open Font License
+  1.1; bundled in io.kontour:ui. See ui/licenses/JetBrainsMono-OFL.txt.
+
+- Plural rules from the Unicode Common Locale Data Repository (CLDR) 45.0.0,
+  generated into ui/src/commonMain/kotlin/io/kontour/ui/locale/CldrPlurals.kt,
+  under the Unicode License V3. See ui/licenses/Unicode-CLDR.txt.
+
+- Display corner radii from LineageOS device configuration, under the Apache
+  License, Version 2.0, generated into
+  ui/src/commonMain/kotlin/io/kontour/ui/platform/DeviceCurves.kt.

@@ -23,6 +23,8 @@ plugins {
 kontourPublishing(
     displayName = "Kontour UI",
     summary = "A Compose Multiplatform design system built on Foundation, without Material.",
+    licenceNote = "Bundles the Outfit and JetBrains Mono fonts, under the SIL Open Font License 1.1; " +
+        "see ui/licenses/ and NOTICE.",
 )
 
 // ---------------------------------------------------------------------------

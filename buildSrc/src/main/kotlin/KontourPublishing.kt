@@ -44,14 +44,14 @@ import org.gradle.kotlin.dsl.withType
  *
  * @param displayName The POM's `name`.
  * @param summary The POM's `description`.
- * @param licenceNote The licence's `comments`. The default names the fonts `:ui`
- *   bundles; a module that bundles none says so rather than inheriting it.
+ * @param licenceNote The licence's `comments`, for what an artifact bundles under
+ *   a licence of its own: `:ui`'s fonts. Null for a module that bundles nothing.
+ *   The licences themselves are in `ui/licenses/`, and `NOTICE` lists them.
  */
 fun Project.kontourPublishing(
     displayName: String,
     summary: String,
-    licenceNote: String = "All rights reserved. The bundled Outfit fonts are SIL OFL 1.1 " +
-        "and redistributable in this artifact; see ui/licenses/Outfit-OFL.txt.",
+    licenceNote: String? = null,
 ) {
     group = "io.kontour"
     version = providers.gradleProperty("kontour.version")
@@ -110,8 +110,10 @@ fun Project.kontourPublishing(
                 url.set("https://github.com/kontour-labs/ui")
                 licenses {
                     license {
-                        name.set("Proprietary")
-                        comments.set(licenceNote)
+                        name.set("The Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        distribution.set("repo")
+                        if (licenceNote != null) comments.set(licenceNote)
                     }
                 }
                 scm {

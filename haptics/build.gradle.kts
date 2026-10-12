@@ -25,7 +25,6 @@ plugins {
 kontourPublishing(
     displayName = "Kontour Haptics",
     summary = "Platform haptics for Kotlin Multiplatform — Android, iOS, the web and Mac trackpads — with no Compose dependency.",
-    licenceNote = "All rights reserved.",
 )
 
 dokka {
