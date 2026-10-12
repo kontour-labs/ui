@@ -366,15 +366,15 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
     dependsOn(generateDocPages, generateApiTables)
 }
 
-// Binaryen's `merge-similar-functions`, the one pass `-Oz` runs that `-Os` does
-// not, segfaults on this site's code as of 0.4.4: `wasm-opt` version_125 exits
-// 139 on the last of the Kotlin plugin's optimisation stages, the same here and
-// on CI, and a larger stack does not help. Skipping that pass alone keeps the
-// rest of `-Oz`: the app's Wasm measures 3,656,832 bytes gzipped with it
-// skipped, inside its ceiling in `docs/check-bundle-size.py`. Take this out
-// when the Kotlin plugin moves to a Binaryen that does not crash on it.
-tasks.withType<org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec>().configureEach {
-    binaryenArguments.add("--skip-pass=merge-similar-functions")
+// Binaryen 133 rather than the Kotlin plugin's 125. 125 segfaults (exit 139)
+// optimising this site's code as of 0.4.4: in `merge-similar-functions`, the
+// one pass `-Oz` runs that `-Os` does not, every time here, and earlier and
+// elsewhere on CI's runners. 133 runs the plugin's whole pipeline on the same
+// input, that pass included, and the app's Wasm measures 3,654,576 bytes
+// gzipped, inside its ceiling in `docs/check-bundle-size.py`. Take this out
+// when the plugin's own Binaryen is 133 or newer.
+plugins.withType<org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenPlugin> {
+    the<org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenEnvSpec>().version.set("133")
 }
 
 // `wasmJsBrowserDistribution` writes to `build/dist/wasmJs/productionExecutable`,
