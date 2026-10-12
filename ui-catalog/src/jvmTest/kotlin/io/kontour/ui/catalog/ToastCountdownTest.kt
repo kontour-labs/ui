@@ -92,7 +92,13 @@ class ToastCountdownTest {
     @Test
     fun aWipeOfTheBackgroundDrawsBackAsTheTimeRunsOut() {
         scene(ToastCountdown.Wipe).use { scene ->
-            val early = washLength(scene.frames(24))
+            scene.frames(24)
+            // The wash is told from the capsule's own dark beside it, so some of
+            // the time has to have gone first. On the wall clock: a fast machine
+            // renders the frames before any has, the wash still spans the whole
+            // toast, and there is nothing to tell it from — as on CI.
+            Thread.sleep(500)
+            val early = washLength(scene.frames(2))
             Thread.sleep(1_500)
             val later = washLength(scene.frames(2))
             assertTrue(early > 100, "no wash across the toast: $early pixels")

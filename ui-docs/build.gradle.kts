@@ -366,6 +366,17 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
     dependsOn(generateDocPages, generateApiTables)
 }
 
+// Binaryen's `merge-similar-functions`, the one pass `-Oz` runs that `-Os` does
+// not, segfaults on this site's code as of 0.4.4: `wasm-opt` version_125 exits
+// 139 on the last of the Kotlin plugin's optimisation stages, the same here and
+// on CI, and a larger stack does not help. Skipping that pass alone keeps the
+// rest of `-Oz`: the app's Wasm measures 3,656,832 bytes gzipped with it
+// skipped, inside its ceiling in `docs/check-bundle-size.py`. Take this out
+// when the Kotlin plugin moves to a Binaryen that does not crash on it.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec>().configureEach {
+    binaryenArguments.add("--skip-pass=merge-similar-functions")
+}
+
 // `wasmJsBrowserDistribution` writes to `build/dist/wasmJs/productionExecutable`,
 // which is what the `site` job in `.github/workflows/ci.yml` copies. That path
 // is a convention of the Kotlin plugin rather than a promise, so the workflow
