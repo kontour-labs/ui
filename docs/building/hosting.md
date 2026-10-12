@@ -35,7 +35,7 @@ later.
 ## When CI runs
 
 Pushes to `main`, `v*` tags and manual runs. Not on pull requests or other
-branches: the jobs run on Blacksmith's runners, whose minutes are metered. The `changes`
+branches: a run is long, and nobody has asked for one yet. The `changes`
 job decides what a push has to run. [`testing.md`](testing.md#what-ci-actually-runs-and-what-it-does-not-run-twice)
 has the table.
 

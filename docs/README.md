@@ -97,6 +97,7 @@ That is what the rest of this directory is.
 | [`building/contributing.md`](building/contributing.md) | The shape of a component, the naming rules, the checklist |
 | [`building/testing.md`](building/testing.md) | Every gate, what each one asks, and what they have caught |
 | [`building/hosting.md`](building/hosting.md) | Where the site is served, what is uploaded, and the one-time Cloudflare and GitHub set-up |
+| [`building/releasing.md`](building/releasing.md) | How a version reaches Maven Central, and the one-time namespace, token and signing-key set-up |
 | [`lay-out-site.py`](lay-out-site.py) | The site as it is uploaded: preloads, the Markdown mirror and `llms.txt`, and Cloudflare's `_headers` and `_redirects` |
 | [`check-links.py`](check-links.py) | Every link in the repository resolves |
 | [`check-components.py`](check-components.py) | Twenty-three rules over the pages: a page per component, an example, a demo the gallery renders, an index entry, a parameter explained, and prose written for a reader |

@@ -24,7 +24,11 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // The icons, `io.kontour:tabler-icons-*`, and nothing else: GitHub
+        // The icons, `io.kontour:tabler-icons-*`, and nothing else, from GitHub
+        // Packages, where they were published before Maven Central. Central,
+        // above, is asked first; this is only for a version that is not there.
+        // When the pinned `tabler-icons` version is on Central, this block can
+        // go, and with it every token CI and a contributor need. GitHub
         // Packages needs credentials even to read, so this is asked for them
         // and for no other module. A token with `read:packages`, from
         // `gpr.user`/`gpr.key` in the Gradle properties, or from the

@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.dokka)
-    `maven-publish`
+    alias(libs.plugins.mavenPublish)
 }
 
 // Navigation 3 scene strategies that lay out with `:ui`'s pane scaffolds.
@@ -22,6 +22,14 @@ kontourPublishing(
     displayName = "Kontour UI for Navigation 3",
     summary = "Navigation 3 scene strategies built on Kontour UI's pane scaffolds, without Material.",
 )
+
+// Maven Central: see `kontourPublishing` in buildSrc for the rest. Signed
+// wherever there is a key, which CI always has and Central insists on; without
+// one, as for a `publishToMavenLocal` on a laptop, unsigned.
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
+}
 
 dokka {
     // The same gate `:ui` sets: a warning is a broken `[Link]` in the KDoc.

@@ -15,6 +15,36 @@ from the version the app is on.
 
 ---
 
+## GitHub Packages to Maven Central
+
+From 0.4.4, every `io.kontour` artifact is on Maven Central, the icons too, and
+needs no token. An app that read them from GitHub Packages drops that
+repository and its credentials:
+
+```diff
+ // settings.gradle.kts
+ dependencyResolutionManagement {
+     repositories {
+         google()
+         mavenCentral()
+-        maven("https://maven.pkg.github.com/kontour-labs/ui") {
+-            credentials {
+-                username = providers.gradleProperty("gpr.user").orNull
+-                password = providers.gradleProperty("gpr.key").orNull
+-            }
+-            content { includeGroup("io.kontour") }
+-        }
+     }
+ }
+```
+
+Then `gpr.user`/`gpr.key` in `~/.gradle/gradle.properties`, and the
+`KONTOUR_PACKAGES_*` secrets in CI, can go, and the token with them. The
+coordinates are unchanged. Versions before 0.4.4 are only on GitHub Packages:
+move to 0.4.4 or later first, or keep the repository until you do.
+
+---
+
 ## 0.4.3 to 0.4.4
 
 From 0.4.3 to 0.4.4, released on 11 October 2026. Three days and a schedule

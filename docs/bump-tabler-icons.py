@@ -14,10 +14,11 @@ request, never on `main`.
     python3 docs/bump-tabler-icons.py --is-newer 3.49.0
     python3 docs/bump-tabler-icons.py --write 3.49.0 [--integrity sha512-…]
 
-`--latest` reads both packages' `maven-metadata.xml` from GitHub Packages, which
-wants credentials even to read — the same ones `settings.gradle.kts` uses:
-`KONTOUR_PACKAGES_ACTOR`/`KONTOUR_PACKAGES_TOKEN`, or `GITHUB_ACTOR`/`GITHUB_TOKEN`
-— and prints the newest stable version both styles have.
+`--latest` reads both packages' `maven-metadata.xml` from Maven Central, which
+needs no credentials, and prints the newest stable version both styles have.
+Central and nowhere else: the library is installed from Central, so a version of
+the icons that is not there is one its users could not resolve. Before the
+icons' first release there, it answers with the version already pinned.
 
 `--write` moves the three places a version lives:
 
@@ -29,12 +30,11 @@ wants credentials even to read — the same ones `settings.gradle.kts` uses:
 """
 
 import argparse
-import base64
 import json
-import os
 import pathlib
 import re
 import sys
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ElementTree
 
@@ -43,7 +43,7 @@ CATALOGUE = ROOT / "gradle/libs.versions.toml"
 ICONDATA = ROOT / "docs/icondata.py"
 CHANGELOG = ROOT / "ui-docs/content/changelog.md"
 
-REPOSITORY = "https://maven.pkg.github.com/kontour-labs/tabler"
+REPOSITORY = "https://repo1.maven.org/maven2"
 ARTIFACTS = ("tabler-icons-outline", "tabler-icons-filled")
 
 VERSION_LINE = re.compile(r'^(tabler-icons\s*=\s*")([^"]+)(")', re.M)
@@ -61,25 +61,16 @@ def key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
-def credentials() -> tuple[str, str]:
-    actor = os.environ.get("KONTOUR_PACKAGES_ACTOR") or os.environ.get("GITHUB_ACTOR")
-    token = os.environ.get("KONTOUR_PACKAGES_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    if not actor or not token:
-        raise SystemExit(
-            "GitHub Packages needs credentials even to read: set KONTOUR_PACKAGES_ACTOR and "
-            "KONTOUR_PACKAGES_TOKEN (a token with read:packages), or GITHUB_ACTOR and GITHUB_TOKEN"
-        )
-    return actor, token
-
-
-def metadata(artifact: str) -> str:
-    actor, token = credentials()
+def metadata(artifact: str) -> str | None:
+    """The artifact's `maven-metadata.xml` on Central, or None if it is not there yet."""
     url = f"{REPOSITORY}/io/kontour/{artifact}/maven-metadata.xml"
-    request = urllib.request.Request(url)
-    basic = base64.b64encode(f"{actor}:{token}".encode()).decode()
-    request.add_header("Authorization", f"Basic {basic}")
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return response.read().decode()
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.read().decode()
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return None
+        raise
 
 
 def versions(xml: str) -> set[str]:
@@ -158,7 +149,7 @@ def main() -> None:
     group.add_argument("--is-newer", metavar="VERSION", help="exit 0 if VERSION is newer than the pinned one")
     group.add_argument("--write", metavar="VERSION", help="move every pin to VERSION")
     parser.add_argument("--metadata", nargs=2, metavar=("OUTLINE", "FILLED"), type=pathlib.Path,
-                        help="read maven-metadata.xml from these files rather than GitHub Packages")
+                        help="read maven-metadata.xml from these files rather than Maven Central")
     parser.add_argument("--integrity", help="the @tabler/icons tarball's integrity, rather than npm's")
     args = parser.parse_args()
 
@@ -166,7 +157,11 @@ def main() -> None:
         print(current())
     elif args.latest:
         sources = [p.read_text() for p in args.metadata] if args.metadata else [metadata(a) for a in ARTIFACTS]
-        print(latest(sources))
+        if any(source is None for source in sources):
+            print(f"The icons are not on Maven Central yet; staying on {current()}.", file=sys.stderr)
+            print(current())
+        else:
+            print(latest(sources))
     elif args.is_newer:
         if not STABLE.match(args.is_newer):
             raise SystemExit(f"not a release version: {args.is_newer}")

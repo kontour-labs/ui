@@ -17,7 +17,7 @@
 #            else, and the public API moving
 #   site     the documentation site and the API reference, and the slowest thing here
 #   deploy   uploads the site to Cloudflare Pages, docs.kontour.io/ui
-#   publish  uploads the library to GitHub Packages, for a release only
+#   publish  uploads the library to Maven Central, for a release only
 #   renders  contact sheets of every page, when somebody asks
 #
 # `deploy` needs only `site`, deliberately: a library regression should not take
@@ -26,9 +26,9 @@
 # ### When it runs
 #
 # Pushes to `main`, `v*` tags, and by hand. **Not** on pull requests or on
-# pushes to any other branch. Every minute here is on Blacksmith's metered
-# runners, and a pull request's run was about 17 minutes of `test` alone on a
-# 4-core runner.
+# pushes to any other branch. The runners are GitHub's own, free for a public
+# repository; it is still about 17 minutes of `test` alone for a pull request,
+# which is a long wait for an answer nobody asked for yet.
 # A branch that wants the checks before it merges asks for them: Actions → CI →
 # Run workflow, on that branch, with **full** ticked for the catalog's slow
 # classes. That run never deploys.
@@ -55,7 +55,7 @@ on:
     inputs:
       version:
         description: >-
-          Publish this version to GitHub Packages (e.g. 0.1.0). Leave blank to
+          Publish this version to Maven Central (e.g. 0.1.0). Leave blank to
           run the checks only. Use this to cut a release from a branch, where
           `GITHUB_REF_NAME` is a branch name and the build refuses it.
         required: false
@@ -84,8 +84,9 @@ on:
 # here.
 permissions:
   contents: read
-  # The icons, `io.kontour:tabler-icons-*`, are on GitHub Packages, which wants
-  # credentials even to read. See `env` below.
+  # The icons, `io.kontour:tabler-icons-*`, are read from GitHub Packages, which
+  # wants credentials even to read, for as long as a version is there and not on
+  # Maven Central. See `env` below, and `settings.gradle.kts`.
   packages: read
 
 # What `settings.gradle.kts` reads the icons with. A `KONTOUR_PACKAGES_*` pair
@@ -154,7 +155,7 @@ jobs:
   # nothing and runs the gate, which is the direction this must fail in.
   changes:
     name: Decide what to run
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     # Minutes, except on a tag that has to wait for `main`: see below.
     timeout-minutes: 45
     permissions:
@@ -179,7 +180,7 @@ jobs:
       site-run: ${{ steps.passed.outputs.site-run }}
       deploy: ${{ steps.deploy.outputs.deploy }}
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       # For the release the site would be labelled with: see `site`.
       - name: Fetch the release tags
@@ -242,11 +243,11 @@ jobs:
           out "bundle-name=bundle-${fp[docs]}"
           out "site-name=site-${fp[docs]}-$(.github/docs-release.sh)"
 
-      # Each marker, the bundle and the site are entries in the runners' cache —
-      # Blacksmith's, which is free and is not GitHub's storage — looked up
-      # without being downloaded. They were artifacts, and artifacts share one
-      # storage quota with the published packages: when it filled, nothing
-      # could be uploaded, and the site had no way to reach `deploy`. A manual
+      # Each marker, the bundle and the site are entries in the Actions cache,
+      # looked up without being downloaded. They were artifacts, and artifacts
+      # shared one storage quota with the published packages while the
+      # repository was private: when it filled, nothing could be uploaded, and
+      # the site had no way to reach `deploy`. The cache has a quota of its own. A manual
       # run looks nothing up, because asking is the point of it.
       - id: hit-checks
         if: github.event_name != 'workflow_dispatch'
@@ -364,7 +365,7 @@ jobs:
     name: Test
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.test == 'true') }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     # The slow classes are most of an hour on their own.
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.full && 90 || 40 }}
     env:
@@ -375,7 +376,7 @@ jobs:
       # The catalog's `@Category(Slow::class)` classes, only when asked for.
       FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full }}
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       # First, because they are seconds. They run for every tree that has not
       # passed them, and one of them is what holds the README's counts.
@@ -557,10 +558,10 @@ jobs:
     name: Compile every target
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.targets == 'true') }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
         with:
@@ -667,10 +668,10 @@ jobs:
   renders:
     name: Site contact sheets
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.renders }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
         with:
@@ -705,7 +706,7 @@ jobs:
     name: Build the site
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || (needs.changes.outputs.deploy == 'true' && needs.changes.outputs.site-run == '')) }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -718,7 +719,7 @@ jobs:
       # Whether the upload below made it: `deploy` has nothing to fetch if not.
       uploaded: ${{ steps.upload.outcome == 'success' }}
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       # The release tags as refs, not their history: the API reference names the
       # latest release tag as its version (`kontourDocsVersion` in buildSrc)
@@ -858,7 +859,7 @@ jobs:
       # does a tag on the same commit, which deploys this rather than building
       # it again. It was an artifact, about forty megabytes a run in storage
       # shared with the packages — and when that storage was full, the site
-      # never reached `deploy` at all. The cache is Blacksmith's, and free.
+      # never reached `deploy` at all. The cache has a quota of its own.
       #
       # **A save that fails does not fail the job**, here or anywhere else in
       # this file: storage refusing a file is not a defect in the code, and a
@@ -908,7 +909,7 @@ jobs:
         && ((needs.site.result == 'success' && needs.site.outputs.uploaded == 'true')
           || (needs.site.result == 'skipped' && needs.changes.outputs.deploy == 'true'
             && needs.changes.outputs.site-run != '')) }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -952,11 +953,10 @@ jobs:
     # of the resulting klib manifest, rather than by trusting the build to say
     # so. What still needs Xcode is linking a *framework*, and that happens in
     # the consuming app.
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
-      packages: write
     # Starts from `targets`' Gradle cache rather than its own. The action keys
     # its cache by job and saves only from `main`, where this job never runs,
     # so it had no cache of its own and compiled every target from nothing:
@@ -967,7 +967,7 @@ jobs:
     env:
       GRADLE_BUILD_ACTION_CACHE_KEY_JOB: targets
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
         with:
@@ -998,22 +998,22 @@ jobs:
       # publishable version out of that logic.
       #
       # **It compiles nothing.** Every compile in it comes `FROM-CACHE`, from
-      # `targets`' Gradle home. What took v0.4.0's twelve minutes was the
-      # upload: twenty-two publications, one after another, each taking
-      # almost exactly thirty seconds whatever its size — the shape of a
-      # timeout rather than of a transfer. Two changes, neither proven
-      # against a release yet. The three libraries upload side by side,
-      # `--parallel`, so whatever the wait is, three of them overlap. And the
-      # SHA-256 and SHA-512 files Gradle adds beside every upload are left
-      # off: GitHub Packages serves the SHA-1 and MD5 a Maven client checks,
-      # and the extra two, whose failure Gradle tolerates, are the likeliest
-      # thing being waited for.
-      - name: Publish to GitHub Packages
+      # `targets`' Gradle home. It signs every file, uploads the three modules
+      # to the Central Portal, and releases them once Central has validated
+      # them: `automaticRelease` in each module's `mavenPublishing`.
+      # A release is on Maven Central within about half an hour of this step
+      # finishing, and cannot be taken back: Central never deletes a version.
+      #
+      # The four secrets: the Central Portal user token (Account → Generate User
+      # Token, at central.sonatype.com) and the signing key, ASCII-armoured, with
+      # its passphrase. `docs/building/releasing.md` has how to make them.
+      - name: Publish to Maven Central
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon --parallel \
-            -Dorg.gradle.internal.publish.checksums.insecure=true \
+          ./gradlew --no-daemon \
             ${{ inputs.version && format('-Pkontour.version={0}', inputs.version) || '' }} \
-            publishAllPublicationsToGitHubPackagesRepository
+            publishAndReleaseToMavenCentral

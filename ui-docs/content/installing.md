@@ -4,12 +4,10 @@ Getting Kontour UI into an app: which modules there are, what each needs, and
 getting them to resolve on a laptop and in CI.
 
 Kontour UI is open source, under the [Apache License
-2.0](https://www.apache.org/licenses/LICENSE-2.0), and published to **GitHub
-Packages** from [`kontour-labs/ui`](https://github.com/kontour-labs/ui). The
-packages are public, but GitHub's Maven registry asks for a token on every
-download, even of a public package, so the one thing to set up first is a
-GitHub token: any account's, with one scope. [The token](#the-token) has the
-how, for a laptop and for CI.
+2.0](https://www.apache.org/licenses/LICENSE-2.0), and published to **Maven
+Central** from [`kontour-labs/ui`](https://github.com/kontour-labs/ui), from
+0.4.4 on. There is nothing to set up but the dependency: no repository of its
+own and no token, on a laptop or in CI.
 
 ## The modules
 
@@ -47,33 +45,21 @@ that version or newer.
 
 ## The repository
 
+`mavenCentral()`, which nearly every project has already, and `google()` for
+the AndroidX artifacts Compose and Navigation 3 depend on on Android:
+
 ```kotlin
 // settings.gradle.kts
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://maven.pkg.github.com/kontour-labs/ui") {
-            credentials {
-                username = providers.gradleProperty("gpr.user")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_ACTOR")).orNull
-                password = providers.gradleProperty("gpr.key")
-                    .orElse(providers.environmentVariable("KONTOUR_PACKAGES_TOKEN")).orNull
-            }
-            content { includeGroup("io.kontour") }
-        }
     }
 }
 ```
 
-`google()` is for the AndroidX artifacts Compose and Navigation 3 depend on on
-Android; most projects have it already.
-
-**`content { includeGroup("io.kontour") }` is not tidiness.** Without it Gradle
-will try this repository for every dependency in your build — several hundred
-requests, all of which 404, and all of which fail outright for anyone whose
-token is missing or wrong. Scoped, the only thing that can fail here is the
-design system, which is what makes the error mean something.
+Versions before 0.4.4 were published only to GitHub Packages, which needs a
+token to read; move to 0.4.4 or later rather than set that up.
 
 ## Adding the modules
 
@@ -136,9 +122,8 @@ a dialog drawing nowhere, is a bug that looks like a missing feature.
 set. The documentation and the gallery use Tabler, as Kontour Labs builds it —
 `io.kontour:tabler-icons-outline` and `-filled`, every icon of the release, with
 `Tabler.Outline.*` under `io.kontour.icons.tabler`. The library draws its own
-few system icons from it, so it comes with the library, from the same
-repository above: GitHub Packages serves everything Kontour Labs publishes from
-the one URL, and the icons are public too. Any `ImageVector` works. The site's Icons page, in its top bar, searches
+few system icons from it, so it comes with the library, from Maven Central
+like the library itself. Any `ImageVector` works. The site's Icons page, in its top bar, searches
 every one of them — by name, by what Tabler tags it with, and by the everyday
 word for it — and copies the property and its import.
 
@@ -246,58 +231,11 @@ haptics.play(HapticEffect.Selection(fine = true))
 
 ---
 
-## The token
-
-GitHub's Maven registry will not serve a download without a token, even of a
-public package. Any GitHub account can make one; it needs nothing of this
-repository and no invitation.
-
-A **classic** personal access token with the `read:packages` scope, and nothing
-else. Create it at **Settings → Developer settings → Personal access tokens →
-Tokens (classic)**.
-
-> **Fine-grained tokens do not work.** They cannot read GitHub Packages at the
-> time of writing, whatever permissions you give them. If you are looking at a
-> permissions matrix that has no "Packages" row, that is the wrong kind of token.
-
-### On a laptop
-
-`~/.gradle/gradle.properties`, **not** the repository:
-
-```properties
-gpr.user=your-github-username
-gpr.key=ghp_…
-```
-
-### In CI
-
-Store the same pair as secrets in the repository that builds the app, and put
-them in the environment of any step that resolves dependencies:
-
-```yaml
-steps:
-  - name: Test
-    env:
-      KONTOUR_PACKAGES_ACTOR: ${{ secrets.KONTOUR_PACKAGES_ACTOR }}
-      KONTOUR_PACKAGES_TOKEN: ${{ secrets.KONTOUR_PACKAGES_TOKEN }}
-    run: ./gradlew test
-```
-
-A workflow's own `GITHUB_TOKEN` is not the one to use: it is scoped to the
-repository the workflow runs in, and GitHub's Maven registry gives it that
-repository's packages and no others. A classic token on a bot account keeps a
-person's credential out of CI, if that matters to you.
-
----
-
 ## When it fails
 
 | What you see | What it is |
 |---|---|
-| `401 Unauthorized` on an `io.kontour` artifact | No credential, or one without `read:packages`. A fine-grained token looks exactly like this |
-| `401` in CI while your laptop works | The workflow is using `secrets.GITHUB_TOKEN`, or the secrets are not in that step's `env` |
-| `404 Not Found` on a version | That version was never published. [The repository's packages](https://github.com/orgs/kontour-labs/packages?repo_name=ui) list what exists, per module |
-| Hundreds of failing requests for unrelated dependencies | The `content { includeGroup(…) }` filter is missing |
+| `Could not find io.kontour:ui:…` | That version is not on Maven Central: either it is older than 0.4.4, or it has not been released. [Central's page for the group](https://central.sonatype.com/namespace/io.kontour) lists what exists. A release is searchable there within about half an hour |
 | AndroidX artifacts will not resolve | `google()` is missing from the repositories |
 | Resolution succeeds but the classes are missing on one platform | A variant did not publish. Each module should have seven per version: the module itself, and one each for `-android`, `-iosarm64`, `-iossimulatorarm64`, `-js`, `-jvm`, `-wasm-js` |
 | `NoSuchMethodError` or a linkage error from inside `io.kontour` | The modules are on different versions, or Compose Multiplatform is older than 1.12.1 |
@@ -306,8 +244,7 @@ person's credential out of CI, if that matters to you.
 ## Building from source
 
 An app with this repository checked out beside it can build against the sources
-instead of the published artifacts, and skip the registry and the token
-entirely. A conditional `includeBuild` swaps all three modules at once:
+instead of the published artifacts. A conditional `includeBuild` swaps all three modules at once:
 
 ```kotlin
 // settings.gradle.kts

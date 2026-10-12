@@ -41,27 +41,10 @@ Adding to the library instead? [`docs/`](docs/README.md) is the other half:
 
 ## Installing
 
-Published to GitHub Packages. The packages are public, but GitHub's Maven
-registry asks for a token on every download, even of a public package: make a
-**classic** personal access token with only the `read:packages` scope, on any
-GitHub account (the fine-grained kind cannot read packages), and put it in
-`~/.gradle/gradle.properties`:
-
-```properties
-gpr.user=your-github-username
-gpr.key=ghp_…
-```
+On Maven Central, from 0.4.4: `mavenCentral()` in the repositories is all it
+needs, with no token.
 
 ```kotlin
-// settings.gradle.kts
-maven("https://maven.pkg.github.com/kontour-labs/ui") {
-    credentials {
-        username = providers.gradleProperty("gpr.user").orNull
-        password = providers.gradleProperty("gpr.key").orNull
-    }
-    content { includeGroup("io.kontour") }
-}
-
 // build.gradle.kts
 implementation("io.kontour:ui:0.4.4")
 // Optional: Navigation 3 scene strategies over the pane scaffolds
@@ -73,10 +56,8 @@ be used on its own, with no Compose in it: see
 [`haptics.md`](ui-docs/content/haptics.md).
 
 [`installing.md`](ui-docs/content/installing.md) has the whole of it: the three
-modules and the setup each needs on each platform, why
-`content { includeGroup }` is not tidiness but the difference between a working
-build and every dependency failing first, the token in CI, and what each failure
-mode looks like.
+modules, the setup each needs on each platform, and what each failure mode looks
+like.
 
 **One thing worth knowing before you start.** This publishes against Compose
 Multiplatform **1.12.1**. 1.12 is the floor, deliberately:
@@ -164,8 +145,12 @@ is a tag, and nothing else:
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-CI runs the checks, then publishes `io.kontour:ui:0.2.0` to GitHub Packages. The
-version comes from the tag, so the artifact cannot disagree with it.
+CI runs the checks, then publishes `io.kontour:ui:0.2.0`, signed, to Maven
+Central, where it can be resolved within about half an hour. The version comes
+from the tag, so the artifact cannot disagree with it, and Central never deletes
+a version, so a release cannot be taken back.
+[`docs/building/releasing.md`](docs/building/releasing.md) has the one-time
+setup: the namespace, the token and the signing key.
 
 To cut one without tagging — from a branch, or to re-publish — run the **CI**
 workflow manually and give it a version. That is the only other way to get a

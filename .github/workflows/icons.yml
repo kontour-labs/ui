@@ -3,7 +3,7 @@
 # Asked for as "whenever the library rebuilds/updates, it automatically checks
 # for a newer version of kontour's tabler icon library and updates to it". On
 # every push to `main`, once a day, and by hand, this reads the newest release
-# from GitHub Packages. When it is newer than the one pinned, the bump goes on a
+# from Maven Central. When it is newer than the one pinned, the bump goes on a
 # branch of its own (`docs/bump-tabler-icons.py --write` moves the catalogue,
 # the docs' icon-data pin and the changelog), a pull request is opened for it,
 # and CI is run on that branch with the slow classes — so a redrawn icon shows
@@ -32,11 +32,6 @@ permissions:
   contents: write        # the bump's branch
   pull-requests: write   # its pull request
   actions: write         # CI on that branch
-  packages: read         # the icons' versions, on GitHub Packages
-
-env:
-  KONTOUR_PACKAGES_ACTOR: ${{ secrets.KONTOUR_PACKAGES_ACTOR || github.actor }}
-  KONTOUR_PACKAGES_TOKEN: ${{ secrets.KONTOUR_PACKAGES_TOKEN || github.token }}
 
 concurrency:
   group: icons
@@ -44,10 +39,10 @@ concurrency:
 
 jobs:
   bump:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v4
         with:
           ref: main
 
