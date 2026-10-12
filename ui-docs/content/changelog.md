@@ -77,6 +77,11 @@ for the finger to go 24dp across.
 
 ### Changed
 
+- **Kontour UI is open source, under the [Apache License
+  2.0](https://www.apache.org/licenses/LICENSE-2.0).** It was all rights
+  reserved. The packages are public; GitHub Packages still asks for a token with
+  `read:packages` to download them, now any GitHub account's. The fonts `:ui`
+  bundles and the CLDR plural rules keep their own licences, listed in `NOTICE`.
 - **An [event calendar](components/event-calendar.md) offers six views**:
   `EventCalendarDefaults.Views` gains three days and the schedule, so an
   existing calendar's switcher has them too, and a header too narrow for every

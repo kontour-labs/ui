@@ -3,10 +3,12 @@
 Getting Kontour UI into an app: which modules there are, what each needs, and
 getting them to resolve on a laptop and in CI.
 
-Everything is published privately to **GitHub Packages** from `kontour-labs/ui`.
-That registry authenticates *every* request, including the ones that come back
-404, so there is no anonymous read and no way to try it without a credential
-first. Much of this page is about that credential.
+Everything is published to **GitHub Packages** from `kontour-labs/ui`, under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The packages
+are public, but that registry authenticates *every* request, including the ones
+that come back 404, so there is no anonymous read and no way to try it without a
+credential first — any GitHub account's token will do. Much of this page is
+about that credential.
 
 ## The modules
 

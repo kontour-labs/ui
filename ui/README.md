@@ -48,4 +48,6 @@ components/   the component library
 nav/ overlay/ sheet/ layout/ motion/
 ```
 
-Third-party font: Outfit, SIL OFL — see [`licenses/`](licenses/).
+Third-party fonts: Outfit and JetBrains Mono, under the SIL OFL, and the plural
+rules from Unicode CLDR, under the Unicode License — see [`licenses/`](licenses/)
+and [`NOTICE`](../NOTICE).

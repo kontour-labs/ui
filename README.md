@@ -41,9 +41,10 @@ Adding to the library instead? [`docs/`](docs/README.md) is the other half:
 
 ## Installing
 
-Published privately to GitHub Packages, so it needs a **classic** personal
-access token with `read:packages` — the fine-grained kind cannot read packages
-at the time of writing.
+Published to GitHub Packages. The packages are public, but GitHub's Maven
+registry asks for a credential on every download, so it needs a **classic**
+personal access token with `read:packages` — any GitHub account's will do; the
+fine-grained kind cannot read packages at the time of writing.
 
 ```kotlin
 // settings.gradle.kts
@@ -170,3 +171,11 @@ version is `0.5.0-SNAPSHOT` and the publish job does not run.
 It publishes from Linux. Kotlin cross-compiles the Apple **klibs**, which is
 what a consumer resolves; what needs Xcode is linking a *framework*, and that
 happens in the consuming app.
+
+---
+
+## Licence
+
+[Apache License 2.0](LICENSE). The fonts `:ui` bundles and the Unicode CLDR
+plural rules it is generated from are under their own licences, listed in
+[`NOTICE`](NOTICE).
