@@ -47,6 +47,7 @@ import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.ListGroup
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.ListItemDefaults
+import io.kontour.ui.components.selection.SegmentedControl
 import androidx.compose.foundation.layout.fillMaxSize
 import io.kontour.ui.components.list.indexedBy
 import io.kontour.ui.components.list.listSection
@@ -183,42 +184,73 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
  */
 private val sectionFooter = Knob.Flag("Footer", initial = true)
 
+/**
+ * What the section holds: rows, or a paragraph and a control.
+ *
+ * The second is how a good many sections are really used, and the one where the
+ * title's inset is decided by what is under it — flush with the paragraph, not
+ * 16dp in over a column of rows that is not there.
+ */
+private val sectionContent = Knob.Choice("Content", listOf("Rows", "Other"))
+
 internal val ListSectionDemo = ComponentDemo(
     slug = "list-section",
-    knobs = listOf(sectionFooter),
+    knobs = listOf(sectionFooter, sectionContent),
 ) {
     var theme by remember { mutableStateOf(0) }
     var alerts by remember { mutableStateOf(true) }
+    var units by remember { mutableStateOf(0) }
     val themes = listOf("Match system", "Always light", "Always dark")
+    val rows = this[sectionContent] == "Rows"
     ListSection(
         modifier = Modifier.fillMaxWidth(),
-        title = { +"Appearance" },
-        supporting = { +"How the app looks on this device" },
-        footer = if (this[sectionFooter]) {
-            { +"Always dark keeps the screen dark even when the system is light." }
+        title = { +if (rows) "Appearance" else "Planning" },
+        supporting = if (rows) {
+            { +"How the app looks on this device" }
         } else {
             null
         },
+        footer = when {
+            !this[sectionFooter] -> null
+            rows -> {
+                { +"Always dark keeps the screen dark even when the system is light." }
+            }
+            else -> {
+                { +"Used to work out how long the walks between stops take." }
+            }
+        },
+        // Separate things rather than one card, so the room a form has.
+        spacing = if (rows) ListItemDefaults.Spacing else Theme.spacing.md,
     ) {
-        // One of each: a row that opens a choice, and a row that is one.
-        SelectionRow(
-            onClick = { theme = (theme + 1) % themes.size },
-            position = GroupPosition.First,
-        ) {
-            +"Theme"
-            leading { +Tabler.Outline.Moon }
-            trailing { +themes[theme] }
-        }
-        SelectionRow(
-            selected = alerts,
-            onSelectedChange = { alerts = it },
-            role = Role.Switch,
-            position = GroupPosition.Last,
-        ) {
-            +"Delay alerts"
-            supporting { +"Only for favourited routes" }
-            leading { +Tabler.Outline.Bell }
-            trailing { Switch(checked = alerts, onCheckedChange = null) }
+        if (rows) {
+            // One of each: a row that opens a choice, and a row that is one.
+            SelectionRow(
+                onClick = { theme = (theme + 1) % themes.size },
+                position = GroupPosition.First,
+            ) {
+                +"Theme"
+                leading { +Tabler.Outline.Moon }
+                trailing { +themes[theme] }
+            }
+            SelectionRow(
+                selected = alerts,
+                onSelectedChange = { alerts = it },
+                role = Role.Switch,
+                position = GroupPosition.Last,
+            ) {
+                +"Delay alerts"
+                supporting { +"Only for favourited routes" }
+                leading { +Tabler.Outline.Bell }
+                trailing { Switch(checked = alerts, onCheckedChange = null) }
+            }
+        } else {
+            Text("Trips are planned at the speed you walk, in the units you read distances in.")
+            SegmentedControl(
+                options = listOf("Kilometres", "Miles"),
+                selectedIndex = units,
+                onSelectedIndexChange = { units = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

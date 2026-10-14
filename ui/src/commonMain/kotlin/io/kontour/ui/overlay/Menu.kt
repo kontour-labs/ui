@@ -234,6 +234,49 @@ fun AnchoredDropdownMenu(
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     content: @Composable MenuScope.() -> Unit,
+) = AnchoredDropdownMenuImpl(
+    visible = visible,
+    anchor = anchor,
+    onDismissRequest = onDismissRequest,
+    modifier = modifier,
+    key = key,
+    side = side,
+    alignment = alignment,
+    matchAnchorWidth = matchAnchorWidth,
+    scrim = scrim,
+    anchorTakesPresses = false,
+    content = content,
+)
+
+/**
+ * [AnchoredDropdownMenu], and whether a press on its [anchor] goes to the anchor.
+ *
+ * [anchorTakesPresses] true is for a menu hanging from something the user goes
+ * on working in while it is open: a [Combobox][io.kontour.ui.components.text.Combobox]'s
+ * field, typed in to narrow the list. Its scrim covered the field like the rest
+ * of the page, so the first press in the text — a click to move the caret, the
+ * first half of a double-click on a word — landed on the scrim, closed the list,
+ * and took the typing with it. Reported as *"in something like the combobox, you
+ * can't double tap or click to select text"*.
+ *
+ * Internal, because the one menu that needs it is the library's own, and an
+ * anchor that takes presses is an anchor whose own press handling has to know
+ * the menu is open — which a caller's button, toggling the menu it opened, does
+ * not.
+ */
+@Composable
+internal fun AnchoredDropdownMenuImpl(
+    visible: Boolean,
+    anchor: Rect?,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier,
+    key: Any,
+    side: OverlaySide,
+    alignment: OverlayAlignment,
+    matchAnchorWidth: Boolean,
+    scrim: ScrimStyle,
+    anchorTakesPresses: Boolean,
+    content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
     val density = LocalDensity.current
@@ -252,7 +295,7 @@ fun AnchoredDropdownMenu(
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment, matchAnchorWidth, scrim) {
+    LaunchedEffect(visible, anchor != null, side, alignment, matchAnchorWidth, scrim, anchorTakesPresses) {
         if (!visible || anchor == null) {
             host.hide(key)
             return@LaunchedEffect
@@ -289,7 +332,12 @@ fun AnchoredDropdownMenu(
                         )
                     }
                 },
-            )
+            ).apply {
+                // The anchor as it is now, not as it was when the list opened:
+                // a page scrolled under an open list takes its field with it,
+                // and the way through the scrim has to follow.
+                if (anchorTakesPresses) passThrough = { latestAnchor }
+            }
         )
     }
 }

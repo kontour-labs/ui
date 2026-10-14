@@ -53,6 +53,16 @@ internal var label: Color = Color(0xFF43A047)
 internal fun explain() = Unit
 internal fun replacements() = Unit
 
+/** Someone a trip can be booked for, where a sample needs a person to pick. */
+internal class Rider(val name: String, val home: String)
+
+/** The people a trip can be booked for, where a sample needs a few of them. */
+internal val household = listOf(
+    Rider("Ana Lima", "Perth Underground"),
+    Rider("Sam Okafor", "Elizabeth Quay"),
+    Rider("Kai Tanaka", "Fremantle"),
+)
+
 /** A handful of them, where a sample needs a list to iterate. */
 internal val stops = listOf(Stop("Perth Underground", 4), Stop("Elizabeth Quay", 3))
 internal fun refresh() = Unit

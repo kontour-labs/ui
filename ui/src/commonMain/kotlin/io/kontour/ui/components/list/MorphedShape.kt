@@ -7,6 +7,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
@@ -78,3 +80,17 @@ private class LiveShape(initial: Shape) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
         current.createOutline(size, layoutDirection, density)
 }
+
+/**
+ * This fraction to the nearest step [rememberMorphedShape] would take it to, as a
+ * state that changes only when the step does.
+ *
+ * An animated fraction read in composition recomposes its reader on every frame
+ * of the animation, and a row that reads one to pick its corners recomposed its
+ * whole group with it — the children of an opening `ExpandingListItem` composed
+ * again sixty times a second for a corner that moves twelve times. Read through
+ * this, the composition moves when the corner does.
+ */
+@Composable
+internal fun State<Float>.inMorphSteps(): State<Float> =
+    remember(this) { derivedStateOf { (value * MorphSteps).roundToInt().coerceIn(0, MorphSteps) / MorphSteps.toFloat() } }

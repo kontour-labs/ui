@@ -226,7 +226,7 @@ internal fun MonthView(scope: CalendarScope) {
                         state = list,
                         flingBehavior = snap,
                         userScrollEnabled = scope.enabled,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().tellsWheelFromFinger(snap),
                     ) {
                         items(WeekRows, key = { it }) { index ->
                             val weekStart = periods.weekOfRow(index)

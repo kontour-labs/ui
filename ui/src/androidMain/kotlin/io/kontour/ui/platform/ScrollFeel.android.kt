@@ -12,3 +12,6 @@ internal actual val platformLosesRestedFlicks: Boolean = false
 internal actual val platformScrollDeltaInPixels: Boolean = false
 
 internal actual val platformGuardsHomeIndicator: Boolean = false
+
+/** A stretch, drawn in place: the content's top stays where it is. */
+internal actual val platformOverscrollMovesContent: Boolean = false

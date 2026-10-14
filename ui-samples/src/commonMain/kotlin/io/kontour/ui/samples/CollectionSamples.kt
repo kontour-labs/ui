@@ -53,6 +53,7 @@ import io.kontour.ui.components.list.LoadMore
 import io.kontour.ui.components.list.LoadMoreStatus
 import io.kontour.ui.components.list.Scrollbar
 import io.kontour.ui.components.selection.SelectionRow
+import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.components.list.fadingEdges
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.components.table.TableSort
@@ -217,6 +218,28 @@ fun ListSectionBasics() {
             +"Text size"
             supporting { +"Default" }
         }
+    }
+}
+
+@Composable
+fun ListSectionOtherContent() {
+    var units by remember { mutableStateOf(0) }
+
+    // Not rows: a paragraph and a control. The title and footer start where
+    // they do, at the edge, rather than in where a row's words would be.
+    ListSection(
+        title = { +"Planning" },
+        footer = { +"Used to work out how long the walks between stops take." },
+        // Separate things rather than one card, so the room a form has.
+        spacing = Theme.spacing.md,
+    ) {
+        Text("Trips are planned at the speed you walk, in the units you read distances in.")
+        SegmentedControl(
+            options = listOf("Kilometres", "Miles"),
+            selectedIndex = units,
+            onSelectedIndexChange = { units = it },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

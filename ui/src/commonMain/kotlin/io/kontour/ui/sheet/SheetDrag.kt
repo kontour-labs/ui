@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -73,19 +74,26 @@ internal fun Modifier.sheetDrag(
     }
     suspend fun throwBy(velocity: Float): Float {
         var left = velocity
-        anchored.anchoredDrag {
-            val scroll = object : ScrollScope {
-                override fun scrollBy(pixels: Float): Float {
-                    val next = to(pixels)
-                    val used = next - anchored.offset
-                    dragTo(next)
-                    return used
+        // Counted, so a finger laid on the sheet while it lands is a catch: see
+        // [SheetState.isMoving].
+        state.throwsInFlight++
+        try {
+            anchored.anchoredDrag {
+                val scroll = object : ScrollScope {
+                    override fun scrollBy(pixels: Float): Float {
+                        val next = to(pixels)
+                        val used = next - anchored.offset
+                        dragTo(next)
+                        return used
+                    }
                 }
+                with(fling) { left = scroll.performFling(velocity) }
             }
-            with(fling) { left = scroll.performFling(velocity) }
+            // Landed: say so, and where. See [SheetState.restAtNearest].
+            state.restAtNearest()
+        } finally {
+            state.throwsInFlight--
         }
-        // Landed: say so, and where. See [SheetState.restAtNearest].
-        state.restAtNearest()
         return left
     }
     coroutineScope {
@@ -118,8 +126,21 @@ internal fun Modifier.sheetDrag(
             val tracker = VelocityTracker()
             tracker.addPosition(down.uptimeMillis, Offset.Zero)
             var movedAt = down.uptimeMillis
-            if (anchored.isAnimationRunning) {
-                // Caught on its way: held where it is, at once.
+            // **Caught on its way: held where it is, at once**, and the rest of
+            // the gesture is the sheet's. Read before anything inside the sheet
+            // sees it, on the initial pass, so a list under the finger does not
+            // set off too and move the sheet a second time through its nested
+            // scroll.
+            //
+            // On its way includes a throw of the sheet's own surface, which
+            // `isAnimationRunning` alone does not count. That was the report: a
+            // full-height sheet pulled down, let go and pulled again before it
+            // was back was not caught — the new finger had to travel this drag's
+            // whole slop first, and the throw carried the sheet to the top while
+            // it did.
+            val caught = state.isMoving
+            val pass = if (caught) PointerEventPass.Initial else PointerEventPass.Main
+            if (caught) {
                 down.consume()
             } else {
                 var total = Offset.Zero
@@ -171,7 +192,7 @@ internal fun Modifier.sheetDrag(
             var stoppedFor = 0L
             try {
                 while (true) {
-                    val event = awaitPointerEvent()
+                    val event = awaitPointerEvent(pass)
                     val change = event.changes.firstOrNull { it.id == down.id } ?: break
                     if (!change.pressed) {
                         // **Let go, or taken away.** A pointer the system took —

@@ -25,12 +25,59 @@ ListSection(
 }
 ```
 
-**Rows, not fields.** The `spacing` between a section's children is the hairline
-that makes a group of rows read as one object, and it is the gap fields get too.
-Form fields are separate controls rather than one card, so give them the space a
-form has: `ListSection(title = { +"Contact" }, spacing = Theme.spacing.md) { TextField(…); TextField(…) }`.
-The same `spacing` is the gap under the heading and above the footer, which keep
-their own padding besides — so a form's wider gap opens there too.
+## Not only rows
+
+A section holds whatever goes in it: a paragraph, a field, a chart, a card, a row
+of buttons. Its words line up with what they sit beside. Over rows, the title,
+its supporting line and the footer start 16dp in
+(`ListItemDefaults.ContentInset`), where a row's own content starts, so the words
+make one column down the section. Over anything else they start at the edge,
+where that content does — a title 16dp in from a paragraph at the edge looks
+like a mistake.
+
+<!--sample:ListSectionOtherContent-->
+```kotlin
+var units by remember { mutableStateOf(0) }
+
+// Not rows: a paragraph and a control. The title and footer start where
+// they do, at the edge, rather than in where a row's words would be.
+ListSection(
+    title = { +"Planning" },
+    footer = { +"Used to work out how long the walks between stops take." },
+    // Separate things rather than one card, so the room a form has.
+    spacing = Theme.spacing.md,
+) {
+    Text("Trips are planned at the speed you walk, in the units you read distances in.")
+    SegmentedControl(
+        options = listOf("Kilometres", "Miles"),
+        selectedIndex = units,
+        onSelectedIndexChange = { units = it },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+```
+
+The title follows whatever is **first** in the section and the footer whatever
+is **last**, so a control above a run of rows has its title at the edge and its
+footer in. A `ListItem` is a row, and so is anything built on one —
+`SelectionRow`, `DisclosureListItem`, `ExpandingListItem`, a row in
+`SwipeActions`. A row inside a padded card is not, because the card is what is
+first. The section measures this rather than guessing from the types: each row
+reports its top and bottom to the layout, and the section asks whether its
+content starts and ends with one.
+
+Where that is not the reading you want, `textInset` sets it outright:
+`textInset = 0.dp` is flush whatever is inside, and
+`textInset = ListItemDefaults.ContentInset` lines the words up with rows that are
+not there — over a card whose content starts 16dp in, say.
+
+**The gap is yours to set.** The `spacing` between a section's children is the
+hairline that makes a group of rows read as one object, and it is the gap
+anything else gets too. A paragraph, a field or a control is a separate thing
+rather than part of one card, so give it the space a form has:
+`spacing = Theme.spacing.md`, as above. The same `spacing` is the gap under the
+heading and above the footer, which keep their own padding besides — so a
+form's wider gap opens there too.
 
 ## In a lazy list: `listSection`
 

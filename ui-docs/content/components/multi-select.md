@@ -25,6 +25,12 @@ opens a box inside the field's outline to type the rest in, with the options
 already ticked left as they are; the closed field adds "Other" to its summary.
 Ticked again, it is cleared and `onOtherTextChange(null)` is called.
 
+**Options drawn rather than named.** `optionContent` draws each option's row in
+the menu, as on a [`Select`](select.md), and `valueContent`
+draws what is ticked in the closed field — given the set, for a stack of faces
+or a row of swatches where a summary of names would do less. `summary` is still
+what a screen reader hears for it.
+
 **Reach for a [`ChipGroup`](chip.md) of
 `FilterChip`s instead** when the options fit on screen. Chips show the current
 selection without being opened, which is most of what a filter bar is for.

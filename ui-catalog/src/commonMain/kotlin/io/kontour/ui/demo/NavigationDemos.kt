@@ -531,7 +531,12 @@ internal val TopBarDemo = ComponentDemo(
     Frame(height = if (tall) 560.dp else 320.dp) {
         if (hero) {
             Box(Modifier.fillMaxSize()) {
-                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(top = follow.openHeight), content = departures)
+                LazyColumn(
+                    Modifier.fillMaxSize().topBarCollapse(follow),
+                    state = list,
+                    contentPadding = PaddingValues(top = follow.openHeight),
+                    content = departures,
+                )
                 bar(follow)
             }
         } else {

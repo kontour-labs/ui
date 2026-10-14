@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  *
  * | Pair | Enhanced | Standard |
  * |---|---|---|
- * | on (`primary`) vs off (`inactive`) — switch, timeline, page dots | 3:1 | today's 4.0 |
+ * | on (`primary`) vs off (`inactive`) — switch, timeline, page dots | 3:1 | 3.5 |
  * | fill vs track — progress, slider, gauge, meter, knob | 3:1 | today's 10 |
  * | tick vs the track it is cut into | 3:1 | today's 3.9 |
  * | `inactive` on the page, a surface and a well | 4.5:1 | today's 3.0 |
@@ -33,6 +33,14 @@ import kotlin.test.assertTrue
  * the tier's own 4.5 for a mark alone on its ground. The standard column is a
  * floor at what the tier already does: nothing there was wrong, and this is
  * what stops it drifting while the enhanced tier is tuned.
+ *
+ * One floor in it was lowered on purpose, and it is the first row. It was 4.0,
+ * which dark met at 4.01. Dark's `outlineStrong` came up so that it could keep
+ * 3:1 against a selected tint made easier to see, and `inactive` is
+ * `outlineStrong` at this tier, so the off track came up with it: 3.58 from
+ * the on track in dark, 4.49 in light. Still the 3:1 WCAG 1.4.11 asks of a pair
+ * of marks with room over it, and the off track is easier to find on the page
+ * for the same move — 4.68:1 where it was 4.18.
  *
  * The **track** is the tier's call, not the scheme's: at the standard tier a
  * slider's track is `outline` and a gauge's `surfaceSunken`, both faint beside
@@ -80,7 +88,7 @@ class StatePairContrastTest {
                     "switch and timeline at that tier just changed colour",
             )
             val pairs = buildList {
-                add(Pair("on vs off", contrastRatio(s.primary, s.inactive)) to 4.0f)
+                add(Pair("on vs off", contrastRatio(s.primary, s.inactive)) to 3.5f)
                 add(Pair("fill vs track (outline)", contrastRatio(s.primary, s.outline)) to 10f)
                 add(Pair("tick (contentSubtle) vs track", contrastRatio(s.contentSubtle, s.outline)) to 3.9f)
                 for ((ground, colour) in grounds(s)) {

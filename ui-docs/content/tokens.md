@@ -74,8 +74,8 @@ measured 1.15:1.
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `content` | `#121212` | `#E8E4EE` | Anything the user reads to understand the screen |
-| `contentMuted` | `#545454` | `#A79FB0` | Captions, timestamps, secondary labels |
-| `contentSubtle` | `#646464` | `#9A93A2` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
+| `contentMuted` | `#545454` | `#B2AABB` | Captions, timestamps, secondary labels |
+| `contentSubtle` | `#616161` | `#A49CAC` | Placeholders, tertiary hints. Still real text, still 4.5:1 |
 | `contentDisabled` | `#A3A3A3` | `#5C5566` | Genuinely disabled controls only (WCAG-exempt) |
 
 ### Lines
@@ -83,9 +83,9 @@ measured 1.15:1.
 | Token | Light | Dark | For |
 |---|---|---|---|
 | `outline` | `#E5E5E5` | `#3C3547` | Dividers and decorative rules |
-| `outlineStrong` | `#818181` | `#7C7484` | The boundary of anything interactive |
+| `outlineStrong` | `#7C7C7C` | `#847C8D` | The boundary of anything interactive |
 | `outlineSubtle` | `#EFEFEF` | `#2C2735` | The faintest rule, for dense lists |
-| `inactive` | `#818181` | `#7C7484` | The off or not-yet half of a pair: a switch off, stops not reached, the other page dots. `outlineStrong` at this tier; its own value at the enhanced one |
+| `inactive` | `#7C7C7C` | `#847C8D` | The off or not-yet half of a pair: a switch off, stops not reached, the other page dots. `outlineStrong` at this tier; its own value at the enhanced one |
 
 `outline` is too light to bound a control — it does not meet the 3:1 that
 WCAG 1.4.11 asks of a UI component boundary. Inputs, checkboxes and switches use
@@ -118,7 +118,7 @@ like `success` and the rest, so there is one tone type and six tones:
 |---|---|---|---|
 | `accent.solid` | `#7C37BE` | `#BB86FC` | `accent` |
 | `accent.onSolid` | `#FFFFFF` | `#1C0D2C` | `onAccent` |
-| `accent.container` | `#F1E5FF` | `#332742` | `accentContainer` |
+| `accent.container` | `#E9D7FD` | `#3D2E50` | `accentContainer` |
 | `accent.onContainer` | `#542482` | `#E2CBFF` | `onAccentContainer` |
 | `accent.border` | `#DAC7F8` | `#4A3961` | *new* |
 
@@ -131,6 +131,19 @@ It also means a custom scheme has to supply the whole tone rather than one
 colour. That is the point too: the old `lightColourScheme(accent = Color(...))`
 left `accentContainer` at the default, so a green accent came with the default's
 selected-state tint and the signature said nothing about it.
+
+**`accent.container` sits in a window, and both edges of it are text.** It is
+what a selected chip, row, page dot or nav item is filled with, so it has to
+stand off the page — 1.35:1 in light and 1.52:1 in dark, and 1.25 and 1.43
+against the rows a selected row sits among. And things are drawn on it: the
+row's label and supporting line, a focused field's placeholder in
+`contentSubtle`, a hovered `TextButton`'s label in `accent.solid`, each held to
+4.5:1. A tint pushed further from the ground reads as selected more clearly
+until one of those stops being readable, and in dark that comes first. No tint
+can reach the 3:1 WCAG asks of a state indicator while carrying mid-grey text,
+so a selection is also said by its label's colour and, at the enhanced tier,
+by an edge in the accent. When you supply your own tone, check the tint against
+your own `contentSubtle` and `accent.solid` as well as its `onContainer`.
 
 **On `brand` versus `accent`.** They are separate roles because a brand colour is
 chosen to be recognised and an accent has to be *read*, and nothing guarantees

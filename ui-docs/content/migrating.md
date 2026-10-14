@@ -15,6 +15,40 @@ from the version the app is on.
 
 ---
 
+## 0.4.4 to 0.4.5
+
+Nothing to rewrite: `Select`, `MultiSelect`, `Combobox` and `ListSection` have
+new parameters, defaulted and last, so a rebuild is enough. A few things look
+or behave differently enough to check.
+
+### Before you start
+
+- **Move all three modules at once**: `kontour = "0.4.5"`, and rebuild anything
+  compiled against 0.4.4.
+
+### Check
+
+- **A floating bottom sheet's foot.** It now stands the sides' margin off the
+  window's edge under a home indicator or a gesture handle, and its content is
+  handed the rest of that strip as bottom padding. Content that takes the
+  padding it is given — a list's `contentPadding` — keeps clear of the handle as
+  before; content that ignored it, and relied on the old, higher margin, now
+  reaches into the strip. Over three buttons or the keyboard the sheet stands a
+  margin above them, where it sat on them.
+- **List sections over something other than rows.** Their titles and footers
+  now start at the content's edge. Pass `textInset = ListItemDefaults.ContentInset`
+  to keep the old indent.
+- **A date-time picker on a tall phone** shows its calendar and its wheels
+  together, about 566dp, where it showed one at a time.
+- **A hero top bar that follows its list**, on iOS: put
+  `Modifier.topBarCollapse(collapse)` on the list, ahead of its
+  `verticalScroll`, for the bar to take the push past the list's end.
+- **Content that reads a `Scaffold`'s padding in composition**, as
+  `padding.calculateTopPadding()` in a composable's body rather than as a
+  modifier or a `contentPadding`, sees a change a frame later than it did.
+
+---
+
 ## 0.4.3 to 0.4.4
 
 From 0.4.3 to 0.4.4, released on 11 October 2026. Three days and a schedule

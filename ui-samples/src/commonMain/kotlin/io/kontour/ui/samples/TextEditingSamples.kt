@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Eye
 import io.kontour.icons.tabler.outline.MapPin
+import androidx.compose.foundation.layout.Column
+import io.kontour.ui.components.display.Avatar
+import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.EmailField
 import io.kontour.ui.components.text.MultiSelect
@@ -26,6 +29,8 @@ import io.kontour.ui.components.text.Select
 import io.kontour.ui.components.text.WheelSelect
 import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextFieldVariant
+import io.kontour.ui.foundation.Text
+import io.kontour.ui.theme.Theme
 
 @Composable
 fun TextFieldBasics() {
@@ -152,6 +157,32 @@ fun SelectWithOther() {
         otherLabel = "Something else",
         otherPlaceholder = "What happened?",
     )
+}
+
+@Composable
+fun SelectOptionContent() {
+    var rider by remember { mutableStateOf<Rider?>(household.first()) }
+
+    // A face, a name and a home stop in the menu; the face and the name in the
+    // field, so it stands as tall as the fields beside it. The name is still
+    // what a screen reader says for either, whatever the slot draws.
+    Select(
+        value = rider,
+        options = household,
+        onValueChange = { rider = it },
+        label = "Booked for",
+        optionLabel = { it.name },
+        valueContent = { person ->
+            Avatar(name = person.name, size = AvatarSize.XSmall)
+            +person.name
+        },
+    ) { person ->
+        Avatar(name = person.name, size = AvatarSize.Small)
+        Column {
+            Text(person.name)
+            Text(person.home, style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+        }
+    }
 }
 
 @Composable

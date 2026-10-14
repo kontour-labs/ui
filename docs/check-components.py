@@ -887,6 +887,7 @@ MAX_ROUNDED_RECT_SHAPES = 0
 
 PILL_USE = re.compile(r"shapes\.pill\b")
 ROUNDED_RECT = re.compile(r"\bRoundedCornerShape\s*\(")
+ROUNDED_RECT_ALLOWED = {"SquircleShape.kt"}
 
 
 def circles() -> list[str]:
@@ -1023,11 +1024,17 @@ def hand_rolled_rounded_rects() -> list[str]:
     """`RoundedCornerShape` literals anywhere in `:ui`.
 
     There used to be an exemption for `Shapes.kt`, which held the only legitimate
-    one. `pill` is a `SquircleShape` now, so the exemption has nothing left to
-    exempt and the ban is total.
+    one. `pill` is a `SquircleShape` now, so that exemption went with it.
+
+    The one left is `SquircleShape.kt`'s `clipProxy`, which is not a corner of its
+    own: it is a squircle's corners, read off the squircle, handed to Skia's
+    rounded-rectangle fast path for a clip or a shadow only. It tracks the scale
+    because it is made from a shape that does.
     """
     offenders: list[str] = []
     for path in sorted(Path("ui/src/commonMain/kotlin").rglob("*.kt")):
+        if path.name in ROUNDED_RECT_ALLOWED:
+            continue
         text = LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", path.read_text()))
         count = len(ROUNDED_RECT.findall(text))
         if count:

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
@@ -1076,8 +1077,15 @@ private fun CalendarFrame(
             // width — and they are not: the end has the today button as well as
             // the next month's. Reported as wanting the title centred at the top
             // of every calendar.
+            //
+            // **No padding of its own above or below.** It had 4dp each way, on
+            // top of the slack a 36dp button already has in its 48dp target on
+            // a phone, so there was 10dp of nothing over the arrows and 14dp
+            // under them: *"i've found there's a bit of excessive padding around
+            // date pickers"*. The buttons' height is the floor, so a header with
+            // none of them is still a row and not a line of type.
             CentredBetween(
-                modifier = Modifier.fillMaxWidth().padding(vertical = Theme.spacing.xxs),
+                modifier = Modifier.fillMaxWidth().heightIn(min = Theme.sizing.controlHeightSmall),
                 start = {
                     if (previousIcon != null) {
                         IconButton(

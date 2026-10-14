@@ -13,6 +13,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -284,16 +285,24 @@ class SheetState internal constructor(
      * there are anchors.
      */
     internal fun collapseFraction(): Float {
-        val offsets = detents
-            .filter { it.id != SheetDetent.Hidden.id }
-            .map(::offsetOf)
-            .filter { !it.isNaN() }
-            .distinct()
-            .sorted()
-        if (offsets.size < 2) return 0f
-        val lowest = offsets[offsets.size - 1]
-        val next = offsets[offsets.size - 2]
-        if (lowest <= next) return 0f
+        // The two largest distinct offsets, in one pass: this is asked from the
+        // draw pass and the placement of every frame the sheet moves, and the
+        // filter, map, distinct and sort it was allocated five lists a call.
+        var lowest = Float.NaN
+        var next = Float.NaN
+        for (detent in detents) {
+            if (detent.id == SheetDetent.Hidden.id) continue
+            val at = offsetOf(detent)
+            if (at.isNaN()) continue
+            when {
+                lowest.isNaN() || at > lowest -> {
+                    if (!lowest.isNaN()) next = lowest
+                    lowest = at
+                }
+                at < lowest && (next.isNaN() || at > next) -> next = at
+            }
+        }
+        if (lowest.isNaN() || next.isNaN() || lowest <= next) return 0f
         return ((offset - next) / (lowest - next)).coerceIn(0f, 1f)
     }
 
@@ -305,12 +314,20 @@ class SheetState internal constructor(
      * peek, it is still the content it shows.
      */
     internal fun partsCollapseFraction(): Float {
-        val lowest = detents
-            .filter { it.id != SheetDetent.Hidden.id }
-            .filter { !offsetOf(it).isNaN() }
-            .maxByOrNull { offsetOf(it) }
-            ?: return 0f
-        return if (lowest.id == SlotsDetentId) collapseFraction() else 0f
+        // In one pass, for the reason [collapseFraction] gives. The first of
+        // equal offsets wins, as `maxByOrNull` had it.
+        var lowest: SheetDetent? = null
+        var lowestAt = Float.NaN
+        for (detent in detents) {
+            if (detent.id == SheetDetent.Hidden.id) continue
+            val at = offsetOf(detent)
+            if (at.isNaN()) continue
+            if (lowestAt.isNaN() || at > lowestAt) {
+                lowest = detent
+                lowestAt = at
+            }
+        }
+        return if (lowest?.id == SlotsDetentId) collapseFraction() else 0f
     }
 
     /**
@@ -731,8 +748,24 @@ class SheetState internal constructor(
     /** Where it is heading. Changes the instant a drag passes the threshold. */
     val targetDetent: SheetDetent get() = anchoredState.targetValue
 
-    /** True while it is animating or being dragged. */
-    val isMoving: Boolean get() = anchoredState.isAnimationRunning
+    /**
+     * True while it is animating to a detent: sent there in code, settling after
+     * a release, or carried by a throw of its handle or its surface.
+     *
+     * The throw is the part `AnchoredDraggableState.isAnimationRunning` leaves
+     * out, and this used to be only that: a throw lands by a snapping fling inside
+     * an untargeted drag, which Foundation does not count as an animation. So a
+     * sheet flicked by its surface reported itself still for the whole of its
+     * landing — and a finger laid on it on the way was not taken for a catch.
+     */
+    val isMoving: Boolean get() = anchoredState.isAnimationRunning || throwsInFlight > 0
+
+    /**
+     * How many throws of the sheet's own drag are carrying it: see [isMoving].
+     * A count, because a throw caught by a new finger ends a frame after the
+     * finger's own drag has begun, and that drag's throw may begin before it.
+     */
+    internal var throwsInFlight by mutableIntStateOf(0)
 
     /**
      * True while a **finger** is moving the sheet, as opposed to code.

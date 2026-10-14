@@ -36,3 +36,13 @@ internal expect val platformGuardsHomeIndicator: Boolean
  * [io.kontour.ui.components.list.sideScrollDistance], which is what reads this.
  */
 internal expect val platformScrollDeltaInPixels: Boolean
+
+/**
+ * Whether this platform's overscroll moves a scrollable's content bodily past
+ * its end: iOS's, a rubber band that slides the whole content and springs it
+ * back. Android's stretches the content in place and the desktop has none, so
+ * neither carries the content's top anywhere. Where it is true, a collapsing
+ * [io.kontour.ui.nav.TopBar] takes a push past the content's end itself, so the
+ * content cannot slide up under it: see [io.kontour.ui.nav.TopBarCollapseState].
+ */
+internal expect val platformOverscrollMovesContent: Boolean

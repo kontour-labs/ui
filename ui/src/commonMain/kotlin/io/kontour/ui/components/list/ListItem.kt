@@ -29,11 +29,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.offset
 import io.kontour.ui.a11y.contrastEdge
 import io.kontour.ui.a11y.minimumTouchTarget
 import io.kontour.ui.a11y.optionalBorder
@@ -54,6 +64,8 @@ import io.kontour.ui.interaction.LocalRowInteractionSource
 import io.kontour.ui.interaction.kontourIndication
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.a11y.LocalNamedByContent
+import kotlin.math.max
+import kotlin.math.min
 
 /** What a [ListItem] takes by default. */
 object ListItemDefaults {
@@ -63,6 +75,16 @@ object ListItemDefaults {
     /** Gap between items in a group. */
     val Spacing: Dp
         @Composable @ReadOnlyComposable get() = Theme.componentDefaults.listItemSpacing
+
+    /**
+     * How far in from a row's start edge its content begins — the leading icon,
+     * or the label where there is none.
+     *
+     * Also where a [SectionHeader] starts, and a [ListSection]'s title and footer
+     * beside rows, so the words down a section make one column.
+     */
+    val ContentInset: Dp
+        @Composable @ReadOnlyComposable get() = Theme.spacing.md
 
     /**
      * The rounding on the two corners that face each other across a seam.
@@ -186,7 +208,7 @@ fun ListItem(
  * Every default is what [ListItem] draws, so a `ListItem` is exactly this.
  *
  * @param startPadding The space before the first region, where the row would
- *   otherwise have [io.kontour.ui.theme.Spacing.md].
+ *   otherwise have [ListItemDefaults.ContentInset].
  * @param labelModifier Wraps the label's region, when there is one.
  * @param edged Whether the row outlines itself at the contrast tier that asks
  *   for edges. Off for a row with no ground of its own to outline.
@@ -206,7 +228,7 @@ internal fun ListItemImpl(
     minHeight: Dp,
     interactionSource: MutableInteractionSource?,
     slots: ListItemScope,
-    startPadding: Dp = Theme.spacing.md,
+    startPadding: Dp = ListItemDefaults.ContentInset,
     labelModifier: Modifier = Modifier,
     edged: Boolean = true,
     disabledContainerColour: Color = Theme.colours.surfaceSunken.copy(alpha = 0.5f),
@@ -290,7 +312,10 @@ internal fun ListItemImpl(
         // inside a `SelectableText`.
         ExcludeFromSelection(excluded = controls) {
             Row(
-                modifier = modifier
+                // Outside the caller's modifier, so a row given a margin is still
+                // found as a row by the section it sits in.
+                modifier = ListRowEdges
+                    .then(modifier)
                     .fillMaxWidth()
                     .semantics(mergeDescendants = true) {}
                     .defaultMinSize(minHeight = resolvedMinHeight)
@@ -381,7 +406,7 @@ internal fun ListItemImpl(
 }
 
 /**
- * A titled group of [ListItem]s.
+ * A titled group of [ListItem]s, or of anything else.
  *
  * ```kotlin
  * ListSection(title = { +"Notifications" }) {
@@ -395,6 +420,24 @@ internal fun ListItemImpl(
  * doing that would mean walking the composed children, which Compose has no way
  * to do. Use [listPositions] or [GroupPosition.of] at the call site.
  *
+ * ### Where the title starts
+ *
+ * Over rows, the title, its supporting line and the footer start
+ * [ListItemDefaults.ContentInset] in, where the rows' own content does, so the
+ * words make one column down the section. Over anything else — a paragraph, a
+ * field, a chart, a card, a row of buttons — there is no such column, and a
+ * title 16dp in from a paragraph at the edge reads as a mistake. So the title
+ * lines up with whatever is first under it, and the footer with whatever is
+ * last above it: in from a row, flush with anything else.
+ *
+ * A [ListItem] is a row, and so is anything built on one — `SelectionRow`,
+ * `DisclosureListItem`, `ExpandingListItem`, a row in `SwipeActions`. A row
+ * inside a padded card is not, because the card is what is first. It is a
+ * measurement rather than a guess from the types: a row reports its own top and
+ * bottom to the layout, and the section asks whether its first child starts
+ * with one and its last child ends with one. [textInset] sets the inset outright
+ * where that reading is not the one wanted.
+ *
  * @param supporting Sits under the title, above the rows. For what the group
  *   *is*.
  * @param footer Sits under the rows. For what the setting *does* — the sentence
@@ -406,6 +449,10 @@ internal fun ListItemImpl(
  * @param spacing The gap between the children, and under the heading. The
  *   default is the hairline that makes a group of rows one object. Form fields
  *   are not rows: give them `Theme.spacing.md`, or they stack edge to edge.
+ * @param textInset How far in from the section's start edge the title, its
+ *   supporting line and the footer start. Unspecified lines each up with the
+ *   content beside it, as above: [ListItemDefaults.ContentInset] next to a row,
+ *   and none next to anything else. `0.dp` is flush whatever the content is.
  */
 @Composable
 fun ListSection(
@@ -415,36 +462,147 @@ fun ListSection(
     footer: (@Composable ContentScope.() -> Unit)? = null,
     action: (@Composable RowScope.() -> Unit)? = null,
     spacing: Dp = ListItemDefaults.Spacing,
+    textInset: Dp = Dp.Unspecified,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
+    // Read here, because the measure block below is not composable.
+    val rowInset = ListItemDefaults.ContentInset
+    Layout(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing),
-    ) {
-        if (title != null || action != null) {
-            SectionHeader(
-                supporting = supporting,
-                action = action,
-                // An action with no title used to draw an empty `Text`, which
-                // took a line's height to say nothing. An empty slot draws
-                // nothing at all.
-                title = title ?: {},
+        content = {
+            if (title != null || action != null) {
+                SectionHeaderImpl(
+                    modifier = Modifier.layoutId(SectionPart.Header),
+                    supporting = supporting,
+                    action = action,
+                    // The section places the header at its inset instead, once
+                    // it has seen what is under it.
+                    startPadding = 0.dp,
+                    // An action with no title used to draw an empty `Text`, which
+                    // took a line's height to say nothing. An empty slot draws
+                    // nothing at all.
+                    title = title ?: {},
+                )
+            }
+            // The children in a `Column` of their own, so `weight` and `align`
+            // in the content still mean what they do in any column.
+            Column(
+                modifier = Modifier.layoutId(SectionPart.Body).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(spacing),
+                content = content,
             )
+            if (footer != null) {
+                SectionFooter(Modifier.layoutId(SectionPart.Footer), startPadding = 0.dp, content = footer)
+            }
+        },
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minHeight = 0)
+        val body = measurables.first { it.layoutId == SectionPart.Body }.measure(loose)
+
+        val given = if (textInset.isSpecified) textInset.roundToPx() else null
+        val beside = rowInset.roundToPx()
+        val headerInset = given ?: if (body.startsWithRow()) beside else 0
+        val footerInset = given ?: if (body.endsWithRow()) beside else 0
+
+        val header = measurables.firstOrNull { it.layoutId == SectionPart.Header }
+            ?.measure(loose.offset(horizontal = -headerInset))
+        val footer = measurables.firstOrNull { it.layoutId == SectionPart.Footer }
+            ?.measure(loose.offset(horizontal = -footerInset))
+
+        // The gaps `Arrangement.spacedBy` put between the three when they were
+        // children of one column, so a section of rows is where it always was.
+        // An empty body is not a child: it would have been none at all.
+        val gap = spacing.roundToPx()
+        val stacked = listOfNotNull(header, body.takeIf { it.height > 0 }, footer)
+        val height = stacked.sumOf { it.height } + gap * max(stacked.size - 1, 0)
+        val width = max(
+            body.width,
+            max((header?.width ?: 0) + headerInset, (footer?.width ?: 0) + footerInset),
+        )
+
+        layout(constraints.constrainWidth(width), constraints.constrainHeight(height)) {
+            var y = 0
+            header?.let {
+                it.placeRelative(headerInset, y)
+                y += it.height + gap
+            }
+            if (body.height > 0) {
+                body.placeRelative(0, y)
+                y += body.height + gap
+            }
+            footer?.placeRelative(footerInset, y)
         }
-        content()
-        if (footer != null) SectionFooter(content = footer)
     }
+}
+
+/** Which of [ListSection]'s three parts a measurable is. */
+private enum class SectionPart { Header, Body, Footer }
+
+/**
+ * The top and bottom edges of a row's ground, as a row reports them to whatever
+ * lays it out.
+ *
+ * This is how a [ListSection] tells a row from a paragraph without knowing
+ * anything about either. An alignment line is passed up through every layout
+ * between the row and the one that asks — a `SwipeActions`, a caller's `Column`
+ * — offset to where the row sits in it, so the section only has to ask its own
+ * column whether a row's top is at its top. Across siblings the topmost top and
+ * the bottommost bottom win, which is the first and the last row.
+ *
+ * Its top and bottom rather than its start edge, deliberately: a row being
+ * swiped moves sideways, and a section reading where the row starts would have
+ * moved its title along with the finger.
+ */
+private val ListRowTop = HorizontalAlignmentLine(::min)
+private val ListRowBottom = HorizontalAlignmentLine(::max)
+
+/**
+ * Reports its node's top and bottom as a row's — see [ListRowTop]. On every
+ * [ListItem], and on the cards that hold one with more under it, so a section
+ * still reads one as a row while it is open.
+ *
+ * One instance for the whole library, with nothing captured, so it compares
+ * equal across recompositions and never makes a row's modifiers look changed.
+ */
+internal val ListRowEdges: Modifier = Modifier.layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(
+        placeable.width,
+        placeable.height,
+        mapOf(ListRowTop to 0, ListRowBottom to placeable.height),
+    ) {
+        placeable.placeRelative(0, 0)
+    }
+}
+
+/** Whether a row is the first thing in this placeable, flush with its top. */
+private fun Placeable.startsWithRow(): Boolean {
+    val top = this[ListRowTop]
+    return top != AlignmentLine.Unspecified && top <= 0
+}
+
+/** Whether a row is the last thing in this placeable, flush with its bottom. */
+private fun Placeable.endsWithRow(): Boolean {
+    val bottom = this[ListRowBottom]
+    return bottom != AlignmentLine.Unspecified && bottom >= height
 }
 
 /**
  * The sentence under a section's rows: [ListSection]'s `footer`, and
  * `listSection`'s in a lazy list, drawn one way for both.
+ *
+ * @param startPadding In from the start edge, where [ListSection] does not
+ *   place it at an inset of its own.
  */
 @Composable
-internal fun SectionFooter(modifier: Modifier = Modifier, content: @Composable ContentScope.() -> Unit) {
+internal fun SectionFooter(
+    modifier: Modifier = Modifier,
+    startPadding: Dp = ListItemDefaults.ContentInset,
+    content: @Composable ContentScope.() -> Unit,
+) {
     Box(
         modifier.padding(
-            start = Theme.spacing.md,
+            start = startPadding,
             end = Theme.spacing.md,
             top = Theme.spacing.xxs,
         )
@@ -457,7 +615,13 @@ internal fun SectionFooter(modifier: Modifier = Modifier, content: @Composable C
     }
 }
 
-/** A heading above a group of rows. */
+/**
+ * A heading above a group of rows.
+ *
+ * Starts [ListItemDefaults.ContentInset] in, where the rows' content does.
+ * Inside a [ListSection] that is decided by what the section holds — see its
+ * `textInset`.
+ */
 @Composable
 fun SectionHeader(
     modifier: Modifier = Modifier,
@@ -465,11 +629,29 @@ fun SectionHeader(
     action: (@Composable RowScope.() -> Unit)? = null,
     title: @Composable ContentScope.() -> Unit,
 ) {
+    SectionHeaderImpl(
+        modifier = modifier,
+        supporting = supporting,
+        action = action,
+        startPadding = ListItemDefaults.ContentInset,
+        title = title,
+    )
+}
+
+/** [SectionHeader], with its start padding left to the caller. */
+@Composable
+private fun SectionHeaderImpl(
+    modifier: Modifier,
+    supporting: (@Composable ContentScope.() -> Unit)?,
+    action: (@Composable RowScope.() -> Unit)?,
+    startPadding: Dp,
+    title: @Composable ContentScope.() -> Unit,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(
-                start = Theme.spacing.md,
+                start = startPadding,
                 end = Theme.spacing.xs,
                 top = Theme.spacing.md,
                 bottom = Theme.spacing.xxs,

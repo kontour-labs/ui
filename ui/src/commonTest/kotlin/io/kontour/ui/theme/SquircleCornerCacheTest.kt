@@ -3,6 +3,7 @@ package io.kontour.ui.theme
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -25,8 +26,12 @@ class SquircleCornerCacheTest {
 
     private val density = Density(1f)
 
+    /** The outline as a path, whichever kind it is: a shape with nothing to smooth is a rounded rectangle. */
     private fun SquircleShape.pathAt(size: Size, direction: LayoutDirection = LayoutDirection.Ltr): Path =
-        (createOutline(size, direction, density) as Outline.Generic).path
+        when (val outline = createOutline(size, direction, density)) {
+            is Outline.Generic -> outline.path
+            else -> Path().apply { addOutline(outline) }
+        }
 
     /** Whether two paths cover the same area, to within a pixel's sliver. */
     private fun assertSamePath(expected: Path, actual: Path, what: String) {

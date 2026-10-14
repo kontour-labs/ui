@@ -101,7 +101,7 @@ fun DisclosureListItem(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = motion.tweenDefault(),
         label = "disclosureCorners",
-    )
+    ).inMorphSteps()
     val card = position.shape(ListItemDefaults.Shape, ListItemDefaults.InnerCorner, Orientation.Vertical)
     val slots = listItemSlots {
         header()
@@ -125,7 +125,10 @@ fun DisclosureListItem(
     }
 
     Column(
-        modifier
+        // A row to the section it sits in, open or not: its body is part of
+        // the card, not something else under a row.
+        ListRowEdges
+            .then(modifier)
             .fillMaxWidth()
             .clip(card)
             .background(if (enabled) colours.surfaceSunken else colours.surfaceSunken.copy(alpha = 0.5f), card)

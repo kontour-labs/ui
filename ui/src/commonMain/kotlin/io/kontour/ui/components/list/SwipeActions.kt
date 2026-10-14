@@ -1,5 +1,6 @@
 package io.kontour.ui.components.list
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
@@ -23,7 +24,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1310,6 +1310,11 @@ private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: 
 
 private val NoConfirmation: () -> Float = { 0f }
 
+/** How much of itself a swipe action's button has room to show: see `SwipeActionButton`. */
+private const val RoomNone = 0
+private const val RoomIcon = 1
+private const val RoomLabel = 2
+
 @Composable
 private fun SwipeActionButton(
     action: SwipeAction,
@@ -1330,7 +1335,22 @@ private fun SwipeActionButton(
         contentColour = content,
         contentAlignment = Alignment.Center,
     ) {
-        BoxWithConstraints(
+        // The label goes when there is no room for it, rather than being
+        // clipped to a stripe of its own ascenders; measured rather than
+        // compared against a magic dp, so it stays right at 200% type.
+        val labelHeight = with(LocalDensity.current) {
+            Theme.typography.labelSmall.lineHeight.toDp()
+        }
+        val iconLarge = Theme.sizing.iconLarge
+        val iconMedium = Theme.sizing.iconMedium
+        val gap = Theme.spacing.xxs
+        // **Decided in measure, read in composition only when it changes.** The
+        // button grows with the finger, and it was a `BoxWithConstraints`, which
+        // composes its content again for every new width: every button of a
+        // swipe, every frame of it. The room is three answers, and this asks
+        // for a composition when the answer changes, a handful of times a swipe.
+        val room = remember { mutableIntStateOf(RoomNone) }
+        Box(
             // `fillMaxSize`, so the whole button is the target and not only the
             // icon and label in the middle of it.
             modifier = Modifier
@@ -1348,18 +1368,22 @@ private fun SwipeActionButton(
                         scaleY = scale
                     }
                 }
-                .padding(Theme.spacing.xxs),
+                .padding(gap)
+                .layout { measurable, constraints ->
+                    val width = constraints.maxWidth.toDp()
+                    val height = constraints.maxHeight.toDp()
+                    room.intValue = when {
+                        height >= iconLarge + gap + labelHeight && width >= iconLarge * 2 -> RoomLabel
+                        width >= iconMedium && height >= iconMedium -> RoomIcon
+                        else -> RoomNone
+                    }
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
             contentAlignment = Alignment.Center,
         ) {
-            // The label goes when there is no room for it, rather than being
-            // clipped to a stripe of its own ascenders; measured rather than
-            // compared against a magic dp, so it stays right at 200% type.
-            val labelHeight = with(LocalDensity.current) {
-                Theme.typography.labelSmall.lineHeight.toDp()
-            }
-            val roomForLabel = maxHeight >= Theme.sizing.iconLarge + Theme.spacing.xxs + labelHeight &&
-                maxWidth >= Theme.sizing.iconLarge * 2
-            val roomForIcon = maxWidth >= Theme.sizing.iconMedium && maxHeight >= Theme.sizing.iconMedium
+            val roomForLabel = room.intValue == RoomLabel
+            val roomForIcon = room.intValue != RoomNone
             // **Arriving, not appearing.** Both came in on the frame there was
             // room for them, which on a swipe is a pop partway through a smooth
             // motion — reported as "a little bit janky when the text first

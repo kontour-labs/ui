@@ -1,6 +1,7 @@
 package io.kontour.ui.foundation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -52,7 +53,10 @@ val LocalTextStyle = compositionLocalOf { TextStyle.Default }
  */
 @Composable
 fun ProvideTextStyle(value: TextStyle, content: @Composable () -> Unit) {
-    val merged = LocalTextStyle.current.merge(value)
+    // Remembered: a row provides three or four of these each time it composes,
+    // and a merge is a new style whose every field is resolved again.
+    val outer = LocalTextStyle.current
+    val merged = remember(outer, value) { outer.merge(value) }
     CompositionLocalProvider(LocalTextStyle provides merged, content = content)
 }
 

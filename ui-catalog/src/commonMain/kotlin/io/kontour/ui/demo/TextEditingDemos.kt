@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,15 +23,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import io.kontour.icons.tabler.Tabler
 import io.kontour.icons.tabler.outline.Bus
+import io.kontour.icons.tabler.outline.Clock
 import io.kontour.icons.tabler.outline.Eye
+import io.kontour.icons.tabler.outline.Flag2
 import io.kontour.icons.tabler.outline.MapPin
+import io.kontour.icons.tabler.outline.Moon
 import io.kontour.icons.tabler.outline.Search
 import io.kontour.icons.tabler.outline.Train
 import io.kontour.icons.tabler.outline.Walk
 import io.kontour.icons.tabler.outline.X
+import io.kontour.ui.components.display.Avatar
+import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.text.Combobox
 import io.kontour.ui.components.text.EmailField
 import io.kontour.ui.components.text.MultiSelect
@@ -45,6 +52,7 @@ import io.kontour.ui.components.text.TextArea
 import io.kontour.ui.components.text.TextField
 import io.kontour.ui.components.text.TextFieldVariant
 import io.kontour.ui.components.text.rememberImeChain
+import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.theme.Theme
 
@@ -262,10 +270,10 @@ internal val SpecialisedFieldsDemo = ComponentDemo(
     }
 }
 
-private enum class Departure(val label: String) {
-    DepartAt("Depart at"),
-    ArriveBy("Arrive by"),
-    LastPossible("Last possible"),
+private enum class Departure(val label: String, val detail: String, val icon: ImageVector) {
+    DepartAt("Depart at", "Leave at a time you choose", Tabler.Outline.Clock),
+    ArriveBy("Arrive by", "Be there by a time you choose", Tabler.Outline.Flag2),
+    LastPossible("Last possible", "The last service tonight", Tabler.Outline.Moon),
 }
 
 private enum class Mode(val label: String) {
@@ -285,9 +293,17 @@ private val MenuRoom = 300.dp
 /** An "Other" at the end of the menu, with a box in the field to type the answer in. */
 private val offerOther = Knob.Flag("Offer Other")
 
-internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant, offerOther)) {
+/**
+ * Each option drawn rather than named: an icon, its label, and a line under the
+ * label in the menu, with the field keeping to the icon and the label so it stands
+ * as tall as the fields beside it.
+ */
+private val drawnOptions = Knob.Flag("Option content")
+
+internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVariant, offerOther, drawnOptions)) {
     var departure by remember { mutableStateOf(Departure.DepartAt) }
     var other by remember { mutableStateOf<String?>(null) }
+    val drawn = this[drawnOptions]
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         Select(
             value = departure,
@@ -299,7 +315,26 @@ internal val SelectDemo = ComponentDemo(slug = "select", knobs = listOf(fieldVar
             modifier = Modifier.fillMaxWidth(),
             otherText = other,
             onOtherTextChange = if (this@ComponentDemo[offerOther]) ({ other = it }) else null,
+            valueContent = if (drawn) ({ option -> DepartureLine(option) }) else null,
+            optionContent = if (drawn) ({ option -> DepartureRow(option) }) else null,
         )
+    }
+}
+
+/** A departure in the field: its icon and its label. */
+@Composable
+private fun RowContentScope.DepartureLine(departure: Departure) {
+    +departure.icon
+    +departure.label
+}
+
+/** A departure in the menu: its icon, its label, and what it means under that. */
+@Composable
+private fun RowContentScope.DepartureRow(departure: Departure) {
+    +departure.icon
+    Column {
+        Text(departure.label)
+        Text(departure.detail, style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
     }
 }
 
@@ -362,7 +397,7 @@ private val operators = listOf(
     "Path Transit", "Transdev", "Airport Connect",
 )
 
-internal val ComboboxDemo = ComponentDemo(slug = "combobox", knobs = listOf(fieldVariant)) {
+internal val ComboboxDemo = ComponentDemo(slug = "combobox", knobs = listOf(fieldVariant, drawnOptions)) {
     var operator by remember { mutableStateOf<String?>("Transperth") }
     Box(Modifier.fillMaxWidth().height(MenuRoom)) {
         Combobox(
@@ -373,6 +408,16 @@ internal val ComboboxDemo = ComponentDemo(slug = "combobox", knobs = listOf(fiel
             supporting = "Type to narrow a long list",
             variant = this@ComponentDemo[fieldVariant],
             modifier = Modifier.fillMaxWidth(),
+            // Each operator beside its initials; what is typed is still
+            // matched against the name.
+            optionContent = if (this@ComponentDemo[drawnOptions]) {
+                { name ->
+                    Avatar(name = name, size = AvatarSize.XSmall)
+                    +name
+                }
+            } else {
+                null
+            },
         )
     }
 }

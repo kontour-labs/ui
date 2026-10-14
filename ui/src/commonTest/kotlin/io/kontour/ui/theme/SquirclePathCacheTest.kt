@@ -7,6 +7,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
@@ -93,16 +95,35 @@ class SquirclePathCacheTest {
     fun smoothingIsPartOfWhatAPathIs() {
         // The one field that does not appear in the corners and does change the
         // curve. A key that left it out would hand a theme asking for square
-        // corners the smoothed path built for the theme before it.
+        // corners the smoothed path built for the theme before it. Square
+        // corners do not come from the cache at all now: with nothing to smooth
+        // the shape is a rounded rectangle, and is handed out as one.
         val smooth = SquircleShape(20.dp, smoothing = 0.6f)
         val plain = SquircleShape(20.dp, smoothing = 0f)
 
-        assertNotSame(
-            smooth.pathAt(200f, 80f),
-            plain.pathAt(200f, 80f),
-            "two smoothings at one size came back as the same path, so a theme " +
-                "that turns continuous corners off would get them anyway",
+        smooth.pathAt(200f, 80f)
+        val outline = plain.createOutline(Size(200f, 80f), LayoutDirection.Ltr, density)
+        assertTrue(
+            outline is Outline.Rounded,
+            "a squircle with no smoothing came back as $outline rather than a rounded rectangle, " +
+                "so a theme that turns continuous corners off would get a path, or the smoothed one",
         )
+        assertEquals(20f, outline.roundRect.topLeftCornerRadius.x)
+    }
+
+    /**
+     * A circle is exactly a rounded rectangle — every corner saturated on both
+     * its edges leaves nothing to smooth — and is handed to Skia as one, which
+     * clips and shadows it without a mask. An avatar in a list paid a path for it.
+     */
+    @Test
+    fun aCircleIsARoundedRectangle() {
+        val circle = SquircleShape(50.dp).createOutline(Size(40f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(circle is Outline.Rounded, "a 40px squircle at a saturating radius came back as $circle")
+        assertEquals(20f, circle.roundRect.bottomRightCornerRadius.x)
+        // And a capsule wider than it is tall still smooths its long edges.
+        val capsule = SquircleShape(50.dp).createOutline(Size(120f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(capsule is Outline.Generic, "a capsule lost the smoothing along its long edges: $capsule")
     }
 
     @Test

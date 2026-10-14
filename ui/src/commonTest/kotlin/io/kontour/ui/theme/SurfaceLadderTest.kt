@@ -153,12 +153,14 @@ class SurfaceLadderTest {
         const val ThumbFloor = 1.5f
 
         /**
-         * The same for a tinted container, one notch lower.
+         * The same for a tinted container, one notch lower, at every tier.
          *
-         * `accent.container` in dark is 1.16:1 against `surface` and cannot go
-         * further: at 1.26 `outlineStrong` stops clearing 3:1 against it, and a
-         * selected chip *is* bounded — that border is what WCAG is satisfied by
-         * there, which is exactly what the segmented thumb gave up.
+         * The floor a consumer's scheme has to clear. The built-in standard
+         * schemes are held well above it, against the page and the rows a
+         * selection sits among as well as `surface`, by `SelectedTintTest` —
+         * 1.33:1 against `surface` in dark, where this used to say 1.16 and
+         * that it could go no further. It could, once `outlineStrong` and the
+         * two greys drawn on the tint came up with it.
          */
         const val ContainerFloor = 1.15f
     }

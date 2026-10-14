@@ -258,7 +258,34 @@ internal class ChatBubbleShape(
     private val tailWidth: Dp,
 ) : Shape {
 
+    // The last outline made, and what it was made for. A bubble's surface asks
+    // three times for each size — its clip, its ground and its edge — and each
+    // answer is a squircle and a path union, made again for every bubble a
+    // thread scrolls into view. Not part of the shape's equality.
+    private var lastSize = Size.Unspecified
+    private var lastDirection: LayoutDirection? = null
+    private var lastDensity = 0f
+    private var lastFontScale = 0f
+    private var last: Outline? = null
+
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val cached = last
+        if (
+            cached != null && size == lastSize && layoutDirection == lastDirection &&
+            density.density == lastDensity && density.fontScale == lastFontScale
+        ) {
+            return cached
+        }
+        return outline(size, layoutDirection, density).also {
+            last = it
+            lastSize = size
+            lastDirection = layoutDirection
+            lastDensity = density.density
+            lastFontScale = density.fontScale
+        }
+    }
+
+    private fun outline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val reach = with(density) { tailWidth.toPx() }.coerceAtMost(size.width / 2f)
         val right = onEnd == (layoutDirection == LayoutDirection.Ltr)
         val bodySize = Size((size.width - reach).coerceAtLeast(0f), size.height)

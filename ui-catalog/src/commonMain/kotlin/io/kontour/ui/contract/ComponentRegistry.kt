@@ -14,6 +14,7 @@ import io.kontour.icons.tabler.outline.Bell
 import io.kontour.icons.tabler.outline.Mail
 import io.kontour.ui.components.display.Avatar
 import io.kontour.ui.components.display.AvatarGroup
+import io.kontour.ui.components.display.AvatarSize
 import io.kontour.ui.components.display.Badge
 import io.kontour.ui.components.display.BadgedBox
 import io.kontour.ui.components.display.Card
@@ -1459,6 +1460,23 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             control = ControlLocator.Clickable,
             accessibleName = "When",
+            states = listOf(
+                // The value drawn by the caller rather than set as a label: a
+                // face beside a name, the face the size of a line of text, so
+                // the field stands as tall as one of words.
+                RenderState("option content") { modifier ->
+                    Select(
+                        value = "Ana Lima",
+                        options = listOf("Ana Lima", "Sam Okafor"),
+                        onValueChange = {},
+                        modifier = modifier,
+                        label = "Booked for",
+                    ) { name ->
+                        Avatar(name = name, size = AvatarSize.XSmall)
+                        +name
+                    }
+                },
+            ),
         ) { modifier, enabled, onClick ->
             Select(
                 value = "Now",
@@ -1931,7 +1949,31 @@ val componentRegistry: List<ComponentSpec> = buildList {
             expectsMinimumTarget = false,
             activatedByClick = false,
             underContract = false,
-            renderHeight = 240,
+            // 250 for the section without rows, whose paragraph and control
+            // stand taller than two rows do.
+            renderHeight = 250,
+            states = listOf(
+                // A paragraph and a control rather than rows, which is how a
+                // good many sections are used: the title and the footer start
+                // at the edge with them, not 16dp in over rows that are not
+                // there. Rows-only, the resting render, is unchanged.
+                RenderState("without rows") { modifier ->
+                    ListSection(
+                        modifier = modifier.widthIn(max = SpecimenProseWidth),
+                        title = { +"Planning" },
+                        footer = { +"Used to work out how long the walks between stops take." },
+                        spacing = Theme.spacing.md,
+                    ) {
+                        Text("Distances are shown in the units you read them in.")
+                        SegmentedControl(
+                            options = listOf("Kilometres", "Miles"),
+                            selectedIndex = 0,
+                            onSelectedIndexChange = {},
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+            ),
         ) { modifier, enabled, onClick ->
             ListSection(
                 // Measured, like every other specimen whose content is prose: a
@@ -2263,7 +2305,8 @@ val componentRegistry: List<ComponentSpec> = buildList {
             name = "DateTimePicker",
             role = null,
             underContract = false,
-            // A date picker's 380 and a time picker's 280, and the gap between.
+            // Tall enough for the wheels under the calendar, as a large phone
+            // shows them: about 530dp here, where it is 300 wide and a mouse's.
             renderHeight = 680,
             // The date picker's floor: seven columns of day numbers.
             minWidth = 200,

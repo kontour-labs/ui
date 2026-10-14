@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -199,7 +200,22 @@ class OverlayEntry(
      */
     val onDismiss: (() -> Unit)? = null,
     val content: @Composable () -> Unit,
-)
+) {
+    /**
+     * A rectangle, in root coordinates, where a press goes past this entry's
+     * scrim to whatever is underneath it. Null, which is every entry but one,
+     * and the scrim takes every press it covers.
+     *
+     * The one is a combobox's list, whose field the user is still typing in:
+     * see `AnchoredDropdownMenuImpl`. Read in the scrim's measure pass, so a
+     * rectangle that moves takes its way through with it.
+     *
+     * Set once, as the entry is built, and never after — which is what keeps
+     * the class's `@Immutable` true. Not a constructor parameter, because the
+     * constructor is public and the need is the library's own.
+     */
+    internal var passThrough: (() -> Rect?)? = null
+}
 
 /**
  * The overlay stack.
@@ -599,6 +615,12 @@ private fun EntryHost(
                 null
             }
         }
+        // The entry's way through, in the host's coordinates rather than the
+        // root's, which is what the scrim is laid out in. Remembered for the
+        // same reason as the two above.
+        val hole: (() -> Rect?)? = remember(entry, state) {
+            entry.passThrough?.let { inRoot -> { inRoot()?.translate(-state.originInRoot) } }
+        }
         ScrimLayer(
             // The same number the panel is drawn with, so the dimming and the
             // thing it dims are one movement — see `Scrim` — and, with
@@ -612,6 +634,7 @@ private fun EntryHost(
             // it from is already on its way off the screen. Material's scrim
             // does the same.
             blocks = !going,
+            hole = hole,
         )
     }
 

@@ -96,7 +96,8 @@ rule at this tier, because a menu's border in the fainter grey was 3.03:1.
 
 **The pairs.** The tier used to darken every boundary toward `primary`, which is
 right for a boundary and wrong for the other half of a pair: a switch's off
-track was **1.85:1** from its on track, where the standard tier has 4.81.
+track was **1.85:1** from its on track, where the standard tier has 4.49 in
+light and 3.58 in dark.
 `ColourScheme.inactive` is the off or not-yet half — a switch off, a timeline's
 stops not reached, the page dots that are not current, and at this tier every
 track a fill runs along (`Slider`, the progress forms, `Gauge`, `Meter`,

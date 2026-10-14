@@ -8,12 +8,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -81,7 +83,20 @@ class DatePickerSizeTest {
     fun onAPhoneItIsNoTallerThanItNeeds() = runComposeUiTest {
         val picker = picker(width = 340)
         // Six weeks at most 40dp, the initials over them and the header: it was
-        // 379dp.
-        assertTrue(picker.height <= 320f, "the picker is ${picker.height}dp tall at a phone's width")
+        // 379dp, and then 306 with 4dp over and under the header; about 298 now.
+        assertTrue(picker.height <= 304f, "the picker is ${picker.height}dp tall at a phone's width")
+    }
+
+    /**
+     * The header's buttons are at the picker's top edge, with no padding over
+     * them: on a phone their touch targets are the space round them already.
+     * *"i've found there's a bit of excessive padding around date pickers"* —
+     * there was 4dp above and below as well.
+     */
+    @Test
+    fun theHeaderHasNoPaddingOverItsButtons() = runComposeUiTest {
+        val picker = picker(width = 340)
+        val previous = onNodeWithContentDescription("Previous month").fetchSemanticsNode().boundsInRoot
+        assertTrue(abs(previous.top - picker.top) <= 0.5f, "the previous month's button is ${previous.top - picker.top}dp under the picker's top")
     }
 }

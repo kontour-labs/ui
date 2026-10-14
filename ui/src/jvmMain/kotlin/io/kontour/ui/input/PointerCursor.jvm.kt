@@ -27,3 +27,5 @@ private val ResizeRowIcon by lazy { awt(AwtCursor.S_RESIZE_CURSOR) }
 private val GrabbingIcon by lazy { awt(AwtCursor.MOVE_CURSOR) }
 
 private fun awt(type: Int): PointerIcon = PointerIcon(AwtCursor.getPredefinedCursor(type))
+
+internal actual val platformHasCursor: Boolean = true

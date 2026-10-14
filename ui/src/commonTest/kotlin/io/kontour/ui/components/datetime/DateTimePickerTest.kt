@@ -1,6 +1,12 @@
 package io.kontour.ui.components.datetime
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -18,6 +24,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.WindowSizeClass
 import io.kontour.ui.theme.KontourTheme
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -31,8 +39,9 @@ import kotlin.test.assertTrue
 /**
  * A date and time picker changes the day without the time, and the time
  * without the day, and says once that each change has settled; on a phone it
- * shows one half at a time under a segmented control, and wider the two sit
- * side by side.
+ * shows the wheels under the calendar where there is the height and one half
+ * at a time under a segmented control where there is not, and wider the two
+ * sit side by side.
  *
  * Asked for as *"can we add a component for a date and time picker? it should
  * basically just be the two individual components we currently have for that,
@@ -52,20 +61,35 @@ class DateTimePickerTest {
         var finished = 0
     }
 
-    private fun ComposeUiTest.picker(width: Int = 360): Picked {
+    /**
+     * A picker [width] wide, given [height] — a small phone's room by default,
+     * where the two halves take turns — or, at null, in a page that scrolls on
+     * a window [window] tall.
+     */
+    private fun ComposeUiTest.picker(width: Int = 360, height: Int? = 480, window: Int = 932): Picked {
         val picked = Picked(LocalDateTime(LocalDate(2026, 6, 18), LocalTime(8, 15)))
         setContent {
             KontourTheme(reduceMotion = true) {
-                DateTimePicker(
-                    value = picked.value,
-                    onValueChange = {
-                        picked.value = it
-                        picked.changes += it
-                    },
-                    onValueChangeFinished = { picked.finished++ },
-                    minuteStep = 5,
-                    modifier = Modifier.width(width.dp),
-                )
+                val picker = @Composable { modifier: Modifier ->
+                    DateTimePicker(
+                        value = picked.value,
+                        onValueChange = {
+                            picked.value = it
+                            picked.changes += it
+                        },
+                        onValueChangeFinished = { picked.finished++ },
+                        minuteStep = 5,
+                        modifier = modifier.width(width.dp),
+                    )
+                }
+                if (height != null) {
+                    picker(Modifier.height(height.dp))
+                } else {
+                    // A phone's window, provided as the theme would read it.
+                    CompositionLocalProvider(LocalWindowSizeClass provides WindowSizeClass.of(430.dp, window.dp)) {
+                        Column(Modifier.verticalScroll(rememberScrollState())) { picker(Modifier) }
+                    }
+                }
             }
         }
         waitForIdle()
@@ -106,6 +130,43 @@ class DateTimePickerTest {
         waitForIdle()
         assertEquals(0, onAllNodesWithText("24").fetchSemanticsNodes().size, "the calendar shows over the wheels")
         onNodeWithContentDescription("Minute").assertExists()
+    }
+
+    /**
+     * *"on larger phones, i should be able to see the 'inline' variant of the
+     * date-time picker"*: a phone's width, with the height for both, shows the
+     * wheels under the calendar and no segmented control.
+     */
+    @Test
+    fun tallEnoughTheWheelsSitUnderTheCalendar() = runComposeUiTest {
+        picker(height = 640)
+        assertWheelsUnderTheCalendar()
+    }
+
+    /** In a page that scrolls, which gives no height, a large phone's window is room enough. */
+    @Test
+    fun inAPageOnALargePhoneTheWheelsSitUnderTheCalendar() = runComposeUiTest {
+        picker(height = null, window = 932)
+        assertWheelsUnderTheCalendar()
+    }
+
+    /** And a small phone's is not: 667dp, less its bars, is short of the two. */
+    @Test
+    fun inAPageOnASmallPhoneOneHalfShowsAtATime() = runComposeUiTest {
+        picker(height = null, window = 667)
+        assertEquals(0, onAllNodes(hasContentDescription("Minute")).fetchSemanticsNodes().size, "the wheels show under the calendar")
+        onNodeWithText(":15", substring = true).assertExists()
+    }
+
+    private fun ComposeUiTest.assertWheelsUnderTheCalendar() {
+        val lastWeek = onAllNodesWithText("29").onFirst().fetchSemanticsNode().boundsInRoot
+        val minute = onNodeWithContentDescription("Minute").fetchSemanticsNode().boundsInRoot
+        assertTrue(minute.top >= lastWeek.bottom, "the wheels at ${minute.top} are not under the calendar, whose last week ends at ${lastWeek.bottom}")
+        // The sixth week, which June leaves blank, 40dp, and the 8dp gap: 48dp
+        // from the 29th's cell, a little more from its number.
+        val gap = minute.top - lastWeek.bottom
+        assertTrue(gap <= 64f, "the wheels start ${gap}dp under the 29th, not a gap away")
+        assertEquals(0, onAllNodesWithText(":15", substring = true).fetchSemanticsNodes().size, "stacked there is still a segmented control")
     }
 
     @Test

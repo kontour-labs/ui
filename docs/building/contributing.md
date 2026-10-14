@@ -180,14 +180,17 @@ replace, `Color.Unspecified` meaning the variant's own.
 Two row-shaped slot types, and the line between them is not about the layout:
 
 - **`RowContentScope`** when the slot **is the control's own label** — `Button`,
-  `Chip`, `Tag`, `ButtonGroupScope.action`, `Tab`, `NavExpandingSlot`. The caller writes
-  `+"Save"` and `+icon`, and the component decides the style and the icon size.
+  `Chip`, `Tag`, `ButtonGroupScope.action`, `Tab`, `NavExpandingSlot`, and a
+  select's `optionContent` and `valueContent`, which are an option's label drawn.
+  The caller writes `+"Save"` and `+icon`, and the component decides the style
+  and the icon size.
 - **plain `RowScope`** when the slot holds **other controls** — `TopBar.actions`,
   `TabBar.actions`, `SheetHeader.actions`, `BottomSheet.actions`,
   `SectionHeader.action`, `ListSection.action`, `Toolbar.content`. There is no
   one text style to provide, because what goes in is buttons.
 
-Eleven slots on the first side, nine on the second, and no exceptions. `Toolbar`
+Seventeen slots on the first side, six of them the selects' option slots, nine
+on the second, and no exceptions. `Toolbar`
 looks like the odd one out — it is the only *container* whose whole content is a
 raw `RowScope` — but it holds icon buttons and dividers exactly as
 `TopBar.actions` does, and giving it the `+` vocabulary would put it out of step

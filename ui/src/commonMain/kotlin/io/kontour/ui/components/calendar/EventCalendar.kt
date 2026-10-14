@@ -647,12 +647,14 @@ internal fun viewName(view: CalendarView): String {
 
 /** The title of the period [state] shows: a day's date, a week's months, a month, a year. */
 internal fun periodTitle(state: EventCalendarState, formats: LocaleFormats, timeRange: (String, String) -> String): String {
-    val dates = state.visibleDates
     return when (state.view) {
         // Long rather than full: the weekday is under it, over the day's hours,
         // and the full date did not fit a phone's header beside its arrows.
         CalendarView.Day -> formats.date(state.date, DateStyle.Long)
         CalendarView.Week, CalendarView.ThreeDays -> {
+            // Read here and not for every view: a scrolling month's dates
+            // change with each week scrolled past, and its title does not.
+            val dates = state.visibleDates
             val first = formats.monthAndYear(dates.start)
             val last = formats.monthAndYear(dates.endInclusive)
             if (first == last) first else timeRange(first, last)

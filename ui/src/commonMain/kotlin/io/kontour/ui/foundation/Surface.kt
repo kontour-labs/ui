@@ -22,6 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import io.kontour.ui.a11y.contentColourFor
 import io.kontour.ui.theme.Shadow
 import io.kontour.ui.theme.Theme
+import io.kontour.ui.theme.clipProxy
 
 /**
  * A ground: background, shape, border, shadow, and the content colour that
@@ -161,7 +162,19 @@ private fun SurfaceBox(
     // unchanged elevated surface asks its shape for an outline across fourteen
     // recompositions, and the answer has to be none. Inline this call again and
     // it reports 28 — fourteen frames times the two layers of `Elevation.low`.
-    val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape) }
+    val raised = remember(shadow, shape) { Modifier.elevation(shadow, shape.clipProxy()) }
+    // **The clip, on Skia's fast path.** A squircle is a generic path, and a
+    // path clip is masked where a rounded rectangle's is worked out: on iOS,
+    // which draws the scene again whenever anything on it moves, every clipped
+    // row and card in a scroll was masked again on every frame of it, and a
+    // floating sheet, whose height changes as it is dragged, on every frame of
+    // the drag. The same corners as a rounded rectangle are never more than
+    // 1.25% of a radius outside the squircle — under half a dp at a sheet's
+    // corner, within its anti-aliased edge — and what is seen of the surface,
+    // its ground and its edge, is still drawn as the squircle. The shadow is
+    // the proxy's for the same reason; under a blur nobody can tell. See
+    // [clipProxy].
+    val clip = remember(shape) { shape.clipProxy() }
     CompositionLocalProvider(
         LocalContentColour provides contentColour,
         LocalContainerColour provides if (containerColour.alpha >= 1f) containerColour else LocalContainerColour.current,
@@ -169,7 +182,7 @@ private fun SurfaceBox(
         Box(
             modifier = modifier
                 .then(raised)
-                .clip(shape)
+                .clip(clip)
                 // After the clip, so it is the shape that stops a tap and not
                 // its box: just off a capsule's rounded end is still the page.
                 // See "A tap on a surface is the surface's" above.

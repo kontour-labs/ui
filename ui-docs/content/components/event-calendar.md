@@ -98,7 +98,9 @@ calendar and a picker on the same screen agree about what today looks like.
 **Moving about.** The header steps back and on, goes to today and switches
 the view. In the day and week views a sideways swipe steps too, the same way
 the date picker pages its months. The month scrolls up and down instead,
-through the weeks either side, and settles with a week at the top; the month
+through the weeks either side. A finger's swipe or fling settles with a week at
+the top; a mouse's wheel or a trackpad scrolls the weeks freely and leaves them
+where it stops, as a desktop's calendars do. The month
 most on screen is the one the title and the state are about, and the header's
 arrows scroll to the first week of the month before or after. A day's number, in the month and over a week's columns, opens that
 day. In the year, a month's name opens the month and a day opens the day. An

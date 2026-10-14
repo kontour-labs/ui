@@ -52,6 +52,7 @@ import io.kontour.ui.nav.TopBar
 import io.kontour.ui.nav.navigationSuitePadding
 import io.kontour.ui.nav.TopBarStyle
 import io.kontour.ui.nav.rememberTopBarCollapseState
+import io.kontour.ui.nav.topBarCollapse
 import io.kontour.ui.overlay.DropdownMenu
 import io.kontour.ui.overlay.coachmarkStep
 import io.kontour.ui.overlay.rememberCoachmarkTour
@@ -114,7 +115,15 @@ internal fun DeparturesPage(
         ) {
             LazyColumn(
                 state = list,
-                modifier = Modifier.fillMaxSize().scrollbar(list, contentPadding = navigationSuitePadding().plusTop(collapse.openHeight)).testTag("departures"),
+                // The collapse on the list, for a push past its end — the
+                // filters narrowed until it is only just long enough to
+                // scroll — which takes the bar with it rather than sliding
+                // the rows up under the picture.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .topBarCollapse(collapse)
+                    .scrollbar(list, contentPadding = navigationSuitePadding().plusTop(collapse.openHeight))
+                    .testTag("departures"),
                 // Starting below the bar drawn over it.
                 contentPadding = transitPagePadding().plusTop(collapse.openHeight),
                 // No arrangement: the departures are a `listSection`,

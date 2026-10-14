@@ -24,7 +24,154 @@ The version an app is on is the `kontour` entry in its version catalog. See
 
 ## Unreleased
 
-On `main`, and in the next release. Nothing yet.
+On `main`, and in the next release.
+
+Smoother on iOS: clips and shadows on Skia's fast path, a scaffold that does
+not recompose its screen as the keyboard or a top bar moves, and a floating
+sheet that no longer masks itself again on every frame it is dragged. A sheet
+caught on its way back holds where it was caught; a floating sheet keeps the
+same margin at its foot as at its sides; a large or hero top bar no longer has
+its page slide up under it on iOS. Selects draw their options with a slot, a
+combobox's text can be selected, list sections line up with what they hold,
+the default schemes' selected tint stands further off the page, a phone shows
+the date-time picker's wheels under its calendar where it has the height, and
+an event calendar's month scrolls freely under a mouse's wheel.
+
+`Select`, `MultiSelect`, `Combobox` and `ListSection` have new parameters, so
+anything built against 0.4.4 has to be recompiled — see **Breaking**. Nothing
+needs rewriting.
+
+### Breaking
+
+- **`Select`, `MultiSelect`, `Combobox` and `ListSection` have new
+  parameters** — `valueContent` and `optionContent` on the three selects,
+  `textInset` on the section — so anything built against 0.4.4 has to be
+  recompiled. They are defaulted and come last, so every call site still
+  compiles as it is.
+
+### Changed
+
+- **A [bottom sheet](components/bottom-sheet.md) let go and caught again on its
+  way back is held where the finger caught it**, and follows the finger from
+  there. A full-height sheet pulled down, let go and pulled again before it was
+  back went to the top anyway: a throw of the sheet's surface was not counted as
+  the sheet moving, so the new finger had to travel the drag's slop first, and
+  the throw carried the sheet home meanwhile. A finger laid on a moving sheet
+  now holds it at once, and the rest of that gesture is the sheet's, not a list's
+  inside it.
+  `SheetState.isMoving` is true through a throw of the sheet itself too.
+- **A floating [bottom sheet](components/bottom-sheet.md) keeps the same margin
+  at its foot as at its sides**, 12dp by default: from the window's edge under
+  iOS's home indicator or Android's gesture handle, which are drawn over the
+  app, and above Android's three buttons or the keyboard rather than on them. It
+  kept the larger of its margin and the window's inset, so on an iPhone it stood
+  34dp off the bottom against 12 at the sides, and over three buttons it sat on
+  the bar with no margin at all. Its content is handed the part of the bottom
+  safe area it now stands in — 22dp on an iPhone, 12 over a gesture handle,
+  none over three buttons or the keyboard — where it was handed none.
+- **A floating [bottom sheet](components/bottom-sheet.md) is cheaper to drag and
+  to expand to the edges, on iOS most of all.** Its surface clipped its content
+  to the squircle's path, and a sheet's height changes on every frame it is
+  dragged, so the clip's mask was made again on every frame of a drag, over most
+  of the window. It clips to a rounded rectangle with the same corners now, which
+  Skia works out rather than masks; the ground and the edge are still the
+  squircle, and the two differ by under half a dp at the corner.
+- **A large or hero [top bar](components/top-bar.md) no longer has its page
+  slide up under it on iOS.** On a page only just long enough to scroll, a push
+  past its end went to iOS's rubber band, which moves the whole content: up
+  under a bar that had not finished collapsing, or, for a hero following its
+  list, under a bar left where the scroll had stopped. With `topBarCollapse` on
+  the content, the bar takes that push itself, through a band as stiff as the
+  system's, and the two come back together when the finger lifts. A hero that
+  follows its list gets this with `Modifier.topBarCollapse(collapse)` on the
+  list itself, ahead of its `verticalScroll`; without it the bar follows the
+  list as before. A large bar over a page that cannot scroll at all opens again
+  when the finger lifts, where it could be left collapsed over nothing. Android
+  and the desktop are unchanged.
+- **An open [combobox](components/combobox.md)'s field is a text box like any
+  other.** A click or a tap in what has been typed moves the caret, a
+  double-click or a double-tap selects a word, and a drag selects a run, without
+  closing the list. The first press used to land on the list's scrim, which
+  closed the list and threw away what had been typed. A press on the field
+  around the text puts the caret in it; the chevron closes the list. A selection
+  there is in the field's selection colour, and a right-click offers Copy and
+  Cut. Its hint sits over the empty input, where the caret is, rather than at
+  the far end of the field against the chevron.
+- **A [list section](components/list-section.md)'s title and footer line up with
+  what they sit beside.** Over rows they start 16dp in, where a row's content
+  starts, as before. Over anything else — a paragraph, a field, a control, a
+  card — they start at its edge. They were 16dp in whatever the section held, so
+  over a paragraph the title hung in from a column that was not there. The title
+  follows whatever is first in the section and the footer whatever is last; a
+  row in `SwipeActions`, an open `DisclosureListItem` and an `ExpandingListItem`
+  count as rows, and a row inside a padded card does not.
+- **The default schemes' selected tint stands further off the page.**
+  `accent.container` is `#E9D7FD` in light and `#3D2E50` in dark: 1.35:1 and
+  1.52:1 from the page where it was 1.21 and 1.35, and 1.25 and 1.43 from the
+  rows a selected row sits among, where it was 1.12 and 1.26. Selected chips,
+  rows, pages, table rows and navigation items, and a focused filled field, all
+  show it. The demo GTurbo scheme's is 1.40:1 from its page, from 1.11.
+- **Dark's secondary text and control edges are lighter**, which is what made
+  room for the tint. `contentMuted` is `#B2AABB` and `contentSubtle` `#A49CAC`,
+  5.17:1 on a raised ground where it was 4.61; `outlineStrong`, and with it
+  `inactive`, is `#847C8D`, 3.42:1 on a raised ground where it was 3.06. A
+  switch's off track is 3.58:1 from its on track, where it was 4.01. In light,
+  `outlineStrong` and `inactive` are `#7C7C7C` and `contentSubtle` `#616161`.
+- **A [`DateTimePicker`](components/date-time-picker.md) on a phone shows its
+  wheels under its calendar where it has the height** — 600dp, the height it is
+  given or, in a page that scrolls, the window's less 160dp for its bars. That is
+  any phone from about 760dp tall, a Pixel 9 Pro XL or an iPhone 16 Pro Max
+  among them. Every window under 560dp wide showed one half at a time under a
+  segmented control, however tall; a small phone still does.
+- **A date picker is 8dp shorter**: its header has no padding of its own past
+  its arrows' touch targets, on `DatePicker`, `DateRangePicker` and
+  `DateTimePicker` — 310dp on a phone, from 318. A `DateTimePicker`'s calendar
+  and wheels are 16dp apart side by side, from 24, and its segmented control is
+  12dp above the calendar, from 16.
+- **An [event calendar](components/event-calendar.md)'s month scrolls freely
+  under a mouse's wheel or a trackpad, and stays where it stops**, as a
+  desktop's calendars do. Each turn of the wheel was slid on to the nearest week
+  150ms after it stopped, which for a turn under half a week was back where it
+  had been, so a slowly turned wheel went nowhere and a quick one lurched. A
+  finger's swipe or fling still settles with a week at the top.
+- **A [`Scaffold`](components/scaffold.md)'s padding is read in its layout, not
+  its composition**, so the keyboard sliding up, or a large top bar collapsing
+  over the list, re-measures the content rather than recomposing the whole
+  screen on every frame. The padding handed to `content` is one object for the
+  scaffold's life whose sides change; content that reads them in composition is
+  recomposed a frame after they do.
+
+### Added
+
+- **A [select](components/select.md)'s options can be drawn rather than named.**
+  `optionContent`, the trailing lambda of `Select`,
+  [`MultiSelect`](components/multi-select.md) and
+  [`Combobox`](components/combobox.md), draws each option in the menu, and a
+  select's value in its closed field, with `+"…"` and `+icon` and anything else:
+  a face beside a name, a swatch beside a line. `valueContent` draws the closed
+  field alone, for one that shows less than a row does; a `MultiSelect`'s is
+  given the ticked set. Either is in the field's colour, and grey when it is
+  disabled. `optionLabel` is still what a screen reader says for an option, and
+  what a combobox matches typing against, whatever the slot draws.
+- **`ListSection(textInset = …)`** sets where the title, supporting line and
+  footer start, for a section whose content the automatic reading gets wrong;
+  `0.dp` is flush whatever is inside. **`ListItemDefaults.ContentInset`** is how
+  far in a row's content starts.
+
+### Fixed
+
+- **Scrolling and animating are cheaper on iOS throughout.** A squircle that is
+  exactly a rounded rectangle — a circle: an avatar, a status dot, a radio ring
+  — is handed to Skia as one, and every surface clips, and casts its shadow,
+  with a rounded rectangle of its corners, where each was a path Skia masks; the
+  ground and the edge are still drawn as the squircle. A pointer's hover shape,
+  inert on iOS, is no longer a node on every control there. An opening
+  `ExpandingListItem` or `DisclosureListItem` no longer composes its rows again
+  on every frame; a swipe action's button no longer composes again for every
+  width it passes through; a chat bubble makes its outline once per size rather
+  than three times; a large title is drawn offscreen only while its second line
+  is being cut away; and a sheet works out how collapsed it is without making a
+  list on every frame.
 
 ---
 

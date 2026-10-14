@@ -86,7 +86,11 @@ and the indicator comes in there rather than under the bar:
 ```kotlin
 Box {
     PullToRefresh(refreshing, onRefresh, indicatorPadding = PaddingValues(top = collapse.openHeight)) {
-        LazyColumn(state = list, contentPadding = PaddingValues(top = collapse.openHeight)) { … }
+        LazyColumn(
+            state = list,
+            modifier = Modifier.topBarCollapse(collapse),
+            contentPadding = PaddingValues(top = collapse.openHeight),
+        ) { … }
     }
     TopBar(style = TopBarStyle.Hero, collapseState = collapse, image = { … }) { +"Departures" }
 }

@@ -67,6 +67,45 @@ is `Theme.strings.selectOther` unless `otherLabel` says another, and the hint in
 the empty box `selectOtherHint` unless `otherPlaceholder` does. `MultiSelect`
 takes the same parameters, with "Other" ticked alongside the options.
 
+**More than words.** An option that is a person, a colour or a country reads
+better drawn than named. The trailing `optionContent` draws each option in the
+menu, and the value in the closed field, in place of `optionLabel` and
+`optionIcon`; `valueContent` draws the value alone, for a field that shows less
+than a row does — here the face and the name, without the home stop, so the
+field stands as tall as the fields beside it.
+
+<!--sample:SelectOptionContent-->
+```kotlin
+var rider by remember { mutableStateOf<Rider?>(household.first()) }
+
+// A face, a name and a home stop in the menu; the face and the name in the
+// field, so it stands as tall as the fields beside it. The name is still
+// what a screen reader says for either, whatever the slot draws.
+Select(
+    value = rider,
+    options = household,
+    onValueChange = { rider = it },
+    label = "Booked for",
+    optionLabel = { it.name },
+    valueContent = { person ->
+        Avatar(name = person.name, size = AvatarSize.XSmall)
+        +person.name
+    },
+) { person ->
+    Avatar(name = person.name, size = AvatarSize.Small)
+    Column {
+        Text(person.name)
+        Text(person.home, style = Theme.typography.bodySmall, colour = Theme.colours.contentMuted)
+    }
+}
+```
+
+Both are given the option in a row-shaped scope, as a button's label is: `+"…"`
+is a line of the field's text, ellipsised, and `+icon` an icon at the field's
+size, in the field's colour — its disabled grey when it is disabled. Something
+taller than a line makes the field taller to fit it, and a field never clips
+what it draws. The placeholder, and an "Other", stay words.
+
 **Reach for a [`RadioGroup`](radio-group.md) above a `Select`** when
 there are three or four options and room to show them. A select hides its
 options behind a tap, a cost worth paying only when showing them would crowd the
@@ -90,6 +129,12 @@ state — see [In the browser](../accessibility.md#in-the-browser).
 
 The closed field announces the selected option, so `optionLabel` is what gets
 spoken. The default `toString()` is right only for a `List<String>`.
+
+That holds where `optionContent` or `valueContent` draws the option: an option
+row and the field are each read as the option's label, and what the slot drew is
+not read as well. A second line, an avatar's initials and a swatch's colour are
+drawn and not said, so a drawn select sounds exactly as a select of words does —
+and anything that should be heard belongs in `optionLabel`.
 
 At high contrast the field's frame thickens with the tier, and a `Filled` or
 `Plain` field gains the edge it otherwise lacks. The menu is a

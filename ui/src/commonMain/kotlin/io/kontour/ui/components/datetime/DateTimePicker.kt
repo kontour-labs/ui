@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import io.kontour.ui.adaptive.LocalWindowSizeClass
 import io.kontour.ui.components.selection.SegmentedControl
 import io.kontour.ui.locale.DateStyle
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -47,7 +48,8 @@ object DateTimePickerDefaults {
 
 /**
  * Picks a date and a time of day: a [DatePicker] and a [TimePicker], side by
- * side where there is room for both and one at a time where there is not.
+ * side or one over the other where there is room for both, and one at a time
+ * where there is not.
  *
  * ```
  * DateTimePicker(
@@ -66,14 +68,18 @@ object DateTimePickerDefaults {
  * as it is on its own. A day chosen keeps the time, and a wheel turned keeps
  * the day.
  *
- * **Side by side, or one at a time.** Given 560dp or more, the
- * calendar and the wheels sit next to each other, a gap apart and centred
- * together in whatever width is left over. Narrower — a phone — a
- * segmented control above them says the chosen date and the chosen time, and
- * shows the calendar or the wheels as one or the other is picked. They were
- * stacked at first, about 560dp tall, which a phone could not show whole —
- * *"the two things need to be either side-by-side, or have a segmented control
- * that allows the user to swap between them"*. One at a time, the space is the
+ * **Side by side, one over the other, or one at a time.** Given 560dp or more
+ * across, the calendar and the wheels sit next to each other, a gap apart and
+ * centred together in whatever width is left over. Narrower — a phone — the
+ * wheels go under the calendar where it may be 600dp tall: the height it is
+ * given, or in a page that scrolls, the window's less 160dp for the bars round
+ * the page, which is any phone but a small one. Shorter than that, a segmented
+ * control above them says the chosen date and the chosen time, and shows the
+ * calendar or the wheels as one or the other is picked. They were always
+ * stacked at first, about 560dp tall, which a small phone could not show whole
+ * — *"the two things need to be either side-by-side, or have a segmented
+ * control that allows the user to swap between them"* — and then never, where
+ * a large phone could have shown them. One at a time, the space is the
  * calendar's, whichever is showing, so swapping does not move what is below.
  *
  * `isDateSelectable` turns days away and not times: a time earlier today than
@@ -183,26 +189,48 @@ fun DateTimePicker(
         )
     }
 
+    // The room the two would have stacked: the height this is given, or in a
+    // page that scrolls, which gives none, the window's less what the bars
+    // round a page usually take of it.
+    val window = LocalWindowSizeClass.current.heightDp
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
+        val room = if (constraints.hasBoundedHeight) maxHeight else window - WindowChrome
         if (maxWidth >= SideBySideWidth) {
             // The two together, a gap apart and centred as one. The wheels
             // are as wide as they are, and the calendar takes what is left up
             // to its widest: given the rest of the row, the wheels sat in the
             // middle of it, some 70dp off the calendar on a wide window —
             // *"there's too much room between the date picker and time
-            // picker"*.
+            // picker"*. The gap is the one between a card's groups, not a
+            // page's: at 24dp the pair still read as two things set apart.
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.lg, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 date(Modifier.weight(1f, fill = false).widthIn(max = CalendarMonthDefaults.MaxWidth))
                 time(Modifier.width(IntrinsicSize.Max))
             }
+        } else if (room >= StackedHeight) {
+            // **Both at once, the wheels under the calendar**, where there is
+            // the height for them: *"on larger phones, i should be able to see
+            // the 'inline' variant of the date-time picker"*. It is the
+            // arrangement the picker started with, which was taken away
+            // because it did not fit the phone it was tried on; under a large
+            // one's bars there is some 200dp to spare. The gap is small because the
+            // wheels' outer rows are faded nearly out, and are a gap already.
+            Column(
+                modifier = Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.xs),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                date(Modifier)
+                time(Modifier.fillMaxWidth())
+            }
         } else {
             var showing by rememberSaveable { mutableIntStateOf(0) }
             Column(
                 modifier = Modifier.widthIn(max = CalendarMonthDefaults.MaxWidth),
-                verticalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Theme.spacing.sm),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // What is chosen, in the words the pickers below choose it
@@ -232,6 +260,25 @@ fun DateTimePicker(
  * clock.
  */
 private val SideBySideWidth: Dp = 560.dp
+
+/**
+ * How tall a narrow [DateTimePicker] has to be allowed to be to show its
+ * calendar and its wheels at once, one over the other.
+ *
+ * The two come to 566dp on a phone at the default type size: the calendar's
+ * header 48, its weekday initials 22 and six weeks of 40, a gap of 8, and the
+ * wheels' five rows of 40 with Now's 48 under them. The rest is for larger
+ * type. Short of it, as on a small phone, the two are shown one at a time.
+ */
+private val StackedHeight: Dp = 600.dp
+
+/**
+ * What a phone's own bars take of its window, for a picker in a page that
+ * scrolls: the status bar, a top bar and the home indicator, about 160dp. So a
+ * picker stacks in a page on a window 760dp tall or more — every phone but the
+ * small ones — and not on a 667dp one.
+ */
+private val WindowChrome: Dp = 160.dp
 
 /**
  * One of [content]'s children, [index], placed; every one of them measured, and
