@@ -28,6 +28,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
@@ -41,6 +42,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.collapse
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -75,7 +83,6 @@ import io.kontour.ui.overlay.MenuItem
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
 import io.kontour.ui.overlay.ScrimStyle
-import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.platform.opensKeyboard
 import io.kontour.ui.theme.Theme
@@ -564,8 +571,9 @@ fun <T> Combobox(
         snapshotFlow { query.text.toString() }.collect { text = it }
     }
 
+    // Where each match is in [options], which is what its row is keyed on below.
     val filtered = remember(options, text) {
-        if (text.isEmpty()) options else options.filter { matches(it, text) }
+        if (text.isEmpty()) options.indices.toList() else options.indices.filter { matches(options[it], text) }
     }
 
     val drawsValue = valueContent ?: optionContent
@@ -653,15 +661,25 @@ fun <T> Combobox(
                 colour = Theme.colours.contentMuted,
             )
         }
-        for (option in filtered) {
-            MenuItem(
-                onClick = {
-                    onValueChange(option)
-                    dismiss()
-                },
-                selected = option == value,
-            ) {
-                showOption(option, optionLabel, optionIcon, optionContent)
+        for (index in filtered) {
+            val option = options[index]
+            // **Keyed on the option's place in the whole list**, not left to
+            // its place in the filtered one. Unkeyed, the first row was the
+            // first row whatever it held, so every keystroke that narrowed the
+            // list handed each row's composition — its focus, its press, its
+            // hover and anything an `optionContent` remembered — to a different
+            // option. Not on the option itself: two equal options would be two
+            // rows with one key, which throws.
+            key(index) {
+                MenuItem(
+                    onClick = {
+                        onValueChange(option)
+                        dismiss()
+                    },
+                    selected = option == value,
+                ) {
+                    showOption(option, optionLabel, optionIcon, optionContent)
+                }
             }
         }
     }
@@ -723,11 +741,24 @@ private fun SelectFrame(
 
     var anchor by remember { mutableStateOf<Rect?>(null) }
     val expanded = state.expanded
+    // The menu's focus, which a combobox's Down arrow moves into: see
+    // `AnchoredDropdownMenuImpl`, which does not take it from the editor itself.
+    val menuFocus = remember { FocusRequester() }
+    val closeLabel = Theme.strings.closeMenu
 
     fun setExpanded(open: Boolean) {
-        if (state.expanded == open) return
         if (open) state.expand() else state.collapse()
-        onOpenChange(open)
+    }
+
+    // **Told from the state, not from the press.** [onOpenChange] was called by
+    // the field's own opening and closing and nothing else, and [SelectState]'s
+    // `collapse` is public and documented for closing a select from outside —
+    // so a combobox closed that way kept what had been typed, and opened again
+    // already filtered by it. Every way the state changes passes through here.
+    // The first value is the one it was composed with, which is not a change.
+    val openChange by rememberUpdatedState(onOpenChange)
+    LaunchedEffect(state) {
+        snapshotFlow { state.expanded }.drop(1).collect { openChange(it) }
     }
 
     if (editor != null) {
@@ -758,9 +789,25 @@ private fun SelectFrame(
                     // Open, a press on a combobox's field puts the caret in
                     // its text rather than closing it — see the frame's click
                     // below — so the chevron is where a press closes it.
+                    //
+                    // **And it says so.** It was a tap detector on an icon with
+                    // no semantics, so the one way to close the list from the
+                    // field was a thing a screen reader could not find: a
+                    // button, named as the menu's own close is, that a reader
+                    // can activate. The frame also offers `collapse` while it
+                    // is open, which is the action a dropdown is asked for.
                     .then(
                         if (editor != null && expanded) {
-                            Modifier.pointerInput(state) { detectTapGestures { setExpanded(false) } }
+                            Modifier
+                                .semantics(mergeDescendants = true) {
+                                    role = Role.Button
+                                    contentDescription = closeLabel
+                                    onClick(label = closeLabel) {
+                                        setExpanded(false)
+                                        true
+                                    }
+                                }
+                                .pointerInput(state) { detectTapGestures { setExpanded(false) } }
                         } else {
                             Modifier
                         }
@@ -785,6 +832,14 @@ private fun SelectFrame(
                 // form of three selects reads as three unattributed values.
                 if (label != null) contentDescription = label
                 if (!enabled) disabled()
+                // Open, a combobox's field takes a press as the text box's —
+                // see the click below — so closing it is an action of its own.
+                if (editor != null && expanded) {
+                    collapse(label = closeLabel) {
+                        setExpanded(false)
+                        true
+                    }
+                }
             }
             .pointerCursor(enabled = enabled)
             .clickable(
@@ -812,7 +867,23 @@ private fun SelectFrame(
             // At least as tall as the value it stands in for, so a field that
             // drew an avatar does not drop to a line of text as it opens and
             // jump the form below it up by the difference.
-            editor(Modifier.weight(1f).heightIn(min = with(density) { restingHeight.toDp() }), editorFocus)
+            editor(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = with(density) { restingHeight.toDp() })
+                    // **Down goes into the list.** The list no longer takes the
+                    // keyboard's focus as it opens — the editor has it, for
+                    // typing — so the arrow that means "the options" is what
+                    // hands it over, from the first row on.
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            runCatching { menuFocus.requestFocus() }.isSuccess
+                        } else {
+                            false
+                        }
+                    },
+                editorFocus,
+            )
         } else if (valueLabel != null && valueContent != null) {
             ProvideContentColour(if (enabled) colours.content else colours.contentDisabled) {
                 ProvideTextStyle(Theme.typography.bodyMedium) {
@@ -835,10 +906,10 @@ private fun SelectFrame(
     }
 
     val menuKey = remember { Any() }
-    WithAnchor({ anchor }) { bounds ->
+    run {
         AnchoredDropdownMenuImpl(
             visible = expanded,
-            anchor = bounds,
+            anchor = { anchor },
             onDismissRequest = { setExpanded(false) },
             // One group, so a reader says how many options there are and which
             // of them this is.
@@ -863,6 +934,7 @@ private fun SelectFrame(
             // closes the list either way, and through the scrim it does so
             // without the field flashing pressed on the way.
             anchorTakesPresses = editor != null,
+            focusRequester = menuFocus,
         ) {
             CompositionLocalProvider(LocalMenuPicksOne provides picksOne) {
                 content { setExpanded(false) }
@@ -1008,12 +1080,44 @@ private fun OtherBox(
         // the box does, and put back if the caller changes them.
         val state = rememberTextFieldState(text.orEmpty())
         val change by rememberUpdatedState(onTextChange)
+        val held by rememberUpdatedState(text)
+
+        /**
+         * What the box has told the caller and the caller has not yet handed
+         * back, oldest first.
+         *
+         * The caller's [text] comes back through a recomposition, and a caller
+         * that is slow about it — a view model, a round trip — hands back each
+         * value a keystroke or two late. Taken as the caller changing it, the
+         * late `a` of a typed `ab` was put in the box over the `b`, and the
+         * letter typed last went. A value that is one of these is an echo, and
+         * says nothing the box does not already show.
+         */
+        val sent = remember { ArrayDeque<String>() }
         LaunchedEffect(state) {
             // The first value is the one just put in, which nobody typed.
-            snapshotFlow { state.text.toString() }.drop(1).collect { change(it) }
+            snapshotFlow { state.text.toString() }.drop(1).collect {
+                // One the caller already holds will never come back as a change.
+                if (it != held) {
+                    sent.addLast(it)
+                    if (sent.size > SentEchoes) sent.removeFirst()
+                }
+                change(it)
+            }
         }
         LaunchedEffect(text) {
-            if (text != null && text != state.text.toString()) state.setTextAndPlaceCursorAtEnd(text)
+            if (text == null) return@LaunchedEffect
+            val echo = sent.indexOf(text)
+            if (echo >= 0) {
+                // Its own value coming back, and anything older that was
+                // overtaken: the echoes arrive in order, so none of those is
+                // still on its way.
+                repeat(echo + 1) { sent.removeFirst() }
+                return@LaunchedEffect
+            }
+            // The caller's own value. Nothing sent before it can come back now.
+            sent.clear()
+            if (text != state.text.toString()) state.setTextAndPlaceCursorAtEnd(text)
         }
         LaunchedEffect(box) {
             // Collected rather than keyed on: clearing the flag would restart
@@ -1080,3 +1184,9 @@ private fun OtherBox(
 
 /** How many frames an "Other" box asks for the focus before it gives up. */
 private const val FocusTries = 10
+
+/**
+ * How many values an "Other" box remembers sending before the caller hands them
+ * back. A caller as far behind as this is not echoing the typing but replacing it.
+ */
+private const val SentEchoes = 32

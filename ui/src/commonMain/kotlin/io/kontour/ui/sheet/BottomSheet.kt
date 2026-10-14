@@ -1253,8 +1253,19 @@ fun ModalBottomSheet(
                             content = body,
                         )
                     },
-                )
+                ).also { entry ->
+                    // **Read live, not as it was when the sheet opened.** The
+                    // two flags above are fixed for the life of the entry, so a
+                    // sheet given `dismissible = !form.dirty` could still be
+                    // tapped or backed away after the reader had typed into it.
+                    // The drag already read it live, through the sheet; the
+                    // scrim and the back gesture ask this.
+                    entry.dismissibleNow = { canDismiss }
+                }
             )
+            // From the bottom of the window the sheet is in now: see
+            // [SheetState.forgetAnchors].
+            state.forgetAnchors()
             state.show()
         } else {
             // `hide()` suspends until the sheet has finished sliding down, so
@@ -1270,14 +1281,24 @@ fun ModalBottomSheet(
                 // rest: the entry stayed, and the sheet stayed up after its
                 // caller had closed it. Caught, it waits for the finger to lift
                 // and goes again.
-                while (state.isVisible) {
+                //
+                // **And not at all where there is nowhere to go.** A sheet with
+                // no hidden detent, or one refusing it through
+                // `confirmDetentChange` — the documented way to make a sheet the
+                // user must answer — is one `hide()` returns from at once without
+                // moving. This went round again without suspending and held the
+                // main thread for good: the app hung on the close. Such a sheet
+                // goes with its entry, without a slide.
+                while (state.isVisible && state.canHide) {
                     try {
                         state.hide()
                     } catch (caught: CancellationException) {
                         currentCoroutineContext().ensureActive()
                         snapshotFlow { state.finger.pressed }.first { !it }
-                        withFrameNanos { }
                     }
+                    // Never round again without a frame between: whatever else
+                    // leaves the sheet short of hidden, this must not spin.
+                    if (state.isVisible) withFrameNanos { }
                 }
             } finally {
                 host.hide(key)
@@ -2742,10 +2763,27 @@ private class BottomInsetTheMarginNoLongerClears(
     override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
     override fun calculateTopPadding(): Dp = 0.dp
     override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
-    override fun calculateBottomPadding(): Dp = with(density) {
-        val kept = 1f - edgeness(state, morph)
-        val margin = (floatInsets.getBottom(this) * kept).roundToInt()
-        (insets.getBottom(this) - margin).coerceAtLeast(0).toDp()
+    override fun calculateBottomPadding(): Dp = with(density) { bottom.value.toDp() }
+
+    /**
+     * The padding in whole pixels, derived — which is the difference between a
+     * list that re-measures through the morph and one that re-measures on every
+     * frame the sheet moves.
+     *
+     * The morph is read from the sheet's offset, so a measure that read it
+     * directly was subscribed to the offset, and a `LazyColumn` handed this as
+     * its `contentPadding` reads it in measure: every frame of every drag, settle,
+     * open and close measured the content again, though the number only changes
+     * across the morph and is constant everywhere else. That was the lag reported
+     * from a floating sheet. A layout pass that reads a derived value is asked to
+     * run again only when the value itself changes.
+     */
+    private val bottom = derivedStateOf {
+        with(density) {
+            val kept = 1f - edgeness(state, morph)
+            val margin = (floatInsets.getBottom(this) * kept).roundToInt()
+            (insets.getBottom(this) - margin).coerceAtLeast(0)
+        }
     }
 
     /** The same while the sheet floats: what it is at a detent below the morph. */

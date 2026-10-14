@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -130,12 +131,14 @@ fun Scaffold(
             val topHeight = top.maxOfOrNull { it.height } ?: 0
             val bottomHeight = bottom.maxOfOrNull { it.height } ?: 0
 
-            padding.start = insetStart.toDp()
-            // The larger, not the sum: a bar has already padded itself for the
-            // inset it sits under.
-            padding.top = maxOf(topHeight, insetTop).toDp()
-            padding.end = insetEnd.toDp()
-            padding.bottom = maxOf(bottomHeight, insetBottom).toDp()
+            padding.update(
+                start = insetStart.toDp(),
+                // The larger, not the sum: a bar has already padded itself for
+                // the inset it sits under.
+                top = maxOf(topHeight, insetTop).toDp(),
+                end = insetEnd.toDp(),
+                bottom = maxOf(bottomHeight, insetBottom).toDp(),
+            )
 
             val body = subcompose(ScaffoldSlot.Content, contentSlot).map { it.measure(constraints) }
 
@@ -166,18 +169,52 @@ fun Scaffold(
 }
 
 /**
- * The padding a [Scaffold] hands its content: one object for the scaffold's life,
- * whose sides are written in its measure. A list that takes it as
+ * The padding a scaffold hands its content: one object for the scaffold's life,
+ * whose sides are written in its measure — [Scaffold]'s, and
+ * [io.kontour.ui.nav.NavigationSuiteScaffold]'s. A list that takes it as
  * `contentPadding` reads them in its own measure, so a change re-measures it
  * without recomposing anything; content that reads them in composition is
  * recomposed when they change, a frame later.
  */
 @Stable
-private class ScaffoldPadding : PaddingValues {
-    var start by mutableStateOf(0.dp)
-    var top by mutableStateOf(0.dp)
-    var end by mutableStateOf(0.dp)
-    var bottom by mutableStateOf(0.dp)
+internal class ScaffoldPadding : PaddingValues {
+    private var start by mutableStateOf(0.dp)
+    private var top by mutableStateOf(0.dp)
+    private var end by mutableStateOf(0.dp)
+    private var bottom by mutableStateOf(0.dp)
+
+    /**
+     * Sets the four sides. Called from the scaffold's measure, before it
+     * measures its content, and only from there.
+     *
+     * **A change is announced at once**, so the content measured next in this
+     * same pass is measured against it. A write to snapshot state is only
+     * *announced* — the apply notification that marks whatever read it as
+     * needing to measure again — when something sends it, and on Android that
+     * is the main thread's queue, after the frame. Until then the content, if
+     * nothing else had made it dirty, kept its last measure: a list under a top
+     * bar collapsing as it scrolled, or under a keyboard sliding up, was laid out
+     * against the padding of the frame before, one frame behind the bar on every
+     * frame it moved. The desktop's and iOS's frames announce writes between
+     * their own passes, which is why only Android showed it. Sent here, the
+     * content is marked before the scaffold measures it, and is measured again
+     * then and there. Compose sends them from inside a layout pass itself, when
+     * a `SubcomposeLayout` lets go of a slot.
+     *
+     * The sides are compared without being read, or the scaffold would be
+     * measuring against its own padding and measure again whenever it changed it.
+     */
+    fun update(start: Dp, top: Dp, end: Dp, bottom: Dp) {
+        val changed = Snapshot.withoutReadObservation {
+            start != this.start || top != this.top || end != this.end || bottom != this.bottom
+        }
+        if (!changed) return
+        this.start = start
+        this.top = top
+        this.end = end
+        this.bottom = bottom
+        Snapshot.sendApplyNotifications()
+    }
 
     override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp =
         if (layoutDirection == LayoutDirection.Ltr) start else end

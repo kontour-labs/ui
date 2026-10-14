@@ -395,7 +395,11 @@ fun Switch(
             // gesture from the user's side, and this is the order that keeps
             // them from fighting.
             .then(
-                if (dragTarget != null && enabled) {
+                // On [shown], not [enabled]: a switch in a disabled row is
+                // drawn disabled, and it took a drag all the same and toggled
+                // the row it sits in — the one gesture a disabled row still
+                // answered, through a control that looks inert.
+                if (dragTarget != null && shown) {
                     Modifier.draggable(
                         state = rememberDraggableState { delta ->
                             // A finger coming back closes the stretch it opened

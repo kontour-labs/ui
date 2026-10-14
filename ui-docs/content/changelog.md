@@ -37,9 +37,17 @@ the default schemes' selected tint stands further off the page, a phone shows
 the date-time picker's wheels under its calendar where it has the height, and
 an event calendar's month scrolls freely under a mouse's wheel.
 
-`Select`, `MultiSelect`, `Combobox` and `ListSection` have new parameters, so
-anything built against 0.4.4 has to be recompiled — see **Breaking**. Nothing
-needs rewriting.
+And a round of fixes from an audit of the whole library: a modal sheet that may
+not be hidden no longer hangs the app as it closes, a list beside a detail and
+the screen inside a navigation suite keep their state, a control keeps its
+press feedback through a change of input, sliders and ratings land where they
+should, the text menu respects a field's rules, and a good deal less is
+composed, measured or animated on every frame — a list in a floating sheet
+above all, which was measured again on every frame the sheet moved.
+
+`Select`, `MultiSelect`, `Combobox`, `ListSection` and `Strings` have new
+parameters, so anything built against 0.4.4 has to be recompiled — see
+**Breaking**. Nothing needs rewriting.
 
 ### Breaking
 
@@ -48,6 +56,8 @@ needs rewriting.
   `textInset` on the section — so anything built against 0.4.4 has to be
   recompiled. They are defaulted and come last, so every call site still
   compiles as it is.
+- **`Strings` has a new field, `inRange`**, which a date range picker says of a
+  day inside its range. It is defaulted.
 
 ### Changed
 
@@ -57,8 +67,9 @@ needs rewriting.
   back went to the top anyway: a throw of the sheet's surface was not counted as
   the sheet moving, so the new finger had to travel the drag's slop first, and
   the throw carried the sheet home meanwhile. A finger laid on a moving sheet
-  now holds it at once, and the rest of that gesture is the sheet's, not a list's
-  inside it.
+  now holds it at once, and once the finger moves, the rest of that gesture is
+  the sheet's, not a list's inside it; a press that does not move is left to
+  whatever it is on.
   `SheetState.isMoving` is true through a throw of the sheet itself too.
 - **A floating [bottom sheet](components/bottom-sheet.md) keeps the same margin
   at its foot as at its sides**, 12dp by default: from the window's edge under
@@ -140,6 +151,24 @@ needs rewriting.
   screen on every frame. The padding handed to `content` is one object for the
   scaffold's life whose sides change; content that reads them in composition is
   recomposed a frame after they do.
+- **`KontourIndication`'s `hoverEnabled` means "may draw a hover"**, and the
+  hover still waits for an input that can hover. It used to draw a hover under
+  any input; `kontourIndication()` behaves as before.
+- **`WindowSizeClass.widthDp` and `heightDp` are documented as what they always
+  were**: the window's size when its class last changed, not as it is now.
+- **`dismissible` is read when the reader tries to dismiss, not when the overlay
+  opened**, on [`ModalBottomSheet`](components/modal-bottom-sheet.md),
+  [`Dialog`](components/dialog.md), [`ModalSideSheet`](components/modal-side-sheet.md)
+  and [`CommandPalette`](components/command-palette.md). A sheet given
+  `dismissible = !form.dirty` could still be tapped or backed away after typing,
+  and the typing went with it; the other way round, it never became dismissible.
+- **A sheet's [drag handle](components/sheets.md) offers only the actions that
+  would do something**: expand where there is a taller detent, collapse where
+  there is a shorter one, and dismiss where the user may put the sheet away. The
+  default modal sheet offered two that did nothing, and no way to dismiss it.
+- **A [schedule](components/event-calendar.md) shows a timed event of a day or
+  more as its part of each day**: from its start on the first, all day between,
+  until its end on the last. It said "All day" on every day.
 
 ### Added
 
@@ -172,6 +201,193 @@ needs rewriting.
   than three times; a large title is drawn offscreen only while its second line
   is being cut away; and a sheet works out how collapsed it is without making a
   list on every frame.
+
+**Sheets and overlays**
+
+- **Closing a [modal bottom sheet](components/modal-bottom-sheet.md) that may not
+  be hidden no longer hangs the app.** A sheet with no hidden detent, or one
+  refusing it through `confirmDetentChange` once open, turned down every `hide()`
+  without moving, and the close went round again without yielding the main
+  thread. It now leaves without a slide.
+- **A list in a floating [bottom sheet](components/bottom-sheet.md) is no longer
+  measured again on every frame the sheet moves.** The padding the sheet hands
+  its content was read from the sheet's position, so every frame of every drag,
+  settle, open and close re-measured a `LazyColumn` given it as `contentPadding`,
+  though it only changes across the morph to an edge sheet.
+- **A button in a moving sheet answers a tap.** Every open is a moving sheet, so
+  a tap as one opened, or settled, did nothing.
+- **A [modal bottom sheet](components/modal-bottom-sheet.md) opened again comes
+  back as it came the first time.** Reopened under reduced motion during its
+  fade out, it and its scrim stayed translucent; reopened after the window had
+  grown while it was closed, it slid up from the middle of the screen.
+- **A request made before a sheet has been laid out arrives as asked.**
+  `expand()` on a sheet whose `Expanded` is its peek left it hidden while it
+  reported itself open — for a modal, a scrim over nothing — and `snapTo` before
+  the first layout slid there instead of snapping.
+- **A [dialog](components/dialog.md) reports a scrim tap or back to the
+  `onDismissRequest` it has now**, where it reported to the one it opened with.
+- **Closed [tooltips](components/tooltip.md), [popovers](components/popover.md),
+  dropdown menus and coach marks no longer recompose on every frame their page
+  scrolls**; an open anchored overlay no longer recomposes as its anchor moves; a
+  pending [coach mark](components/coachmark.md) no longer recomposes its screen
+  on every frame, which kept an app from ever going idle; and an open menu
+  follows a field that changes width.
+- **The app's own `ToastHostState.dismiss(id)` no longer buys the other
+  [toasts](components/toast.md) time.** Only a toast the reader sends away tops
+  the rest up by `ToastDefaults.ClearedGrace`.
+
+**Navigation and layout**
+
+- **A list beside a detail keeps its place on one pane.** On a phone, opening an
+  item in a `ListDetailPaneScaffold` and coming back put the list at its top, and
+  so did a window narrowing to one pane with an item open. What the list keeps in
+  `rememberSaveable` — a `rememberLazyListState`'s position, a search being typed
+  — now survives its time away; what it keeps in plain `remember` still starts
+  again.
+- **The screen inside a [`NavigationSuiteScaffold`](components/navigation-suite-scaffold.md)
+  carries on when the bar becomes a rail.** A phone turned on its side, a
+  foldable opened or a window dragged past 600dp started the whole content again,
+  its saved state and scroll positions with it. Its bar's padding is also right
+  from the first frame, where it was a 44–48dp guess for one frame — under a
+  floating bar of about 96dp on an iPhone.
+- **A [`Scaffold`](components/scaffold.md)'s content no longer trails a moving
+  bar by a frame on Android.** The padding written as a top bar collapsed or the
+  keyboard rose was announced only after the frame, so a list not otherwise
+  dirty was laid out against the previous frame's padding.
+- **A pane split's seam follows a drag after the app changes
+  `supportingWeight`**, where it stood still under the finger, and **one set from
+  a screen reader goes where it was asked**: `setProgress` moved it as if the
+  window were 1000px wide, under a published range the drag did not use.
+- **`Transitions.sharedAxis` goes forward the way the line reads.** In right to
+  left, a step forward along X came in from the right.
+- **A large or hero [top bar](components/top-bar.md)'s push on iOS is let go of
+  however the gesture ends.** Content swapped away mid-push left the push held
+  and the next press misread; a bar saved mid-push came back part-way; a list
+  merely at its end under an open bar was taken for one that cannot scroll; and a
+  release back towards the start stopped the list dead rather than flinging it
+  back. `topBarCollapse` round a box holding both the bar and its list now
+  leaves the bar where it is.
+- **A date-time picker in a page that scrolls stacks by the window's height now**,
+  not by its height when its size class last changed.
+- **An in-app language written the other way from the device's no longer resets
+  the app.** Switching `KontourTheme(locale = …)` between English and Arabic
+  disposed the whole application and built it again.
+
+**Controls**
+
+- **A control no longer loses its press and hover feedback after something
+  changes under a finger.** The first touch after using a mouse, or a theme or
+  contrast change with a pointer over a control, left it unable to show a press
+  or a hover again. Each press is now matched to its own release, and a control
+  taken back from a lazy list's pool starts unpressed. Moving between the mouse,
+  the keyboard and the screen also no longer recomposes every control on screen.
+- **A slider or range slider over a range with no width no longer throws**, on a
+  tap, a key or a screen reader's `setProgress`. **A slider's keys and
+  `setProgress` land on a step**, as a drag does: a stepped slider at 0.33 went to
+  0.58 on Right, and seven presses up a ten-notch slider arrived at 0.70000005.
+  **The end of a slider's track is the end of its range, exactly**: a drag to the
+  end of `0.3f..1.9f` reported 1.8999999, and one of `-273.15f..0.7f` a value
+  outside the range. Sliders also no longer subcompose on every frame of a drag.
+- **A range slider's keys build on the range the app holds**, where the next key
+  built on the range the last one reported and the other thumb jumped back; and a
+  `minDistance` that is a whole number of steps is no longer rounded up by one.
+- **A right-to-left [`Rating`](components/rating.md) scores the star tapped**: a
+  tap on the first star cleared the score, and the last scored one. **Only the
+  scored star says it is selected**, as one radio button of a group; every
+  filled star did. Given an `interactionSource`, it rings only the focused star.
+- **A switch in a disabled `SelectionRow` can no longer be dragged.**
+- **The text menu respects the field.** Paste and Cut go through the field's
+  input filter, so pasting `12ab` into a `NumberField` does nothing, as typing it
+  would; and a masked `PasswordField` or `SecretField` no longer offers Copy or
+  Cut.
+- **A [combobox](components/combobox.md) works from the keyboard and a screen
+  reader**: opened from the keyboard, the focus stays in its field so typing
+  narrows the list, and Down moves into it; a screen reader can close it from the
+  field. Closed with `SelectState.collapse()` it forgets its search, and its rows
+  stay with their options as the list narrows.
+- **A select's "Other" box keeps what was typed when the app is slow to echo
+  it.** A late `otherText` of `a` deleted the `b` typed after it.
+- **A focus ring no longer starts a collector on a control that cannot be
+  focused**, and a closed `WheelSelect` no longer recomposes on every frame its
+  page scrolls.
+
+**Lists and display**
+
+- **A [carousel](components/carousel.md) follows a page count taken from a
+  parameter**, where it kept the first lambda it was given — a list that grew
+  showed only its first pages, and one that shrank threw. **A
+  [thumbnail strip](components/thumbnail-strip.md) follows its carousel's page
+  count too**, and no longer places each thumbnail as its neighbour for a frame
+  when its width changes.
+- **A full [swipe](components/swipe-actions.md) whose row is tapped on its way
+  home still lets the next one run.** The tick stayed drawn, and every full swipe
+  after it went to the edge and ran nothing. A row composed open shows its
+  actions' icons and labels at once, where they faded in.
+- **A [reorderable row](components/reorderable-item.md) carried over a header
+  or footer stays where it was**, where the last row over a footer reported a
+  move past the end and the documented `add(to, removeAt(from))` threw.
+- **A disabled reorderable row or swipe row offers a screen reader none of its
+  moves or actions**, where it offered and ran them.
+- **An [expanding list item](components/expanding-list-item.md)'s rows follow a
+  state its builder reads** — `if (signedIn) item("Sign out")` — which this
+  release's own change had frozen.
+- **A row added to an open [FAB menu](components/fab-menu.md) is shown**, where
+  the menu threw.
+- **A drop's `fromIndex` is where the carried item is when it lands**, found by
+  its key: a list that changed during the carry had `removeAt(fromIndex)` take out
+  the row beside it.
+- **A [list section](components/list-section.md) of a fixed height gives a
+  `weight` what its header and footer leave**, where the footer was drawn below
+  the section, and its intrinsic height counts a title at the rows' inset.
+- **A [scrollbar](components/scrollbar.md) on a long lazy list costs the same at
+  the foot as at the top**, where it summed every row above on each look, several
+  times a frame.
+- **A `Card` keeps its content when its padding changes between even and uneven,
+  or when its `onClick` comes and goes.**
+- **Everything in a `Redacted` block shimmers as one**, from one animation where
+  each text and icon ran its own, and a row arriving later no longer sweeps out of
+  step.
+- **A surface's clip matches its squircle when a corner is too big for its box**,
+  and a `SquircleShape` with a negative smoothing is drawn as one curve
+  everywhere.
+
+**Dates and the calendar**
+
+- **A [time picker](components/time-picker.md) given a time past its last
+  minute step keeps its hour.** At 9:58 by fives it opened on :00 and reported
+  9:00 before anything was touched; it opens on 9:55.
+- **Now on a [date and time picker](components/date-time-picker.md) that cannot
+  take tomorrow stops at the end of today**, where at 23:58 by fives it gave 00:00
+  today, a day before now.
+- **[`RelativeTimeText`](components/relative-time-text.md) reads the time left
+  off the clock.** It added up the delays it had slept, so an app back from the
+  background showed a countdown that had counted none of that time, and above a
+  minute it ticked every twenty seconds, so "in 2 min" stayed up with fewer than
+  two left.
+- **A [date picker](components/date-picker.md) keeps the month it was paged to**
+  through rotation, process death and being scrolled out of a list.
+- **A [date range picker](components/date-range-picker.md)'s days say where in
+  the range they are**: "Range start", "In range", "Range end".
+- **An [activity calendar](components/activity-calendar.md) read right to left
+  keeps the keyboard's day in view**, where it scrolled to the oldest weeks.
+- **An [event calendar](components/event-calendar.md)'s line or bar picked up
+  from the keyboard is carried by days, as a pointer carries it**, where up and
+  down moved its time unseen; in a month they now move it a week. A move or a
+  resize of an all-day or several-day event is read out with its days, where it
+  said "00:00 – 00:00" and never its new end.
+- **An event calendar no longer composes every day and event again each
+  minute**, nor writes every day's and event's place again on every frame it
+  scrolls, and a wheel's turn on its month no longer hands what is left of its
+  speed to the page round it.
+
+**Platforms**
+
+- **A swipe back let go on a 120Hz screen no longer jumps on its first frame.**
+- **A rumble in the browser no longer starts again on an update after it has
+  ended**, and ended rumbles are cleared away.
+- **A desktop app no longer keeps a growing list of every appearance its theme
+  reported**, and a theme cross-fade no longer recomposes `KontourTheme` itself
+  on every frame.
 
 ---
 

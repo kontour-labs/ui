@@ -30,6 +30,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -103,6 +105,15 @@ object PaneScaffoldDefaults {
  * On two panes the detail keeps its **empty state** rather than collapsing, so
  * the layout does not reflow the instant a selection is made or cleared.
  *
+ * **On one pane, the list keeps its saved state while the detail is open.** It
+ * leaves the composition while the detail has the screen, and comes back with
+ * what it keeps in `rememberSaveable` — a `rememberLazyListState`'s scroll
+ * position, a search typed into `rememberSaveable` — as it was. What it keeps in
+ * a plain `remember` starts again, as it would anywhere a composable leaves and
+ * returns; hoist that above the scaffold if it has to outlast the detail. The
+ * detail is not kept this way: it is usually another stop each time it opens,
+ * and the last one's scroll position is not the new one's.
+ *
  * @param onBack Called when back reaches the detail on one pane — the system
  *   back gesture, the edge swipe on iOS, Escape on the desktop — and should
  *   clear the selection. The pane follows a gesture while it is under way, in
@@ -135,7 +146,16 @@ fun ListDetailPaneScaffold(
     // window crossing 840dp used to drop the list's scroll position, because
     // one pane and two are different branches and a composable that changes
     // branch starts again.
-    val listPane = rememberPane(list)
+    //
+    // Movable content keeps its state while it moves, and none once it is put
+    // down — and on one pane the list *is* put down while the detail has the
+    // screen, and when a window narrows with the detail open. So the list also
+    // saves its state as it leaves and has it back when it returns: back from a
+    // stop finds the list where it was, not at its top. Not the detail, which
+    // the scaffold cannot tell one stop's from another's: kept under one key,
+    // the next stop opened would arrive scrolled to where the last was left.
+    val saved = rememberSaveableStateHolder()
+    val listPane = rememberPane(list, saved, PaneKey.List)
     val detailPane = rememberPane(detail)
     if (twoPane) {
         TwoPane(
@@ -246,12 +266,28 @@ fun SupportingPaneScaffold(
  * Both scaffolds put the same panes in different places depending on the window —
  * a `Row` of two, or one at a time — and a composable that moves to a different
  * branch is a new composable. Movable content is the same one, moved.
+ *
+ * With [saved], the pane's saveable state is also kept under [key] while it is
+ * out of the composition altogether, which moving cannot cover: a pane taken out
+ * and put back a frame or a minute later is a new composable, and finds its
+ * `rememberSaveable` state where it left it.
  */
 @Composable
-private fun rememberPane(content: @Composable () -> Unit): @Composable () -> Unit {
+private fun rememberPane(
+    content: @Composable () -> Unit,
+    saved: SaveableStateHolder? = null,
+    key: PaneKey? = null,
+): @Composable () -> Unit {
     val latest by rememberUpdatedState(content)
-    return remember { movableContentOf { latest() } }
+    return remember(saved, key) {
+        movableContentOf {
+            if (saved != null && key != null) saved.SaveableStateProvider(key.name) { latest() } else latest()
+        }
+    }
 }
+
+/** What a pane's saved state is kept under. */
+private enum class PaneKey { List }
 
 /**
  * The main pane with the supporting pane beside it, sliding in and out.
@@ -308,6 +344,9 @@ private fun TwoPaneSupporting(
         // entry that was popped to close it finally be cleaned up.
         if (fraction > 0f) {
             if (resizable) {
+                // The handle reports and takes the *main* pane's share, which is
+                // where the seam is along the line, as `TwoPane`'s does.
+                val range = paneRange(minWidthPx, totalWidth)
                 Box(Modifier.alpha(fraction)) {
                     ResizeHandle(
                         onDelta = { delta ->
@@ -315,12 +354,15 @@ private fun TwoPaneSupporting(
                             // The same clamp as `TwoPane`'s, on the other pane:
                             // dragging the seam towards the end grows the main
                             // pane, so it shrinks this one.
-                            val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
                             val asked = weight - delta / totalWidth
-                            weight = asked.coerceIn(minWeight, 1f - minWeight)
+                            // The range is symmetric, so it holds this pane's
+                            // share as well as the main pane's.
+                            weight = asked.coerceIn(range)
                             asked != weight
                         },
                         fraction = 1f - weight,
+                        range = range,
+                        onFraction = { weight = 1f - it.coerceIn(range) },
                     )
                 }
             } else if (showDivider) {
@@ -451,22 +493,18 @@ private fun TwoPane(
         Box(Modifier.weight(weight).fillMaxHeight()) { start() }
 
         if (resizable) {
+            val range = paneRange(minWidthPx, totalWidth)
             ResizeHandle(
                 onDelta = { delta ->
                     if (totalWidth <= 0f) return@ResizeHandle false
-                    // Half at most, so the clamp cannot invert. Two panes each
-                    // wanting a 360dp minimum in a 700dp window ask for more
-                    // than there is, and `coerceIn` *throws* on an inverted
-                    // range — mid-drag, which is the worst moment to find out.
-                    // Pinned to the middle is the honest answer: neither pane
-                    // can have its minimum, so neither gets preference.
-                    val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
                     val asked = weight + delta / totalWidth
-                    weight = asked.coerceIn(minWeight, 1f - minWeight)
+                    weight = asked.coerceIn(range)
                     // Whether the drag ran into a pane's minimum.
                     asked != weight
                 },
                 fraction = weight,
+                range = range,
+                onFraction = { weight = it.coerceIn(range) },
             )
         } else if (showDivider) {
             VerticalDivider()
@@ -474,6 +512,22 @@ private fun TwoPane(
 
         Box(Modifier.weight(1f - weight).fillMaxHeight()) { end() }
     }
+}
+
+/**
+ * Where the seam between two panes may go, as the first pane's share of [totalWidth]:
+ * as close to either end as leaves the pane there its [minWidthPx].
+ *
+ * Half at most, so the range cannot invert. Two panes each wanting a 360dp
+ * minimum in a 700dp window ask for more than there is, and `coerceIn` *throws*
+ * on an inverted range — mid-drag, which is the worst moment to find out. Pinned
+ * to the middle is the honest answer: neither pane can have its minimum, so
+ * neither gets preference. Before the panes are measured, anywhere.
+ */
+private fun paneRange(minWidthPx: Float, totalWidth: Float): ClosedFloatingPointRange<Float> {
+    if (totalWidth <= 0f) return 0f..1f
+    val minWeight = (minWidthPx / totalWidth).coerceAtMost(0.5f)
+    return minWeight..(1f - minWeight)
 }
 
 /**
@@ -487,9 +541,17 @@ private fun TwoPane(
  *
  * @param onDelta Moves the divider by that many pixels, and says whether it ran
  *   into a pane's minimum.
+ * @param fraction Where the seam is, as the first pane's share of the line.
+ * @param range Where [fraction] may go: the panes' minimums, as shares.
+ * @param onFraction Puts the seam at a share, which the caller holds to [range].
  */
 @Composable
-private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
+private fun ResizeHandle(
+    onDelta: (Float) -> Boolean,
+    fraction: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onFraction: (Float) -> Unit,
+) {
     val colours = Theme.colours
     val label = Theme.strings.resizePanes
     val motion = Theme.motion
@@ -516,6 +578,15 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
     val stop = rememberEndStopLatch()
     val releasePx = with(LocalDensity.current) { PaneStopRelease.toPx() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // The gesture below is started by the first pointer event and then runs for
+    // as long as the handle does, so it reads the caller's latest `onDelta`
+    // rather than closing over the first. It closed over the first, and the
+    // first wrote to a weight that a new `supportingWeight` had since replaced:
+    // every drag after that moved a number nothing drew, and the seam stood
+    // still under the finger. Not a key of `pointerInput` either, which would
+    // restart the gesture — and cancel a drag under way — on every
+    // recomposition, since the caller's lambda is a new one each time.
+    val currentOnDelta by rememberUpdatedState(onDelta)
 
     Box(
         modifier = Modifier
@@ -526,9 +597,14 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
             .hoverable(interactions)
             .semantics {
                 contentDescription = label
-                progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0.2f..0.8f)
+                // The range the seam can actually reach, and a request to put it
+                // somewhere. It was a move by the difference in pixels *as if
+                // the window were 1000px wide*, under a range of 0.2 to 0.8 that
+                // was not the clamp either: on a 2000px window a request for 0.6
+                // went to 0.49.
+                progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(range), range)
                 setProgress { target ->
-                    onDelta((target - fraction) * 1000f)
+                    onFraction(target)
                     true
                 }
             }
@@ -544,7 +620,7 @@ private fun ResizeHandle(onDelta: (Float) -> Boolean, fraction: Float) {
                     // are laid out from the right, so a drag left widens the
                     // first of them.
                     val along = if (rtl) -amount.x else amount.x
-                    if (onDelta(along)) {
+                    if (currentOnDelta(along)) {
                         stop.reached(if (along > 0f) 1 else -1)
                         clear = 0f
                     } else {

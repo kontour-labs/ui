@@ -214,6 +214,54 @@ class SelectOtherTest {
         assertNull(other, "ticked again, Other should be cleared")
     }
 
+    /**
+     * A caller that hands the typing back late does not lose what was typed
+     * since.
+     *
+     * The box took every change to `otherText` as the caller's own and put it
+     * in, so a caller one keystroke behind — `a` arriving after `ab` was typed —
+     * deleted the `b`. Here the caller records and does not answer, then hands
+     * back the first value: an echo of something the box already sent, which it
+     * has to recognise as one.
+     */
+    @Test
+    fun aLateEchoOfTheTypingDoesNotUndoIt() = runComposeUiTest {
+        val reported = mutableListOf<String?>()
+        other = ""
+        show {
+            Select(
+                value = value,
+                options = Reasons,
+                onValueChange = { value = it },
+                label = "Reason",
+                otherText = other,
+                onOtherTextChange = { reported += it },
+                modifier = Modifier.width(320.dp),
+            )
+        }
+        waitForIdle()
+        val box = onNodeWithContentDescription("Reason, Other")
+        box.performTextInput("a")
+        waitForIdle()
+        box.performTextInput("b")
+        waitForIdle()
+        assertEquals(listOf<String?>("a", "ab"), reported)
+
+        // The caller catches up by one.
+        other = "a"
+        waitForIdle()
+        assertEquals(
+            "ab",
+            box.fetchSemanticsNode().config[SemanticsProperties.EditableText].text,
+            "the caller's late \"a\" was put in the box over the \"b\" typed after it",
+        )
+
+        // And a value the caller sets of its own is still put in.
+        other = "Hovercraft"
+        waitForIdle()
+        assertEquals("Hovercraft", box.fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+    }
+
     private companion object {
         val Reasons = listOf("Delayed", "Cancelled", "Too full")
     }

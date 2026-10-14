@@ -136,6 +136,12 @@ not read as well. A second line, an avatar's initials and a swatch's colour are
 drawn and not said, so a drawn select sounds exactly as a select of words does —
 and anything that should be heard belongs in `optionLabel`.
 
+Open, a `Combobox`'s field is a text box, and a press on it goes to the text. Its
+chevron is a button that closes the list, named as the menu's own close is, and
+the field offers a collapse action while the list is open, so a screen reader can
+close it from the field. Opened from the keyboard, the field keeps the focus for
+typing; the Down arrow moves into the list.
+
 At high contrast the field's frame thickens with the tier, and a `Filled` or
 `Plain` field gains the edge it otherwise lacks. The menu is a
 [`DropdownMenu`](dropdown-menu.md)'s, so its border goes from the faint

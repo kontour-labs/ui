@@ -31,13 +31,21 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.HorizontalAlignmentLine
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutIdParentData
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.constrainHeight
@@ -495,24 +503,55 @@ fun ListSection(
                 SectionFooter(Modifier.layoutId(SectionPart.Footer), startPadding = 0.dp, content = footer)
             }
         },
-    ) { measurables, constraints ->
-        val loose = constraints.copy(minHeight = 0)
-        val body = measurables.first { it.layoutId == SectionPart.Body }.measure(loose)
+        measurePolicy = remember(spacing, textInset, rowInset) { SectionMeasurePolicy(spacing, textInset, rowInset) },
+    )
+}
 
+/**
+ * How a [ListSection] stacks its header, its body and its footer, and how far
+ * in it starts the header's and the footer's words: see `ListSection`.
+ */
+private class SectionMeasurePolicy(
+    private val spacing: Dp,
+    private val textInset: Dp,
+    private val rowInset: Dp,
+) : MeasurePolicy {
+
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        val headerPart = measurables.firstOrNull { it.part == SectionPart.Header }
+        val bodyPart = measurables.first { it.part == SectionPart.Body }
+        val footerPart = measurables.firstOrNull { it.part == SectionPart.Footer }
+        val gap = spacing.roundToPx()
         val given = if (textInset.isSpecified) textInset.roundToPx() else null
         val beside = rowInset.roundToPx()
+        val loose = constraints.copy(minHeight = 0)
+
+        // **The body has what the header and the footer leave it**, where there
+        // is a height to leave. It was measured first, against the whole of
+        // it, so a `weight(1f)` in a section of a fixed height took all of it,
+        // the header and footer were stacked on top, and the footer was drawn
+        // past the section's bottom over whatever was under it. The two are
+        // measured after the body, since where their words start depends on
+        // it; what they will take is asked first, at the narrower of the two
+        // widths they can have, so it is never less than they take.
+        val bodyConstraints = if (constraints.hasBoundedHeight) {
+            val width = constraints.maxWidth.narrowedBy(given ?: beside)
+            val reserved = listOfNotNull(headerPart, footerPart).sumOf { it.heightAt(width) + gap }
+            loose.copy(maxHeight = (constraints.maxHeight - reserved).coerceAtLeast(0))
+        } else {
+            loose
+        }
+        val body = bodyPart.measure(bodyConstraints)
+
         val headerInset = given ?: if (body.startsWithRow()) beside else 0
         val footerInset = given ?: if (body.endsWithRow()) beside else 0
 
-        val header = measurables.firstOrNull { it.layoutId == SectionPart.Header }
-            ?.measure(loose.offset(horizontal = -headerInset))
-        val footer = measurables.firstOrNull { it.layoutId == SectionPart.Footer }
-            ?.measure(loose.offset(horizontal = -footerInset))
+        val header = headerPart?.measure(loose.offset(horizontal = -headerInset))
+        val footer = footerPart?.measure(loose.offset(horizontal = -footerInset))
 
         // The gaps `Arrangement.spacedBy` put between the three when they were
         // children of one column, so a section of rows is where it always was.
         // An empty body is not a child: it would have been none at all.
-        val gap = spacing.roundToPx()
         val stacked = listOfNotNull(header, body.takeIf { it.height > 0 }, footer)
         val height = stacked.sumOf { it.height } + gap * max(stacked.size - 1, 0)
         val width = max(
@@ -520,7 +559,7 @@ fun ListSection(
             max((header?.width ?: 0) + headerInset, (footer?.width ?: 0) + footerInset),
         )
 
-        layout(constraints.constrainWidth(width), constraints.constrainHeight(height)) {
+        return layout(constraints.constrainWidth(width), constraints.constrainHeight(height)) {
             var y = 0
             header?.let {
                 it.placeRelative(headerInset, y)
@@ -533,7 +572,79 @@ fun ListSection(
             footer?.placeRelative(footerInset, y)
         }
     }
+
+    // **Intrinsics assume the header and the footer are beside rows**, unless
+    // told the inset. Left to the measure above, they were worked out with no
+    // alignment lines to read — an intrinsic measurement has none — so every
+    // body read as not a row and the words as flush: a title that wraps only
+    // at the rows' inset was counted a line short, and a section under
+    // `IntrinsicSize.Min` was cut off at its bottom. The inset is the narrower
+    // case, and an intrinsic height is a promise of room, so it is the one to
+    // promise.
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        stackedHeight(measurables, width) { child, w -> child.minIntrinsicHeight(w) }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        stackedHeight(measurables, width) { child, w -> child.maxIntrinsicHeight(w) }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        widest(measurables) { child -> child.minIntrinsicWidth(height) }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<IntrinsicMeasurable>, height: Int): Int =
+        widest(measurables) { child -> child.maxIntrinsicWidth(height) }
+
+    /** The inset an intrinsic assumes: the one given, or a row's. */
+    private fun IntrinsicMeasureScope.assumedInset(): Int =
+        if (textInset.isSpecified) textInset.roundToPx() else rowInset.roundToPx()
+
+    private inline fun IntrinsicMeasureScope.stackedHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+        heightOf: (IntrinsicMeasurable, Int) -> Int,
+    ): Int {
+        val text = width.narrowedBy(assumedInset())
+        val header = measurables.firstOrNull { it.part == SectionPart.Header }?.let { heightOf(it, text) }
+        val body = heightOf(measurables.first { it.part == SectionPart.Body }, width).takeIf { it > 0 }
+        val footer = measurables.firstOrNull { it.part == SectionPart.Footer }?.let { heightOf(it, text) }
+        val stacked = listOfNotNull(header, body, footer)
+        return stacked.sum() + spacing.roundToPx() * max(stacked.size - 1, 0)
+    }
+
+    private inline fun IntrinsicMeasureScope.widest(
+        measurables: List<IntrinsicMeasurable>,
+        widthOf: (IntrinsicMeasurable) -> Int,
+    ): Int {
+        val inset = assumedInset()
+        return measurables.maxOfOrNull { child ->
+            widthOf(child) + if (child.part == SectionPart.Body) 0 else inset
+        } ?: 0
+    }
 }
+
+/**
+ * Which of a section's parts this is. `layoutId` reads it off a `Measurable`
+ * only, and an intrinsic measurement is handed the parts as less than that.
+ */
+private val IntrinsicMeasurable.part: Any?
+    get() = (parentData as? LayoutIdParentData)?.layoutId
+
+/** This width less [inset], or still unbounded where it was. */
+private fun Int.narrowedBy(inset: Int): Int =
+    if (this == Constraints.Infinity) this else (this - inset).coerceAtLeast(0)
+
+/**
+ * How tall this would be at [width], for the room a [ListSection] leaves its
+ * body; nothing where it cannot say. A `SubcomposeLayout` — a
+ * `BoxWithConstraints` in a section's action — refuses an intrinsic
+ * measurement outright, and a section that threw for one would be worse than
+ * one whose weighted content runs on as it used to.
+ */
+private fun IntrinsicMeasurable.heightAt(width: Int): Int =
+    try {
+        maxIntrinsicHeight(width)
+    } catch (_: IllegalStateException) {
+        0
+    }
 
 /** Which of [ListSection]'s three parts a measurable is. */
 private enum class SectionPart { Header, Body, Footer }

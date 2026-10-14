@@ -1,5 +1,7 @@
 package io.kontour.ui.components.datetime
 
+import io.kontour.ui.adaptive.currentDpSize
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -178,13 +180,21 @@ fun DateTimePicker(
             // The day goes with the time: today, or tomorrow when the time
             // rounded past midnight, and the calendar pages there.
             onNow = { tomorrow ->
-                val day = pressedAt[0]?.let { if (tomorrow) it.plus(1, DateTimeUnit.DAY) else it }
+                val today = pressedAt[0]
+                val next = today?.plus(1, DateTimeUnit.DAY)
+                // Tomorrow only where the calendar would let it be chosen.
+                // Refused, Now is the end of today instead — the wheels turn to
+                // its last step — rather than midnight on a day that stays put,
+                // which was 24 hours before the time now.
+                val tookTomorrow = tomorrow && next != null && (next == working.value.date || isDateSelectable(next))
+                val day = if (tookTomorrow) next else today
                 // Only to a day the calendar would let be chosen: one it would
                 // refuse, today included, keeps the day there was.
                 if (day != null && day != working.value.date && isDateSelectable(day)) {
                     change(LocalDateTime(day, working.value.time))
                     navigation.jumpTo(day)
                 }
+                tookTomorrow
             },
         )
     }
@@ -192,9 +202,18 @@ fun DateTimePicker(
     // The room the two would have stacked: the height this is given, or in a
     // page that scrolls, which gives none, the window's less what the bars
     // round a page usually take of it.
-    val window = LocalWindowSizeClass.current.heightDp
+    //
+    // **The window's height now**, not the class's: a size class keeps the
+    // size it had when its shape last changed, so a window resized within one
+    // class — a phone's browser hiding its toolbar, a desktop window dragged
+    // taller — went on stacking, or not, by the height it used to be. Through a
+    // derived state, so only a crossing of the line recomposes this.
+    val sizeClass = LocalWindowSizeClass.current
+    val windowRoomToStack by remember(sizeClass) {
+        derivedStateOf { sizeClass.currentDpSize.height - WindowChrome >= StackedHeight }
+    }
     BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
-        val room = if (constraints.hasBoundedHeight) maxHeight else window - WindowChrome
+        val stacks = if (constraints.hasBoundedHeight) maxHeight >= StackedHeight else windowRoomToStack
         if (maxWidth >= SideBySideWidth) {
             // The two together, a gap apart and centred as one. The wheels
             // are as wide as they are, and the calendar takes what is left up
@@ -210,7 +229,7 @@ fun DateTimePicker(
                 date(Modifier.weight(1f, fill = false).widthIn(max = CalendarMonthDefaults.MaxWidth))
                 time(Modifier.width(IntrinsicSize.Max))
             }
-        } else if (room >= StackedHeight) {
+        } else if (stacks) {
             // **Both at once, the wheels under the calendar**, where there is
             // the height for them: *"on larger phones, i should be able to see
             // the 'inline' variant of the date-time picker"*. It is the

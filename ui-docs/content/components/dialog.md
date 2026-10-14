@@ -98,6 +98,9 @@ labelled `onClick` action, the platform back gesture, and the dialog's own way
 out — `cancel()` in its `actions`, or whatever button the content provides.
 `dismissible = false` removes the first two — correct for a confirmation that
 must be answered, and a reason to make sure the content offers its own way out.
+It is read as the user tries rather than when the dialog opened, so a dialog
+made undismissable once its form has changes stops answering the scrim and back
+from then on.
 Back still reaches the dialog then, and does nothing: the dialog does not move,
 and back does not go on to pop the screen behind a question that is still open.
 On Android a dialog that may be dismissed goes back by its own exit, following

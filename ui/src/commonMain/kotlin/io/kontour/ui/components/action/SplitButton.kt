@@ -23,11 +23,10 @@ import io.kontour.ui.foundation.GroupPosition
 import io.kontour.ui.foundation.RowContentScope
 import io.kontour.ui.foundation.SystemIcons
 import io.kontour.ui.foundation.shape
-import io.kontour.ui.overlay.AnchoredDropdownMenu
+import io.kontour.ui.overlay.AnchoredDropdownMenuImpl
 import io.kontour.ui.overlay.MenuScope
 import io.kontour.ui.overlay.OverlayAlignment
 import io.kontour.ui.overlay.OverlaySide
-import io.kontour.ui.overlay.WithAnchor
 import io.kontour.ui.overlay.anchorBounds
 import io.kontour.ui.motion.ChevronTurn
 import io.kontour.ui.theme.Theme
@@ -156,14 +155,14 @@ fun SplitButton(
         }
     }
 
-    WithAnchor({ anchor }) { bounds ->
-        AnchoredDropdownMenu(
-            visible = expanded,
-            anchor = bounds,
-            onDismissRequest = { onExpandedChange(false) },
-            side = OverlaySide.Bottom,
-            alignment = OverlayAlignment.End,
-            content = menu,
-        )
-    }
+    // The anchor handed on as a lambda, read by the menu's layout: read here it
+    // recomposed the menu on every frame the button's page scrolled.
+    AnchoredDropdownMenuImpl(
+        visible = expanded,
+        anchor = { anchor },
+        onDismissRequest = { onExpandedChange(false) },
+        side = OverlaySide.Bottom,
+        alignment = OverlayAlignment.End,
+        content = menu,
+    )
 }

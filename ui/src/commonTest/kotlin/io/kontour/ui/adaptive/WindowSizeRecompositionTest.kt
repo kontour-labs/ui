@@ -3,8 +3,10 @@ package io.kontour.ui.adaptive
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Stable
@@ -12,9 +14,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -136,6 +140,53 @@ class WindowSizeRecompositionTest {
                 "a frame inside the page crossed a boundary and the page around it recomposed",
             )
         }
+    }
+
+    /**
+     * The size behind the class follows the window within the class.
+     *
+     * The class an app holds is the one first provided while the buckets stay
+     * the same — that is the point of leaving the dp out of `equals` — so its
+     * `heightDp` is the height at the last crossing, not the height now. The
+     * date-time picker decided whether its calendar and wheels fit one above the
+     * other from that number, and a window grown from 700dp to 880dp, still
+     * Medium, went on being 700dp to it. What a component that needs the real
+     * size reads is the live one behind the class, inside a derived state, so it
+     * hears about the crossings it cares about and not every pixel.
+     */
+    @Test
+    fun theLiveSizeFollowsTheWindowWithinAClass() {
+        var height by mutableStateOf(700.dp)
+        var held: WindowSizeClass? = null
+
+        runComposeUiTest {
+            setContent {
+                // A *required* height: the test's own window is 768dp tall, and
+                // a plain `height` is held to it, so 880dp would have been 768.
+                Box(Modifier.width(400.dp).requiredHeight(height)) {
+                    WindowSizeClassProvider {
+                        val size = LocalWindowSizeClass.current
+                        SideEffect { if (held == null) held = size }
+                    }
+                }
+            }
+            waitForIdle()
+            val size = assertNotNull(held)
+            assertEquals(700.dp, size.currentDpSize.height)
+
+            height = 880.dp
+            waitForIdle()
+            assertEquals(WindowHeightClass.Medium, size.height, "880dp should still be Medium; the test needs one class")
+            assertEquals(880.dp, size.currentDpSize.height, "the live size stayed at the height of the last crossing")
+            // And the field, as documented, did not move.
+            assertEquals(700.dp, size.heightDp)
+        }
+    }
+
+    @Test
+    fun aClassMadeOutrightIsItsOwnSize() {
+        val size = WindowSizeClass.of(412.dp, 915.dp)
+        assertEquals(DpSize(412.dp, 915.dp), size.currentDpSize)
     }
 
     @Test

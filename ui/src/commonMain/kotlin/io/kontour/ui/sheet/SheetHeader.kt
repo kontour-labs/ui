@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.collapse
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.expand
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -105,6 +107,17 @@ fun DragHandle(
     )
 
     val expanded = state != null && state.currentDetent == state.detents.last()
+    // **Only the actions that would do something.** Expand and collapse were
+    // offered whatever the sheet was doing, so a modal sheet at its one size —
+    // `Hidden` and `Expanded`, the default — offered both and did nothing for
+    // either, and had no way at all to be put away by someone who cannot drag.
+    // Derived, so a sheet moving between detents recomposes the handle only
+    // when what it can be asked to do changes; read here rather than in the
+    // semantics block, so that change reaches the block.
+    val moves = remember(state) {
+        derivedStateOf { if (state == null) HandleMoves.None else handleMoves(state) }
+    }.value
+    val dismissLabel = Theme.strings.close
 
     Box(
         modifier = modifier
@@ -146,13 +159,23 @@ fun DragHandle(
             .semantics {
                 contentDescription = if (expanded) collapseLabel else expandLabel
                 if (state != null) {
-                    expand(expandLabel) {
-                        scope.launch { state.expand() }
-                        true
+                    if (moves.expand) {
+                        expand(expandLabel) {
+                            scope.launch { state.expand() }
+                            true
+                        }
                     }
-                    collapse(collapseLabel) {
-                        scope.launch { state.partialExpand() }
-                        true
+                    if (moves.collapse) {
+                        collapse(collapseLabel) {
+                            scope.launch { state.partialExpand() }
+                            true
+                        }
+                    }
+                    if (moves.dismiss) {
+                        dismiss(dismissLabel) {
+                            scope.launch { state.hide() }
+                            true
+                        }
                     }
                 }
             },
@@ -165,6 +188,49 @@ fun DragHandle(
                 .background(colour, Theme.shapes.capsule)
         )
     }
+}
+
+/** Which of its accessibility actions a [DragHandle] offers. */
+private data class HandleMoves(val expand: Boolean, val collapse: Boolean, val dismiss: Boolean) {
+    companion object {
+        val None = HandleMoves(expand = false, collapse = false, dismiss = false)
+    }
+}
+
+/**
+ * What the handle's actions would do for [state] where it is now: expand only
+ * with a taller detent to go to, collapse only with a shorter one, and dismiss
+ * where the sheet may be hidden and the user is allowed to hide it.
+ *
+ * Taller and shorter by **offset**, not by place in the list, because two
+ * detents can resolve to one height and the anchors keep only one of them: a
+ * sheet whose peek is all its content is at `Expanded` when it is at its peek,
+ * and an expand there goes nowhere. By place in the list before there are
+ * anchors to ask, which is the only answer there is then.
+ */
+private fun handleMoves(state: SheetState): HandleMoves {
+    val allowed = state.allowedDetents
+    val current = state.currentDetent
+    val tallest = allowed.lastOrNull { it != SheetDetent.Hidden }
+    val shortest = allowed.firstOrNull { it != SheetDetent.Hidden }
+    val here = state.offsetOf(current)
+    fun taller(target: SheetDetent?): Boolean {
+        if (target == null || target == current) return false
+        val there = state.offsetOf(target)
+        if (here.isNaN() || there.isNaN()) return allowed.indexOf(target) > allowed.indexOf(current)
+        return there < here - 0.5f
+    }
+    fun shorter(target: SheetDetent?): Boolean {
+        if (target == null || target == current) return false
+        val there = state.offsetOf(target)
+        if (here.isNaN() || there.isNaN()) return allowed.indexOf(target) < allowed.indexOf(current)
+        return there > here + 0.5f
+    }
+    return HandleMoves(
+        expand = taller(tallest),
+        collapse = shorter(shortest),
+        dismiss = current != SheetDetent.Hidden && SheetDetent.Hidden in allowed && state.userDismissible,
+    )
 }
 
 /** What a [DragHandle] takes by default. */

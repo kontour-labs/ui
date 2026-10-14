@@ -44,6 +44,9 @@ private class WebHaptics : Haptics {
 
     override fun startRumble(intensity: Float, sharpness: Float, timeout: Duration): Rumble {
         if (closed || !available) return StoppedRumble
+        // Rumbles whose lease ran out with nobody stopping them, let go of here:
+        // the set held every one a page had ever started and not stopped.
+        rumbles.filter { !it.isActive }.forEach { it.lapse() }
         val rumble = WebRumble(timeout.inWholeMilliseconds.toInt().coerceIn(RumbleStepMillis, LongestRumbleMillis))
         rumbles += rumble
         rumble.issue(unit(intensity), force = true)
@@ -74,15 +77,35 @@ private class WebHaptics : Haptics {
 
         private var active = true
 
+        /**
+         * A fresh run of pulses while the lease holds, and nothing once it has
+         * lapsed — as on Android and iOS.
+         *
+         * It asked whether the rumble had been *stopped* rather than whether it
+         * was still live, so an update arriving after the lease had run out
+         * started the vibration again for a whole new lease: a rumble that was
+         * supposed to end itself when its owner went quiet came back on the
+         * owner's next late word. A lapsed one is let go instead, without
+         * silencing the device, because its own pulses have already ended and
+         * whatever is playing now is somebody else's.
+         */
         override fun update(intensity: Float, sharpness: Float) {
-            if (active) issue(unit(intensity))
+            if (isActive) issue(unit(intensity)) else lapse()
         }
 
         override fun stop() {
             if (!active) return
+            // Silenced only while its own pulses can still be playing; past its
+            // lease, what is playing is somebody else's. See [update].
+            val live = isActive
+            lapse()
+            if (live) vibrate("")
+        }
+
+        /** Over, and forgotten: what [stop] does, short of silencing the device. */
+        fun lapse() {
             active = false
             rumbles -= this
-            vibrate("")
         }
 
         /** At most every [RumbleStepMillis]: each one restarts the vibration. */

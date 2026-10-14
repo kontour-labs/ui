@@ -12,7 +12,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,6 +31,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -374,10 +374,29 @@ fun Slider(
 
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
-        if (steps <= 0) return valueRange.start + clamped * range
+        if (steps <= 0) return sliderValueAt(valueRange, clamped)
         val stepCount = steps + 1
         val snapped = (clamped * stepCount).roundToInt().toFloat() / stepCount
-        return valueRange.start + snapped * range
+        return sliderValueAt(valueRange, snapped)
+    }
+
+    /**
+     * [target], a value rather than a fraction, put on the step grid.
+     *
+     * What the keys and `setProgress` answer with. Both used to hand the caller
+     * the raw sum, so a stepped slider at 0.33 went to 0.58 on one press of
+     * Right — a value its own ticks say does not exist and that no drag can
+     * reproduce — and seven presses from 0 on a ten-notch slider arrived at
+     * 0.70000005, a step's worth of float addition at a time. `RangeSlider` and
+     * `Knob` already put their keys through the same snap as their drags.
+     *
+     * A continuous slider has no grid, and its value goes through untouched
+     * rather than out to a fraction and back.
+     */
+    fun snapValue(target: Float): Float {
+        val clamped = target.coerceIn(valueRange)
+        if (steps <= 0 || range == 0f) return clamped
+        return snap((clamped - valueRange.start) / range)
     }
 
     // Only a stepped slider has detents to strain against. A continuous one
@@ -481,7 +500,10 @@ fun Slider(
      */
     fun emit(newFraction: Float) {
         val next = snap(newFraction)
-        if (steps > 0) {
+        // Not on a zero-width range, which `require` allows: the index is a
+        // division by the range, and `roundToInt` throws on the `NaN` that makes.
+        // A tap on a `5f..5f` slider took the frame down with it.
+        if (steps > 0 && range > 0f) {
             val index = ((next - valueRange.start) / range * (steps + 1)).roundToInt().toFloat()
             // Through the shared ticker rather than the hand-rolled guard this
             // used to keep. `DetentTicker` already described itself as the thing
@@ -498,7 +520,21 @@ fun Slider(
         currentOnValueChange(next)
     }
 
-    BoxWithConstraints(
+    /**
+     * The gesture box's width in pixels, written by its layout and read only by
+     * the gesture.
+     *
+     * It was a `BoxWithConstraints` whose `maxWidth` nothing but the pointer
+     * maths read. That is a subcomposition, and its content captured the value,
+     * so every frame of a drag handed it a new lambda: a remeasure and a
+     * recomposition of the subcomposed content for a number that only changes
+     * when the slider is resized. The width the gesture box was given is the
+     * one it lays out at — it fills the control — so this is the same number,
+     * kept where reading it costs nothing.
+     */
+    val boxWidth = remember { IntArray(1) }
+
+    Box(
         modifier = modifier
             .semantics {
                 if (!enabled) disabled()
@@ -518,7 +554,7 @@ fun Slider(
                 // inert.
                 if (enabled) {
                     setProgress { target ->
-                        currentOnValueChange(target.coerceIn(valueRange))
+                        currentOnValueChange(snapValue(target))
                         true
                     }
                 }
@@ -528,7 +564,7 @@ fun Slider(
                 val next = sliderKeyTarget(
                     event.key, value, valueRange, valueRange, steps, layoutDirection == LayoutDirection.Rtl,
                 ) ?: return@onKeyEvent false
-                currentOnValueChange(next)
+                currentOnValueChange(snapValue(next))
                 currentFinished?.invoke()
                 // Nothing is held, so nothing would show the value the key chose.
                 linger.poke()
@@ -560,13 +596,15 @@ fun Slider(
          * the track by the same amount, so nothing moved on screen.
          */
         val insetPx = with(density) { SliderThumbReach.toPx() }
-        val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
+        // Asked when the gesture needs it, from the width the box last laid out at.
+        fun trackPx(): Float = (boxWidth[0] - insetPx * 2f).coerceAtLeast(1f)
 
         // A plain `Box`: nothing in here reads its constraints, and a
         // `BoxWithConstraints` is a subcomposition to set up for nothing.
         Box(
             Modifier
                 .fillMaxWidth()
+                .onSizeChanged { boxWidth[0] = it.width }
                 // The gesture box is taller than the control draws.
                 //
                 // Tapping the *bar* — which the thumb then animates to — was a
@@ -598,7 +636,7 @@ fun Slider(
                         // slider sitting at 20% and dragging used to move it
                         // from 20%, so the first part of every drag was spent
                         // catching up to where the press already was.
-                        val along = (start.x - insetPx) / widthPx
+                        val along = (start.x - insetPx) / trackPx()
                         val at = if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
                         dragFraction = at.coerceIn(0f, 1f)
                         over[0] = 0f
@@ -622,6 +660,7 @@ fun Slider(
                         // two motions — and the thumb moves off the end only
                         // when the finger is level with it.
                         val from = (if (dragFraction.isNaN()) fraction else dragFraction) + over[0]
+                        val widthPx = trackPx()
                         val raw = from + signed / widthPx
                         val before = over[0]
                         dragFraction = raw.coerceIn(0f, 1f)
@@ -898,6 +937,24 @@ internal val SliderLabelGap = 6.dp
 
 private fun Float.coerceIn(range: ClosedFloatingPointRange<Float>): Float =
     coerceIn(range.start, range.endInclusive)
+
+/**
+ * The value [fraction] of the way along [range], **exactly** its start at 0 and
+ * exactly its end at 1.
+ *
+ * It was `start + fraction * span`, which is neither: the span is itself a
+ * rounded subtraction, so a drag to the end of `0.3f..1.9f` reported 1.8999999,
+ * and one to the end of `-273.15f..0.7f` reported 0.70001 — outside the range
+ * the caller gave. Weighted from both ends instead, the far end's term is the
+ * end times one and the near end's is zero. Clamped as well, so rounding in
+ * between cannot step outside the range either.
+ */
+internal fun sliderValueAt(range: ClosedFloatingPointRange<Float>, fraction: Float): Float {
+    val start = range.start
+    val end = range.endInclusive
+    if (start == end) return start
+    return (start * (1f - fraction) + end * fraction).coerceIn(start, end)
+}
 
 /**
  * Where a key takes a slider's [value], within [bounds], or `null` for a key a

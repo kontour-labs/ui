@@ -1,5 +1,7 @@
 package io.kontour.ui.components.text
 
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -7,6 +9,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -23,11 +26,24 @@ import androidx.compose.ui.text.TextRange
 import io.kontour.ui.overlay.AnchoredDropdownMenu
 import io.kontour.ui.theme.Theme
 
-/** What a secondary press asked for: which field, and where the pointer was. */
+/**
+ * What a secondary press asked for: which field, and where the pointer was.
+ *
+ * @property filter The field's own [InputTransformation], which a paste or a cut
+ *   goes through as a keystroke does. `state.edit` is beneath the field's input
+ *   handling, so an edit made with it and nothing else let a paste of `12ab`
+ *   into a [NumberField] — or past a `maxLength` — straight into the state.
+ * @property copyable Whether the text may be put on the clipboard. Not while a
+ *   [PasswordField] or a [SecretField] is masked: the dots are there so the
+ *   text is not seen, and Copy put it, in plain text, somewhere every app on
+ *   the machine can read.
+ */
 internal class TextMenuRequest(
     val state: TextFieldState,
     val anchor: Rect,
     val editable: Boolean,
+    val filter: InputTransformation? = null,
+    val copyable: Boolean = true,
 )
 
 /**
@@ -156,14 +172,17 @@ private fun TextContextMenu(
         // Absent rather than disabled: a greyed-out "Cut" over no selection
         // tells the user nothing they can act on, and four permanent rows make
         // the two that apply harder to hit.
-        if (selected && asked.editable) {
+        if (selected && asked.editable && asked.copyable) {
             item(strings.cut) {
                 clipboard.setText(AnnotatedString(state.selectedText()))
-                state.edit { replace(selection.min, selection.max, "") }
+                state.edit {
+                    replace(selection.min, selection.max, "")
+                    filteredBy(asked.filter)
+                }
                 onDismissRequest()
             }
         }
-        if (selected) {
+        if (selected && asked.copyable) {
             item(strings.copy) {
                 clipboard.setText(AnnotatedString(state.selectedText()))
                 onDismissRequest()
@@ -173,7 +192,10 @@ private fun TextContextMenu(
             item(strings.paste) {
                 val pasted = clipboard.getText()?.text
                 if (!pasted.isNullOrEmpty()) {
-                    state.edit { replace(selection.min, selection.max, pasted) }
+                    state.edit {
+                        replace(selection.min, selection.max, pasted)
+                        filteredBy(asked.filter)
+                    }
                 }
                 onDismissRequest()
             }
@@ -191,6 +213,18 @@ private fun TextFieldState.selectedText(): String =
     text.substring(selection.min, selection.max)
 
 /**
+ * Runs [filter] over this edit, as the field runs it over a keystroke.
+ *
+ * Inside the same `edit`, so a filter that refuses the text reverts *this* edit
+ * with `revertAllChanges` and the state is left as it was — the paste does not
+ * happen, which is what typing the same characters would have done. The browser
+ * text path applies its menu's paste the same way.
+ */
+private fun TextFieldBuffer.filteredBy(filter: InputTransformation?) {
+    if (filter != null) with(filter) { transformInput() }
+}
+
+/**
  * Opens the library's text context menu on a secondary press.
  *
  * On [PointerEventPass.Initial] and consuming, which is what stops the platform
@@ -202,14 +236,22 @@ internal fun Modifier.textContextMenu(
     state: TextFieldState,
     editable: Boolean,
     enabled: Boolean,
+    filter: InputTransformation? = null,
+    copyable: Boolean = true,
 ): Modifier {
     val open = LocalTextContextMenu.current
     if (open == null || !enabled) return this
 
+    // Read when the press arrives rather than keyed: a filter written inline —
+    // `InputTransformation.maxLength(n)` in the call — is a new object every
+    // composition, and restarting the handler for each would be for nothing.
+    val currentFilter by rememberUpdatedState(filter)
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     return this
         .onGloballyPositioned { coordinates = it }
-        .pointerInput(open, editable) {
+        // Keyed on the state, so the handler holds the one the field shows
+        // without leaning on the block being rebuilt for it.
+        .pointerInput(open, state, editable, copyable) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -221,7 +263,7 @@ internal fun Modifier.textContextMenu(
                     // A zero-size anchor: the menu hangs off the point itself,
                     // which is what makes it belong to the click rather than to
                     // the field.
-                    open(TextMenuRequest(state, Rect(root, root), editable))
+                    open(TextMenuRequest(state, Rect(root, root), editable, currentFilter, copyable))
                 }
             }
         }

@@ -3,7 +3,6 @@ package io.kontour.ui.input
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
@@ -53,12 +52,22 @@ fun Modifier.focusRing(
     colour: Color = Theme.colours.focusRing,
     enabled: Boolean = true,
 ): Modifier {
-    val focused by interactionSource.collectIsFocusedAsState()
-    val modality = LocalInputModality.current
-    val sizing = Theme.sizing
+    // Collected only where a ring can be drawn. A row with nothing to press
+    // passes `enabled = false` and an interaction source nothing ever emits
+    // to, and every one of them in a scrolling list still started a collector
+    // for it: a coroutine, a state and a subscriber apiece, for a ring that
+    // could never show.
+    val focused = if (enabled) interactionSource.collectIsFocusedAsState().value else false
 
-    val visible = enabled && focused && modality.showsFocusRing
+    // The modality is read only once the control has focus, and the order of
+    // the `&&` is the whole of that. Read first, as it was, every control that
+    // draws a ring — most of them on a screen — recomposed whenever the hand
+    // went from the mouse to the keyboard, to arrive at "no ring" again. A
+    // focused control still reads it, so its ring comes and goes with the
+    // modality; one that gains focus reads it on the recomposition focus brings.
+    val visible = focused && LocalInputModality.current.showsFocusRing
     if (!visible) return this
+    val sizing = Theme.sizing
 
     return drawWithCache {
         val stroke = sizing.focusRingWidth.toPx()
@@ -110,7 +119,7 @@ fun Modifier.focusRing(
  */
 @Composable
 fun rememberFocusRingVisible(interactionSource: InteractionSource): Boolean {
-    val focused by interactionSource.collectIsFocusedAsState()
+    val focused = interactionSource.collectIsFocusedAsState().value
     return focused && LocalInputModality.current.showsFocusRing
 }
 

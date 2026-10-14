@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -363,6 +365,81 @@ class SheetFramePressureTest {
         assertBudget("drawn", counts.draws, frames)
     }
 
+    /**
+     * A list handed the sheet's padding is not measured again on every frame the
+     * sheet moves.
+     *
+     * The padding a floating sheet hands its content is the bottom inset less
+     * what its margin clears, and how much the margin clears depends on how far
+     * the sheet has morphed into an edge sheet — which is read from where the
+     * sheet is. Read straight through in the list's measure, that subscribed the
+     * list to the sheet's offset: every frame of every drag, settle, open and
+     * close measured the content again, though the padding only changes across
+     * the morph and here never changes at all. It was the lag reported from a
+     * floating sheet, and the content is exactly where a sheet's cost is.
+     */
+    @Test
+    fun aListGivenTheSheetsPaddingIsNotMeasuredAsTheSheetMoves() {
+        listMeasuresWhileDragged(listOf(SheetDetent.Hidden, SheetDetent.Half))
+    }
+
+    /** The same, on a sheet that can morph, dragged below the step it morphs across. */
+    @Test
+    fun aListInAMorphingSheetIsNotMeasuredAsTheSheetMovesBelowTheMorph() {
+        listMeasuresWhileDragged(listOf(SheetDetent.Hidden, SheetDetent.Half, SheetDetent.Expanded))
+    }
+
+    private fun listMeasuresWhileDragged(detents: List<SheetDetent>) {
+        var frames = 0
+        var travelled = 0f
+        val counts = PhaseCounts()
+
+        runComposeUiTest {
+            lateinit var sheet: SheetState
+            mainClock.autoAdvance = false
+            setContent {
+                KontourTheme {
+                    Box(Modifier.requiredSize(360.dp, 800.dp).background(Color.White)) {
+                        val state = rememberSheetState(detents = detents, initialDetent = SheetDetent.Half)
+                        sheet = state
+                        // The defaults: floating, and morphing into an edge sheet
+                        // over the step below the top.
+                        BottomSheet(state) { padding ->
+                            LazyColumn(Modifier.countPhases(counts), contentPadding = padding) {
+                                items(40) {
+                                    Box(Modifier.fillMaxWidth().height(48.dp)) {
+                                        Text("Stop $it")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            repeat(OpenFrames) { mainClock.advanceTimeByFrame() }
+            counts.reset()
+
+            // Down from Half, towards hidden: below any morph there is.
+            val startedAt = sheet.offset
+            repeat(DraggedFrames) {
+                sheet.anchoredState.dispatchRawDelta(5f)
+                mainClock.advanceTimeByFrame()
+                frames++
+            }
+            travelled = abs(sheet.offset - startedAt)
+        }
+
+        assertTrue(
+            travelled > 40f,
+            "the sheet moved ${travelled}px over $frames frames of dragging, so this measured a sheet standing still",
+        )
+        assertTrue(
+            counts.measures <= ListMeasureBudget,
+            "a list handed the sheet's padding was measured ${counts.measures} times over $frames frames of " +
+                "dragging, which never changed the padding: it is reading the sheet's offset in its measure",
+        )
+    }
+
     /** One modal sheet in a host, which is the shape an app uses. */
     @Composable
     private fun Harness(
@@ -432,6 +509,9 @@ class SheetFramePressureTest {
         const val MovingFrames = 240
 
         const val DraggedFrames = 40
+
+        /** Measured once a frame before the padding was derived: forty over forty. */
+        const val ListMeasureBudget = 5
 
         /**
          * At most one of anything per this many frames.

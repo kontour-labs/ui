@@ -53,6 +53,33 @@ class DayDecorationTest {
     private val middle = LocalDate(2026, 6, 17)
     private val end = LocalDate(2026, 6, 18)
 
+    /**
+     * A range's days say where in it they are, after the date: only its ends
+     * are selected, so a day inside the band was announced as a day like any
+     * other, and the two ends as the same thing.
+     */
+    @Test
+    fun aRangesDaysSayWhereInTheRangeTheyAre() = runComposeUiTest {
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                DateRangePicker(
+                    start = start,
+                    end = end,
+                    onRangeChange = { _, _ -> },
+                    today = null,
+                    firstDayOfWeek = DayOfWeek.MONDAY,
+                )
+            }
+        }
+        waitForIdle()
+        fun said(day: String) = onNodeWithText(day).fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription).orEmpty()
+        for ((day, place) in listOf("16" to "Range start", "17" to "In range", "18" to "Range end")) {
+            val words = said(day)
+            assertTrue(place in words && words.indexOf(place) > words.indexOf("2026"), "the $day announces '$words', not '$place' after the date")
+        }
+        assertTrue("range" !in said("19").lowercase(), "a day outside the range says it is in one: '${said("19")}'")
+    }
+
     @Test
     fun aDecorationsTextIsDrawnUnderItsDayAndReadAfterTheDate() = runComposeUiTest {
         setContent {

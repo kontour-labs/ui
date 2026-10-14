@@ -898,7 +898,7 @@ class ToastStackTest {
         val alone = emptiesAfter("one 4,000ms toast, nothing cleared") { toasts ->
             toasts.show("Saved for offline", duration = 4_000.milliseconds)
         }
-        val afterClearing = clearedAfter()
+        val afterClearing = clearedAfter(byHand = true)
 
         assertTrue(
             afterClearing > alone + 800,
@@ -915,6 +915,34 @@ class ToastStackTest {
                 "a full lifetime — 1,500ms of waiting plus 4,000ms is 5,500 — so " +
                 "anything past that is a clear resetting the clock rather than " +
                 "topping it up, and a stack of ten would never empty.",
+        )
+    }
+
+    /**
+     * The app taking a toast down buys the others nothing.
+     *
+     * `ToastHostState.dismiss` is the app's own way to remove a toast — a pinned
+     * "Saving…" taken down when the save finished — and it counted as the reader
+     * clearing one: every toast behind it was topped up by `ClearedGrace` as though
+     * someone had worked through the stack to reach it. The reader did nothing,
+     * and the toast behind should go when it was always going to.
+     *
+     * Against the same toast alone, as the test above is, and from the same
+     * harness: only who sent the pinned one away differs.
+     */
+    @Test
+    fun theAppDismissingOneBuysTheOthersNothing() {
+        val alone = emptiesAfter("one 4,000ms toast, nothing cleared") { toasts ->
+            toasts.show("Saved for offline", duration = 4_000.milliseconds)
+        }
+        val afterTheApp = clearedAfter(byHand = false)
+
+        assertTrue(
+            afterTheApp < alone + 700,
+            "the 4,000ms toast emptied ${afterTheApp}ms after it appeared with a pinned one " +
+                "dismissed by the app at 1,500ms, against ${alone}ms on its own — " +
+                "${afterTheApp - alone}ms later. The app's dismissal was counted as the " +
+                "reader clearing one, and bought the toast behind it time nobody asked for.",
         )
     }
 
@@ -1000,9 +1028,10 @@ class ToastStackTest {
 
     /**
      * How long the stack takes to empty when a pinned toast is cleared off the
-     * top of a 4,000ms one, 1,500ms in.
+     * top of a 4,000ms one, 1,500ms in: swiped away, [byHand], or dismissed by
+     * the app through `ToastHostState.dismiss`.
      */
-    private fun clearedAfter(): Long {
+    private fun clearedAfter(byHand: Boolean): Long {
         var clear by mutableStateOf(false)
         var pinned = 0L
         var elapsed = 0L
@@ -1025,7 +1054,19 @@ class ToastStackTest {
             assertNotNull(appeared, "no toast was drawn at all")
             val mark = TimeSource.Monotonic.markNow()
             scene.renderUntil(timeoutMillis = 1_500) { false }
-            clear = true
+            if (byHand) {
+                // Swiped toward the edge it is anchored to, as `ToastSwipeTest`
+                // sends one away: the pinned one is in front, so it is the one
+                // under the finger. The moves go without a frame between them,
+                // so the finger holds the clocks for no time at all.
+                val now = scene.frame()
+                val from = Offset(now.width / 2f, now.stackBottom() - 20f)
+                scene.press(from)
+                for (step in 1..8) scene.move(from + Offset(0f, 120f * step / 8))
+                scene.release(from + Offset(0f, 120f))
+            } else {
+                clear = true
+            }
             emptied = scene.renderUntil(timeoutMillis = 20_000) { it.stackHeight() == 0 }
             elapsed = mark.elapsedNow().inWholeMilliseconds
         }

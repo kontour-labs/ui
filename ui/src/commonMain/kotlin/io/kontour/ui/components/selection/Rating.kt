@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -113,6 +114,9 @@ import kotlin.math.ceil
  * @param onValueChangeFinished Called once the score has been set — when a press
  *   or a drag lifts, or a mark is chosen from the keyboard — as a slider's is. For
  *   saving the score, where [onValueChange] would save every mark a drag crossed.
+ * @param interactionSource Hears every mark's interactions — focus, hover, the
+ *   keyboard's press. Each mark keeps a source of its own as well, which is
+ *   what its focus ring reads, so the ring goes round the focused mark alone.
  */
 @Composable
 fun Rating(
@@ -199,12 +203,21 @@ fun Rating(
         if (markWidth.all { it <= 0f }) return
         val nearest = markLeft.indices.minByOrNull { abs(markLeft[it] + markWidth[it] / 2f - x) }
             ?: return
-        val index = if (isRtl) count - 1 - nearest else nearest
+        // Already the mark's own index, in either direction. [markLeft] is kept
+        // per mark, at wherever the row placed that mark, so in right to left
+        // mark 0 is measured at the right-hand end and the nearest one is
+        // already the logical one. Mirroring it again — which this did — made
+        // a tap on the right-most star in Arabic the fifth star, and on the
+        // left-most the first.
+        val index = nearest
         val within = ((x - markLeft[nearest]) / markWidth[nearest]).coerceIn(0f, 1f)
         // Carried off the start of the row: before the first mark in reading
-        // order, which is its left in LTR and its right in RTL.
+        // order, which is its left in LTR and its right in RTL — and the first
+        // mark is mark 0 in both. It was measured against the *last* mark's
+        // right edge in RTL, which is the left-hand star's, so nearly every
+        // press on a right-to-left rating read as off the start and cleared it.
         val offStart = if (isRtl) {
-            x > markLeft[count - 1] + markWidth[count - 1]
+            x > markLeft[0] + markWidth[0]
         } else {
             x < markLeft[0]
         }
@@ -318,7 +331,20 @@ fun Rating(
                 // means three, not two, and off-by-one here is a rating that can
                 // never be five and can always be zero.
                 val markValue = index + 1
-                val interactions = interactionSource ?: remember { MutableInteractionSource() }
+
+                // **Each mark's own**, so the ring goes round the one mark that
+                // has focus. Every mark used to take the caller's source when
+                // one was given, and a ring reads focus from its source — so
+                // tabbing to the third star drew a ring round all five. The
+                // caller's source still hears everything: each mark's
+                // interactions are passed on to it, so focus, hover and the
+                // keyboard's press anywhere in the row reach it as before.
+                val interactions = remember { MutableInteractionSource() }
+                if (interactionSource != null) {
+                    LaunchedEffect(interactions, interactionSource) {
+                        interactions.interactions.collect { interactionSource.emit(it) }
+                    }
+                }
 
                 Box(
                     modifier = Modifier
@@ -335,7 +361,12 @@ fun Rating(
                         // second answer to the same tap.
                         .pointerCursor(enabled = enabled)
                         .selectable(
-                            selected = markValue <= selected,
+                            // The scored mark, and only that one: the marks
+                            // are radio buttons, and a group of them has one
+                            // selected. Every filled mark said it was, so the
+                            // first star announced itself selected and
+                            // activating it changed the score.
+                            selected = markValue == selected,
                             // The keyboard and assistive-tech path, and the only one
                             // that reaches here — the row consumes the pointer on the
                             // initial pass, so this and `setFromX` never both answer

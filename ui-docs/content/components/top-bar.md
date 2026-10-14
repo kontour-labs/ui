@@ -77,9 +77,12 @@ the way the wheel turned. The state's `nestedScrollConnection` is still there
 for wiring the scroll yourself with `Modifier.nestedScroll`, without that.
 
 To drive it from anything else, pass `collapseProgress` directly: 0 open, 1
-collapsed. `collapseProgress(listState)` computes one from a `LazyListState`,
-for a bar drawn over its list rather than above it, and
-`collapseProgress(scrolled, distance)` from any two numbers.
+collapsed. `collapseProgress(scrolled, distance)` works one out from any two
+numbers. For a bar drawn over its list rather than above it, hand the bar
+`rememberTopBarCollapseState(list)` — the Hero example below — rather than
+`collapseProgress(listState)`: the state follows the list where the bar lays
+out, and the function reads the scroll in composition, so the screen that calls
+it recomposes on every frame of the scroll.
 
 ### `Hero`: a large bar over a picture
 
@@ -153,7 +156,10 @@ stopped. With it on the list the bar takes the push — the rows go up and the
 bar's foot with them, through a band as stiff as the system's — and both come
 back down to where the scroll left them when the finger lifts. On a
 `verticalScroll` it goes ahead of the scroll. Without it the bar still follows
-the list, and on iOS a short page can still slide under it.
+the list, and on iOS a short page can still slide under it. Put round a box
+that holds the bar as well — where it once went — it moves that box, and a bar
+inside its own collapse puts itself back, so the list still goes up and the bar
+stays where it is; on the list is still the place for it.
 
 Collapsed it is a `Small` bar to the pixel: the title travels into the first
 line, the picture rises behind the bar at half the speed and fades out over the

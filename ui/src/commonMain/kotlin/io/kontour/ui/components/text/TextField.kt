@@ -335,6 +335,10 @@ internal fun TextFieldImpl(
                 state = state,
                 editable = enabled && !readOnly,
                 enabled = enabled,
+                // The menu's paste and cut go through the field's filter, as a
+                // keystroke does, and a masked field offers neither Cut nor Copy.
+                filter = inputTransformation,
+                copyable = !masked,
             ),
         // A press anywhere on the frame puts the caret in the field.
         //

@@ -61,6 +61,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -183,18 +184,24 @@ fun DropdownMenu(
     scrim: ScrimStyle = ScrimStyle.Transparent,
     content: @Composable MenuScope.() -> Unit,
 ) {
-    var anchor by remember { mutableStateOf<Rect?>(null) }
-    Box(Modifier.parentBounds { anchor = it })
+    // Held, and handed on as a lambda read where it is needed — the layout,
+    // the way through the scrim — rather than read here. Every scroll frame
+    // moves the anchor, and read here it recomposed this menu on each of them,
+    // closed or open, for every row of a list that has one.
+    val anchor = remember { mutableStateOf<Rect?>(null) }
+    Box(Modifier.parentBounds { anchor.value = it })
 
-    AnchoredDropdownMenu(
+    AnchoredDropdownMenuImpl(
         visible = visible,
-        anchor = anchor,
+        anchor = { anchor.value },
         onDismissRequest = onDismissRequest,
         modifier = modifier,
+        key = remember { Any() },
         side = side,
         alignment = alignment,
         matchAnchorWidth = matchAnchorWidth,
         scrim = scrim,
+        anchorTakesPresses = false,
         content = content,
     )
 }
@@ -234,19 +241,22 @@ fun AnchoredDropdownMenu(
     matchAnchorWidth: Boolean = false,
     scrim: ScrimStyle = ScrimStyle.Transparent,
     content: @Composable MenuScope.() -> Unit,
-) = AnchoredDropdownMenuImpl(
-    visible = visible,
-    anchor = anchor,
-    onDismissRequest = onDismissRequest,
-    modifier = modifier,
-    key = key,
-    side = side,
-    alignment = alignment,
-    matchAnchorWidth = matchAnchorWidth,
-    scrim = scrim,
-    anchorTakesPresses = false,
-    content = content,
-)
+) {
+    val latest = rememberUpdatedState(anchor)
+    AnchoredDropdownMenuImpl(
+        visible = visible,
+        anchor = { latest.value },
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        key = key,
+        side = side,
+        alignment = alignment,
+        matchAnchorWidth = matchAnchorWidth,
+        scrim = scrim,
+        anchorTakesPresses = false,
+        content = content,
+    )
+}
 
 /**
  * [AnchoredDropdownMenu], and whether a press on its [anchor] goes to the anchor.
@@ -263,19 +273,27 @@ fun AnchoredDropdownMenu(
  * anchor that takes presses is an anchor whose own press handling has to know
  * the menu is open — which a caller's button, toggling the menu it opened, does
  * not.
+ *
+ * Such a menu does not take the keyboard's focus as it opens, either. A menu
+ * opened from the keyboard moves the focus into its first row, which is right
+ * for a menu and wrong for a combobox: its field had just been given the focus,
+ * and a frame later the menu took it, so what was typed next filtered nothing.
+ * The anchor hands it over itself — [focusRequester] is the menu's, and a
+ * combobox asks it on a Down arrow.
  */
 @Composable
 internal fun AnchoredDropdownMenuImpl(
     visible: Boolean,
-    anchor: Rect?,
+    anchor: () -> Rect?,
     onDismissRequest: () -> Unit,
-    modifier: Modifier,
-    key: Any,
-    side: OverlaySide,
-    alignment: OverlayAlignment,
-    matchAnchorWidth: Boolean,
-    scrim: ScrimStyle,
-    anchorTakesPresses: Boolean,
+    modifier: Modifier = Modifier,
+    key: Any = remember { Any() },
+    side: OverlaySide = OverlaySide.Bottom,
+    alignment: OverlayAlignment = OverlayAlignment.Start,
+    matchAnchorWidth: Boolean = false,
+    scrim: ScrimStyle = ScrimStyle.Transparent,
+    anchorTakesPresses: Boolean = false,
+    focusRequester: FocusRequester? = null,
     content: @Composable MenuScope.() -> Unit,
 ) {
     val host = LocalOverlayHost.current
@@ -286,17 +304,24 @@ internal fun AnchoredDropdownMenuImpl(
     // Read here: the entry below is built in an effect, which has no theme.
     val closeLabel = Theme.strings.closeMenu
 
-    val shape = Theme.shapes.container
-    val anchorWidth = anchor?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
+    // **What the open menu draws with is read as it is now**, not as it was
+    // when the menu opened: the entry below is built once, in an effect, and
+    // what it captured stayed — a field that grew under an open list kept a
+    // list its old width, and a new modifier or shape never arrived.
+    val latestModifier by rememberUpdatedState(modifier)
+    val latestShape by rememberUpdatedState(Theme.shapes.container)
 
     // Read live by the overlay's measure pass rather than captured when the
-    // entry was built — see `AnchoredOverlayLayout`.
+    // entry was built — see `AnchoredOverlayLayout` — and never here, in this
+    // composition, beyond whether there is one: the anchor moves on every frame
+    // its page scrolls.
     val latestAnchor by rememberUpdatedState(anchor)
+    val anchored by remember { derivedStateOf { latestAnchor() != null } }
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
-    LaunchedEffect(visible, anchor != null, side, alignment, matchAnchorWidth, scrim, anchorTakesPresses) {
-        if (!visible || anchor == null) {
+    LaunchedEffect(visible, anchored, side, alignment, matchAnchorWidth, scrim, anchorTakesPresses) {
+        if (!visible || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -313,20 +338,29 @@ internal fun AnchoredDropdownMenuImpl(
                 // both: the ring only shows under keyboard modality anyway.
                 trapFocus = true,
                 content = {
+                    // The anchor's width, for a list that matches its field:
+                    // read in the open menu's own composition, so it follows a
+                    // field that changes size while the list is open.
+                    val anchorWidth = if (matchAnchorWidth) {
+                        latestAnchor()?.let { with(density) { it.width.toDp() } } ?: Dp.Unspecified
+                    } else {
+                        Dp.Unspecified
+                    }
                     AnchoredOverlayLayout(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = { latestAnchor() },
                         side = side,
                         alignment = alignment,
                         gap = MenuDefaults.Gap,
                         margin = MenuDefaults.ScreenMargin,
-                        minWidth = if (matchAnchorWidth) anchorWidth else Dp.Unspecified,
+                        minWidth = anchorWidth,
                         minimumPanel = MenuMinimumRoom,
                     ) {
                         MenuPanel(
-                            modifier = modifier,
-                            shape = shape,
+                            modifier = latestModifier,
+                            shape = latestShape,
                             matchAnchorWidth = matchAnchorWidth,
-                            autoFocus = modality == InputModality.Keyboard,
+                            autoFocus = modality == InputModality.Keyboard && !anchorTakesPresses,
+                            focusRequester = focusRequester,
                             onDismissRequest = { dismiss() },
                             content = body,
                         )
@@ -336,7 +370,7 @@ internal fun AnchoredDropdownMenuImpl(
                 // The anchor as it is now, not as it was when the list opened:
                 // a page scrolled under an open list takes its field with it,
                 // and the way through the scrim has to follow.
-                if (anchorTakesPresses) passThrough = { latestAnchor }
+                if (anchorTakesPresses) passThrough = { latestAnchor() }
             }
         )
     }
@@ -348,6 +382,7 @@ private fun MenuPanel(
     shape: Shape,
     matchAnchorWidth: Boolean,
     autoFocus: Boolean,
+    focusRequester: FocusRequester?,
     onDismissRequest: () -> Unit,
     content: @Composable MenuScope.() -> Unit,
 ) {
@@ -359,9 +394,10 @@ private fun MenuPanel(
     // modality the keyboard's — goes back a level rather than dropping them all.
     val levels = remember { MenuLevels() }
     val inPlace = LocalInputModality.current.needsLargeTargets || levels.open.isNotEmpty()
-    val focusRequester = remember { FocusRequester() }
+    val ownRequester = remember { FocusRequester() }
+    val requester = focusRequester ?: ownRequester
     LaunchedEffect(Unit) {
-        if (autoFocus) runCatching { focusRequester.requestFocus() }
+        if (autoFocus) runCatching { requester.requestFocus() }
     }
     val sized = modifier
         .widthIn(
@@ -395,7 +431,7 @@ private fun MenuPanel(
         Layout(
             modifier = Modifier
                 .onGloballyPositioned { levels.root = it }
-                .focusRequester(focusRequester)
+                .focusRequester(requester)
                 .focusGroup()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -1034,10 +1070,10 @@ fun SubMenu(
         }
     }
 
-    WithAnchor({ bounds }) { anchor ->
-        AnchoredDropdownMenu(
+    run {
+        AnchoredDropdownMenuImpl(
             visible = open && enabled,
-            anchor = anchor,
+            anchor = { bounds },
             onDismissRequest = { open = false },
             modifier = Modifier
                 .hoverable(panelInteractions)

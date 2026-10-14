@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -49,6 +51,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -267,6 +270,172 @@ class TopBarOverscrollTest {
         assertEquals(1f, collapse.progress)
         assertTrue(list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0, "the list never scrolled")
         assertEquals(0f, slid())
+    }
+
+    /**
+     * A following hero over [rows] rows, with the collapse on the list only
+     * while [attached] says so — a list swapped out by tabs, an
+     * `AnimatedContent` or a `key` while the state is held above it.
+     */
+    private fun ComposeUiTest.followingDetachable(rows: Int, attached: () -> Boolean) {
+        setContent {
+            Platform {
+                list = rememberLazyListState()
+                collapse = rememberTopBarCollapseState(list)
+                collapse.takesPushes = true
+                Box(Modifier.size(360.dp, 700.dp)) {
+                    LazyColumn(
+                        state = list,
+                        modifier = Modifier.fillMaxSize().then(if (attached()) Modifier.topBarCollapse(collapse) else Modifier),
+                        contentPadding = PaddingValues(top = collapse.openHeight),
+                    ) {
+                        items(rows) { index -> Stripe(index) }
+                    }
+                    TopBar(
+                        modifier = Modifier.testTag("bar"),
+                        style = TopBarStyle.Hero,
+                        image = { Box(Modifier.fillMaxSize().background(Color.Black)) },
+                        collapseState = collapse,
+                        windowInsets = WindowInsets(0),
+                    ) { +"Title" }
+                }
+            }
+        }
+        waitForIdle()
+    }
+
+    /**
+     * The collapse taken off the content in the middle of a push lets go of
+     * it, and forgets the finger.
+     *
+     * What lets go of a push is the finger lifting, which the collapse heard
+     * through its own pointer input — and a modifier taken off hears nothing
+     * more. The push stayed where the finger had left it, the rows held up
+     * under a bar part-way, with nothing to bring them down; and the finger
+     * stayed down as far as the state knew, so the next press was not a press
+     * to it, and the drag before's flags carried over into it.
+     */
+    @Test
+    fun aCollapseTakenOffMidPushLetsGoOfIt() = runComposeUiTest {
+        var attached by mutableStateOf(true)
+        followingDetachable(rows = 8) { attached }
+        push(30)
+        assertTrue(collapse.contentShift < 0f, "the push never reached the bar, so this measured nothing")
+
+        runOnUiThread { attached = false }
+        waitForIdle()
+        // Within a hair of none, not exactly none: a push let go of is `-0f`,
+        // which a `Float`'s `equals` tells from `0f`.
+        assertEquals(0f, collapse.contentShift, 0.01f, "taken off mid-push, the rows stayed up with the bar's foot")
+        assertFalse(collapse.pressed, "taken off mid-push, the state still thinks a finger is down")
+        lift()
+    }
+
+    /**
+     * A bar saved in the middle of a push comes back where the push would have
+     * left it, not where the finger held it.
+     *
+     * The state saved its `progress`, which a push is part of: over a page
+     * that cannot scroll, a bar saved held part-way by the band came back
+     * part-way, over content that has no scroll to finish it with.
+     */
+    @Test
+    fun aBarSavedMidPushIsSavedWithoutThePush() = runComposeUiTest {
+        above(overflow = (-200).dp)
+        push(30)
+        val held = collapse.progress
+        assertTrue(held > 0.2f, "pushed, the bar was at $held, so this measured nothing")
+        val saved = with(TopBarCollapseState.Saver) { SaveAnything.save(collapse) }
+        assertEquals(0f, saved, "saved mid-push over a page that cannot scroll, the bar would come back at $saved")
+        lift()
+    }
+
+    /**
+     * A finger pushed past the end, brought back towards the start and let go
+     * still moving that way: the list flings back with it.
+     *
+     * A fling was spent letting go of the push whenever there was one, the
+     * whole of its velocity, whichever way it went — so a release back towards
+     * the start, with some of the push still held, stopped the list dead where
+     * it was rather than sending it back.
+     */
+    @Test
+    fun aReleaseBackTowardsTheStartFlingsTheListBack() = runComposeUiTest {
+        following(rows = 8)
+        // Pushed further than the other tests push, so that a move back of
+        // 120px still leaves some of the push held when the finger lets go: it
+        // is that remainder the fling used to be spent on.
+        push(40)
+        val scrolled = scrolledPx()
+        assertTrue(scrolled > 0f, "the list never scrolled, so this measured nothing")
+        assertTrue(collapse.contentShift < -60f, "the push was ${collapse.contentShift}px, too little to keep some of")
+
+        // Back down by less than the push, and let go moving down.
+        onRoot().performTouchInput {
+            repeat(4) { moveBy(Offset(0f, 30f)) }
+        }
+        waitForIdle()
+        assertTrue(collapse.contentShift < 0f, "the move back took the whole push, so the release has none to keep")
+        assertEquals(scrolled, scrolledPx(), 0.5f, "the move back scrolled the list before it took back the push")
+        onRoot().performTouchInput { up() }
+        waitForIdle()
+        // Within a hair of none, not exactly none: a push let go of is `-0f`.
+        assertEquals(0f, collapse.contentShift, 0.01f, "let go, the push was still held")
+        assertTrue(
+            scrolledPx() < scrolled / 2,
+            "let go moving back towards the start, the list stayed at ${scrolledPx()}px of $scrolled",
+        )
+    }
+
+    /**
+     * How far the list has scrolled, in pixels: every row is [RowHeight], so
+     * the rows gone past and the offset into the first one say it whole — the
+     * first row goes past before a list of eight has reached its end.
+     */
+    private fun ComposeUiTest.scrolledPx(): Float =
+        list.firstVisibleItemIndex * with(density) { RowHeight.toPx() } + list.firstVisibleItemScrollOffset
+
+    /**
+     * The collapse round a box that holds the bar as well as its list — what
+     * the guidance once said to do — carries the rows up past the list's end,
+     * and not the bar with them.
+     */
+    @Test
+    fun aCollapseRoundTheBarAndTheListLeavesTheBarWhereItIs() = runComposeUiTest {
+        setContent {
+            Platform {
+                list = rememberLazyListState()
+                collapse = rememberTopBarCollapseState(list)
+                collapse.takesPushes = true
+                Box(Modifier.size(360.dp, 700.dp).topBarCollapse(collapse)) {
+                    LazyColumn(
+                        state = list,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = collapse.openHeight),
+                    ) {
+                        items(8) { index -> Stripe(index) }
+                    }
+                    TopBar(
+                        modifier = Modifier.testTag("bar"),
+                        style = TopBarStyle.Hero,
+                        image = { Box(Modifier.fillMaxSize().background(Color.Black)) },
+                        collapseState = collapse,
+                        windowInsets = WindowInsets(0),
+                    ) { +"Title" }
+                }
+            }
+        }
+        waitForIdle()
+        push(30)
+        assertTrue(collapse.contentShift < 0f, "the push never reached the bar, so this measured nothing")
+        near(0.dp, onNodeWithTag("bar").getUnclippedBoundsInRoot().top, "the bar's top, pushed")
+        near(firstRowTop(), barFoot(), "pushed")
+        lift()
+    }
+
+    /** Saves whatever it is asked to: the platform's registry is not what is under test. */
+    private object SaveAnything : SaverScope {
+        override fun canBeSaved(value: Any): Boolean = true
     }
 
     private companion object {

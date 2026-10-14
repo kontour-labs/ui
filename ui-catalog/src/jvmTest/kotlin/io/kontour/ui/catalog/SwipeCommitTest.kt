@@ -16,6 +16,9 @@ import io.kontour.icons.tabler.outline.Trash
 import io.kontour.ui.components.list.ListItem
 import io.kontour.ui.components.list.SwipeAction
 import io.kontour.ui.components.list.SwipeActions
+import io.kontour.ui.components.list.SwipeActionsState
+import io.kontour.ui.components.list.SwipeValue
+import io.kontour.ui.components.list.rememberSwipeActionsState
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -433,6 +436,69 @@ class SwipeCommitTest {
                 "and ${inner}px of the other — it stayed where the swipe left it " +
                 "instead of going back",
         )
+    }
+
+    /**
+     * A row put back by a tap on its way home from a full swipe still commits the next one.
+     *
+     * The return after the action is the row's own slide back, and a tap on the
+     * row while it slides puts it back too — a second slide, which takes over
+     * from the first. The first one ending that way used to end the whole of
+     * what watches for a full swipe: the tick stayed drawn, the row stayed
+     * counted as fully swiped, and every full swipe after it went out to the
+     * edge and ran nothing.
+     *
+     * Motion on, as the test above is: under reduced motion the row arrives
+     * home at once, and there is no slide to interrupt.
+     */
+    @Test
+    fun aFullSwipeInterruptedOnItsWayBackStillLetsTheNextOneRun() {
+        var runs = 0
+        var bounds = Rect.Zero
+        lateinit var state: SwipeActionsState
+
+        Scene(width = Width, height = Height) {
+            state = rememberSwipeActionsState()
+            Box(Modifier.fillMaxSize().background(Color.White)) {
+                SwipeActions(
+                    end = twoActions(OptIn.OuterOnly) { if (it == "Remove") runs++ },
+                    state = state,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(RowHeight.dp)
+                        .reportBounds { bounds = it },
+                ) {
+                    ListItem { +"Perth Underground" }
+                }
+            }
+        }.use { scene ->
+            scene.frames(4)
+            val from = Offset(Width - 20f, bounds.center.y)
+            scene.drag(from = from, to = Offset(20f, from.y), steps = FlickSteps)
+            var waited = 0
+            while (runs == 0 && waited++ < SettleFrames * 2) scene.frame()
+            assertEquals(1, runs, "the first full swipe ran nothing")
+
+            // Partway home, with the row under the middle of the strip and the
+            // action's button clear of it.
+            waited = 0
+            while (onComposeUiThread { state.offset } !in -250f..-20f && waited++ < SettleFrames) scene.frame()
+            val midway = onComposeUiThread { state.offset }
+            assertTrue(midway in -250f..-20f, "the row was never caught on its way back: at $midway px")
+            scene.tap(Offset(Width / 2f, from.y))
+            scene.frames(SettleFrames)
+            assertEquals(0f, onComposeUiThread { state.offset }, 0.5f, "the tap did not put the row back")
+
+            scene.drag(from = from, to = Offset(20f, from.y), steps = FlickSteps)
+            scene.frames(SettleFrames * 2)
+
+            assertEquals(2, runs, "the full swipe after the interrupted return ran nothing")
+            assertEquals(
+                SwipeValue.Resting,
+                onComposeUiThread { state.currentValue },
+                "the second full swipe left the row at the edge",
+            )
+        }
     }
 
     /**

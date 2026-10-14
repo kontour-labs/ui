@@ -97,8 +97,10 @@ object NavBarDefaults {
 
     /**
      * The shortest the row can be: the larger of a circle and the touch target
-     * around it. A first-frame estimate only — [NavigationSuiteScaffold] measures
-     * the real height, which grows with type size and labels.
+     * around it. Not the bar's height, which adds its margins and grows with
+     * type size, labels and the inset under it — [NavigationSuiteScaffold]
+     * measures that, before it lays out its content, and no longer starts from
+     * this as a guess.
      */
     val MinHeight: Dp
         @Composable @ReadOnlyComposable get() = maxOf(Theme.sizing.minTouchTarget, CircleSize.height)

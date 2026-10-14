@@ -845,6 +845,18 @@ class SheetState internal constructor(
     private var pendingDetent: SheetDetent? by mutableStateOf(null)
 
     /**
+     * Whether [pendingDetent] was asked for by [snapTo] rather than [animateTo].
+     *
+     * A snap before the first layout used to be delivered as an animation: the
+     * request waited for anchors like any other, and [deliverPending] animates.
+     * So a screen restoring its sheet with `snapTo(Half)` from a `LaunchedEffect`
+     * — the use [snapTo] is documented for — watched it slide up from the bottom
+     * instead of finding it where it was left. Not state: it is written beside
+     * [pendingDetent] and read only when that is delivered.
+     */
+    private var pendingSnap: Boolean = false
+
+    /**
      * Animates to [detent]. Suspends until it arrives.
      *
      * Under reduced motion it does not travel: opening from hidden, the sheet
@@ -855,6 +867,7 @@ class SheetState internal constructor(
     suspend fun animateTo(detent: SheetDetent) {
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
+            pendingSnap = false
             pendingDetent = detent
             return
         }
@@ -878,6 +891,11 @@ class SheetState internal constructor(
     private suspend fun move(target: SheetDetent) {
         val motion = motion
         if (motion == null || !motion.reduceMotion) {
+            // **Opaque for anything but a close.** A close faded part of the way
+            // under reduced motion and then interrupted — the setting turned off
+            // mid-fade, or the caller reopening — leaves [presence] wherever the
+            // fade had got to, and a slide never touches it.
+            if (target != SheetDetent.Hidden && presence.value != 1f) presence.snapTo(1f)
             anchoredState.animateTo(target)
             return
         }
@@ -893,8 +911,16 @@ class SheetState internal constructor(
                 anchoredState.snapTo(target)
                 presence.animateTo(1f, motion.tweenFast())
             }
-            // Between two open detents: the new height, at once.
-            else -> anchoredState.snapTo(target)
+            // Between two open detents: the new height, at once — and back to
+            // opaque. A sheet reopened during its fade out is still settled where
+            // it was open, because the fade comes before the snap to hidden; it
+            // arrives here with [presence] stopped part of the way down, and
+            // nothing else would ever bring it back. Reported as a sheet and its
+            // scrim left translucent for good.
+            else -> {
+                anchoredState.snapTo(target)
+                if (presence.value != 1f) presence.animateTo(1f, motion.tweenFast())
+            }
         }
     }
 
@@ -902,6 +928,8 @@ class SheetState internal constructor(
     suspend fun snapTo(detent: SheetDetent) {
         if (detent !in allowedDetents) return
         if (!hasAnchors) {
+            // Delivered as a snap: see [pendingSnap].
+            pendingSnap = true
             pendingDetent = detent
             return
         }
@@ -932,7 +960,42 @@ class SheetState internal constructor(
         return anchors.closestAnchor(wanted) ?: detent
     }
 
-    private val hasAnchors: Boolean get() = anchoredState.anchors.size > 0
+    internal val hasAnchors: Boolean get() = anchoredState.anchors.size > 0
+
+    /**
+     * Whether [hide] has anywhere to take the sheet: there are anchors, and
+     * [SheetDetent.Hidden] is among the detents it may rest at.
+     *
+     * Not so for a sheet with no hidden detent at all, nor for one that refuses
+     * it through [confirmDetentChange] once it has settled somewhere else — the
+     * documented way to make a sheet the user must answer. [hide] returns at
+     * once for both, without moving anything, so a caller waiting for it to
+     * arrive has to ask this first or wait for ever.
+     */
+    internal val canHide: Boolean get() = hasAnchors && SheetDetent.Hidden in allowedDetents
+
+    /**
+     * Drops the anchors of a sheet lying hidden, so the next request waits for
+     * fresh ones rather than starting from these.
+     *
+     * For a modal sheet about to be shown again. Closed, it is not composed, so
+     * nothing has told it the window changed size since it last was: its anchors
+     * still put hidden where the bottom of the old window was. Reopened after a
+     * window grew, it slid up from the middle of the screen. With no anchors the
+     * open is held until the sheet has been laid out — as the first open always
+     * is — and goes from the bottom of the window it is actually in.
+     *
+     * Only at rest and hidden: anywhere else the anchors are what is holding the
+     * sheet where it is.
+     */
+    internal fun forgetAnchors() {
+        if (!hasAnchors || isMoving) return
+        if (anchoredState.settledValue != SheetDetent.Hidden || anchoredState.targetValue != SheetDetent.Hidden) return
+        // So the next layout builds them again even if nothing it measures has
+        // changed: an unchanged window is the commonest case of all.
+        anchoredFor = null
+        anchoredState.updateAnchors(DraggableAnchors<SheetDetent> { }, SheetDetent.Hidden)
+    }
 
     /** Animates to the tallest available detent. */
     suspend fun expand() {
@@ -1157,7 +1220,16 @@ class SheetState internal constructor(
         val target = pendingDetent ?: return
         if (!hasAnchors) return
         pendingDetent = null
-        if (target in allowedDetents) move(target)
+        if (target !in allowedDetents) return
+        // Under the name the anchors kept, as [animateTo] and [snapTo] do. The
+        // request was made before there were anchors, so nothing could resolve it
+        // then — and a detent that has since been dropped as a duplicate is
+        // ordinary: `expand()` on a sheet whose only content is its peek anchor
+        // asks for `Expanded`, which the peek got to first. Asked for by its own
+        // name it has no anchor, and the sheet reported itself open with its
+        // offset still at hidden: a modal's scrim over nothing.
+        val anchored = anchoredEquivalent(target)
+        if (pendingSnap) anchoredState.snapTo(anchored) else move(anchored)
     }
 
     /**

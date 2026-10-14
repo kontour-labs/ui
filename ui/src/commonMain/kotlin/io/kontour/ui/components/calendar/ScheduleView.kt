@@ -38,7 +38,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.foundation.Text
 import io.kontour.ui.interaction.pressable
+import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.NameWidth
+import io.kontour.ui.theme.Strings
 import io.kontour.ui.theme.Theme
 import io.kontour.ui.theme.toneColours
 import kotlinx.coroutines.flow.collectLatest
@@ -239,19 +241,19 @@ private fun ScheduleDayRow(scope: CalendarScope, day: ScheduleDay) {
                     modifier = Modifier.padding(vertical = Theme.spacing.xs, horizontal = Theme.spacing.xs),
                 )
             }
-            for (event in day.events) ScheduleEventRow(scope, event)
+            for (event in day.events) ScheduleEventRow(scope, event, day.date)
         }
     }
 }
 
 /**
- * An event in the schedule: its tone's dot, or its icon, its title, and when —
- * "All day" or its times — and where, on the line under. Pressed, it is the
- * calendar's `onEventClick`; held, or clicked with a mouse's other button, its
- * menu; Delete, deleted where it may be.
+ * An event in the schedule, on [day]: its tone's dot, or its icon, its title,
+ * and when — "All day" or its times, see [scheduleTime] — and where, on the
+ * line under. Pressed, it is the calendar's `onEventClick`; held, or clicked
+ * with a mouse's other button, its menu; Delete, deleted where it may be.
  */
 @Composable
-private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent) {
+private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent, day: LocalDate) {
     val colours = toneColours(event.tone)
     val formats = scope.formats
     val strings = scope.strings
@@ -301,10 +303,34 @@ private fun ScheduleEventRow(scope: CalendarScope, event: CalendarEvent) {
         }
         Column(Modifier.weight(1f).clearAndSetSemantics { }) {
             Text(event.title, style = style, colour = colours.onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val time = if (!event.isTimed()) strings.allDay else strings.timeRange(formats.time(event.start.time), formats.time(event.end.time))
+            val time = scheduleTime(event, day, formats, strings)
             val line = formats.list(listOfNotNull(time, event.location), io.kontour.ui.locale.ListStyle.Unit)
             Text(line, style = Theme.typography.labelSmall, colour = colours.onContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/**
+ * When [event] is on [day], for the line under its title in a schedule.
+ *
+ * An all-day event is "All day", and one shorter than a day its times, on each
+ * day it is on. One of a day or more that is not all-day — a conference from
+ * nine on Monday to five on Wednesday — is the part of it on [day]: nine
+ * until midnight on Monday, all of Tuesday, midnight until five on
+ * Wednesday. It was "All day" on all three, though the event has times and a
+ * screen reader, reading `eventDescription`, was told them.
+ */
+internal fun scheduleTime(event: CalendarEvent, day: LocalDate, formats: LocaleFormats, strings: Strings): String {
+    if (event.allDay) return strings.allDay
+    if (event.isTimed()) return strings.timeRange(formats.time(event.start.time), formats.time(event.end.time))
+    val dayStart = day.atMidnight
+    val dayEnd = day.plus(1, DateTimeUnit.DAY).atMidnight
+    val from = maxOf(event.start, dayStart)
+    val to = minOf(event.end, dayEnd)
+    return if (from == dayStart && to == dayEnd) {
+        strings.allDay
+    } else {
+        strings.timeRange(formats.time(from.time), formats.time(to.time))
     }
 }
 

@@ -132,9 +132,10 @@ internal class DragHost {
         if (next.keyboard) {
             // In its own list, at its own place, until a key moves it.
             val home = next.fromList?.target
-            if (home != null && next.fromIndex != null) {
+            val at = next.fromIndex
+            if (home != null && at != null) {
                 next.target = home
-                home.place(next, next.fromIndex)
+                home.place(next, at)
                 for (target in targets) {
                     target.statusState = when {
                         target.type !== next.type -> DropStatus.Idle
@@ -332,7 +333,8 @@ internal class DragSession(
     val label: String,
     val source: SourceHandle,
     val fromList: DropListState<*>?,
-    val fromIndex: Int?,
+    /** Where it was in [fromList] when it was picked up: see [fromIndex]. */
+    private val pickedUpAt: Int?,
     /** The pointer's distance from the source's top left when it was picked up. */
     val grab: Offset,
     val size: IntSize,
@@ -366,6 +368,22 @@ internal class DragSession(
 
     val topLeft: Offset get() = pointer - grab
 
+    /**
+     * Where the carried thing is in [fromList] **now**, found by its key, and
+     * where it was picked up from if the list no longer has it.
+     *
+     * Not fixed at the pick-up. The list it came from can change while it is
+     * carried — a row above it removed, one arriving from the network — and a
+     * drop reporting where it *was* had the documented `removeAt(fromIndex)`
+     * take out the row beside it, and the place it would land counted against
+     * the wrong row being away.
+     */
+    val fromIndex: Int?
+        get() {
+            val at = pickedUpAt ?: return null
+            return fromList?.indexOfPayload(payload) ?: at
+        }
+
     companion object {
         /** A session for a move that is never carried: a screen reader's, straight to its place. */
         fun probe(spec: SourceSpec) = DragSession(
@@ -374,7 +392,7 @@ internal class DragSession(
             label = spec.label,
             source = SourceHandle(),
             fromList = spec.fromList,
-            fromIndex = spec.fromIndex,
+            pickedUpAt = spec.fromIndex,
             grab = Offset.Zero,
             size = IntSize.Zero,
             layer = null,
@@ -637,7 +655,7 @@ internal fun Modifier.pickUpGesture(
                 label = what.label,
                 source = handle,
                 fromList = what.fromList,
-                fromIndex = what.fromIndex,
+                pickedUpAt = what.fromIndex,
                 grab = centre,
                 size = element.size,
                 layer = handle.layer,
@@ -683,7 +701,7 @@ internal fun Modifier.pickUpGesture(
                                 label = what.label,
                                 source = handle,
                                 fromList = what.fromList,
-                                fromIndex = what.fromIndex,
+                                pickedUpAt = what.fromIndex,
                                 grab = pointer - element.positionInRoot(),
                                 size = element.size,
                                 layer = layer,

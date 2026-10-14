@@ -156,6 +156,14 @@ class DropListState<T : Any> internal constructor(
             return if (ours) key(session.payload as T) else null
         }
 
+    /** Where [payload] is among this list's items now, by its key; `null` where it is not. */
+    @Suppress("UNCHECKED_CAST")
+    internal fun indexOfPayload(payload: Any): Int? {
+        val wanted = key(payload as T)
+        val at = items.indexOfFirst { key(it) == wanted }
+        return if (at >= 0) at else null
+    }
+
     /** Its items' keys, in order: what a drop waits to see change. */
     internal fun keys(): List<Any> = items.map(key)
 

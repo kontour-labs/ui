@@ -126,6 +126,30 @@ class SquirclePathCacheTest {
         assertTrue(capsule is Outline.Generic, "a capsule lost the smoothing along its long edges: $capsule")
     }
 
+    /**
+     * A smoothing below nought is a curve as well, and is drawn as one.
+     *
+     * The rounded-rectangle shortcut asked whether the smoothing was *above*
+     * nought, and the path asks whether it is anything but nought — so a negative
+     * one, which the path draws as an arc reaching past the quarter, was handed
+     * out as a plain rounded rectangle instead, and the shape's clip, fill and
+     * shadow disagreed with the shape.
+     */
+    @Test
+    fun aNegativeSmoothingIsStillACurve() {
+        val shape = SquircleShape(20.dp, smoothing = -0.3f)
+        val roomy = shape.createOutline(Size(200f, 80f), LayoutDirection.Ltr, density)
+        assertTrue(
+            roomy is Outline.Generic,
+            "a squircle smoothed by -0.3 came back as $roomy: the shortcut read a negative " +
+                "smoothing as none, and the path it stood in for does not",
+        )
+        // Saturated too: the arc's own sides are what a negative smoothing bends,
+        // so not even a circle is a rounded rectangle with one.
+        val circle = SquircleShape(50.dp, smoothing = -0.3f).createOutline(Size(40f, 40f), LayoutDirection.Ltr, density)
+        assertTrue(circle is Outline.Generic, "a circle smoothed by -0.3 came back as $circle")
+    }
+
     @Test
     fun aResizeStillGetsTheRightPath() {
         val shape = SquircleShape(20.dp)

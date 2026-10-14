@@ -27,8 +27,10 @@ from [`LocaleFormats`](locale-formats.md) as the time picker's does.
 
 **Now** is under the wheels, as on the time picker: the wheels scroll to the
 time now, and the day becomes today, the calendar paging to it, or tomorrow
-when the time rounds past midnight. `now` reads the clock,
-`DateTimePickerDefaults.currentDateTime()` by default; `null` hides it.
+when the time rounds past midnight. Where `isDateSelectable` refuses tomorrow,
+the wheels stop at the last step of today instead — 23:55 by fives. `now`
+reads the clock, `DateTimePickerDefaults.currentDateTime()` by default; `null`
+hides it.
 
 **Each change, and then the settled one.** `onValueChange` hears every change:
 a day tapped, and each row a wheel turns past. `onValueChangeFinished` hears a

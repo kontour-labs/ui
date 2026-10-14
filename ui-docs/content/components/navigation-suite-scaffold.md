@@ -49,7 +49,15 @@ your content the padding to inset by — and to anything inside it, a page a
 navigation host shows, through `navigationSuitePadding()`. With Navigation 3,
 [`rememberNavigationSuiteSceneStrategy`](../navigation3.md#pages-inside-the-nav-bar-and-pages-over-it)
 puts the scaffold round one back stack, with pages over it as well. A rail sits beside the content and hands it
-none.
+none. The bar is measured before the content is laid out, so the padding is the
+bar's real height from the first frame — margins, labels, type size and the inset
+under it — and not a guess that the content then jumps clear of.
+
+**The content is the same composable whichever surface it is beside.** A phone
+turned on its side, a foldable opened or a window dragged past 600dp swaps the
+bar for a rail, and the screen inside carries on: what it remembers, its saved
+state and its scroll position are all still there. Only the navigation is
+rebuilt.
 
 ### The modal rail
 

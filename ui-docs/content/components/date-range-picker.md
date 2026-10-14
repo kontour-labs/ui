@@ -115,7 +115,10 @@ Everything on [`DatePicker`](date-picker.md) applies to the grid.
 
 The range is the addition, and it is announced through each day's own state
 rather than as a separate summary — so a user reviewing the selection hears it by
-moving across the days. Where the range matters as a whole, put it in the prose
+moving across the days. After its date, the first day says
+`Theme.strings.rangeStart`, a day inside says `inRange`, and the last says
+`rangeEnd`: "Range start", "In range", "Range end" in English. A start with no
+end yet, or a range of one day, says it is the start. Where the range matters as a whole, put it in the prose
 beside the picker: "18 to 22 June" as `Text` is more use than a fourteenth
 announcement inside the grid.
 

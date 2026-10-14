@@ -230,8 +230,8 @@ fun WheelPickerBasics() {
 
 @Composable
 fun RelativeTimeTextBasics() {
-    // A duration, not an instant: the caller owns the clock, so this is
-    // testable without freezing time and does not need a time source of its own.
+    // A duration from now, not an instant: it reads the clock from there on,
+    // so it stays right however long the app was away.
     RelativeTimeText(until = 4.minutes)
 }
 

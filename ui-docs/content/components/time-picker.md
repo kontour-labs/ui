@@ -18,7 +18,9 @@ where the locale writes it there, as Korean and Japanese do — which is a
 what sits between the hour and the minute (`.` in Finnish), and the digits.
 
 `onValueChange` follows every row a wheel passes; `onValueChangeFinished` comes
-once a wheel has come to rest, which is where a save or a request belongs.
+once a wheel has come to rest, which is where a save or a request belongs. A
+`value` between two of `minuteStep`'s rows is put on the row before it, in the
+same hour, and reported: 9:58 by fives opens on 9:55.
 
 **Now, under the wheels.** A small button that scrolls the wheels to the time
 now, rounded to the nearest `minuteStep`. They turn through the rows to get

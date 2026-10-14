@@ -95,7 +95,16 @@ import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.modifier.ModifierLocalMap
+import androidx.compose.ui.modifier.ModifierLocalModifierNode
+import androidx.compose.ui.modifier.modifierLocalMapOf
+import androidx.compose.ui.modifier.modifierLocalOf
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
@@ -279,7 +288,17 @@ fun TopBar(
     val fades = fadeUnder && !highContrast()
     val density = LocalDensity.current
     // How tall it is open, for content that scrolls under it to pad its top by.
-    val sized = if (collapseState != null) modifier.onSizeChanged { collapseState.laidOut(it.height, density) } else modifier
+    val sized = if (collapseState != null) {
+        // Still, under a push, inside its own collapse's holder — and first,
+        // ahead of the caller's modifier, so what the caller put on the bar
+        // stays with it: a tag, a background, a press. Behind it, the bar was
+        // put back down inside a box of the caller's that went on up.
+        BarStaysElement(collapseState)
+            .then(modifier)
+            .onSizeChanged { collapseState.laidOut(it.height, density) }
+    } else {
+        modifier
+    }
     val outer = if (fades) sized.fadedGround(containerColour) else sized
     // Fading, the bar's ground is the fade's own, drawn behind the surface;
     // a solid one would hide the fade inside the bar.
@@ -993,11 +1012,14 @@ private fun LargeBar(
             // baseline, and the first line's descenders down to about a
             // quarter below. A third of the size under the first baseline is
             // clear of both.
-            cut.y = if (big != null && big.height > large.lineHeight.toPx() * 1.5f) {
+            // Held here as well, and read from here below, so this layout does
+            // not read back what it has just written and lay out again for it.
+            val cutY = if (big != null && big.height > large.lineHeight.toPx() * 1.5f) {
                 bigBaseline + large.fontSize.toPx() / 3f
             } else {
                 0f
             }
+            cut.y = cutY
             val fromBaseline = textTop + bigBaseline
             // Rounded as `CentredBar` rounds it, so it lands on the Small bar's pixel.
             val stackTop = Alignment.CenterVertically.align(stack, collapsed)
@@ -1031,7 +1053,7 @@ private fun LargeBar(
             // onto the small subtitle's place, which is under the small title.
             fun shown(gone: Float): Float {
                 val whole = (big?.height ?: 0).toFloat()
-                return if (cut.y > 0f) whole + (cut.y - whole) * gone else whole
+                return if (cutY > 0f) whole + (cutY - whole) * gone else whole
             }
             val underTitle = baseline - bigBaseline * scale + shown(secondLineGone(p)) * scale
             val underTitleCollapsed = toBaseline - bigBaseline * ratio + shown(1f) * ratio
@@ -1081,9 +1103,18 @@ private const val SecondLineGoneBy = 0.6f
 private fun secondLineGone(progress: Float): Float =
     ((progress - SecondLineFrom) / (SecondLineGoneBy - SecondLineFrom)).coerceIn(0f, 1f)
 
-/** Where a large title's first line ends, in its own pixels; 0 for a title of one line. */
+/**
+ * Where a large title's first line ends, in its own pixels; 0 for a title of one
+ * line.
+ *
+ * State, written in layout and read by the title's layer: whether the title
+ * draws into a buffer of its own depends on it, and a layer only runs its block
+ * again for state it read. A plain field leaves the layer to whatever else last
+ * ran it, and the cut that fades the second line removes what is under it — the
+ * bar, without the buffer.
+ */
 private class LineCut {
-    var y: Float = 0f
+    var y: Float by mutableFloatStateOf(0f)
 }
 
 /**
@@ -1188,6 +1219,26 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
     /** Whether the content has scrolled any of the present drag towards its end. */
     private var contentTook: Boolean = false
 
+    /**
+     * Whether the content was at its start when last seen: it left a scroll
+     * towards its start for the bar, and has not moved since. Content that is
+     * at its start *and* will not move towards its end cannot scroll at all;
+     * content only at its end is a list that scrolls, left there.
+     *
+     * Kept across drags, because one drag sees one end. It was decided from
+     * the drag alone — the content took none of it, so it could not scroll — and
+     * a list at its end under an open bar, left there by a release that opened
+     * the bar over a list scrolled some way, was taken for a page that cannot
+     * scroll: the bar folded through the band and opened again, and on iOS
+     * would not collapse until the finger had dragged the other way first.
+     *
+     * Content never seen is taken to be at its start, as content on a screen
+     * just opened is. A list put at its end by the app, before any scroll, is
+     * still taken for still on the first push — nothing the scroll says before
+     * then tells the two apart.
+     */
+    private var contentAtStart: Boolean = true
+
     /** The bar's own collapse when the present drag began. */
     private var ownAtPress: Float = 0f
 
@@ -1260,16 +1311,32 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         // Content that scrolled some of this drag and has reached its end with
         // the bar still collapsing: the push carries the collapse on.
         if (contentTook) return own < 1f
-        // Content that has scrolled none of it — it cannot scroll — under a bar
-        // that was not collapsed when the drag began. A long list pushed at its
-        // foot under a bar collapsed before the drag is the platform's.
+        // Content that has scrolled none of it under a bar that was not
+        // collapsed when the drag began. A long list pushed at its foot under a
+        // bar collapsed before the drag is the platform's.
         if (ownAtPress >= 1f) return false
+        // At its end but not at its start: content that scrolls, and the push
+        // carries the collapse on, as over content that scrolled this drag.
+        if (!contentAtStart) return own < 1f
+        // At both: it cannot scroll.
         overStill = true
         return true
     }
 
     /** A push being let go of, or a bar over content that cannot move opening again. */
     private var finishing: Job? = null
+
+    /**
+     * Where what the state finishes on its own runs: the composition the state
+     * was remembered in, given by [withMotion].
+     *
+     * Not the scope of whichever heard the finger lift. That was
+     * [topBarCollapse]'s pointer input, which ends when the modifier comes off
+     * the content — a list swapped by tabs, an `AnimatedContent` or a `key`,
+     * under a state held above it — and took the release with it, part-way: a
+     * push left held with nothing to bring it back, a bar left part-way open.
+     */
+    internal var scope: CoroutineScope? = null
 
     /**
      * Lets go of a push, in [scope], when the finger lifts: the content and the
@@ -1279,6 +1346,9 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
      * let go of, or nothing to wait for.
      */
     internal fun letGo(scope: CoroutineScope): Job? {
+        // In the state's own scope where it has one, so a release outlasts the
+        // modifier that heard it: see [scope].
+        val into = this.scope ?: scope
         if (finishing?.isActive == true) return finishing
         val opening = overStill && follows == null
         overStill = false
@@ -1292,7 +1362,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         }
         if (push <= 0f && !opening) return null
         settling?.cancel()
-        val job = scope.launch {
+        val job = into.launch {
             if (opening) {
                 // From wherever the push left it, so it does not jump.
                 own = progress
@@ -1305,6 +1375,40 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         finishing = job
         return job
     }
+
+    /**
+     * [topBarCollapse] has come off the content: whatever it was hearing has
+     * ended without telling it. A finger it saw go down is taken as lifted, so
+     * the next press is a press and starts a drag of its own, and a push it was
+     * holding is let go of as a lift would.
+     */
+    internal fun detached() {
+        if (!pressed) return
+        pressedChanged(false)
+        val owner = scope
+        if (owner != null) {
+            letGo(owner)
+        } else {
+            // Nowhere to animate it: where letting go would have left it, at once.
+            if (overStill && follows == null) own = 0f else if (follows == null) own = progress
+            overStill = false
+            push = 0f
+        }
+    }
+
+    /**
+     * Where the bar rests once whatever a finger is doing has finished, to save:
+     * without a push, which a restored bar would have no finger to let go of —
+     * over a page that cannot scroll, it came back part-way with nothing to open
+     * it — and open over content that cannot move, which is where letting go
+     * takes it.
+     */
+    private val resting: Float
+        get() = when {
+            follows != null -> progress
+            overStill -> 0f
+            else -> own
+        }
 
     /**
      * How much shorter the bar is collapsed than open, in pixels, as it last
@@ -1394,6 +1498,13 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
                 contentTook = true
                 overStill = false
             }
+            // Where the content is, for a push at its end to go by: at its start
+            // when it leaves a scroll towards the start, and not once it moves.
+            if (available.y > 0f) {
+                contentAtStart = true
+            } else if (consumed.y != 0f) {
+                contentAtStart = false
+            }
             // Towards the end, past what the content could take: the bar's push,
             // where the platform's overscroll would otherwise slide the content
             // up under the bar.
@@ -1413,9 +1524,16 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         }
 
         override suspend fun onPreFling(available: Velocity): Velocity {
-            // A push is let go of before anything flings: the content has
-            // nowhere to fling to, and the platform's overscroll, which was
-            // handed none of the push, has nothing to spring back.
+            // Let go moving back towards the start, with some of a push still
+            // held: the content flings, and the fling's first pixels take back
+            // what is left of the push before they scroll anything, as a drag's
+            // do — see `onPreScroll` — and `onPostFling` lets go of whatever the
+            // fling did not. A fling spent letting go of the push, whichever way
+            // it went, stopped the list dead where it was.
+            if (available.y > 0f) return Velocity.Zero
+            // Towards the end, a push is let go of before anything flings: the
+            // content has nowhere to fling to, and the platform's overscroll,
+            // which was handed none of the push, has nothing to spring back.
             var spent = false
             coroutineScope {
                 val job = letGo(this)
@@ -1428,6 +1546,8 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
         }
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+            // What a fling back towards the start left of a push.
+            if (push > 0f && !pressed) coroutineScope { letGo(this)?.join() }
             if (follows != null || travel <= 0f || progress <= 0f || progress >= 1f) return Velocity.Zero
             // The way the finger was going when it let go, if it was going
             // anywhere: the scroll's whole velocity, what the list spent of it
@@ -1464,6 +1584,9 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
      */
     internal fun finishForWheel(target: Float, scope: CoroutineScope): Boolean {
         if (travel <= 0f || follows != null) return false
+        // In the state's own scope where it has one, so a wheel's finish
+        // outlasts the modifier that heard the notch: see [scope].
+        val into = this.scope ?: scope
         finishing?.cancel()
         if (settling?.isActive == true) {
             if (settlingTo == target) return true
@@ -1472,7 +1595,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
             return false
         }
         settlingTo = target
-        settling = scope.launch {
+        settling = into.launch {
             animate(progress, target, animationSpec = settle) { value, _ -> own = landed(value) }
         }
         return true
@@ -1515,7 +1638,7 @@ class TopBarCollapseState internal constructor(initialProgress: Float) {
 
     internal companion object {
         val Saver: Saver<TopBarCollapseState, Float> = Saver(
-            save = { it.progress },
+            save = { it.resting },
             restore = { TopBarCollapseState(it) },
         )
     }
@@ -1552,6 +1675,7 @@ private fun TopBarCollapseState.withMotion(): TopBarCollapseState {
     val motion = Theme.motion
     settle = if (motion.reduceMotion) snap() else motion.springOrTween(motion.springSnappy)
     flingThreshold = with(LocalDensity.current) { FinishFling.toPx() }
+    scope = rememberCoroutineScope()
     return this
 }
 
@@ -1651,9 +1775,12 @@ fun rememberTopBarCollapseState(
  * Put it on something that holds the scrolling content: the column or
  * [io.kontour.ui.adaptive.Scaffold] the bar and the list share, or the list
  * itself. For a state that follows a list — see [rememberTopBarCollapseState]'s
- * overloads — put it on the list itself, never round the bar: on iOS it is what
- * carries the list up with the bar's foot when a push goes past the list's end,
- * and round the bar it would carry the bar up too.
+ * overloads — put it on the list itself: on iOS it is what carries the list up
+ * with the bar's foot when a push goes past the list's end. Round a box holding
+ * the bar as well it moves the bar too, and the bar, finding itself inside its
+ * own collapse, places itself back down by as much — which works, and is a
+ * layout of the whole box on every frame of a push that the list alone does
+ * not need.
  *
  * It is `Modifier.nestedScroll` with the state's
  * [TopBarCollapseState.nestedScrollConnection], and two things more. One is for
@@ -1671,6 +1798,9 @@ fun rememberTopBarCollapseState(
  */
 fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
     nestedScroll(state.nestedScrollConnection)
+        // Tells a bar inside this — round the bar and its list both — that the
+        // shift below moves it too, so it can stay where it is.
+        .then(CollapseHolderElement(state))
         // A following bar's push carries the content up with the bar's foot:
         // the whole content, as the platform's band would have, but by as much
         // as the bar went.
@@ -1682,18 +1812,25 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
             }
         }
         .pointerInput(state) {
-            coroutineScope {
-                awaitPointerEventScope {
-                    while (true) {
-                        // Before the content sees it, and not consumed: whether a
-                        // finger is down, and the moment the last one lifts.
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val down = event.changes.any { it.pressed }
-                        if (down == state.pressed) continue
-                        state.pressedChanged(down)
-                        if (!down) state.letGo(this@coroutineScope)
+            try {
+                coroutineScope {
+                    awaitPointerEventScope {
+                        while (true) {
+                            // Before the content sees it, and not consumed:
+                            // whether a finger is down, and the moment the last
+                            // one lifts.
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val down = event.changes.any { it.pressed }
+                            if (down == state.pressed) continue
+                            state.pressedChanged(down)
+                            if (!down) state.letGo(this@coroutineScope)
+                        }
                     }
                 }
+            } finally {
+                // Off the content, or started again for another state, with a
+                // finger perhaps still down: no lift is coming here now.
+                state.detached()
             }
         }
         .pointerInput(state) {
@@ -1714,6 +1851,49 @@ fun Modifier.topBarCollapse(state: TopBarCollapseState): Modifier =
                 }
             }
         }
+
+/** The collapse whose [topBarCollapse] a node is inside, for a bar to tell whether it is inside its own. */
+private val ModifierLocalTopBarCollapse = modifierLocalOf<TopBarCollapseState?> { null }
+
+/** Provides [ModifierLocalTopBarCollapse] to what [topBarCollapse] holds. */
+private data class CollapseHolderElement(val state: TopBarCollapseState) : ModifierNodeElement<CollapseHolderNode>() {
+    override fun create(): CollapseHolderNode = CollapseHolderNode(state)
+    override fun update(node: CollapseHolderNode) = node.update(state)
+}
+
+private class CollapseHolderNode(state: TopBarCollapseState) : Modifier.Node(), ModifierLocalModifierNode {
+    override val providedValues: ModifierLocalMap = modifierLocalMapOf(ModifierLocalTopBarCollapse to state)
+
+    fun update(state: TopBarCollapseState) = provide(ModifierLocalTopBarCollapse, state)
+}
+
+/**
+ * Keeps a bar where it is when the [topBarCollapse] its push moves is round
+ * the bar as well as its list.
+ *
+ * A following bar's push carries the content up with the bar's foot, by moving
+ * whatever [topBarCollapse] is on — the list, as its KDoc says. Round a box
+ * holding the bar and the list both, which is where the guidance put it before
+ * there was a push to carry, it carried the bar up too. Inside its own
+ * collapse's holder, the bar is placed back down by as much, so the list goes
+ * up and the bar stays.
+ */
+private data class BarStaysElement(val state: TopBarCollapseState) : ModifierNodeElement<BarStaysNode>() {
+    override fun create(): BarStaysNode = BarStaysNode(state)
+    override fun update(node: BarStaysNode) {
+        node.state = state
+    }
+}
+
+private class BarStaysNode(var state: TopBarCollapseState) : Modifier.Node(), LayoutModifierNode, ModifierLocalModifierNode {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        val inside = ModifierLocalTopBarCollapse.current === state
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, if (inside) -state.contentShift.roundToInt() else 0)
+        }
+    }
+}
 
 /**
  * A bar's leading navigation: [navigation] if there is one, otherwise a back
@@ -1758,12 +1938,25 @@ private fun TitleLines(slots: ListItemScope, large: Boolean = false) {
 }
 
 /**
- * How far a [TopBarStyle.Large] bar has collapsed, given a scroll position.
+ * How far a [TopBarStyle.Large] bar has collapsed, given how far the content
+ * has scrolled and how far it takes to collapse: 0 open, 1 collapsed.
+ *
+ * For a `collapseProgress` worked out from something other than a list —
+ * a pager's offset, a value of the app's own. To collapse a bar with a list,
+ * hand it a [rememberTopBarCollapseState] instead, which follows the list where
+ * the bar lays out and recomposes nothing as it scrolls:
  *
  * ```kotlin
- * val listState = rememberLazyListState()
- * TopBar(style = TopBarStyle.Large, collapseProgress = collapseProgress(listState)) { +stop.name }
- * LazyColumn(state = listState) { … }
+ * val list = rememberLazyListState()
+ * val collapse = rememberTopBarCollapseState(list)
+ * Box {
+ *     LazyColumn(
+ *         state = list,
+ *         modifier = Modifier.topBarCollapse(collapse),
+ *         contentPadding = PaddingValues(top = collapse.openHeight),
+ *     ) { … }
+ *     TopBar(style = TopBarStyle.Large, collapseState = collapse) { +stop.name }
+ * }
  * ```
  *
  * Pure, and tested, because the failure is a bar that never quite finishes
@@ -1773,7 +1966,18 @@ private fun TitleLines(slots: ListItemScope, large: Boolean = false) {
 fun collapseProgress(scrolled: Float, distance: Float): Float =
     if (distance <= 0f) 0f else (scrolled / distance).coerceIn(0f, 1f)
 
-/** [collapseProgress] for a lazy list, using the first item's scroll offset. */
+/**
+ * [collapseProgress] for a lazy list, using the first item's scroll offset.
+ *
+ * **Read in composition, so whatever calls it recomposes on every frame of the
+ * scroll.** Called in a screen's body, as the obvious place to call it, that is
+ * the whole screen, sixty times a second, for a number only the bar draws with.
+ * [rememberTopBarCollapseState] with the list is the same collapse, read where
+ * the bar lays out — see the other `collapseProgress` for how it is wired.
+ *
+ * Use this one only where the progress has to be a number in composition, and
+ * call it as low in the tree as it can go.
+ */
 @Composable
 fun collapseProgress(
     state: LazyListState,

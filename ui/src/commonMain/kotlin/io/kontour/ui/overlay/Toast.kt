@@ -309,10 +309,32 @@ class ToastHostState {
      */
     internal var lastExpiry: TimeSource.Monotonic.ValueTimeMark? = null
 
-    /** Starts [id] on its way out. It leaves the list once it has animated away. */
+    /**
+     * Starts [id] on its way out. It leaves the list once it has animated away.
+     *
+     * The app's way out, and it buys the others no time: only a toast the
+     * reader sends away — a swipe, the close control, the action — tops the rest
+     * up by [ToastDefaults.ClearedGrace]. This used to as well, so a toast the
+     * app took down when its work finished — a pinned "Saving…" — topped up
+     * every toast behind it as though the reader had cleared it to get at them.
+     */
     fun dismiss(id: Long) {
-        clears++
         expire(id)
+    }
+
+    /**
+     * [dismiss], by the reader's own hand — a swipe, the close control, the
+     * action — which is how they work through the stack to reach a toast further
+     * down. That buys the others [ToastDefaults.ClearedGrace], so the reaching
+     * does not cost them the toast they were reaching for.
+     *
+     * Only for a toast still on its way in or showing: a second swipe of one
+     * already leaving, or an id the stack has never held, clears nothing.
+     */
+    internal fun dismissByHand(id: Long) {
+        val toast = toasts.firstOrNull { it.id == id && it.presence.targetState } ?: return
+        clears++
+        toast.presence.targetState = false
     }
 
     /**
@@ -321,8 +343,8 @@ class ToastHostState {
      * The difference matters: a toast that runs out of time is the stack working
      * as intended, and a toast the user swiped away is the user working through
      * the stack. Only the second buys the others more time, and routing both
-     * through [dismiss] would have every expiry extend every other toast — a
-     * stack that never empties.
+     * through [dismissByHand] would have every expiry extend every other toast —
+     * a stack that never empties.
      */
     internal fun expire(id: Long) {
         toasts.firstOrNull { it.id == id }?.presence?.targetState = false
@@ -1545,7 +1567,7 @@ private fun ToastCard(
                                     // snapping back once it has.
                                     toast.leftFrom = swipe()
                                     toast.swipedAway = true
-                                    state.dismiss(toast.id)
+                                    state.dismissByHand(toast.id)
                                 }
                                 // Sprung, not snapped, either way. Letting go
                                 // below the threshold used to put the card back
@@ -1637,9 +1659,9 @@ private fun ToastCard(
                 ,
             onAction = {
                 toast.onAction?.invoke()
-                state.dismiss(toast.id)
+                state.dismissByHand(toast.id)
             },
-            onClose = { state.dismiss(toast.id) },
+            onClose = { state.dismissByHand(toast.id) },
         )
     }
 }

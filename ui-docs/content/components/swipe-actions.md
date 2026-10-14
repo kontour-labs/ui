@@ -236,7 +236,8 @@ full-height buttons back.
 
 Every action is exposed as a `CustomAccessibilityAction` on the row, so a swipe
 is never the only way to reach one. That is the rule the component was built
-around, and it is the one most often broken by rolling your own.
+around, and it is the one most often broken by rolling your own. A row with
+`enabled = false` offers none of them, as it offers no swipe.
 
 `label` is what that action announces, and it is also the visible label — one
 string, so the two cannot disagree. That matters more than it sounds: split into

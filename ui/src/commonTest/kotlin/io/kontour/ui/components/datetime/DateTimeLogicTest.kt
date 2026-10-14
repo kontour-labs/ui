@@ -10,8 +10,10 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -99,6 +101,23 @@ class RelativeTimeFormatTest {
     fun pastTimesReadAsAgo() {
         assertEquals("2 min ago", formatRelative((-2).minutes, threshold))
         assertEquals("1 hr ago", formatRelative((-1).hours, threshold))
+    }
+
+    /** The countdown sleeps until the text changes, and the text has changed when it wakes. */
+    @Test
+    fun theNextChangeIsWhereTheTextChanges() {
+        val cases = listOf(
+            105.seconds, 2.minutes, 61.minutes, 25.hours, 45.seconds, 10.seconds, (-10).seconds,
+            (-45).seconds, (-90).seconds, (-59).minutes, (-3).hours,
+        )
+        for (remaining in cases) {
+            val next = untilNextChange(remaining, threshold)
+            val before = formatRelative(remaining - next + 1.milliseconds, threshold)
+            val after = formatRelative(remaining - next, threshold)
+            assertEquals(formatRelative(remaining, threshold), before, "the text changed before $next from $remaining")
+            assertNotEquals(before, after, "the text had not changed $next from $remaining")
+        }
+        assertEquals(75.seconds + 1.milliseconds, untilNextChange(105.seconds, threshold))
     }
 }
 

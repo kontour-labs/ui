@@ -485,9 +485,18 @@ internal class EventEdit(
         return if (!onAny || core.contains(root)) near.also { overDay = it } else current
     }
 
-    /** Takes [event] up from the keyboard: moved by keys rather than by a pointer. */
-    fun beginKeyboard(event: CalendarEvent) {
-        begin(EditKind.Move, event, event.start, event.end, byDays = false)
+    /**
+     * Takes [event] up from the keyboard: moved by keys rather than by a
+     * pointer — by whole days, [byDays], where it is a month's line or a bar,
+     * as a pointer carries those.
+     *
+     * Always through the hours, it was: a bar or a line taken up had no copy
+     * where it would land in the month or the all-day strip, a day's worth of
+     * one over the hours instead, and up and down — which by days have no step
+     * to move by — moved its time.
+     */
+    fun beginKeyboard(event: CalendarEvent, byDays: Boolean) {
+        begin(EditKind.Move, event, event.start, event.end, byDays = byDays)
     }
 
     /**

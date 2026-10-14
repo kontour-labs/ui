@@ -594,11 +594,19 @@ internal fun AnchoredOverlayLayout(
     // Origin is the anchor, so the panel and its arrow grow out of the control
     // they belong to rather than out of their own middle. Written during measure
     // and read at draw, which is the right order within a frame.
-    var origin by remember { mutableStateOf(TransformOrigin.Center) }
+    //
+    // **Read by the layer, not by composition.** It was handed to
+    // `overlayAppearance` as a value, which read it here: every measure that
+    // moved it — every frame an open overlay's anchor scrolled — recomposed this
+    // layout, and the layer it built carried the origin from the frame before.
+    // As a lambda it is read in the layer block, which is redrawn rather than
+    // recomposed and reads the origin this frame's measure wrote.
+    val origin = remember { mutableStateOf(TransformOrigin.Center) }
+    val originNow = remember { { origin.value } }
 
     Layout(
         modifier = modifier
-            .overlayAppearance(LocalOverlayProgress.current, fromScale, origin)
+            .overlayAppearance(LocalOverlayProgress.current, fromScale, originNow)
             .drawWithContent {
                 drawContent()
                 val path = geometry.path
@@ -719,7 +727,7 @@ internal fun AnchoredOverlayLayout(
 
         val width = container.width.orContent(contentSize.width).coerceAtLeast(1)
         val height = container.height.orContent(contentSize.height).coerceAtLeast(1)
-        origin = TransformOrigin(
+        origin.value = TransformOrigin(
             pivotFractionX = (anchorInHost.center.x / width).coerceIn(0f, 1f),
             pivotFractionY = (anchorInHost.center.y / height).coerceIn(0f, 1f),
         )

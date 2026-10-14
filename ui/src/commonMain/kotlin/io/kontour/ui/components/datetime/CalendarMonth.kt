@@ -621,6 +621,7 @@ private fun DayCell(
 ) {
     val tap = rememberTapFeedback()
     val colours = Theme.colours
+    val strings = Theme.strings
     // The day's own colour, under a selection unless it is kept.
     val containerColour = decoration?.containerColour?.takeIf { it.isSpecified }
     val keep = decoration?.keepColours == true
@@ -934,9 +935,21 @@ private fun DayCell(
                 // and carries the state with the action.
                 .semantics {
                     val day = formats.date(date, DateStyle.Full)
-                    // The decoration after the date, as it is read on screen.
+                    // Where the day is in a range, after the date: only the
+                    // ends are selected, so a day inside the band said nothing
+                    // a screen reader could hear of being in it, and an end
+                    // was not told from the other. A lone start — the range
+                    // half chosen, or a range of one day — is its start.
+                    val place = when (rangePosition) {
+                        RangePosition.Start, RangePosition.StartAndEnd -> strings.rangeStart
+                        RangePosition.Middle -> strings.inRange
+                        RangePosition.End -> strings.rangeEnd
+                        RangePosition.None -> null
+                    }
+                    // The decoration after that, as it is read on screen.
                     val said = decoration?.let { it.contentDescription ?: it.text }
-                    stateDescription = if (said == null) day else formats.list(listOf(day, said), ListStyle.Unit)
+                    val parts = listOfNotNull(day, place, said)
+                    stateDescription = if (parts.size == 1) day else formats.list(parts, ListStyle.Unit)
                 }
                 .pointerCursor(enabled = enabled)
                 .selectable(

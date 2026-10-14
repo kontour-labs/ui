@@ -1,9 +1,7 @@
 package io.kontour.ui.nav
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,18 +13,18 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.adaptive.LocalWindowSizeClass
+import io.kontour.ui.adaptive.ScaffoldPadding
 import io.kontour.ui.adaptive.WindowWidthClass
 import io.kontour.ui.adaptive.bottomEdges
 import io.kontour.ui.adaptive.leadingEdges
@@ -179,84 +177,191 @@ fun NavigationSuiteScaffold(
     action: (@Composable () -> Unit)? = null,
     content: @Composable (contentPadding: PaddingValues) -> Unit,
 ) {
+    // **The content is one composable, whichever surface the window has.** It
+    // was called from a different branch for each — inside a `Box` beside the
+    // bar, a `Row` beside the rail — and a composable that changes branch is a
+    // new one, so a window crossing a breakpoint started the whole screen again:
+    // a phone turned on its side, a foldable opened, a desktop window dragged
+    // past 600dp, and everything the screen remembered, saved state and scroll
+    // positions included, was gone. Here the content and the navigation are two
+    // slots of one layout, and only the navigation's changes with the surface.
+    //
+    // **The bar is measured before the content, and its height handed over in
+    // the same pass.** It was measured after, from a first frame laid out
+    // against an estimate — the shortest a bar can be, 44 or 48dp, where a
+    // floating bar with its margins is half as tall again and more over an
+    // iPhone's home indicator — so anything anchored to the content's foot drew
+    // under the bar for a frame and then jumped clear of it. Content composed
+    // after the bar is measured reads the real height even in composition, and
+    // the padding is one object written in measure, as `Scaffold`'s is, so the
+    // bar changing height re-measures a list rather than recomposing the screen.
+    val padding = remember { ScaffoldPadding() }
+    val currentContent by rememberUpdatedState(content)
+    val contentSlot: @Composable () -> Unit = remember(padding) {
+        {
+            CompositionLocalProvider(LocalNavigationSuitePadding provides padding) { currentContent(padding) }
+        }
+    }
+    val navigation: @Composable () -> Unit = {
+        NavigationSurface(
+            type = type,
+            state = state,
+            barStyle = barStyle,
+            barShape = barShape,
+            barItemWidth = barItemWidth,
+            barMarker = barMarker,
+            barMarkerDrag = barMarkerDrag,
+            barFadeUnder = barFadeUnder,
+            showLabels = showLabels,
+            railExpandable = railExpandable,
+            railExpandedWidth = railExpandedWidth,
+            colours = colours,
+            searchIndex = searchIndex,
+            windowInsets = windowInsets,
+            header = header,
+            search = search,
+            action = action,
+            destinations = destinations,
+        )
+    }
+    // Remembered, as `Scaffold`'s slots are: a new lambda handed to `subcompose`
+    // is a slot it composes again.
+    val currentNavigation by rememberUpdatedState(navigation)
+    val navigationSlot: @Composable () -> Unit = remember { { currentNavigation() } }
+
     Surface(modifier = modifier.fillMaxSize(), containerColour = containerColour) {
-        when (type) {
-            NavigationSuiteType.Bar -> Box(Modifier.fillMaxSize()) {
-                // Measured, not calculated: the bar's height comes from its
-                // content, and grows with type size and labels.
-                val estimate = NavBarDefaults.MinHeight
-                var barHeight by remember { mutableStateOf(estimate) }
-                val density = LocalDensity.current
+        SubcomposeLayout(Modifier.fillMaxSize()) { constraints ->
+            val width = constraints.maxWidth
+            val height = constraints.maxHeight
+            val loose = constraints.copy(minWidth = 0, minHeight = 0)
+            // A modal rail is drawn in the overlay host and lays out nothing here.
+            val surface = subcompose(SuiteSlot.Navigation, navigationSlot).map { it.measure(loose) }
 
-                val padding = PaddingValues(bottom = barHeight)
-                CompositionLocalProvider(LocalNavigationSuitePadding provides padding) { content(padding) }
-
-                NavBarLayout(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .onSizeChanged { barHeight = with(density) { it.height.toDp() } },
-                    style = barStyle,
-                    showLabels = showLabels ?: false,
-                    colours = colours,
-                    arrangement = null,
-                    windowInsets = windowInsets ?: WindowInsets.bottomEdges,
-                    search = search,
-                    searchIndex = searchIndex,
-                    action = action,
-                    shape = barShape,
-                    itemWidth = barItemWidth,
-                    marker = barMarker,
-                    markerDrag = barMarkerDrag,
-                    fadeUnder = barFadeUnder,
-                ) {
-                    destinations()
+            when (type) {
+                NavigationSuiteType.Bar -> {
+                    // Measured, not calculated: the bar's height comes from its
+                    // content, and grows with type size and labels.
+                    val barHeight = surface.maxOfOrNull { it.height } ?: 0
+                    padding.update(start = 0.dp, top = 0.dp, end = 0.dp, bottom = barHeight.toDp())
+                    val body = subcompose(SuiteSlot.Content, contentSlot).map { it.measure(loose) }
+                    layout(width, height) {
+                        // The content first, so the bar draws over it: the bar
+                        // overlays the content rather than sitting below it.
+                        body.forEach { it.placeRelative(0, 0) }
+                        surface.forEach { it.placeRelative((width - it.width) / 2, height - it.height) }
+                    }
                 }
-            }
 
-            NavigationSuiteType.Rail, NavigationSuiteType.ExpandedRail -> Row(Modifier.fillMaxSize()) {
-                val wide = type == NavigationSuiteType.ExpandedRail
-                NavRail(
-                    expanded = wide || (railExpandable && state.railExpanded),
-                    onExpandedChange = if (!wide && railExpandable) {
-                        { if (it) state.expandRail() else state.collapseRail() }
-                    } else {
-                        null
-                    },
-                    expandedWidth = railExpandedWidth,
-                    colours = colours,
-                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
-                    header = header,
-                    footer = action?.let { { it() } },
-                    content = destinations,
-                )
-                Box(Modifier.weight(1f)) {
-                    CompositionLocalProvider(LocalNavigationSuitePadding provides NoPadding) { content(NoPadding) }
+                NavigationSuiteType.Rail, NavigationSuiteType.ExpandedRail -> {
+                    // Beside the content, which takes the rest of the row and
+                    // is handed no padding.
+                    val railWidth = surface.maxOfOrNull { it.width } ?: 0
+                    padding.update(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 0.dp)
+                    val rest = (width - railWidth).coerceAtLeast(0)
+                    val body = subcompose(SuiteSlot.Content, contentSlot)
+                        .map { it.measure(loose.copy(minWidth = rest, maxWidth = rest)) }
+                    layout(width, height) {
+                        // Relative, so the rail is on the leading edge — the
+                        // right, in right to left — and first in the order
+                        // focus moves in, as it was in a `Row`.
+                        surface.forEach { it.placeRelative(0, 0) }
+                        body.forEach { it.placeRelative(railWidth, 0) }
+                    }
                 }
-            }
 
-            NavigationSuiteType.ModalRail -> Box(Modifier.fillMaxSize()) {
-                CompositionLocalProvider(LocalNavigationSuitePadding provides NoPadding) { content(NoPadding) }
-                ModalNavRail(
-                    visible = state.modalVisible,
-                    onDismissRequest = state::hideModal,
-                    width = railExpandedWidth,
-                    // A panel over the page is raised, as every modal one is,
-                    // unless the app chose its ground.
-                    colours = if (colours.container == Theme.colours.surface) {
-                        colours.copy(container = Theme.colours.surfaceRaised)
-                    } else {
-                        colours
-                    },
-                    windowInsets = windowInsets ?: WindowInsets.leadingEdges,
-                    header = header,
-                    footer = action?.let { { it() } },
-                    content = destinations,
-                )
+                NavigationSuiteType.ModalRail -> {
+                    padding.update(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 0.dp)
+                    val body = subcompose(SuiteSlot.Content, contentSlot).map { it.measure(loose) }
+                    layout(width, height) {
+                        body.forEach { it.placeRelative(0, 0) }
+                        surface.forEach { it.placeRelative(0, 0) }
+                    }
+                }
             }
         }
     }
 }
+
+/** The surface [NavigationSuiteScaffold] puts its destinations in, for [type]. */
+@Composable
+private fun NavigationSurface(
+    type: NavigationSuiteType,
+    state: NavigationSuiteState,
+    barStyle: NavBarStyle,
+    barShape: Shape?,
+    barItemWidth: NavBarItemWidth,
+    barMarker: NavBarMarker,
+    barMarkerDrag: NavBarMarkerDrag,
+    barFadeUnder: Boolean,
+    showLabels: Boolean?,
+    railExpandable: Boolean,
+    railExpandedWidth: Dp,
+    colours: NavColours,
+    searchIndex: Int?,
+    windowInsets: WindowInsets?,
+    header: (@Composable ColumnScope.() -> Unit)?,
+    search: (@Composable () -> Unit)?,
+    action: (@Composable () -> Unit)?,
+    destinations: @Composable NavScope.() -> Unit,
+) {
+    when (type) {
+        NavigationSuiteType.Bar -> NavBarLayout(
+            modifier = Modifier.fillMaxWidth(),
+            style = barStyle,
+            showLabels = showLabels ?: false,
+            colours = colours,
+            arrangement = null,
+            windowInsets = windowInsets ?: WindowInsets.bottomEdges,
+            search = search,
+            searchIndex = searchIndex,
+            action = action,
+            shape = barShape,
+            itemWidth = barItemWidth,
+            marker = barMarker,
+            markerDrag = barMarkerDrag,
+            fadeUnder = barFadeUnder,
+        ) {
+            destinations()
+        }
+
+        NavigationSuiteType.Rail, NavigationSuiteType.ExpandedRail -> {
+            val wide = type == NavigationSuiteType.ExpandedRail
+            NavRail(
+                expanded = wide || (railExpandable && state.railExpanded),
+                onExpandedChange = if (!wide && railExpandable) {
+                    { if (it) state.expandRail() else state.collapseRail() }
+                } else {
+                    null
+                },
+                expandedWidth = railExpandedWidth,
+                colours = colours,
+                windowInsets = windowInsets ?: WindowInsets.leadingEdges,
+                header = header,
+                footer = action?.let { { it() } },
+                content = destinations,
+            )
+        }
+
+        NavigationSuiteType.ModalRail -> ModalNavRail(
+            visible = state.modalVisible,
+            onDismissRequest = state::hideModal,
+            width = railExpandedWidth,
+            // A panel over the page is raised, as every modal one is, unless
+            // the app chose its ground.
+            colours = if (colours.container == Theme.colours.surface) {
+                colours.copy(container = Theme.colours.surfaceRaised)
+            } else {
+                colours
+            },
+            windowInsets = windowInsets ?: WindowInsets.leadingEdges,
+            header = header,
+            footer = action?.let { { it() } },
+            content = destinations,
+        )
+    }
+}
+
+private enum class SuiteSlot { Navigation, Content }
 
 /**
  * What a [NavigationSuiteScaffold] around this content asks it to keep clear

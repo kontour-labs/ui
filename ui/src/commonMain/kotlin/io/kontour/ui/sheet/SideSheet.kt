@@ -162,6 +162,10 @@ fun ModalSideSheet(
     val latestPaneTitle by rememberUpdatedState(paneTitle)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestBackLabel by rememberUpdatedState(backLabel)
+    // And whether it may be put away, which the scrim, the back gesture and the
+    // swipe towards its edge all ask as the reader tries rather than once, when
+    // it opened: see `OverlayEntry.dismissibleNow`.
+    val latestDismissible by rememberUpdatedState(dismissible)
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
@@ -223,7 +227,7 @@ fun ModalSideSheet(
                         onBack = latestOnBack,
                         backLabel = latestBackLabel,
                         progress = LocalOverlayProgress.current,
-                        swipeAway = dismissible,
+                        swipeAway = latestDismissible,
                         // Captured as an object, not a measurement: the modifier
                         // reads the live inset at layout time, so the sheet still
                         // lifts when the keyboard opens after it was shown.
@@ -231,7 +235,7 @@ fun ModalSideSheet(
                         content = body,
                     )
                 },
-            )
+            ).also { entry -> entry.dismissibleNow = { latestDismissible } }
         )
     }
 }

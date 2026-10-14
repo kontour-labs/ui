@@ -39,6 +39,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -140,6 +141,19 @@ internal class SwipeBackInput(
     private var at = Offset.Zero
     private var progress = 0f
 
+    /**
+     * The newest frame seen while the gesture was held, on the frame clock, or
+     * [Long.MIN_VALUE] where none has been: see [sawFrame].
+     */
+    private var lastFrame = Long.MIN_VALUE
+
+    /**
+     * How long a frame is on this screen, measured between two frames seen one
+     * after the other while the finger moved, or 0 where it has not been: what
+     * a release is timed from. See [release].
+     */
+    private var framePeriod = 0L
+
     override fun onAdded(dispatcher: NavigationEventDispatcher) {
         added = true
     }
@@ -160,7 +174,31 @@ internal class SwipeBackInput(
         this.edge = edge
         this.at = at
         progress = 0f
+        lastFrame = Long.MIN_VALUE
+        framePeriod = 0L
         dispatchOnBackStarted(NavigationEvent(edge, 0f, at.x, at.y))
+    }
+
+    /**
+     * The time of the next frame, asked for on a move of the finger, which draws
+     * that frame anyway: one frame for each move, and none while the finger
+     * rests. A loop following every frame for as long as the gesture was held
+     * kept the frame clock running under a resting finger, and a screen with
+     * one never went idle.
+     */
+    suspend fun nextFrame() {
+        withFrameNanos { sawFrame(it) }
+    }
+
+    /**
+     * That a frame was drawn at [frameTimeNanos] while the gesture was held. Two
+     * close together are this screen's frame: a frame apart, rather than the
+     * finger stopping between two moves.
+     */
+    fun sawFrame(frameTimeNanos: Long) {
+        val since = frameTimeNanos - lastFrame
+        if (lastFrame != Long.MIN_VALUE && since in 1..MaxFrameNanos) framePeriod = since
+        lastFrame = frameTimeNanos
     }
 
     fun move(progress: Float, at: Offset) {
@@ -183,16 +221,25 @@ internal class SwipeBackInput(
         try {
             val target = if (commit) 1f else 0f
             val at = releaseCurve(progress, target, velocity)
-            // Timed from the moment the finger lifted, taken as a frame before
-            // the first one this sees, rather than from that first frame: an
-            // animation timed from its first frame spends it at where it
-            // started, and that frame of stillness is the pause this is here
-            // to remove.
+            // Timed from the last frame the gesture was drawn on, rather than
+            // from the first one this sees: an animation timed from its first
+            // frame spends it at where it started, and that frame of stillness
+            // is the pause this is here to remove.
+            //
+            // **One of this screen's frames, not one at sixty a second.** It was
+            // taken as one 60Hz frame before the first frame here, which is
+            // right at 60Hz and twice the real interval at 120: the page jumped
+            // two frames' worth on letting go and then went on at one. Where no
+            // frame was measured — a gesture fed in from elsewhere, or let go on
+            // its first move — the 60Hz frame is still the guess. Not the last
+            // frame seen itself: a finger that rested before it lifted saw that
+            // one a long while ago.
+            val frame = if (framePeriod > 0L) framePeriod else FrameNanos
             var start = Long.MIN_VALUE
             var done = false
             while (!done) {
                 done = withFrameNanos { now ->
-                    if (start == Long.MIN_VALUE) start = now - FrameNanos
+                    if (start == Long.MIN_VALUE) start = now - frame
                     val (value, finished) = at(now - start)
                     move(if (finished) target else value, this.at)
                     finished
@@ -454,54 +501,64 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.trackBac
             val tracker = VelocityTracker()
             tracker.addPosition(first.uptimeMillis, start)
             var claimed = false
-            while (true) {
-                val event = awaitPointerEvent(pass)
-                val change = event.changes.firstOrNull { it.id == id }
-                if (change == null) {
-                    if (claimed) input.abandon()
-                    break
-                }
-                val at = placed.toWindow(change.position)
-                tracker.addPosition(change.uptimeMillis, at)
-                val delta = at - start
-                val along = delta.x * sign
-                if (!claimed) {
-                    // Somebody inside took it; it was theirs.
-                    if (change.isConsumed || !change.pressed) break
-                    if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
-                        // Within 45° of sideways, on the content as at the edge:
-                        // the test a pan recogniser's delegate makes. It was
-                        // twice as far sideways as up or down on the content,
-                        // which a thumb arcing across the screen often is not,
-                        // and the swipe that missed it did nothing at all. A
-                        // list under the page that scrolls up and down has seen
-                        // every move first and took any that were more its own.
-                        val sideways = abs(delta.x) >= abs(delta.y)
-                        if (along > claimAt && sideways) {
-                            claimed = true
-                            input.start(pan.edge, at)
-                        } else {
-                            break
+            // The frames the page is drawn on under the finger, for the release
+            // to be timed from: see [SwipeBackInput.nextFrame].
+            var frames: Job? = null
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(pass)
+                    val change = event.changes.firstOrNull { it.id == id }
+                    if (change == null) {
+                        if (claimed) input.abandon()
+                        break
+                    }
+                    val at = placed.toWindow(change.position)
+                    tracker.addPosition(change.uptimeMillis, at)
+                    val delta = at - start
+                    val along = delta.x * sign
+                    if (!claimed) {
+                        // Somebody inside took it; it was theirs.
+                        if (change.isConsumed || !change.pressed) break
+                        if (abs(delta.x) > claimAt || abs(delta.y) > claimAt) {
+                            // Within 45° of sideways, on the content as at the edge:
+                            // the test a pan recogniser's delegate makes. It was
+                            // twice as far sideways as up or down on the content,
+                            // which a thumb arcing across the screen often is not,
+                            // and the swipe that missed it did nothing at all. A
+                            // list under the page that scrolls up and down has seen
+                            // every move first and took any that were more its own.
+                            val sideways = abs(delta.x) >= abs(delta.y)
+                            if (along > claimAt && sideways) {
+                                claimed = true
+                                input.start(pan.edge, at)
+
+                            } else {
+                                break
+                            }
                         }
                     }
+                    if (!claimed) continue
+                    change.consume()
+                    val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
+                    // From where the finger went down, not from where the pan was
+                    // claimed: the page is under the finger, as UIKit's is. Measured
+                    // from the claim it trailed by the slop the whole way across, and
+                    // half the width meant half the width and a slop more.
+                    val progress = (along / span).coerceIn(0f, 1f)
+                    if (change.pressed) {
+                        input.move(progress, at)
+                        if (frames?.isActive != true) frames = scope.launch { input.nextFrame() }
+                        continue
+                    }
+                    // Let go: decided by where it would come to rest. See
+                    // [releaseCommits].
+                    val velocity = tracker.calculateVelocity().x * sign
+                    frames?.cancel()
+                    scope.launch { input.release(releaseCommits(progress, velocity / span), velocity / span) }
+                    break
                 }
-                if (!claimed) continue
-                change.consume()
-                val span = (travel?.invoke() ?: size.width.toFloat()).coerceAtLeast(1f)
-                // From where the finger went down, not from where the pan was
-                // claimed: the page is under the finger, as UIKit's is. Measured
-                // from the claim it trailed by the slop the whole way across, and
-                // half the width meant half the width and a slop more.
-                val progress = (along / span).coerceIn(0f, 1f)
-                if (change.pressed) {
-                    input.move(progress, at)
-                    continue
-                }
-                // Let go: decided by where it would come to rest. See
-                // [releaseCommits].
-                val velocity = tracker.calculateVelocity().x * sign
-                scope.launch { input.release(releaseCommits(progress, velocity / span), velocity / span) }
-                break
+            } finally {
+                frames?.cancel()
             }
         }
     }
@@ -550,8 +607,17 @@ private const val CommitFraction = 0.5f
 /** How far a release coasts, in seconds of its own speed. See [releaseCommits]. */
 private const val CoastSeconds = 0.998f / (1f - 0.998f) / 1000f
 
-/** One frame at sixty a second: how long before its first frame a release began. */
+/**
+ * One frame at sixty a second: how long before its first frame a release began,
+ * where no frame of the gesture was seen to time it from.
+ */
 private const val FrameNanos = 16_666_667L
+
+/**
+ * The longest two frames seen in a row can be apart and still be a frame of the
+ * screen's, rather than the finger stopping between two moves: a 30Hz frame.
+ */
+private const val MaxFrameNanos = 34_000_000L
 
 /**
  * The spring a released gesture finishes on: critically damped, so it never

@@ -64,6 +64,25 @@ class ScheduleViewTest {
         assertEquals(listOf("Holiday", "Stand-up", "Design review"), day.events.map { it.title })
     }
 
+    /**
+     * A timed event of more than a day is its times on each day it is on, not
+     * "All day" on every one: from its start on the first, all day between,
+     * and until its end on the last.
+     */
+    @Test
+    fun aTimedEventOverSeveralDaysIsItsPartOfEachDay() {
+        val formats = LocaleFormats.english()
+        val strings = Strings()
+        val conference = CalendarEvent(6, "Conference", at(10, 12, 9), at(10, 14, 17))
+        fun range(from: Int, to: Int) = strings.timeRange(formats.time(LocalTime(from, 0)), formats.time(LocalTime(to, 0)))
+        assertEquals(range(9, 0), scheduleTime(conference, LocalDate(2026, 10, 12), formats, strings))
+        assertEquals(strings.allDay, scheduleTime(conference, LocalDate(2026, 10, 13), formats, strings))
+        assertEquals(range(0, 17), scheduleTime(conference, LocalDate(2026, 10, 14), formats, strings))
+        // Those that were right stay so: an all-day event, and one inside a day.
+        assertEquals(strings.allDay, scheduleTime(trip, LocalDate(2026, 10, 21), formats, strings))
+        assertEquals(range(10, 11), scheduleTime(review, LocalDate(2026, 10, 16), formats, strings))
+    }
+
     @Test
     fun aDayIsFoundAsItsRowOrTheNextBusyOne() {
         val items = scheduleItems(events, LocalDate(2026, 10, 1), LocalDate(2026, 11, 30), today)

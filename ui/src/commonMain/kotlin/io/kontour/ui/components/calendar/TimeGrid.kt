@@ -609,7 +609,10 @@ internal fun DayTarget(scope: CalendarScope, date: LocalDate, modifier: Modifier
         modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.days[placed] = DayPlace(date, coordinates)
+                // Told again on every frame a scroll moves the day, with the
+                // same coordinates: a new place only where there is one.
+                val known = edit.days[placed]
+                if (known == null || known.coordinates !== coordinates || known.date != date) edit.days[placed] = DayPlace(date, coordinates)
             },
     )
 }
@@ -699,7 +702,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         layoutTimedDay(date, scope.eventsBetween(date, date), minMinutes, cascadeMinutes)
     }
     val indentPx = with(density) { CascadeIndent.toPx() }
-    val now = scope.now?.takeIf { it.date == date }?.time
+    // Read as the line is drawn: the time now moves it each minute without
+    // the day's events composing again.
+    val now = scope.now
     val click by rememberUpdatedState(scope.onTimeClick)
     val step = TapStepMinutes
     val gapPx = with(density) { (Theme.spacing.xxs / 2).toPx() }
@@ -764,9 +769,16 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
         modifier = modifier
             .onGloballyPositioned { coordinates ->
                 placed.coordinates = coordinates
-                edit.columns[placed] = DayPlace(date, coordinates)
+                // Told again on every frame the hours scroll, with the same
+                // coordinates: written only where something has changed.
+                val known = edit.columns[placed]
+                if (known == null || known.coordinates !== coordinates || known.date != date) edit.columns[placed] = DayPlace(date, coordinates)
                 edit.pixelsPerMinute = hourPx / MinutesPerHour
-                if (creates) edit.draggables[placed] = coordinates else edit.draggables.remove(placed)
+                if (!creates) {
+                    edit.draggables.remove(placed)
+                } else if (edit.draggables[placed] !== coordinates) {
+                    edit.draggables[placed] = coordinates
+                }
             }
             .drawBehind {
                 val width = line.toPx()
@@ -777,8 +789,9 @@ private fun DayColumn(scope: CalendarScope, date: LocalDate, modifier: Modifier)
                     val y = h * hourPx
                     drawLine(lineColour, Offset(0f, y), Offset(size.width, y), width)
                 }
-                if (now != null) {
-                    val y = now.minuteOfDay * hourPx / MinutesPerHour
+                val nowTime = now()?.takeIf { it.date == date }?.time
+                if (nowTime != null) {
+                    val y = nowTime.minuteOfDay * hourPx / MinutesPerHour
                     val stroke = nowLine.toPx()
                     drawLine(nowColour, Offset(0f, y), Offset(size.width, y), stroke)
                     // Wholly inside the day, past its start edge: centred on the

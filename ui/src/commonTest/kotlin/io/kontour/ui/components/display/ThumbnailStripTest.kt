@@ -6,15 +6,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.isSelected
@@ -31,6 +37,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kontour.ui.theme.KontourTheme
 import kotlin.math.abs
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -253,5 +260,114 @@ class ThumbnailStripTest {
         thumb(1).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
         waitForIdle()
         assertEquals(1, probe.pages.currentPage)
+    }
+
+    // --- A count that changes ---
+
+    /**
+     * A carousel that loses pages loses their thumbnails.
+     *
+     * The range of thumbnails was remembered with the count it was first
+     * composed with, so ten pages cut to three went on composing thumbnails for
+     * pages three to nine — and a thumbnail that looks its page up in the list
+     * the count came from throws.
+     */
+    @Test
+    fun aCountThatShrinksComposesNoThumbnailPastTheEnd() = runComposeUiTest {
+        var count by mutableStateOf(10)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                val pages = rememberCarouselState { count }
+                Box(Modifier.size(400.dp, 48.dp)) {
+                    ThumbnailStrip(pages) { page ->
+                        check(page < count) { "thumbnail for page $page of $count" }
+                        Box(Modifier.fillMaxSize())
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        onNode(hasContentDescription("Page 10 of 10")).assertExists()
+
+        count = 3
+        waitForIdle()
+
+        onAllNodes(hasContentDescription("Page 3 of 3")).assertCountEquals(1)
+        onAllNodes(hasContentDescription("Page 4 of 3")).assertCountEquals(0)
+    }
+
+    /** And one whose pages load in from none shows them. */
+    @Test
+    fun aCountThatGrowsFromNoneShowsTheThumbnails() = runComposeUiTest {
+        var count by mutableStateOf(0)
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                val pages = rememberCarouselState { count }
+                Box(Modifier.size(400.dp, 48.dp)) {
+                    ThumbnailStrip(pages) { Box(Modifier.fillMaxSize()) }
+                }
+            }
+        }
+        waitForIdle()
+
+        count = 5
+        waitForIdle()
+
+        for (page in 1..5) onNode(hasContentDescription("Page $page of 5")).assertExists()
+    }
+
+    /**
+     * The current page's thumbnail stays in the middle on every frame of a resize.
+     *
+     * The strip composes the thumbnails near the middle, and how many is set by
+     * its width, which it learns in measure. Measure used to place the children
+     * by the range it read then — wider now, so starting further back — while
+     * the children were the ones composed for the narrower strip; for a frame
+     * every thumbnail was laid out as the page two slots along from its own,
+     * and the current one sat off to the side. Each frame's placement is
+     * recorded here, since by the time a test can look the next frame has put
+     * it right.
+     */
+    @Test
+    fun aResizedStripPlacesEachThumbnailAsItsOwnPageOnEveryFrame() = runComposeUiTest {
+        var stripWidth by mutableStateOf(200.dp)
+        var recording = false
+        val offCentre = mutableListOf<Float>()
+        lateinit var pages: CarouselState
+        setContent {
+            KontourTheme(reduceMotion = true) {
+                pages = rememberCarouselState { 40 }
+                Column(Modifier.width(400.dp)) {
+                    Carousel(pages, contentDescription = "Photos", modifier = Modifier.height(100.dp)) {
+                        Box(Modifier.fillMaxSize())
+                    }
+                    Box(Modifier.width(stripWidth).height(48.dp)) {
+                        ThumbnailStrip(pages) { page ->
+                            Box(
+                                Modifier.fillMaxSize().onGloballyPositioned { box ->
+                                    if (!recording || page != 10) return@onGloballyPositioned
+                                    // The thumbnail's own box, then the strip's layout around it.
+                                    val strip = box.parentLayoutCoordinates?.parentLayoutCoordinates
+                                        ?: return@onGloballyPositioned
+                                    val left = strip.localPositionOf(box, Offset.Zero).x
+                                    offCentre += left + box.size.width / 2f - strip.size.width / 2f
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        runOnIdle { runBlocking { pages.scrollToPage(10) } }
+        waitForIdle()
+        assertEquals(10, pages.currentPage)
+
+        recording = true
+        stripWidth = 400.dp
+        waitForIdle()
+
+        assertTrue(offCentre.isNotEmpty(), "page 10's thumbnail was never placed after the resize, so this checks nothing")
+        assertTrue(offCentre.all { abs(it) < 1f }, "page 10's thumbnail was off the middle by $offCentre px")
     }
 }

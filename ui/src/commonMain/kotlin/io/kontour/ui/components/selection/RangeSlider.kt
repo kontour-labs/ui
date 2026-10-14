@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -29,6 +28,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -225,7 +225,13 @@ fun RangeSlider(
             asked
         } else {
             val stepSize = span / (steps + 1)
-            (ceil(asked / stepSize) * stepSize).coerceAtMost(span)
+            // Less float noise before rounding up. Both sides of the division
+            // are rounded, so a minimum that is a whole number of steps comes
+            // out a hair over it — `0.3f / 0.01f` is 30.000002 — and `ceil`
+            // took that hair as a part-step and added a whole one. A millionth
+            // of the quotient is several times the error and nothing like a step.
+            val notches = asked / stepSize
+            (ceil(notches - maxOf(notches, 1f) * 1e-6f) * stepSize).coerceAtMost(span)
         }
     }
 
@@ -436,12 +442,16 @@ fun RangeSlider(
      */
     var emitted by remember { mutableStateOf<ClosedFloatingPointRange<Float>?>(null) }
 
+    /** The gesture box's width in pixels, written by its layout and read only by the gesture. */
+    val boxWidth = remember { IntArray(1) }
+
     fun snap(raw: Float): Float {
         val clamped = raw.coerceIn(0f, 1f)
-        if (steps <= 0) return valueRange.start + clamped * span
+        // Exact at both ends — see `sliderValueAt`.
+        if (steps <= 0) return sliderValueAt(valueRange, clamped)
         val stepCount = steps + 1
         val snapped = (clamped * stepCount).roundToInt().toFloat() / stepCount
-        return valueRange.start + snapped * span
+        return sliderValueAt(valueRange, snapped)
     }
 
     /**
@@ -457,7 +467,10 @@ fun RangeSlider(
      * follows a tap does not tick for the detent the thumb is already on.
      */
     fun tick(thumb: Thumb, next: Float) {
-        if (steps <= 0) return
+        // A zero-width range has one detent and nothing to cross, and the index
+        // below divides by its width: `roundToInt` throws on the `NaN`, so a
+        // tap, an arrow key or `setProgress` on a stepped `5f..5f` range threw.
+        if (steps <= 0 || span == 0f) return
         val index = ((next - valueRange.start) / span * (steps + 1)).roundToInt().toFloat()
         val ticker = ticker(thumb)
         if (carried(thumb)) ticker.at(index) else { ticker.reset(); ticker.at(index) }
@@ -526,6 +539,22 @@ fun RangeSlider(
         }
         emitted = updated
         currentOnValueChange(updated)
+    }
+
+    /**
+     * A thumb moved by a key or by `setProgress`, which is a gesture of one
+     * event and builds on the caller's [value].
+     *
+     * Both go through [emit], which sets [emitted], and only a finger lifting
+     * used to clear it. So after a key press the next key built on the range it
+     * had emitted rather than on the one the caller held — and a caller that had
+     * reset or clamped in between saw the *other* thumb jump back to where the
+     * earlier key left it. With a finger down the drag owns [emitted] and this
+     * leaves it alone.
+     */
+    fun setThumb(thumb: Thumb, target: Float) {
+        if (fingers.isEmpty()) emitted = null
+        emit(thumb, fractionOf(target))
     }
 
     // Everything below mirrors `Slider` except where having two thumbs makes that
@@ -838,17 +867,23 @@ fun RangeSlider(
             .fillMaxWidth()
             .height(SliderHeight)
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().height(SliderHeight)) {
+        // A plain `Box`, with the gesture box's width kept in [boxWidth] — see
+        // `Slider`'s. Its `maxWidth` was the only thing the `BoxWithConstraints`
+        // this used to be was for, and every drag frame remeasured and
+        // recomposed its subcomposition to read it again.
+        Box(Modifier.fillMaxWidth().height(SliderHeight)) {
             // Held back from each end so a thumb is not clipped there — but
             // arithmetically, not as a `padding` with the gestures inside it.
             // See `Slider`, where that layout cost the outer 18dp of the control
             // its ability to be touched at all, which is precisely where a thumb
             // sits at either end of the range.
             val insetPx = with(density) { SliderThumbReach.toPx() }
-            val widthPx = (with(density) { maxWidth.toPx() } - insetPx * 2f).coerceAtLeast(1f)
+
+            // Asked when the gesture needs it, from the width the box last laid out at.
+            fun trackPx(): Float = (boxWidth[0] - insetPx * 2f).coerceAtLeast(1f)
 
             fun toFraction(x: Float): Float {
-                val along = (x - insetPx) / widthPx
+                val along = (x - insetPx) / trackPx()
                 return if (layoutDirection == LayoutDirection.Rtl) 1f - along else along
             }
 
@@ -856,6 +891,7 @@ fun RangeSlider(
                 Modifier
                     .fillMaxWidth()
                     .height(SliderHeight)
+                    .onSizeChanged { boxWidth[0] = it.width }
                     // One gesture, owning the pointer — the same mechanism
                     // `Slider` uses, for the same reason. A `draggable` lets the
                     // vertical component of every change through to whatever is
@@ -999,6 +1035,7 @@ fun RangeSlider(
                                 // From where the finger is, past the end or not,
                                 // so a thumb at an end waits for the finger to
                                 // come back level with it before it moves.
+                                val widthPx = trackPx()
                                 val raw = from + hold.over + signed / widthPx
                                 val wasPast = pastTheTrack(from + hold.over)
                                 hold.drag = raw.coerceIn(reach.first, reach.second)
@@ -1300,7 +1337,7 @@ fun RangeSlider(
                 enabled = enabled,
                 announcement = announcement,
                 interactions = interactions,
-                onSet = { emit(Thumb.Start, fractionOf(it)) },
+                onSet = { setThumb(Thumb.Start, it) },
                 onFinished = { currentFinished?.invoke() },
                 onKeyed = {
                     endLinger.lapse()
@@ -1317,7 +1354,7 @@ fun RangeSlider(
                 enabled = enabled,
                 announcement = announcement,
                 interactions = interactions,
-                onSet = { emit(Thumb.End, fractionOf(it)) },
+                onSet = { setThumb(Thumb.End, it) },
                 onFinished = { currentFinished?.invoke() },
                 onKeyed = {
                     startLinger.lapse()

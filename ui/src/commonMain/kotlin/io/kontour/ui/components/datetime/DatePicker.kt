@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -371,10 +372,21 @@ class CalendarNavigationState internal constructor(initialDate: LocalDate) {
  * kept across configuration change.
  */
 @Composable
-fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationState {
-    val epochDay = rememberSaveable(initialDate) { initialDate.toEpochDays() }
-    return remember(epochDay) { CalendarNavigationState(LocalDate.fromEpochDays(epochDay)) }
-}
+fun rememberCalendarNavigationState(initialDate: LocalDate): CalendarNavigationState =
+    rememberSaveable(initialDate, saver = CalendarNavigationSaver) { CalendarNavigationState(initialDate) }
+
+/**
+ * The month on show, as its first day's epoch day.
+ *
+ * The month, not [rememberCalendarNavigationState]'s argument: what was saved
+ * was the initial date, its own key, so a calendar paged on two months and
+ * turned sideways, or scrolled out of a list and back, opened on the month it
+ * started on again.
+ */
+private val CalendarNavigationSaver = Saver<CalendarNavigationState, Long>(
+    save = { it.visibleMonth.toEpochDays() },
+    restore = { CalendarNavigationState(LocalDate.fromEpochDays(it)) },
+)
 
 /**
  * Picks a single date.

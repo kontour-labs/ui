@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -123,11 +124,14 @@ internal fun PopoverImpl(
     val host = LocalOverlayHost.current
     val colours = Theme.colours
     val key = remember { Any() }
-    var anchor by remember { mutableStateOf<Rect?>(null) }
+    // Held, and read only by the overlay's measure pass — see
+    // `AnchoredOverlayLayout` — and here only for whether there is one. It is
+    // the anchor's position in the window, so it changes on every frame its
+    // page scrolls, and read here it recomposed every closed popover on a
+    // scrolling page once a frame.
+    val anchor = remember { mutableStateOf<Rect?>(null) }
+    val anchored by remember { derivedStateOf { anchor.value != null } }
     val dismiss by rememberUpdatedState(onDismissRequest)
-    // Read live by the overlay's measure pass rather than captured when the
-    // entry was built — see `AnchoredOverlayLayout`.
-    val latestAnchor by rememberUpdatedState(anchor)
     val body by rememberUpdatedState(content)
     val latestTitle by rememberUpdatedState(title)
     // As with the anchor: read live rather than captured when the entry was
@@ -137,13 +141,13 @@ internal fun PopoverImpl(
     // Read here: the entry below is built in an effect, which has no theme.
     val closeLabel = Theme.strings.close
 
-    Box(Modifier.parentBounds { anchor = it })
+    Box(Modifier.parentBounds { anchor.value = it })
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
 
     LaunchedEffect(
         visible,
-        anchor != null,
+        anchored,
         side,
         alignment,
         scrim,
@@ -151,7 +155,7 @@ internal fun PopoverImpl(
         maxWidth,
         dismissOnScroll,
     ) {
-        if (!visible || anchor == null) {
+        if (!visible || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }
@@ -174,7 +178,7 @@ internal fun PopoverImpl(
                 onDismiss = { dismiss() },
                 content = {
                     AnchoredOverlayLayout(
-                        anchorInRoot = { latestAnchor },
+                        anchorInRoot = { anchor.value },
                         modifier = Modifier.graphicsLayer { alpha = if (latestHidden()) 0f else 1f },
                         fromScale = 0.94f,
                         side = side,

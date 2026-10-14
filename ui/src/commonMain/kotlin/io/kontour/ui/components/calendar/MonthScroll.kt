@@ -221,8 +221,9 @@ internal class WeekSnap(private val snap: FlingBehavior) : FlingBehavior {
     /** Whether the last thing to scroll the list was a wheel or a trackpad, not a press. */
     var byWheel: Boolean = false
 
+    // After a wheel, nothing is left over to hand on: the speed returned here goes to the page round the month.
     override suspend fun ScrollScope.performFling(initialVelocity: Float): Float =
-        if (byWheel) initialVelocity else with(snap) { performFling(initialVelocity) }
+        if (byWheel) 0f else with(snap) { performFling(initialVelocity) }
 }
 
 /**

@@ -2,6 +2,7 @@ package io.kontour.ui.foundation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import io.kontour.ui.components.display.rememberSkeletonSweep
 import io.kontour.ui.components.display.skeletonFill
 import io.kontour.ui.theme.Theme
 
@@ -71,8 +73,34 @@ val LocalRedacted = compositionLocalOf { false }
  */
 @Composable
 fun Redacted(enabled: Boolean = true, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalRedacted provides enabled, content = content)
+    // One sweep for the block, kept by the outermost redacted one: see
+    // [LocalRedactionSweep]. A `Redacted(false)` inside passes the one around it
+    // on, so a part redacted again further in is still in step with the rest.
+    val outer = LocalRedactionSweep.current
+    val sweep = if (enabled && outer == null && !Theme.motion.reduceMotion) rememberSkeletonSweep() else outer
+    CompositionLocalProvider(
+        LocalRedacted provides enabled,
+        LocalRedactionSweep provides sweep,
+        content = content,
+    )
 }
+
+/**
+ * The sweep everything in a [Redacted] block shimmers on, or `null` outside one.
+ *
+ * **One for the block, not one per placeholder.** Every redacted `Text` and
+ * `Icon` ran an infinite transition of its own: a hundred and twenty frame-clock
+ * subscribers for a redacted list of forty rows, and each one started from
+ * nought on the first frame it was drawn. So a row that arrived later — scrolled
+ * in, or loaded in — swept out of step with the rows above it, and a page of
+ * placeholders read as a page of unrelated flickers rather than as one surface
+ * being lit. The block keeps the one sweep and each placeholder reads it while
+ * drawing, so a frame of the shimmer redraws them and recomposes nothing.
+ *
+ * A placeholder outside any block — `Modifier.redacted(enabled = true)` on its
+ * own — keeps a sweep of its own, as before.
+ */
+internal val LocalRedactionSweep = compositionLocalOf<State<Float>?> { null }
 
 /**
  * Replaces this node's drawing with a placeholder of the same size.
@@ -160,5 +188,5 @@ private const val RedactionHighlight = 0.18f
 @Composable
 internal fun redactedFill(): Modifier {
     val (base, highlight) = redactionColours()
-    return Modifier.skeletonFill(base = base, highlight = highlight)
+    return Modifier.skeletonFill(base = base, highlight = highlight, sweep = LocalRedactionSweep.current)
 }

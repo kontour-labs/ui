@@ -231,7 +231,14 @@ class CarouselState internal constructor(
 fun rememberCarouselState(pageCount: () -> Int): CarouselState {
     val listState = rememberLazyListState()
     val reduceMotion = Theme.motion.reduceMotion
-    return remember(listState) { CarouselState(listState, pageCount) }.also { it.reduceMotion = reduceMotion }
+    // The state outlives the lambda it was first given. `{ photos.size }` over a
+    // parameter is a new lambda each time `photos` changes, and the state held on
+    // to the first one, so the count never moved: a list that grew showed its
+    // first pages only, and one that shrank composed pages it no longer had. The
+    // state reads whichever lambda this call was given last.
+    val latest = rememberUpdatedState(pageCount)
+    return remember(listState) { CarouselState(listState) { latest.value() } }
+        .also { it.reduceMotion = reduceMotion }
 }
 
 /**

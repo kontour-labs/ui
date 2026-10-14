@@ -10,6 +10,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -488,6 +490,28 @@ class EventCalendarEditTest {
         assertEquals(LocalDateTime(2026, 10, 14, 11, 15), probe.resizes.single().third)
     }
 
+    /**
+     * A bar made a day longer is read out with its new last day, all day: it
+     * was read out as its first day, "00:00 – 00:00", and never where it now
+     * ended.
+     */
+    @Test
+    fun aBarMadeLongerIsReadOutWithItsNewLastDay() = runComposeUiTest {
+        val conference = CalendarEvent(5, "Conference", startDate = LocalDate(2026, 10, 14), endDate = LocalDate(2026, 10, 16))
+        val probe = calendar(events = listOf(conference))
+        val node = onNode(hasContentDescription(eventDescription(conference, probe.formats, probe.strings))).fetchSemanticsNode()
+        val actions = node.config.getOrNull(SemanticsActions.CustomActions).orEmpty()
+        runOnIdle { actions.first { it.label == probe.strings.makeLonger }.action() }
+        waitForIdle()
+        assertEquals(LocalDateTime(2026, 10, 18, 0, 0), probe.resizes.single().third)
+        val said = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion)).fetchSemanticsNodes()
+            .flatMap { it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() }
+            .firstOrNull { conference.title in it }
+            .orEmpty()
+        assertTrue(probe.formats.date(LocalDate(2026, 10, 17), DateStyle.Full) in said, "read out as \"$said\", without its new last day")
+        assertTrue(probe.strings.allDay in said, "read out as \"$said\", not as all day")
+    }
+
     @Test
     fun anEventTheAppOnlyShowsCannotBeMoved() = runComposeUiTest {
         val probe = calendar()
@@ -661,6 +685,27 @@ class EventCalendarEditTest {
         val (_, start, end) = probe.resizes.single()
         assertEquals(trip.start, start)
         assertEquals(trip.end.plusMinutes(MinutesPerDay.toLong()), end)
+    }
+
+    /**
+     * A month's line taken up from the keyboard is carried by days, as a
+     * pointer carries it: down is a week on, at the same time. It was carried
+     * through the hours, so down moved it a quarter-hour later instead.
+     */
+    @Test
+    fun aMonthsLineGoesAWeekDownFromTheKeyboardKeepingItsTime() = runComposeUiTest {
+        val standup = CalendarEvent(4, "Standup", LocalDateTime(2026, 10, 14, 9, 0), LocalDateTime(2026, 10, 14, 9, 15))
+        val probe = calendar(view = CalendarView.Month, events = listOf(standup))
+        onNode(hasContentDescription(eventDescription(standup, probe.formats, probe.strings))).requestFocus()
+        onRoot().performKeyInput {
+            pressKey(Key.Spacebar)
+            pressKey(Key.DirectionDown)
+            pressKey(Key.Enter)
+        }
+        waitForIdle()
+        val (_, start, end) = probe.moves.singleOrNull() ?: error("nothing was moved: resizes ${probe.resizes}")
+        assertEquals(LocalDateTime(2026, 10, 21, 9, 0), start, "down moved the line's time, not its week")
+        assertEquals(LocalDateTime(2026, 10, 21, 9, 15), end)
     }
 
     /** Carries the trip's bar from the middle of its first day to [share] of the way into the next, and lets go. */

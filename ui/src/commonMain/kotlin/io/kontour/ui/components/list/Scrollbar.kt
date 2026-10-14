@@ -1140,7 +1140,10 @@ internal class ScrollbarSource(private val state: ScrollableState) {
 
     /** What the content's own position was last seen as, to tell how far it has moved since. */
     private var lastValue = 0f
-    private var lastKeys: Map<Any, Int> = emptyMap()
+    // Two maps taken in turn, the last look's and this one's, rather than a new
+    // one made every frame a list scrolls.
+    private var lastKeys = HashMap<Any, Int>()
+    private var spareKeys = HashMap<Any, Int>()
 
     /** Scroll this bar's own drag asked for and the content has not yet been seen to make. */
     private var driven = 0f
@@ -1202,7 +1205,11 @@ internal class ScrollbarSource(private val state: ScrollableState) {
         if (state is LazyListState && !state.layoutInfo.reverseLayout) {
             val visible = state.layoutInfo.visibleItemsInfo
             val before = lastKeys
-            lastKeys = visible.associate { it.key to it.offset }
+            val now = spareKeys
+            now.clear()
+            for (item in visible) now[item.key] = item.offset
+            lastKeys = now
+            spareKeys = before
             if (before.isEmpty()) return if (visible.isEmpty()) 0f else null
             // The first row in view both times: the list keeps its first row
             // where it was when a row resizes, so this one moved by the scroll.
@@ -1353,19 +1360,42 @@ internal class RowSizes {
 
     fun average(): Float = if (knownCount == 0) 0f else knownSum.toFloat() / knownCount
 
-    /** The heights known before [index], and how many rows they are. */
+    /**
+     * The heights known before [index], and how many rows they are.
+     *
+     * **Walked from where it was last asked**, not from the top. It is asked
+     * at the first row in view, several times a frame while a list scrolls,
+     * and counting from row nought every time was work in proportion to how
+     * far down the list was: thousands of rows a frame at the foot of a long
+     * one. The sum before a cursor is kept, and moved a row at a time to
+     * wherever the next question is, which while scrolling is a row or two;
+     * [record] keeps it right as rows above it are measured.
+     */
     fun sumBefore(index: Int): Pair<Long, Int> {
-        var before = 0L
-        var known = 0
-        for (i in 0 until minOf(index, sizes.size)) {
-            val size = sizes[i]
+        val to = index.coerceIn(0, sizes.size)
+        while (cursor < to) {
+            val size = sizes[cursor]
             if (size > 0) {
-                before += size
-                known++
+                cursorSum += size
+                cursorKnown++
+            }
+            cursor++
+        }
+        while (cursor > to) {
+            cursor--
+            val size = sizes[cursor]
+            if (size > 0) {
+                cursorSum -= size
+                cursorKnown--
             }
         }
-        return before to known
+        return cursorSum to cursorKnown
     }
+
+    /** Where [sumBefore] was last asked, and what it found: the heights known before it, and how many. */
+    private var cursor = 0
+    private var cursorSum = 0L
+    private var cursorKnown = 0
 
     /** Rows added or taken away: what is known is kept where it was, and the rest is unknown. */
     fun resize(total: Int) {
@@ -1383,6 +1413,13 @@ internal class RowSizes {
         }
         sizes = nextSizes
         keys = nextKeys
+        // The rows before the cursor are kept as they were, unless the cursor
+        // is past the end now; then it starts again from the top.
+        if (cursor > total) {
+            cursor = 0
+            cursorSum = 0L
+            cursorKnown = 0
+        }
     }
 
     /**
@@ -1400,6 +1437,10 @@ internal class RowSizes {
             knownCount++
         }
         knownSum += size
+        if (index < cursor) {
+            cursorSum += size - was
+            if (was <= 0) cursorKnown++
+        }
         sizes[index] = size
         if (key != null) keys[index] = key
         if (notify) version++

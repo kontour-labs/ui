@@ -21,10 +21,16 @@ import io.kontour.ui.foundation.Text
 import io.kontour.ui.locale.LocaleFormats
 import io.kontour.ui.locale.RelativeUnit
 import io.kontour.ui.theme.Theme
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.delay
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 /**
  * A countdown that keeps itself current — "in 4 min", "now", "2 min ago".
@@ -34,9 +40,9 @@ import kotlin.time.Duration.Companion.seconds
  * while four minutes pass is worse than showing a wall-clock time, because the
  * user trusts it.
  *
- * So this re-renders on a schedule that matches the resolution being shown —
- * every second while under a minute, every minute above it — rather than on a
- * fixed timer that is either wasteful or stale.
+ * So this re-renders when what it shows changes — the moment "in 2 min"
+ * becomes "in 1 min", and no more often — rather than on a fixed timer that is
+ * either wasteful or stale.
  *
  * ```
  * RelativeTimeText(until = departure - now, style = Theme.typography.titleMedium)
@@ -68,20 +74,57 @@ fun RelativeTimeText(
     imminentThreshold: Duration = 30.seconds,
     announce: Boolean = true,
     animateValue: Boolean = false,
-) {
-    // Recomputed rather than remembered on `until`: the caller passes a value
-    // that was correct when it composed, and this ticks it down from there.
-    var elapsed by remember(until) { mutableStateOf(Duration.ZERO) }
-    val remaining = until - elapsed
+) = CountingDown(until, modifier, style, colour, imminentThreshold, announce, animateValue, clock = SystemClock)
 
-    LaunchedEffect(until) {
+/** The wall clock, which [RelativeTimeText] counts down against. */
+private val SystemClock: () -> Instant = { Clock.System.now() }
+
+/**
+ * [RelativeTimeText], against [clock] — the system's, or a test's.
+ *
+ * **The moment is read off a clock, not counted in ticks.** This added up the
+ * delays it had slept, which is the time it had *meant* to sleep: a phone that
+ * slept, or an app put in the background, came back to a countdown that had
+ * counted none of it. And the ticks were twenty seconds apart above a minute,
+ * so "in 2 min" stayed up for as much as twenty seconds after there were
+ * fewer than two minutes left — the error the rounding down below is there to
+ * prevent. The moment is fixed once, as [until] from now, and what is left of
+ * it is read from the clock each time.
+ */
+@Composable
+internal fun CountingDown(
+    until: Duration,
+    modifier: Modifier,
+    style: TextStyle,
+    colour: Color,
+    imminentThreshold: Duration,
+    announce: Boolean,
+    animateValue: Boolean,
+    clock: () -> Instant,
+) {
+    // Remembered on `until`: the caller passes a value that was correct when
+    // it composed, and the moment it names is fixed from then.
+    val moment = remember(until) { clock() + until }
+    var remaining by remember(until) { mutableStateOf(until.secondsUp()) }
+    val currentClock by rememberUpdatedState(clock)
+
+    LaunchedEffect(moment, imminentThreshold) {
         while (true) {
-            val current = until - elapsed
-            // Tick at the resolution being displayed. A minute-level readout
-            // does not need 59 wasted recompositions per minute.
-            val step = if (current.absoluteValue < 1.minutes) 1.seconds else 20.seconds
-            delay(step)
-            elapsed += step
+            // In whole seconds, rounded up, as a countdown is shown. Read to
+            // the millisecond, the first reading is already a few short of
+            // `until` — the time it took to get on screen — and the minutes
+            // round down: `until = 4.minutes` read "in 4 min" for one frame
+            // and "in 3 min" from the next, and a screen reader announced the
+            // change as the text appeared.
+            val left = moment - currentClock()
+            remaining = left.secondsUp()
+            // Asleep until the text next changes, and no longer than a minute:
+            // a delay can sleep through a phone's own sleep, and the clock it
+            // wakes to is read again either way. The change is worked out in
+            // the whole seconds shown, which step only as the clock passes a
+            // whole second, and taken back to the clock from there.
+            val next = left - remaining + untilNextChange(remaining, imminentThreshold).secondsUp()
+            delay(next.coerceAtMost(1.minutes))
         }
     }
 
@@ -149,6 +192,44 @@ internal fun formatRelative(
     imminentThreshold: Duration,
     formats: LocaleFormats = LocaleFormats.english(),
 ): String = relativeParts(remaining, imminentThreshold, formats).joined()
+
+/**
+ * How long until the phrase for [remaining] says something else, counting
+ * [remaining] down: the moment it falls below the whole unit it shows, or
+ * reaches "now", or, once past, grows a whole unit more.
+ *
+ * Kept beside [relativeParts], whose rounding it follows. A millisecond past a
+ * boundary going down, because the boundary itself still reads the larger
+ * number — two minutes exactly is "in 2 min".
+ */
+internal fun untilNextChange(remaining: Duration, imminentThreshold: Duration): Duration {
+    // "now", until it is a threshold past.
+    if (remaining.absoluteValue < imminentThreshold) return remaining + imminentThreshold
+    val absolute = remaining.absoluteValue
+    // The unit shown, and the whole number of it, as `relativeParts` counts them.
+    val (unit, whole) = when {
+        absolute < 1.hours -> 1.minutes to absolute.inWholeMinutes.minutes
+        absolute < 1.days -> 1.hours to absolute.inWholeHours.hours
+        else -> 1.days to absolute.inWholeDays.days
+    }
+    return if (!remaining.isNegative()) {
+        // Down to the last whole unit, or to "now" where that comes first.
+        // Under two minutes there is no lower one to go to: under one is "1
+        // min" as well, so the next change is "now".
+        val floor = if (unit == 1.minutes && whole < 2.minutes) Duration.ZERO else whole
+        remaining - maxOf(floor, imminentThreshold) + 1.milliseconds
+    } else {
+        // Up to the next whole unit. Under a minute already reads "1 min", so
+        // the first change is at two.
+        maxOf(whole + unit, 2.minutes) - absolute
+    }
+}
+
+/** This, in whole seconds, rounded up: 3:59.98 is 4:00, and -1.5s is -1s. */
+internal fun Duration.secondsUp(): Duration {
+    val whole = inWholeSeconds.seconds
+    return if (this > whole) whole + 1.seconds else whole
+}
 
 /** See [RelativeParts]. The rounding rules live here. */
 internal fun relativeParts(

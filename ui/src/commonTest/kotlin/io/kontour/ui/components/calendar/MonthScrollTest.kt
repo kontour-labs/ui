@@ -1,5 +1,7 @@
 package io.kontour.ui.components.calendar
 
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -31,6 +33,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -52,6 +55,19 @@ class MonthScrollTest {
     private val periods = CalendarPeriods(DayOfWeek.MONDAY)
 
     // --- The rows and the months they show ---
+
+    /** A wheel's turn ends where it stops, and hands nothing on to the page round the month. */
+    @Test
+    fun aWheelsFlingIsNotHandedOn() {
+        val snap = object : FlingBehavior {
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float = error("a wheel's turn was snapped to a week")
+        }
+        val weeks = WeekSnap(snap).apply { byWheel = true }
+        val still = object : ScrollScope {
+            override fun scrollBy(pixels: Float): Float = 0f
+        }
+        assertEquals(0f, runBlocking { with(weeks) { still.performFling(1_000f) } })
+    }
 
     @Test
     fun aRowIsAWeekBothWaysRoundAcrossYearsAndBefore1970() {

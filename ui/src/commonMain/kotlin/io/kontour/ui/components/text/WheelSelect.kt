@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.input.pointer.pointerInput
@@ -178,7 +179,14 @@ fun <T> WheelSelect(
     val key = remember { Any() }
     val closeLabel = Theme.strings.closeMenu
 
+    // Written every frame the field scrolls, and read only where that costs
+    // nothing: by the panel's layout, through a lambda, and here as whether
+    // there is one at all. It was read in this body — by the effect's key and
+    // by `rememberUpdatedState` — so every wheel select on a scrolling page
+    // recomposed on every frame of the scroll, open or not. `Select` keeps its
+    // anchor out of its body for the same reason; see `WithAnchor`.
     var anchor by remember { mutableStateOf<Rect?>(null) }
+    val anchored by remember { derivedStateOf { anchor != null } }
 
     /**
      * Opened by a drag rather than a tap, so it folds away again by itself once
@@ -295,7 +303,6 @@ fun <T> WheelSelect(
         )
     }
 
-    val latestAnchor by rememberUpdatedState(anchor)
     val panel by rememberUpdatedState<@Composable () -> Unit> {
         // The drum has as many rows each side of its middle as the wheel shows
         // in all but one, so it can open to either side; the panel shows the
@@ -335,15 +342,15 @@ fun <T> WheelSelect(
             )
         }
         WheelPanel(
-            anchor = { latestAnchor },
+            anchor = { anchor },
             reach = visibleItems / 2,
             content = drum,
         )
     }
 
     DisposableEffect(Unit) { onDispose { host.hide(key) } }
-    LaunchedEffect(expanded, anchor != null) {
-        if (!expanded || anchor == null) {
+    LaunchedEffect(expanded, anchored) {
+        if (!expanded || !anchored) {
             host.hide(key)
             return@LaunchedEffect
         }

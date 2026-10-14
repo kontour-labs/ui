@@ -106,18 +106,19 @@ fun ProvideConcentric(
     content: @Composable () -> Unit,
 ) {
     val direction = LocalLayoutDirection.current
-    val even = remember(padding, direction) {
+    // **One provider, whatever the padding.** Even and uneven were two calls —
+    // the `Dp` overload for one and a provider of nothing for the other — and two
+    // calls are two places in the composition, so a card whose padding followed
+    // the window threw its content away the moment the ring stopped being even.
+    // What changes between the two is the value, and only the value.
+    val container = remember(shape, padding, direction) {
         val start = padding.calculateStartPadding(direction)
         val uniform = start == padding.calculateEndPadding(direction) &&
             start == padding.calculateTopPadding() &&
             start == padding.calculateBottomPadding()
-        if (uniform) start else null
+        if (uniform) (shape as? CornerBasedShape)?.let { ConcentricContainer(it, start) } else null
     }
-    if (even == null) {
-        CompositionLocalProvider(LocalConcentricContainer provides null, content = content)
-    } else {
-        ProvideConcentric(shape, even, content)
-    }
+    CompositionLocalProvider(LocalConcentricContainer provides container, content = content)
 }
 
 /**

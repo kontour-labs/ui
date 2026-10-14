@@ -102,6 +102,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -614,7 +616,19 @@ fun SwipeActions(
             }
             releasedToCommit = false
             onFull(action)
-            state.reset()
+            // **The way home can be taken over**, and that must not end this
+            // collector. A tap on the row as it slides back, a finger taking it,
+            // or the app's own `reset()` each start a move of their own, and the
+            // one here is interrupted with a cancellation. Let through, it ended
+            // the collector: the tick stayed drawn, the row stayed fully swiped,
+            // and no full swipe after it ran anything. Only this coroutine's own
+            // cancellation is passed on; whatever took the row over finishes the
+            // trip, and the settle it arrives at is what this hears next.
+            try {
+                state.reset()
+            } catch (_: CancellationException) {
+                currentCoroutineContext().ensureActive()
+            }
             confirmation.snapTo(0f)
         }
     }
@@ -787,11 +801,15 @@ fun SwipeActions(
             .closesOpenSwipeRows()
             .semantics {
                 // The only route to these that does not require knowing the
-                // gesture exists.
-                customActions = (start + end).map { action ->
-                    CustomAccessibilityAction(action.label) {
-                        action.onAction()
-                        true
+                // gesture exists. Withheld while disabled, as the gesture is: a
+                // row that could not be swiped still ran its actions for a
+                // screen reader that asked.
+                if (enabled) {
+                    customActions = (start + end).map { action ->
+                        CustomAccessibilityAction(action.label) {
+                            action.onAction()
+                            true
+                        }
                     }
                 }
             }
@@ -1311,6 +1329,7 @@ private fun grownWidth(index: Int, live: Float, count: Int, reveal: Float, gap: 
 private val NoConfirmation: () -> Float = { 0f }
 
 /** How much of itself a swipe action's button has room to show: see `SwipeActionButton`. */
+private const val RoomUnknown = -1
 private const val RoomNone = 0
 private const val RoomIcon = 1
 private const val RoomLabel = 2
@@ -1349,7 +1368,15 @@ private fun SwipeActionButton(
         // composes its content again for every new width: every button of a
         // swipe, every frame of it. The room is three answers, and this asks
         // for a composition when the answer changes, a handful of times a swipe.
-        val room = remember { mutableIntStateOf(RoomNone) }
+        //
+        // **Unknown until measure has answered**, not none. Starting at none, a
+        // button that is already wide the first time it is measured — a row
+        // composed open, as a restored or a screenshotted one is — went from no
+        // room to room for everything between its first two frames, and faded
+        // its icon and label in over a row that had not moved. Nothing is
+        // composed until the answer is in, and the first answer is shown as it
+        // is: an `AnimatedVisibility` composed visible does not enter.
+        val room = remember { mutableIntStateOf(RoomUnknown) }
         Box(
             // `fillMaxSize`, so the whole button is the target and not only the
             // icon and label in the middle of it.
@@ -1382,37 +1409,40 @@ private fun SwipeActionButton(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            val roomForLabel = room.intValue == RoomLabel
-            val roomForIcon = room.intValue != RoomNone
-            // **Arriving, not appearing.** Both came in on the frame there was
-            // room for them, which on a swipe is a pop partway through a smooth
-            // motion — reported as "a little bit janky when the text first
-            // appears". They fade and grow in as the room opens instead, and out
-            // the same way. A fade alone under reduced motion.
-            AnimatedVisibility(
-                visible = roomForIcon,
-                enter = if (reduceMotion) fadeIn() else fadeIn() + scaleIn(initialScale = SwipeContentFrom),
-                exit = if (reduceMotion) fadeOut() else fadeOut() + scaleOut(targetScale = SwipeContentFrom),
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
+            val answer = room.intValue
+            if (answer != RoomUnknown) {
+                val roomForLabel = answer == RoomLabel
+                val roomForIcon = answer != RoomNone
+                // **Arriving, not appearing.** Both came in on the frame there was
+                // room for them, which on a swipe is a pop partway through a smooth
+                // motion — reported as "a little bit janky when the text first
+                // appears". They fade and grow in as the room opens instead, and out
+                // the same way. A fade alone under reduced motion.
+                AnimatedVisibility(
+                    visible = roomForIcon,
+                    enter = if (reduceMotion) fadeIn() else fadeIn() + scaleIn(initialScale = SwipeContentFrom),
+                    exit = if (reduceMotion) fadeOut() else fadeOut() + scaleOut(targetScale = SwipeContentFrom),
                 ) {
-                    ConfirmingIcon(action.icon, content, confirmation, reduceMotion)
-                    // Dropping it costs nothing a screen reader can tell: the label
-                    // still reaches `CustomAccessibilityAction` on the row and
-                    // `onClickLabel` on this button.
-                    AnimatedVisibility(
-                        visible = roomForLabel,
-                        enter = if (reduceMotion) fadeIn() else fadeIn() + expandVertically(),
-                        exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkVertically(),
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Theme.spacing.xxs),
                     ) {
-                        Text(
-                            text = action.label,
-                            style = Theme.typography.labelSmall,
-                            colour = content,
-                            maxLines = 1,
-                        )
+                        ConfirmingIcon(action.icon, content, confirmation, reduceMotion)
+                        // Dropping it costs nothing a screen reader can tell: the label
+                        // still reaches `CustomAccessibilityAction` on the row and
+                        // `onClickLabel` on this button.
+                        AnimatedVisibility(
+                            visible = roomForLabel,
+                            enter = if (reduceMotion) fadeIn() else fadeIn() + expandVertically(),
+                            exit = if (reduceMotion) fadeOut() else fadeOut() + shrinkVertically(),
+                        ) {
+                            Text(
+                                text = action.label,
+                                style = Theme.typography.labelSmall,
+                                colour = content,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }

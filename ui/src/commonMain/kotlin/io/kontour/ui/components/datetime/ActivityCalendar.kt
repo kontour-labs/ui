@@ -491,11 +491,17 @@ fun ActivityCalendar(
             if (!ringVisible) return@LaunchedEffect
             val rect = cellRect(focusedDay) ?: return@LaunchedEffect
             val viewport = scroll.viewportSize
-            val left = rect.left.toInt()
-            val right = rect.right.toInt()
+            // Measured from the grid's start edge, as the scroll counts: right
+            // to left, its nought shows the right-hand end, so a cell's place
+            // from the left is the wrong way round. Compared as it was, the
+            // first key press in Arabic scrolled to the oldest weeks, away
+            // from the cursor it was bringing into view.
+            val width = with(density) { gridWidth.roundToPx() }
+            val near = (if (rtl) width - rect.right else rect.left).toInt()
+            val far = (if (rtl) width - rect.left else rect.right).toInt()
             when {
-                left < scroll.value -> scroll.animateScrollTo(left, scrollMotion.scrollSpec())
-                right > scroll.value + viewport -> scroll.animateScrollTo(right - viewport, scrollMotion.scrollSpec())
+                near < scroll.value -> scroll.animateScrollTo(near, scrollMotion.scrollSpec())
+                far > scroll.value + viewport -> scroll.animateScrollTo(far - viewport, scrollMotion.scrollSpec())
             }
         }
 

@@ -304,6 +304,11 @@ fun FabMenu(
     val feedback = LocalFeedback.current
 
     val latestItems by rememberUpdatedState(items)
+    // **Read as fresh as the items are.** The open entry outlives a change in
+    // how many items there are, and it read the items live and the springs as
+    // they were when it was shown: a fourth item added to an open menu of three
+    // looked for a fourth spring in a list of three, and threw.
+    val latestFractions by rememberUpdatedState(fractions)
     val latestLayout by rememberUpdatedState(layout)
     val latestShowLabels by rememberUpdatedState(showLabels)
     val latestItemSize by rememberUpdatedState(itemSize)
@@ -339,7 +344,7 @@ fun FabMenu(
                         FabMenuItems(
                             anchorInRoot = { latestAnchor },
                             items = latestItems,
-                            fractions = fractions,
+                            fractions = latestFractions,
                             layout = latestLayout,
                             showLabels = latestShowLabels,
                             itemSize = latestItemSize,

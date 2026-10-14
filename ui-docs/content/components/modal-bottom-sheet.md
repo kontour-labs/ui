@@ -85,6 +85,11 @@ is, and letting go puts it back.
 The app can still close it by setting `visible` to false, and should offer some
 way to. This is about what the *user* can do on their own.
 
+It is read as the user tries, not when the sheet opened, so
+`dismissible = !form.dirty` holds the sheet up from the first keystroke — the tap
+outside and the back gesture included — and lets it go again once the form is
+saved.
+
 Not the same as `draggable = false`, which stops the sheet moving at all and
 takes its handle with it. An undismissable sheet can still be dragged between its
 detents.

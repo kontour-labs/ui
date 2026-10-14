@@ -124,7 +124,9 @@ internal fun nearestStep(time: LocalTime, step: Int): Pair<LocalTime, Boolean> {
 
 /**
  * [TimePicker], and [onNow] for a [DateTimePicker], told when Now is pressed
- * whether the time it turns to is tomorrow's, so the date can go with it.
+ * whether the time it turns to is tomorrow's, so the date can go with it. It
+ * answers whether the date went: where tomorrow could not be taken, Now is the
+ * last step of today rather than midnight at its start.
  */
 @Composable
 internal fun TimeWheels(
@@ -136,7 +138,7 @@ internal fun TimeWheels(
     now: (() -> LocalTime)?,
     formats: LocaleFormats,
     onValueChangeFinished: (() -> Unit)?,
-    onNow: ((tomorrow: Boolean) -> Unit)?,
+    onNow: ((tomorrow: Boolean) -> Boolean)?,
 ) {
     require(minuteStep in 1..30) { "minuteStep must divide an hour sensibly" }
 
@@ -161,7 +163,12 @@ internal fun TimeWheels(
     }
     val displayHour = displayHourOf(value.hour)
     val hourIndex = hours.indexOf(displayHour).coerceAtLeast(0)
-    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.coerceAtLeast(0)
+    // A minute between two steps shows the step after it — except past the
+    // last step, where the one after is the next hour's :00, which this wheel
+    // cannot show without the hour. It showed this hour's :00 instead, and the
+    // drum, reporting the row it opened on, turned 9:58 into 9:00. The last
+    // step is the nearest this hour has.
+    val minuteIndex = minutes.indexOfFirst { it >= value.minute }.let { if (it < 0) minutes.lastIndex else it }
     val isPm = value.hour >= 12
 
     // The value as last reported, not as last composed: two wheels turning in
@@ -296,8 +303,13 @@ internal fun TimeWheels(
             // this is a shortcut to a place on them.
             Button(
                 onClick = {
-                    val (target, tomorrow) = nearestStep(now(), minuteStep)
-                    onNow?.invoke(tomorrow)
+                    val (rounded, tomorrow) = nearestStep(now(), minuteStep)
+                    // 23:58 by fives rounds to midnight, which is tomorrow's.
+                    // Where the date could not go with it, the wheels stop at
+                    // the last step of today: 00:00 on today's date is a day
+                    // before now, the furthest from it the wheels can show.
+                    val tookTomorrow = onNow?.invoke(tomorrow) ?: true
+                    val target = if (tomorrow && !tookTomorrow) LocalTime(23, minutes.last()) else rounded
                     val asked = listOf(
                         WheelTurn(hours.indexOf(displayHourOf(target.hour)).coerceAtLeast(0)),
                         WheelTurn(minutes.indexOf(target.minute).coerceAtLeast(0)),
