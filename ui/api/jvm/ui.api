@@ -1455,6 +1455,23 @@ public final class io/kontour/ui/components/list/ListItemScope {
 	public final fun unaryPlus (Ljava/lang/String;)V
 }
 
+public final class io/kontour/ui/components/list/ListItemSplit {
+	public static final field $stable I
+	public static final field Companion Lio/kontour/ui/components/list/ListItemSplit$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kontour/ui/components/list/ListItemSplit$Companion {
+	public final fun getAutoSquare ()Lio/kontour/ui/components/list/ListItemSplit;
+	public final fun getHalves ()Lio/kontour/ui/components/list/ListItemSplit;
+	public final fun getOneToTwo ()Lio/kontour/ui/components/list/ListItemSplit;
+	public final fun getSquareAuto ()Lio/kontour/ui/components/list/ListItemSplit;
+	public final fun getTwoToOne ()Lio/kontour/ui/components/list/ListItemSplit;
+	public final fun ratio (FF)Lio/kontour/ui/components/list/ListItemSplit;
+}
+
 public final class io/kontour/ui/components/list/LoadMoreStatus : java/lang/Enum {
 	public static final field End Lio/kontour/ui/components/list/LoadMoreStatus;
 	public static final field Error Lio/kontour/ui/components/list/LoadMoreStatus;
@@ -1526,6 +1543,18 @@ public final class io/kontour/ui/components/list/ScrollbarKt {
 
 public final class io/kontour/ui/components/list/ScrollbarListStateKt {
 	public static final fun rememberScrollbarListState (IILandroidx/compose/runtime/Composer;II)Landroidx/compose/foundation/lazy/LazyListState;
+}
+
+public final class io/kontour/ui/components/list/SplitListItemKt {
+	public static final fun SplitListItem (Landroidx/compose/ui/Modifier;Lio/kontour/ui/components/list/ListItemSplit;Lio/kontour/ui/foundation/GroupPosition;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class io/kontour/ui/components/list/SplitListItemScope {
+	public static final field $stable I
+	public final fun end-HVW1qPw (Lkotlin/jvm/functions/Function0;ZZILjava/lang/String;Landroidx/compose/ui/graphics/Color;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun end-HVW1qPw$default (Lio/kontour/ui/components/list/SplitListItemScope;Lkotlin/jvm/functions/Function0;ZZILjava/lang/String;Landroidx/compose/ui/graphics/Color;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun start-HVW1qPw (Lkotlin/jvm/functions/Function0;ZZILjava/lang/String;Landroidx/compose/ui/graphics/Color;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun start-HVW1qPw$default (Lio/kontour/ui/components/list/SplitListItemScope;Lkotlin/jvm/functions/Function0;ZZILjava/lang/String;Landroidx/compose/ui/graphics/Color;Landroidx/compose/foundation/interaction/MutableInteractionSource;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public final class io/kontour/ui/components/list/SwipeAction {

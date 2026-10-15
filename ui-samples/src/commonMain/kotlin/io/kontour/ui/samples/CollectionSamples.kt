@@ -4,6 +4,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import androidx.compose.ui.semantics.Role
+import io.kontour.icons.tabler.outline.Star
+import io.kontour.icons.tabler.outline.Train
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
@@ -197,6 +202,29 @@ fun DisclosureListItemBasics() {
         },
     ) {
         Text("Trains give way to freight between Midland and Bellevue. A delay there reaches every stop after it.")
+    }
+}
+
+@Composable
+fun SplitListItemBasics() {
+    var saved by remember { mutableStateOf(false) }
+
+    // A stop, and beside it the one thing to do with it: two rows joined into
+    // one, each its own control, the square as wide as the row is tall.
+    SplitListItem(split = ListItemSplit.AutoSquare) {
+        start(onClick = { /* open the stop */ }) {
+            leading { +Tabler.Outline.Train }
+            +"Perth Underground"
+            supporting { +"Platform 2 · Joondalup line" }
+        }
+        end(
+            onClick = { saved = !saved },
+            selected = saved,
+            role = Role.Checkbox,
+            contentDescription = "Save Perth Underground",
+        ) {
+            leading { +Tabler.Outline.Star }
+        }
     }
 }
 

@@ -8,6 +8,11 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import io.kontour.icons.tabler.outline.Bike
 import io.kontour.icons.tabler.outline.HelpCircle
 import io.kontour.ui.components.list.DisclosureListItem
+import io.kontour.ui.components.list.ListItemScope
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
+import io.kontour.icons.tabler.outline.Clock
+import io.kontour.icons.tabler.outline.Train
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -169,6 +174,64 @@ internal val DisclosureListItemDemo = ComponentDemo(slug = "disclosure-list-item
             },
         ) {
             Text("Outside the peaks, in the marked carriage, as long as it does not block a door.")
+        }
+    }
+}
+
+/** How the two halves share a row, by the names the page gives them. */
+private val splitPreset = Knob.Choice(
+    "Split",
+    listOf(
+        "50/50" to ListItemSplit.Halves,
+        "Auto/square" to ListItemSplit.AutoSquare,
+        "Square/auto" to ListItemSplit.SquareAuto,
+        "2/1" to ListItemSplit.TwoToOne,
+        "1/2" to ListItemSplit.OneToTwo,
+    ),
+    name = { it.first },
+)
+
+internal val SplitListItemDemo = ComponentDemo(slug = "split-list-item", knobs = listOf(splitPreset)) {
+    val split = this[splitPreset].second
+    val square = split == ListItemSplit.AutoSquare || split == ListItemSplit.SquareAuto
+    var saved by remember { mutableStateOf(setOf("Perth Underground")) }
+    val stops = listOf(
+        Triple("Perth Underground", "Platform 2 · Joondalup line", "4 min"),
+        Triple("Elizabeth Quay", "Stand C · Route 950", "11 min"),
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.Spacing)) {
+        stops.forEachIndexed { index, (stop, where, next) ->
+            SplitListItem(split = split, position = GroupPosition.of(index, stops.size)) {
+                // The stop on one side and its own action on the other: a tile
+                // that saves it where there is a square, and the next service
+                // where the two share the row.
+                val words: ListItemScope.() -> Unit = {
+                    leading { +Tabler.Outline.Train }
+                    +stop
+                    supporting { +where }
+                }
+                val action: ListItemScope.() -> Unit = if (square) {
+                    { leading { +Tabler.Outline.Star } }
+                } else {
+                    {
+                        leading { +Tabler.Outline.Clock }
+                        +next
+                        supporting { +"Next service" }
+                    }
+                }
+                val toggle = { saved = if (stop in saved) saved - stop else saved + stop }
+                if (split == ListItemSplit.SquareAuto) {
+                    start(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
+                    end(onClick = {}, content = words)
+                } else {
+                    start(onClick = {}, content = words)
+                    if (square) {
+                        end(onClick = toggle, selected = stop in saved, role = Role.Checkbox, contentDescription = "Save $stop", content = action)
+                    } else {
+                        end(onClick = {}, content = action)
+                    }
+                }
+            }
         }
     }
 }
@@ -757,6 +820,7 @@ internal val collectionDemos = listOf(
     ListItemDemo,
     ExpandingListItemDemo,
     DisclosureListItemDemo,
+    SplitListItemDemo,
     ListSectionDemo,
     SwipeActionsDemo,
     ReorderableItemDemo,

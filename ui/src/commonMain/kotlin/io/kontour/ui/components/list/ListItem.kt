@@ -248,6 +248,13 @@ internal fun ListItemImpl(
      * of a text selection, as a row with an `onClick` does.
      */
     interaction: Modifier? = null,
+    /**
+     * Whether what the row holds sits in its middle rather than from its start:
+     * the square half of a [SplitListItem], an icon or a short value on a tile
+     * no wider than it is tall. The text takes only its own width, and the
+     * padding is the same either side.
+     */
+    centred: Boolean = false,
 ) {
     val colours = Theme.colours
     val interactions = interactionSource ?: remember { MutableInteractionSource() }
@@ -350,9 +357,19 @@ internal fun ListItemImpl(
                     // so the padding was never what set the height — it only pushed a
                     // two-line row taller than it needed to be. `MinHeight` holds the
                     // floor for the one-line case, which is what it is for.
-                    .padding(start = startPadding, end = Theme.spacing.md)
+                    .then(
+                        if (centred) {
+                            Modifier.padding(horizontal = Theme.spacing.xs)
+                        } else {
+                            Modifier.padding(start = startPadding, end = Theme.spacing.md)
+                        },
+                    )
                     .padding(vertical = Theme.spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Theme.spacing.md),
+                horizontalArrangement = if (centred) {
+                    Arrangement.spacedBy(Theme.spacing.xs, Alignment.CenterHorizontally)
+                } else {
+                    Arrangement.spacedBy(Theme.spacing.md)
+                },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val muted = if (enabled) colours.contentMuted else colours.contentDisabled
@@ -368,7 +385,10 @@ internal fun ListItemImpl(
                     }
                 }
 
-                Column(Modifier.weight(1f)) {
+                // Centred, a row of nothing but a glyph has no words to make
+                // room for: an empty column would still take a gap beside it.
+                val words = slots.overline != null || slots.label != null || slots.supporting != null
+                if (!centred || words) Column(if (centred) Modifier else Modifier.weight(1f)) {
                     slots.overline?.let { overline ->
                         ProvideContentColour(muted) {
                             ProvideTextStyle(Theme.typography.labelSmall) {

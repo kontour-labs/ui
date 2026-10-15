@@ -285,6 +285,14 @@ frame rate.
 
 ### Added
 
+- **[`SplitListItem`](components/split-list-item.md): two rows of a list side
+  by side, as one row.** Each half is a `ListItem` of its own — its own press,
+  selection, focus and screen-reader stop — joined as a group's rows are, with
+  the hairline between them and the facing corners cut square, and it takes its
+  outside corners from `position` like any row. `ListItemSplit` shares the
+  width: `Halves`, `TwoToOne` and `OneToTwo`, `AutoSquare` and `SquareAuto` for a
+  tile as wide as the row is tall beside the rest, or `ratio(start, end)`. Both
+  halves are as tall as the taller, and a square grows with its row.
 - **A [select](components/select.md)'s options can be drawn rather than named.**
   `optionContent`, the trailing lambda of `Select`,
   [`MultiSelect`](components/multi-select.md) and

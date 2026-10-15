@@ -141,6 +141,8 @@ import io.kontour.ui.components.display.StepProgress
 import io.kontour.ui.components.display.CircularStepProgress
 import io.kontour.ui.components.display.rememberCarouselState
 import io.kontour.ui.components.list.DisclosureListItem
+import io.kontour.ui.components.list.ListItemSplit
+import io.kontour.ui.components.list.SplitListItem
 import io.kontour.ui.components.list.ExpandingListItem
 import io.kontour.ui.components.list.IndexAlphabet
 import io.kontour.ui.components.list.IndexScroller
@@ -1652,6 +1654,33 @@ val componentRegistry: List<ComponentSpec> = buildList {
                 enabled = enabled,
             ) {
                 Text("Trains give way to freight between Midland and Bellevue.")
+            }
+        }
+    )
+
+    add(
+        // Two rows as one. The specimen's start half is the control and its end
+        // half a value, so there is one clickable to find; the square state
+        // photographs the tile beside a row, as wide as the row is tall.
+        ComponentSpec(
+            name = "SplitListItem",
+            role = Role.Button,
+            control = ControlLocator.Clickable,
+            states = listOf(
+                RenderState("square", height = 90) { modifier ->
+                    SplitListItem(modifier = modifier.width(SpecimenProseWidth), split = ListItemSplit.AutoSquare) {
+                        start(onClick = {}) {
+                            +"Perth Underground"
+                            supporting { +"Platform 2" }
+                        }
+                        end(onClick = {}, contentDescription = "Save") { leading { +Tabler.Outline.Star } }
+                    }
+                },
+            ),
+        ) { modifier, enabled, onClick ->
+            SplitListItem(modifier = modifier.width(SpecimenProseWidth)) {
+                start(onClick = onClick, enabled = enabled) { +"Perth Underground" }
+                end { +"4 min" }
             }
         }
     )

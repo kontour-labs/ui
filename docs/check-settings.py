@@ -171,6 +171,8 @@ QUIET_FILL_ALLOWED = {
     "that draw the indicator give it the selection edge",
     "NavigationSuiteScaffold.kt": "hands the rail a raised ground; `NavRail` "
     "draws the tier's edge round it",
+    "SplitListItem.kt": "each half is a list row, which draws the tier's edge "
+    "itself (`edged`) and the selection's",
 }
 MAX_QUIET_FILLS = 0
 
